@@ -16,6 +16,7 @@ module lattice_mod
                           t_k_space_hubbard, t_trans_corr_hop, &
                           t_new_real_space_hubbard
     use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     use util_mod, only: stop_all
 
     implicit none
@@ -2416,7 +2417,7 @@ contains
         file_reader = ManagingFileReader_t("lattice.file")
 
         readsites: do while (file_reader%nextline(tokens))
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case (w)
             case ('SITE')
                 n_site = tokens%get_int()
@@ -5159,7 +5160,7 @@ contains
         file_reader = ManagingFileReader_t("lattice.file")
 
         lat: do while (file_reader%nextline(tokens))
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case (w)
             case ('N_SITES')
                 n_sites = tokens%get_int()
@@ -5186,14 +5187,14 @@ contains
         file_reader = ManagingFileReader_t("lattice.file")
 
         lat: do while (file_reader%nextline(tokens))
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
 
             select case (w)
             case ('DIM')
                 call this%set_ndim(tokens%get_int())
 
             case ('LATTICE_TYPE')
-                this%name = tokens%get_upper()
+                this%name = to_upper(tokens%next())
 
             case ('LATTICE_PARAM')
                 x1 = tokens%get_int()

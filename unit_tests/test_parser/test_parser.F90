@@ -4,7 +4,7 @@ module test_parser_mod
     use fruit
     use constants, only: dp, n_int, int64, stdout
     use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t, tokenize, get_range
-    use fortran_strings, only: Token_t
+    use fortran_strings, only: Token_t, to_lower, to_upper
     ! use util_mod, only: remove
     better_implicit_none
     private
@@ -42,8 +42,8 @@ contains
 
             call assert_true(file_reader%nextline(tokens))
             call assert_equals(2, tokens%remaining_items())
-            call assert_equals('System', tokens%get_char())
-            call assert_equals('read', tokens%get_lower())
+            call assert_equals('System', tokens%next())
+            call assert_equals('read', to_lower(tokens%next()))
             call assert_equals(0, tokens%remaining_items())
 
             call assert_true(file_reader%nextline(tokens))
@@ -54,14 +54,14 @@ contains
 
             call assert_true(file_reader%nextline(tokens))
             call assert_equals(2, tokens%remaining_items())
-            call assert_equals('GAS-CI', tokens%get_upper())
-            call assert_equals('GENERAL-PCHB', tokens%get_upper())
+            call assert_equals('GAS-CI', to_upper(tokens%next()))
+            call assert_equals('GENERAL-PCHB', to_upper(tokens%next()))
             call assert_equals(0, tokens%remaining_items())
 
             call assert_true(file_reader%nextline(tokens))
             call assert_equals(9, tokens%remaining_items())
-            call assert_equals('GAS-SPEC', tokens%get_upper())
-            call assert_equals('LOCAL', tokens%get_upper())
+            call assert_equals('GAS-SPEC', to_upper(tokens%next()))
+            call assert_equals('LOCAL', to_upper(tokens%next()))
             call assert_equals(30_int64, tokens%get_int64())
             block
                 integer :: i
@@ -123,9 +123,9 @@ contains
 
         tokens = TokenIterator_t(tokenize('A 123 B # sadfsfd'))
         call assert_equals(3, tokens%remaining_items())
-        call assert_equals(tokens%get_char(), 'A')
+        call assert_equals(tokens%next(), 'A')
         call assert_equals(tokens%get_int64(), 123_int64)
-        call assert_equals(tokens%get_char(), 'B')
+        call assert_equals(tokens%next(), 'B')
         call assert_equals(0, tokens%remaining_items())
         !
         ! expected = [Token_t('A'), Token_t('B'), Token_t('C')]

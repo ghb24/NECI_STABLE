@@ -9,6 +9,7 @@ module real_time_read_input_module
   use SystemData, only: nel, tComplexWalkers_RealInts, t_complex_ints
   use constants
   use input_parser_mod, only: FileReader_t, TokenIterator_t
+  use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
 
   implicit none
 
@@ -41,7 +42,7 @@ module real_time_read_input_module
 
         real_time: do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
 
             select case (w)
                 ! have to enter all the different input options here

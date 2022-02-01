@@ -10,7 +10,8 @@ module kp_fciqmc_init
     use util_mod, only: near_zero
     use FciMCData, only: core_run
     use core_space_util, only: cs_replicas
-  use input_parser_mod, only: FileReader_t, TokenIterator_t
+    use input_parser_mod, only: FileReader_t, TokenIterator_t
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     implicit none
 
 contains
@@ -73,7 +74,7 @@ contains
 
         read_inp: do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case (w)
             case ("END-KP-FCIQMC")
                 exit read_inp

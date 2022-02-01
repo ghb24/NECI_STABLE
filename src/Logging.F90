@@ -35,6 +35,8 @@ MODULE Logging
 
     use input_parser_mod, only: FileReader_t, TokenIterator_t
 
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+
     IMPLICIT NONE
 
     logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp
@@ -245,7 +247,7 @@ contains
         PertFile(:) = ''
         logging: do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case (w)
 
             case ("PRINT-MOLCAS-RDMS")
@@ -314,7 +316,7 @@ contains
 !Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
 !This is default on, but can be turned off with this keyword followed by OFF.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tHFPopStartBlock = .false.
@@ -327,7 +329,7 @@ contains
 !Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
 !This is default on, but can be turned off with this keyword followed by OFF.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tInitShiftBlocking = .false.
@@ -358,7 +360,7 @@ contains
 !Turning this option on prints out a new FCIDUMP file at the end of the orbital rotation.  At the moment, the rotation is very slow
 !so this will prevent us having to do the transformation every time we run a calculation on a particular system
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROFCIDUMP = .false.
@@ -435,7 +437,7 @@ contains
             case ("ROHISTOFFDIAG")
 !This option creates a histogram of the <ij|kl> terms where i<k and j<l.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     tROHistOffDiag = (w /= 'OFF')
                     select case (w)
                     case ("OFF")
@@ -448,7 +450,7 @@ contains
             case ("ROHISTDOUBEXC")
 !This option creates a histogram of the 2<ij|kl>-<ij|lk> terms, the off diagonal hamiltonian elements for double excitations.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistDoubExc = .false.
@@ -460,7 +462,7 @@ contains
             case ("ROHISTSINGEXC")
 !This option creates a histogram of the single excitation hamiltonian elements.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistSingExc = .false.
@@ -472,7 +474,7 @@ contains
             case ("ROHISTER")
 !This option creates a histogram of the <ii|ii> terms, the ones that are maximised in the edmiston-reudenberg localisation.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistER = .false.
@@ -484,7 +486,7 @@ contains
             case ("ROHISTONEElINTS")
 !This option creates a histogram of the one electron integrals, the <i|h|i> terms.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistOneElInts = .false.
@@ -496,7 +498,7 @@ contains
             case ("ROHISTONEPARTORBEN")
 !This option creates a histogram of the one particle orbital energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>].
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistOnePartOrbEn = .false.
@@ -508,7 +510,7 @@ contains
             case ("ROHISTVIRTCOULOMB")
 !This option creates a histogram of the coulomb integrals, <ij|ij>, where i and j are both virtual and i<j.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistVirtCoulomb = .false.
@@ -779,7 +781,7 @@ contains
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this
 !is so if the CALCRDMENERGY keyword is present.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tDo_Not_Calc_2RDM_est = .true.
@@ -801,7 +803,7 @@ contains
                 if (iNumPropToEst > 3) then
                     call stop_all(t_r, 'Only 3 different property integrals allowed')
                 end if
-                PertFile(iNumPropToEst) = tokens%get_upper()
+                PertFile(iNumPropToEst) = to_upper(tokens%next())
 
             case ("NORDMINSTENERGY")
 !Only calculate and print out the RDM energy (from the 2-RDM) at the end of the simulation
@@ -824,7 +826,7 @@ contains
                 ! writing a normal POPSFILE, we'll write this too, unless
                 ! **WRITERDMSTOREAD** OFF is used.
                 IF (tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tno_RDMs_to_read = .true.
@@ -1124,7 +1126,7 @@ contains
 !  We log the value
                 ILOGGING = IOR(ILOGGING, 2**0)
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("LABEL")
                         ILOGGING = IOR(ILOGGING, 2**2)
@@ -1145,7 +1147,7 @@ contains
                 end do
             case ("CALCPATH")
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("LABEL")
                         ILOGGING = IOR(ILOGGING, 2**4)
@@ -1166,7 +1168,7 @@ contains
                 ILOGGING = IOR(ILOGGING, 2**8)
             case ("TIMING")
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("LEVEL")
                         iGlobalTimerLevel = tokens%get_int()
@@ -1179,7 +1181,7 @@ contains
                 end do
             case ("VERTEX")
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                         ! case("1000")
                         !     ILOGGING = IOR(ILOGGING,2**9)
@@ -1398,7 +1400,7 @@ contains
                 t_symmetry_analysis = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_lower()
+                    w = to_lower(tokens%next())
 
                     select case (w)
 
@@ -1416,7 +1418,7 @@ contains
 
                         ! available mirror axes are : 'x','y','d' and 'o'
                         if (tokens%remaining_items() > 0) then
-                            symmertry_mirror_axis = tokens%get_lower()
+                            symmertry_mirror_axis = to_lower(tokens%next())
                         else
                             symmertry_mirror_axis = 'x'
                         end if
@@ -1439,7 +1441,7 @@ contains
                 ! required input to determine which states to consider.
                 ! Two options:
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_lower()
+                    w = to_lower(tokens%next())
                     select case (w)
                     case ('input', 'read')
                         t_read_symmetry_states = .true.

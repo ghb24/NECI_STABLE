@@ -145,6 +145,7 @@ module soft_exit
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
+    use fortran_strings, only: to_lower
 
     implicit none
 
@@ -332,7 +333,7 @@ contains
 
                     ! Loop over all options specified in the file.
                     do while (file_reader%nextline(tokens))
-                        w = tokens%get_lower()
+                        w = to_lower(tokens%next())
 
                         ! Mark any selected options.
                         do i = 1, last_item

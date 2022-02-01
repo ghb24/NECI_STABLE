@@ -45,6 +45,8 @@ MODULE System
 
     use guga_data, only: tGUGACore
 
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+
     IMPLICIT NONE
 
 contains
@@ -285,13 +287,13 @@ contains
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
-        w = incompletely_parsed_tokens%get_upper()
+        w = to_upper(incompletely_parsed_tokens%next())
         select case (w)
 
         case ("DFREAD")             ! Instead, specify DensityFitted within the system block.
             TREADINT = .true.
             TDFREAD = .true.
-            w = incompletely_parsed_tokens%get_upper()
+            w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -301,7 +303,7 @@ contains
         case ("BINREAD")            ! Instead, specify Binary within the system block.
             TREADINT = .true.
             TBIN = .true.
-            w = incompletely_parsed_tokens%get_upper()
+            w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -310,7 +312,7 @@ contains
             end select
         case ("READ", "GENERIC")
             TREADINT = .true.
-            w = incompletely_parsed_tokens%get_upper()
+            w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -331,7 +333,7 @@ contains
                 ! use the already provided setup routine and just modify the
                 ! necessary stuff, like excitation generators!
                 t_new_hubbard = .true.
-                w = incompletely_parsed_tokens%get_lower()
+                w = to_lower(incompletely_parsed_tokens%next())
                 select case (w)
                 case ('real-space', 'real')
                     treal = .true.
@@ -342,7 +344,7 @@ contains
                     ! assumed! but this still needs to be implemented
                     ! this fcidump gives the lattice structure!
                     if (incompletely_parsed_tokens%remaining_items() > 0) then
-                        lattice_type = incompletely_parsed_tokens%get_lower()
+                        lattice_type = to_lower(incompletely_parsed_tokens%next())
                     else
                         lattice_type = 'read'
                     end if
@@ -391,7 +393,7 @@ contains
             tVASP = .true.
         case ("CPMD")
             TCPMD = .true.
-            w = incompletely_parsed_tokens%get_upper()
+            w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -405,7 +407,7 @@ contains
         ! Now parse the rest of the system block.
         system: do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case (w)
 
                 ! Options for molecular (READ) systems: control how the integral file
@@ -491,7 +493,7 @@ contains
 
                 tReadFreeFormat = .true.
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF", "FALSE")
                         tReadFreeFormat = .false.
@@ -544,7 +546,7 @@ contains
                     fRc = tokens%get_realdp()
                 end if
             case ("EXCHANGE")
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case (w)
                 case ("ON")
                     TEXCH = .TRUE.
@@ -616,7 +618,7 @@ contains
                 ! optionally supply the three-body integrals of the TC Hamiltonian
                 t_3_body_excits = .true.
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("3-BODY")
                         t_mol_3_body = .true.
@@ -640,7 +642,7 @@ contains
                 t_ueg_transcorr = .true.
                 t_non_hermitian = .true.
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("3-BODY")
                         tTrcorrExgen = .false.
@@ -754,7 +756,7 @@ contains
 
                 ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
             case ("REAL_LATTICE_TYPE")
-                real_lattice_type = tokens%get_lower()
+                real_lattice_type = to_lower(tokens%next())
                 ! Options for the dimension (1, 2, or 3)
             case ("DIMENSION")
                 dimen = tokens%get_int()
@@ -763,7 +765,7 @@ contains
                 ! gas with contact interaction)
             case ("TRANSCORRCUTOFF")
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("GAUSS")
                         if (dimen /= 1) stop 'Gauss cutoff is developed only for 1D!'
@@ -809,7 +811,7 @@ contains
                 ! 3D gas with contact interaction
             case ("TRANSCORRINFSUM")
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("CALC")
                         tInfSumTCCalc = .true.
@@ -880,7 +882,7 @@ contains
 
             case ("ANTI-PERIODIC-BC")
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
 
                     select case (w)
                     case ("X")
@@ -917,7 +919,7 @@ contains
                 ! open boundary conditions are used if this keyword is present!
 
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
 
                     select case (w)
                     case ("X")
@@ -975,7 +977,7 @@ contains
 
                 if (tokens%remaining_items() > 0) then
                     ! use only new hubbard flags in this case
-                    lattice_type = tokens%get_lower()
+                    lattice_type = to_lower(tokens%next())
                 end if
 
                 if (tokens%remaining_items() > 0) then
@@ -1031,7 +1033,7 @@ contains
                 !   to take this into account.  Not all excitation generator functions
                 !   currently work with this.  USE WITH CARE
                 if (tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tAbelianFastExcitGen = .false.
@@ -1348,7 +1350,7 @@ contains
 !enough that this should be an unneccesary expense.
                 tNonUniRandExcits = .true.
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("NOSYM_GUGA")
                         call Stop_All(this_routine, "'nosym-guga' option deprecated!")
@@ -1360,7 +1362,7 @@ contains
                         tGen_sym_guga_ueg = .true.
 
                         if (tokens%remaining_items() > 0) then
-                            w = tokens%get_upper()
+                            w = to_upper(tokens%next())
 
                             select case (w)
 
@@ -1368,7 +1370,7 @@ contains
                                 tgen_guga_mixed = .true.
 
                                 if (tokens%remaining_items() > 0) then
-                                    w = tokens%get_upper()
+                                    w = to_upper(tokens%next())
 
                                     select case (w)
                                     case ("SEMI")
@@ -1417,7 +1419,7 @@ contains
                         end if
 
                         if (tokens%remaining_items() > 0) then
-                            w = tokens%get_upper()
+                            w = to_upper(tokens%next())
 
                             select case (w)
                             case ('SEMI')
@@ -1442,7 +1444,7 @@ contains
                         end if
 
                         if (tokens%remaining_items() > 0) then
-                            w = tokens%get_upper()
+                            w = to_upper(tokens%next())
                             select case (w)
                             case ('NON-INITS')
                                 ! only do the approx. for noninits
@@ -1467,7 +1469,7 @@ contains
                         end if
 
                         if (tokens%remaining_items() > 0) then
-                            w = tokens%get_upper()
+                            w = to_upper(tokens%next())
 
                             select case (w)
                             case ('NON-INITS')
@@ -1558,7 +1560,7 @@ contains
 
                         ! make a few small tests for the frequency histograms
                         if (tokens%remaining_items() > 0) then
-                            w = tokens%get_upper()
+                            w = to_upper(tokens%next())
 
                             select case (w)
                             case ("IIAA")
@@ -1764,7 +1766,7 @@ contains
                     ! cn_min, cn_max are cumulated particle numbers per GAS space
                     integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
                                             spat_GAS_orbs(:), beta_orbs(:)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     if (w == 'LOCAL') then
                         cumulative_constraints = .false.
                     else if (w == 'CUMULATIVE') then
@@ -1790,7 +1792,7 @@ contains
 
                         i_orb = 1
                         do while (i_orb  <= n_spat_orbs)
-                            w = tokens%get_upper()
+                            w = to_upper(tokens%next())
                             if ('*' .in. w) then
                                 splitted = split(w, '*')
                                 read(splitted(1)%str, *) times
@@ -1805,7 +1807,7 @@ contains
                     end block
 
                     if (tokens%remaining_items() > 0) then
-                        w = tokens%get_upper()
+                        w = to_upper(tokens%next())
                         select case (w)
                         case ('RECOUPLING')
                             recoupling = .true.
@@ -1831,7 +1833,7 @@ contains
                 end block
 
             case ("GAS-CI")
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case (w)
                 case ('GENERAL')
                     user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
@@ -1843,9 +1845,9 @@ contains
                     user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
 
                     if (tokens%remaining_items() > 0) then
-                        w = tokens%get_upper()
+                        w = to_upper(tokens%next())
                         if (w == 'SINGLES') then
-                            w = tokens%get_upper()
+                            w = to_upper(tokens%next())
                             select case (w)
                             case('DISCARDING-UNIFORM')
                                 GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
@@ -1873,7 +1875,7 @@ contains
                 if (tokens%remaining_items() > 0) then
                 block
                     character(len=100) :: w
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case ("TRUNCATE-LADDER-OPERATOR")
                         tTruncatedLadderOps = .true.

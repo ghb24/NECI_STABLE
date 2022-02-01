@@ -52,6 +52,8 @@ module Integrals_neci
     use read_fci, only: clear_orb_perm
 
     use input_parser_mod, only: FileReader_t, TokenIterator_t
+
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     implicit none
 
 contains
@@ -137,7 +139,7 @@ contains
 
         integral: do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case(w)
             case ("DUMPFCIDUMP")
                 tDumpFCIDUMP = .true.
@@ -203,7 +205,7 @@ contains
                 HFRAND = tokens%get_realdp()
             case ("THRESHOLD")
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case ("ENERGY")
                         HFEDELTA = tokens%get_realdp()
@@ -220,10 +222,10 @@ contains
             case ("UHF")
                 TRHF = .false.
             case ("HFMETHOD")
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case ("DESCENT")
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case ("OTHER")
                         IHFMETHOD = 2
@@ -243,7 +245,7 @@ contains
 
             case ("READ")
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case ("MATRIX")
                         TREADTUMAT = .true.
@@ -330,7 +332,7 @@ contains
                     end if
                 end do
             case ("UMATCACHE")
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case ("SLOTS")
                     NSLOTSINIT = tokens%get_int()
@@ -356,7 +358,7 @@ contains
                 NSLOTSINIT = -1
 
             case ("DFMETHOD")
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case ("DFOVERLAP")
                     iDFMethod = 1

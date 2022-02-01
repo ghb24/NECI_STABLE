@@ -9,6 +9,7 @@ MODULE ReadInput_neci
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s
     use input_parser_mod, only: TokenIterator_t, AttachedFileReader_t
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -96,10 +97,10 @@ contains
         end if
         Do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             Select case (w)
             Case ("DEFAULTS")
-                x = tokens%get_upper()
+                x = to_upper(tokens%next())
                 select case (x)
 !Add default options here
                 case ("DEFAULT")
@@ -151,7 +152,7 @@ contains
 
         Do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case (w)
             case ("TITLE")
                 do while (tokens%remaining_items() > 0)

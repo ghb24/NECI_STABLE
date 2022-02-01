@@ -71,6 +71,8 @@ MODULE Calc
     use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range
 
     use sets_mod, only: disjoint, operator(.U.)
+
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -529,13 +531,13 @@ contains
         t_force_global_core = .false.
         calc: do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case(w)
 
             case("HAMILTONIAN")
                 TCALCHMAT = .true.
                 IF(tokens%remaining_items() > 0) THEN
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("STAR")
                         TSTAR = .TRUE.
@@ -596,7 +598,7 @@ contains
             case("ACCURACY")
                 B2L = tokens%get_realdp()
             case("BLOCK")
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case("OFF")
                     TBLOCK = .false.
@@ -608,7 +610,7 @@ contains
             case("EXCITE", "EXCIT-LEVEL", "EXCITLEVEL")
                 ICILEVEL = tokens%get_int()
             case("EXCITATIONS")
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case("NEW")
                     TNEWEXCITATIONS = .TRUE.
@@ -652,7 +654,7 @@ contains
                 endif
 
                 ! Read the filename that provides the integral of the field
-                TempFieldFiles(nFields_it) = tokens%get_upper()
+                TempFieldFiles(nFields_it) = to_upper(tokens%next())
 
                 ! Read the strength of the Field
                 if (tokens%remaining_items() > 0) TempStrength(nFields_it) = tokens%get_realdp()
@@ -667,7 +669,7 @@ contains
                     if(eof) then
                         call stop_all(this_routine, "Incomplete input file", .true.)
                     end if
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(trim(w))
                     case("METHOD")
                         I_VMAX = I_VMAX + 1
@@ -675,7 +677,7 @@ contains
                         call inpgetmethod(tokens, NWHTAY(1, I_VMAX), NWHTAY(2, I_VMAX),&
         &                I_VMAX)
                     case("EXCITATIONS")
-                        w = tokens%get_upper()
+                        w = to_upper(tokens%next())
                         call inpgetexcitations(NWHTAY(2, I_VMAX), w)
                     case("CYCLES")
                         NWHTAY(2, I_VMAX) = tokens%get_int()
@@ -773,7 +775,7 @@ contains
                 TMPTHEORY = .TRUE.
                 if(tokens%remaining_items() > 0) then
                     ! Something else remains on the line.
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("ONLY")
                         tMP2Standalone = .true.
@@ -889,13 +891,13 @@ contains
                 end do
                 EXCITFUNCS(6) = .true.
             case("PATHS")
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case("ALL")
                     NPATHS = -1
                 case("ACTIVE")
                     if(tokens%remaining_items() > 0) then
-                        w = tokens%get_upper()
+                        w = to_upper(tokens%next())
                         select case(w)
                         case("ORBITALS")
                             NPATHS = -3
@@ -1110,7 +1112,7 @@ contains
 !for spawing in a restricted calc.
                 CALL Stop_All(t_r, "PRINTDOMSPINCOUPLED option depreciated")
 !                if(item.lt.nitems) then
-!                    w = tokens%get_upper()
+!                    w = to_upper(tokens%next())
 !                    select case(w)
 !                    case("OFF")
 !                        tNoDomSpinCoup=.true.
@@ -1270,7 +1272,7 @@ contains
                 ! If SEARCH is provided, use this value as the starting value
                 ! for tau searching
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("SEARCH")
                         tSearchTau = .true.
@@ -1368,7 +1370,7 @@ contains
                 end if
 
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case('TRUNC')
                         t_guga_back_spawn_trunc = .true.
@@ -1464,7 +1466,7 @@ contains
                 if(tokens%remaining_items() > 0) then
                     n_truncate_spawns = tokens%get_realdp()
                     if(tokens%remaining_items() > 0) then
-                        w = tokens%get_upper()
+                        w = to_upper(tokens%next())
                         select case(w)
                         case("UNOCC")
                             t_truncate_unocc = .true.
@@ -1902,7 +1904,7 @@ contains
             case("CORE-INITS")
                 ! Make all determinants in the core-space initiators
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("ON")
                         t_core_inits = .true.
@@ -1928,7 +1930,7 @@ contains
                 tAllConnsPureInit = .true.
             case("ALLOW-SIGNED-SPAWNS")
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("POS")
                         allowedSpawnSign = 1
@@ -2343,7 +2345,7 @@ contains
                 ! cycle when updating the shift.
 
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("OFF")
                         tInstGrowthRate = .true.
@@ -2564,7 +2566,7 @@ contains
 !This now is on by default, and can only be turned off by specifying OFF after the input.
                 CALL Stop_All(t_r, "ANNIHILATEONPROCS option depreciated")
 !                IF(item.lt.nitems) then
-!                    w = tokens%get_upper()
+!                    w = to_upper(tokens%next())
 !                    select case(w)
 !                    case("OFF")
 !                        tAnnihilatebyrange=.false.
@@ -2644,7 +2646,7 @@ contains
                 CALL Stop_All(t_r, "STARORBS option depreciated")
 !                iStarOrbs = tokens%get_int()
 !                if(item.lt.nitems) then
-!                    w = tokens%get_upper()
+!                    w = to_upper(tokens%next())
 !                    select case(w)
 !                    case("NORETURN")
 !!This option will mean that particles spawned at these high energy determinants will not be allowed to
@@ -2743,7 +2745,7 @@ contains
                 ! disable it (likely only useful in some of the tests).
                 tJumpShift = .true.
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("OFF", "FALSE")
                         tJumpShift = .false.
@@ -3089,7 +3091,7 @@ contains
                 ! us to shuffle walkers around in the system
                 tLoadBalanceBlocks = .true.
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("OFF", "NO", "DISABLE")
                         tLoadBalanceBlocks = .false.
@@ -3294,7 +3296,7 @@ contains
             case("CEPA-SHIFTS", "CEPA", "CEPA-SHIFT")
                 t_cepa_shift = .true.
                 if(tokens%remaining_items() > 0) then
-                    cepa_method = tokens%get_lower()
+                    cepa_method = to_lower(tokens%next())
                 else
                     cepa_method = '0'
                 end if
@@ -3402,7 +3404,7 @@ contains
                 ! Only make those doubles/singles initiators that are sign coherent
                 ! with their reference(s)
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("STRICT")
                         tStrictCoherentDoubles = .true.
@@ -3458,7 +3460,7 @@ contains
                 minSIConnect = tokens%get_int()
                 ! optionally, allow to weight the connections with the population
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("WEIGHTED")
                         tWeightedConnections = .true.
@@ -3472,7 +3474,7 @@ contains
             case("SIGNED-REPLICA-AVERAGE")
                 tSignedRepAv = .true.
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("OFF")
                         tSignedRepAv = .false.
@@ -3488,7 +3490,7 @@ contains
                 tLogNumSpawns = .true.
                 sfTag = 0
                 if(tokens%remaining_items() > 0) then
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("EXPONENTIAL")
                         sfTag = 1
@@ -3998,6 +4000,7 @@ END MODULE Calc
 
 subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
     use constants
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
                         g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
                         tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
@@ -4014,17 +4017,17 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
     character(*), parameter :: this_routine = 'inpgetmethod'
     CHARACTER(LEN=16) w
     do while(tokens%remaining_items() > 0)
-        w = tokens%get_upper()
+        w = to_upper(tokens%next())
         select case(w)
         case("VERTEX")
-            w = tokens%get_upper()
+            w = to_upper(tokens%next())
             select case(w)
             case("FCIMC")
                 I_HMAX = -21
                 TFCIMC = .true.
                 tUseProcsAsNodes = .true.
                 do while(tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("CONT-TIME")
                         tContTimeFCIMC = .true.
@@ -4042,7 +4045,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
                 tRPA_QBA = .true.
                 tDirectRPA = .false.
                 do while(tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("DIRECT")
                         tDirectRPA = .true.
@@ -4051,7 +4054,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
             case("RETURNPATHMC")
                 I_HMAX = -21
                 TReturnPathMC = .true.
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case("RHOELEMS")
                     TRhoElems = .true.
@@ -4061,7 +4064,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
                 TMCDets = .true.
             case("SUM")
                 do while(tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("OLD")
                         I_HMAX = -1
@@ -4081,7 +4084,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
                 end do
             case("MC", "MCMETROPOLIS")
                 I_HMAX = -7
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case("HDIAG")
                     I_HMAX = -19
@@ -4091,7 +4094,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
             case("MCDIRECT")
                 I_HMAX = -7
                 tMCDirectSum = .TRUE.
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case("HDIAG")
                     I_HMAX = -19
@@ -4105,7 +4108,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
             case("GRAPHMORPH")
                 TGraphMorph = .true.
                 I_HMAX = -21
-                w = tokens%get_upper()
+                w = to_upper(tokens%next())
                 select case(w)
                 case("HDIAG")
                     !If this is true, then it uses the hamiltonian matrix to determinant coupling to excitations,
@@ -4115,7 +4118,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
             case("STAR")
                 I_HMAX = 0
                 do while(tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
+                    w = to_upper(tokens%next())
                     select case(w)
                     case("NEW")
                         I_HMAX = -21

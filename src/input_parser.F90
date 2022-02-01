@@ -51,8 +51,6 @@ module input_parser_mod
         procedure, public :: size => size_TokenIterator_t
         procedure, public :: remaining_items
         procedure, public :: next
-        procedure, public :: get_upper
-        procedure, public :: get_lower
         procedure, public :: get_realsp
         procedure, public :: get_realdp
         procedure, public :: get_int
@@ -249,18 +247,6 @@ contains
             res = this%tokens(this%i_curr_token)%str
             this%i_curr_token = this%i_curr_token + 1
         end if
-    end function
-
-    function get_lower(this) result(res)
-        class(TokenIterator_t), intent(inout) :: this
-        character(:), allocatable :: res
-        res = to_lower(this%next())
-    end function
-
-    function get_upper(this) result(res)
-        class(TokenIterator_t), intent(inout) :: this
-        character(:), allocatable :: res
-        res = to_upper(this%next())
     end function
 
     integer impure elemental function get_int(this)
