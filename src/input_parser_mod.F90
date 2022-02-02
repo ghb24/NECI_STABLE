@@ -1,11 +1,9 @@
 #include "macros.h"
 
 module input_parser_mod
-    use constants, only: sp, dp, int32, int64, stderr, stdout
-    use util_mod, only: stop_all, operator(.div.)
-    use fortran_strings, only: Token_t, to_int, to_int32, to_int64, &
-        to_realsp, to_realdp, split, to_upper, to_lower, operator(.in.)
-    use growing_buffers, only: buffer_token_1D_t
+    use constants, only: stderr, stdout
+    use util_mod, only: stop_all
+    use fortran_strings, only: Token_t, split, to_int
     better_implicit_none
     private
     public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, TokenIterator_t, tokenize, get_range
