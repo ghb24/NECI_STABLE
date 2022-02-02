@@ -13,6 +13,7 @@ module input_parser_mod
     character(*), parameter :: delimiter = ' ', comment = '#', alt_comment = '(', concat = '\', alt_concat = '+++'
 
     type, abstract :: FileReader_t
+        !! An abstract class that supports tokenized reading of lines.
         private
         integer :: file_id
         integer, allocatable :: echo_lines
@@ -25,6 +26,10 @@ module input_parser_mod
     end type
 
     type, extends(FileReader_t) :: ManagingFileReader_t
+        !! A class for tokenized reading of lines, that manages the file access.
+        !!
+        !! An instance of this class holds the only reference to the file handle
+        !! and closes the file automatically when going out of scope.
         private
         character(:), allocatable :: file_name
     contains
@@ -35,12 +40,20 @@ module input_parser_mod
     end type
 
     type, extends(FileReader_t) :: AttachedFileReader_t
+        !! A class for tokenized reading of lines, that can be attached to open file handles.
+        !!
+        !! Since there might be other reference to the the file handle,
+        !! this class does not close the file when going out of scope.
         private
     contains
         private
     end type
 
     type :: TokenIterator_t
+        !! A class for looping over tokens parsed from semantic lines.
+        !!
+        !! Note that a semantic line may stretch over several "raw" lines,
+        !! if line continuation is used.
         private
         type(Token_t), allocatable, public :: tokens(:)
         integer :: i_curr_token = 1
@@ -63,6 +76,14 @@ module input_parser_mod
 contains
 
     function construct_ManagingFileReader_t(file_name, echo_lines, err) result(res)
+        !! Construct a `ManagingFileReader_t`
+        !!
+        !! If the argument `echo_lines` is present, then the read lines are
+        !! echoed to the unit `echo_lines`. If the argument is not present,
+        !! the echoing is switched off.
+        !!
+        !! If `err` is not present, all errors will lead to a stop of the program.
+        !! Otherwise this argument contains the error code.
         character(*), intent(in) :: file_name
         integer, intent(in), optional :: echo_lines
         integer, intent(out), optional :: err
@@ -77,6 +98,11 @@ contains
     end function
 
     function construct_AttachedFileReader_t(file_id, echo_lines) result(res)
+        !! Construct an `AttachedFileReader_t`
+        !!
+        !! If the argument `echo_lines` is present, then the read lines are
+        !! echoed to the unit `echo_lines`. If the argument is not present,
+        !! the echoing is switched off.
         integer, intent(in) :: file_id
         integer, intent(in), optional :: echo_lines
         type(AttachedFileReader_t) :: res
@@ -85,6 +111,7 @@ contains
     end function
 
     impure elemental subroutine my_close(this, delete)
+        !! Close the file.
         class(ManagingFileReader_t), intent(inout) :: this
         logical, intent(in), optional :: delete
         deallocate(this%file_name)
@@ -103,6 +130,7 @@ contains
     end subroutine
 
     logical elemental function is_open(this)
+        !! Return if a file is open.
         class(ManagingFileReader_t), intent(in) :: this
         is_open = allocated(this%file_name)
     end function
@@ -132,7 +160,7 @@ contains
     end function
 
     logical function nextline(this, tokenized_line)
-        !! Return if the next line can be read and get it tokenized.
+        !! Return if the next line can be read. It is written to the out-argument.
         !!
         !! Note that it reads the next **logical** line,
         !! so if there are two lines connected by a line-continuation
@@ -184,11 +212,17 @@ contains
     end function
 
     subroutine my_rewind(this)
+        !! Rewind the file
         class(FileReader_t), intent(inout) :: this
         rewind(this%file_id)
     end subroutine
 
     subroutine set_echo_lines(this, echo_lines)
+        !! Set the unit where to echo lines.
+        !!
+        !! If the argument is present, then the read lines are
+        !! echoed to the unit `echo_lines`. If the argument is not present,
+        !! the echoing is switched off.
         class(FileReader_t), intent(inout) :: this
         integer, intent(in), optional :: echo_lines
         if (present(echo_lines)) then
@@ -225,6 +259,7 @@ contains
     end function
 
     integer elemental function remaining_items(this)
+        !! Return the number of remaining items in this Iterator.
         class(TokenIterator_t), intent(in) :: this
         character(*), parameter :: this_routine = 'remaining_items'
         remaining_items = this%size() - this%i_curr_token + 1
@@ -232,11 +267,17 @@ contains
     end function
 
     integer elemental function size_TokenIterator_t(this)
+        !! Return the number of tokens in this Iterator.
         class(TokenIterator_t), intent(in) :: this
         size_TokenIterator_t = size(this%tokens)
     end function
 
     function next(this, if_exhausted) result(res)
+        !! Return the next Token.
+        !!
+        !! If the iterator is exhausted, this function throws an error
+        !! unless the argument `if_exhausted` is present, which is then
+        !! returned instead.
         class(TokenIterator_t), intent(inout) :: this
         character(*), intent(in), optional :: if_exhausted
         character(:), allocatable :: res
@@ -262,6 +303,13 @@ contains
     end function
 
     elemental subroutine reset(this, k)
+        !! Reset the iterator
+        !!
+        !! If `k` is not present, the iterator is reset to the beginning.
+        !! If `k` is present, it has to be smaller 0 and resets the
+        !! iterator by this amount of steps.
+        !! In particular `call tokens%reset(-1)` resets the
+        !! iterator one element and allows to reread the previous element.
         class(TokenIterator_t), intent(inout) :: this
         integer, intent(in), optional :: k
         character(*), parameter :: this_routine = 'reset'
@@ -277,6 +325,11 @@ contains
     end subroutine
 
     pure function get_range(str_range) result(res)
+        !! Parse a string into a range of integers.
+        !!
+        !! `"1"` -> [1]
+        !! `"1-4"` -> [1, 2, 3, 4]
+        !! `"4-1"` -> [integer::]
         character(*), intent(in) :: str_range
         integer, allocatable :: res(:)
 
