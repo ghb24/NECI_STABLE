@@ -3,10 +3,10 @@
 module input_parser_mod
     use constants, only: stderr, stdout
     use util_mod, only: stop_all
-    use fortran_strings, only: Token_t, split, to_int
+    use fortran_strings, only: str, Token_t, split, to_int
     better_implicit_none
     private
-    public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, TokenIterator_t, tokenize, get_range
+    public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, TokenIterator_t, tokenize, get_range, construct_ManagingFileReader_t
 
     integer, parameter :: max_line_length = 1028
 
@@ -17,6 +17,11 @@ module input_parser_mod
         private
         integer :: file_id
         integer, allocatable :: echo_lines
+
+        character(:), allocatable :: file_name
+            !! The file name of the open file (if available).
+        integer, allocatable :: current_line
+            !! The current line (if available).
     contains
         private
         procedure :: raw_nextline
@@ -31,7 +36,6 @@ module input_parser_mod
         !! An instance of this class holds the only reference to the file handle
         !! and closes the file automatically when going out of scope.
         private
-        character(:), allocatable :: file_name
     contains
         private
         procedure, public :: close => my_close
@@ -57,6 +61,11 @@ module input_parser_mod
         private
         type(Token_t), allocatable, public :: tokens(:)
         integer :: i_curr_token = 1
+
+        character(:), allocatable :: file_name
+            !! The name of file where the line came from (if available).
+        integer, allocatable :: current_line
+            !! The current line (if available).
     contains
         private
         procedure, public :: size => size_TokenIterator_t
@@ -89,6 +98,7 @@ contains
         integer, intent(out), optional :: err
         type(ManagingFileReader_t) :: res
         res%file_name = file_name
+        res%current_line = 0
         if (present(echo_lines)) res%echo_lines = echo_lines
         if (present(err)) then
             open(file=res%file_name, newunit=res%file_id, action='read', status='old', form='formatted', iostat=err)
@@ -97,7 +107,7 @@ contains
         end if
     end function
 
-    function construct_AttachedFileReader_t(file_id, echo_lines) result(res)
+    function construct_AttachedFileReader_t(file_id, echo_lines, file_name, current_line) result(res)
         !! Construct an `AttachedFileReader_t`
         !!
         !! If the argument `echo_lines` is present, then the read lines are
@@ -105,9 +115,13 @@ contains
         !! the echoing is switched off.
         integer, intent(in) :: file_id
         integer, intent(in), optional :: echo_lines
+        character(*), intent(in), optional :: file_name
+        integer, intent(in), optional :: current_line
         type(AttachedFileReader_t) :: res
         res%file_id = file_id
         if (present(echo_lines)) res%echo_lines = echo_lines
+        if (present(file_name)) res%file_name = file_name
+        if (present(current_line)) res%current_line = current_line
     end function
 
     impure elemental subroutine my_close(this, delete)
@@ -148,6 +162,7 @@ contains
         integer :: iread
         read(this%file_id, '(A)', iostat=iread) buffer
         raw_nextline = .false.
+
         if (iread > 0) then
             call stop_all(this_routine, 'Error in nextline')
         else if (is_iostat_end(iread)) then
@@ -156,6 +171,7 @@ contains
             raw_nextline = .true.
             line = trim(buffer)
             if (allocated(this%echo_lines)) write(this%echo_lines, '(A)') line
+            if (allocated(this%current_line)) this%current_line = this%current_line + 1
         end if
     end function
 
@@ -192,6 +208,8 @@ contains
         else
             allocate(tokenized_line%tokens(0))
         end if
+        if (allocated(this%file_name)) tokenized_line%file_name = this%file_name
+        if (allocated(this%current_line)) tokenized_line%current_line = this%current_line
         contains
 
             logical function has_concat_symbol(tokens)
@@ -215,6 +233,7 @@ contains
         !! Rewind the file
         class(FileReader_t), intent(inout) :: this
         rewind(this%file_id)
+        this%current_line = 0
     end subroutine
 
     subroutine set_echo_lines(this, echo_lines)
@@ -288,6 +307,8 @@ contains
                 res = if_exhausted
             else
                 write(stderr, *) 'There are no tokens remaining and the next item was requested.'
+                if (allocated(this%file_name)) write(stderr, *) 'The error appeared in file:' // this%file_name
+                if (allocated(this%current_line)) write(stderr, *) 'The error appeared in line: ' // str(this%current_line)
                 write(stderr, *) 'The tokens are:'
                 call this%reset()
                 do i = 1, this%size()

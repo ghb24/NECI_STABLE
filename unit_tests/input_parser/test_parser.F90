@@ -117,7 +117,7 @@ contains
 
 
         calculated = tokenize('')
-        allocate(expected(0))
+        deallocate(expected); allocate(expected(0))
         call assert_true(size(calculated) == 0)
         call assert_true(all(calculated == expected))
 

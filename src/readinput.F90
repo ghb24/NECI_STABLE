@@ -8,7 +8,7 @@ MODULE ReadInput_neci
     use util_mod, only: operator(.implies.)
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s
-    use input_parser_mod, only: TokenIterator_t, AttachedFileReader_t
+    use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     Implicit none
 !   Used to specify which default set of inputs to use
@@ -57,17 +57,14 @@ contains
         integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: ir         !The file descriptor we are reading from
-        type(AttachedFileReader_t) :: file_reader
+        integer, parameter :: id_scratch_file = 7
+        class(FileReader_t), allocatable :: file_reader
         type(TokenIterator_t) :: tokens
 
         cTitle = ""
         idDef = idDefault                 !use the Default defaults (pre feb08)
-        ir = get_free_unit()              !default to a free unit which we'll open below
         If (trim(adjustl(cFilename)) /= '') Then
-            write(stdout, *) "Reading from file: ", Trim(cFilename)
-            inquire (file=cFilename, exist=tExists)
-            if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cFilename)//' does not exist.')
-            open(ir, File=cFilename, Status='OLD', err=99, iostat=ios)
+            file_reader = ManagingFileReader_t(trim(adjustl(cFilename)))
         else if (neci_iArgC() > 0) then
             ! We have some arguments we can process instead
 #ifdef BLUEGENE_HACKS
@@ -77,24 +74,15 @@ contains
 #endif
             write(stdout, *) "Processing arguments", cinp
             write(stdout, *) "Reading from file: ", Trim(cInp)
-            inquire (file=cInp, exist=tExists)
-            if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cInp)//' does not exist.')
-            open(ir, File=cInp, Status='OLD', FORM="FORMATTED", err=99, iostat=ios)
+            file_reader = ManagingFileReader_t(trim(adjustl(cInp)))
         Else
-            ir = stdin                    !file descriptor 5 is stdin
             write(stdout, *) "Reading from STDIN"
             ! Save the input to a temporary file so we can scan for the
             ! defaults option and then re-read it for all other options.
-            open(7, status='scratch', iostat=ios)
+            open(id_scratch_file, status='scratch')
+            file_reader = AttachedFileReader_t(file_id=stdin, echo_lines=id_scratch_file)
         end if
 
-        !Look to find default options (line can be added anywhere in input)
-        if (ir == stdin) then
-            ! Dump line from STDIN to temporary file.
-            file_reader = AttachedFileReader_t(file_id=ir, echo_lines=7)
-        else
-            file_reader = AttachedFileReader_t(file_id=ir)
-        end if
         Do while (file_reader%nextline(tokens))
             if (tokens%size() == 0) cycle
             w = to_upper(tokens%next())
@@ -135,9 +123,12 @@ contains
         call SetIntDefaults
         call SetLogDefaults
 
-!Now return to the beginning and process the whole input file
-        if (ir == stdin) ir = 7 ! If read from STDIN, re-read from our temporary scratch file.
-        if (ir == stdin) file_reader = AttachedFileReader_t(file_id=7)
+        ! Now return to the beginning and process the whole input file
+        select type(file_reader)
+        type is (AttachedFileReader_t)
+            file_reader = AttachedFileReader_t(file_id=id_scratch_file)
+        end select
+
         call file_reader%rewind()
 
 !Molpro writes out its own input file
