@@ -360,17 +360,19 @@ contains
 
         call GAS_spec%write_to(iunit)
 
-        block
-            integer :: n_alpha, n_beta, n_spat_orbs
-            integer(int64) :: size_CAS, size_GAS
-            N_alpha = (N + S_z%val) .div. 2
-            N_beta = N - N_alpha
-            n_spat_orbs = GAS_spec%n_spin_orbs() .div. 2
-            size_CAS = choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta)
-            size_GAS = get_n_SDs(GAS_spec, nEl, S_z)
-            write(iunit, '(A, 1x, I0)') 'The size of the CAS space is:', size_CAS
-            write(iunit, '(A, 1x, I0)') 'The size of the GAS space is:', size_GAS
-            write(iunit, '(A, 1x, E10.5)') 'The fraction of the GAS space is:', real(size_GAS, dp) / real(size_CAS, dp)
-        end block
+        @:unused_var(N, S_z)
+
+        ! block
+        !     integer :: n_alpha, n_beta, n_spat_orbs
+        !     integer(int64) :: size_CAS, size_GAS
+        !     N_alpha = (N + S_z%val) .div. 2
+        !     N_beta = N - N_alpha
+        !     n_spat_orbs = GAS_spec%n_spin_orbs() .div. 2
+        !     size_CAS = choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta)
+        !     size_GAS = get_n_SDs(GAS_spec, nEl, S_z)
+        !     write(iunit, '(A, 1x, I0)') 'The size of the CAS space is:', size_CAS
+        !     write(iunit, '(A, 1x, I0)') 'The size of the GAS space is:', size_GAS
+        !     write(iunit, '(A, 1x, E10.5)') 'The fraction of the GAS space is:', real(size_GAS, dp) / real(size_CAS, dp)
+        ! end block
     end subroutine
 end module
