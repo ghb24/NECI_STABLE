@@ -55,11 +55,12 @@ module gasci_supergroup_index
     use constants, only: int64, n_int
     use util_mod, only: choose, cumsum, binary_search_first_ge, custom_findloc
     use bit_rep_data, only: nIfD
-    use gasci, only: GASSpec_t
+    use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t
     use hash, only: hash_table_lookup
     use growing_buffers, only: buffer_int_2D_t
+    use util_mod, only: stop_all
 
-    implicit none
+    better_implicit_none
 
     private
 
@@ -219,21 +220,85 @@ contains
     pure function indexer_get_supergroups(self) result(res)
         class(SuperGroupIndexer_t), intent(in) :: self
         integer, allocatable :: res(:, :)
+        character(*), parameter :: this_routine = 'indexer_get_supergroups'
+
         integer(int64) :: i
-        integer :: composition(self%GASspec%nGAS())
+        integer :: start_comp(self%GASspec%nGAS()), &
+            end_comp(self%GASspec%nGAS()), &
+            comp(self%GASspec%nGAS())
+        integer(int64) :: start_idx, end_idx
         type(buffer_int_2D_t) :: supergroups
 
-        composition(:) = 0
-        composition(1) = self%nEl()
+        start_comp = get_lowest_supergroup(self)
+        end_comp = get_highest_supergroup(self)
+        start_idx = composition_idx(start_comp)
+        end_idx = composition_idx(end_comp)
 
         call supergroups%init(rows=self%GASspec%nGAS())
-        do i = 1_int64, n_compositions(self%GASspec%nGAS(), self%nEl())
-            if (self%GASspec%contains_supergroup(composition(:))) then
-                call supergroups%push_back(composition(:))
+        comp = start_comp
+        do i = start_idx, end_idx
+            if (self%GASspec%contains_supergroup(comp(:))) then
+                call supergroups%push_back(comp(:))
             end if
-            composition = next_composition(composition)
+            comp = next_composition(comp)
         end do
         call supergroups%dump_reset(res)
+        ASSERT(all(res(:, 1) == start_comp))
+        ASSERT(all(res(:, size(res, 2)) == end_comp))
+    end function
+
+    pure function get_lowest_supergroup(this) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: this
+        integer :: res(this%GASspec%nGAS())
+
+        character(*), parameter :: this_routine = 'get_lowest_supergroup'
+        integer :: remaining, iGAS, to_add
+
+        associate(GAS_spec => this%GASspec)
+        select type(GAS_spec)
+        type is(LocalGASSpec_t)
+            res = GAS_spec%get_min()
+            remaining = this%N - sum(res)
+
+            iGAS = 1
+            do while (remaining > 0)
+                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), remaining)
+                res(iGAS) = res(iGAS) + to_add
+                remaining = remaining - to_add
+                iGAS = iGAS + 1
+            end do
+            ASSERT(remaining == 0)
+        type is(CumulGASSpec_t)
+            call stop_all(this_routine, 'Has to be implemented.')
+        end select
+        end associate
+    end function
+
+    pure function get_highest_supergroup(this) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: this
+        integer :: res(this%GASspec%nGAS())
+
+        character(*), parameter :: this_routine = 'get_highest_supergroup'
+        integer :: remaining, iGAS, to_add
+
+        associate(GAS_spec => this%GASspec)
+        select type(GAS_spec)
+        type is(LocalGASSpec_t)
+            res = GAS_spec%get_min()
+            remaining = this%N - sum(res)
+
+            iGAS = GAS_spec%nGAS()
+            do while (remaining > 0)
+                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), remaining)
+                res(iGAS) = res(iGAS) + to_add
+                remaining = remaining - to_add
+                iGAS = iGAS - 1
+            end do
+            ASSERT(remaining == 0)
+        type is(CumulGASSpec_t)
+            call stop_all(this_routine, 'Has to be implemented.')
+        end select
+        end associate
     end function
 
 
