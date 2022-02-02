@@ -40,10 +40,13 @@ contains
             type(TokenIterator_t) :: tokens
             file_reader = ManagingFileReader_t(file_name)
 
+            call assert_equals(file_name, file_reader%get_file_name())
+
             call assert_true(file_reader%nextline(tokens))
             call assert_equals(2, tokens%remaining_items())
             call assert_equals('System', tokens%next())
             call assert_equals('read', to_lower(tokens%next()))
+            call assert_equals(1, file_reader%get_current_line())
             call assert_equals(0, tokens%remaining_items())
 
             call assert_true(file_reader%nextline(tokens))
@@ -59,6 +62,7 @@ contains
             call assert_equals(0, tokens%remaining_items())
 
             call assert_true(file_reader%nextline(tokens))
+            call assert_equals(7, file_reader%get_current_line())
             call assert_equals(9, tokens%remaining_items())
             call assert_equals('GAS-SPEC', to_upper(tokens%next()))
             call assert_equals('LOCAL', to_upper(tokens%next()))
@@ -117,7 +121,7 @@ contains
 
 
         calculated = tokenize('')
-        expected = [Token_t ::]
+        deallocate(expected); allocate(expected(0))
         call assert_true(size(calculated) == 0)
         call assert_true(all(calculated == expected))
 
