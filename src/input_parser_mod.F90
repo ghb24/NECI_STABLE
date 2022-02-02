@@ -28,6 +28,8 @@ module input_parser_mod
         procedure, public :: nextline
         procedure, public :: rewind => my_rewind
         procedure, public :: set_echo_lines
+        procedure, public :: get_current_line
+        procedure, public :: get_file_name
     end type
 
     type, extends(FileReader_t) :: ManagingFileReader_t
@@ -369,4 +371,27 @@ contains
         end if
     end function
 
+    pure function get_file_name(this) result(res)
+        !! Return the file name (if defined)
+        class(FileReader_t), intent(in) :: this
+        character(len=:), allocatable :: res
+        character(*), parameter :: this_routine = 'get_file_name'
+        if (allocated(this%file_name)) then
+            res = this%file_name
+        else
+            call stop_all(this_routine, 'File name not defined.')
+        end if
+    end function
+
+    elemental function get_current_line(this) result(res)
+        !! Return the file name (if defined)
+        class(FileReader_t), intent(in) :: this
+        integer :: res
+        character(*), parameter :: this_routine = 'get_current_line'
+        if (allocated(this%current_line)) then
+            res = this%current_line
+        else
+            call stop_all(this_routine, 'Current line not defined.')
+        end if
+    end function
 end module
