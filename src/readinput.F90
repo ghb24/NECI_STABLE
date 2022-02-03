@@ -2,7 +2,6 @@
 !   Filename is a Character(255) string which contains a filename to read.
 !               If Filename=="" then we check to see if there's a filename on the command line.
 !               Failing that, we use stdin
-!   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
     use util_mod, only: operator(.implies.)
@@ -19,7 +18,7 @@ MODULE ReadInput_neci
 
 contains
 
-    Subroutine ReadInputMain(cFilename, ios, tOverride_input, kp)
+    Subroutine ReadInputMain(cFilename, tOverride_input, kp)
         use SystemData, only: tMolpro
         use System, only: SysReadInput, SetSysDefaults
         use Calc, only: CalcReadInput, SetCalcDefaults
@@ -43,7 +42,6 @@ contains
         !  INPUT/OUTPUT params
         character(*), parameter :: this_routine = 'ReadInputMain'
         Character(len=*) cFilename    !Input  filename or "" if we check arg list or stdin
-        Integer ios         !Output 0 if no error or nonzero iostat if error
 
         Character(len=255) cInp         !temp storage for command line params
         Character(len=32) cTitle
@@ -56,7 +54,6 @@ contains
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
         integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: ir         !The file descriptor we are reading from
         integer, parameter :: id_scratch_file = 7
         class(FileReader_t), allocatable :: file_reader
         type(TokenIterator_t) :: tokens
@@ -173,12 +170,7 @@ contains
             end select
         end do
         write(stdout, '(/,64("*"),/)')
-!        IF(IR.EQ.1.or.IR.EQ.7) close(ir)
-        close(ir)
-99      IF (ios > 0) THEN
-            write(stdout, *) 'Problem reading input file ', TRIM(cFilename)
-            call stop_all('ReadInputMain', 'Input error.')
-        END IF
+        call file_reader%close()
         call sanitize_input()
         RETURN
     END SUBROUTINE ReadInputMain

@@ -25,6 +25,7 @@ module input_parser_mod
     contains
         private
         procedure :: raw_nextline
+        procedure, public :: close => my_close
         procedure, public :: nextline
         procedure, public :: rewind => my_rewind
         procedure, public :: set_echo_lines
@@ -35,21 +36,17 @@ module input_parser_mod
     type, extends(FileReader_t) :: ManagingFileReader_t
         !! A class for tokenized reading of lines, that manages the file access.
         !!
-        !! An instance of this class holds the only reference to the file handle
-        !! and closes the file automatically when going out of scope.
+        !! An instance of this class holds the only reference to the file handle.
         private
     contains
         private
-        procedure, public :: close => my_close
-        final :: automatic_finalize
         procedure, public :: is_open
     end type
 
     type, extends(FileReader_t) :: AttachedFileReader_t
         !! A class for tokenized reading of lines, that can be attached to open file handles.
         !!
-        !! Since there might be other reference to the the file handle,
-        !! this class does not close the file when going out of scope.
+        !! There might be other reference to the the file handle.
         private
     contains
         private
@@ -128,7 +125,7 @@ contains
 
     impure elemental subroutine my_close(this, delete)
         !! Close the file.
-        class(ManagingFileReader_t), intent(inout) :: this
+        class(FileReader_t), intent(inout) :: this
         logical, intent(in), optional :: delete
         deallocate(this%file_name)
         if (present(delete)) then
@@ -138,11 +135,6 @@ contains
         else
             close(this%file_id)
         end if
-    end subroutine
-
-    impure elemental subroutine automatic_finalize(this)
-        type(ManagingFileReader_t), intent(inout) :: this
-        if (this%is_open()) call this%close()
     end subroutine
 
     logical elemental function is_open(this)
