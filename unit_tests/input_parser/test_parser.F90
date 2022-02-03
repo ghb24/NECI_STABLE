@@ -76,14 +76,9 @@ contains
             call assert_equals(0, tokens%remaining_items())
 
             call assert_false(file_reader%nextline(tokens))
-            ! Note that the FileReader_t closes the file automatically,
-            ! when leaving scope.
+
+            call file_reader%close(delete=.true.)
         end block
-
-        ! Delete the file
-        open(file=file_name, newunit=file_id, action='read')
-        close(file_id, status='delete')
-
     end subroutine
 
     subroutine test_range()
