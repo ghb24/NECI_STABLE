@@ -21,7 +21,7 @@ proje-changeref 1.2
 truncinitiator
 addtoinitiator 3
 walkcontgrow
-semi-stochastic,100
+semi-stochastic 100
 pops-core 100
 core-inits
 allrealcoeff
