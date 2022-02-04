@@ -80,8 +80,7 @@ contains
             file_reader = AttachedFileReader_t(file_id=stdin, echo_lines=id_scratch_file)
         end if
 
-        Do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        Do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             Select case (w)
             Case ("DEFAULTS")
@@ -138,8 +137,7 @@ contains
             write(stdout, '(/,64("*"),/)')
         end if
 
-        Do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        Do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case (w)
             case ("TITLE")

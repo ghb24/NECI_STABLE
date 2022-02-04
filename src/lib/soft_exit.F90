@@ -331,7 +331,7 @@ contains
                     endif
 
                     ! Loop over all options specified in the file.
-                    do while (file_reader%nextline(tokens))
+                    do while (file_reader%nextline(tokens, skip_empty=.true.))
                         w = to_lower(tokens%next())
 
                         ! Mark any selected options.

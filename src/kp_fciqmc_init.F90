@@ -72,8 +72,7 @@ contains
         tOrthogKPReplicas = .false.
         orthog_kp_iter = 0
 
-        read_inp: do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        read_inp: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case (w)
             case ("END-KP-FCIQMC")
@@ -187,7 +186,7 @@ contains
                 allocate(kpfciqmc_ex_weights(nexcit))
 
                 ! Read in which excited states to use.
-                if (file_reader%nextline(tokens)) then
+                if (file_reader%nextline(tokens, skip_empty=.false.)) then
                     do j = 1, nexcit
                         kpfciqmc_ex_labels(j) = to_int(tokens%next())
                     end do
@@ -197,7 +196,7 @@ contains
 
                 ! Read in the relative weights for the trial excited states in
                 ! the initial state.
-                if (file_reader%nextline(tokens)) then
+                if (file_reader%nextline(tokens, skip_empty=.false.)) then
                     do j = 1, nexcit
                         kpfciqmc_ex_weights(j) = to_realdp(tokens%next())
                     end do
@@ -225,7 +224,7 @@ contains
                 end if
 
                 do i = 1, npert
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         overlap_pert(i)%nannihilate = tokens%remaining_items()
                         allocate(overlap_pert(i)%ann_orbs(tokens%remaining_items()))
                         do j = 1, size(overlap_pert(i)%ann_orbs)
@@ -256,7 +255,7 @@ contains
                 end if
 
                 do i = 1, npert
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, .false.)) then
                         overlap_pert(i)%ncreate = tokens%remaining_items()
                         allocate(overlap_pert(i)%crtn_orbs(tokens%remaining_items()))
                         do j = 1, size(overlap_pert(i)%crtn_orbs)

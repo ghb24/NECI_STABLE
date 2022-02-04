@@ -21,7 +21,8 @@ module input_parser_mod
         character(:), allocatable :: file_name
             !! The file name of the open file (if available).
         integer, allocatable :: current_line
-            !! The current line (if available).
+            !! The current line (if available). The number refers to the line
+            !! just returned from `raw_nextline`.
     contains
         private
         procedure :: raw_nextline
@@ -169,39 +170,44 @@ contains
         end if
     end function
 
-    logical function nextline(this, tokenized_line)
+    logical function nextline(this, tokenized_line, skip_empty) result(can_still_read)
         !! Return if the next line can be read. It is written to the out-argument.
         !!
         !! Note that it reads the next **logical** line,
         !! so if there are two lines connected by a line-continuation
         !! symbol, the two lines will be read.
+        !!
+        !! If `skip_empty` is true, then lines that have no tokens
+        !! are automatically skipped and the next logical line is tested.
+        !! Note that empty lines includes lines that are not blank, but contain only comments.
         class(FileReader_t), intent(inout) :: this
         type(TokenIterator_t), intent(out) :: tokenized_line
+        logical, intent(in) :: skip_empty
         character(*), parameter :: this_routine = 'nextline'
 
         type(Token_t), allocatable :: tokens(:)
         character(:), allocatable :: line
         logical :: await_new_line
 
-
-        nextline = this%raw_nextline(line)
-        if (line /= '') then
+        can_still_read = this%raw_nextline(line)
+        tokens = tokenize(line)
+        do while (skip_empty .and. size(tokens) == 0 .and. can_still_read)
+            can_still_read = this%raw_nextline(line)
             tokens = tokenize(line)
-            if (size(tokens) /= 0) then
-                await_new_line = has_concat_symbol(tokens)
-                do while (await_new_line)
-                    if (this%raw_nextline(line)) then
-                        tokens = [tokens(: size(tokens) - 1), tokenize(line)]
-                        await_new_line = has_concat_symbol(tokens)
-                    else
-                        call stop_all(this_routine, 'Open line continuation, but EOF reached.')
-                    end if
-                end do
-            end if
-            tokenized_line = TokenIterator_t(tokens)
-        else
-            allocate(tokenized_line%tokens(0))
+        end do
+
+        if (size(tokens) /= 0) then
+            await_new_line = has_concat_symbol(tokens)
+            do while (await_new_line)
+                if (this%raw_nextline(line)) then
+                    tokens = [tokens(: size(tokens) - 1), tokenize(line)]
+                    await_new_line = has_concat_symbol(tokens)
+                else
+                    call stop_all(this_routine, 'Open line continuation, but EOF reached.')
+                end if
+            end do
         end if
+        tokenized_line = TokenIterator_t(tokens)
         if (allocated(this%file_name)) tokenized_line%file_name = this%file_name
         if (allocated(this%current_line)) tokenized_line%current_line = this%current_line
         contains
@@ -282,6 +288,8 @@ contains
     integer elemental function size_TokenIterator_t(this)
         !! Return the number of tokens in this Iterator.
         class(TokenIterator_t), intent(in) :: this
+        character(*), parameter :: this_routine = 'size_TokenIterator_t'
+        ASSERT(allocated(this%tokens))
         size_TokenIterator_t = size(this%tokens)
     end function
 
@@ -376,7 +384,9 @@ contains
     end function
 
     elemental function get_current_line(this) result(res)
-        !! Return the file name (if defined)
+        !! Return the current line (if defined)
+        !!
+        !! This is the line that would be returned, when calling `this%raw_nextline()`.
         class(FileReader_t), intent(in) :: this
         integer :: res
         character(*), parameter :: this_routine = 'get_current_line'

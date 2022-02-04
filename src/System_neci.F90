@@ -405,8 +405,7 @@ contains
         end select
 
         ! Now parse the rest of the system block.
-        system: do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        system: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case (w)
 
@@ -950,7 +949,7 @@ contains
 
                     allocate(orbital_order(temp_n_orbs), source = 0)
 
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         do i = 1, temp_n_orbs
                             orbital_order(i) = to_int(tokens%next())
                         end do

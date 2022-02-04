@@ -245,8 +245,7 @@ contains
         ILogging = iLoggingDef
 
         PertFile(:) = ''
-        logging: do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        logging: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case (w)
 
@@ -673,7 +672,7 @@ contains
                 allocate(states_for_transition_rdm(2, nrdms_transition_input), stat=ierr)
 
                 do line = 1, nrdms_transition_input
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         do i = 1, 2
                             states_for_transition_rdm(i, line) = to_int(tokens%next())
                         end do
@@ -1457,7 +1456,7 @@ contains
                         symmetry_states = 0
 
                         do line = 1, n_symmetry_states
-                            if (file_reader%nextline(tokens)) then
+                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
                                 do i = 1, nel
                                     symmetry_states(i, line) = to_int(tokens%next())
                                 end do

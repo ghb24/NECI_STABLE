@@ -40,8 +40,7 @@ module real_time_read_input_module
         ! and set default values for the real-time calculation
         call set_real_time_defaults()
 
-        real_time: do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        real_time: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
 
             select case (w)

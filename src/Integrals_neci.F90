@@ -137,8 +137,7 @@ contains
         CHARACTER(LEN=100) w
         INTEGER :: i
 
-        integral: do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        integral: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case(w)
             case ("DUMPFCIDUMP")
