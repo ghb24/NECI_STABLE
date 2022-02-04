@@ -86,7 +86,6 @@ contains
         end if
 
         ! assign ilutnJ
-        if (nJ(1)==0) nJ=nI
         call EncodeBitDet(nJ, ilutnJ)
 
     end subroutine gen_rand_excit_pcpp
