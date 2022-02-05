@@ -173,7 +173,7 @@ module procedure_pointers
 
         !
         ! Generic UMAT element routine (2e integrals)
-        function get_umat_el_t(i, j, k, l) result(hel)
+        pure function get_umat_el_t(i, j, k, l) result(hel)
 
             use constants
             implicit none

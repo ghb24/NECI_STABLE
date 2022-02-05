@@ -303,7 +303,6 @@ set( RELAX_WARNINGS_SRCS
     initiator_space_procs.F90
     input.F90
     IntegralsData.F90
-    Integrals_neci.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -351,7 +350,6 @@ set( RELAX_WARNINGS_SRCS
     rdm_reading.F90
     readdf.F90
     readinput.F90
-    readint.F90
     read_psi.F
     readri.F90
     replica_data.F90

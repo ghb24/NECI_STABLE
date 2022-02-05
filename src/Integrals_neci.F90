@@ -2,7 +2,7 @@
 module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
-                          tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
+                          tFixLz, nBasis, G1, Symmetry, &
                           tRIIntegrals, tVASP, tComplexOrbs_RealInts, NEl, LMS, &
                           ECore, t_new_real_space_hubbard, t_trans_corr_hop, &
                           t_new_hubbard, t_k_space_hubbard, t_mol_3_body, &
@@ -39,7 +39,7 @@ module Integrals_neci
 
     USE OneEInts, only: TMAT2D
 
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, stop_all
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 
@@ -60,7 +60,6 @@ contains
         use SystemData, only: OrbOrder
         use UMatCache, only: tReadInCache, nSlotsInit, nMemInit, iDumpCacheFlag, iDFMethod
         use default_sets
-        implicit none
 
         tDumpFCIDUMP = .false.
         TLinRootChange = .false.
@@ -127,7 +126,6 @@ contains
         USE input_neci
         use SystemData, only: NEL, TUSEBRILLOUIN, OrbOrder, BasisFN
         use UMatCache, only: tReadInCache, nSlotsInit, nMemInit, iDumpCacheFlag, iDFMethod
-        IMPLICIT NONE
         LOGICAL eof
         CHARACTER(LEN=100) w
         INTEGER :: i
@@ -455,7 +453,6 @@ contains
         use k_space_hubbard, only: init_tmat_kspace
         use lattice_mod, only: lat
 
-        implicit none
         INTEGER iCacheFlag
         complex(dp), ALLOCATABLE :: ZIA(:)
         INTEGER(TagIntType), SAVE :: tagZIA = 0
@@ -465,7 +462,6 @@ contains
         real(dp) :: UMatMem
         integer iErr, IntSize
         character(25), parameter :: this_routine = 'IntInit'
-        LOGICAL :: tReadFreezeInts
 
         FREEZETRANSFER = .false.
 
@@ -531,40 +527,8 @@ contains
 !Why is this called twice here?!
             CALL SetupTMAT(nBasis, 2, TMATINT)
             CALL SetupTMAT(nBasis, iSpinSkip, TMATINT)
-            !   CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
             Call ReadRIIntegrals(nBasis, I)
-            CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
-            NBASISMAX(2, 3) = 0
-            write(stdout, *) ' ECORE=', ECORE
-        else if(tReadInt .and. tCacheFCIDUMPInts) THEN
-            call shared_allocate_mpi(umat_win, umat,(/1_int64/))
-            !allocate(UMat(1),stat=ierr)
-            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
-            CALL SetupTMAT(nBasis, iSpinSkip, TMATINT)
-!Now set up the UMatCache (**what size is allocated**.)
-            IF(nBasis /= I) THEN
-!We will freeze later - only allocate a small preliminary cache before freezing.
-                write(stdout, *) "Setting up pre-freezing UMatCache"
-                call SetupUMatCache(I / 2, .TRUE.)
-!Here, if we are freezing, we only want to read in the <ij|kj> integrals - not all of them.
-                tReadFreezeInts = .true.
-            ELSE
-!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
-                iSpinSkip = nBasisMax(2, 3)
-                IF(iSpinSkip == 1) THEN
-                    write(stdout, *) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
-                    call SetupUMatCache(I, .FALSE.)
-                ELSE
-                    call SetupUMatCache(I / 2, .FALSE.)
-                    write(stdout, *) "Setting up main UMatCache for closed-shell system"
-                end if
-                tReadFreezeInts = .false.
-            end if
-!Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals
-            call SetupUMat2D_df()  !This needs to be changed
-!The actual UMat2D integrals are read here into UMat2D here, as well as the integrals needed into the cache.
-            CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, tReadFreezeInts)
-!This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
+            CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE)
             NBASISMAX(2, 3) = 0
             write(stdout, *) ' ECORE=', ECORE
         else if(TREADINT) THEN
@@ -596,7 +560,7 @@ contains
             IF(TBIN) THEN
                 CALL READFCIINTBIN(UMAT, ECORE)
             ELSE
-                CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
+                CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE)
             end if
             write(stdout, *) 'ECORE=', ECORE
             if(tCalcWithField) then
@@ -704,7 +668,14 @@ contains
                     !allocate(UMat(UMatInt), stat=ierr)
                     LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
                     UMat = 0.0_dp
+#ifndef CMPLX_
                     CALL GEN_COUL(NBASISMAX, nBasis, G1, NMSH, NMAX, FCK, UMAT, ZIA)
+#else
+                    ! From my (Oskar) limited understanding of GEN_COUL,
+                    !  I don't think it makes sense for
+                    !  complex code.
+                    call stop_all(this_routine, 'Should not be here')
+#endif
                     deallocate(ZIA)
                     LogDealloc(tagZIA)
                     LogDealloc(tagFCK)
@@ -937,11 +908,10 @@ contains
         use LoggingData, only: tCalcPropEst, iNumPropToEst
         use UMatCache, only: GTID
         use global_utilities
-        use CalcData, only: nFields_it, tCalcWithField, FieldFiles_it
+        use CalcData, only: nFields_it, tCalcWithField
         use sym_mod, only: getsym, SetupFREEZEALLSYM, FREEZESYMLABELS
         use util_mod, only: NECI_ICOPY
 
-        IMPLICIT NONE
         INTEGER NHG, NBASIS, nBasisMax(5, *), ISS
         TYPE(BASISFN) G1(NHG), KSYM
         HElement_t(dp) UMAT(*)
@@ -1633,7 +1603,6 @@ contains
         !    I,J,A,B: indices of integral.  These are in spin indices in
         !    unrestricted calculations and spatial indices in restricted.
         ! Returns <ij|ab>
-        implicit none
         HElement_t(dp) GetUMatEl2
         integer :: I, J, A, B
 
@@ -1646,6 +1615,7 @@ contains
         use SystemData, only: t_k_space_hubbard
         use k_space_hubbard, only: get_umat_kspace
         use real_space_hubbard, only: get_umat_el_hub
+        character(*), parameter :: this_routine = 'init_getumatel_fn_pointers'
 
         integer :: iss
 
@@ -1656,7 +1626,7 @@ contains
                 get_umat_el => get_umat_el_hub
             end if
         else
-            if(nBasisMax(1, 3) >= 0) then
+            if (nBasisMax(1, 3) >= 0) then
                 ! This is a hack. iss is not what it should be. grr.
                 iss = nBasisMax(2, 3)
                 if(iss == 0) then
@@ -1674,22 +1644,24 @@ contains
 
                     if(tumat2d) then
                         ! call umat2d routine
-                        get_umat_el => get_umat_el_tumat2d
+                        call stop_all(this_routine, 'Should not be here')
                     else
                         ! see if in the cache. This is the fallback if ids are
                         ! such that umat2d canot be used anyway.
-                        get_umat_el => get_umat_el_cache
+                        call stop_all(this_routine, 'Should not be here')
                     end if
                 else if(iss == -1) then
                     ! Non-stored hubbard integral
                     if(t_k_space_hubbard) then
+                        write(stdout, '(A)') 'setting get_umat_kspace'
                         get_umat_el => get_umat_kspace
                     else
+                        write(stdout, '(A)') 'setting get_umat_el'
                         get_umat_el => get_hub_umat_el
                     end if
 
                 else
-                    write(stdout, '(" Setting normal GetUMatEl routine")')
+                    write(stdout, '(" Setting normal get_umat_el_normal routine")')
                     get_umat_el => get_umat_el_normal
                 end if
             else if(nBasisMax(1, 3) == -1) then
@@ -1736,208 +1708,7 @@ contains
 
     end subroutine
 
-    function get_umat_el_tumat2d(idi, idj, idk, idl) result(hel)
-
-        ! Obtains the Coulomb integral <ij|kl>.
-
-        ! This version is when we store the <ij|ij> and <ij|ji> integrals in
-        ! a 2D array and the rest in a cache.
-
-        ! It is safest to use the get_umat_el wrapper function to access
-        ! get_umat_el_* functions.
-
-        ! In:
-        !    i,j,k,l: orbital indices. These refer to spin orbitals in
-        !      unrestricted calculations and spatial orbitals in restricted
-        !      calculations.
-
-        integer, intent(in) :: idi, idj, idk, idl
-        integer :: i, j
-        HElement_t(dp) :: hel
-
-        if((idi == idj) .and. (idi == idk) .and. (idi == idl)) then
-            ! <ii|ii>
-            hel = umat2d(idi, idi)
-        else if((idi == idk) .and. (idj == idl)) then
-            ! <ij|ij>
-            i = min(idi, idj)
-            j = max(idi, idj)
-            hel = umat2d(i, j)
-        else if((idi == idl) .and. (idj == idk)) then
-            ! <ij|ji>
-            i = max(idi, idj)
-            j = min(idi, idj)
-            hel = umat2d(i, j)
-        else if((tCacheFCIDumpInts .or. tRIIntegrals) .and. &
-                (idi == idj) .and. (idk == idl) .and. &
-                (HElement_t_size == 1)) then
-            ! <ii|jj> = <ij|ji>, only for real systems (andn not for the local
-            !                    exchange scheme.
-            i = max(idi, idk)
-            j = min(idi, idk)
-            hel = umat2d(i, j)
-        else
-            hel = get_umat_el_cache(idi, idj, idk, idl)
-        end if
-
-    end function get_umat_el_tumat2d
-
-    function get_umat_el_cache(idi, idj, idk, idl) result(hel)
-
-        ! Obtains the Coulomb integral <ij|kl>.
-
-        ! This version is when we store the <ij|ij> and <ij|ji> integrals in
-        ! a 2D array and the rest in a cache.
-
-        ! It is safest to use the get_umat_el wrapper function to access
-        ! get_umat_el_* functions.
-
-        ! In:
-        !    i,j,k,l: orbital indices. These refer to spin orbitals in
-        !      unrestricted calculations and spatial orbitals in restricted
-        !      calculations.
-
-        ! For some reason gfortran (4.4 on OSX) really needs to have Symmetry
-        ! used locally (even though it's in the module-level use statement) in
-        ! order to avoid an internal gfortran segfault when compiling the
-        ! TotSymRep call.  Weird!
-        use SystemData, only: G1
-
-        integer, intent(in) :: idi, idj, idk, idl
-        integer :: i, j, k, l, a, b
-        integer :: iType, iCache, iCacheI
-        type(Symmetry) :: isym
-        HElement_t(dp) :: hel, UElems(0:nTypes - 1)
-        logical :: calc2ints
-        complex(dp) :: vasp_int(1, 0:1)
-
-        i = idi
-        j = idj
-        k = idk
-        l = idl
-        isym = totSymRep()
-
-        ! UHF/ROHF (but not explicit ROHF in input) calculation. Integrals
-        ! stored as spin-orbitals already...
-        ! Also assume real orbitals, since this can only be done by
-        ! tCacheFCIDumpInts
-        if(tStoreSpinOrbs) then
-            isym = symProd(isym, G1(i)%Sym)
-            isym = symProd(isym, G1(j)%Sym)
-            isym = symProd(isym, G1(k)%Sym)
-            isym = symProd(isym, G1(l)%Sym)
-        else
-            isym = symProd(isym, symConj(G1(2 * i - 1)%Sym))
-            isym = symProd(isym, symConj(G1(2 * j - 1)%Sym))
-            isym = symProd(isym, G1(2 * k - 1)%Sym)
-            isym = symProd(isym, G1(2 * l - 1)%Sym)
-        end if
-
-        ! Check the symmetry of the 4-index integrals
-        if(.not. lSymSym(isym)) then
-            hel = 0
-            return
-        end if
-
-        ! First check whether we can reduce a set of k-points to a simpler
-        ! symmetry related one.
-        ! TODO: can we function pointer out this bit?
-        if(HasKPoints()) then
-            if(tTransFIndx) then
-                i = TransTable(i)
-                j = TransTable(j)
-                k = TransTable(k)
-                l = TransTable(l)
-            end if
-
-            ! As we're not looping over i,j,k,l it's safe to return the k-pnt
-            ! related labels in the same variables
-            call KPntSymInt(i, j, k, l, i, j, k, l)
-            if(tTransFIndx) then
-                i = TransTable(i)
-                j = TransTable(j)
-                k = TransTable(k)
-                l = TransTable(l)
-            end if
-        end if
-
-        ! This will rearrange i,j,k,l into the correct order (i,k) <= (j,l)
-        ! and i <= k, j <= l.
-        if(GetCachedUmatEl(i, j, k, l, hel, iCache, iCacheI, a, b, &
-                           iType)) then
-            ! We don't have a stored UMAt - we call to generate it
-            if(tDFInts .or. tRIIntegrals) then
-                ! We're using density fitting
-                call GetDF2EInt(i, j, k, l, UElems)
-                hel = UElems(0)
-            else if(tCacheFCIDumpInts) then
-                hel = 0
-            else if(tVASP) then
-                if(tTransFIndx) then
-                    call construct_ijab_one(TransTable(i), TransTable(j), &
-                                            TransTable(k), TransTable(l), &
-                                            vasp_int(1, 0))
-                    call construct_ijab_one(TransTable(i), TransTable(l), &
-                                            TransTable(k), TransTable(j), &
-                                            vasp_int(1, 1))
-                else
-                    call construct_ijab_one(i, j, k, l, vasp_int(1, 0))
-                    call construct_ijab_one(i, l, k, j, vasp_int(1, 1))
-                end if
-#ifdef CMPLX_
-                !cpp to avoid gfortran compiler warnings
-                UElems(0) = vasp_int(1, 0)
-                UElems(1) = vasp_int(1, 1)
-#endif
-                ! TODO: This bit seems broken. Why hel = ? twice
-                !       Why not iand(iType, 0)
-                hel = UElems(0)
-                ! Bit 0 tells us which integral in the slot we need
-                hel = UElems(iand(iType, 1))
-                ! Bit 1 tells us whether we need to complex conj the integral
-#ifdef CMPLX_
-                if(btest(iType, 1)) hel = conjg(hel)
-#endif
-            else
-                ! We call CPMD.
-                ! Only need <ij|kl> if we're doing a 2-vertex calculation
-                ! unless the intgral is for a single excitation, in which
-                ! case we need <il|jk> as well.
-                calc2ints = gen2CPMDInts .or. ((idi == idj) .or. &
-                                               (idi == idk) .or. (idi == idl) .or. &
-                                               (idj == idk) .or. (idj == idl))
-                if(tTransFIndx) then
-                    call InitFindXI(TransTable(i), TransTable(j), &
-                                    TransTable(k), TransTable(l), &
-                                    UElems, calc2ints)
-                else
-                    ! InitFindxI returns up to two integrals in UElems.
-                    ! <id|u|kl> and <kj|u|il> (which are distinct when cplx
-                    !                          orbitals are used)
-                    call InitFindXI(i, j, k, l, UElems, calc2ints)
-                end if
-
-                ! TODO: Once again, should this not be iand(itype, 0)?
-                ! Bit 0 tells us which integral in the slot we need
-                hel = UElems(iand(iType, 1))
-                ! Bit 1 tells us whether we need to complex conj the integral
-#ifdef CMPLX_
-                if(btest(iType, 1)) hel = conjg(hel)
-#endif
-            end if
-
-            ! Because we've asked for the integral in the form to be stored,
-            ! we shore as iType = 0.
-            if((iCache /= 0) .and. (.not. tCacheFCIDUMPInts)) &
-                call CacheUMatEl(b, UElems, iCache, iCacheI, 0)
-            nMisses = nMisses + 1
-        else
-            nHits = nHits + 1
-        end if
-
-    end function
-
-    function get_umat_el_comporb_spinorbs(i, j, k, l) result(hel)
+    pure function get_umat_el_comporb_spinorbs(i, j, k, l) result(hel)
         use sym_mod, only: symProd, symConj, decomposeabeliansym, totsymrep
 
         ! Obtains the Coulomb integral <ij|kl>.
@@ -1974,13 +1745,6 @@ contains
         symtot = SymProd(SymX_C, SymY)
         sym_sym = totsymrep()
 
-!        call decomposeAbelianSym(SymX%s,ksymx)
-!        call decomposeAbelianSym(SymY%s,ksymy)
-!        call decomposeAbelianSym(SymX_C%s,ksymx_c)
-!        write(stdout,*) "SymX: ",ksymx(:)
-!        write(stdout,*) "SymY: ",ksymy(:)
-!        write(stdout,*) "SymX_C: ",ksymx_c(:)
-
         if(symtot%s == sym_sym%s) then
 !        if(SymX_C%S.eq.SymY%S) then
             !Symmetry allowed
@@ -1996,7 +1760,7 @@ contains
 
     end function
 
-    function get_umat_el_comporb_notspinorbs(i, j, k, l) result(hel)
+    pure function get_umat_el_comporb_notspinorbs(i, j, k, l) result(hel)
         use SystemData, only: G1
 
         ! Obtains the Coulomb integral <ij|kl>.
@@ -2047,7 +1811,7 @@ contains
 
     end function
 
-    function get_umat_el_fixlz_storespinorbs(i, j, k, l) result(hel)
+    pure function get_umat_el_fixlz_storespinorbs(i, j, k, l) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -2075,7 +1839,7 @@ contains
 
     end function
 
-    function get_umat_el_fixlz_notspinorbs(i, j, k, l) result(hel)
+    pure function get_umat_el_fixlz_notspinorbs(i, j, k, l) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -2104,7 +1868,7 @@ contains
 
     end function
 
-    function get_umat_el_normal(idi, idj, idk, idl) result(hel)
+    pure function get_umat_el_normal(idi, idj, idk, idl) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -2131,7 +1895,6 @@ contains
 
     subroutine DumpFCIDUMP()
         use SystemData, only: G1, nBasis, nel
-        implicit none
         integer :: i, j, k, l, iunit
         character(len=*), parameter :: t_r = 'DumpFCIDUMP'
 
@@ -2220,7 +1983,6 @@ SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
     real(dp) OMEGA
     LOGICAL TPERIODIC
     real(dp), PARAMETER :: PI = 3.1415926535897932384626433832795029_dp
-    character(*), parameter :: this_routine = 'CALCTMATUEG'
 
 !=================================================
     if(tUEG2) then

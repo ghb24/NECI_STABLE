@@ -108,16 +108,17 @@ contains
         end if
     end function
 
-    pure function dyn_S2_expval_exc(nI, exc, tSign) result(res)
+    pure function dyn_S2_expval_exc(nI, exc) result(res)
         !! Evaluates \(< D_i | S^2 | D_j > \)
         !!
         !! \( D_j \) is connected to \( D_i \) via the excitation `exc`.
+        !!
+        !! Note that the sign in front of the off-diagonal elements
+        !! is always +1 if we assume the NECI order of spin orbitals.
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
         class(Excitation_t), intent(in) :: exc
             !! An excitation.
-        logical, optional, intent(in) :: tSign
-            !! Flag for the sign in front.
         real(dp) :: res
 
         select type(exc)
@@ -126,7 +127,7 @@ contains
         type is (SingleExc_t)
             res = S2_expval_exc(nI, exc)
         type is (DoubleExc_t)
-            res = S2_expval_exc(nI, exc, tSign)
+            res = S2_expval_exc(nI, exc)
         type is (TripleExc_t)
             res = S2_expval_exc(nI, exc)
         end select
@@ -171,13 +172,11 @@ contains
     end function
 
 
-    pure function S2_expval_exc_DoubleExc_t(nI, exc, tSign) result(res)
+    pure function S2_expval_exc_DoubleExc_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
         type(DoubleExc_t), intent(in) :: exc
-        logical, optional, intent(in) :: tSign
-            !! Flag for the sign in front.
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
@@ -199,9 +198,6 @@ contains
                     end if
                 end if
             end if
-        end if
-        if (present(tSign)) then
-            if (tSign) res = -res
         end if
     end function
 

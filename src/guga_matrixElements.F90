@@ -79,7 +79,7 @@ module guga_matrixElements
 
 contains
 
-    subroutine calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, t_hamil, &
+    pure subroutine calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, t_hamil, &
                                         rdm_ind, rdm_mat)
         ! function which, given the 2 CSFs ilutI/J and the excitation
         ! information, connecting those 2, calculates the Hamiltionian
@@ -325,7 +325,7 @@ contains
 
 
 
-    function calcDiagMatEleGuga_nI(nI) result(hel_ret)
+    pure function calcDiagMatEleGuga_nI(nI) result(hel_ret)
         ! calculates the diagonal Hamiltonian matrix element when a CSF in
         ! nI(nEl) form is provided and returns hElement of type hElement_t
         integer, intent(in) :: nI(nEl)
@@ -402,7 +402,7 @@ contains
 
     end function calcDiagMatEleGUGA_nI
 
-    function calcDiagMatEleGuga_ilut(ilut) result(hElement)
+    pure function calcDiagMatEleGuga_ilut(ilut) result(hElement)
         ! function to calculate the diagonal matrix element if a stepvector
         ! in ilut format is given
         integer(n_int), intent(in) :: ilut(0:niftot)
@@ -482,7 +482,7 @@ contains
 
     end function functionA
 
-    subroutine calc_single_excitation_ex(csf_i, csf_j, excitInfo, mat_ele, &
+    pure subroutine calc_single_excitation_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                          t_calc_full, rdm_ind, rdm_mat)
         ! routine to exactly calculate the matrix element between so singly
         ! connected CSFs, with the option to output also all the indices and
@@ -619,7 +619,7 @@ contains
 
     end subroutine calc_single_excitation_ex
 
-    subroutine calc_single_overlap_mixed_ex(csf_i, csf_j, excitInfo, mat_ele, &
+    pure subroutine calc_single_overlap_mixed_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                             t_calc_full, rdm_ind, rdm_mat)
         ! routine to exactly calculate the matrix element between 2 CSFs
         ! connected by a single overlap excitation with mixed generators
@@ -744,7 +744,7 @@ contains
 
     end subroutine calc_single_overlap_mixed_ex
 
-    subroutine calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
+    pure subroutine calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                      t_hamil, rdm_ind, rdm_mat)
         ! combined routine to calculate the mixed generator excitations with
         ! 4 different spatial orbitals. here i have to consider if a
@@ -1011,7 +1011,7 @@ contains
 
     end subroutine calc_normal_double_ex
 
-    subroutine calc_fullstop_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
+    pure subroutine calc_fullstop_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                       t_hamil, rdm_ind, rdm_mat)
         type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
@@ -1115,7 +1115,7 @@ contains
 
     end subroutine calc_fullstop_alike_ex
 
-    subroutine calc_fullstart_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
+    pure subroutine calc_fullstart_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
         type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
@@ -1206,7 +1206,7 @@ contains
 
     end subroutine calc_fullstart_alike_ex
 
-    subroutine calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
+    pure subroutine calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
                                                 mat_ele, t_hamil, rdm_ind, rdm_mat)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
@@ -1256,7 +1256,7 @@ contains
 
     end subroutine calc_fullstart_fullstop_alike_ex
 
-    subroutine calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
+    pure subroutine calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                       t_hamil, rdm_ind, rdm_mat)
         ! from the excitInfo i know the first switch position.
         ! this makes things a bit easier for the exact calculation
@@ -1418,7 +1418,7 @@ contains
 
     end subroutine calc_fullstop_mixed_ex
 
-    subroutine calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
+    pure subroutine calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i, csf_j
@@ -1541,7 +1541,7 @@ contains
 
     end subroutine calc_fullstart_mixed_ex
 
-    subroutine calc_fullstart_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, &
+    pure subroutine calc_fullstart_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, &
                                                 mat_ele, t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i, csf_j
@@ -1583,7 +1583,7 @@ contains
     end subroutine calc_fullstart_fullstop_mixed_ex
 
 
-    subroutine calc_integral_contribution_single(csf_i, csf_j, i, j, st, en, integral)
+    pure subroutine calc_integral_contribution_single(csf_i, csf_j, i, j, st, en, integral)
         ! calculates the double-excitaiton contribution to a single excitation
         type(CSF_Info_t), intent(in) :: csf_i, csf_j
         integer, intent(in) :: i, j, st, en
@@ -1759,7 +1759,7 @@ contains
 
     end subroutine calc_integral_contribution_single
 
-    subroutine calc_mixed_start_contr_integral(ilut, csf_i, t, excitInfo, &
+    pure subroutine calc_mixed_start_contr_integral(ilut, csf_i, t, excitInfo, &
             integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -3642,7 +3642,7 @@ contains
 
     end subroutine calc_mixed_end_contr_pgen
 
-    subroutine calc_mixed_end_contr_integral(ilut, csf_i, t, excitInfo, integral, &
+    pure subroutine calc_mixed_end_contr_integral(ilut, csf_i, t, excitInfo, integral, &
             rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -4297,7 +4297,7 @@ contains
 
     end subroutine calc_mixed_contr_sym
 
-    subroutine calc_mixed_contr_integral(ilut, csf_i, t, start, ende, integral, &
+    pure subroutine calc_mixed_contr_integral(ilut, csf_i, t, start, ende, integral, &
             rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
