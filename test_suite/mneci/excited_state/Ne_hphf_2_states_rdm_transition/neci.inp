@@ -44,7 +44,7 @@ load-balance-interval 1000
 endcalc
 
 integral
-freeze 4,0
+freeze 4 0
 endint
 
 logging

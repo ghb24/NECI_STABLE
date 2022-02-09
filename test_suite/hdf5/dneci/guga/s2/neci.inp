@@ -35,7 +35,7 @@ memoryfacpart 5.0
 time 2800
 startsinglepart 100
 readpops
-(walkcontgrow
+# walkcontgrow
 semi-stochastic
 pops-core 1000
 core-inits

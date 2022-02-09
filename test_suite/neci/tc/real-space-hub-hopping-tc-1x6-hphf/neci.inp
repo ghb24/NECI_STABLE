@@ -34,8 +34,8 @@ nmcyc 1500
 truncinitiator
 addtoinitiator 1.2
 allrealcoeff
-(max-tau 0.001
-(maxwalkerbloom 1
+# max-tau 0.001
+# maxwalkerbloom 1
 startsinglepart 1
 shiftdamp 0.1
 stepsshift 1

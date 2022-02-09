@@ -41,7 +41,7 @@ core-inits
 endcalc
 
 integral
-freeze 4,0
+freeze 4 0
 endint
 
 logging

@@ -8,14 +8,19 @@ module real_time_read_input_module
   use kp_fciqmc_data_mod, only: tOverlapPert, overlap_pert, tScalePopulation
   use SystemData, only: nel, tComplexWalkers_RealInts, t_complex_ints
   use constants
+  use input_parser_mod, only: FileReader_t, TokenIterator_t
+  use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+
+  implicit none
 
   contains
 
     ! need a real-time calc read_input routine to seperate that as much
     ! from the rest of the code as possible!
-    subroutine real_time_read_input()
-        use input_neci
-        implicit none
+    subroutine real_time_read_input(file_reader)
+        class(FileReader_t), intent(inout) :: file_reader
+
+        type(TokenIterator_t) :: tokens
         logical :: eof
         character(100) :: w
         character(*), parameter :: this_routine = "real_time_read_input"
@@ -35,13 +40,8 @@ module real_time_read_input_module
         ! and set default values for the real-time calculation
         call set_real_time_defaults()
 
-        real_time: do
-            call read_line(eof)
-            if (eof) then
-                ! end of file reached
-                exit
-            end if
-            call readu(w)
+        real_time: do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
 
             select case (w)
                 ! have to enter all the different input options here
@@ -49,20 +49,20 @@ module real_time_read_input_module
             case ("VERLET")
                 ! using a verlet algorithm instead of the second order runge-kutta
                 tVerletScheme = .true.
-                if (item < nitems) call readi(iterInit)
+                if (tokens%remaining_items() > 0) iterInit = to_int(tokens%next())
                 if (stepsAlpha == 1) write(stdout, *) "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
 
             case ("DAMPING")
                 ! to reduce the explosive spread of walkers through the
                 ! Hilbert space a small imaginery energy can be introduced in
                 ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
-                call readf(real_time_info%damping)
+                real_time_info%damping = to_realdp(tokens%next())
 
             case ("ROTATE-TIME")
                 ! If the time is to be rotated by some angle time_angle to increase
                 ! stability, this can be set here
                 t_rotated_time = .true.
-                call readf(real_time_info%time_angle)
+                real_time_info%time_angle = to_realdp(tokens%next())
 
                 ! use nicks perturbation & kp-fciqmc stuff here as much as
                 ! possible too
@@ -87,8 +87,8 @@ module real_time_read_input_module
                 pops_pert%ncreate = 1
                 allocate(pops_pert(1)%crtn_orbs(1))
                 allocate(pops_pert(1)%ann_orbs(1))
-                call readi(pops_pert(1)%ann_orbs(1))
-                call readi(pops_pert(1)%crtn_orbs(1))
+                pops_pert(1)%ann_orbs(1) = to_int(tokens%next())
+                pops_pert(1)%crtn_orbs(1) = to_int(tokens%next())
                 call init_perturbation_annihilation(pops_pert(1))
                 call init_perturbation_creation(pops_pert(1))
 
@@ -108,8 +108,8 @@ module real_time_read_input_module
                 j = 0
                 ! first, read all orbitals to which particles shall be added
                 do
-                    if (item == nitems) exit
-                    call readi(i)
+                    if (tokens%remaining_items() == 0) exit
+                    i = to_int(tokens%next())
                     ! -1 is the terminator for creation and indicates that all following
                     ! orbitals are to be annihilated
                     if (i == -1) exit
@@ -131,10 +131,9 @@ module real_time_read_input_module
                 end if
                 j = 0
                 ! now, read in all orbitals from which particles shall be removed
-                do
-                    if (item == nitems) exit
+                do while (tokens%remaining_items() > 0)
                     j = j + 1
-                    call readi(buffer(j))
+                    buffer(j) = to_int(tokens%next())
                 end do
                 ! again, allocate annihilation operators
                 if (j > 0) then
@@ -181,16 +180,16 @@ module real_time_read_input_module
 
                 ! if no specific orbital is specified-> loop over all j!
                 ! but only do that later: input is a SPINORBITAL!
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     allocate(pops_pert(1))
                     pops_pert%nannihilate = 1
                     allocate(pops_pert(1)%ann_orbs(1))
-                    call readi(pops_pert(1)%ann_orbs(1))
+                    pops_pert(1)%ann_orbs(1) = to_int(tokens%next())
                     call init_perturbation_annihilation(pops_pert(1))
                 else
                     call stop_all(this_routine, "Invalid input for Green's function")
                 end if
-                if (nitems == 3) then
+                if (tokens%size() == 3) then
                     gf_count = 1
                     !allocate the perturbation object
 
@@ -200,7 +199,7 @@ module real_time_read_input_module
                     allocate(overlap_pert(1)%ann_orbs(1))
 
                     ! read left hand operator first
-                    call readi(overlap_pert(1)%ann_orbs(1))
+                    overlap_pert(1)%ann_orbs(1) = to_int(tokens%next())
                     call init_perturbation_annihilation(overlap_pert(1))
 
                     ! If the created and annihilated orbital are the same, we
@@ -209,12 +208,10 @@ module real_time_read_input_module
                     if (pops_pert(1)%ann_orbs(1) == overlap_pert(1)%ann_orbs(1)) &
                         tNewOverlap = .false.
 
+                else if (tokens%size() == 2) then
+                    allGfs = 1
                 else
-                    if (nitems == 2) then
-                        allGfs = 1
-                    else
-                        call stop_all(this_routine, "Invalid input for Green's function")
-                    end if
+                    call stop_all(this_routine, "Invalid input for Green's function")
                 end if
 
             case ("GREATER")
@@ -236,21 +233,21 @@ module real_time_read_input_module
 
                 ! if no specific orbital is specified-> loop over all j!
                 ! but only do that later
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     allocate(pops_pert(1))
                     pops_pert%ncreate = 1
                     allocate(pops_pert(1)%crtn_orbs(1))
-                    call readi(pops_pert(1)%crtn_orbs(1))
+                    pops_pert(1)%crtn_orbs(1) = to_int(tokens%next())
                     call init_perturbation_creation(pops_pert(1))
                 else
                     call stop_all(this_routine, "Invalid input for Green's function")
                 end if
-                if (nitems == 3) then
+                if (tokens%size() == 3) then
                     ! allocate the perturbation object
                     allocate(overlap_pert(1))
                     overlap_pert%ncreate = 1
                     allocate(overlap_pert(1)%crtn_orbs(1))
-                    call readi(overlap_pert(1)%crtn_orbs(1))
+                    overlap_pert(1)%crtn_orbs(1) = to_int(tokens%next())
                     call init_perturbation_creation(overlap_pert(1))
 
                     ! If the created and annihilated orbital are the same, we
@@ -259,12 +256,10 @@ module real_time_read_input_module
                     if (pops_pert(1)%crtn_orbs(1) == overlap_pert(1)%crtn_orbs(1)) &
                         tNewOverlap = .false.
 
+                else if (tokens%size() == 2) then
+                    allGfs = 2
                 else
-                    if (nitems == 2) then
-                        allGfs = 2
-                    else
-                        call stop_all(this_routine, "Invalid input for Green's function")
-                    end if
+                    call stop_all(this_routine, "Invalid input for Green's function")
                 end if
 
             case ("SCALE-POPULATION")
@@ -293,14 +288,14 @@ module real_time_read_input_module
                 ! include the time-dependent population of targeted orbitals into
                 ! the output. This requires them to be evaluated on the fly
                 numSnapShotOrbs = 0
-                allocate(buffer(nitems + 1))
+                allocate(buffer(tokens%size() + 1))
                 do
-                    if (item < nitems) then
+                    if (tokens%remaining_items() > 0) then
                         numSnapShotOrbs = numSnapShotOrbs + 1
                         ! nBasis is not defined at this point, so we cannot check if
                         ! there are too many items given - no serious input will contain
                         ! more arguments than basis states anyway
-                        call readi(buffer(numSnapShotOrbs))
+                        buffer(numSnapShotOrbs) = to_int(tokens%next())
                     else
                         exit
                     end if
@@ -330,8 +325,8 @@ module real_time_read_input_module
                 ! enabling this activates the dynamic shift as soon as the walker number drops
                 ! below 80% of the peak value
                 tStabilizerShift = .true.
-                if (item < nitems) then
-                    call readf(asymptoticShift)
+                if (tokens%remaining_items() > 0) then
+                    asymptoticShift = to_realdp(tokens%next())
                     tStaticShift = .true.
                 end if
 
@@ -350,7 +345,7 @@ module real_time_read_input_module
             case ("ENERGY-BENCHMARK")
                 ! one can specify an energy which shall be added as a global shift
                 ! to the hamiltonian. Useful for getting transition energies
-                call readf(benchmarkEnergy)
+                benchmarkEnergy = to_realdp(tokens%next())
 
             case ("DYNAMIC-CORE")
                 tDynamicCoreSpace = .true.
@@ -368,7 +363,7 @@ module real_time_read_input_module
             case ("NSPAWNMAX")
                 ! specify a maximum number of spawn attempts per determinant in
                 ! regulation mode (i.e. for large number of spawns)
-                call readi(nspawnMax)
+                nspawnMax = to_int(tokens%next())
 
             case ("COMPLEXWALKERS-COMPLEXINTS")
                 ! if we really use complex integrals, we have to tell as the
@@ -396,8 +391,8 @@ module real_time_read_input_module
                 ! it is most efficient to turn on the shift after equilibration of the angle
                 ! so this is done via the stabilize-walkers feature
                 tStabilizerShift = .true.
-                if (item < nitems) then
-                    call readf(asymptoticShift)
+                if (tokens%remaining_items() > 0) then
+                    asymptoticShift = to_realdp(tokens%next())
                 else
                     asymptoticShift = 2.0_dp
                 end if
@@ -407,17 +402,17 @@ module real_time_read_input_module
                 ! alpha guaranteeing a fixed walker number
                 tDynamicAlpha = .true.
                 t_rotated_time = .true.
-                if (item < nitems) call readf(alphaDamping)
+                if (tokens%remaining_items() > 0) alphaDamping = to_realdp(tokens%next())
 
             case ("ROTATION-THRESHOLD")
                 ! number of walkers at which the variation of rotation angle starts
                 ! 0 by default
-                call readi(rotThresh)
+                rotThresh = to_int(tokens%next())
 
             case ("STEPSALPHA")
                 ! length of the decay channel update cycle (in timesteps)
                 ! i.e. angle of rotation and damping
-                call readi(stepsAlpha)
+                stepsAlpha = to_int(tokens%next())
                 if (stepsAlpha == 1 .and. tVerletScheme) write(stdout, *) &
                     "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
 
@@ -425,14 +420,14 @@ module real_time_read_input_module
                 ! allow the damping to be time-dependent
                 ! optional: damping parameter for the adjustment of eta
                 tDynamicDamping = .true.
-                if (item < nitems) call readf(etaDamping)
+                if (tokens%remaining_items() > 0) etaDamping = to_realdp(tokens%next())
 
             case ("LIMIT-SHIFT")
                 ! limits the shift to some maximum value. On short times, the threshold
                 ! can be exceeded.
                 tLimitShift = .true.
                 ! optional argument: threshold value (absolute value!). Default is 3
-                if (item < nitems) call readf(shiftLimit)
+                if (tokens%remaining_items() > 0) shiftLimit = to_realdp(tokens%next())
 
             case ("INFINITE-INIT")
                 ! use the initiator adaptiation without any inititators - works well
@@ -453,8 +448,8 @@ module real_time_read_input_module
 
              case("QUAD-DAMP")
                 ! Additional energy-dependent damping (quadratic in H)
-                if (item < nitems) then
-                    call readf(real_time_info%quad_damp_fac)
+                if (tokens%remaining_items() > 0) then
+                    real_time_info%quad_damp_fac = to_realdp(tokens%next())
                 else
                     real_time_info%quad_damp_fac = 0.5d0
                 end if
@@ -466,8 +461,8 @@ module real_time_read_input_module
                 tLogTrajectory = .true.
                 ! optionally, we can supply the number of states to log
                 ss_space_in%tpops = .true.
-                if (item < nitems) then
-                    call readi(ss_space_in%npops)
+                if (tokens%remaining_items() > 0) then
+                    ss_space_in%npops = to_int(tokens%next())
                 else
                     ss_space_in%npops = 1000
                 end if
@@ -476,12 +471,12 @@ module real_time_read_input_module
 
             case ("CORESPACE-THRESHOLD")
                 ! Set the threshold from which on a determinant is in the corespace
-                CALL readf(wn_threshold)
+                wn_threshold = to_realdp(tokens%next())
 
             case ("CORESPACE-LOG-INTERVAL")
                 ! Set the number of iterations after which we get the new candidates for the
                 ! corespace
-                call readi(corespace_log_interval)
+                corespace_log_interval = to_int(tokens%next())
 
             case ("READ-TRAJECTORY")
                 ! This reads in a trajectory and performs the time-evolution along
@@ -507,7 +502,7 @@ module real_time_read_input_module
                 exit real_time
 
             case default
-                call report("Keyword "//trim(w)//" not recognized in REALTIME block", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in REALTIME block", .true.)
 
             end select
         end do real_time
