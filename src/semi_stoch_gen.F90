@@ -1611,6 +1611,10 @@ contains
         ! Count the total number of determinants.
         call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
         allocate(nI_list(nel, ndets))
+        if (size(ilut_list, 2) < ndets) then
+            call stop_all(t_r, 'The ilut_list argument is too small. Probably SpawnedParts was allocated too small &
+                    & Please increase memoryfacspawn and memoryfacpart')
+        end if
         ! Generate and store all the determinants in nI_list.
         call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
 
