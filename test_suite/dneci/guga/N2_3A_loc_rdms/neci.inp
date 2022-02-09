@@ -19,7 +19,7 @@ load-balance-blocks off
 definedet 1 3 5 8 10 12
 
 startsinglepart 10
-(nmcyc 1
+# nmcyc 1
 
 shiftdamp 0.02
 stepsshift 10

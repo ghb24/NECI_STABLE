@@ -22,6 +22,9 @@ given in black.
 Keywords which are purely for debugging purposes and only interesting
 for developers are markes as **\textcolor{green}{green}**.
 
+Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`)
+Line continuation is achieved with `\`. (A deprecated line continuation string found in legacy inputs is `+++`.)
+
 ### SYSTEM Block
 
 The SYSTEM block specifies the properties of the physical system that is
@@ -233,27 +236,27 @@ considered. The block starts with the `system` keyword and ends with the
     per GAS space \(n_i, N_i^\text{min}, N_i^\text{max}\). Finally an
     integer array denotes for each spatial orbital to which GAS space it
     belongs. Instead of `1 1 1 1 1` one can write `5*1`. It is
-    advantageous to use the line continuation (`+++`) for human-readable
+    advantageous to use the line continuation (`\`) for human-readable
     formatting as table. Two benzenes with single inter-space excitation
     would be e.g. denoted as:
 
-        GAS-SPEC LOCAL 2 +++
-                 6  5  7  +++
-                 6  5  7  +++
+        GAS-SPEC LOCAL 2 \
+                 6  5  7  \
+                 6  5  7  \
                  1  1  1  1  1  1  2  2  2  2  2  2
 
     or
 
-        GAS-SPEC LOCAL  2 +++
-                 6  5  7  +++
-                 6  5  7  +++
+        GAS-SPEC LOCAL  2 \
+                 6  5  7  \
+                 6  5  7  \
                  6*1 6*2
 
     or
 
-        GAS-SPEC CUMULATIVE 2 +++
-                 6  5  7  +++
-                 6 12 12 +++
+        GAS-SPEC CUMULATIVE 2 \
+                 6  5  7  \
+                 6 12 12 \
                  6*1 6*2
 
     In the given example the local and cumulative constraints are
@@ -287,7 +290,7 @@ considered. The block starts with the `system` keyword and ends with the
 
         An example is
 
-            GAS-CI GENERAL-PCHB +++
+            GAS-CI GENERAL-PCHB \
                             SINGLES ON-FLY-HEAT-BATH
 
     -   **DISCARDING**<br>
