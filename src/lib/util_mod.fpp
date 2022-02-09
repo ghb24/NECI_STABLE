@@ -60,6 +60,10 @@ module util_mod
         pure subroutine stop_all(sub_name, error_msg)
             character(*), intent(in) :: sub_name, error_msg
         end subroutine
+
+        subroutine neci_flush(n)
+            integer, intent(in) :: n
+        end subroutine
     end interface
 
     interface operator(.implies.)

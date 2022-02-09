@@ -94,7 +94,7 @@ contains
         call shared_allocate_mpi(umat_win, umat, (/umatsize/))
         UMat = 0.0_dp
         call SysInit()
-        call readfciint(UMat,umat_win,nBasis,ecore,.false.)
+        call readfciint(UMat,umat_win,nBasis,ecore)
         ! required: set up the spin info
 
         call DetInit()
@@ -126,8 +126,9 @@ contains
         else
             call EncodeBitDet(nI, ilutI)
             call EncodeBitDet(nJ, ilutJ)
-            call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, excitInfo, matel, &
-                .true., 2)
+            call calc_guga_matrix_element(&
+                ilutI, CSF_Info_t(ilutI), ilutJ, CSF_Info_t(ilutJ), &
+                excitInfo, matel, .true.)
         end if
 
     end function guga_matel

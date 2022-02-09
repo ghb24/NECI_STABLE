@@ -3,7 +3,6 @@
 MODULE Logging
 
     use constants, only: dp, int64, nreplicas
-    use input_neci
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
     use SystemData, only: nel, LMS, nbasis, tGUGA
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
@@ -33,6 +32,10 @@ MODULE Logging
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
     use fcimcdata, only: tFillingStochRDMonFly
+
+    use input_parser_mod, only: FileReader_t, TokenIterator_t
+
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
 
     IMPLICIT NONE
 
@@ -222,7 +225,7 @@ contains
 
     end subroutine SetLogDefaults
 
-    subroutine LogReadInput()
+    subroutine LogReadInput(file_reader)
 
         ! Read the logging section from the input file
 
@@ -232,20 +235,18 @@ contains
         integer :: n_samples
         character(100) :: w
         character(100) :: PertFile(3)
+        class(FileReader_t), intent(inout) :: file_reader
         character(*), parameter :: t_r = 'LogReadInput'
         character(*), parameter :: this_routine = 'LogReadInput'
+        type(TokenIterator_t) :: tokens
 
         tUseOnlySingleReplicas = .false.
 
         ILogging = iLoggingDef
 
         PertFile(:) = ''
-        logging: do
-            call read_line(eof)
-            if (eof) then
-                exit
-            end if
-            call readu(w)
+        logging: do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
             select case (w)
 
             case ("PRINT-MOLCAS-RDMS")
@@ -261,22 +262,22 @@ contains
             case ("REBLOCKSHIFT")
                 !Abort all other calculations, and just block data again with given equilibration time (in iterations)
                 tJustBlocking = .true.
-                call readi(iBlockEquilShift)
+                iBlockEquilShift = to_int(tokens%next())
             case ("REBLOCKPROJE")
                 !Abort all other calculations, and just block data again with given equilibration time (in iterations)
                 tJustBlocking = .true.
-                call readi(iBlockEquilProjE)
+                iBlockEquilProjE = to_int(tokens%next())
             case ("HIGHLYPOPWRITE")
                 !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
-                call readi(iHighPopWrite)
+                iHighPopWrite = to_int(tokens%next())
             case("REPLICAS-POPWRITE")
                 ! Print out the highest populated determinants from all replicas
                 t_force_replica_output = .true.
-                if( item < nitems) call readi(iHighPopWrite)
+                if( tokens%remaining_items() > 0) iHighPopWrite = to_int(tokens%next())
             case ("DIAGWALKERSUBSPACE")
                 !Diagonalise walker subspaces every iDiagSubspaceIter iterations
                 tDiagWalkerSubspace = .true.
-                call readi(iDiagSubspaceIter)
+                iDiagSubspaceIter = to_int(tokens%next())
             case ("DIAGALLSPACEEVER")
                 !Diagonalise all space ever visited in the fciqmc dynamic. This will be written out each time HistSpawn is
                 tDiagAllSpaceEver = .true.
@@ -298,7 +299,7 @@ contains
                 ! This clearly indicates that we do not want to have output and shift update
                 ! going hand in hand
                 tCoupleCycleOutput = .false.
-                call geti(StepsPrint)
+                StepsPrint = to_int(tokens%next())
 
             case ("LOGCOMPLEXWALKERS")
                 !This means that the complex walker populations are now logged.
@@ -306,15 +307,15 @@ contains
 
             case ("PRINTNEWBLOCKING")
 !This is the iteration interval period to write out the blocking files.
-                call readi(iWriteBlockingEvery)
+                iWriteBlockingEvery = to_int(tokens%next())
             case ("SAVEBLOCKING")
 !In this case, blocking files are not overwritten each time they are printed out, but
                 tSaveBlocking = .true.
             case ("ERRORBLOCKING")
 !Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
 !This is default on, but can be turned off with this keyword followed by OFF.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tHFPopStartBlock = .false.
@@ -326,8 +327,8 @@ contains
             case ("SHIFTERRORBLOCKING")
 !Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
 !This is default on, but can be turned off with this keyword followed by OFF.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tInitShiftBlocking = .false.
@@ -341,7 +342,7 @@ contains
 !If it is a negative integer, then this means that the blocking will start when we come out of fixed shift mode.
                 tIterStartBlock = .true.
                 tHFPopStartBlock = .false.
-                call readi(IterStartBlocking)
+                IterStartBlocking = to_int(tokens%next())
 
             case ("SHIFTBLOCKINGSTARTITER")
 !This keyword can be used if we want to start the blocking error analysis of the shift at a particular
@@ -352,13 +353,13 @@ contains
 !This keyword can be used if we want to start the blocking error analysis at a particular HF population.
 !The current default is 100.
                 tHFPopStartBlock = .true.
-                call readi(HFPopStartBlocking)
+                HFPopStartBlocking = to_int(tokens%next())
 
             case ("ROFCIDUMP")
 !Turning this option on prints out a new FCIDUMP file at the end of the orbital rotation.  At the moment, the rotation is very slow
 !so this will prevent us having to do the transformation every time we run a calculation on a particular system
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROFCIDUMP = .false.
@@ -376,7 +377,7 @@ contains
                 CALL LogMemAlloc('NoTruncOrbs', NoDumpTruncs, 4, 'Logging', NoTruncOrbsTag, ierr)
                 NoTruncOrbs(:) = 0
                 do i = 1, NoDumpTruncs
-                    call readi(NoTruncOrbs(i))
+                    NoTruncOrbs(i) = to_int(tokens%next())
                 end do
 
             case ("MULTTRUNCROFCIDUMP")
@@ -384,12 +385,12 @@ contains
 !ROFCIDUMP files with different
 !levels of truncation - prevents us from having to do multiple identical CISD calculations to get the different truncations.
                 tTruncRODump = .true.
-                call readi(NoDumpTruncs)
+                NoDumpTruncs = to_int(tokens%next())
                 allocate(NoTruncOrbs(NoDumpTruncs), stat=ierr)
                 CALL LogMemAlloc('NoTruncOrbs', NoDumpTruncs, 4, 'Logging', NoTruncOrbsTag, ierr)
                 NoTruncOrbs(:) = 0
                 do i = 1, NoDumpTruncs
-                    call readi(NoTruncOrbs(i))
+                    NoTruncOrbs(i) = to_int(tokens%next())
                 end do
 
             case ("MULTTRUNCVALROFCIDUMP")
@@ -398,12 +399,12 @@ contains
 !with eigenvalues below these removed.
                 tTruncRODump = .true.
                 tTruncDumpbyVal = .true.
-                call readi(NoDumpTruncs)
+                NoDumpTruncs = to_int(tokens%next())
                 allocate(TruncEvalues(NoDumpTruncs), stat=ierr)
                 CALL LogMemAlloc('TruncEvalues', NoDumpTruncs, 8, 'Logging', TruncEvaluesTag, ierr)
                 TruncEvalues(:) = 0.0_dp
                 do i = 1, NoDumpTruncs
-                    call readf(TruncEvalues(i))
+                    TruncEvalues(i) = to_realdp(tokens%next())
                 end do
 
             case ("WRITETRANSFORMMAT")
@@ -434,8 +435,8 @@ contains
 
             case ("ROHISTOFFDIAG")
 !This option creates a histogram of the <ij|kl> terms where i<k and j<l.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     tROHistOffDiag = (w /= 'OFF')
                     select case (w)
                     case ("OFF")
@@ -447,8 +448,8 @@ contains
 
             case ("ROHISTDOUBEXC")
 !This option creates a histogram of the 2<ij|kl>-<ij|lk> terms, the off diagonal hamiltonian elements for double excitations.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistDoubExc = .false.
@@ -459,8 +460,8 @@ contains
 
             case ("ROHISTSINGEXC")
 !This option creates a histogram of the single excitation hamiltonian elements.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistSingExc = .false.
@@ -471,8 +472,8 @@ contains
 
             case ("ROHISTER")
 !This option creates a histogram of the <ii|ii> terms, the ones that are maximised in the edmiston-reudenberg localisation.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistER = .false.
@@ -483,8 +484,8 @@ contains
 
             case ("ROHISTONEElINTS")
 !This option creates a histogram of the one electron integrals, the <i|h|i> terms.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistOneElInts = .false.
@@ -495,8 +496,8 @@ contains
 
             case ("ROHISTONEPARTORBEN")
 !This option creates a histogram of the one particle orbital energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>].
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistOnePartOrbEn = .false.
@@ -507,8 +508,8 @@ contains
 
             case ("ROHISTVIRTCOULOMB")
 !This option creates a histogram of the coulomb integrals, <ij|ij>, where i and j are both virtual and i<j.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tROHistVirtCoulomb = .false.
@@ -528,8 +529,8 @@ contains
 !In one, the triangular connections that combine
 !to be sign coherent are recorded, and in the other, those which are sign incoherent.
                 CALL Stop_All(t_r, "PRINTTRICONNECTIONS option depreciated")
-!            call readf(TriConMax)
-!            call readi(NoTriConBins)
+!            TriConMax = to_realdp(tokens%next())
+!            NoTriConBins = to_int(tokens%next())
 !            tPrintTriConnections=.true.
 
             case ("HISTTRICONNELEMENTS")
@@ -538,9 +539,9 @@ contains
 !It then prints these according to whether they are single or double connecting elements.
 !It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
                 CALL Stop_All(t_r, "HISTTRICONNELEMENTS option depreciated")
-!            call readf(TriConHElSingMax)
-!            call readf(TriConHElDoubMax)
-!            call readi(NoTriConHElBins)
+!            TriConHElSingMax = to_realdp(tokens%next())
+!            TriConHElDoubMax = to_realdp(tokens%next())
+!            NoTriConHElBins = to_int(tokens%next())
 !            tHistTriConHEls=.true.
 
             case ("PRINTHELACCEPTSTATS")
@@ -559,7 +560,7 @@ contains
 !natural log of the populations of the initiator determinants
 !and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
                 tHistInitPops = .true.
-                call readi(HistInitPopsIter)
+                HistInitPopsIter = to_int(tokens%next())
 
 #if defined(PROG_NUMRUNS_)
             case ("PAIRED-REPLICAS")
@@ -596,9 +597,9 @@ contains
                 calcrdmonfly_in_inp = .true.
                 tRDMonFly = .true.
                 tCheckHighestPop = .true.
-                call readi(RDMExcitLevel)
-                call readi(IterRDMonFly)
-                call readi(RDMEnergyIter)
+                RDMExcitLevel = to_int(tokens%next())
+                IterRDMonFly = to_int(tokens%next())
+                RDMEnergyIter = to_int(tokens%next())
 
 #if defined(PROG_NUMRUNS_)
                 ! With this option, we want to use pairs of replicas.
@@ -626,9 +627,9 @@ contains
                 tCheckHighestPop = .true.
 
                 RDMExcitLevel = 3
-                call readi(IterRDMonFly)
-                call readi(n_samples)
-                call readi(RDMEnergyIter)
+                IterRDMonFly = to_int(tokens%next())
+                n_samples = to_int(tokens%next())
+                RDMEnergyIter = to_int(tokens%next())
 
                 iSampleRDMIters = n_samples * RDMEnergyIter
 #if defined(PROG_NUMRUNS_)
@@ -648,26 +649,36 @@ contains
                         &turned on before RDMs are turned on.")
                 end if
 
+            case ("BIASED-RDMS")
+                ! Only relevant for (k)-neci runs.
+                ! By default the calculation stops with an error if RDMs are sampled with (k)-neci
+                ! to prevent user error.
+                ! With this keyword the user can explicitly say that they want to sample RDMs without replica.
+                tUserKnowsBiasedRDMS = .true.
+
             case ("OLDRDMS")
                 call stop_all(t_r, "OLDRDMS not supported anymore.")
 
             case ("RDM-MAIN-SIZE-FAC")
-                call readf(rdm_main_size_fac)
+                rdm_main_size_fac = to_realdp(tokens%next())
             case ("RDM-SPAWN-SIZE-FAC")
-                call readf(rdm_spawn_size_fac)
+                rdm_spawn_size_fac = to_realdp(tokens%next())
             case ("RDM-RECV-SIZE-FAC")
-                call readf(rdm_recv_size_fac)
+                rdm_recv_size_fac = to_realdp(tokens%next())
 
             case ("TRANSITION-RDMS")
                 tTransitionRDMs = .true.
-                call readi(nrdms_transition_input)
+                nrdms_transition_input = to_int(tokens%next())
                 allocate(states_for_transition_rdm(2, nrdms_transition_input), stat=ierr)
 
                 do line = 1, nrdms_transition_input
-                    call read_line(eof)
-                    do i = 1, 2
-                        call geti(states_for_transition_rdm(i, line))
-                    end do
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                        do i = 1, 2
+                            states_for_transition_rdm(i, line) = to_int(tokens%next())
+                        end do
+                    else
+                        call stop_all(t_r, 'Unexpected end of file reached.')
+                    end if
                 end do
 
             case ("PRINT-1RDMS-FROM-2RDM-POPS")
@@ -718,11 +729,11 @@ contains
 
             case ("BROKENSYMNOS")
                 tBrokenSymNOs = .true.
-                call readi(rottwo)
-                call readi(rotthree)
-                call readi(rotfour)
-                call readi(local_cutoff)
-                call readf(occ_numb_diff)
+                rottwo = to_int(tokens%next())
+                rotthree = to_int(tokens%next())
+                rotfour = to_int(tokens%next())
+                local_cutoff = to_int(tokens%next())
+                occ_numb_diff = to_realdp(tokens%next())
 ! This is to rotate the obtained natural orbitals (NOs) again in order to obtain
 ! symmetry broken NOs: pairs of NOs whose occupation numbers differ by less
 ! than the specified threshold occ_numb_diff (relative difference, i.e. difference
@@ -752,7 +763,7 @@ contains
                     &, 4, t_r, tagRotNOs, ierr)
                 RotNOs(:) = 0
                 do i = 1, ((2 * rottwo) + (3 * rotthree) + (4 * rotfour))
-                    call geti(RotNOs(i))
+                    RotNOs(i) = to_int(tokens%next())
                 end do
 
             case ("DIPOLE_MOMENTS")
@@ -768,8 +779,8 @@ contains
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this
 !is so if the CALCRDMENERGY keyword is present.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tDo_Not_Calc_2RDM_est = .true.
@@ -783,7 +794,7 @@ contains
 !property integrals. It uses all the different RDMs that have been estimated and get the
 !corresponding property estimations.
                 tCalcPropEst = .true.
-                if (nitems == 1) then
+                if (tokens%remaining_items() == 0) then
                     call stop_all(t_r, "Please specify the name of the integral file corresponding the property")
                 end if
                 ! iNumPropToEst is the total number of properties to be estimated
@@ -791,7 +802,7 @@ contains
                 if (iNumPropToEst > 3) then
                     call stop_all(t_r, 'Only 3 different property integrals allowed')
                 end if
-                call readu(PertFile(iNumPropToEst))
+                PertFile(iNumPropToEst) = to_upper(tokens%next())
 
             case ("NORDMINSTENERGY")
 !Only calculate and print out the RDM energy (from the 2-RDM) at the end of the simulation
@@ -813,8 +824,8 @@ contains
                 ! also tied to the POPSFILE/BINARYPOPS keyword - so if we're
                 ! writing a normal POPSFILE, we'll write this too, unless
                 ! **WRITERDMSTOREAD** OFF is used.
-                IF (item < nitems) THEN
-                    call readu(w)
+                IF (tokens%remaining_items() > 0) THEN
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tno_RDMs_to_read = .true.
@@ -848,13 +859,13 @@ contains
             case ("WRITERDMSEVERY")
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.
                 tWriteMultRDMs = .true.
-                call readi(IterWriteRDMs)
+                IterWriteRDMs = to_int(tokens%next())
 
             case ("THRESHOCCONLYRDMDIAG")
                 ! Only add in a contribution to the diagonal elements of the RDM if the average sign
                 ! of the determinant is greater than [ThreshOccRDM]
                 tThreshOccRDMDiag = .true.
-                call Getf(ThreshOccRDM)
+                ThreshOccRDM = to_realdp(tokens%next())
 
             case ("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces,
@@ -872,7 +883,7 @@ contains
                 TAutoCorr = .true.
                 CALL Stop_All("LogReadInput", "The ACF code has been commented out in the FCIMCPar module")
                 do i = 2, 4
-                    IF (item < nitems) call readi(NoACDets(i))
+                    IF (tokens%remaining_items() > 0) NoACDets(i) = to_int(tokens%next())
                 end do
             case ("DETPOPS")
 !This option no longer works...
@@ -882,10 +893,10 @@ contains
             case ("HISTPARTENERGIES")
 !This will histogram the hamiltonian matrix elements of the particles in the parallel FCIMC algorithm.
                 tHistEnergies = .true.
-                call readf(BinRange)
-                call readi(iNoBins)
-                call readf(OffDiagBinRange)
-                call readf(OffDiagMax)
+                BinRange = to_realdp(tokens%next())
+                iNoBins = to_int(tokens%next())
+                OffDiagBinRange = to_realdp(tokens%next())
+                OffDiagMax = to_realdp(tokens%next())
                 IF (OffDiagMax < 0.0_dp) THEN
                     OffDiagMax = -OffDiagMax
                 end if
@@ -895,7 +906,7 @@ contains
 !which can be diagonalized. It requires a diagonalization initially to work.
 !It can write out the average wavevector every iWriteHistEvery.
                 tHistSpawn = .true.
-                IF (item < nitems) call readi(iWriteHistEvery)
+                IF (tokens%remaining_items() > 0) iWriteHistEvery = to_int(tokens%next())
             case ("HISTHAMIL")
 !This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically
 !and can only be done for small systems
@@ -910,13 +921,13 @@ contains
                 tCalcFCIMCPsi = .true.
             case ("HISTEQUILSTEPS")
 !This option sets the histogramming to only be done after the specified number of iterations.
-                call readi(NHistEquilSteps)
+                NHistEquilSteps = to_int(tokens%next())
             case ("PRINTORBOCCS")
 !This option initiates the above histogramming of determinant populations and then at the end of the
 !spawning uses these to find the normalised
 !contribution of each orbital to the total wavefunction.
                 tPrintOrbOcc = .true.
-                IF (item < nitems) call readi(StartPrintOrbOcc)
+                IF (tokens%remaining_items() > 0) StartPrintOrbOcc = to_int(tokens%next())
 
             case ("PRINTDOUBSUEG")
                 call stop_all(t_r, 'This option (PRINTDOUBSUEG) has been deprecated')
@@ -927,7 +938,7 @@ contains
 !contribution of each orbital to the total wavefunction.
                 tPrintOrbOcc = .true.
                 tPrintOrbOccInit = .true.
-                IF (item < nitems) call readi(StartPrintOrbOcc)
+                IF (tokens%remaining_items() > 0) StartPrintOrbOcc = to_int(tokens%next())
             case ("POPSFILE")
 ! This is so that the determinants at the end of the MC run are written
 ! out, to enable them to be read back in using READPOPS in the Calc section,
@@ -935,8 +946,8 @@ contains
 ! will write the configuration of particles out each time the iteration
 ! passes that many.
                 TPopsFile = .true.
-                IF (item < nitems) THEN
-                    call readi(iWritePopsEvery)
+                IF (tokens%remaining_items() > 0) THEN
+                    iWritePopsEvery = to_int(tokens%next())
                     IF (iWritePopsEvery < 0) THEN
 !If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will
 !never be written out, even at the end of a simulation.
@@ -951,10 +962,10 @@ contains
             case ("REDUCEDPOPSFILE")
 !A reduced popsfile works in exactly the same way as a normal popsfile, but only every iPopsPartEvery particle is printed out.
                 TPopsFile = .true.
-                call readi(iWritePopsEvery)
-                call readi(iPopsPartEvery)
+                iWritePopsEvery = to_int(tokens%next())
+                iPopsPartEvery = to_int(tokens%next())
             case ("POPSFILETIMER")
-                call readf(PopsfileTimer)   !Write out a POPSFILE every "PopsfileTimer" hours.
+                PopsfileTimer = to_realdp(tokens%next())   !Write out a POPSFILE every "PopsfileTimer" hours.
 
             case ("BINARYPOPS")
                 ! This means that the popsfile (full or reduced) will now be
@@ -965,8 +976,8 @@ contains
                 ! a minimum weight is proveded, only those particles with at ]east
                 ! that weight are included.
                 tBinPops = .true.
-                if (item < nitems) then
-                    call readf(binarypops_min_weight)
+                if (tokens%remaining_items() > 0) then
+                    binarypops_min_weight = to_realdp(tokens%next())
                 end if
 
             case ("HDF5-POPS")
@@ -982,15 +993,15 @@ contains
 
                 tReduceHDF5Pops = .true.
 
-                if (item < nitems) then
-                    call readf(HDF5PopsMin)
+                if (tokens%remaining_items() > 0) then
+                    HDF5PopsMin = to_realdp(tokens%next())
                     if (HDF5PopsMin < 0.0_dp) then
                         call stop_all(t_r, 'Minimum population should be greater than or equal zero')
                     end if
                 end if
 
-                if (item < nitems) then
-                    call readi(iHDF5PopsMinEx)
+                if (tokens%remaining_items() > 0) then
+                    iHDF5PopsMinEx = to_int(tokens%next())
                     if (iHDF5PopsMinEx < 2) then
                         call stop_all(t_r, 'Excitation of minimum population should be greater than one')
                     end if
@@ -1013,7 +1024,7 @@ contains
                 ! Write another HDF5 popsfile with dets restricted to a maximum
                 ! exitation level and/or minimum population
                 tHDF5TruncPopsWrite = .true.
-                call readi(iHDF5TruncPopsEx)
+                iHDF5TruncPopsEx = to_int(tokens%next())
                 if (iHDF5TruncPopsEx < 2) then
                     call stop_all(t_r, 'Maximum excitation level should be greater than 1')
                 end if
@@ -1021,8 +1032,8 @@ contains
                 ! Number of iterations for the periodic writing of truncated popsfiles.
                 ! The default value of zero indicates no periodic writing but
                 ! only once at the end.
-                if (item < nitems) then
-                    call readi(iHDF5TruncPopsIter)
+                if (tokens%remaining_items() > 0) then
+                    iHDF5TruncPopsIter = to_int(tokens%next())
 
                     if (iHDF5TruncPopsEx < 0) then
                         call stop_all(t_r, 'Number of iterations should be greater than or equal zero')
@@ -1034,41 +1045,41 @@ contains
                 ! to the popsfile
                 tAccumPops = .true.
                 ! When to start accumulating the populations
-                call readi(iAccumPopsIter)
+                iAccumPopsIter = to_int(tokens%next())
 
                 ! Normally, when dets become empty, they are removed from CurrentDets
                 ! and any associated info (global_det_data) is lost. Therefore,
                 ! when accumlating populations is active, (some) empty dets are kept alive.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     ! This parameter represents the maximum excitation level to consider
                     ! when keeping empty dets alive.
                     ! We keep up to double excitations indefinitely anyway.
                     ! Therefore, this should be greater than or equal two.
                     ! Default value: 2
-                    call readi(iAccumPopsMaxEx)
+                    iAccumPopsMaxEx = to_int(tokens%next())
                     if (iAccumPopsMaxEx < 2) then
                         call stop_all(t_r, 'iAccumPopsMaxEx should be greater than or equal two')
                     end if
                 end if
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     ! This parameter represents the maximum number of iterations,
                     ! empty dets are kept before being removed. The removal happens
                     ! when CurrentDets is almost full (see iAccumPopsExpirePercent).
                     ! A value of zero means keeping accumulated empty dets indefinitely.
                     ! Default value: 0
-                    call readi(iAccumPopsExpireIters)
+                    iAccumPopsExpireIters = to_int(tokens%next())
                     if (iAccumPopsExpireIters < 0) then
                         call stop_all(t_r, 'iAccumPopsExpireIters should be greater than or equal zero')
                     end if
                 end if
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     ! This parameter represents how full CurrentDets should be before
                     ! removing accumulated empty dets according to the above criteria.
                     ! Default value: 0.9
-                    call readf(AccumPopsExpirePercent)
+                    AccumPopsExpirePercent = to_realdp(tokens%next())
                     if (AccumPopsExpirePercent < 0.0_dp .or. AccumPopsExpirePercent > 1.0) then
                         call stop_all(t_r, 'iAccumPopsExpirePercent should be between zero and one.')
                     end if
@@ -1086,16 +1097,16 @@ contains
                 tIncrementPops = .true.
             case ("FCIMCDEBUG")
 !FCIQMC debugging level. Takes an integer 0-6
-                call readi(FCIMCDebug)
+                FCIMCDebug = to_int(tokens%next())
             case ("ERRORDEBUG")
 !Error analysus debugging level. Takes an integer 0-6
-                call readi(ErrorDebug)
+                ErrorDebug = to_int(tokens%next())
             case ("WRITEDETE")
 !This logging option will write out the energies of all determinants which have been spawned at in the simulation
 ! The two input options are the number of bins, and the maximum determinant energy to be histogrammed.
                 TWriteDetE = .true.
-                IF (item < nitems) call readi(NoHistBins)
-                IF (item < nitems) call readf(MaxHistE)
+                IF (tokens%remaining_items() > 0) NoHistBins = to_int(tokens%next())
+                IF (tokens%remaining_items() > 0) MaxHistE = to_realdp(tokens%next())
             case ("ZEROPROJE")
 ! This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy
 ! estimator will be restarted.
@@ -1105,7 +1116,7 @@ contains
 ! values initially, and then print out the running wavevector every
 ! WavevectorPrint MC steps. However, this is slower.
                 TCalcWavevector = .true.
-                call readi(WavevectorPrint)
+                WavevectorPrint = to_int(tokens%next())
             case ("BLOCKING")
                 ILOGGING = IOR(ILOGGING, 2**13)
             case ("PREVAR")
@@ -1113,8 +1124,8 @@ contains
             case ("FMCPR")
 !  We log the value
                 ILOGGING = IOR(ILOGGING, 2**0)
-                do while (item < nitems)
-                    call readu(w)
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("LABEL")
                         ILOGGING = IOR(ILOGGING, 2**2)
@@ -1129,13 +1140,13 @@ contains
                     case ("")
                         ILOGGING = IOR(ILOGGING, 2**2)
                     case default
-                        CALL report("Logging keyword FMCPR "//trim(w)       &
+                        call stop_all(this_routine, "Logging keyword FMCPR "//trim(w)       &
            &               //" not recognised", .true.)
                     end select
                 end do
             case ("CALCPATH")
-                do while (item < nitems)
-                    call readu(w)
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("LABEL")
                         ILOGGING = IOR(ILOGGING, 2**4)
@@ -1144,7 +1155,7 @@ contains
                     case ("")
                         ILOGGING = IOR(ILOGGING, 2**4)
                     case default
-                        CALL report("Logging keyword CALCPATH "//trim(w)    &
+                        call stop_all(this_routine, "Logging keyword CALCPATH "//trim(w)    &
            &               //" not recognised", .true.)
                     end select
                 end do
@@ -1155,38 +1166,38 @@ contains
             case ("PSI")
                 ILOGGING = IOR(ILOGGING, 2**8)
             case ("TIMING")
-                do while (item < nitems)
-                    call readu(w)
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("LEVEL")
-                        call readi(iGlobalTimerLevel)
+                        iGlobalTimerLevel = to_int(tokens%next())
                     case ("PRINT")
-                        call readi(nPrintTimer)
+                        nPrintTimer = to_int(tokens%next())
                     case default
-                        call reread(-1)
-                        call readi(iGlobalTimerLevel)
+                        call tokens%reset(-1)
+                        iGlobalTimerLevel = to_int(tokens%next())
                     end select
                 end do
             case ("VERTEX")
-                do while (item < nitems)
-                    call readu(w)
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
                     select case (w)
                         ! case("1000")
                         !     ILOGGING = IOR(ILOGGING,2**9)
                     case ("EVERY")
                         ILOGGING = IOR(ILOGGING, 2**10)
                     case default
-                        call reread(-1)
-                        call geti(G_VMC_LOGCOUNT)
+                        call tokens%reset(-1)
+                        G_VMC_LOGCOUNT = to_int(tokens%next())
                         ILOGGING = IOR(ILOGGING, 2**9)
-!                  CALL report("Logging keyword VERTEX "//trim(w)    &
+!                  call stop_all(this_routine, "Logging keyword VERTEX "//trim(w)    &
 !     &               //" not recognised",.true.)
                     end select
                 end do
             case ("HFBASIS")
                 ILOGGING = IOR(ILOGGING, 2**11)
             case ("HFLOGLEVEL")
-                call geti(HFLOGLEVEL)
+                HFLOGLEVEL = to_int(tokens%next())
             case ("SAVEPREVARLOGGING")
                 PreVarLogging = iLogging
                 iLogging = iLoggingDef
@@ -1198,7 +1209,7 @@ contains
                 tLogEXLEVELStats = .true.
             case ("INITS-EXLVL-WRITE")
                 ! up to which excitation level the number of initiators is written out
-                if (item < nitems) call readi(maxInitExLvlWrite)
+                if (tokens%remaining_items() > 0) maxInitExLvlWrite = to_int(tokens%next())
             case ("INSTANT-S2-FULL")
                 ! Calculate an instantaneous value for S^2, and output it to the
                 ! relevant column in the FCIMCStats file.
@@ -1207,7 +1218,7 @@ contains
                 ! S^2 once for every n update cycles (it must be on an update
                 ! cycle such that norm_psi_squared is correct)
                 tCalcInstantS2 = .true.
-                if (item < nitems) call readi(instant_s2_multiplier)
+                if (tokens%remaining_items() > 0) instant_s2_multiplier = to_int(tokens%next())
 
             case ("PLOT-CC-AMPLITUDES")
                 t_plot_cc_amplitudes = .true.
@@ -1221,8 +1232,8 @@ contains
                 ! S^2 once for every n update cycles (it must be an update
                 ! cycle such that norm_psi_squared is correct).
                 tCalcInstantS2Init = .true.
-                if (item < nitems) &
-                    call readi(instant_s2_multiplier_init)
+                if (tokens%remaining_items() > 0) &
+                    instant_s2_multiplier_init = to_int(tokens%next())
 
             case ("INSTANT-S-CPTS")
                 ! Calculate components of the wavefunction with each value of S.
@@ -1257,7 +1268,7 @@ contains
                 ! At the end of a calculation, find the write_end_core_size most
                 ! populated determinants and write them to a CORESPACE file.
                 tWriteCoreEnd = .true.
-                call readi(write_end_core_size)
+                write_end_core_size = to_int(tokens%next())
 
             case ("WRITE-TRIAL")
                 ! Output the trial wavefunction space to a file.
@@ -1265,7 +1276,7 @@ contains
 
             case ("COMPARE-TRIAL-AND-FCIQMC-AMPS")
                 tCompareTrialAmps = .true.
-                call readi(compare_amps_period)
+                compare_amps_period = to_int(tokens%next())
 
             case ("HIST-EXCIT-TOFROM")
                 ! Histogram how many particles are spawned between sites with
@@ -1276,15 +1287,15 @@ contains
                 ! When using auto-adaptive shift, print a histogram of the shift factors over
                 ! the energy
                 tFValEnergyHist = .true.
-                if (item < nitems) call readi(FValEnergyHist_EnergyBins)
-                if (item < nitems) call readi(FValEnergyHist_FvalBins)
+                if (tokens%remaining_items() > 0) FValEnergyHist_EnergyBins = to_int(tokens%next())
+                if (tokens%remaining_items() > 0) FValEnergyHist_FvalBins = to_int(tokens%next())
 
             case ("FVAL-POP-HIST")
                 ! When using auto-adaptive shift, print a histogram of the shift factors over
                 ! the population
                 tFValPopHist = .true.
-                if (item < nitems) call readi(FValPopHist_PopBins)
-                if (item < nitems) call readi(FValPopHist_FvalBins)
+                if (tokens%remaining_items() > 0) FValPopHist_PopBins = to_int(tokens%next())
+                if (tokens%remaining_items() > 0) FValPopHist_FvalBins = to_int(tokens%next())
 
             case ("ENDLOG")
                 exit logging
@@ -1334,9 +1345,9 @@ contains
                 t_calc_double_occ = .true.
                 t_calc_double_occ_av = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     t_calc_double_occ_av = .false.
-                    call geti(equi_iter_double_occ)
+                    equi_iter_double_occ = to_int(tokens%next())
                 end if
 
             case ("LOCAL-SPIN")
@@ -1355,8 +1366,8 @@ contains
             case ("LOG-IJA")
                 t_log_ija = .true.
 
-                if (item < nitems) then
-                    call getf(ija_thresh)
+                if (tokens%remaining_items() > 0) then
+                    ija_thresh = to_realdp(tokens%next())
                 end if
 
             case ("WRITE-REFERENCES")
@@ -1373,9 +1384,9 @@ contains
                 t_calc_double_occ_av = .true.
                 t_spin_measurements = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     t_calc_double_occ_av = .false.
-                    call geti(equi_iter_double_occ)
+                    equi_iter_double_occ = to_int(tokens%next())
                 end if
 
             case ('SYMMETRY-ANALYSIS')
@@ -1387,16 +1398,16 @@ contains
                 ! multiple times with the according keywords
                 t_symmetry_analysis = .true.
 
-                if (item < nitems) then
-                    call readl(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_lower(tokens%next())
 
                     select case (w)
 
                     case ('rot', 'rotation')
                         t_symmetry_rotation = .true.
 
-                        if (item < nitems) then
-                            call getf(symmetry_rotation_angle)
+                        if (tokens%remaining_items() > 0) then
+                            symmetry_rotation_angle = to_realdp(tokens%next())
                         else
                             symmetry_rotation_angle = 90.0_dp
                         end if
@@ -1405,8 +1416,8 @@ contains
                         t_symmetry_mirror = .true.
 
                         ! available mirror axes are : 'x','y','d' and 'o'
-                        if (item < nitems) then
-                            call readl(symmertry_mirror_axis)
+                        if (tokens%remaining_items() > 0) then
+                            symmertry_mirror_axis = to_lower(tokens%next())
                         else
                             symmertry_mirror_axis = 'x'
                         end if
@@ -1415,7 +1426,7 @@ contains
                         t_symmetry_inversion = .true.
 
                     case default
-                        CALL report("Logging keyword "//trim(w)//" not recognised", .true.)
+                        call stop_all(this_routine, "Logging keyword "//trim(w)//" not recognised", .true.)
 
                     end select
                 else
@@ -1428,14 +1439,14 @@ contains
             case ('SYMMETRY-STATES')
                 ! required input to determine which states to consider.
                 ! Two options:
-                if (item < nitems) then
-                    call readl(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_lower(tokens%next())
                     select case (w)
                     case ('input', 'read')
                         t_read_symmetry_states = .true.
 
-                        if (item < nitems) then
-                            call geti(n_symmetry_states)
+                        if (tokens%remaining_items() > 0) then
+                            n_symmetry_states = to_int(tokens%next())
                         else
                             call stop_all(t_r, &
                                           "symmetry-states input need number of states!")
@@ -1445,18 +1456,21 @@ contains
                         symmetry_states = 0
 
                         do line = 1, n_symmetry_states
-                            call read_line(eof)
-                            do i = 1, nel
-                                call geti(symmetry_states(i, line))
-                            end do
+                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                                do i = 1, nel
+                                    symmetry_states(i, line) = to_int(tokens%next())
+                                end do
+                            else
+                                call stop_all(t_r, 'Unexpected end of file reached.')
+                            end if
                         end do
 
                     case ('pop', 'most-populated', 'pops')
                         ! take the N most populated states
                         t_pop_symmetry_states = .true.
 
-                        if (item < nItems) then
-                            call geti(n_symmetry_states)
+                        if (tokens%remaining_items() > 0) then
+                            n_symmetry_states = to_int(tokens%next())
                         else
                             call stop_all(t_r, &
                                           "symmetry-states input need number of states!")
@@ -1481,7 +1495,7 @@ contains
                 symmetry_states = 0_n_int
 
             case default
-                CALL report("Logging keyword "//trim(w)//" not recognised", .true.)
+                call stop_all(this_routine, "Logging keyword "//trim(w)//" not recognised", .true.)
             end select
         end do logging
 

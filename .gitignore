@@ -33,6 +33,9 @@ RDMEstimates*
 TwoRDM*
 OneRDM*
 spinfree_TwoRDM*
+Inits_TwoRDM_*
+InitsOneRDM.*
+InitsRDMEstimates
 NO_*
 FTLM_EIGV
 EIGV_DATA
@@ -68,6 +71,12 @@ double_occupancy_stat*
 popsfile.h5*
 RDM_POPSFILE
 replica_estimates
+replica_estimates.*
+!replica_estimates/
+spatial-tmat
+spinfree-1-RDM
+local_spin_stats
+local_spin_stats.*
 
 # Documentation
 neci.fdb_latexmk
@@ -76,3 +85,5 @@ neci.synctex.gz
 neci_dev.pdf
 doc/*
 *pdf
+
+spinfree-1-RDM

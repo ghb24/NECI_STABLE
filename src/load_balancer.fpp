@@ -20,7 +20,7 @@ module load_balance
     use bit_rep_data, only: flag_initiator, nifd, &
                             flag_connected, flag_trial, flag_prone, flag_removed
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut
+                        encode_part_sign, nullify_ilut, writebitdet
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &

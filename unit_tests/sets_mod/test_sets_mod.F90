@@ -1,7 +1,7 @@
 module test_cases
     use fruit
-    use sets_mod, only: is_sorted, disjoint, subset, union, intersect, &
-        complement, suc => special_union_complement
+    use sets_mod, only: is_sorted, disjoint, subset, operator(.U.), operator(.cap.), &
+        operator(.complement.), suc => special_union_complement
     implicit none
     private
     public :: test_is_sorted, test_disjoint, test_union, test_intersect, &
@@ -39,46 +39,46 @@ contains
     end subroutine
 
     subroutine test_union()
-        associate(expected => [1, 2, 3], calculated => union([1, 2], [3]))
+        associate(expected => [1, 2, 3], calculated => [1, 2] .U. [3])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [1, 2, 3], calculated => union([1, 2, 3], [integer::]))
+        associate(expected => [1, 2, 3], calculated => [1, 2, 3] .U. [integer::])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [1, 2, 3], calculated => union([1, 2, 3], [2, 3]))
+        associate(expected => [1, 2, 3], calculated => [1, 2, 3] .U. [2, 3])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [1, 2, 3, 4], calculated => union([1, 2, 3], [2, 3, 4]))
+        associate(expected => [1, 2, 3, 4], calculated => [1, 2, 3] .U. [2, 3, 4])
             call assert_equals(expected, calculated, size(calculated))
         end associate
     end subroutine
 
     subroutine test_intersect()
-        associate(expected => [1, 2, 3], calculated => intersect([1, 2, 3], [1, 2, 3]))
+        associate(expected => [1, 2, 3], calculated => [1, 2, 3] .cap. [1, 2, 3])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [integer::], calculated => intersect([1, 2, 3], [integer::]))
+        associate(expected => [integer::], calculated => [1, 2, 3] .cap. [integer::])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [2, 3], calculated => intersect([1, 2, 3], [2, 3]))
+        associate(expected => [2, 3], calculated => [1, 2, 3] .cap. [2, 3])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [2, 3], calculated => intersect([1, 2, 3], [2, 3, 4]))
+        associate(expected => [2, 3], calculated => [1, 2, 3] .cap. [2, 3, 4])
             call assert_equals(expected, calculated, size(calculated))
         end associate
     end subroutine
 
     subroutine test_complement()
-        associate(expected => [integer::], calculated => complement([1, 2, 3], [1, 2, 3]))
+        associate(expected => [integer::], calculated => [1, 2, 3] .complement. [1, 2, 3])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [1, 2, 3], calculated => complement([1, 2, 3], [integer::]))
+        associate(expected => [1, 2, 3], calculated => [1, 2, 3] .complement. [integer::])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [1], calculated => complement([1, 2, 3], [2, 3]))
+        associate(expected => [1], calculated => [1, 2, 3] .complement. [2, 3])
             call assert_equals(expected, calculated, size(calculated))
         end associate
-        associate(expected => [1], calculated => complement([1, 2, 3], [2, 3, 4]))
+        associate(expected => [1], calculated => [1, 2, 3] .complement. [2, 3, 4])
             call assert_equals(expected, calculated, size(calculated))
         end associate
     end subroutine

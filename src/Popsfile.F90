@@ -9,7 +9,7 @@ MODULE PopsfileMod
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, t_hist_tau_search_option, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, tPopsAlias, &
-                        InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
+                        MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
                         t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
@@ -66,7 +66,7 @@ MODULE PopsfileMod
 
     use SystemData, only: tGUGA
     use guga_data, only: ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element
+    use guga_matrixElements, only: calc_guga_matrix_element
 
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
@@ -1367,7 +1367,8 @@ contains
         logical :: Pop64Bit, PopLz, PopHPHF
         integer :: PopLensign, PopNEl, PopCyc, PopiBlockingIter
         integer, parameter :: max_nodes = 30000
-        integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
+        integer(int64) :: PopTotwalk
+        integer(int64), allocatable :: PopWalkersOnNodes(:)
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing, PopPTriples
         real(dp) :: PopPDoubles, PopPSing_spindiff1, PopPDoub_spindiff1, PopPDoub_spindiff2
@@ -1395,6 +1396,7 @@ contains
             PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms, &
             tPopAccumPops, PopAccumPopsCounter
 
+
         PopsVersion = FindPopsfileVersion(iunithead)
         if (PopsVersion /= 4) call stop_all("ReadPopsfileHeadv4", "Wrong popsfile version for this routine.")
 
@@ -1405,6 +1407,7 @@ contains
         PopMultiSft = 0.0_dp
         PopMaxDeathCpt = 0.0_dp
         PopTotImagTime = 0.0_dp
+        allocate(PopWalkersOnNodes(max_nodes), source=0_int64)
 
         PopBalanceBlocks = -1
         PopNNodes = 0
@@ -2204,8 +2207,8 @@ contains
                     if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
                         call calc_guga_matrix_element(&
-                                det, CSF_Info_t(det), iLutRef(:, 1), &
-                                excitInfo, hf_helemt, .true., 2)
+                                det, CSF_Info_t(det), iLutRef(:, 1), CSF_Info_t(iLutRef(:, 1)), &
+                                excitInfo, hf_helemt, .true.)
                         ex_level = excitInfo%excitLvl
                         if (ex_level == -1) ex_level = 0
                     else

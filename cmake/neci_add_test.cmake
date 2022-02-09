@@ -28,6 +28,9 @@
 #
 #   required so that <project>_<lang>_linker_flags can be made to work
 #
+# WARNERR : optional
+#   Treat warnings as errrors. Defaults to off.
+#
 # MPI : optional
 #   number of MPI tasks to use.
 #
@@ -44,13 +47,17 @@
 #	same as in neci_add_library, since unit-tests may also depend on build-target!
 #       but i cannot get it running yet with the preprocessor running across the file first..
 #
+# PRIVATE_INCLUDES : optional
+#   list of paths to add to include directories that will NOT be exported to other projects. Currently
+#   the PUBLIC_INCLUDES functionality is not implemented in this project.
+#
 ##############################################################################
 
 macro( neci_add_test )
 
     set( options )
-    set( single_value_args TARGET LINKER_LANGUAGE MPI META_TARGET )
-    set( multi_value_args SOURCES LIBS DEFINITIONS)
+    set( single_value_args TARGET LINKER_LANGUAGE MPI META_TARGET WARNERR)
+    set( multi_value_args SOURCES LIBS DEFINITIONS PRIVATE_INCLUDES)
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
 
@@ -119,11 +126,31 @@ macro( neci_add_test )
       message(DEBUG "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}" )
     endif()
 
+    # Add (private) includes
+    if( DEFINED _p_PRIVATE_INCLUDES )
+        list( REMOVE_DUPLICATES _p_PRIVATE_INCLUDES )
+        foreach( include_path ${_p_PRIVATE_INCLUDES} )
+            target_include_directories( ${_p_TARGET} PRIVATE ${include_path} )
+        endforeach()
+    endif()
+
+    # set the warn-error flags
+    if (DEFINED _p_WARNERR )
+        if(HAVE_WARNINGS )
+        foreach( _lang C CXX Fortran )
+            if( CMAKE_${_lang}_COMPILER_LOADED AND DEFINED ${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG )
+                target_compile_options(${_p_TARGET} PRIVATE $<$<COMPILE_LANGUAGE:${_lang}>:${${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG}>)
+            endif()
+        endforeach()
+        endif()
+    endif()
+
     # Add the testing infrastructure to the executable
 
     add_test( ${_p_TARGET} ${_test_command} "${_test_arguments}" ${_test_dir} )
 
     set_tests_properties( ${_p_TARGET} PROPERTIES WORKING_DIRECTORY ${_test_dir} )
+
 
     message(DEBUG "Added unit test: ${_p_TARGET}" )
 

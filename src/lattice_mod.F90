@@ -15,8 +15,9 @@ module lattice_mod
                           symmetry, brr, t_input_order, orbital_order, &
                           t_k_space_hubbard, t_trans_corr_hop, &
                           t_new_real_space_hubbard
-    use input_neci, only: item, nitems, input_options, readu, geti, read_line
-    use util_mod, only: get_free_unit
+    use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+    use util_mod, only: stop_all
 
     implicit none
     private
@@ -553,9 +554,9 @@ module lattice_mod
     ! abstract type: lattice
     abstract interface
 
-        function get_length_t(this, dimen) result(length)
+        pure function get_length_t(this, dimen) result(length)
             import :: lattice
-            class(lattice) :: this
+            class(lattice), intent(in) :: this
             integer, intent(in), optional :: dimen
             ! fix our self to 3 dimensions.. thats not good i know, but
             ! atleast it gives us more flexibility
@@ -823,8 +824,8 @@ contains
 
     end subroutine set_sym
 
-    function add_k_vec(this, k_1, k_2) result(k_out)
-        class(lattice) :: this
+    pure function add_k_vec(this, k_1, k_2) result(k_out)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: k_1(3), k_2(3)
         integer :: k_out(3)
 #ifdef DEBUG_
@@ -870,10 +871,10 @@ contains
 
     end function inv_k_vec
 
-    function get_sym(this, orb) result(sym)
+    pure function get_sym(this, orb) result(sym)
         ! gives the symmetry label associated with the k-vector of
         ! spatial orbital (orb)
-        class(lattice) ::  this
+        class(lattice), intent(in) ::  this
         integer, intent(in) :: orb
         integer :: sym
         unused_var(this)
@@ -882,9 +883,9 @@ contains
 
     end function get_sym
 
-    function get_sym_from_k(this, k) result(sym)
+    pure function get_sym_from_k(this, k) result(sym)
         ! the routine to get the symmetry label associated with the k-vector k
-        class(lattice) :: this
+        class(lattice), intent(in) :: this
         integer, intent(in) :: k(3)
         integer :: sym
 
@@ -950,9 +951,9 @@ contains
 
     end function get_orb_from_k_vec
 
-    function round_sym(this, sym_in) result(sym_out)
+    elemental function round_sym(this, sym_in) result(sym_out)
         ! routine to map k-vectors outside first BZ back inside
-        class(lattice) :: this
+        class(lattice), intent(in) :: this
         type(basisfn), intent(in) :: sym_in
         type(basisfn) :: sym_out
 
@@ -973,8 +974,8 @@ contains
 
     end function round_sym
 
-    function map_k_vec(this, k_in) result(k_out)
-        class(lattice) :: this
+    pure function map_k_vec(this, k_in) result(k_out)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: k_in(3)
         integer :: k_out(3)
 
@@ -1002,8 +1003,8 @@ contains
 
     end function map_k_vec
 
-    logical function inside_bz(this, k_vec)
-        class(lattice) :: this
+    logical pure function inside_bz(this, k_vec)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: k_vec(3)
         character(*), parameter :: this_routine = "inside_bz"
 
@@ -1023,8 +1024,8 @@ contains
 
     end function inside_bz
 
-    logical function inside_bz_explicit(this, k_vec)
-        class(lattice) :: this
+    logical pure function inside_bz_explicit(this, k_vec)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: k_vec(sdim)
 
         integer :: i
@@ -1038,9 +1039,8 @@ contains
 
     end function inside_bz_explicit
 
-    logical function inside_bz_ole(this, k_vec)
-        implicit none
-        class(ole) :: this
+    logical pure function inside_bz_ole(this, k_vec)
+        class(ole), intent(in) :: this
         integer, intent(in) :: k_vec(sdim)
 
         ! I think this should be the approach for most lattices
@@ -1065,11 +1065,11 @@ contains
 
     end function inside_bz_chain
 
-    function apply_basis_vector_general(this, k_in) result(k_out)
+    pure function apply_basis_vector_general(this, k_in) result(k_out)
         ! todo: i think i can write a general routine to apply the basis
         ! vectors.. so i do not have to write a specific one for all the
         ! different sorts of lattices..
-        class(lattice) :: this
+        class(lattice), intent(in) :: this
         integer, intent(in) :: k_in(sdim)
         integer, allocatable :: k_out(:, :)
 
@@ -1084,8 +1084,8 @@ contains
 
     end function apply_basis_vector_general
 
-    function apply_basis_vector_cube(this, k_in, ind) result(k_out)
-        class(cube) :: this
+    pure function apply_basis_vector_cube(this, k_in, ind) result(k_out)
+        class(cube), intent(in) :: this
         integer, intent(in) :: k_in(3)
         integer, intent(in), optional :: ind
         integer :: k_out(3)
@@ -1105,8 +1105,8 @@ contains
 
     end function apply_basis_vector_cube
 
-    function apply_basis_vector_rect(this, k_in, ind) result(k_out)
-        class(rectangle) :: this
+    pure function apply_basis_vector_rect(this, k_in, ind) result(k_out)
+        class(rectangle), intent(in) :: this
         integer, intent(in) :: k_in(3)
         integer, intent(in), optional :: ind
         integer :: k_out(3)
@@ -1239,9 +1239,9 @@ contains
 
     end subroutine init_basis_vecs_rect_base
 
-    function apply_basis_vector(this, k_in, ind) result(k_out)
+    pure function apply_basis_vector(this, k_in, ind) result(k_out)
         ! i have to specifically write this for every lattice type..
-        class(lattice) :: this
+        class(lattice), intent(in) :: this
         integer, intent(in) :: k_in(3)
         integer, intent(in), optional :: ind
         integer :: k_out(3)
@@ -1289,8 +1289,8 @@ contains
 
     end function apply_basis_vector_ole
 
-    integer function get_length_aim_star(this, dimen)
-        class(aim_star) :: this
+    integer pure function get_length_aim_star(this, dimen)
+        class(aim_star), intent(in) :: this
         integer, intent(in), optional :: dimen
         unused_var(this)
         if (present(dimen)) then
@@ -1931,7 +1931,7 @@ contains
                 this%sites(23) = site(23, 4, [15,20,21, 24])
                 this%sites(24) = site(24, 4, [1, 10,15, 23])
 
-            else if (this%length(1) == 3 .and. this%length(2) == 2) then 
+            else if (this%length(1) == 3 .and. this%length(2) == 2) then
                 ! the 3x2x6 36-site cluster
                 this%sites( 1) = site( 1, 4, [ 2, 4,16,36])
                 this%sites( 2) = site( 2, 4, [ 1, 3, 4, 5])
@@ -1970,7 +1970,7 @@ contains
                 this%sites(35) = site(35, 4, [21,32,33,36])
                 this%sites(36) = site(36, 4, [ 1,16,21,35])
 
-            else if (this%length(1) == 4 .and. this%length(2) == 2) then 
+            else if (this%length(1) == 4 .and. this%length(2) == 2) then
                 ! the 4x2x6 48-site cluster
                 this%sites( 1) = site( 1, 4, [ 2, 4,22,48])
                 this%sites( 2) = site( 2, 4, [ 1, 3, 4, 5])
@@ -2411,53 +2411,28 @@ contains
 
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
+        type(ManagingFileReader_t) :: file_reader
+        type(TokenIterator_t) :: tokens
 
-        fmat = 'NO'
+        file_reader = ManagingFileReader_t("lattice.file")
 
-        iunit = get_free_unit()
+        readsites: do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
+            select case (w)
+            case ('SITE')
+                n_site = to_int(tokens%next())
 
-        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
-
-        IF (.not. exists) THEN
-                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
-        end if
-
-        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
-
-        readsites: do
-                call read_line(leof,iunit)
-                if (leof) then
-                        exit
-                end if
-                call readu(w)
-                select case (w)
-                case('SITE')
-                        if (item < nitems) then
-                                call geti(n_site)
-                        end if
-                        if (item < nitems) then
-                                call geti(n_neighbors)
-                                if (allocated(neighs)) then
-                                        deallocate(neighs)
-                                end if
-                                allocate(neighs(n_neighbors))
-                                neighs(:) = 0
-                        end if
-
-                        i = 1
-                        do while (item < nitems)
-                                call geti(neigh)
-                                neighs(i) = neigh
-                                i = i+1
-                        end do
-                        this%sites(n_site) = site(n_site, n_neighbors, neighs)
-                end select
+                n_neighbors = to_int(tokens%next())
+                if (allocated(neighs)) deallocate(neighs)
+                allocate(neighs(n_neighbors), source=0)
+                do i = 1, size(neighs)
+                    neighs(i) = to_int(tokens%next())
+                end do
+                this%sites(n_site) = site(n_site, n_neighbors, neighs)
+            end select
         end do readsites
 
-        close(iunit)
-
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
-
+        call file_reader%close()
     end subroutine read_sites
 
     subroutine init_sites_sujun(this)
@@ -3283,8 +3258,8 @@ contains
 
     end subroutine apply_pbc_tilted
 
-    function get_k_vec(this, orb) result(k_vec)
-        class(lattice) :: this
+    pure function get_k_vec(this, orb) result(k_vec)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: orb
         integer :: k_vec(3)
 
@@ -4844,8 +4819,8 @@ contains
 
     ! the star does not really have a concept of length..
     ! so always ouput STAR_LENGTH
-    integer function get_length_star(this, dimen)
-        class(star) :: this
+    integer pure function get_length_star(this, dimen)
+        class(star), intent(in) :: this
         integer, intent(in), optional:: dimen
         unused_var(dimen)
         unused_var(this)
@@ -4854,8 +4829,8 @@ contains
 
     end function get_length_star
 
-    integer function get_length_chain(this, dimen)
-        class(chain) :: this
+    integer pure function get_length_chain(this, dimen)
+        class(chain), intent(in) :: this
         integer, intent(in), optional :: dimen
 
         if (present(dimen)) then
@@ -4870,8 +4845,8 @@ contains
 
     end function get_length_chain
 
-    integer function get_length_cube(this, dimen)
-        class(cube) :: this
+    integer pure function get_length_cube(this, dimen)
+        class(cube), intent(in) :: this
         integer, intent(in), optional :: dimen
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_length_cube"
@@ -4885,8 +4860,8 @@ contains
 
     end function get_length_cube
 
-    integer function get_length_rect(this, dimen)
-        class(rectangle) :: this
+    integer pure function get_length_rect(this, dimen)
+        class(rectangle), intent(in) :: this
         integer, intent(in), optional :: dimen
         character(*), parameter :: this_routine = "get_length_rect"
 
@@ -4901,8 +4876,8 @@ contains
 
     end function get_length_rect
 
-    integer function get_length_aim_chain(this, dimen)
-        class(aim_chain) :: this
+    integer pure function get_length_aim_chain(this, dimen)
+        class(aim_chain), intent(in) :: this
         integer, intent(in), optional :: dimen
 
         if (present(dimen) .and. dimen > 1) then
@@ -5011,18 +4986,14 @@ contains
 
     end function is_periodic_y
 
-    integer function get_ndim(this)
-        class(lattice) :: this
-
+    integer elemental function get_ndim(this)
+        class(lattice), intent(in) :: this
         get_ndim = this%n_dim
-
     end function get_ndim
 
-    integer function get_nsites(this)
-        class(lattice) :: this
-
+    integer elemental function get_nsites(this)
+        class(lattice), intent(in) :: this
         get_nsites = this%n_sites
-
     end function get_nsites
 
     subroutine print_lat(this)
@@ -5175,6 +5146,9 @@ contains
         CHARACTER(LEN=100) w
         character(*), parameter :: this_routine = "calc_nsites_gen"
 
+        type(ManagingFileReader_t) :: file_reader
+        type(TokenIterator_t) :: tokens
+
         unused_var(this)
         unused_var(length_x)
         unused_var(length_y)
@@ -5183,35 +5157,17 @@ contains
             unused_var(length_z)
         end if
 
-        iunit = get_free_unit()
-        fmat = 'NO'
+        file_reader = ManagingFileReader_t("lattice.file")
 
-        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
-        IF (.not. exists) THEN
-                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
-        end if
-
-        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
-
-        lat: do
-                call read_line(leof,iunit)
-                if (leof) then
-                        exit
-                end if
-                call readu(w)
-                select case (w)
-
-                case('N_SITES')
-                        if (item < nitems) then
-                                call geti(n_sites)
-                        end if
-                end select
+        lat: do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
+            select case (w)
+            case ('N_SITES')
+                n_sites = to_int(tokens%next())
+            end select
         end do lat
 
-        close(iunit)
-
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
-
+        call file_reader%close()
     end function read_lattice_n_sites
 
 
@@ -5226,68 +5182,38 @@ contains
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
         CHARACTER(LEN=NAME_LEN) lat_typ
+        type(ManagingFileReader_t) :: file_reader
+        type(TokenIterator_t) :: tokens
 
+        file_reader = ManagingFileReader_t("lattice.file")
 
-        iunit = get_free_unit()
-        fmat = 'NO'
+        lat: do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
 
-        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
-        IF (.not. exists) THEN
-                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
-        end if
+            select case (w)
+            case ('DIM')
+                call this%set_ndim(to_int(tokens%next()))
 
-        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
+            case ('LATTICE_TYPE')
+                this%name = to_upper(tokens%next())
 
-        lat: do
-                call read_line(leof,iunit)
-                if (leof) then
-                        exit
-                end if
+            case ('LATTICE_PARAM')
+                x1 = to_int(tokens%next())
+                y1 = to_int(tokens%next())
+                x2 = to_int(tokens%next())
+                y2 = to_int(tokens%next())
 
-                call readu(w)
-                select case (w)
+                this%lat_vec(1:2, 1) = [x1, y1]
+                this%lat_vec(1:2, 2) = [x2, y2]
 
-                case('DIM')
-                        if (item < nitems) then
-                                call geti(lat_dim)
-                        end if
-                        call this%set_ndim(lat_dim)
-
-                case('LATTICE_TYPE')
-                        if (item < nitems) then
-                                call readu(lat_typ)
-                        end if
-                        this%name = lat_typ
-
-                case('LATTICE_PARAM')
-                        if (item < nitems) then
-                                call geti(x1)
-                        end if
-                        if (item < nitems) then
-                                call geti(y1)
-                        end if
-                        if (item < nitems) then
-                                call geti(x2)
-                        end if
-                        if (item < nitems) then
-                                call geti(y2)
-                        end if
-                        this%lat_vec(1:2, 1) = [x1,y1]
-                        this%lat_vec(1:2, 2) = [x2,y2]
-
-                case('N_CONNECT_MAX')
-                        if (item < nitems) then
-                                call geti(this%n_connect_max)
-                        end if
-                end select
+            case ('N_CONNECT_MAX')
+                this%n_connect_max = to_int(tokens%next())
+            end select
         end do lat
 
-        close(iunit)
+        call this%set_length(1, 3)
 
-        call this%set_length(1,3)
-        !call this%set_nconnect_max(4)
-
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+        call file_reader%close()
 
     end subroutine read_lattice_struct
 

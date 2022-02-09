@@ -8,8 +8,7 @@ module guga_init
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
-                          ref_stepvector, ref_b_vector_int, ref_occ_vector, &
-                          ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
+                          treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
                           t_tJ_model, t_guga_pchb, t_pchb_weighted_singles
 
@@ -28,8 +27,7 @@ module guga_init
                          n_excit_info_bits
 
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
-                        calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
-                        calc_mixed_start_r2l_contr, calc_mixed_end_r2l_contr, calc_mixed_end_l2r_contr, &
+                        calc_orbital_pgen_contr, &
                         pick_first_orbital, orb_pgen_contrib_type_2, orb_pgen_contrib_type_3, &
                         calc_off_diag_guga_ref, calc_orbital_pgen_contrib_start, &
                         calc_orbital_pgen_contrib_end
@@ -37,18 +35,14 @@ module guga_init
     use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
                         calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
-                        calc_mixed_contr_sym, &
-                        calc_mixed_start_contr_sym,&
                         calc_mixed_x2x_ueg, &
-                        calc_mixed_end_contr_sym, &
-                        temp_step_i, temp_step_j, &
-                        temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
+                        calc_off_diag_guga_ref_direct, &
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
 
-    use constants, only: dp, int_rdm, n_int, stdout
+    use constants, only: dp, int_rdm, n_int, stdout, inum_runs
 
     use MPI_wrapper, only: iProcIndex
 
@@ -59,7 +53,9 @@ module guga_init
 
     use back_spawn, only: setup_virtual_mask
 
-    use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i
+    use util_mod, only: operator(.div.), stop_all
+
+    use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i, csf_ref
 
     use guga_pchb_excitgen, only: pick_orbitals_pure_uniform_singles, &
                                   pick_orbitals_double_pchb, &
@@ -67,8 +63,7 @@ module guga_init
                                   calc_orbital_pgen_contr_start_pchb, &
                                   calc_orbital_pgen_contr_end_pchb
 
-    ! variable declaration
-    implicit none
+    better_implicit_none
 
     private
 
@@ -81,46 +76,24 @@ contains
         ! this routine, depending on the input set the orbital pickers
         ! to differentiate between the different excitation generators
 
-        ! now i have to differentiate between the real- and momentum space
-        ! hubbard models..
-        ! this is default for all, except PCHB excit-gens
-        calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def
-        calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def
 
         if (tGen_sym_guga_ueg) then
+            calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def
+            calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def
             if (.not. (treal .or. t_new_real_space_hubbard)) then
-                pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
                 pickOrbitals_double => pickOrbs_sym_uniform_ueg_double
-                calc_mixed_contr => calc_mixed_contr_sym
                 calc_orbital_pgen_contr => calc_orbital_pgen_contr_ueg
-                calc_mixed_start_r2l_contr => calc_mixed_x2x_ueg
-                calc_mixed_start_l2r_contr => calc_mixed_x2x_ueg
-                calc_mixed_end_r2l_contr => calc_mixed_x2x_ueg
-                calc_mixed_end_l2r_contr => calc_mixed_x2x_ueg
             else
                 pickOrbitals_single => pickOrbs_real_hubbard_single
-                pickOrbitals_double => pickOrbs_real_hubbard_double
-                ! what about the contributions? do i need dummy functions?
-                ! i do need these for the exact RDM contributions...
-                ! atleast as dummies..
-                calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
-                calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
-                calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
-                calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
-                calc_mixed_contr => calc_mixed_contr_sym
-
             end if
 
         else if (tGen_sym_guga_mol) then
 
-            pickOrbitals_single => pickOrbs_sym_uniform_mol_single
-            pickOrbitals_double => pickOrbs_sym_uniform_mol_double
-            calc_orbital_pgen_contr => calc_orbital_pgen_contr_mol
-            calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
-            calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
-            calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
-            calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
-            calc_mixed_contr => calc_mixed_contr_sym
+            pickOrbitals_single => pickOrbs_sym_uniform_mol_single    ! PickOrbitals_t
+            pickOrbitals_double => pickOrbs_sym_uniform_mol_double    ! PickOrbitals_t                          in beiden Fällen
+            calc_orbital_pgen_contr => calc_orbital_pgen_contr_mol    ! calc_orbital_pgen_contr_t               nur für doubles
+            calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def  ! CalcOrbitalPgenContr_t    nur für doubles
+            calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def  ! CalcOrbitalPgenContr_t        nur für doubles
 
         else if (t_guga_pchb) then
 
@@ -135,22 +108,19 @@ contains
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_pchb
             calc_orbital_pgen_contrib_start => calc_orbital_pgen_contr_start_pchb
             calc_orbital_pgen_contrib_end => calc_orbital_pgen_contr_end_pchb
-            calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
-            calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
-            calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
-            calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
-            calc_mixed_contr => calc_mixed_contr_sym
 
         else if (t_heisenberg_model) then
             pickOrbitals_double => pick_orbitals_guga_heisenberg
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
-            calc_mixed_contr => calc_mixed_contr_sym
+
+            ! No single excitations + pure exchange doubles
 
         else if (t_tJ_model) then
             pickOrbitals_single => pick_orbitals_guga_tJ
             pickOrbitals_double => pick_orbitals_guga_heisenberg
-            calc_mixed_contr => calc_mixed_contr_sym
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
+
+            ! singles + pure exchange doubles
 
         else ! standardly also use nosymmetry version
             root_print "please specify guga excitation generator explicitly!"
@@ -169,7 +139,7 @@ contains
     ! so a initialization subroutine is needed, which has to be called in the
     ! other modules using the guga_data module
     subroutine init_guga()
-        integer :: i, ierr
+        integer :: i
         character(*), parameter :: this_routine = "init_guga"
         ! main initialization routine
 
@@ -217,43 +187,19 @@ contains
         ! eg
         ! i have to all this routine again from a point after freezing
         ! where the new number of NBasis is determined already..
-        nSpatOrbs = nBasis / 2
+        nSpatOrbs = nBasis .div. 2
 
-        if (allocated(orbitalIndex)) deallocate(orbitalIndex)
         ! but also have to set up the global orbitalIndex list
-        allocate(orbitalIndex(nSpatOrbs), stat=ierr)
-        orbitalIndex = [(i, i=1, nSpatOrbs)]
+        orbitalIndex = [(i, i = 1, nSpatOrbs)]
 
 
         ! Store GUGA specific information about the current CSF.
         ! In principle this is redundant and could be computed from nI or ilut,
         !   but we precompute it for performance reasons.
         call new_CSF_Info_t(nSpatOrbs, current_csf_i)
-
-        ! also allocate the temporary variables used in the matrix element
-        ! calculation and also the similar variables for the reference
-        ! determinant!
-        if (allocated(temp_step_i)) deallocate(temp_step_i)
-        if (allocated(temp_step_j)) deallocate(temp_step_j)
-        if (allocated(temp_delta_b)) deallocate(temp_delta_b)
-        if (allocated(temp_occ_i)) deallocate(temp_occ_i)
-        if (allocated(temp_b_real_i)) deallocate(temp_b_real_i)
-
-        allocate(temp_step_i(nSpatOrbs))
-        allocate(temp_step_j(nSpatOrbs))
-        allocate(temp_delta_b(nSpatOrbs))
-        allocate(temp_occ_i(nSpatOrbs))
-        allocate(temp_b_real_i(nSpatOrbs))
-
-        if (allocated(ref_stepvector)) deallocate(ref_stepvector)
-        if (allocated(ref_b_vector_int)) deallocate(ref_b_vector_int)
-        if (allocated(ref_b_vector_real)) deallocate(ref_b_vector_real)
-        if (allocated(ref_occ_vector)) deallocate(ref_occ_vector)
-
-        allocate(ref_stepvector(nSpatOrbs))
-        allocate(ref_b_vector_int(nSpatOrbs))
-        allocate(ref_b_vector_real(nSpatOrbs))
-        allocate(ref_occ_vector(nSpatOrbs))
+        if (allocated(csf_ref)) deallocate(csf_ref)
+        allocate(csf_ref(inum_runs))
+        call new_CSF_Info_t(nSpatOrbs, csf_ref)
 
         ! for now (time/iteration comparison) reasons, decide which
         ! reference energy calculation method we use

@@ -35,7 +35,7 @@ replica-single-det-start
 endcalc
 
 integral
-freeze 4,0
+freeze 4 0
 endint
 
 logging

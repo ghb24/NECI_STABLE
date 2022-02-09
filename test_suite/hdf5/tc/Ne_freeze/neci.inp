@@ -1,11 +1,11 @@
 TITLE
- 
+
 SYSTEM READ NOORDER
 ELECTRONS   10
 NOBRILLOUINTHEOREM
 molecular-transcorr 3-body
 ENDSYS
- 
+
 CALC
 METHODS
 METHOD VERTEX FCIMC
@@ -32,9 +32,9 @@ ENDCALC
 
 integral
 hdf5-integrals
-freeze 4,0
+freeze 4 0
 endint
- 
+
 LOGGING
 popsfile -1
 ENDLOG

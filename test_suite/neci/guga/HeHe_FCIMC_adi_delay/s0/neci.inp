@@ -26,7 +26,7 @@ superinitiators-delay 100
 endcalc
 
 integral
-freeze 0,10
+freeze 0 10
 endint
 
 logging

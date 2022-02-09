@@ -20,6 +20,7 @@ calc
     totalwalkers 10000
     semi-stochastic
     pops-core 1000
+    core-inits OFF
 
     methods
         method vertex fcimc
