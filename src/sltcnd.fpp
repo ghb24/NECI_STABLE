@@ -876,14 +876,14 @@ contains
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
-        hel = sltcnd_0_base(nI, exc) + spin_pure_J * S2_expval_exc(nI, exc)
+        hel = sltcnd_0_base(nI, exc) + spin_pure_J * ladder_op_exc(nI, exc)
     end function
 
     function sltcnd_0_purify_spin_full_s2(nI, exc) result(hel)
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
-        hel = sltcnd_0_base(nI, exc) + spin_pure_J * ladder_op_exc(nI, exc)
+        hel = sltcnd_0_base(nI, exc) + spin_pure_J * S2_expval_exc(nI, exc)
     end function
 
 
