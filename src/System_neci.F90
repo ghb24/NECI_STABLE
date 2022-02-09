@@ -1874,7 +1874,7 @@ contains
                     character(len=100) :: w
                     call readu(w)
                     select case(w)
-                    case ("ONLY-LADDER-OPERATORS")
+                    case ("ONLY-LADDER-OPERATOR")
                         SD_spin_purification = possible_purification_methods%ONLY_LADDER
                     case ("TRUNCATE-LADDER-OPERATOR")
                         SD_spin_purification = possible_purification_methods%TRUNCATED_LADDER

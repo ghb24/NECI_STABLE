@@ -393,12 +393,12 @@ considered. The block starts with the `system` keyword and ends with the
 
 #### Spin purification
 
--   **sd-spin-purification \(J\) [truncate-ladder-operator, only-ladder-operators]**<br>
+-   **sd-spin-purification \(J\) [truncate-ladder-operator, only-ladder-operator]**<br>
     Use an adjusted hamiltonian \(H + J S^2\) for the dynamic
     to force antiferromagnetic ordering and ensure pure spin-states
     in a Slater determinant (SD) basis.
 
-    One can add the optional keyword `only-ladder-operators` after \(J\)
+    One can add the optional keyword `only-ladder-operator` after \(J\)
     not to use the full \(S^2 = S_z (S_z - 1) + S_{+} S_{-} \)
     operator but a truncated version,
     which uses only the ladder operator term \(S_{+} S_{-}\).
