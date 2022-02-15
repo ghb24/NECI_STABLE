@@ -480,6 +480,13 @@ and ends with the `endcalc` keyword.
     to prevent blooms. Useful when this fraction strongly depends on the
     determinant.
 
+-   **davidson-max-iters \(n\)**<br>
+    Set the number of iterations in Davidson's algorithm when this is used. 
+    Such algorithm computes a few of the smallest (or largest) eigenvalues 
+    of a large sparse real symmetric matrix. This method is used, 
+    for instance, in the semi-stochastic implementation or when  
+    CI Davidson is used. The default value is \(25\).
+
 #### Population control options
 
 -   **\textcolor{red}{totalWalkers \(n\)}**<br>
