@@ -32,8 +32,10 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
         LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
 
-    use SD_spin_purification_mod, only: tSD_spin_purification, &
-        tTruncatedLadderOps, spin_pure_J
+
+    use SD_spin_purification_mod, only: possible_purification_methods, &
+        SD_spin_purification, spin_pure_J
+
 
     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
@@ -1866,20 +1868,19 @@ contains
                 end select
 
             case ("SD-SPIN-PURIFICATION")
-                tSD_spin_purification = .true.
+                allocate(SD_spin_purification, source=possible_purification_methods%FULL_S2)
                 spin_pure_J = to_realdp(tokens%next())
-                if (spin_pure_J <= 0) then
-                    call stop_all(t_r, "Alpha should be positive and nonzero")
-                end if
                 if (tokens%remaining_items() > 0) then
                 block
                     character(len=100) :: w
                     w = to_upper(tokens%next())
                     select case(w)
+                    case ("ONLY-LADDER-OPERATOR")
+                        SD_spin_purification = possible_purification_methods%ONLY_LADDER
                     case ("TRUNCATE-LADDER-OPERATOR")
-                        tTruncatedLadderOps = .true.
+                        SD_spin_purification = possible_purification_methods%TRUNCATED_LADDER
                     case default
-                        call stop_all(t_r, "Only TRUNCATE-LADDER-OPERATOR is allowed.")
+                        call stop_all(t_r, "Wrong alternative purification method.")
                     end select
                 end block
                 end if
