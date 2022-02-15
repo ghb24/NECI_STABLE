@@ -25,7 +25,7 @@ module k_space_hubbard
                            dispersion_rel_cached, init_dispersion_rel_cache, &
                            epsilon_kvec
 
-    use procedure_pointers, only: get_umat_el, generate_excitation
+    use procedure_pointers, only: get_umat_el
 
     use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit, stdout
 
@@ -89,10 +89,11 @@ module k_space_hubbard
                                     pick_spin_opp_elecs, pick_from_cum_list, &
                                     pick_spin_par_elecs, pick_three_opp_elecs
 
-    use guga_excitations, only: generate_excitation_guga, &
-                                calc_guga_matrix_element, global_excitinfo, print_excitInfo
+    use guga_main, only: generate_excitation_guga
+    use guga_excitations, only: global_excitinfo, print_excitInfo
+    use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
-                              isProperCSF_ilut, current_csf_i
+                              isProperCSF_ilut, current_csf_i, CSF_Info_t
     use guga_data, only: ExcitationInformation_t
 
     implicit none
@@ -323,7 +324,7 @@ contains
 
     end subroutine setup_symmetry_table
 
-    function get_umat_kspace(i, j, k, l) result(hel)
+    pure function get_umat_kspace(i, j, k, l) result(hel)
         ! simplify this get_umat function for the k-space hubbard..
         ! since there was a lot of unnecessary stuff going on in the other
         ! essentially we only have to check if the momenta involved
@@ -344,9 +345,6 @@ contains
         else
             hel = 0.0_dp
         end if
-
-        ! old implo:
-
     end function get_umat_kspace
 
     subroutine init_k_space_hubbard()
@@ -379,24 +377,6 @@ contains
             root_print "    use uniform for doubles!"
             t_uniform_excits = .true.
         end if
-
-        if (.not. tHPHF .and. .not. t_uniform_excits) then
-            generate_excitation => gen_excit_k_space_hub
-        end if
-
-        ! for more efficiency, use the uniform excitation generation
-        if (t_uniform_excits) then
-            generate_excitation => gen_excit_uniform_k_space_hub
-        end if
-
-        if (tGUGA) then
-            if (tgen_guga_crude) then
-                generate_excitation => gen_excit_k_space_hub
-            else
-                generate_excitation => generate_excitation_guga
-            end if
-        end if
-
         tau_opt = determine_optimal_time_step()
 
         if (tau < EPS) then
@@ -561,8 +541,6 @@ contains
 
         unused_var(exFlag); unused_var(store); unused_var(run)
 
-        ASSERT(is_compatible(ilutI, current_csf_i))
-
         hel = h_cast(0.0_dp)
         ic = 0
         pgen = 0.0_dp
@@ -605,7 +583,8 @@ contains
                 return
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, hel, .true., 1)
+            ASSERT(is_compatible(ilutI, current_csf_i))
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2342,6 +2321,67 @@ contains
         end if
 
     end function get_diag_helement_k_sp_hub
+
+    function get_2_body_diag_transcorr(nI) result(two_body)
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: two_body
+        integer :: i, j, id(nel), idX, idN
+
+        two_body = h_cast(0.0_dp)
+
+        id = get_spatial(nI)
+
+        do i = 1, nel
+            do j = 1, nel
+                if (.not. same_spin(nI(i), nI(j))) then
+
+                    idX = max(id(i), id(j))
+                    idN = min(id(i), id(j))
+
+                    ! now we need 1/2, since we loop over all electrons
+                    two_body = two_body + 0.5_dp * get_umat_kspace(idN, idX, idN, idX)
+
+                    two_body = two_body + epsilon_kvec(G1(nI(i))%Sym) &
+                              * omega * three_body_prefac
+
+                end if
+            end do
+        end do
+
+    end function get_2_body_diag_transcorr
+
+    function get_3_body_diag_transcorr(nI) result(three_body)
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: three_body
+
+        integer :: i, j, k
+        type(symmetry) :: p_sym, k_sym
+
+        three_body = h_cast(0.0_dp)
+
+        do i = 1, nel
+            do j = 1, nel
+                if (.not. same_spin(nI(i), nI(j))) then
+
+                    do k = 1, nel
+
+                        if (j == k) cycle
+
+                        if (same_spin(nI(j), nI(k))) then
+                            p_sym = G1(nI(i))%sym
+                            k_sym = SymTable(G1(nI(j))%sym%s, SymConjTab(G1(nI(k))%sym%s))
+
+                            three_body = three_body - three_body_prefac * ( &
+                                        epsilon_kvec(p_sym) - &
+                                        (epsilon_kvec(SymTable(p_sym%s, k_sym%s))))
+
+                        end if
+                    end do
+                end if
+            end do
+        end do
+
+    end function get_3_body_diag_transcorr
 
     real(dp) function get_j_opt(nI, corr_J)
         ! routine to evaluate Hongjuns J-optimization formulas

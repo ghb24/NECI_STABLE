@@ -11,7 +11,7 @@ module trial_wf_gen
     use SystemData, only: nel, tHPHF, t_non_hermitian
 
     use guga_data, only: ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element
+    use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitrepops, only: write_det_guga, fill_csf_i
 
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
@@ -535,7 +535,7 @@ contains
         HElement_t(dp) :: H_ij
         character(len=*), parameter :: this_routine = "generate_connected_space_vector"
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
 
         con_vecs = 0.0_dp
 
@@ -551,6 +551,7 @@ contains
             do j = 1, size(trial_vecs, 2)
 
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
+                if (tGUGA) csf_j = CSF_Info_t(trial_space(0:NIfTot, j))
 
                 if (all(con_space(0:nifd, i) == trial_space(0:nifd, j))) then
                     if (tHPHF) then
@@ -570,8 +571,9 @@ contains
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
-                        call calc_guga_matrix_element(con_space(:, i), csf_i, trial_space(:, j), &
-                                                      excitInfo, H_ij, .true., 1)
+                        call calc_guga_matrix_element(&
+                            con_space(:, i), csf_i, trial_space(:, j), csf_j, &
+                            excitInfo, H_ij, .true.)
 #ifdef CMPLX_
                         H_ij = conjg(H_ij)
 #endif
@@ -1018,11 +1020,15 @@ contains
         character(*), parameter :: this_routine = 'Set_AS_TrialOffset'
 
         if (replica_pairs) then
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
             ASSERT(nexcit_keep == int(inum_runs / 2.0))
             do i = 1, nexcit_keep
                 ShiftOffset(2 * i - 1) = trial_energies(i)
                 ShiftOffset(2 * i) = trial_energies(i)
             end do
+#else
+            call stop_all(this_routine, "Should not be here")
+#endif
         else
             ASSERT(nexcit_keep == inum_runs)
             ShiftOffset(1:inum_runs) = trial_energies(1:inum_runs)

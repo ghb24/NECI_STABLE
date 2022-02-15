@@ -12,18 +12,18 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, &
                           tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tGUGA, ref_stepvector, ref_b_vector_int, &
-                          ref_occ_vector, ref_b_vector_real, tUEGNewGenerator, &
+                          tGUGA, tUEGNewGenerator, &
                           tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, t_3_body_excits, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           tgen_guga_crude, t_impurity_excitgen, &
                           t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
-                          irrepOrbOffset, nIrreps, &
+                          irrepOrbOffset, nIrreps, t_trans_corr_hop, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, t_guga_pchb
+                          t_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr
+
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
@@ -51,7 +51,7 @@ module fcimc_initialisation
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
-                        t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
+                        t_trunc_nopen_diff, t_guga_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pDoublesIn, pTriplesIn, pParallelIn, &
@@ -60,7 +60,7 @@ module fcimc_initialisation
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
                         AAS_Cut, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
-                        tExpAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
+                        tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
@@ -101,7 +101,7 @@ module fcimc_initialisation
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
                         extract_run_sign, tBuildSpinSepLists, nifguga, &
-                        get_initiator_flag, &
+                        get_initiator_flag, writebitdet, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
@@ -111,7 +111,7 @@ module fcimc_initialisation
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
                            ReadPopsHeadv4, open_pops_head, checkpopsparams
-    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym
+    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym, exc_generator_for_HPHF
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
     use replica_estimates, only: open_replica_est_file
@@ -119,7 +119,7 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement, scaleFunction, &
+                                  get_conn_helement, scaleFunction, &
                                   generate_two_body_excitation, shiftFactorFunction, gen_all_excits
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
@@ -147,12 +147,10 @@ module fcimc_initialisation
     use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
                                  attempt_create_normal, &
                                  attempt_create_trunc_spawn, &
-                                 new_child_stats_hist_hamil, &
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction, &
-                                 expShiftFactorFunction, constShiftFactorFunction, &
+                                 expCOScaleFunction, constShiftFactorFunction, &
                                  linearShiftFactorFunction, autoShiftFactorFunction
 
     use initial_trial_states, only: calc_trial_states_lanczos, &
@@ -206,13 +204,12 @@ module fcimc_initialisation
 
     use constants
 
-    use guga_data, only: bVectorRef_ilut, bVectorRef_nI
-
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
-                              calc_csf_i, CSF_Info_t
+                              calc_csf_i, CSF_Info_t, csf_ref, fill_csf_i
 
-    use guga_excitations, only: generate_excitation_guga, actHamiltonian
+    use guga_main, only: generate_excitation_guga
+    use guga_excitations, only: actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
 
     use real_time_data, only: t_real_time_fciqmc
@@ -227,20 +224,30 @@ module fcimc_initialisation
 
     use back_spawn, only: init_back_spawn, setup_virtual_mask
 
-    use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard
+    use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard, &
+                                  t_hole_focus_excits, gen_excit_rs_hubbard, &
+                                  gen_excit_rs_hubbard_transcorr_hole_focus, &
+                                  gen_excit_rs_hubbard_transcorr_uniform, &
+                                  gen_excit_rs_hubbard_transcorr, &
+                                  gen_excit_rs_hubbard_spin_dependent_transcorr
+
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, GAS_specification, get_name
+
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg, &
-                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
+                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga, &
+                        gen_excit_tJ_model, gen_excit_heisenberg_model
 
     use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard, &
-                               gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr
+                               gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr, &
+                               t_mixed_excits, gen_excit_k_space_hub, &
+                               gen_excit_uniform_k_space_hub, &
+                               gen_excit_mixed_k_space_hub_transcorr
 
     use OneEInts, only: tmat2d
 
@@ -273,7 +280,10 @@ contains
         CHARACTER(len=*), PARAMETER :: t_r = 'SetupParameters'
         CHARACTER(*), parameter :: this_routine = t_r
         CHARACTER(len=12) :: abstr
-        character(len=40) :: filename, filename2
+        character(len=40) :: filename
+#ifndef PROG_NUMRUNS_
+        character(len=40) :: filename2
+#endif
         LOGICAL :: tSuccess, tFoundOrbs(nBasis), FoundPair, tSwapped, tAlreadyOcc
         INTEGER :: HFLz, ChosenOrb, step, SymFinal, run
         integer(int64) :: SymHF
@@ -291,6 +301,8 @@ contains
 !Set timed routine names
         Walker_Time%timer_name = 'WalkerTime'
         Annihil_Time%timer_name = 'AnnihilTime'
+        GetDiagMatel_Time%timer_name = 'GetDiagMatelTime'
+        GetOffDiagMatel_Time%timer_name = 'GetOffDiagMatelTime'
         Sort_Time%timer_name = 'SortTime'
         Comms_Time%timer_name = 'CommsTime'
         ACF_Time%timer_name = 'ACFTime'
@@ -480,24 +492,10 @@ contains
             HFDet_True = HFDet
         end if
 
-        ! for GUGA calculations also save the b vector of the reference det
-        ! also initialize the persistently stored list of H|ref> to
-        ! calculate the projected energy
         if (tGUGA) then
-            allocate(bVectorRef_nI(nEl), stat=ierr)
-            allocate(bVectorRef_ilut(nBasis / 2), stat=ierr)
-
-            ! store more information of the reference determinant, like
-            ! stepvector and stuff
-
-            ASSERT(allocated(ref_stepvector))
-
-            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
-                               ref_occ_vector)
-
-            ref_b_vector_real = real(ref_b_vector_int, dp)
-
-
+            do run = 1, inum_runs
+                call fill_csf_i(ilutRef(:, run), csf_ref(run))
+            end do
         end if
 
         if (tHPHF) then
@@ -1935,10 +1933,11 @@ contains
     subroutine init_fcimc_fn_pointers()
         character(*), parameter :: this_routine = "init_fcimc_fn_pointers"
 
+        ! Almost all excitation generators in NECI are Full CI generators.
+        gen_all_excits => gen_all_excits_default
+
         ! Select the excitation generator.
-        if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
-            generate_excitation => gen_hphf_excit
-        else if (tGAS) then
+        if (tGAS) then
             call class_managed(generate_excitation, gen_all_excits)
         else if (t_3_body_excits .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             if (t_uniform_excits) then
@@ -1946,8 +1945,6 @@ contains
             else
                 generate_excitation => gen_excit_k_space_hub_transcorr
             end if
-        else if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
-            generate_excitation => gen_hphf_excit
         else if (t_ueg_3_body) then
             if (tTrcorrExgen) then
                 generate_two_body_excitation => gen_ueg_excit
@@ -1989,7 +1986,13 @@ contains
 
         else if (tGUGA) then
             if (tgen_guga_crude) then
-                generate_excitation => gen_excit_4ind_weighted2
+                if (t_k_space_hubbard) then
+                    generate_excitation => gen_excit_k_space_hub
+                else if (t_new_real_space_hubbard) then
+                    generate_excitation => gen_excit_rs_hubbard
+                else
+                    generate_excitation => gen_excit_4ind_weighted2
+                end if
             else
                 generate_excitation => generate_excitation_guga
             end if
@@ -1998,20 +2001,71 @@ contains
             generate_excitation => gen_rand_excit_pcpp
         else if (t_pchb_excitgen) then
             call class_managed(generate_excitation, gen_all_excits)
+        else if (t_k_space_hubbard) then
+            if (t_3_body_excits) then
+                if (t_uniform_excits) then
+                    generate_excitation => gen_excit_uniform_k_space_hub_transcorr
+                else if (t_mixed_excits) then
+                    generate_excitation => gen_excit_mixed_k_space_hub_transcorr
+                else
+                    generate_excitation => gen_excit_k_space_hub_transcorr
+                end if
+            else
+                if (t_uniform_excits) then
+                    generate_excitation => gen_excit_uniform_k_space_hub
+                else
+                    generate_excitation => gen_excit_k_space_hub
+                end if
+            end if
+
+        else if (t_new_real_space_hubbard) then
+            if (t_trans_corr_hop) then
+                if (t_hole_focus_excits) then
+                    generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
+                else if (t_uniform_excits) then
+                    generate_excitation => gen_excit_rs_hubbard_transcorr_uniform
+                else
+                    generate_excitation => gen_excit_rs_hubbard_transcorr
+                end if
+            else if (t_spin_dependent_transcorr) then
+                generate_excitation => gen_excit_rs_hubbard_spin_dependent_transcorr
+            else
+                generate_excitation => gen_excit_rs_hubbard
+            end if
+
+        else if (t_tJ_model) then
+            generate_excitation => gen_excit_tJ_model
+
+        else if (t_heisenberg_model) then
+            generate_excitation => gen_excit_heisenberg_model
         else
             generate_excitation => gen_rand_excit
         end if
 
+
+        ! yes, fortran pointers work this way
+            ! Pointer assignment with =>
+                ! Fortran
+                !> ptr1 => ptr2
+                ! C
+                !> T *ptr1, *ptr2;
+                !> ptr1 = ptr2;
+            ! Copy/value assignment with =
+                ! Fortran
+                !> ptr1 = ptr2
+                ! C
+                !> *ptr1 = *ptr2;
+
         ! if we are using the 3-body excitation generator, embed the chosen excitgen
         ! in the three-body one
         if (t_mol_3_body) then
-            ! yes, fortran pointers work this way
             generate_two_body_excitation => generate_excitation
-            if(tHPHF) then
-                generate_excitation => gen_hphf_excit
-            else
-                generate_excitation => gen_excit_mol_tc
-            end if
+            generate_excitation => gen_excit_mol_tc
+        end if
+        ! Do the same for HPHF
+        if (tHPHF) then
+            exc_generator_for_HPHF => generate_excitation
+            generate_excitation => gen_hphf_excit
         end if
 
         ! In the main loop, we only need to find out if a determinant is
@@ -2090,9 +2144,6 @@ contains
         end if
         bloom_max = 0
 
-        ! Perform the correct statistics on new child particles
-        new_child_stats => new_child_stats_normal
-
         if (tPreCond) then
             attempt_die => attempt_die_precond
         else
@@ -2116,9 +2167,9 @@ contains
             call stop_all(this_routine, "Invalid scale function specified")
         end select
 
-        if (tExpAdaptiveShift) then
-            shiftFactorFunction => expShiftFactorFunction
-        else if (tLinearAdaptiveShift) then
+        ! if (tExpAdaptiveShift) then
+        !     shiftFactorFunction => expShiftFactorFunction
+        if (tLinearAdaptiveShift) then
             shiftFactorFunction => linearShiftFactorFunction
         else if (tAutoAdaptiveShift) then
             shiftFactorFunction => autoShiftFactorFunction
@@ -2131,8 +2182,6 @@ contains
             gen_all_excits => gen_all_excits_k_space_hubbard
         else if (t_new_real_space_hubbard) then
             gen_all_excits => gen_all_excits_r_space_hubbard
-        else
-            gen_all_excits => gen_all_excits_default
         end if
 
     end subroutine init_fcimc_fn_pointers

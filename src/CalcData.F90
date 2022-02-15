@@ -31,9 +31,14 @@ module CalcData
         logical :: tHF = .false.
         ! Use the most populated states in CurrentDets.
         logical :: tPops = .false.
+        ! This logical variable has been introduced to prevent inconsistency
+        ! of POPS-CORE-... keywords.
+        logical :: tPopsCore = .false.
         ! Automatically choosing 10% of the total initiator space, if this number
         ! is larger than 50000, then use npops = 50000
         logical :: tPopsAuto = .false.
+        ! Use a given proportion of initiator determinants as core space.
+        logical :: tPopsProportion = .false.
         ! Read states from a file.
         logical :: tRead = .false.
         ! Use the space of all single and double (+triple) excitations from the
@@ -79,6 +84,8 @@ module CalcData
         integer :: max_size = 0
         ! The number of states to use from a POPSFILE for the core space.
         integer :: npops = 0
+        ! This proportion is multiplied by the number of initiator determinants to obtain npops.
+        real(dp) :: npops_proportion
         ! If true then the space generated from the pops-core option may be very
         ! slightly unoptimal, but should be very good, and sometimes exactly the
         ! same as when this logical is false. Only applies to the pops-* options.
@@ -121,7 +128,7 @@ module CalcData
     LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
     logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
 ! Are all core-space determinants initiators?
-    logical :: t_core_inits = .false.
+    logical :: t_core_inits = .true.
     logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
 
     LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
@@ -161,8 +168,6 @@ module CalcData
     logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
     real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
     real(dp) :: AAS_Const
-    logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
-    real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
 
     logical :: tAS_Offset !Whether the adaptive shift scheme should be applied with respect to a custom energy instead of ref energy
     real(dp) ShiftOffset(1:inum_runs_max)! Offset of the adaptive shift (Full offset including the reference energy Hii)
@@ -675,4 +680,16 @@ module CalcData
 !Use additional second shift damping factor for improved walker population
 !control.
     logical :: tTargetShiftdamp = .false.
+
+! variables used in running imaginary-time FCIQMC calculations in presence of external field
+logical :: tCalcWithField
+! Total number of external fields
+integer :: nFields_it
+
+! Properties of the Field
+real(dp), allocatable :: FieldStrength_it(:)
+
+! Name of the files from which integrals will be read for each of the external fields
+character(len=100), allocatable :: FieldFiles_it(:)
+
 end module CalcData

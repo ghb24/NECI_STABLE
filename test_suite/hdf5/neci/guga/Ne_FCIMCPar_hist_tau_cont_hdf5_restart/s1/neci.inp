@@ -13,7 +13,7 @@ endmethods
 seed -7
 nmcyc 1000
 totalwalkers 1000
-(tau 0.001 search
+# tau 0.001 search
 new-tau-search 0.9999
 max-tau 0.02
 definedet 1 2 3 4 5 17 18 23 24 33
@@ -31,7 +31,7 @@ maxwalkerbloom 3.0
 endcalc
 
 integral
-freeze 2,0
+freeze 2 0
 endint
 
 logging

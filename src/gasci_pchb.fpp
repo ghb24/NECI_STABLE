@@ -10,13 +10,13 @@
 ! This requires #{i, j | i < j} probability distributions.
 !
 ! The improved version to use spatial orbital indices to save memory is described in
-!    Guther K. et al., J. Chem. Phys. 153, 034107 (2020);
-! and described there.
+!    Guther K. et al., J. Chem. Phys. 153, 034107 (2020).
 ! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx) to draw a, b holes
 ! when i, j electrons were chosen for three distinc spin cases given by s_idx.
 ! This gives #{i, j | i < j} * 3 probability distributions.
 !
-! The generalization to GAS spaces is not yet published.
+! The generalization to GAS spaces is available in a preprint (should be available in JCTC soon as well)
+!    https://chemrxiv.org/engage/chemrxiv/article-details/61447e60b1d4a605d589af2e
 ! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx, i_sg) to draw a, b holes
 ! when i, j electrons were chosen for three distinc spin cases given by s_idx and a supergroup index i_sg
 ! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
@@ -41,7 +41,6 @@ module gasci_pchb
     use shared_ragged_array, only: shared_ragged_array_int32_t
     use growing_buffers, only: buffer_int32_1D_t
     use parallel_neci, only: iProcIndex_intra
-    use sets_mod, only: complement, operator(.complement.)
     use get_excit, only: make_single
     use growing_buffers, only: buffer_int_2D_t
     use timing_neci, only: timer, set_timer, halt_timer
@@ -205,6 +204,7 @@ contains
 
         allocate(this%allowed_holes(0 : nIfD, this%GAS_spec%n_spin_orbs(), size(supergroups, 2)), source=0_n_int)
 
+
         ! Find for each supergroup (i_sg)
         ! the allowed holes `tgt` for a given `src`.
         do i_sg = 1, size(supergroups, 2)
@@ -214,7 +214,8 @@ contains
                 do tgt = 1, this%GAS_spec%n_spin_orbs()
                     if (src /= tgt &
                             .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
-                            .and. this%GAS_spec%is_allowed(SingleExc_t(src, tgt), supergroups(:, i_sg))) then
+                            .and. this%GAS_spec%is_allowed(SingleExc_t(src, tgt), supergroups(:, i_sg)) &
+                            .and. symmetry_allowed(SingleExc_t(src, tgt))) then
                         call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
                     end if
                 end do
@@ -231,6 +232,13 @@ contains
                 integer, intent(in) :: orb
                 set_orb(ilut, orb)
             end subroutine
+
+            ! For single excitations it is simple
+            logical pure function symmetry_allowed(exc)
+                use SymExcitDataMod, only: SpinOrbSymLabel
+                type(SingleExc_t), intent(in) :: exc
+                symmetry_allowed = SpinOrbSymLabel(exc%val(1)) == SpinOrbSymLabel(exc%val(2))
+            end function
     end subroutine
 
 

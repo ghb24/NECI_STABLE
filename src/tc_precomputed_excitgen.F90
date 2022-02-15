@@ -86,7 +86,11 @@ contains
         end if
 
         ! assign ilutnJ
-        call EncodeBitDet(nJ, ilutnJ)
+        if (nJ(1) == 0) then
+          ilutnJ = 0_n_int
+        else
+          call EncodeBitDet(nJ, ilutnJ)
+        end if
 
     end subroutine gen_rand_excit_pcpp
 
@@ -516,6 +520,7 @@ contains
             logical :: tPar
             integer :: iEl, jEl
 
+            tPar = .false.
             do iEl = 1, nel
                 w(iEl) = 0
                 do jEl = 1, nel
@@ -552,6 +557,7 @@ contains
             integer :: jEl
 
             allocate(double_elec_two_sampler(nBasis), stat=aerr)
+            tPar = .false.
             do i = 1, nBasis
                 w = 0.0_dp
                 do jEl = 1, nel
