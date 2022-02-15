@@ -30,7 +30,8 @@ MODULE Calc
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
-                         tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space
+                         tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
+                         user_input_max_davidson_iters
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
@@ -1600,6 +1601,17 @@ contains
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
                 end if
+
+            case("DAVIDSON-MAX-ITERS")
+                ! Set the max number of iteration for Davidson method: defaulted to 25
+                ! This is probably needed only for very special cases, e.g., very small 
+                ! test cases where Davidson throws Floating point exception when this is 
+                ! too large, for instance.
+                if (allocated(user_input_max_davidson_iters)) then
+                    call stop_all(t_r, "davison max iters given twice")
+                else
+                    user_input_max_davidson_iters = to_int(tokens%next())
+                endif
 
             case("ALL-CONN-CORE")
                 ss_space_in%tAllConnCore = .true.

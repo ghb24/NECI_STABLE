@@ -396,17 +396,22 @@ considered. The block starts with the `system` keyword and ends with the
 
 #### Spin purification
 
--   **sd-spin-purification \(J\) [truncate-ladder-operator]**<br>
+-   **sd-spin-purification \(J\) [truncate-ladder-operator, only-ladder-operator]**<br>
     Use an adjusted hamiltonian \(H + J S^2\) for the dynamic
     to force antiferromagnetic ordering and ensure pure spin-states
     in a Slater determinant (SD) basis.
+
+    One can add the optional keyword `only-ladder-operator` after \(J\)
+    not to use the full \(S^2 = S_z (S_z - 1) + S_{+} S_{-} \)
+    operator but a truncated version,
+    which uses only the ladder operator term \(S_{+} S_{-}\).
 
     One can add the optional keyword `truncate-ladder-operator` after \(J\)
     not to use the full \(S^2 = S_z (S_z - 1) + S_{+} S_{-} \)
     operator but a truncated version,
     which uses only the ladder operator term \(S_{+} S_{-}\) and
     truncates it by removing its diagonal.
-    This implies that the counting of open shell \(\alpha\) electrons
+    This implies that the diagonal counting of open shell \(\alpha\) electrons
     is removed.
 
 
@@ -474,6 +479,13 @@ and ends with the `endcalc` keyword.
     determinant and use it to estimate the number of spawns per walker
     to prevent blooms. Useful when this fraction strongly depends on the
     determinant.
+
+-   **davidson-max-iters \(n\)**<br>
+    Set the number of iterations in Davidson's algorithm when this is used. 
+    Such algorithm computes a few of the smallest (or largest) eigenvalues 
+    of a large sparse real symmetric matrix. This method is used, 
+    for instance, in the semi-stochastic implementation or when  
+    CI Davidson is used. The default value is \(25\).
 
 #### Population control options
 

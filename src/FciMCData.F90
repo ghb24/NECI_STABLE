@@ -496,6 +496,9 @@ MODULE FciMCData
 
     integer(TagIntType) :: HamTag, DavidsonTag, LanczosTag
 
+    ! Number of Davidson max iterations
+    integer, allocatable :: user_input_max_davidson_iters
+
     ! If true (as is the case by default) then semi-stochastic calculations
     ! will start from the ground state of the core space
     logical :: tStartCoreGroundState
