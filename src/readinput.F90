@@ -675,13 +675,11 @@ contains
             call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
         end if
 
-<<<<<<< HEAD
         if (tTargetShiftdamp .and. tWalkContGrow) then
             call stop_all(t_r, "TARGET-SHIFTDAMP and WALKCONTGROW not compatible.")
-=======
+
         if (.not. (tInfInit .implies. t_core_inits)) then
             call stop_all(t_r, 'INFINITE-INIT requires CORE-INITS OFF.')
->>>>>>> 20c3ddc7f50752d589da67b200078945a940b6ad
         end if
 
         block
