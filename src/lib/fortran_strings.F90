@@ -192,18 +192,18 @@ contains
         read(unit=str, fmt=*) to_realdp
     end function
 
-    logical elemental function eq_Token_t(self, other)
-        class(Token_t), intent(in) :: self, other
-        eq_Token_t = self%str == other%str
+    logical elemental function eq_Token_t(this, other)
+        class(Token_t), intent(in) :: this, other
+        eq_Token_t = this%str == other%str
     end function
 
-    logical elemental function neq_Token_t(self, other)
-        class(Token_t), intent(in) :: self, other
-        neq_Token_t = self%str /= other%str
+    logical elemental function neq_Token_t(this, other)
+        class(Token_t), intent(in) :: this, other
+        neq_Token_t = this%str /= other%str
     end function
 
-    type(Token_t) elemental function add_Token_t(self, other)
-        class(Token_t), intent(in) :: self, other
-        add_Token_t%str = self%str // other%str
+    type(Token_t) elemental function add_Token_t(this, other)
+        class(Token_t), intent(in) :: this, other
+        add_Token_t%str = this%str // other%str
     end function
 end module fortran_strings

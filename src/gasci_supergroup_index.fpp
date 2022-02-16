@@ -179,14 +179,14 @@ contains
     end function
 
 
-    pure function get_allowed_composition_indices(self) result(res)
-        class(SuperGroupIndexer_t), intent(in) :: self
+    pure function get_allowed_composition_indices(this) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: this
 
         integer(int64), allocatable :: res(:)
         integer, allocatable :: supergroups(:, :)
         integer :: i
 
-        supergroups = self%get_supergroups()
+        supergroups = this%get_supergroups()
         allocate(res(size(supergroups, 2)))
         do i = 1, size(supergroups, 2)
             res(i) = composition_idx(supergroups(:, i))
@@ -199,15 +199,15 @@ contains
     !>
     !> @details
     !> GAS allowed compositions are called supergroups.
-    pure function get_n_supergroups(self) result(res)
-        class(SuperGroupIndexer_t), intent(in) :: self
+    pure function get_n_supergroups(this) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: this
         integer(int64) :: res
-        res = size(self%allowed_composition_indices, kind=int64)
+        res = size(this%allowed_composition_indices, kind=int64)
     end function
 
-    integer elemental function get_nEl(self)
-        class(SuperGroupIndexer_t), intent(in) :: self
-        get_nEl = self%N
+    integer elemental function get_nEl(this)
+        class(SuperGroupIndexer_t), intent(in) :: this
+        get_nEl = this%N
     end function
 
 
@@ -217,27 +217,27 @@ contains
     !>
     !> @details
     !> GAS allowed compositions are called supergroups.
-    pure function indexer_get_supergroups(self) result(res)
-        class(SuperGroupIndexer_t), intent(in) :: self
+    pure function indexer_get_supergroups(this) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: this
         integer, allocatable :: res(:, :)
         character(*), parameter :: this_routine = 'indexer_get_supergroups'
 
         integer(int64) :: i
-        integer :: start_comp(self%GASspec%nGAS()), &
-            end_comp(self%GASspec%nGAS()), &
-            comp(self%GASspec%nGAS())
+        integer :: start_comp(this%GASspec%nGAS()), &
+            end_comp(this%GASspec%nGAS()), &
+            comp(this%GASspec%nGAS())
         integer(int64) :: start_idx, end_idx
         type(buffer_int_2D_t) :: supergroups
 
-        start_comp = get_lowest_supergroup(self)
-        end_comp = get_highest_supergroup(self)
+        start_comp = get_lowest_supergroup(this)
+        end_comp = get_highest_supergroup(this)
         start_idx = composition_idx(start_comp)
         end_idx = composition_idx(end_comp)
 
-        call supergroups%init(rows=self%GASspec%nGAS())
+        call supergroups%init(rows=this%GASspec%nGAS())
         comp = start_comp
         do i = start_idx, end_idx
-            if (self%GASspec%contains_supergroup(comp(:))) then
+            if (this%GASspec%contains_supergroup(comp(:))) then
                 call supergroups%push_back(comp(:))
             end if
             comp = next_composition(comp)
@@ -302,14 +302,14 @@ contains
     end function
 
 
-    pure function get_supergroup_idx(self, supergroup) result(idx)
-        class(SuperGroupIndexer_t), intent(in) :: self
+    pure function get_supergroup_idx(this, supergroup) result(idx)
+        class(SuperGroupIndexer_t), intent(in) :: this
         integer, intent(in) :: supergroup(:)
         integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx'
 
-        if (self%GASspec%is_connected()) then
-            idx = int(binary_search_first_ge(self%allowed_composition_indices, composition_idx(supergroup)))
+        if (this%GASspec%is_connected()) then
+            idx = int(binary_search_first_ge(this%allowed_composition_indices, composition_idx(supergroup)))
         else
             idx = 1
         end if
@@ -321,15 +321,15 @@ contains
     !>  Calculate the supergroup index for a determinant nI
     !>
     !>  @param[in] nI The determinant for which the supergroup index should be calculated.
-    pure function get_supergroup_idx_det(self, nI) result(idx)
-        class(SuperGroupIndexer_t), intent(in) :: self
+    pure function get_supergroup_idx_det(this, nI) result(idx)
+        class(SuperGroupIndexer_t), intent(in) :: this
         integer, intent(in) :: nI(:)
         integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx_det'
 
-        @:pure_ASSERT(self%GASspec%contains_conf(nI))
-        if (self%GASspec%is_connected()) then
-            idx = self%idx_supergroup(self%GASspec%count_per_GAS(nI))
+        @:pure_ASSERT(this%GASspec%contains_conf(nI))
+        if (this%GASspec%is_connected()) then
+            idx = this%idx_supergroup(this%GASspec%count_per_GAS(nI))
         else
             idx = 1
         end if
@@ -347,18 +347,18 @@ contains
     !>
     !>  @param[in] idet The index of nI in the FciMCData::CurrentDets array.
     !>  @param[in] nI The determinant for which the supergroup index should be calculated.
-    function lookup_supergroup_idx(self, idet, nI) result(idx)
+    function lookup_supergroup_idx(this, idet, nI) result(idx)
         use global_det_data, only: global_lookup => get_supergroup_idx
-        class(SuperGroupIndexer_t), intent(in) :: self
+        class(SuperGroupIndexer_t), intent(in) :: this
         integer, intent(in) :: idet
         integer, intent(in) :: nI(:)
         integer :: idx
         debug_function_name('lookup_supergroup_idx')
 
-        if (self%GASspec%is_connected()) then
+        if (this%GASspec%is_connected()) then
             idx = global_lookup(idet)
             ! Assert that looked up and computed index agree.
-            @:pure_ASSERT(idx == self%idx_nI(nI))
+            @:pure_ASSERT(idx == this%idx_nI(nI))
         else
             idx = 1
         end if
