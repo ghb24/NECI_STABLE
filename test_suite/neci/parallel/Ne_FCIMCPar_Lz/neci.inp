@@ -18,7 +18,7 @@ diagshift 0.0
 initwalkers 10000
 tau 0.0015
 seed -17
-startsinglepart
+startsinglepart 20
 directannihilation
 shiftdamp 0.1
 memoryfacpart 3.0

@@ -501,7 +501,15 @@ and ends with the `endcalc` keyword.
 
 -   **\textcolor{blue}{shiftDamp \(\zeta\)}**<br>
  Set the damping factor used in the shift update scheme to
-    \(\zeta\). Defaults to \(10\).
+    \(\zeta\). Has to be \(<1.0\). Defaults to \(0.1\).
+
+-   **target-shiftDamp \(\zeta\) [\(\eta\)]**<br>
+ Uses the shift updating procedure presented in [@Yang2020] and 
+ can be used instead of the shiftDamp keyword. \(zeta\)
+ is the usual shift damping factor, \(\eta\) is the additional second
+ shift damping factor. If \(\eta\) is not specified, it is set to
+ \(\zeta^2 / 4\) to achieve critical damping. Both parameters have to
+ be \(<1.0\) and \(\eta < \zeta\).
 
 -   **\textcolor{blue}{stepsSft \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
