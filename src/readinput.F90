@@ -80,8 +80,7 @@ contains
             file_reader = AttachedFileReader_t(file_id=stdin, echo_lines=id_scratch_file)
         end if
 
-        Do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        Do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             Select case (w)
             Case ("DEFAULTS")
@@ -138,8 +137,7 @@ contains
             write(stdout, '(/,64("*"),/)')
         end if
 
-        Do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        Do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case (w)
             case ("TITLE")
@@ -238,7 +236,8 @@ contains
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
-                            user_input_seed, t_core_inits
+                            user_input_seed, tTargetShiftdamp, tFixedN0, t_core_inits, &
+                            tWalkContGrow
         use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
@@ -670,6 +669,14 @@ contains
 
         if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+        end if
+
+        if (tTargetShiftdamp .and. tFixedN0) then
+            call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
+        end if
+
+        if (tTargetShiftdamp .and. tWalkContGrow) then
+            call stop_all(t_r, "TARGET-SHIFTDAMP and WALKCONTGROW not compatible.")
         end if
 
         if (.not. (tInfInit .implies. t_core_inits)) then

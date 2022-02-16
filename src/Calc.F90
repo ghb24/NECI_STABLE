@@ -30,7 +30,8 @@ MODULE Calc
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
-                         tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space
+                         tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
+                         user_input_max_davidson_iters
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
@@ -508,7 +509,6 @@ contains
         class(FileReader_t), intent(inout) :: file_reader
 
         type(TokenIterator_t) :: tokens
-        LOGICAL eof
         CHARACTER(LEN=100) w
         CHARACTER(LEN=100) input_string
         CHARACTER(*), PARAMETER :: t_r = 'CalcReadInput'
@@ -529,8 +529,7 @@ contains
         if(.not. allocated(InputDiagSft)) allocate(InputDiagSft(inum_runs))
         InputDiagSft = 0.0_dp
         t_force_global_core = .false.
-        calc: do while (file_reader%nextline(tokens))
-            if (tokens%size() == 0) cycle
+        calc: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case(w)
 
@@ -665,8 +664,7 @@ contains
                 I_VMAX = 1
                 tExitNow = .false.
                 do while(.not. tExitNow )
-                    eof = .not. file_reader%nextline(tokens)
-                    if(eof) then
+                    if(.not. file_reader%nextline(tokens, skip_empty=.true.)) then
                         call stop_all(this_routine, "Incomplete input file", .true.)
                     end if
                     w = to_upper(tokens%next())
@@ -1034,7 +1032,7 @@ contains
                 initial_refs = 0
 
                 do line = 1, inum_runs
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         do i = 1, nel
                             initial_refs(i, line) = to_int(tokens%next())
                         end do
@@ -1055,7 +1053,7 @@ contains
                 initial_states = 0
 
                 do line = 1, inum_runs
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         do i = 1, nel
                             initial_states(i, line) = to_int(tokens%next())
                         end do
@@ -1542,13 +1540,28 @@ contains
                 max_allowed_spawn = MaxWalkerBloom
             case("SHIFTDAMP")
                 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
-                SftDamp = to_realdp(tokens%next())
+                if (allocated(user_input_SftDamp)) then
+                    call stop_all(t_r, "Shiftdamp specified twice")
+                else
+                    user_input_SftDamp = to_realdp(tokens%next())
+                    SftDamp = user_input_SftDamp
+                end if
+                if ((SftDamp >= 1.0) .or. (SftDamp <= 0.0)) then
+                    call stop_all(t_r, "Shift damping factor has to be between 0 and 1")
+                end if
+
             case("TARGET-SHIFTDAMP")
                 !Introduces a second term in the shift update procedure
                 !depending on the target population with
                 !a second shift damping parameter SftDamp2 to avoid overshooting the
                 !target population.
                 tTargetShiftdamp = .true.
+                if (allocated(user_input_SftDamp)) then
+                    call stop_all(t_r, "Shiftdamp specified twice")
+                else
+                    user_input_SftDamp = to_realdp(tokens%next())
+                    SftDamp = user_input_SftDamp
+                end if
                 if (tokens%remaining_items() > 0) then
                     SftDamp2 = to_realdp(tokens%next())
                 else
@@ -1556,6 +1569,10 @@ contains
                     !to a value that leads to a critically damped shift.
                     SftDamp2 = SftDamp**2./4.
                 end if
+                if ((SftDamp >= 1.0) .or. (SftDamp <= 0.0) .or. (SftDamp2 >= SftDamp) .or. (SftDamp2 <= 0.0)) then
+                    call stop_all(t_r, "Shift damping factors have to be between 0 and 1 and SftDamp2 has to be smaller than SftDamp")
+                end if
+
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
                 ! This option is now deprecated, as it is default.
@@ -1584,6 +1601,17 @@ contains
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
                 end if
+
+            case("DAVIDSON-MAX-ITERS")
+                ! Set the max number of iteration for Davidson method: defaulted to 25
+                ! This is probably needed only for very special cases, e.g., very small 
+                ! test cases where Davidson throws Floating point exception when this is 
+                ! too large, for instance.
+                if (allocated(user_input_max_davidson_iters)) then
+                    call stop_all(t_r, "davison max iters given twice")
+                else
+                    user_input_max_davidson_iters = to_int(tokens%next())
+                endif
 
             case("ALL-CONN-CORE")
                 ss_space_in%tAllConnCore = .true.
@@ -2777,7 +2805,7 @@ contains
                 end if
 
                 do i = 1, npops_pert
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         pops_pert(i)%nannihilate = tokens%size()
                         allocate(pops_pert(i)%ann_orbs(tokens%size()))
                         do j = 1, tokens%size()
@@ -2807,7 +2835,7 @@ contains
                 end if
 
                 do i = 1, npops_pert
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         pops_pert(i)%ncreate = tokens%size()
                         allocate(pops_pert(i)%crtn_orbs(tokens%size()))
                         do j = 1, tokens%size()
@@ -2869,7 +2897,7 @@ contains
                 end if
 
                 do i = 1, npert_spectral_left
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         left_perturb_spectral(i)%nannihilate = tokens%size()
                         allocate(left_perturb_spectral(i)%ann_orbs(tokens%size()))
                         do j = 1, tokens%size()
@@ -2898,7 +2926,7 @@ contains
                 end if
 
                 do i = 1, npert_spectral_left
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         left_perturb_spectral(i)%ncreate = tokens%size()
                         allocate(left_perturb_spectral(i)%crtn_orbs(tokens%size()))
                         do j = 1, tokens%size()
@@ -2928,7 +2956,7 @@ contains
                 end if
 
                 do i = 1, npert_spectral_right
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         right_perturb_spectral(i)%nannihilate = tokens%size()
                         allocate(right_perturb_spectral(i)%ann_orbs(tokens%size()))
                         do j = 1, tokens%size()
@@ -2956,7 +2984,7 @@ contains
                 end if
 
                 do i = 1, npert_spectral_right
-                    if (file_reader%nextline(tokens)) then
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         right_perturb_spectral(i)%ncreate = tokens%size()
                         allocate(right_perturb_spectral(i)%crtn_orbs(tokens%size()))
                         do j = 1, tokens%size()
@@ -3993,7 +4021,7 @@ contains
         call LogMemDealloc(this_routine, tagMCDet)
 
         if (allocated(user_input_seed)) deallocate(user_input_seed)
-
+        if (allocated(user_input_SftDamp)) deallocate(user_input_SftDamp)
     End Subroutine CalcCleanup
 
 END MODULE Calc

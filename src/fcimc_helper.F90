@@ -527,8 +527,10 @@ contains
         complex(dp) :: CmplxwSign
 #endif
 
-        real(dp) :: amps(size(current_trial_amps, 1))
+        real(dp), allocatable :: amps(:)
         real(dp) :: w(0:2)
+
+        if (allocated(current_trial_amps)) allocate (amps(size(current_trial_amps, 1)))
 
         if (tReplicaReferencesDiffer) then
             call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)

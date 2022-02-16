@@ -42,26 +42,34 @@ contains
 
             call assert_equals(file_name, file_reader%get_file_name())
 
-            call assert_true(file_reader%nextline(tokens))
+            call assert_true(file_reader%nextline(tokens, skip_empty=.true.))
             call assert_equals(2, tokens%remaining_items())
             call assert_equals('System', tokens%next())
             call assert_equals('read', to_lower(tokens%next()))
             call assert_equals(1, file_reader%get_current_line())
             call assert_equals(0, tokens%remaining_items())
 
-            call assert_true(file_reader%nextline(tokens))
+            call assert_true(file_reader%nextline(tokens, skip_empty=.false.))
             call assert_equals(0, tokens%remaining_items())
 
-            call assert_true(file_reader%nextline(tokens))
+            call assert_true(file_reader%nextline(tokens, skip_empty=.false.))
             call assert_equals(0, tokens%remaining_items())
 
-            call assert_true(file_reader%nextline(tokens))
+            call assert_equals(3, file_reader%get_current_line())
+
+            call file_reader%rewind()
+            call assert_true(file_reader%nextline(tokens, skip_empty=.false.))
+            call assert_equals(1, file_reader%get_current_line())
+            call assert_equals(2, tokens%remaining_items())
+
+            call assert_true(file_reader%nextline(tokens, skip_empty=.true.))
+            call assert_equals(4, file_reader%get_current_line())
             call assert_equals(2, tokens%remaining_items())
             call assert_equals('GAS-CI', to_upper(tokens%next()))
             call assert_equals('GENERAL-PCHB', to_upper(tokens%next()))
             call assert_equals(0, tokens%remaining_items())
 
-            call assert_true(file_reader%nextline(tokens))
+            call assert_true(file_reader%nextline(tokens, skip_empty=.false.))
             call assert_equals(7, file_reader%get_current_line())
             call assert_equals(9, tokens%remaining_items())
             call assert_equals('GAS-SPEC', to_upper(tokens%next()))
@@ -75,7 +83,7 @@ contains
             end block
             call assert_equals(0, tokens%remaining_items())
 
-            call assert_false(file_reader%nextline(tokens))
+            call assert_false(file_reader%nextline(tokens, skip_empty=.false.))
 
             call file_reader%close(delete=.true.)
         end block

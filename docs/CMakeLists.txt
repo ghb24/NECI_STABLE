@@ -25,14 +25,15 @@ set(markdown_files_dev_doc
         pages/02_dev_doc/03_git_overview.md
         pages/02_dev_doc/04_review_guidelines.md
         pages/02_dev_doc/05_DRY.md
-        pages/02_dev_doc/06_compiler_help.md
         pages/02_dev_doc/06_premature_optimization.md
-        pages/02_dev_doc/07_memory_tracking.md
-        pages/02_dev_doc/08_templating.md
-        pages/02_dev_doc/09_testing.md
-        pages/02_dev_doc/10_interfacing_C.md
-        pages/02_dev_doc/11_debugging.md
-        pages/02_dev_doc/12_important_globals.md
+        pages/02_dev_doc/07_compiler_help.md
+        pages/02_dev_doc/08_tooling.md
+        pages/02_dev_doc/09_memory_tracking.md
+        pages/02_dev_doc/10_templating.md
+        pages/02_dev_doc/11_testing.md
+        pages/02_dev_doc/12_interfacing_C.md
+        pages/02_dev_doc/13_debugging.md
+        pages/02_dev_doc/14_important_globals.md
 )
 
 set(MEDIA_FILES

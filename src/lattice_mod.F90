@@ -2416,7 +2416,7 @@ contains
 
         file_reader = ManagingFileReader_t("lattice.file")
 
-        readsites: do while (file_reader%nextline(tokens))
+        readsites: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case (w)
             case ('SITE')
@@ -2432,7 +2432,7 @@ contains
             end select
         end do readsites
 
-
+        call file_reader%close()
     end subroutine read_sites
 
     subroutine init_sites_sujun(this)
@@ -5159,7 +5159,7 @@ contains
 
         file_reader = ManagingFileReader_t("lattice.file")
 
-        lat: do while (file_reader%nextline(tokens))
+        lat: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case (w)
             case ('N_SITES')
@@ -5167,6 +5167,7 @@ contains
             end select
         end do lat
 
+        call file_reader%close()
     end function read_lattice_n_sites
 
 
@@ -5186,7 +5187,7 @@ contains
 
         file_reader = ManagingFileReader_t("lattice.file")
 
-        lat: do while (file_reader%nextline(tokens))
+        lat: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
 
             select case (w)
@@ -5211,6 +5212,8 @@ contains
         end do lat
 
         call this%set_length(1, 3)
+
+        call file_reader%close()
 
     end subroutine read_lattice_struct
 

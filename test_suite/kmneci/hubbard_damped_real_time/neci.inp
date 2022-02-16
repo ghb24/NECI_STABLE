@@ -34,6 +34,7 @@ realtime
 start-hf
 energy-benchmark -8
 quad-damp 0.4
+complex-integrals
 endrealtime
 
 logging
