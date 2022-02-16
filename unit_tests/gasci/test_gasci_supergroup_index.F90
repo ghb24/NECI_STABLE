@@ -6,7 +6,7 @@ module test_gasci_supergroup_index_mod
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions, &
-        get_lowest_supergroup, get_highest_supergroup
+        get_lowest_supergroup, get_highest_supergroup, get_supergroups
 
     implicit none
     private
@@ -20,6 +20,7 @@ contains
         call run_test_case(test_lowest_supergroup, "test_lowest_supergroup")
         call run_test_case(test_highest_supergroup, "test_highest_supergroup")
         call run_test_case(test_next_supergroup, "test_next_supergroup")
+        call run_test_case(test_get_supergroups, "test_get_supergroups")
         call run_test_case(test_count_supergroups, "test_count_supergroups")
     end subroutine
 
@@ -96,6 +97,18 @@ contains
         end block
     end subroutine
 
+    elemental function get_benzene_GAS_spec(n_benz, n_exc) result(res)
+        !! Create the GAS specification for [n_benz * (6, 6)] active spaces.
+        integer, intent(in) :: n_benz, n_exc
+        type(CumulGASSpec_t) :: res
+        integer :: i, j
+        res = CumulGASSpec_t(&
+            cn_min=[(6 * i - n_exc, i = 1, n_benz - 1), n_benz * 6], &
+            cn_max=[(6 * i + n_exc, i = 1, n_benz - 1), n_benz * 6], &
+            spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, n_benz)])
+    end function
+
+
 
     subroutine test_count_supergroups()
         type(SuperGroupIndexer_t), allocatable :: sg_indexer(:)
@@ -111,23 +124,56 @@ contains
 
     contains
 
-        elemental function get_benzene_GAS_spec(n_benz, n_exc) result(res)
-            !! Create the GAS specification for [n_benz * (6, 6)] active spaces.
-            integer, intent(in) :: n_benz, n_exc
-            type(CumulGASSpec_t) :: res
-            integer :: i, j
-            res = CumulGASSpec_t(&
-                cn_min=[(6 * i - n_exc, i = 1, n_benz - 1), n_benz * 6], &
-                cn_max=[(6 * i + n_exc, i = 1, n_benz - 1), n_benz * 6], &
-                spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, n_benz)])
-        end function
-
         function get_sg_indexer(n_benz) result(res)
             integer, intent(in) :: n_benz
             integer, parameter :: n_exc = 2
             type(SuperGroupIndexer_t) :: res
             res = SuperGroupIndexer_t(get_benzene_GAS_spec(n_benz, n_exc), n_benz * 6)
         end function
+    end subroutine
+
+    subroutine test_get_supergroups
+        integer, allocatable :: supergroups(:, :), expected(:, :)
+
+        block
+            type(CumulGASSpec_t) :: GAS_spec
+            integer :: i, N
+
+            N = 2 * 6
+            GAS_spec = get_benzene_GAS_spec(2, 2)
+            expected = reshape([[8, 4], [7, 5], [6, 6], [5, 7], [4, 8]], [2, 5])
+            supergroups = get_supergroups(GAS_spec, N)
+
+            do i = 1, size(supergroups, 2)
+                call assert_true(all(shape(expected) == shape(supergroups)))
+                call assert_true(all(expected == supergroups))
+            end do
+            call assert_true(all(expected(:, 1) == get_lowest_supergroup(GAS_spec, N)))
+            call assert_true(all(expected(:, size(expected, 2)) == get_highest_supergroup(GAS_spec, N)))
+        end block
+
+        block
+            type(CumulGASSpec_t), allocatable :: GAS_specs
+            integer :: N, i, j
+
+            GAS_specs = get_benzene_GAS_spec(3, 1)
+            N = 18
+
+            supergroups = get_supergroups(GAS_specs, N)
+            call assert_true(all(supergroups(:, 1) == get_lowest_supergroup(GAS_specs, N)))
+            call assert_true(all(supergroups(:, size(supergroups, 2)) == get_highest_supergroup(GAS_specs, N)))
+
+
+            GAS_specs = CumulGASSpec_t([5, 11, 12], [7, 13, 20], [([(j, i = 1, 6)], j = 1, 3)])
+            N = 18
+
+            supergroups = get_supergroups(GAS_specs, N)
+            call assert_true(all(supergroups(:, 1) == get_lowest_supergroup(GAS_specs, N)))
+            call assert_true(all(supergroups(:, size(supergroups, 2)) == get_highest_supergroup(GAS_specs, N)))
+
+        end block
+
+
     end subroutine
 
     subroutine test_lowest_supergroup
@@ -273,16 +319,6 @@ program test_gasci_program
     block
 
         call MPIInit(.false.)
-
-        block
-            integer, allocatable :: M(:)
-
-            M = [1, 2, 3]
-            write(*, *) M
-            write(*, *) eoshift(M, shift=-1)
-            write(*, *) eoshift(M, shift=+1)
-
-        end block
 
         call init_fruit()
 

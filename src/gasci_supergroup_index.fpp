@@ -67,7 +67,7 @@ module gasci_supergroup_index
     public :: SuperGroupIndexer_t, lookup_supergroup_indexer
 
     public :: n_compositions, get_compositions, composition_idx
-    public :: get_lowest_supergroup, get_highest_supergroup
+    public :: get_lowest_supergroup, get_highest_supergroup, get_supergroups
 
     type :: SuperGroupIndexer_t
         private
@@ -221,24 +221,37 @@ contains
     pure function indexer_get_supergroups(this) result(res)
         class(SuperGroupIndexer_t), intent(in) :: this
         integer, allocatable :: res(:, :)
+        res = get_supergroups(this%GASspec, this%N)
+    end function
+
+    !> @brief
+    !> Get the ordered compositions of n into k summands
+    !>  constrained by cumulative minima and maxima.
+    !>
+    !> @details
+    !> GAS allowed compositions are called supergroups.
+    pure function get_supergroups(GAS_spec, N) result(res)
+        class(GASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: N
+        integer, allocatable :: res(:, :)
         character(*), parameter :: this_routine = 'indexer_get_supergroups'
 
         integer(int64) :: i
-        integer :: start_comp(this%GASspec%nGAS()), &
-            end_comp(this%GASspec%nGAS()), &
-            comp(this%GASspec%nGAS())
+        integer :: start_comp(GAS_spec%nGAS()), &
+            end_comp(GAS_spec%nGAS()), &
+            comp(GAS_spec%nGAS())
         integer(int64) :: start_idx, end_idx
         type(buffer_int_2D_t) :: supergroups
 
-        start_comp = get_lowest_supergroup(this%GASspec, this%N)
-        end_comp = get_highest_supergroup(this%GASspec, this%N)
+        start_comp = get_lowest_supergroup(GAS_spec, N)
+        end_comp = get_highest_supergroup(GAS_spec, N)
         start_idx = composition_idx(start_comp)
         end_idx = composition_idx(end_comp)
 
-        call supergroups%init(rows=this%GASspec%nGAS())
+        call supergroups%init(rows=GAS_spec%nGAS())
         comp = start_comp
         do i = start_idx, end_idx
-            if (this%GASspec%contains_supergroup(comp(:))) then
+            if (GAS_spec%contains_supergroup(comp(:))) then
                 call supergroups%push_back(comp(:))
             end if
             comp = next_composition(comp)
@@ -309,22 +322,20 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS - 1
             end do
-            @:pure_ASSERT(remaining == 0)
         type is(CumulGASSpec_t)
-            res = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmax(), shift=-1)
-            res(size(res)) = 0
+            res = min(GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1), GAS_spec%GAS_size())
             remaining = N - sum(res)
+
             iGAS = GAS_spec%nGAS()
             do while (remaining > 0)
-                to_add = min(GAS_spec%get_cmax(iGAS) - sum(res(:iGAS)), GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
+                to_add = min(GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
                 res(iGAS) = res(iGAS) + to_add
                 remaining = remaining - to_add
                 iGAS = iGAS - 1
             end do
-            @:pure_ASSERT(remaining == 0)
         end select
+        @:pure_ASSERT(remaining == 0)
     end function
-
 
     pure function get_supergroup_idx(this, supergroup) result(idx)
         class(SuperGroupIndexer_t), intent(in) :: this
