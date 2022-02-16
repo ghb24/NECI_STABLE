@@ -224,7 +224,7 @@ contains
         get_GAS_size_i = this%GAS_sizes(iGAS)
     end function
 
-    !>  Returns the sizes for all GAS spaces.
+    !>  Returns the sizes for GAS spaces specified in idx.
     pure function get_GAS_size_idx(this, idx) result(res)
         class(GASSpec_t), intent(in) :: this
         integer, intent(in) :: idx(:)
@@ -547,6 +547,10 @@ contains
         integer :: i, iel, iGAS, nGAS
 
         @:def_default(recoupling_, recoupling, .true.)
+
+        if (any(n_max < n_min)) then
+            call stop_all(this_routine, 'any(n_max < n_min) violated')
+        end if
 
         nGAS = maxval(spat_GAS_orbs)
         GAS_sizes = 2 * frequency(spat_GAS_orbs)

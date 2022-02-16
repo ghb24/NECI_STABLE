@@ -5,13 +5,23 @@ module test_gasci_supergroup_index_mod
     use util_mod, only: factrl, intswap, cumsum
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions
+    use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions, &
+        get_lowest_supergroup, get_highest_supergroup
 
     implicit none
     private
-    public :: test_compositioning, test_supergroup_indexer_class, test_count_supergroups
+    public :: test_gasci_driver
 
 contains
+
+    subroutine test_gasci_driver()
+        call run_test_case(test_compositioning, "test_compositioning")
+        call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
+        call run_test_case(test_lowest_supergroup, "test_lowest_supergroup")
+        call run_test_case(test_highest_supergroup, "test_highest_supergroup")
+        call run_test_case(test_next_supergroup, "test_next_supergroup")
+        call run_test_case(test_count_supergroups, "test_count_supergroups")
+    end subroutine
 
     subroutine test_compositioning()
         integer, allocatable :: compositions(:, :)
@@ -119,6 +129,134 @@ contains
             res = SuperGroupIndexer_t(get_benzene_GAS_spec(n_benz, n_exc), n_benz * 6)
         end function
     end subroutine
+
+    subroutine test_lowest_supergroup
+        integer, allocatable :: calculated(:), expected(:)
+        integer :: N
+        block
+            type(LocalGASSpec_t) :: GAS_spec
+
+            GAS_spec = LocalGASSpec_t(n_min=[0, 1, 2], n_max=[1, 2, 3], &
+                                      spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 3, 3, 3])
+            N = 3
+            expected = [0, 1, 2]
+            calculated = get_lowest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+
+            N = 5
+            expected = [1, 2, 2]
+            calculated = get_lowest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+
+
+            GAS_spec = LocalGASSpec_t(n_min=[0, 1, 1], n_max=[3, 2, 1], &
+                                      spat_GAS_orbs=[1, 2, 3])
+            N = 5
+            expected = [2, 2, 1]
+            calculated = get_lowest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+
+            GAS_spec = LocalGASSpec_t(n_min=[0, 1, 2], n_max=[3, 2, 2], &
+                                      spat_GAS_orbs=[1, 2, 3])
+            N = 5
+            expected = [2, 1, 2]
+            calculated = get_lowest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+        end block
+
+        block
+            type(CumulGASSpec_t) :: GAS_spec
+
+            GAS_spec = CumulGASSpec_t(cn_min=[0, 1, 4], cn_max=[1, 2, 4], &
+                                      spat_GAS_orbs=[1, 2, 3])
+            N = 4
+            expected = [1, 1, 2]
+            calculated = get_lowest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+
+
+            GAS_spec = CumulGASSpec_t(cn_min=[1, 2, 5], cn_max=[4, 4, 5], &
+                                      spat_GAS_orbs=[1, 2, 3])
+            N = 5
+            expected = [2, 2, 1]
+            calculated = get_lowest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+        end block
+    end subroutine
+
+    subroutine test_highest_supergroup
+        integer, allocatable :: calculated(:), expected(:)
+        integer :: N
+        block
+            type(LocalGASSpec_t) :: GAS_spec
+
+            GAS_spec = LocalGASSpec_t(n_min=[0, 1, 2], n_max=[1, 2, 3], &
+                                      spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 3, 3, 3])
+            N = 3
+            expected = [0, 1, 2]
+            calculated = get_highest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+
+            N = 5
+            expected = [0, 2, 3]
+            calculated = get_highest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+
+
+            GAS_spec = LocalGASSpec_t(n_min=[0, 1, 1], n_max=[3, 2, 1], &
+                                      spat_GAS_orbs=[1, 2, 3])
+            N = 5
+            expected = [2, 2, 1]
+            calculated = get_highest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+
+            GAS_spec = LocalGASSpec_t(n_min=[0, 1, 2], n_max=[3, 2, 2], &
+                                      spat_GAS_orbs=[1, 2, 3])
+            N = 5
+            expected = [1, 2, 2]
+            calculated = get_highest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+        end block
+
+        block
+            type(CumulGASSpec_t) :: GAS_spec
+
+            GAS_spec = CumulGASSpec_t(cn_min=[0, 1, 1], &
+                                      cn_max=[2, 3, 3], &
+                                      spat_GAS_orbs=[1, 2, 3])
+            N = 3
+            expected = [0, 1, 2]
+            calculated = get_highest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+
+
+            GAS_spec = CumulGASSpec_t(cn_min=[1, 2, 5], cn_max=[4, 4, 5], &
+                                      spat_GAS_orbs=[1, 2, 3])
+            N = 5
+            expected = [1, 2, 2]
+            calculated = get_highest_supergroup(GAS_spec, N)
+            call assert_equals(size(calculated), size(expected))
+            call assert_equals(calculated, expected, size(calculated))
+        end block
+
+
+    end subroutine
+
+    subroutine test_next_supergroup
+
+    end subroutine
+
 end module
 
 
@@ -127,7 +265,7 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_supergroup_index_mod, only: test_compositioning, test_supergroup_indexer_class, test_count_supergroups
+    use test_gasci_supergroup_index_mod, only: test_gasci_driver
 
 
     implicit none
@@ -135,6 +273,16 @@ program test_gasci_program
     block
 
         call MPIInit(.false.)
+
+        block
+            integer, allocatable :: M(:)
+
+            M = [1, 2, 3]
+            write(*, *) M
+            write(*, *) eoshift(M, shift=-1)
+            write(*, *) eoshift(M, shift=+1)
+
+        end block
 
         call init_fruit()
 
@@ -149,11 +297,4 @@ program test_gasci_program
         call MPIEnd(.false.)
     end block
 
-contains
-
-    subroutine test_gasci_driver()
-        call run_test_case(test_compositioning, "test_compositioning")
-        call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
-        call run_test_case(test_count_supergroups, "test_count_supergroups")
-    end subroutine
 end program test_gasci_program

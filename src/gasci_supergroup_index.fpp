@@ -67,6 +67,7 @@ module gasci_supergroup_index
     public :: SuperGroupIndexer_t, lookup_supergroup_indexer
 
     public :: n_compositions, get_compositions, composition_idx
+    public :: get_lowest_supergroup, get_highest_supergroup
 
     type :: SuperGroupIndexer_t
         private
@@ -229,8 +230,8 @@ contains
         integer(int64) :: start_idx, end_idx
         type(buffer_int_2D_t) :: supergroups
 
-        start_comp = get_lowest_supergroup(this)
-        end_comp = get_highest_supergroup(this)
+        start_comp = get_lowest_supergroup(this%GASspec, this%N)
+        end_comp = get_highest_supergroup(this%GASspec, this%N)
         start_idx = composition_idx(start_comp)
         end_idx = composition_idx(end_comp)
 
@@ -243,62 +244,85 @@ contains
             comp = next_composition(comp)
         end do
         call supergroups%dump_reset(res)
-        ASSERT(all(res(:, 1) == start_comp))
-        ASSERT(all(res(:, size(res, 2)) == end_comp))
+        @:pure_ASSERT(all(res(:, 1) == start_comp))
+        @:pure_ASSERT(all(res(:, size(res, 2)) == end_comp))
     end function
 
-    pure function get_lowest_supergroup(this) result(res)
-        class(SuperGroupIndexer_t), intent(in) :: this
-        integer :: res(this%GASspec%nGAS())
+    pure function get_lowest_supergroup(GAS_spec, N) result(res)
+        class(GASSpec_t), intent(in) :: GAS_spec
+            !! GAS constraints
+        integer, intent(in) :: N
+            !! Particle number
+        integer :: res(GAS_spec%nGAS())
 
         character(*), parameter :: this_routine = 'get_lowest_supergroup'
         integer :: remaining, iGAS, to_add
 
-        associate(GAS_spec => this%GASspec)
+        @:pure_ASSERT(sum(GAS_spec%GAS_size()) >= N)
+
         select type(GAS_spec)
         type is(LocalGASSpec_t)
             res = GAS_spec%get_min()
-            remaining = this%N - sum(res)
+            remaining = N - sum(res)
 
             iGAS = 1
             do while (remaining > 0)
-                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), remaining)
+                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
                 res(iGAS) = res(iGAS) + to_add
                 remaining = remaining - to_add
                 iGAS = iGAS + 1
             end do
-            ASSERT(remaining == 0)
+            @:pure_ASSERT(remaining == 0)
         type is(CumulGASSpec_t)
-            call stop_all(this_routine, 'Has to be implemented.')
+            res = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmax(), shift=-1)
+            remaining = N - sum(res)
+            iGAS = 1
+            do while (remaining > 0)
+                to_add = min(GAS_spec%get_cmax(iGAS) - sum(res(:iGAS)), GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
+                res(iGAS) = res(iGAS) + to_add
+                remaining = remaining - to_add
+                iGAS = iGAS + 1
+            end do
+            @:pure_ASSERT(remaining == 0)
         end select
-        end associate
     end function
 
-    pure function get_highest_supergroup(this) result(res)
-        class(SuperGroupIndexer_t), intent(in) :: this
-        integer :: res(this%GASspec%nGAS())
+    pure function get_highest_supergroup(GAS_spec, N) result(res)
+        class(GASSpec_t), intent(in) :: GAS_spec
+            !! GAS constraints
+        integer, intent(in) :: N
+            !! Particle number
+        integer :: res(GAS_spec%nGAS())
 
         character(*), parameter :: this_routine = 'get_highest_supergroup'
         integer :: remaining, iGAS, to_add
 
-        associate(GAS_spec => this%GASspec)
         select type(GAS_spec)
         type is(LocalGASSpec_t)
             res = GAS_spec%get_min()
-            remaining = this%N - sum(res)
+            remaining = N - sum(res)
 
             iGAS = GAS_spec%nGAS()
             do while (remaining > 0)
-                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), remaining)
+                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
                 res(iGAS) = res(iGAS) + to_add
                 remaining = remaining - to_add
                 iGAS = iGAS - 1
             end do
-            ASSERT(remaining == 0)
+            @:pure_ASSERT(remaining == 0)
         type is(CumulGASSpec_t)
-            call stop_all(this_routine, 'Has to be implemented.')
+            res = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmax(), shift=-1)
+            res(size(res)) = 0
+            remaining = N - sum(res)
+            iGAS = GAS_spec%nGAS()
+            do while (remaining > 0)
+                to_add = min(GAS_spec%get_cmax(iGAS) - sum(res(:iGAS)), GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
+                res(iGAS) = res(iGAS) + to_add
+                remaining = remaining - to_add
+                iGAS = iGAS - 1
+            end do
+            @:pure_ASSERT(remaining == 0)
         end select
-        end associate
     end function
 
 
