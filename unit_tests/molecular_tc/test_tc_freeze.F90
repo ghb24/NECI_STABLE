@@ -23,6 +23,11 @@ program test_tc_freeze
   call tc_freeze_test_driver()
   call fruit_summary()
   call fruit_finalize()
+  block
+    integer :: failed_count
+    call get_failed_count(failed_count)
+    if (failed_count /= 0) call stop_all('test_tc_freeze', 'failed_tests')
+  end block
   call MPIEnd(.false.)
 
 contains
@@ -163,7 +168,6 @@ contains
     end subroutine random_fcidump
 
     subroutine reset_ints()
-        integer :: i
         if(iProcIndex_intra == 0) then
             UMat = 0.0_dp
         end if

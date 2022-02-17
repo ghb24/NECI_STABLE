@@ -22,6 +22,9 @@ given in black.
 Keywords which are purely for debugging purposes and only interesting
 for developers are markes as **\textcolor{green}{green}**.
 
+Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`)
+Line continuation is achieved with `\`. (A deprecated line continuation string found in legacy inputs is `+++`.)
+
 ### SYSTEM Block
 
 The SYSTEM block specifies the properties of the physical system that is
@@ -233,27 +236,27 @@ considered. The block starts with the `system` keyword and ends with the
     per GAS space \(n_i, N_i^\text{min}, N_i^\text{max}\). Finally an
     integer array denotes for each spatial orbital to which GAS space it
     belongs. Instead of `1 1 1 1 1` one can write `5*1`. It is
-    advantageous to use the line continuation (`+++`) for human-readable
+    advantageous to use the line continuation (`\`) for human-readable
     formatting as table. Two benzenes with single inter-space excitation
     would be e.g. denoted as:
 
-        GAS-SPEC LOCAL 2 +++
-                 6  5  7  +++
-                 6  5  7  +++
+        GAS-SPEC LOCAL 2 \
+                 6  5  7  \
+                 6  5  7  \
                  1  1  1  1  1  1  2  2  2  2  2  2
 
     or
 
-        GAS-SPEC LOCAL  2 +++
-                 6  5  7  +++
-                 6  5  7  +++
+        GAS-SPEC LOCAL  2 \
+                 6  5  7  \
+                 6  5  7  \
                  6*1 6*2
 
     or
 
-        GAS-SPEC CUMULATIVE 2 +++
-                 6  5  7  +++
-                 6 12 12 +++
+        GAS-SPEC CUMULATIVE 2 \
+                 6  5  7  \
+                 6 12 12 \
                  6*1 6*2
 
     In the given example the local and cumulative constraints are
@@ -287,7 +290,7 @@ considered. The block starts with the `system` keyword and ends with the
 
         An example is
 
-            GAS-CI GENERAL-PCHB +++
+            GAS-CI GENERAL-PCHB \
                             SINGLES ON-FLY-HEAT-BATH
 
     -   **DISCARDING**<br>
@@ -384,19 +387,31 @@ considered. The block starts with the `system` keyword and ends with the
     account 3-body interactions for all other purposes.
 
 
+-   **evolve-adjoint**<br>
+    For multiple replicas (mneci, system-replicas >=2) or a dneci run,
+    evolves the left eigenvector for the even replicas, while still
+    evolving the right eigenvector for the odd replicas.
+    This gives access to stochastically independent \(|Psi_{R}>\) and
+    \(\Psi_{L}\) in the same simulation, for RDM calculation e.g.
+
 #### Spin purification
 
--   **sd-spin-purification \(J\) [truncate-ladder-operator]**<br>
+-   **sd-spin-purification \(J\) [truncate-ladder-operator, only-ladder-operator]**<br>
     Use an adjusted hamiltonian \(H + J S^2\) for the dynamic
     to force antiferromagnetic ordering and ensure pure spin-states
     in a Slater determinant (SD) basis.
+
+    One can add the optional keyword `only-ladder-operator` after \(J\)
+    not to use the full \(S^2 = S_z (S_z - 1) + S_{+} S_{-} \)
+    operator but a truncated version,
+    which uses only the ladder operator term \(S_{+} S_{-}\).
 
     One can add the optional keyword `truncate-ladder-operator` after \(J\)
     not to use the full \(S^2 = S_z (S_z - 1) + S_{+} S_{-} \)
     operator but a truncated version,
     which uses only the ladder operator term \(S_{+} S_{-}\) and
     truncates it by removing its diagonal.
-    This implies that the counting of open shell \(\alpha\) electrons
+    This implies that the diagonal counting of open shell \(\alpha\) electrons
     is removed.
 
 
@@ -465,6 +480,13 @@ and ends with the `endcalc` keyword.
     to prevent blooms. Useful when this fraction strongly depends on the
     determinant.
 
+-   **davidson-max-iters \(n\)**<br>
+    Set the number of iterations in Davidson's algorithm when this is used. 
+    Such algorithm computes a few of the smallest (or largest) eigenvalues 
+    of a large sparse real symmetric matrix. This method is used, 
+    for instance, in the semi-stochastic implementation or when  
+    CI Davidson is used. The default value is \(25\).
+
 #### Population control options
 
 -   **\textcolor{red}{totalWalkers \(n\)}**<br>
@@ -479,7 +501,15 @@ and ends with the `endcalc` keyword.
 
 -   **\textcolor{blue}{shiftDamp \(\zeta\)}**<br>
  Set the damping factor used in the shift update scheme to
-    \(\zeta\). Defaults to \(10\).
+    \(\zeta\). Has to be \(<1.0\). Defaults to \(0.1\).
+
+-   **target-shiftDamp \(\zeta\) [\(\eta\)]**<br>
+ Uses the shift updating procedure presented in [@Yang2020] and 
+ can be used instead of the shiftDamp keyword. \(zeta\)
+ is the usual shift damping factor, \(\eta\) is the additional second
+ shift damping factor. If \(\eta\) is not specified, it is set to
+ \(\zeta^2 / 4\) to achieve critical damping. Both parameters have to
+ be \(<1.0\) and \(\eta < \zeta\).
 
 -   **\textcolor{blue}{stepsSft \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to

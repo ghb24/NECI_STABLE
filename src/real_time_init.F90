@@ -441,7 +441,7 @@ contains
         tFCIMC = .false.
 
         ! Default to complex ints, this is then turned off when running real-time
-        t_complex_ints = .true.
+        !t_complex_ints = .true.
 
         ! probably should zero the projected energy, since its a total
         ! different system

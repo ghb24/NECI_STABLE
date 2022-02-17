@@ -4,7 +4,7 @@ module FciMCParMod
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, tGen_4ind_2, &
-                          tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
+                          tGen_4ind_weighted, tGUGA, &
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
@@ -113,7 +113,8 @@ module FciMCParMod
 
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-    use guga_excitations, only: generate_excitation_guga, global_excitInfo
+    use guga_main, only: generate_excitation_guga
+    use guga_excitations, only: global_excitInfo
     use guga_bitrepops, only: fill_csf_i, current_csf_i
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
@@ -1476,7 +1477,8 @@ contains
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
+            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), &
+                HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
                 inst_double_occ = inst_double_occ + &
@@ -1591,7 +1593,7 @@ contains
                     end if
                 end if
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcitsLoc, WalkersToSpawn)
-                loop_over_particles : do p = 1, WalkersToSpawn
+                loop_over_walkers : do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
@@ -1602,29 +1604,11 @@ contains
                     ! all the interfaces to the other excitation generators,
                     ! which all just assume ex(2,2) as size.. so use a
                     ! if here..
-                    if (t_k_space_hubbard .and. t_3_body_excits) then
-                        if (t_uniform_excits) then
-                            call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                         nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                         HElGen, fcimc_excit_gen_store, part_type)
+                    ! Generate a (random) excitation
+                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                        ilutnJ, exFlag, IC, ex, tParity, prob, &
+                        HElGen, fcimc_excit_gen_store, part_type)
 
-                        else if (t_mixed_excits) then
-                            call gen_excit_mixed_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                       nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                       HElGen, fcimc_excit_gen_store, part_type)
-
-                        else
-                            call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                 HElGen, fcimc_excit_gen_store, part_type)
-                        end if
-                    else
-                        ! Generate a (random) excitation
-                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
-                            ilutnJ, exFlag, IC, ex, tParity, prob, &
-                            HElGen, fcimc_excit_gen_store, part_type)
-
-                    end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
                     if (tSkipRef(run) .and. all(nJ == projEdet(:, run))) then
@@ -1730,7 +1714,7 @@ contains
                         end if
                     end if is_child_created ! (child /= 0), Child created.
 
-                end do loop_over_particles ! Cycling over mulitple particles on same determinant.
+                end do loop_over_walkers
 
             end do loop_over_type  ! Cycling over 'type' of particle on a given determinant.
 

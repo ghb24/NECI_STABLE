@@ -1642,11 +1642,11 @@ contains
 
                 do i = 1, numEls
                     ! if the previous orbital is in the same contiguous range
-                    if(i.eq.1) then
+                    if (i == 1) then
                         ! for the first one, there is no previous one
                         previousInRange = .false.
                     else
-                        previousInRange = defdet(i).eq.defdet(i-1)+1
+                        previousInRange = defdet(i) == defdet(i-1) + 1
                     end if
 
                     ! if the following orbital is in the same contiguous range

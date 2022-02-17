@@ -1,1 +1,1 @@
-add_unit_test(gdata_io)
+add_unit_test(neci gdata_io)

@@ -74,7 +74,7 @@ set( SRC_FILES
     init_coul.F
     initial_trial_states.F90
     initiator_space_procs.F90
-    input.F90
+    input_parser_mod.F90
     IntegralsData.F90
     Integrals_neci.F90
     kp_fciqmc_data.F90
@@ -178,6 +178,7 @@ set( SRC_FILES
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    guga_main.F90
     guga_bitRepOps.F90
     guga_data.F90
     guga_excitations.F90
@@ -188,6 +189,7 @@ set( SRC_FILES
     guga_types.F90
 	guga_plugin.F90
     guga_pchb_class.F90
+    guga_crude_approx.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
@@ -219,7 +221,6 @@ set( SRC_FILES
     lib/error_handling_neci.F90
     lib/hdf5_util.F90
     lib/MemoryManagement.F90
-    lib/ranlux.F
     lib/signals.F90
     lib/signals_helper.cpp
     lib/soft_exit.F90
@@ -300,9 +301,7 @@ set( RELAX_WARNINGS_SRCS
     init_coul.F
     initial_trial_states.F90
     initiator_space_procs.F90
-    input.F90
     IntegralsData.F90
-    Integrals_neci.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -350,7 +349,6 @@ set( RELAX_WARNINGS_SRCS
     rdm_reading.F90
     readdf.F90
     readinput.F90
-    readint.F90
     read_psi.F
     readri.F90
     replica_data.F90

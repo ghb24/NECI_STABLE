@@ -8,7 +8,7 @@ MODULE System
                         occCASorbs, virtCASorbs, tPairedReplicas, &
                         S2Init, tDynamicAvMcEx
 
-    use FciMCData, only: tGenMatHEl, t_initialized_roi
+    use FciMCData, only: tGenMatHEl, t_initialized_roi, t_adjoint_replicas
 
     use sort_mod
 
@@ -32,8 +32,10 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
         LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
 
-    use SD_spin_purification_mod, only: tSD_spin_purification, &
-        tTruncatedLadderOps, spin_pure_J
+
+    use SD_spin_purification_mod, only: possible_purification_methods, &
+        SD_spin_purification, spin_pure_J
+
 
     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
@@ -44,6 +46,8 @@ MODULE System
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
     use guga_data, only: tGUGACore
+
+    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
 
     IMPLICIT NONE
 
@@ -56,7 +60,6 @@ contains
         USE SymData, only: tAbelianFastExcitGen
         USE SymData, only: tStoreStateList
         use OneEInts, only: tOneElecDiag
-        implicit none
 
         ! Default from SymExcitDataMod
         tBuildOccVirtList = .false.
@@ -89,7 +92,6 @@ contains
         tNoBrillouin = .true.
         tBrillouinsDefault = .true.
         tROHF = .false.
-        tCacheFCIDUMPInts = .false.
         tHPHFInts = .false.
         tHPHF = .false.
         tMaxHLGap = .false.
@@ -227,6 +229,7 @@ contains
         ! use weighted singles for the pchb excitgen?
         t_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
+        t_adjoint_replicas = .false.
         tGiovannisBrokenInit = .false.
         ! GAS options
         tGAS = .false.
@@ -267,29 +270,32 @@ contains
 
     end subroutine SetSysDefaults
 
-    SUBROUTINE SysReadInput()
-        USE input_neci
+    SUBROUTINE SysReadInput(file_reader, incompletely_parsed_tokens)
+        use input_parser_mod, only: FileReader_t, TokenIterator_t
         USE SymData, only: tAbelianFastExcitGen
         USE SymData, only: tStoreStateList
         use OneEInts, only: tOneElecDiag
-        IMPLICIT NONE
+        class(FileReader_t), intent(inout) :: file_reader
+        type(TokenIterator_t), intent(inout) :: incompletely_parsed_tokens
+
         LOGICAL eof
         CHARACTER(LEN=100) w
         INTEGER I, Odd_EvenHPHF, Odd_EvenMI
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3, itmp
+        type(TokenIterator_t) :: tokens
         character(*), parameter :: t_r = 'SysReadInput'
         character(*), parameter :: this_routine = 'SysReadInput'
         integer :: temp_n_orbs
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
-        call readu(w)
+        w = to_upper(incompletely_parsed_tokens%next())
         select case (w)
 
         case ("DFREAD")             ! Instead, specify DensityFitted within the system block.
             TREADINT = .true.
             TDFREAD = .true.
-            call readu(w)
+            w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -299,7 +305,7 @@ contains
         case ("BINREAD")            ! Instead, specify Binary within the system block.
             TREADINT = .true.
             TBIN = .true.
-            call readu(w)
+            w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -308,7 +314,7 @@ contains
             end select
         case ("READ", "GENERIC")
             TREADINT = .true.
-            call readu(w)
+            w = to_upper(incompletely_parsed_tokens%next(if_exhausted=''))
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -320,7 +326,7 @@ contains
             THUB = .true.
             TPBC = .true.
 
-            if (item < nitems) then
+            if (incompletely_parsed_tokens%remaining_items() > 0) then
                 ! this indicates the new hubbard implementation
                 ! for consistency turn off the old hubbard indication
                 ! and for now this is only done for the real-space hubbard
@@ -329,7 +335,7 @@ contains
                 ! use the already provided setup routine and just modify the
                 ! necessary stuff, like excitation generators!
                 t_new_hubbard = .true.
-                call readl(w)
+                w = to_lower(incompletely_parsed_tokens%next())
                 select case (w)
                 case ('real-space', 'real')
                     treal = .true.
@@ -339,8 +345,8 @@ contains
                     ! if no further input is given a provided fcidump is
                     ! assumed! but this still needs to be implemented
                     ! this fcidump gives the lattice structure!
-                    if (item < nitems) then
-                        call readl(lattice_type)
+                    if (incompletely_parsed_tokens%remaining_items() > 0) then
+                        lattice_type = to_lower(incompletely_parsed_tokens%next())
                     else
                         lattice_type = 'read'
                     end if
@@ -389,7 +395,7 @@ contains
             tVASP = .true.
         case ("CPMD")
             TCPMD = .true.
-            call readu(w)
+            w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -397,16 +403,12 @@ contains
         case ("BOX")
             tOneElecDiag = .true.   !One electron integrals diagonal
         case default
-            call report("System type "//trim(w)//" not valid", .true.)
+            call stop_all(this_routine, "System type "//trim(w)//" not valid", .true.)
         end select
 
         ! Now parse the rest of the system block.
-        system: do
-            call read_line(eof)
-            if (eof) then
-                call report("Incomplete input file", .true.)
-            end if
-            call readu(w)
+        system: do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
             select case (w)
 
                 ! Options for molecular (READ) systems: control how the integral file
@@ -418,14 +420,11 @@ contains
                 ! General options.
             case ("RIINTEGRALS")
                 tRIIntegrals = .true.
-            case ("READCACHEINTS")
-                tCacheFCIDUMPInts = .true.
             case ("ELECTRONS", "NEL")
-                call geti(NEL)
+                NEL = to_int(tokens%next())
             case ("SPIN-RESTRICT")
-                if (item < nitems) then
-                    allocate(user_input_m_s)
-                    call geti(user_input_m_s)
+                if (tokens%remaining_items() > 0) then
+                    user_input_m_s = to_int(tokens%next())
                 end if
                 TSPN = .true.
 
@@ -435,8 +434,8 @@ contains
                 ! CONVENTION: give S in units of h/2, so S directly relates to the
                 ! number of unpaired electrons
             case ("GUGA")
-                if (item < nitems) then
-                    call geti(STOT)
+                if (tokens%remaining_items() > 0) then
+                    STOT = to_int(tokens%next())
                 else
                     STOT = 0
                 end if
@@ -453,54 +452,19 @@ contains
                 LMS = STOT
                 ! =============================================================
 
-            case ("TEST-MOST-POPULATED")
-                if (item < nitems) then
-                    call geti(n_most_populated)
-                else
-                    n_most_populated = 10**4
-                end if
-                t_test_most_populated = .true.
-
-            case ("TEST-EXCIT-GEN")
-                t_test_excit_gen = .true.
-
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    n_guga_excit_gen = 1000000
-                end if
-
             case ("TEST-DOUBLE")
                 t_test_double = .true.
 
-                call geti(test_i)
-                call geti(test_j)
-                call geti(test_k)
-                call geti(test_l)
+                test_i = to_int(tokens%next())
+                test_j = to_int(tokens%next())
+                test_k = to_int(tokens%next())
+                test_l = to_int(tokens%next())
 
             case ("TEST-SINGLE")
                 t_test_single = .true.
 
-                call geti(test_i)
-                call geti(test_j)
-
-            case ("FULL-GUGA-TESTS")
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    n_guga_excit_gen = 1000000
-                end if
-                t_full_guga_tests = .true.
-
-            case ("GUGA-TESTSUITE")
-                ! introduce a new flag to indicate the testsuite is running
-                ! this enforces more strict tolerances
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    n_guga_excit_gen = 1000000
-                end if
-                t_guga_testsuite = .true.
+                test_i = to_int(tokens%next())
+                test_j = to_int(tokens%next())
 
             case ("GUGA-NOREORDER")
                 ! do not reorder the orbitals in the hubbard + guga implementation
@@ -529,8 +493,8 @@ contains
                 ! "FREEFORMAT OFF" or "FREEFORMAT FALSE"
 
                 tReadFreeFormat = .true.
-                if (item < nitems) then
-                    call readu(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF", "FALSE")
                         tReadFreeFormat = .false.
@@ -553,7 +517,7 @@ contains
             case ("SYM")
                 TPARITY = .true.
                 do I = 1, 4
-                    call geti(IPARITY(I))
+                    IPARITY(I) = to_int(tokens%next())
                 end do
 ! the last number is the symmetry specification - and is placed in position 5
                 IPARITY(5) = IPARITY(4)
@@ -571,72 +535,72 @@ contains
 ! but do not want to include singles in the energy calculations.
                 tUHF = .true.
             case ("RS")
-                call getf(FUEGRS)
+                FUEGRS = to_realdp(tokens%next())
             case ("EXCHANGE-CUTOFF")
                 iPeriodicDampingType = 2
-                if (item < nitems) then
-                    call getf(fRc)
+                if (tokens%remaining_items() > 0) then
+                    fRc = to_realdp(tokens%next())
                 end if
             case ("EXCHANGE-ATTENUATE")
                 iPeriodicDampingType = 1
-                if (item < nitems) then
-                    call getf(fRc)
+                if (tokens%remaining_items() > 0) then
+                    fRc = to_realdp(tokens%next())
                 end if
             case ("EXCHANGE")
-                call readu(w)
+                w = to_upper(tokens%next())
                 select case (w)
                 case ("ON")
                     TEXCH = .TRUE.
                 case ("OFF")
                     TEXCH = .FALSE.
                 case default
-                    call report("EXCHANGE "//trim(w)//" not valid", .true.)
+                    call stop_all(this_routine, "EXCHANGE "//trim(w)//" not valid", .true.)
                 end select
             case ("COULOMB")
-                call report("Coulomb feature removed", .true.)
+                call stop_all(this_routine, "Coulomb feature removed", .true.)
 
             case ("COULOMB-DAMPING")
-                call report("Coulomb damping feature removed", .true.)
+                call stop_all(this_routine, "Coulomb damping feature removed", .true.)
 
             case ("ENERGY-CUTOFF")
                 tOrbECutoff = .true.
-                call getf(OrbECutoff)
+                OrbECutoff = to_realdp(tokens%next())
             case ("G-CUTOFF")
                 tgCutoff = .true.
-                call getf(gCutoff)
+                gCutoff = to_realdp(tokens%next())
             case ("FREEZE-CUTOFF")
                 tUEGFreeze = .true.
-                call getf(FreezeCutoff)
+                FreezeCutoff = to_realdp(tokens%next())
             case ("MADELUNG")
                 tMadelung = .true.
-                call getf(Madelung)
+                Madelung = to_realdp(tokens%next())
             case ("UEG2")
                 tUEG2 = .true.
             case ("STORE-AS-EXCITATIONS")
                 tStoreAsExcitations = .true.
             case ("MP2-UEG-RESTRICT")
                 tMP2UEGRestrict = .true.
-                call geti(kiRestrict(1))
-                call geti(kiRestrict(2))
-                call geti(kiRestrict(3))
-                call geti(kiMsRestrict)
-                call geti(kjRestrict(1))
-                call geti(kjRestrict(2))
-                call geti(kjRestrict(3))
-                call geti(kjMsRestrict)
+                kiRestrict(1) = to_int(tokens%next())
+                kiRestrict(2) = to_int(tokens%next())
+                kiRestrict(3) = to_int(tokens%next())
+                kiMsRestrict = to_int(tokens%next())
+                kjRestrict(1) = to_int(tokens%next())
+                kjRestrict(2) = to_int(tokens%next())
+                kjRestrict(3) = to_int(tokens%next())
+                kjMsRestrict = to_int(tokens%next())
 
                 ! Options for model systems (electrons in a box/Hubbard).
             case ("CELL")
-                call geti(NMAXX)
-                call geti(NMAXY)
-                call geti(NMAXZ)
+                NMAXX = to_int(tokens%next())
+                NMAXY = to_int(tokens%next())
+                NMAXZ = to_int(tokens%next())
 
 
             case ('SPIN-TRANSCORR')
                 ! make a spin-dependent transcorrelation factor
                 t_spin_dependent_transcorr = .true.
-                if (item < nitems) then
-                    call getf(trans_corr_param)
+                if (tokens%remaining_items() > 0) then
+                    trans_corr_param = to_realdp(tokens%next())
                 else
                     trans_corr_param = 0.1_dp
                 end if
@@ -654,8 +618,8 @@ contains
                 t_non_hermitian = .true.
                 ! optionally supply the three-body integrals of the TC Hamiltonian
                 t_3_body_excits = .true.
-                if (item < nitems) then
-                    call readu(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("3-BODY")
                         t_mol_3_body = .true.
@@ -678,8 +642,8 @@ contains
             case ('UEG-TRANSCORR')
                 t_ueg_transcorr = .true.
                 t_non_hermitian = .true.
-                do while (item < nitems)
-                    call readu(w)
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("3-BODY")
                         tTrcorrExgen = .false.
@@ -712,8 +676,8 @@ contains
                 t_trans_corr = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
-                    call getf(trans_corr_param)
+                if (tokens%remaining_items() > 0) then
+                    trans_corr_param = to_realdp(tokens%next())
                 else
                     ! defaul value 1 for now, since i have no clue how this behaves
                     trans_corr_param = 1.0_dp
@@ -724,8 +688,8 @@ contains
                 t_trans_corr_new = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
-                    call getf(trans_corr_param)
+                if (tokens%remaining_items() > 0) then
+                    trans_corr_param = to_realdp(tokens%next())
                 else
                     ! defaul value 1 for now, since i have no clue how this behaves
                     trans_corr_param = 1.0_dp
@@ -737,8 +701,8 @@ contains
                 t_trans_corr_2body = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
-                    call getf(trans_corr_param_2body)
+                if (tokens%remaining_items() > 0) then
+                    trans_corr_param_2body = to_realdp(tokens%next())
 
                 else
                     trans_corr_param_2body = 0.25_dp
@@ -754,8 +718,8 @@ contains
                 t_trans_corr_2body = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
-                    call getf(trans_corr_param_2body)
+                if (tokens%remaining_items() > 0) then
+                    trans_corr_param_2body = to_realdp(tokens%next())
                 else
                     trans_corr_param_2body = 0.25_dp
                 end if
@@ -770,8 +734,8 @@ contains
                 t_trans_corr_hop = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
-                    call getf(trans_corr_param)
+                if (tokens%remaining_items() > 0) then
+                    trans_corr_param = to_realdp(tokens%next())
                 else
                     trans_corr_param = 0.5_dp
                 end if
@@ -779,8 +743,8 @@ contains
             case ("HOLE-FOCUS")
                 t_hole_focus_excits = .true.
 
-                if (item < nitems) then
-                    call getf(pholefocus)
+                if (tokens%remaining_items() > 0) then
+                    pholefocus = to_realdp(tokens%next())
                 else
                     pholefocus = 0.5_dp
                 end if
@@ -793,28 +757,28 @@ contains
 
                 ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
             case ("REAL_LATTICE_TYPE")
-                call readl(real_lattice_type)
+                real_lattice_type = to_lower(tokens%next())
                 ! Options for the dimension (1, 2, or 3)
             case ("DIMENSION")
-                call geti(dimen)
+                dimen = to_int(tokens%next())
 
                 ! Options for transcorrelated method (only: UEG 2D 3D, Homogeneous 1D 3D
                 ! gas with contact interaction)
             case ("TRANSCORRCUTOFF")
-                if (item < nitems) then
-                    call readu(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("GAUSS")
                         if (dimen /= 1) stop 'Gauss cutoff is developed only for 1D!'
-                        call getf(TranscorrGaussCutoff)
+                        TranscorrGaussCutoff = to_realdp(tokens%next())
                         t_trcorr_gausscutoff = .true.
 
                     case ("STEP")
                         t_trcorr_gausscutoff = .false.
-                        call geti(TranscorrCutoff)
+                        TranscorrCutoff = to_int(tokens%next())
                         if (tContact .and. dimen == 3) then
                             tInfSumTCCalc = .true.
-                            call geti(TranscorrIntCutoff)
+                            TranscorrIntCutoff = to_int(tokens%next())
                         end if
 
                     end select
@@ -833,7 +797,7 @@ contains
                 ! Contact interaction for homogenous one dimensional Fermi gas is applied
             case ("CONTACTINTERACTION")
                 tContact = .true.
-                call getf(PotentialStrength)
+                PotentialStrength = to_realdp(tokens%next())
                 if (dimen /= 1) &
                     stop 'Contact interaction only for 1D!'
 
@@ -847,8 +811,8 @@ contains
                 ! Option for infinite summation at transcorrelated method for homogeneous
                 ! 3D gas with contact interaction
             case ("TRANSCORRINFSUM")
-                if (item < nitems) then
-                    call readu(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("CALC")
                         tInfSumTCCalc = .true.
@@ -883,43 +847,43 @@ contains
                 t_mixed_excits = .true.
 
             case ("MESH")
-                call geti(NMSH)
+                NMSH = to_int(tokens%next())
             case ("BOXSIZE")
-                call getf(BOX)
-                if (item < nitems) then
-                    call getf(BOA)
-                    call getf(COA)
+                BOX = to_realdp(tokens%next())
+                if (tokens%remaining_items() > 0) then
+                    BOA = to_realdp(tokens%next())
+                    COA = to_realdp(tokens%next())
                 else
                     BOA = 1.0_dp
                     COA = 1.0_dp
                 end if
             case ("U")
-                call getf(UHUB)
+                UHUB = to_realdp(tokens%next())
             case ("B")
-                call getf(BHUB)
+                BHUB = to_realdp(tokens%next())
 
             case ("J")
                 ! specify the tJ exchange here, the default is 1.0
                 ! this could also be used for the heisenberg model..
-                call getf(exchange_j)
+                exchange_j = to_realdp(tokens%next())
 
             case ("C")
-                call getf(btHub)
+                btHub = to_realdp(tokens%next())
                 tmodHub = .true.
 
             case ("NEXT-NEAREST-HOPPING")
-                call getf(nn_bhub)
+                nn_bhub = to_realdp(tokens%next())
 
             case ("TWISTED-BC")
                 t_twisted_bc = .true.
-                call getf(twisted_bc(1))
-                if (item < nitems) then
-                    call getf(twisted_bc(2))
+                twisted_bc(1) = to_realdp(tokens%next())
+                if (tokens%remaining_items() > 0) then
+                    twisted_bc(2) = to_realdp(tokens%next())
                 end if
 
             case ("ANTI-PERIODIC-BC")
-                if (item < nitems) then
-                    call readu(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
 
                     select case (w)
                     case ("X")
@@ -955,8 +919,8 @@ contains
                 ! (periodic + open) but not in the tilted where always full
                 ! open boundary conditions are used if this keyword is present!
 
-                if (item < nitems) then
-                    call readu(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
 
                     select case (w)
                     case ("X")
@@ -981,16 +945,19 @@ contains
             case ("BIPARTITE", "BIPARTITE-ORDER")
                 t_bipartite_order = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     t_input_order = .true.
-                    call geti(temp_n_orbs)
+                    temp_n_orbs = to_int(tokens%next())
 
                     allocate(orbital_order(temp_n_orbs), source = 0)
 
-                    call read_line(eof)
-                    do i = 1, temp_n_orbs
-                        call geti(orbital_order(i))
-                    end do
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                        do i = 1, temp_n_orbs
+                            orbital_order(i) = to_int(tokens%next())
+                        end do
+                    else
+                        call stop_all(this_routine, 'Unexpected EOF reached.')
+                    end if
                 end if
 
             case ("LATTICE")
@@ -1009,21 +976,21 @@ contains
                 length_x = -1
                 length_y = -1
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     ! use only new hubbard flags in this case
-                    call readl(lattice_type)
+                    lattice_type = to_lower(tokens%next())
                 end if
 
-                if (item < nitems) then
-                    call geti(length_x)
+                if (tokens%remaining_items() > 0) then
+                    length_x = to_int(tokens%next())
                 end if
 
-                if (item < nitems) then
-                    call geti(length_y)
+                if (tokens%remaining_items() > 0) then
+                    length_y = to_int(tokens%next())
                 end if
 
-                if (item < nitems) then
-                    call geti(length_z)
+                if (tokens%remaining_items() > 0) then
+                    length_z = to_int(tokens%next())
                 end if
 
                 ! maybe i have to reuse the cell input functionality or set it
@@ -1035,27 +1002,27 @@ contains
 
             case ("UEG-OFFSET")
                 tUEGOffset = .true.
-                call getf(k_offset(1))
-                call getf(k_offset(2))
-                call getf(k_offset(3))
+                k_offset(1) = to_realdp(tokens%next())
+                k_offset(2) = to_realdp(tokens%next())
+                k_offset(3) = to_realdp(tokens%next())
             case ("UEG-SCALED-ENERGIES")
                 tUEGTrueEnergies = .true.
             case ("UEG-MOMENTUM")
                 tUEGSpecifyMomentum = .true.
-                call geti(k_momentum(1))
-                call geti(k_momentum(2))
-                call geti(k_momentum(3))
+                k_momentum(1) = to_int(tokens%next())
+                k_momentum(2) = to_int(tokens%next())
+                k_momentum(3) = to_int(tokens%next())
             case ("TILT")
                 TTILT = .true.
-                call geti(ITILTX)
-                call geti(ITILTY)
+                ITILTX = to_int(tokens%next())
+                ITILTY = to_int(tokens%next())
             case ("ALPHA")
                 TALPHA = .true.
-                call getf(ALPHA)
+                ALPHA = to_realdp(tokens%next())
             case ("STATE")
-                call geti(ISTATE)
+                ISTATE = to_int(tokens%next())
                 if (ISTATE /= 1) then
-                    call report("Require ISTATE to be left set as 1", .true.)
+                    call stop_all(this_routine, "Require ISTATE to be left set as 1", .true.)
                 end if
             case ("MODK-OFFDIAG")
                 modk_offdiag = .true.
@@ -1066,8 +1033,8 @@ contains
                 !   the excitation generators should use optimized routines
                 !   to take this into account.  Not all excitation generator functions
                 !   currently work with this.  USE WITH CARE
-                if (item < nitems) then
-                    call readu(w)
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("OFF")
                         tAbelianFastExcitGen = .false.
@@ -1100,8 +1067,8 @@ contains
                 call stop_all(t_r, 'Deprecated function. Look in defunct_code folder if you want to see it')
             case ("HPHF")
                 tHPHF = .true.
-                if (item < nitems) then
-                    call geti(Odd_EvenHPHF)
+                if (tokens%remaining_items() > 0) then
+                    Odd_EvenHPHF = to_int(tokens%next())
                     if (Odd_EvenHPHF == 1) then
                         !Want to converge onto an Odd S State
                         tOddS_HPHF = .true.
@@ -1117,9 +1084,9 @@ contains
 ! and finds the optimal set of transformation coefficients to fit a particular criteria specified below.
 ! This new set of orbitals can then used to produce a ROFCIDUMP file and perform the FCIMC calculation.
                 tRotateOrbs = .true.
-                if (item < nitems) then
-                    call Getf(TimeStep)
-                    call Getf(ConvergedForce)
+                if (tokens%remaining_items() > 0) then
+                    TimeStep = to_realdp(tokens%next())
+                    ConvergedForce = to_realdp(tokens%next())
                 end if
 ! The SHAKE orthonormalisation algorithm is automatically turned on with a default of 5 iterations.
                 tShake = .true.
@@ -1139,8 +1106,8 @@ contains
             case ("OFFDIAGSQRDMIN")
                 tOffDiagSqrdMin = .true.
                 MaxMinFac = 1
-                IF (item < nitems) THEN
-                    call Getf(OffDiagWeight)
+                if (tokens%remaining_items() > 0) then
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1151,8 +1118,8 @@ contains
             case ("OFFDIAGSQRDMAX")
                 tOffDiagSqrdMax = .true.
                 MaxMinFac = -1
-                IF (item < nitems) THEN
-                    call Getf(OffDiagWeight)
+                if (tokens%remaining_items() > 0) then
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1161,8 +1128,8 @@ contains
             case ("OFFDIAGMIN")
                 tOffDiagMin = .true.
                 MaxMinFac = 1
-                IF (item < nitems) THEN
-                    call Getf(OffDiagWeight)
+                if (tokens%remaining_items() > 0) then
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1171,8 +1138,8 @@ contains
             case ("OFFDIAGMAX")
                 tOffDiagMax = .true.
                 MaxMinFac = -1
-                IF (item < nitems) THEN
-                    call Getf(OffDiagWeight)
+                if (tokens%remaining_items() > 0) then
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1181,8 +1148,8 @@ contains
             case ("DOUBEXCITEMIN")
                 tDoubExcMin = .true.
                 MaxMinFac = 1
-                IF (item < nitems) THEN
-                    call Getf(OffDiagWeight)
+                if (tokens%remaining_items() > 0) then
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1192,8 +1159,8 @@ contains
                 tHijSqrdMin = .true.
                 OneElMaxMinFac = 1
                 tRotateVirtOnly = .true.
-                IF (item < nitems) THEN
-                    call Getf(OneElWeight)
+                if (tokens%remaining_items() > 0) then
+                    OneElWeight = to_realdp(tokens%next())
                 ELSE
                     OneElWeight = 1.0
                 end if
@@ -1210,8 +1177,8 @@ contains
                 tOnePartOrbEnMax = .true.
                 MaxMinFac = -1
                 tRotateVirtOnly = .true.
-                IF (item < nitems) THEN
-                    call Getf(OrbEnMaxAlpha)
+                if (tokens%remaining_items() > 0) then
+                    OrbEnMaxAlpha = to_realdp(tokens%next())
                 ELSE
                     OrbEnMaxAlpha = 1.0_dp
                 end if
@@ -1221,8 +1188,8 @@ contains
             case ("ERLOCALIZATION")
                 tERLocalization = .true.
                 DiagMaxMinFac = -1
-                IF (item < nitems) THEN
-                    call Getf(DiagWeight)
+                if (tokens%remaining_items() > 0) then
+                    DiagWeight = to_realdp(tokens%next())
                 ELSE
                     DiagWeight = 1.0
                 end if
@@ -1249,8 +1216,8 @@ contains
 ! will require just a small adjustment to ensure complete orthonormalisation,
 ! but not majorly affecting the new coefficients.
                 tShake = .true.
-                IF (item < nitems) THEN
-                    call getf(ShakeConverged)
+                if (tokens%remaining_items() > 0) then
+                    ShakeConverged = to_realdp(tokens%next())
                 end if
 
             case ("SHAKEAPPROX")
@@ -1266,14 +1233,14 @@ contains
 ! Much like 'ROIteration', this overwrites the convergence criteria for the iterations of the shake constraints
 ! and instead performs only the number of iterations specified on this line.
                 tShakeIter = .true.
-                call Geti(ShakeIterMax)
+                ShakeIterMax = to_int(tokens%next())
 
             case ("SHAKEDELAY")
 ! This option sets the shake orthonomalisation algorithm to only kick in after a certain number of rotatation iterations.  This
 ! potentially allows a large shift in the coefficients away from their starting point, followed by orthonormalisation to a
 ! significantly different position.
                 tShakeDelay = .true.
-                call Geti(ShakeStart)
+                ShakeStart = to_int(tokens%next())
             case ("LAGRANGE")
 ! This will use a non-iterative lagrange multiplier for each component of each rotated vector
 ! in the rotateorbs routines in order to
@@ -1303,7 +1270,7 @@ contains
 ! and instead runs the orbital rotation for as many
 ! iterations as chosen on this line.
                 tROIteration = .true.
-                call Geti(ROIterMax)
+                ROIterMax = to_int(tokens%next())
 
             case ("MAXHLGAP")
                 tMaxHLGap = .true.
@@ -1354,7 +1321,7 @@ contains
 
             case ("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
-                call readi(iRanLuxLev)
+                iRanLuxLev = to_int(tokens%next())
 
             case ("CALCEXACTSIZESPACE")
 !This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
@@ -1364,16 +1331,16 @@ contains
 !This option will approximate the exact size of the symmetry allowed truncated space of determinants by MC.
 !The variance on the value will decrease as 1/N_steps
                 tMCSizeTruncSpace = .true.
-                CALL Geti(iMCCalcTruncLev)
-                CALL GetiLong(CalcDetCycles)
-                CALL GetiLong(CalcDetPrint)
+                iMCCalcTruncLev = to_int(tokens%next())
+                CalcDetCycles = to_int64(tokens%next())
+                CalcDetPrint = to_int64(tokens%next())
 
             case ("CALCMCSIZESPACE")
 !This option will approximate the exact size of the symmetry allowed space of determinants by MC.
 ! The variance on the value will decrease as 1/N_steps
                 tMCSizeSpace = .true.
-                CALL GetiLong(CalcDetCycles)
-                CALL GetiLong(CalcDetPrint)
+                CalcDetCycles = to_int64(tokens%next())
+                CalcDetPrint = to_int64(tokens%next())
 
             case ("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
@@ -1383,8 +1350,8 @@ contains
 !an allowed orbital is found. For large basis sets, the chance of drawing a forbidden orbital is small
 !enough that this should be an unneccesary expense.
                 tNonUniRandExcits = .true.
-                do while (item < nitems)
-                    call readu(w)
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
                     select case (w)
                     case ("NOSYM_GUGA")
                         call Stop_All(this_routine, "'nosym-guga' option deprecated!")
@@ -1395,16 +1362,16 @@ contains
                     case ("UEG_GUGA", "UEG-GUGA")
                         tGen_sym_guga_ueg = .true.
 
-                        if (item < nitems) then
-                            call readu(w)
+                        if (tokens%remaining_items() > 0) then
+                            w = to_upper(tokens%next())
 
                             select case (w)
 
                             case ("MIXED")
                                 tgen_guga_mixed = .true.
 
-                                if (item < nitems) then
-                                    call readu(w)
+                                if (tokens%remaining_items() > 0) then
+                                    w = to_upper(tokens%next())
 
                                     select case (w)
                                     case ("SEMI")
@@ -1452,8 +1419,8 @@ contains
                             tGen_sym_guga_mol = .true.
                         end if
 
-                        if (item < nitems) then
-                            call readu(w)
+                        if (tokens%remaining_items() > 0) then
+                            w = to_upper(tokens%next())
 
                             select case (w)
                             case ('SEMI')
@@ -1477,8 +1444,8 @@ contains
                             tGen_sym_guga_mol = .true.
                         end if
 
-                        if (item < nitems) then
-                            call readu(w)
+                        if (tokens%remaining_items() > 0) then
+                            w = to_upper(tokens%next())
                             select case (w)
                             case ('NON-INITS')
                                 ! only do the approx. for noninits
@@ -1502,8 +1469,8 @@ contains
                             tGen_sym_guga_mol = .true.
                         end if
 
-                        if (item < nitems) then
-                            call readu(w)
+                        if (tokens%remaining_items() > 0) then
+                            w = to_upper(tokens%next())
 
                             select case (w)
                             case ('NON-INITS')
@@ -1593,8 +1560,8 @@ contains
                         tGen_4ind_unbound = .true.
 
                         ! make a few small tests for the frequency histograms
-                        if (item < nitems) then
-                            call readu(w)
+                        if (tokens%remaining_items() > 0) then
+                            w = to_upper(tokens%next())
 
                             select case (w)
                             case ("IIAA")
@@ -1674,11 +1641,11 @@ contains
                 ! this they are ignored.
                 !
                 ! By default, this parameter is 10-e8, but it can be changed here.
-                call readf(UMatEps)
+                UMatEps = to_realdp(tokens%next())
 
             case ("LMATEPSILON")
                 ! Six-index integrals are screened, too, with the default being 1e-10
-                call readf(LMatEps)
+                LMatEps = to_realdp(tokens%next())
 
             case ("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.
@@ -1699,7 +1666,7 @@ contains
 
             case ("LZTOT")
                 tFixLz = .true.
-                call readi(LzTot)
+                LzTot = to_int(tokens%next())
             case ("KPOINTS")
                 tKPntSym = .true.
             case ("IMPURITY-EXCITGEN")
@@ -1712,7 +1679,7 @@ contains
             case ("READ_ROFCIDUMP")
                 call stop_all(t_r, 'Deprecated function. Use FCIDUMP-NAME ROFCIDUMP instead.')
             case ("FCIDUMP-NAME")
-                call reada(FCIDUMP_name)
+                FCIDUMP_name = tokens%next()
             case ("COMPLEXORBS_REALINTS")
                 !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
                 !so we need to check the (momentum) symmetry before we look up any integrals
@@ -1729,7 +1696,7 @@ contains
                 ! This can only be done using mneci.x, where the size of the
                 ! representation (i.e. lenof_sign) is permitted to vary at runtime
 #ifdef PROG_NUMRUNS_
-                call readi(inum_runs)
+                inum_runs = to_int(tokens%next())
                 tMultiReplicas = .true.
 #ifdef CMPLX_
                 lenof_sign = 2 * inum_runs
@@ -1742,7 +1709,7 @@ contains
                                        &permitted value')
                 end if
 #else
-                call readi(itmp)
+                itmp = to_int(tokens%next())
 #ifdef DOUBLERUN_
                 if (itmp /= 2) then
 #else
@@ -1751,6 +1718,15 @@ contains
                     call stop_all(t_r, "mneci.x build must be used for running &
                                        &with multiple simultaneous replicas")
                 end if
+#endif
+            case("ADJOINT-REPLICAS")
+                ! some replicas will be evolved according to the adjoint H,
+                ! useful to get the left eigenvector in ST-FCIQMC
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
+                t_adjoint_replicas = .true.
+#else
+                call stop_all(this_routine, &
+                    "mneci or dneci necessary for 'adjoint-replicas'")
 #endif
 
             case ("HEISENBERG")
@@ -1765,9 +1741,9 @@ contains
                   integer :: buf(1000)
                   integer :: n_orb
                   n_orb = 0
-                  do while (item < nitems)
+                  do while (tokens%remaining_items() > 0)
                       n_orb = n_orb + 1
-                      call readi(buf(n_orb))
+                      buf(n_orb) = to_int(tokens%next())
                   end do
                   call load_orb_perm(buf(1:n_orb))
                 end block
@@ -1791,7 +1767,7 @@ contains
                     ! cn_min, cn_max are cumulated particle numbers per GAS space
                     integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
                                             spat_GAS_orbs(:), beta_orbs(:)
-                    call readu(w)
+                    w = to_upper(tokens%next())
                     if (w == 'LOCAL') then
                         cumulative_constraints = .false.
                     else if (w == 'CUMULATIVE') then
@@ -1800,12 +1776,12 @@ contains
                         call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
                     end if
 
-                    call geti(nGAS)
+                    nGAS = to_int(tokens%next())
                     allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
                     do iGAS = 1, nGAS
-                        call geti(n_orbs(iGAS))
-                        call geti(cn_min(iGAS))
-                        call geti(cn_max(iGAS))
+                        n_orbs(iGAS) = to_int(tokens%next())
+                        cn_min(iGAS) = to_int(tokens%next())
+                        cn_max(iGAS) = to_int(tokens%next())
                     end do
 
                     n_spat_orbs = sum(n_orbs)
@@ -1813,15 +1789,15 @@ contains
                     block
                         use fortran_strings, only: operator(.in.), Token_t, split
                         integer :: times, iGAS
-                        type(Token_t), allocatable :: tokens(:)
+                        type(Token_t), allocatable :: splitted(:)
 
                         i_orb = 1
                         do while (i_orb  <= n_spat_orbs)
-                            call readu(w)
+                            w = to_upper(tokens%next())
                             if ('*' .in. w) then
-                                tokens = split(w, '*')
-                                read(tokens(1)%str, *) times
-                                read(tokens(2)%str, *) iGAS
+                                splitted = split(w, '*')
+                                read(splitted(1)%str, *) times
+                                read(splitted(2)%str, *) iGAS
                             else
                                 read(w, *) iGAS
                                 times = 1
@@ -1831,8 +1807,8 @@ contains
                         end do
                     end block
 
-                    if (item < nitems) then
-                        call readu(w)
+                    if (tokens%remaining_items() > 0) then
+                        w = to_upper(tokens%next())
                         select case (w)
                         case ('RECOUPLING')
                             recoupling = .true.
@@ -1858,7 +1834,7 @@ contains
                 end block
 
             case ("GAS-CI")
-                call readu(w)
+                w = to_upper(tokens%next())
                 select case (w)
                 case ('GENERAL')
                     user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
@@ -1869,10 +1845,10 @@ contains
                 case ('GENERAL_PCHB', 'GENERAL-PCHB')
                     user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
 
-                    if (item < nitems) then
-                        call readu(w)
+                    if (tokens%remaining_items() > 0) then
+                        w = to_upper(tokens%next())
                         if (w == 'SINGLES') then
-                            call readu(w)
+                            w = to_upper(tokens%next())
                             select case (w)
                             case('DISCARDING-UNIFORM')
                                 GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
@@ -1892,21 +1868,19 @@ contains
                 end select
 
             case ("SD-SPIN-PURIFICATION")
-                tSD_spin_purification = .true.
-                allocate(spin_pure_J)
-                call getf(spin_pure_J)
-                if (spin_pure_J <= 0) then
-                    call stop_all(t_r, "Alpha should be positive and nonzero")
-                end if
-                if (item < nitems) then
+                allocate(SD_spin_purification, source=possible_purification_methods%FULL_S2)
+                spin_pure_J = to_realdp(tokens%next())
+                if (tokens%remaining_items() > 0) then
                 block
                     character(len=100) :: w
-                    call readu(w)
+                    w = to_upper(tokens%next())
                     select case(w)
+                    case ("ONLY-LADDER-OPERATOR")
+                        SD_spin_purification = possible_purification_methods%ONLY_LADDER
                     case ("TRUNCATE-LADDER-OPERATOR")
-                        tTruncatedLadderOps = .true.
+                        SD_spin_purification = possible_purification_methods%TRUNCATED_LADDER
                     case default
-                        call stop_all(t_r, "Only TRUNCATE-LADDER-OPERATOR is allowed.")
+                        call stop_all(t_r, "Wrong alternative purification method.")
                     end select
                 end block
                 end if
@@ -1914,7 +1888,7 @@ contains
             case ("ENDSYS")
                 exit system
             case default
-                call report("Keyword "  //trim(w)//" not recognized in SYSTEM block", .true.)
+                call stop_all(this_routine, "Keyword "  //trim(w)//" not recognized in SYSTEM block", .true.)
             end select
         end do system
 
@@ -1934,20 +1908,20 @@ contains
         end if
 
         if (NEL == 0) then
-            call report("Number of electrons cannot be zero.", .true.)
+            call stop_all(this_routine, "Number of electrons cannot be zero.", .true.)
         end if
 
         if (.not. tUEG2) then
             if (THUB .OR. TUEG .OR. .NOT. (TREADINT .OR. TCPMD .or. tVASP)) then
                 if (NMAXX == 0) then
-                    call report("Must specify CELL - &
+                    call stop_all(this_routine, "Must specify CELL - &
                         &the number of basis functions in each dim.", .true.)
                 end if
                 if (.NOT. THUB .AND. near_zero(BOX)) then
-                    call report("Must specify BOX size.", .true.)
+                    call stop_all(this_routine, "Must specify BOX size.", .true.)
                 end if
                 if (TTILT .AND. .NOT. THUB) then
-                    call report("TILT can only be specified with HUBBARD.", .true.)
+                    call stop_all(this_routine, "TILT can only be specified with HUBBARD.", .true.)
                 end if
             end if
         end if
@@ -1958,11 +1932,9 @@ contains
         Use global_utilities
         use SymData, only: tAbelian, TwoCycleSymGens, nSymLabels
         use constants, only: Pi, Pi2, THIRD
-        use legacy_data, only: CSF_NBSTART
         use read_fci
         use sym_mod
         use SymExcitDataMod, only: kPointToBasisFn
-        implicit none
         character(*), parameter :: this_routine = 'SysInit'
         integer ierr
 
@@ -2104,8 +2076,7 @@ contains
                 write(stdout, '(A)') "  Reading Density fitted integrals.  "
                 LMSBASIS = LMS
                 CALL InitDFBasis(nBasisMax, Len)
-            else if (tRIIntegrals .or. tCacheFCIDUMPInts) THEN
-!tCacheFCIDUMPInts means that we read in all the integrals from the FCIDUMP integral file, but store them contiguously in the cache
+            else if (tRIIntegrals) THEN
                 LMSBASIS = LMS
                 IF (tRIIntegrals) THEN
                     write(stdout, '(A)') "  Reading RI integrals.  "

@@ -179,6 +179,8 @@ contains
         integer, intent(in) :: ValidSpawned
         real(dp), intent(in) :: proj_energy(lenof_sign)
 
+        character(*), parameter :: this_routine = 'calc_ests_and_set_init_flags'
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
         integer :: i, j, PartInd, DetHash, determ_pos, ierr
         integer :: nI_spawn(nel)
         real(dp) :: spwnsign(lenof_sign), cursign(lenof_sign)
@@ -462,6 +464,10 @@ contains
                 write(replica_est_unit, '()')
             end if
         end associate
+#else
+        unused_var(ValidSpawned); unused_var(proj_energy)
+        call stop_all(this_routine, "Should not be here")
+#endif
 
     end subroutine calc_ests_and_set_init_flags
 
@@ -476,14 +482,15 @@ contains
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(in) :: proj_energy(lenof_sign)
+        character(len=*), parameter :: t_r = 'calc_ests_simple_initiator'
 
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
         integer :: i, j, PartInd, DetHash, determ_pos, nrepeats, ierr
         integer :: nI_spawn(nel)
         real(dp) :: spwnsign_init(lenof_sign), spwnsign_non(lenof_sign)
         real(dp) :: spwnsign(lenof_sign), cursign(lenof_sign)
         real(dp) :: hdiag, mean_energy(replica_est_len)
         logical :: tCoreDet, tSuccess, abort(lenof_sign)
-        character(len=*), parameter :: t_r = 'calc_ests_simple_initiator'
 
         real(dp) :: b_term(replica_est_len), b_term_all(replica_est_len)
         real(dp) :: c_term(replica_est_len), c_term_all(replica_est_len)
@@ -492,6 +499,7 @@ contains
         real(dp) :: send_arr(6 * replica_est_len)
         ! Allow room to receive up to 1000 elements.
         real(dp) :: recv_arr(6 * replica_est_len)
+
 
         var_e_num = 0.0_dp
         rep_est_overlap = 0.0_dp
@@ -830,6 +838,10 @@ contains
             end if
         end associate
 
+#else
+        unused_var(ValidSpawned); unused_var(proj_energy)
+        call stop_all(t_r, "Should not be here")
+#endif
     end subroutine calc_ests_simple_initiator
 
     subroutine time_hash(ValidSpawned)

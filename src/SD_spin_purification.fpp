@@ -6,25 +6,47 @@
 module SD_spin_purification_mod
     use constants, only: n_int, dp, int64
     use growing_buffers, only: buffer_int_1D_t
-    use util_mod, only: stop_all, operator(.isclose.), swap, operator(.div.)
+    use util_mod, only: stop_all, operator(.isclose.), swap, operator(.div.), &
+        EnumBase_t
     use sets_mod, only: subset
     use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
                                 TripleExc_t, FurtherExc_t, &
                                 UNKNOWN, get_excitation, get_bit_excitation, create_excitation
     implicit none
 
-    logical :: tSD_spin_purification = .false., tTruncatedLadderOps = .false.
+    type, extends(EnumBase_t) :: SD_SpinPurificationMethods_t
+    end type
+
+    type :: Possible_SD_SpinPurificationMethods_t
+        type(SD_SpinPurificationMethods_t) :: &
+            FULL_S2 = SD_SpinPurificationMethods_t(1), &
+            ONLY_LADDER = SD_SpinPurificationMethods_t(2), &
+            TRUNCATED_LADDER = SD_SpinPurificationMethods_t(3)
+    end type
+
+    type(Possible_SD_SpinPurificationMethods_t), parameter :: &
+        possible_purification_methods = Possible_SD_SpinPurificationMethods_t()
+
+    type(SD_SpinPurificationMethods_t), allocatable :: SD_spin_purification
+
     real(dp), allocatable :: spin_pure_J
 
     private
     public :: S2_expval, spin_momentum, spin_q_num, get_open_shell, &
-        tSD_spin_purification, spin_pure_J, S2_expval_exc, dyn_S2_expval_exc, &
-        tTruncatedLadderOps
+        spin_pure_J, S2_expval_exc, dyn_S2_expval_exc, &
+        ladder_op_exc, dyn_ladder_op_exc, &
+        possible_purification_methods, SD_spin_purification
 
 
     interface S2_expval_exc
     #:for T in excitations
         module procedure S2_expval_exc_${T}$
+    #:endfor
+    end interface
+
+    interface ladder_op_exc
+    #:for T in excitations
+        module procedure ladder_op_exc_${T}$
     #:endfor
     end interface
 
@@ -108,16 +130,17 @@ contains
         end if
     end function
 
-    pure function dyn_S2_expval_exc(nI, exc, tSign) result(res)
+    pure function dyn_S2_expval_exc(nI, exc) result(res)
         !! Evaluates \(< D_i | S^2 | D_j > \)
         !!
         !! \( D_j \) is connected to \( D_i \) via the excitation `exc`.
+        !!
+        !! Note that the sign in front of the off-diagonal elements
+        !! is always +1 if we assume the NECI order of spin orbitals.
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
         class(Excitation_t), intent(in) :: exc
             !! An excitation.
-        logical, optional, intent(in) :: tSign
-            !! Flag for the sign in front.
         real(dp) :: res
 
         select type(exc)
@@ -126,14 +149,39 @@ contains
         type is (SingleExc_t)
             res = S2_expval_exc(nI, exc)
         type is (DoubleExc_t)
-            res = S2_expval_exc(nI, exc, tSign)
+            res = S2_expval_exc(nI, exc)
         type is (TripleExc_t)
             res = S2_expval_exc(nI, exc)
         end select
     end function
 
-    pure function S2_expval_exc_NoExc_t(nI, exc) result(res)
-        !! Evaluates \(< D_i | S^2 | D_i > \)
+    pure function dyn_ladder_op_exc(nI, exc) result(res)
+        !! Evaluates \(< D_i | S_-S_+ | D_j > \)
+        !!
+        !! \( D_j \) is connected to \( D_i \) via the excitation `exc`.
+        !!
+        !! Note that the sign in front of the off-diagonal elements
+        !! is always +1 if we assume the NECI order of spin orbitals.
+        integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
+        class(Excitation_t), intent(in) :: exc
+            !! An excitation.
+        real(dp) :: res
+
+        select type(exc)
+        type is (NoExc_t)
+            res = ladder_op_exc(nI, exc)
+        type is (SingleExc_t)
+            res = ladder_op_exc(nI, exc)
+        type is (DoubleExc_t)
+            res = ladder_op_exc(nI, exc)
+        type is (TripleExc_t)
+            res = ladder_op_exc(nI, exc)
+        end select
+    end function
+
+    pure function ladder_op_exc_NoExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S_+S_- | D_i > \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
         type(NoExc_t), intent(in) :: exc
@@ -143,24 +191,13 @@ contains
         integer, allocatable :: oS_nI(:)
             !! The open-shell spin-orbitals of nI.
             !! Can be empty (allocated, but size == 0).
-        real(dp) :: s_z
-            !! The spin sprojection.
         @:unused_var(exc)
         oS_nI = get_open_shell(nI)
-        if (size(oS_nI) == 0) then
-            res = 0.0_dp
-        else
-        block
-            logical :: alpha_I(size(os_nI))
-            alpha_I = mod(oS_nI, 2) == 0
-            s_z = (2 * count(alpha_I) - size(alpha_I)) / 2._dp
-            res = s_z * (s_z - 1_dp) + real(count(alpha_I), dp)
-        end block
-        end if
+        res = real(count(mod(oS_nI, 2) == 0 ), dp)
     end function
 
-    pure function S2_expval_exc_SingleExc_t(nI, exc) result(res)
-        !! Evaluates \(< D_i | S^2 | a^\dagger_A a_I D_i > = 0 \)
+    pure function ladder_op_exc_SingleExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S_+S- | a^\dagger_A a_I D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
         type(SingleExc_t), intent(in) :: exc
@@ -170,14 +207,11 @@ contains
         res = 0.0_dp
     end function
 
-
-    pure function S2_expval_exc_DoubleExc_t(nI, exc, tSign) result(res)
-        !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
+    pure function ladder_op_exc_DoubleExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S_+ S_- | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
         type(DoubleExc_t), intent(in) :: exc
-        logical, optional, intent(in) :: tSign
-            !! Flag for the sign in front.
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
@@ -200,9 +234,54 @@ contains
                 end if
             end if
         end if
-        if (present(tSign)) then
-            if (tSign) res = -res
-        end if
+    end function
+
+    pure function ladder_op_exc_TripleExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S_+S_- | a^\dagger_A a^\dagger_B a^\dagger_C a_I a_J a_K D_i > = 0 \)
+        integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
+        type(TripleExc_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element is always exactly zero
+        @:unused_var(nI, exc)
+        res = 0.0_dp
+    end function
+
+    pure function S2_expval_exc_NoExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S^2 | D_i > \)
+        integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
+        type(NoExc_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element.
+            !! It is real even for complex `NECI`.
+        real(dp) :: s_z
+            !! The spin sprojection.
+        @:unused_var(exc)
+        s_z = (2 * count(mod(nI, 2) == 0) - size(nI)) / 2._dp
+        res = s_z * (s_z - 1_dp) + ladder_op_exc(nI, exc)
+    end function
+
+    pure function S2_expval_exc_SingleExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S^2 | a^\dagger_A a_I D_i > = 0 \)
+        integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
+        type(SingleExc_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element is always exactly zero
+        @:unused_var(nI, exc)
+        res = 0.0_dp
+    end function
+
+    pure function S2_expval_exc_DoubleExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
+        integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
+        type(DoubleExc_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element.
+            !! It is real even for complex `NECI`.
+        res = ladder_op_exc(nI, exc)
     end function
 
     pure function S2_expval_exc_TripleExc_t(nI, exc) result(res)

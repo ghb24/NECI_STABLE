@@ -6,8 +6,7 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tRef_Not_HF, &
-                          tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, &
-                          ref_b_vector_real, t_3_body_excits, t_non_hermitian, &
+                          tGUGA, t_3_body_excits, t_non_hermitian, &
                           t_ueg_3_body, t_mol_3_body, t_pcpp_excitgen
     use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -42,7 +41,7 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
                            initsPerExLvl, tAccumPopsActive
-
+    use sparse_arrays, only: t_evolve_adjoint
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         InitiatorWalkNo, t_core_inits, eq_cyc, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -86,8 +85,8 @@ module fcimc_helper
     use searching, only: BinSearchParts2
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
-    use guga_bitrepops, only: write_det_guga, calc_csf_i, &
-                              transfer_stochastic_rdm_info, CSF_Info_t
+    use guga_bitrepops, only: write_det_guga, csf_ref, &
+                              transfer_stochastic_rdm_info, CSF_Info_t, fill_csf_i
 
     use real_time_data, only: runge_kutta_step, tVerletSweep, &
                               t_rotated_time, t_real_time_fciqmc
@@ -99,6 +98,8 @@ module fcimc_helper
     use initiator_space_procs, only: is_in_initiator_space
 
     use pcpp_excitgen, only: update_pcpp_excitgen
+
+    use sparse_arrays, only: t_evolve_adjoint
 
     implicit none
 
@@ -518,7 +519,7 @@ contains
         integer, intent(in), optional :: ind
 
         integer :: i, ExcitLevel_local, ExcitLevelSpinCoup
-        integer :: run, tmp_exlevel
+        integer :: run, tmp_exlevel, step
         HElement_t(dp) :: HOffDiag(inum_runs), tmp_off_diag(inum_runs), tmp_diff(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
 
@@ -526,8 +527,10 @@ contains
         complex(dp) :: CmplxwSign
 #endif
 
-        real(dp) :: amps(size(current_trial_amps, 1))
+        real(dp), allocatable :: amps(:)
         real(dp) :: w(0:2)
+
+        if (allocated(current_trial_amps)) allocate (amps(size(current_trial_amps, 1)))
 
         if (tReplicaReferencesDiffer) then
             call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)
@@ -668,7 +671,25 @@ contains
         end if
 
         ! Perform normal projection onto reference determinant
-        HOffDiag(1:inum_runs) = HOffDiagCurr
+        if (t_adjoint_replicas) then
+            if (      ExcitLevel_local == 2 &
+                .or. (ExcitLevel_local == 1 .and. tNoBrillouin) &
+                .or. (ExcitLevel_local == 3 &
+                    .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
+                ! Obtain off-diagonal element
+                do run = 1, inum_runs
+                    if(t_evolve_adjoint(part_type_to_run(run))) then
+                        HOffDiag(run) = &
+                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
+                    else
+                        HOffDiag(run) = &
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                    end if
+                end do
+            end if
+        else
+            HOffDiag(1:inum_runs) = HOffDiagCurr
+        endif
 
         ! For the real-space Hubbard model, determinants are only
         ! connected to excitations one level away, and Brillouins
@@ -765,6 +786,17 @@ contains
 
             dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign, run)) / dProbFin
         end function enum_contrib
+
+        function assigned_matrix_element(nA, nB, ilutA, ilutB) result(matel)
+            integer, intent(in) :: nA(nel), nB(nel)
+            integer(n_int), intent(in) :: ilutA(0:NIfTot), ilutB(0:NIfTot)
+            HElement_t(dp) :: matel
+            if(tHPHF) then
+                matel = hphf_off_diag_helement(nA, nB, ilutA, ilutB)
+            else
+                matel = get_helement(nA, nB, ExcitLevel, ilutA, ilutB)
+            endif
+        end function assigned_matrix_element
     end subroutine SumEContrib
 
     subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
@@ -2447,17 +2479,7 @@ contains
 
         ! if in guga run, i also need to recreate the list of connected
         ! determinnant to the new reference det
-        if (tGUGA) then
-
-            ! also recreate the stepvector, etc. info stuff for the new
-            ! reference determinant
-            ASSERT(allocated(ref_stepvector))
-            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
-                               ref_occ_vector)
-
-            ref_b_vector_real = real(ref_b_vector_int, dp)
-
-        end if
+        if (tGUGA) call fill_csf_i(ilutRef(:, run), csf_ref(run))
 
         if (tHPHF) then
             if (.not. Allocated(RefDetFlip)) then

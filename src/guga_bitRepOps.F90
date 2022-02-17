@@ -20,7 +20,7 @@ module guga_bitRepOps
                             flag_deltaB_double, flag_deltaB_sign, niftot, &
                             nIfGUGA, nIfd, BitRep_t, GugaBits
     use util_mod, only: binary_search, binary_search_custom, operator(.div.), &
-                        near_zero, stop_all
+                        near_zero, stop_all, operator(.isclose.)
 
     use sort_mod, only: sort
 
@@ -44,7 +44,7 @@ module guga_bitRepOps
             count_beta_orbs_ij, count_alpha_orbs_ij, &
             calcOcc_vector_ilut, calcOcc_vector_int, &
             encodebitdet_guga, identify_excitation, &
-            CSF_Info_t, current_csf_i, new_CSF_Info_t, fill_csf_i, &
+            CSF_Info_t, current_csf_i, csf_ref, new_CSF_Info_t, fill_csf_i, &
             is_compatible, &
             calc_csf_i, extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
@@ -110,11 +110,17 @@ module guga_bitRepOps
     type :: CSF_Info_t
         integer, allocatable :: stepvector(:)
         integer, allocatable :: Occ_int(:), B_int(:)
-        real(dp), allocatable :: Occ_ilut(:), B_ilut(:), B_nI(:)
+        real(dp), allocatable :: Occ_real(:), B_real(:)
 
         real(dp), allocatable :: cum_list(:)
             !! also use a fake cum-list of the non-doubly occupied orbital to increase
             !! preformance in the picking of orbitals (a)
+    contains
+        private
+        procedure :: eq_CSF_Info_t
+        procedure :: neq_CSF_Info_t
+        generic, public :: operator(==) => eq_CSF_Info_t
+        generic, public :: operator(/=) => neq_CSF_Info_t
     end type
 
     interface CSF_Info_t
@@ -123,6 +129,8 @@ module guga_bitRepOps
 
     type(CSF_Info_t) :: current_csf_i
         !! Information about the current CSF, similar to ilut and nI.
+    type(CSF_Info_t), allocatable :: csf_ref(:)
+        !! Information about the reference determinant of every run.
 contains
 
     subroutine init_guga_bitrep(n_spatial_bits)
@@ -2099,7 +2107,7 @@ contains
 
     end subroutine write_det_guga
 
-    subroutine encode_matrix_element_real(ilut, mat_ele, mat_type)
+    pure subroutine encode_matrix_element_real(ilut, mat_ele, mat_type)
         ! encodes the x0 or x1 matrix element needed during the excitation
         ! creation.
         ! mat_ele   ... x0 or x1 matrix element
@@ -2112,6 +2120,7 @@ contains
         integer(n_int) :: mat_int ! integer version of real
 
         ASSERT(mat_type == 1 .or. mat_type == 2)
+        ASSERT(sizeof(mat_ele) == sizeof(mat_int))
 
         mat_int = transfer(mat_ele, mat_int)
 
@@ -2120,7 +2129,7 @@ contains
     end subroutine encode_matrix_element_real
 
 #ifdef CMPLX_
-    subroutine encode_matrix_element_cmplx(ilut, mat_ele, mat_type)
+    pure subroutine encode_matrix_element_cmplx(ilut, mat_ele, mat_type)
         ! this is specific for complex matrix elements.. here
         ! i can use the two storage slots for x0 and x1 to encode
         ! both the real and imaginary parts of the Hamiltonian matrix elements
@@ -2166,16 +2175,11 @@ contains
         character(*), parameter :: this_routine = "update_matrix_element_real"
 
         integer(n_int) :: mat_int
-        real(dp) :: temp_ele
 
         ASSERT(mat_type == 1 .or. mat_type == 2)
 
-        temp_ele = transfer(ilut(GugaBits%len_orb + mat_type), temp_ele)
-
-        mat_int = transfer(temp_ele * mat_ele, mat_int)
-
+        mat_int = transfer(extract_matrix_element(ilut, mat_type) * mat_ele, ilut(GugaBits%len_orb))
         ilut(GugaBits%len_orb + mat_type) = mat_int
-
     end subroutine update_matrix_element_real
 
 #ifdef CMPLX_
@@ -2256,44 +2260,13 @@ contains
         end do
     end function count_alpha_orbs_ij
 
-    function count_open_orbs_ij(csf_i, i, j, L) result(nOpen)
+    integer elemental function count_open_orbs_ij(csf_i, i, j)
         ! function to calculate the number of open orbitals between spatial
         ! orbitals i and j in ilut. i and j have to be given ordered i<j
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
-        integer(n_int), intent(in), optional :: L(0:GugaBits%len_orb)
-        integer :: nOpen
-        character(*), parameter :: this_routine = "count_open_orbs_ij"
-
-        logical :: flag
-        integer :: k
-
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
-        ! scrap this assert and change in that way to output 0 if the indices
-        ! dont fit or are reversed. to deal with to short overlap ranges
-
-        nOpen = 0
-
-        ! also here a quick fix do deal with excitrangemask probs:
-
-        ! if the ilut input is present use it otherwise just look at the
-        ! stepvector
-        if (present(L)) then
-            do k = i, j
-                flag = isOne(L, k)
-                if (flag .or. isTwo(L, k)) then
-                    nOpen = nOpen + 1
-                end if
-            end do
-        else
-            do k = i, j
-                if (csf_i%stepvector(k) == 1 .or. csf_i%stepvector(k) == 2) then
-                    nOpen = nOpen + 1
-                end if
-            end do
-        end if
-
+        count_open_orbs_ij = count(csf_i%stepvector(i : j) == 1 &
+                                   .or. csf_i%stepvector(i : j) == 2)
     end function count_open_orbs_ij
 
     function getExcitationRangeMask(i, j) result(mask)
@@ -2366,7 +2339,7 @@ contains
 
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
         integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
-        integer(n_int), intent(inout) :: ilutN(0:niftot)
+        integer(n_int), intent(out) :: ilutN(0:niftot)
         HElement_t(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
 
@@ -2415,7 +2388,7 @@ contains
 
     end subroutine transfer_stochastic_rdm_info
 
-    subroutine convert_ilut_toGUGA(ilutN, ilutG, HElement, delta_b)
+    pure subroutine convert_ilut_toGUGA(ilutN, ilutG, HElement, delta_b)
         integer(n_int), intent(in) :: ilutN(0:niftot)
         integer(n_int), intent(out) :: ilutG(0:GugaBits%len_tot)
         HElement_t(dp), intent(in), optional :: HElement
@@ -2832,16 +2805,34 @@ contains
         call fill_csf_i(ilut, csf_i)
     end function
 
-    pure subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
+    elemental subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
         integer, intent(in) :: n_spat_orbs
         type(CSF_Info_t), intent(out) :: csf_i
         allocate(csf_i%stepvector(n_spat_orbs), &
-                 csf_i%B_ilut(n_spat_orbs), &
-                 csf_i%Occ_ilut(n_spat_orbs), &
+                 csf_i%B_real(n_spat_orbs), &
+                 csf_i%Occ_real(n_spat_orbs), &
                  csf_i%B_int(n_spat_orbs), &
                  csf_i%Occ_int(n_spat_orbs), &
                  csf_i%cum_list(n_spat_orbs))
     end subroutine
+
+    elemental function eq_CSF_Info_t(csf_i, csf_j) result(res)
+        class(CSF_Info_t), intent(in) :: csf_i, csf_j
+        logical :: res
+        res = size(csf_i%stepvector) == size(csf_j%stepvector) &
+                .and. all(csf_i%stepvector == csf_j%stepvector) &
+                .and. all(csf_i%Occ_int == csf_j%Occ_int) &
+                .and. all(csf_i%B_int == csf_j%B_int) &
+                .and. all(csf_i%Occ_real .isclose. csf_j%Occ_real) &
+                .and. all(csf_i%B_real .isclose. csf_j%B_real) &
+                .and. all(csf_i%cum_list .isclose. csf_j%cum_list)
+    end function
+
+    elemental function neq_CSF_Info_t(csf_i, csf_j) result(res)
+        class(CSF_Info_t), intent(in) :: csf_i, csf_j
+        logical :: res
+        res = .not. (csf_i == csf_j)
+    end function
 
     pure subroutine fill_csf_i(ilut, csf_i)
         ! routine which sets up all the additional csf information, like
@@ -2858,14 +2849,14 @@ contains
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(allocated(csf_i%stepvector))
-        ASSERT(allocated(csf_i%B_ilut))
-        ASSERT(allocated(csf_i%Occ_ilut))
+        ASSERT(allocated(csf_i%B_real))
+        ASSERT(allocated(csf_i%Occ_real))
         ASSERT(allocated(csf_i%B_int))
         ASSERT(allocated(csf_i%Occ_int))
 
         csf_i%stepvector = 0
-        csf_i%B_ilut = 0.0_dp
-        csf_i%Occ_ilut = 0.0_dp
+        csf_i%B_real = 0.0_dp
+        csf_i%Occ_real = 0.0_dp
         csf_i%B_int = 0
         csf_i%Occ_int = 0
 
@@ -2894,14 +2885,14 @@ contains
 
             case (0)
 
-                csf_i%Occ_ilut(i) = 0.0_dp
+                csf_i%Occ_real(i) = 0.0_dp
                 csf_i%Occ_int(i) = 0
 
                 cum_sum = cum_sum + 1.0_dp
 
             case (1)
 
-                csf_i%Occ_ilut(i) = 1.0_dp
+                csf_i%Occ_real(i) = 1.0_dp
                 csf_i%Occ_int(i) = 1
 
                 b_real = b_real + 1.0_dp
@@ -2911,7 +2902,7 @@ contains
 
             case (2)
 
-                csf_i%Occ_ilut(i) = 1.0_dp
+                csf_i%Occ_real(i) = 1.0_dp
                 csf_i%Occ_int(i) = 1
 
                 b_real = b_real - 1.0_dp
@@ -2921,12 +2912,12 @@ contains
 
             case (3)
 
-                csf_i%Occ_ilut(i) = 2.0_dp
+                csf_i%Occ_real(i) = 2.0_dp
                 csf_i%Occ_int(i) = 2
 
             end select
 
-            csf_i%B_ilut(i) = b_real
+            csf_i%B_real(i) = b_real
             csf_i%B_int(i) = b_int
 
             csf_i%cum_list(i) = cum_sum
@@ -2938,9 +2929,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         logical :: res
-        ! TODO(@Oskar): Implement
-        unused_var(ilut); unused_var(csf_i)
-        res = .true.
+        res = CSF_Info_t(ilut) == csf_i
     end function
 
     pure subroutine encode_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)

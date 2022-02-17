@@ -41,8 +41,8 @@ module sltcnd_mod
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
-    use SD_spin_purification_mod, only: tSD_spin_purification, tTruncatedLadderOps, &
-                spin_pure_J, S2_expval_exc, dyn_S2_expval_exc
+    use SD_spin_purification_mod, only: possible_purification_methods, SD_spin_purification, &
+                spin_pure_J, S2_expval_exc, ladder_op_exc
 
     implicit none
     private
@@ -121,16 +121,16 @@ module sltcnd_mod
         end function sltcnd_3_t
     end interface
 
-    procedure(sltcnd_0_t), pointer :: sltcnd_0
-    procedure(sltcnd_1_t), pointer :: sltcnd_1
-    procedure(sltcnd_2_t), pointer :: sltcnd_2
-    procedure(sltcnd_3_t), pointer :: sltcnd_3
+    procedure(sltcnd_0_t), pointer :: sltcnd_0 => null()
+    procedure(sltcnd_1_t), pointer :: sltcnd_1 => null()
+    procedure(sltcnd_2_t), pointer :: sltcnd_2 => null()
+    procedure(sltcnd_3_t), pointer :: sltcnd_3 => null()
 
 contains
 
     subroutine initSltCndPtr()
         use SystemData, only: tSmallBasisForThreeBody
-        implicit none
+        character(*), parameter :: this_routine = 'initSltCndPtr'
 
         if (TContact) then
 
@@ -155,11 +155,15 @@ contains
                 sltcnd_1 => sltcnd_1_tc
                 sltcnd_2 => sltcnd_2_tc
                 sltcnd_3 => sltcnd_3_tc
-            else if (tSD_spin_purification) then
-                if (tTruncatedLadderOps) then
+            else if (allocated(SD_spin_purification)) then
+                if (SD_spin_purification == possible_purification_methods%TRUNCATED_LADDER) then
                     sltcnd_0 => sltcnd_0_base
+                else if (SD_spin_purification == possible_purification_methods%ONLY_LADDER) then
+                    sltcnd_0 => sltcnd_0_purify_spin_only_ladder
+                else if (SD_spin_purification == possible_purification_methods%FULL_S2) then
+                    sltcnd_0 => sltcnd_0_purify_spin_full_s2
                 else
-                    sltcnd_0 => sltcnd_0_purify_spin
+                    call stop_all(this_routine, 'Invalid options for SD_spin_purification')
                 end if
                 sltcnd_2 => sltcnd_2_purify_spin
 
@@ -392,7 +396,7 @@ contains
 
     end function SumFock
 
-    function sltcnd_0_base(nI, exc) result(hel)
+    pure function sltcnd_0_base(nI, exc) result(hel)
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
         integer, intent(in) :: nI(nel)
@@ -619,7 +623,7 @@ contains
     !      slater condon rules for ultracold atoms
     !------------------------------------------------------------------------------------------!
 
-    function sltcnd_0_base_ua(nI, exc) result(hel)
+    pure function sltcnd_0_base_ua(nI, exc) result(hel)
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
         integer, intent(in) :: nI(nel)
@@ -796,7 +800,7 @@ contains
 
     end function sltcnd_2_kernel_ua_3b
 
-    function sltcnd_0_tc_ua(nI, exc) result(hel)
+    pure function sltcnd_0_tc_ua(nI, exc) result(hel)
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
@@ -868,19 +872,27 @@ contains
         if (tSign) hel = -hel
     end function sltcnd_3_tc_ua
 
-    function sltcnd_0_purify_spin(nI, exc) result(hel)
+    function sltcnd_0_purify_spin_only_ladder(nI, exc) result(hel)
+        integer, intent(in) :: nI(nel)
+        type(NoExc_t), intent(in) :: exc
+        HElement_t(dp) :: hel
+        hel = sltcnd_0_base(nI, exc) + spin_pure_J * ladder_op_exc(nI, exc)
+    end function
+
+    function sltcnd_0_purify_spin_full_s2(nI, exc) result(hel)
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
         hel = sltcnd_0_base(nI, exc) + spin_pure_J * S2_expval_exc(nI, exc)
     end function
 
+
     function sltcnd_2_purify_spin(nI, exc, tSign) result(hel)
         integer, intent(in) :: nI(nel)
         type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        hel = sltcnd_2_base(nI, exc, tSign) + spin_pure_J * S2_expval_exc(nI, exc, tSign)
+        hel = sltcnd_2_base(nI, exc, tSign) + spin_pure_J * S2_expval_exc(nI, exc)
     end function
 
 !>  @brief

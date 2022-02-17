@@ -6,11 +6,11 @@ System read
     freeformat
     spin-restrict 0
     GAS-CI disconnected
-    GAS-SPEC LOCAL +++
-    3 +++
-    2 2 2 +++
-    2 2 2 +++
-    2 2 2 +++
+    GAS-SPEC LOCAL \
+    3 \
+    2 2 2 \
+    2 2 2 \
+    2 2 2 \
     1 2 3 1 2 3
 endsys
 

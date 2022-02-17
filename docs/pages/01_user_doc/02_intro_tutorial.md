@@ -36,7 +36,7 @@ Perhaps also include the Molpro code to generate this FCIDUMP file?
 In order to run a NECI calculation, we must create an input file. Here is an example for the FCIDUMP file provided, called `n2_neci.inp`.
 ```
 # comments are given like this
-( or like this
+( or like this (which is deprecated)
 
 # simple N2 FCIQMC calculation
 # for more complex FCIQMC variations, see the keywords for additional options
@@ -81,7 +81,7 @@ these keywords are case insensitive.
 
 All these keywords (and plenty more) are explained in the [next section](03_calculation_inputs.html). Let's break down the structure of this input file.
 
-- Comments can be added in the code with either `#` or `(` at the start of a line.
+- Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`)
 - First, the actual input starts with `title`, which is mandatory, and must also end with `end` (i.e. wrap the program in this block).
 - Next, we have the `system` block, which is also mandatory.
     - The `system` keyword has a mandatory argument which comes directly after it on the same line. Here, we use `read` (as in `system read`), as we are doing the FCIQMC calculation from an FCIDUMP file.

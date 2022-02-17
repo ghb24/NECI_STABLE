@@ -6,17 +6,16 @@ electrons 7
 nonuniformrandexcits
 spin-restrict -3
 umatepsilon 1.d-5
-readcacheints
 nobrillouintheorem
 endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 seed -7
-nmcyc 15000 
-initwalkers 750     
+nmcyc 15000
+initwalkers 750
 tau 0.0025
 regenexcitgens
 startsinglepart
@@ -28,7 +27,7 @@ load-balance-blocks off
 endcalc
 
 integral
-freeze 0,0
+freeze 0 0
 endint
 
 logging
