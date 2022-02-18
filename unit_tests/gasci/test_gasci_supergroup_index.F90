@@ -6,7 +6,7 @@ module test_gasci_supergroup_index_mod
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions, &
-        get_lowest_supergroup, get_highest_supergroup, get_supergroups
+        get_lowest_supergroup, get_highest_supergroup, get_supergroups, next_supergroup
 
     implicit none
     private
@@ -16,12 +16,12 @@ contains
 
     subroutine test_gasci_driver()
         call run_test_case(test_compositioning, "test_compositioning")
-        call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
         call run_test_case(test_lowest_supergroup, "test_lowest_supergroup")
         call run_test_case(test_highest_supergroup, "test_highest_supergroup")
         call run_test_case(test_next_supergroup, "test_next_supergroup")
         call run_test_case(test_get_supergroups, "test_get_supergroups")
         call run_test_case(test_count_supergroups, "test_count_supergroups")
+        call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
     end subroutine
 
     subroutine test_compositioning()
@@ -300,6 +300,30 @@ contains
     end subroutine
 
     subroutine test_next_supergroup
+        block
+            type(LocalGASSpec_t) :: GAS_spec
+            integer, allocatable :: sg(:)
+            integer :: N
+            integer(int64) :: idx_last
+
+            GAS_spec = LocalGASSpec_t(n_min=[0, 1, 2], n_max=[1, 2, 3], &
+                                      spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 3, 3, 3])
+            N = 5
+            idx_last = composition_idx(get_highest_supergroup(GAS_spec, N))
+
+            sg = get_lowest_supergroup(GAS_spec, N)
+            call assert_equals(sg, [1, 2, 2], 3)
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 1, 3], 3)
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 2, 3], 3)
+
+            ! From now on it should be idempotent
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1], 3)
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1], 3)
+        end block
 
     end subroutine
 
