@@ -221,7 +221,7 @@ contains
         end if
 
         do irdm = 1, rdm_defs%nrdms_standard
-            call fill_molcas_rdms(rdm, rdm_trace, psmat, pamat, dmat, irdm)
+            call fill_molcas_rdms(rdm, rdm_trace, irdm, psmat, pamat, dmat)
             if (iProcIndex == root) then
                 open(newunit=iunit_psmat, file='PSMAT.'//str(irdm), &
                      status='replace')
@@ -254,8 +254,8 @@ contains
 
     end subroutine output_molcas_rdms
 
-    subroutine fill_molcas_rdms(rdm, rdm_trace, &
-                                psmat, pamat, dmat, irdm)
+    subroutine fill_molcas_rdms(rdm, rdm_trace, irdm,
+                                psmat, pamat, dmat)
 
         !! Populate the Molcas RDM arrays PSMAT/PAMAT/DMAT.
 
@@ -264,11 +264,11 @@ contains
             !! a has table.
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
             !! Trace of RDMs required for normalisation of sampled arrays.
-        real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
-            !! Molcas RDM arrays to be populated.
         integer, intent(in) :: irdm
             !! loop index over the different states to be sampled;
             !! 2 replicas are required per state.
+        real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
+            !! Molcas RDM arrays to be populated.
 
         integer :: n_one_rdm, n_two_rdm, iproc, ielem
         integer :: pq, rs, pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
