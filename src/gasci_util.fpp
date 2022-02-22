@@ -21,7 +21,7 @@ module gasci_util
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use bit_rep_data, only: NIfTot, NIfD
     use sltcnd_mod, only: sltcnd_excit
-    use sets_mod, only: disjoint, union, complement, is_sorted
+    use sets_mod, only: disjoint, is_sorted
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
     use bit_reps, only: decode_bit_det
     implicit none

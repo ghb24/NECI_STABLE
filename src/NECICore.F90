@@ -52,7 +52,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     character(*), intent(in), optional :: filename_in, int_name
     integer(int64), intent(in), optional :: MemSize
     type(timer), save :: proc_timer
-    integer :: ios, iunit, iunit2, i, j, isfreeunit, iCacheFlag_
+    integer :: iunit, iunit2, i, j, isfreeunit, iCacheFlag_
     character(*), parameter :: this_routine = 'NECICore'
     character(:), allocatable :: Filename
     logical :: toverride_input, tFCIDUMP_exist, tCPMD_, tVASP_
@@ -127,13 +127,11 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
         end if
     end if
 
-    ios = 0
     if (.not. (tCPMD_ .or. tVASP_)) then
         ! CPMD and VASP calculations call the input parser *before* they call
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
-        call ReadInputMain(Filename, ios, toverride_input, kp)
-        If (ios /= 0) call stop_all(this_routine, 'Error in Read')
+        call ReadInputMain(Filename, toverride_input, kp)
     end if
 
     call MPINodes(tUseProcsAsNodes)  ! Setup MPI Node information - this is dependent upon knowing the job type configurations.

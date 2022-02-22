@@ -17,7 +17,7 @@ endmethods
 seed -7
 totalwalkers    400
 load-balance-blocks on
-(load-balance-interval 1000
+# load-balance-interval 1000
 nmcyc 500
 diagshift 0.00
 shiftdamp 0.02
@@ -35,7 +35,7 @@ memoryfacpart 5.0
 time 2800
 startsinglepart 100
 readpops
-(walkcontgrow
+# walkcontgrow
 semi-stochastic
 pops-core 1000
 core-inits

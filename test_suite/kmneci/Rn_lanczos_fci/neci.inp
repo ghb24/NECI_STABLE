@@ -48,7 +48,7 @@ freeze 0 0
 endint
 
 logging
-(fcimcdebug 6
+# fcimcdebug 6
 popsfile
 popsfiletimer 60.0
 binarypops
