@@ -6,11 +6,11 @@ System read
     freeformat
     spin-restrict 0
     GAS-CI GENERAL-PCHB
-    GAS-SPEC LOCAL +++
-    3 +++
-    2 1 3 +++
-    2 1 3 +++
-    2 1 3 +++
+    GAS-SPEC LOCAL \
+    3 \
+    2 1 3 \
+    2 1 3 \
+    2 1 3 \
     1 2 3 1 2 3
 endsys
 

@@ -34,9 +34,9 @@ popsfile -1
 calcrdmonfly 3 500 10
 write-spin-free-rdm
 printonerdm
-(rdm-main-size-fac 10
-(rdm-spawn-size-fac 10
-(rdm-recv-size-fac 10
+# rdm-main-size-fac 10
+# rdm-spawn-size-fac 10
+# rdm-recv-size-fac 10
 calc-prop-estimates DIPZ
 endlog
 end

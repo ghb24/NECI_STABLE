@@ -263,7 +263,7 @@ module fcimc_initialisation
 
     use CAS_distribution_init, only: InitFCIMC_CAS
 
-    use SD_spin_purification_mod, only: tSD_spin_purification, tTruncatedLadderOps, spin_pure_J
+    use SD_spin_purification_mod, only: SD_spin_purification, possible_purification_methods, spin_pure_J
 
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
     implicit none
@@ -1386,12 +1386,18 @@ contains
         ! and can hence be precomputed
         if (t_mol_3_body .or. t_ueg_3_body) call setup_mol_tc_excitgen()
 
-        if (tSD_spin_purification) then
+        if (allocated(SD_spin_purification)) then
             if (allocated(spin_pure_J)) then
-                if (tTruncatedLadderOps) then
+                if (SD_spin_purification == possible_purification_methods%TRUNCATED_LADDER) then
                     write(stdout, *)
                     write(stdout, '(A)') 'Spin purification of Slater Determinants &
                         &with off-diagonal $ J * S_{+} S_{-} $ correction.'
+                    write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
+                    write(stdout, *)
+                else if (SD_spin_purification == possible_purification_methods%ONLY_LADDER) then
+                    write(stdout, *)
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
+                        &with $ J * S_{+} S_{-} $ correction.'
                     write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
                     write(stdout, *)
                 else

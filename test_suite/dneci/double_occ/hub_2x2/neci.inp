@@ -7,7 +7,7 @@ electrons 4
 cell 2 2 1
 b -1
 u 16
-(system-replicas 2
+# system-replicas 2
 endsys
 
 calc

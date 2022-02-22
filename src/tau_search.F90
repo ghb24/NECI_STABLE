@@ -469,7 +469,8 @@ contains
             ! values
             if ((tUEG .or. enough_sing) .and. enough_doub) then
                 psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
-                if (enough_trip) pTriples_new = max(gamma_trip / gamma_sum, prob_min_thresh)
+                if (enough_trip) pTriples_new = max(gamma_trip / &
+                    (gamma_sum + gamma_trip), prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1 / gamma_sum
                     pDoub_spindiff1_new = gamma_doub_spindiff1 / gamma_sum

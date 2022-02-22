@@ -39,8 +39,8 @@ contains
         write(unit_id, '(A)') 'calc'
 
         write(unit_id, '(A)') '    totalwalkers 100'
-        write(unit_id, '(A)') '    (readpops'
-        write(unit_id, '(A)') '    (walkcontgrow'
+        write(unit_id, '(A)') '    # readpops'
+        write(unit_id, '(A)') '    # walkcontgrow'
         write(unit_id, '(A)') '    semi-stochastic 10'
 
         write(unit_id, '(A)') '    methods'

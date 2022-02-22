@@ -6,7 +6,7 @@ module davidson_semistoch
     ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
     use constants
-    use FciMCData, only: DavidsonTag
+    use FciMCData, only: DavidsonTag, user_input_max_davidson_iters
     use SystemData, only: t_non_hermitian
     use MemoryManager, only: TagIntType
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
@@ -17,7 +17,7 @@ module davidson_semistoch
     use core_space_util, only: cs_replicas
     implicit none
 
-    integer, parameter :: max_num_davidson_iters = 25
+    integer :: max_num_davidson_iters = 25
     real(dp), parameter :: residual_norm_target = 0.0000001_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
@@ -135,6 +135,9 @@ contains
         integer(MPIArg) :: mpi_temp
         character(len=*), parameter :: t_r = "init_davidson_ss"
 
+        if( allocated(user_input_max_davidson_iters) ) &
+            max_num_davidson_iters = user_input_max_davidson_iters
+
         this%run = run
         associate ( &
             davidson_eigenvalue => this%davidson_eigenvalue, &
@@ -174,6 +177,11 @@ contains
             !    skip_calc = .true.
             !    return
             !end if
+
+            if (print_info) then
+                write(stdout,*) 'Space sizes and max Davidson iterations: ', space_size_this_proc, max_num_davidson_iters
+                call neci_flush(6)
+            end if
 
             ! the memory required to allocate each of basis_vectors and
             ! multipied_basis_vectors, in mb.
@@ -279,6 +287,7 @@ contains
         integer, intent(in) :: basis_index
         integer :: i
         real(dp) :: dot_prod, dot_prod_tot, norm, norm_tot
+        character(len=*), parameter :: t_r = "init_davidson_ss"
 
         ! Create the new basis state from the residual. This step performs
         ! t = (D - EI)^(-1) r,
@@ -516,6 +525,7 @@ contains
             ! the matmul below does indeed retturn Hv.
             this%residual = matmul(this%multiplied_basis_vectors(:, 1:basis_index), this%eigenvector_proj(1:basis_index))
             this%residual = this%residual - this%davidson_eigenvalue * this%davidson_eigenvector
+
         end if
 
     end subroutine calculate_residual_ss

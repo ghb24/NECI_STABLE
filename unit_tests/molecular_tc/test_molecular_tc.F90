@@ -129,22 +129,6 @@ contains
                                   tParity, pgen, helgen, store)
 
             call assert_true(abs(pgen - calc_pgen_triple(nI, ExcitMat)) < eps)
-
-            if(.not. abs(pgen - calc_pgen_triple(nI, ExcitMat)) < eps) then
-                write(*, *) 'Problem    =============='
-                write(*, *) nI
-                write(*, *) ExcitMat(1, :)
-                write(*, *) ExcitMat(2, :)
-                write(*, *) pgen, calc_pgen_triple(nI, ExcitMat)
-                write(*, *) '========================='
-            else
-                write(*, *) 'Good       =============='
-                write(*, *) nI
-                write(*, *) ExcitMat(1, :)
-                write(*, *) ExcitMat(2, :)
-                write(*, *) pgen, calc_pgen_triple(nI, ExcitMat)
-                write(*, *) '========================='
-            endif
         enddo
     endsubroutine run_excitgen_test
 
