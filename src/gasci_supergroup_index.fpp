@@ -165,26 +165,58 @@ contains
         integer(int64), intent(in) :: comp_idx_last
         integer, intent(in) :: previous(:)
         integer :: res(size(previous))
-        integer :: k, n
+        integer :: k, n, idx(size(previous)), i_src, i_tgt, i
         integer(int64) :: comp_idx
+
+        integer :: to_remove, idx_available
         debug_function_name("next_supergroup")
         k = size(previous)
         n = sum(previous)
-        res = previous
         if (k == 0) then
             return
         else if (previous(1) == -1) then
+            res = -1
             return
         end if
-        comp_idx = composition_idx(res)
+        comp_idx = composition_idx(previous)
         if (comp_idx >= comp_idx_last) then
             res(:) = -1
         else
             @:pure_ASSERT(GAS_spec%contains_supergroup(previous))
-            res = next_composition(res)
-            do while (.not. GAS_spec%contains_supergroup(res))
-                res = next_composition(res)
-            end do
+            idx(:) = [(i, i = 1, size(idx))]
+            select type(GAS_spec)
+            type is(LocalGASSpec_t)
+                ! TODO(@Oskar): Account for Pauli
+                i_tgt = custom_findloc(GAS_spec%get_max() - previous > 0, .true., back=.true.)
+                i_src = custom_findloc(previous(: i_tgt - 1) - GAS_spec%get_min(idx(: i_tgt - 1)) > 0, .true., back=.true.)
+                res = previous
+                ! Transfer 1 from src to target
+                res(i_src) = res(i_src) - 1
+                res(i_tgt) = res(i_tgt) + 1
+
+                ! Transfer everything from all right neighbours to tgt, if possible
+                block
+                    integer :: still_open, n_available(i_tgt + 1 : size(res)), &
+                        remove_total, remove_here, iGAS
+                    ! TODO(@Oskar): Account for Pauli
+                    still_open = GAS_spec%get_max(i_tgt) - res(i_tgt)
+                    n_available = min(res(i_tgt + 1 : ) - GAS_spec%get_min(idx(i_tgt + 1 :)), 0)
+                    remove_total = min(still_open, sum(n_available))
+                    res(i_tgt) = res(i_tgt) + remove_total
+                    iGAS = size(res)
+                    do while (remove_total > 0)
+                        remove_here = min(remove_total, n_available(iGAS))
+                        res(iGAS) = res(iGAS) - remove_here
+                        remove_total = remove_total - remove_here
+                        iGAS = iGAS - 1
+                    end do
+                end block
+            type is(CumulGASSpec_t)
+                res = next_composition(previous)
+                do while (.not. GAS_spec%contains_supergroup(res))
+                    res = next_composition(res)
+                end do
+            end select
         end if
     end function
 
