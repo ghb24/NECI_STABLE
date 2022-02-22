@@ -254,8 +254,7 @@ contains
 
     end subroutine output_molcas_rdms
 
-    subroutine fill_molcas_rdms(rdm, rdm_trace, irdm,
-                                psmat, pamat, dmat)
+    subroutine fill_molcas_rdms(rdm, rdm_trace, irdm, psmat, pamat, dmat)
 
         !! Populate the Molcas RDM arrays PSMAT/PAMAT/DMAT.
 
