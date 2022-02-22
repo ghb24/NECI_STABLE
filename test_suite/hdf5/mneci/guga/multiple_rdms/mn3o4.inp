@@ -18,7 +18,7 @@ title
 
     ( general
     semi-stochastic        5
-    pops-core            1e3 
+    pops-core            1e3
     readPops
     ( store-dets
 
@@ -48,7 +48,7 @@ title
     ( replicas
     definedet   1 3 5    8 9 11   14 16 18
     multiple-initial-states
-        ( root 1 uuu duu ddd 
+        ( root 1 uuu duu ddd
         1 3 5   8  9 11   14 16 18
         1 3 5   8  9 11   14 16 18
         ( root 2 uuu ddu ddu

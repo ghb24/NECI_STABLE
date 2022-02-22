@@ -1604,8 +1604,8 @@ contains
 
             case("DAVIDSON-MAX-ITERS")
                 ! Set the max number of iteration for Davidson method: defaulted to 25
-                ! This is probably needed only for very special cases, e.g., very small 
-                ! test cases where Davidson throws Floating point exception when this is 
+                ! This is probably needed only for very special cases, e.g., very small
+                ! test cases where Davidson throws Floating point exception when this is
                 ! too large, for instance.
                 if (allocated(user_input_max_davidson_iters)) then
                     call stop_all(t_r, "davison max iters given twice")
@@ -1668,7 +1668,7 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 ss_space_in%tPopsCore = .true.
-                ss_space_in%npops = to_int(tokens%next())
+                ss_space_in%npops = nint(to_realdp(tokens%next()))
                 t_fast_pops_core = .false.
                 if (int(ss_space_in%npops,int64) * int(nProcessors,int64) > 1000000_int64 &
                         .and. .not. tForceFullPops) then
