@@ -165,7 +165,9 @@ contains
         integer(int64), intent(in) :: comp_idx_last
         integer, intent(in) :: previous(:)
         integer :: res(size(previous))
-        integer :: k, n, i, comp_idx
+        integer :: k, n
+        integer(int64) :: comp_idx
+        debug_function_name("next_supergroup")
         k = size(previous)
         n = sum(previous)
         res = previous
@@ -178,6 +180,7 @@ contains
         if (comp_idx >= comp_idx_last) then
             res(:) = -1
         else
+            @:pure_ASSERT(GAS_spec%contains_supergroup(previous))
             res = next_composition(res)
             do while (.not. GAS_spec%contains_supergroup(res))
                 res = next_composition(res)
@@ -261,7 +264,6 @@ contains
         integer, allocatable :: res(:, :)
         character(*), parameter :: this_routine = 'indexer_get_supergroups'
 
-        integer(int64) :: i
         integer :: start_comp(GAS_spec%nGAS()), &
             end_comp(GAS_spec%nGAS()), &
             sg(GAS_spec%nGAS())
