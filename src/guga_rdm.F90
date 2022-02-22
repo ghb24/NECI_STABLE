@@ -207,7 +207,7 @@ contains
             !! contribute to each RDM.
         type(rdm_list_t), intent(in) :: rdm
             !! Stores RDMs as 1D lists whose elements can be accessed through
-            !! a has table.
+            !! a hash table.
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
             !! Trace of RDMs required for normalisation of sampled arrays.
 
@@ -225,11 +225,11 @@ contains
             if (iProcIndex == root) then
                 open(newunit=iunit_psmat, file='PSMAT.'//str(irdm), &
                      status='replace')
-                do i = 1, size(psmat)
-                    if (abs(psmat(i)) > thresh) then
-                        write(iunit_psmat, '(I6, G25.17)') i, psmat(i)
-                    end if
-                end do
+                    do i = 1, size(psmat)
+                        if (abs(psmat(i)) > thresh) then
+                            write(iunit_psmat, '(I6, G25.17)') i, psmat(i)
+                        end if
+                    end do
                 close(iunit_psmat)
 
                 open(newunit=iunit_pamat, file='PAMAT.'//str(irdm), &
@@ -271,8 +271,8 @@ contains
             !! Molcas RDM arrays to be populated.
 
         integer :: n_one_rdm, n_two_rdm, iproc, ielem
-        integer :: pq, rs, pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
-        integer(int_rdm) :: pqrs, pq_, rs_
+        integer :: pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
+        integer(int_rdm) :: pqrs
         integer :: ierr
         real(dp) :: rdm_sign(rdm%sign_length), rdm_sign_
         real(dp), allocatable :: dmat_loc(:), psmat_loc(:), pamat_loc(:)
@@ -286,9 +286,7 @@ contains
 
         do ielem = 1, rdm%nelements
             pqrs = rdm%elements(0, ielem)
-            call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
-            pq = int(pq_)
-            rs = int(rs_)
+            call extract_2_rdm_ind(pqrs, p, q, r, s)
             pqrs_m = contract_molcas_2_rdm_index(p, q, r, s)
             call extract_molcas_2_rdm_index(pqrs_m, &
                                             p_m, q_m, r_m, s_m, pq_m, rs_m)
