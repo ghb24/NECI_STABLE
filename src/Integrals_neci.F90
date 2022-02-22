@@ -376,9 +376,8 @@ contains
 
             case("TCHINT-LIB")
                 t_use_tchint_lib = .true.
-                if(item < nitems) then
-                    call readu(w)
-                    tchint_mode = trim(w)
+                if (tokens%remaining_items() > 0) then
+                    tchint_mode = to_upper(tokens%next())
                 else
                     tchint_mode = "PC"
                 end if
