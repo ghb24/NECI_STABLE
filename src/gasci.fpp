@@ -548,12 +548,13 @@ contains
 
         @:def_default(recoupling_, recoupling, .true.)
 
-        if (any(n_max < n_min)) then
-            call stop_all(this_routine, 'any(n_max < n_min) violated')
-        end if
-
         nGAS = maxval(spat_GAS_orbs)
         GAS_sizes = 2 * frequency(spat_GAS_orbs)
+
+        if (any(min(n_max, GAS_sizes) < n_min)) then
+            call stop_all(this_routine, 'any(min(n_max, GAS_sizes) < n_min) violated')
+        end if
+
 
         max_GAS_size = maxval(GAS_sizes)
         n_spin_orbs = sum(GAS_sizes)
@@ -578,7 +579,7 @@ contains
 
 
         GAS_spec = LocalGASSpec_t(&
-                min=n_min, max=n_max, GAS_table=GAS_table, &
+                min=n_min, max=min(n_max, GAS_sizes), GAS_table=GAS_table, &
                 GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
                 splitted_orbitals=splitted_orbitals, &
                 lookup_is_connected=any(n_min(:) /= n_max(:)), &

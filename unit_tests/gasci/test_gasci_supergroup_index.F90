@@ -21,7 +21,7 @@ contains
         call run_test_case(test_next_supergroup, "test_next_supergroup")
         call run_test_case(test_get_supergroups, "test_get_supergroups")
         call run_test_case(test_count_supergroups, "test_count_supergroups")
-        ! call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
+        call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
     end subroutine
 
     subroutine test_compositioning()
@@ -331,8 +331,9 @@ contains
         block
             type(LocalGASSpec_t) :: GAS_spec
             type(SuperGroupIndexer_t) :: indexer
-            integer, allocatable :: sg(:)
-            integer :: N
+            integer, allocatable :: sg(:), previous(:), idx(:), res(:), srcs(:), tgts(:)
+            integer :: i_src, i_tgt, src, tgt
+            integer :: N, i
             integer(int64) :: idx_last
 
             GAS_spec = LocalGASSpec_t(&
@@ -346,11 +347,19 @@ contains
             call assert_equals(sg, [2, 0, 1], 3)
 
             sg = next_supergroup(GAS_spec, idx_last, sg)
-            write(*, *) sg
+            call assert_equals(sg, [1, 1, 1], 3)
+
             sg = next_supergroup(GAS_spec, idx_last, sg)
-            write(*, *) sg
+            call assert_equals(sg, [1, 0, 2], 3)
+
             sg = next_supergroup(GAS_spec, idx_last, sg)
-            write(*, *) sg
+            call assert_equals(sg, [0, 2, 1], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 1, 2], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1], 3)
         end block
 
     end subroutine

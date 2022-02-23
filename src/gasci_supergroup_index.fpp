@@ -165,7 +165,7 @@ contains
         integer(int64), intent(in) :: comp_idx_last
         integer, intent(in) :: previous(:)
         integer :: res(size(previous))
-        integer :: k, n, idx(size(previous)), i_src, i_tgt, i
+        integer :: k, n, idx(size(previous)), src, tgt, i
         integer(int64) :: comp_idx
 
         integer :: to_remove, idx_available
@@ -183,26 +183,43 @@ contains
             res(:) = -1
         else
             @:pure_ASSERT(GAS_spec%contains_supergroup(previous))
-            idx(:) = [(i, i = 1, size(idx))]
+            idx(:) = [(i, i = 1, size(previous))]
             select type(GAS_spec)
             type is(LocalGASSpec_t)
-                ! TODO(@Oskar): Account for Pauli
-                i_tgt = custom_findloc(GAS_spec%get_max() - previous > 0, .true., back=.true.)
-                i_src = custom_findloc(previous(: i_tgt - 1) - GAS_spec%get_min(idx(: i_tgt - 1)) > 0, .true., back=.true.)
+                block
+                    integer, allocatable :: sources(:), targets(:)
+                    integer :: i_src, i_tgt
+
+                    sources = pack(idx, mask=previous - GAS_spec%get_min() > 0)
+                    targets = pack(idx, mask=GAS_spec%get_max() - previous > 0)
+                    tgt = 0
+                    do i_src = size(sources), 1, -1
+                        src = sources(i_src)
+                        i_tgt = custom_findloc(targets - src > 0, .true.)
+                        if (i_tgt /= 0) then
+                            tgt = targets(i_tgt)
+                            exit
+                        end if
+                    end do
+                end block
+                if (tgt == 0) then
+                    res(:) = -1
+                    return
+                end if
+                @:pure_ASSERT(src < tgt)
                 res = previous
                 ! Transfer 1 from src to target
-                res(i_src) = res(i_src) - 1
-                res(i_tgt) = res(i_tgt) + 1
-
+                res(src) = res(src) - 1
+                res(tgt) = res(tgt) + 1
                 ! Transfer everything from all right neighbours to tgt, if possible
                 block
-                    integer :: still_open, n_available(i_tgt + 1 : size(res)), &
+                    integer :: still_open, n_available(tgt + 1 : size(res)), &
                         remove_total, remove_here, iGAS
                     ! TODO(@Oskar): Account for Pauli
-                    still_open = GAS_spec%get_max(i_tgt) - res(i_tgt)
-                    n_available = min(res(i_tgt + 1 : ) - GAS_spec%get_min(idx(i_tgt + 1 :)), 0)
+                    still_open = GAS_spec%get_max(tgt) - res(tgt)
+                    n_available = res(tgt + 1 : ) - GAS_spec%get_min(idx(tgt + 1 :))
                     remove_total = min(still_open, sum(n_available))
-                    res(i_tgt) = res(i_tgt) + remove_total
+                    res(tgt) = res(tgt) + remove_total
                     iGAS = size(res)
                     do while (remove_total > 0)
                         remove_here = min(remove_total, n_available(iGAS))
