@@ -16,14 +16,14 @@ title
       method vertex fcimc
     endmethods
 
-    ( general
+    # general
     semi-stochastic        5
     pops-core            1e3
     readPops
-    ( store-dets
+    # store-dets
 
-    ( walkers
-    allRealCoeff             ( required for semi-stochastic initialisation
+    # walkers
+    allRealCoeff             # required for semi-stochastic initialisation
     truncinitiator
     addtoinitiator         3
     totalWalkers       2.5e4
@@ -33,25 +33,24 @@ title
     memoryfacpart        5.0
     startsinglepart       10
 
-    ( shift
+    # shift
     diagshift            .00
-    shiftdamp            0.5 ( zeta
     stepsshift            10
-    target-shiftdamp   0.001 ( default xi = zeta^2/4
+    target-shiftdamp     0.5 # default xi = zeta^2/4
 
-    ( timestep
+    # timestep
     tau                 0.06
     hist-tau-search     0.999999 100000 2000
     max-tau                1
-    ( min-tau             0.05
+    # min-tau             0.05
 
-    ( replicas
+    # replicas
     definedet   1 3 5    8 9 11   14 16 18
     multiple-initial-states
-        ( root 1 uuu duu ddd
+        # root 1 uuu duu ddd
         1 3 5   8  9 11   14 16 18
         1 3 5   8  9 11   14 16 18
-        ( root 2 uuu ddu ddu
+        # root 2 uuu ddu ddu
         1 3 5   8 10 11   14 16 17
         1 3 5   8 10 11   14 16 17
     orthogonalise-replicas
@@ -60,7 +59,7 @@ title
   endcalc
 
   logging
-    RDMlinspace                10 3 100
+    RDMlinspace                 10 2 50
     hdf5-pops-read
     popsfile                         -1
     full-core-rdms
