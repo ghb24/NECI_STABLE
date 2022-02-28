@@ -577,13 +577,19 @@ contains
         end block
 
 
-
-        GAS_spec = LocalGASSpec_t(&
-                min=n_min, max=min(n_max, GAS_sizes), GAS_table=GAS_table, &
-                GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
-                splitted_orbitals=splitted_orbitals, &
-                lookup_is_connected=any(n_min(:) /= n_max(:)), &
-                exchange_recoupling=recoupling_)
+        ! This block and the additional declaration of new_n_max
+        ! is just necessary because of shitty intel compilers (Ifort 18).
+        ! If you can remove it, I am happy.
+        block
+            integer :: new_n_max(size(n_max))
+            new_n_max = min(n_max, GAS_sizes)
+            GAS_spec = LocalGASSpec_t(&
+                    min=n_min, max=new_n_max, GAS_table=GAS_table, &
+                    GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
+                    splitted_orbitals=splitted_orbitals, &
+                    lookup_is_connected=any(n_min(:) /= n_max(:)), &
+                    exchange_recoupling=recoupling_)
+        end block
 
         @:pure_ASSERT(GAS_spec%is_valid())
 

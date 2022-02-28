@@ -58,7 +58,7 @@ module gasci_supergroup_index
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t
     use hash, only: hash_table_lookup
     use growing_buffers, only: buffer_int_2D_t
-    use util_mod, only: stop_all
+    use util_mod, only: stop_all, cumsum
 
     better_implicit_none
 
@@ -67,7 +67,7 @@ module gasci_supergroup_index
     public :: SuperGroupIndexer_t, lookup_supergroup_indexer
 
     public :: n_compositions, get_compositions, composition_idx
-    public :: get_lowest_supergroup, get_highest_supergroup, get_supergroups, next_supergroup
+    public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
 
     type :: SuperGroupIndexer_t
         private
@@ -165,10 +165,9 @@ contains
         integer(int64), intent(in) :: comp_idx_last
         integer, intent(in) :: previous(:)
         integer :: res(size(previous))
-        integer :: k, n, idx(size(previous)), src, tgt, i
+        integer :: k, n, src, tgt
         integer(int64) :: comp_idx
 
-        integer :: to_remove, idx_available
         debug_function_name("next_supergroup")
         k = size(previous)
         n = sum(previous)
@@ -183,58 +182,150 @@ contains
             res(:) = -1
         else
             @:pure_ASSERT(GAS_spec%contains_supergroup(previous))
-            idx(:) = [(i, i = 1, size(previous))]
             select type(GAS_spec)
             type is(LocalGASSpec_t)
-                block
-                    integer, allocatable :: sources(:), targets(:)
-                    integer :: i_src, i_tgt
-
-                    sources = pack(idx, mask=previous - GAS_spec%get_min() > 0)
-                    targets = pack(idx, mask=GAS_spec%get_max() - previous > 0)
-                    tgt = 0
-                    do i_src = size(sources), 1, -1
-                        src = sources(i_src)
-                        i_tgt = custom_findloc(targets - src > 0, .true.)
-                        if (i_tgt /= 0) then
-                            tgt = targets(i_tgt)
-                            exit
-                        end if
-                    end do
-                end block
-                if (tgt == 0) then
-                    res(:) = -1
-                    return
-                end if
-                @:pure_ASSERT(src < tgt)
-                res = previous
-                ! Transfer 1 from src to target
-                res(src) = res(src) - 1
-                res(tgt) = res(tgt) + 1
-                ! Transfer everything from all right neighbours to tgt, if possible
-                block
-                    integer :: still_open, n_available(tgt + 1 : size(res)), &
-                        remove_total, remove_here, iGAS
-                    ! TODO(@Oskar): Account for Pauli
-                    still_open = GAS_spec%get_max(tgt) - res(tgt)
-                    n_available = res(tgt + 1 : ) - GAS_spec%get_min(idx(tgt + 1 :))
-                    remove_total = min(still_open, sum(n_available))
-                    res(tgt) = res(tgt) + remove_total
-                    iGAS = size(res)
-                    do while (remove_total > 0)
-                        remove_here = min(remove_total, n_available(iGAS))
-                        res(iGAS) = res(iGAS) - remove_here
-                        remove_total = remove_total - remove_here
-                        iGAS = iGAS - 1
-                    end do
-                end block
+                call find_flip_local(GAS_spec, previous, src, tgt)
+                res = move_particles_local(GAS_spec, previous, src, tgt)
             type is(CumulGASSpec_t)
-                res = next_composition(previous)
-                do while (.not. GAS_spec%contains_supergroup(res))
-                    res = next_composition(res)
-                end do
+                ! res = next_composition(previous)
+                ! do while (.not. GAS_spec%contains_supergroup(res))
+                !     res = next_composition(res)
+                ! end do
+                call find_flip_cumul(GAS_spec, previous, src, tgt)
+                res = move_particles_cumul(GAS_spec, previous, src, tgt)
             end select
         end if
+
+        contains
+
+    end function
+
+    pure subroutine find_flip_local(GAS_spec, sg, src, tgt)
+        !! Find source and target to transfer particle
+        !!
+        !! Find the largest `src`, and the smallest `tgt`,
+        !!  with `src <= tgt`,
+        !! to transfer one particle from `src -> tgt`
+        !! while adherring to GAS constraints.
+        !! This is **not yet** the next supergroup, because
+        !! one still has to move as many particles as possible
+        !! from the right of `tgt` closer to `tgt`.
+        type(LocalGASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: sg(:)
+            !! A given supergroup
+        integer, intent(out) :: src, tgt
+            !! Source and target GAS space.
+            !! If no possible movement with `src <= tgt` exists,
+            !! then `tgt == 0`.
+
+        integer, allocatable :: sources(:), targets(:)
+        integer :: i_src, i_tgt, i, idx(size(sg))
+
+        idx(:) = [(i, i = 1, size(sg))]
+
+        sources = pack(idx, mask=sg - GAS_spec%get_min() > 0)
+        targets = pack(idx, mask=GAS_spec%get_max() - sg > 0)
+        tgt = 0
+        do i_src = size(sources), 1, -1
+            src = sources(i_src)
+            i_tgt = custom_findloc(targets - src > 0, .true.)
+            if (i_tgt /= 0) then
+                tgt = targets(i_tgt)
+                return
+            end if
+        end do
+    end subroutine
+
+    pure function move_particles_local(GAS_spec, previous, src, tgt) result(res)
+        !! Move particles from `src -> tgt` and as many particles
+        !!  as possible from the right of `tgt`.
+        type(LocalGASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: previous(:)
+            !! The previous supergroup
+        integer, intent(in) :: src, tgt
+            !! Source and target GAS space
+        integer :: res(size(previous))
+        debug_function_name("move_particles")
+
+        integer :: still_open, n_available(tgt + 1 : size(res)), &
+            move_total, move_from_here, iGAS, idx(size(previous)), i
+
+        if (tgt == 0) then
+            res(:) = -1
+            return
+        end if
+        @:pure_ASSERT(src < tgt)
+        res = previous
+        ! Transfer 1 from src to target
+        res(src) = res(src) - 1
+        res(tgt) = res(tgt) + 1
+
+        ! Transfer everything from all right neighbours to tgt, if possible
+        still_open = GAS_spec%get_max(tgt) - res(tgt)
+
+        idx(:) = [(i, i = 1, size(previous))]
+        n_available = res(tgt + 1 : ) - GAS_spec%get_min(idx(tgt + 1 :))
+        move_total = min(still_open, sum(n_available))
+        res(tgt) = res(tgt) + move_total
+        iGAS = size(res)
+        do while (move_total > 0)
+            move_from_here = min(move_total, n_available(iGAS))
+            res(iGAS) = res(iGAS) - move_from_here
+            move_total = move_total - move_from_here
+            iGAS = iGAS - 1
+        end do
+    end function
+
+    pure subroutine find_flip_cumul(GAS_spec, sg, src, tgt)
+        !! Find source and target to transfer particle
+        !!
+        !! Find the largest `src`, and the smallest `tgt`,
+        !!  with `src <= tgt`,
+        !! to transfer one particle from `src -> tgt`
+        !! while adherring to GAS constraints.
+        !! This is **not yet** the next supergroup, because
+        !! one still has to move as many particles as possible
+        !! from the right of `tgt` closer to `tgt`.
+        type(CumulGASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: sg(:)
+            !! A given supergroup
+        integer, intent(out) :: src, tgt
+            !! Source and target GAS space.
+            !! If no possible movement with `src <= tgt` exists,
+            !! then `tgt == 0`.
+
+        integer :: k, i, idx(size(sg))
+
+        idx(:) = [(i, i = 1, size(sg))]
+        k = size(sg)
+
+        src = custom_findloc(&
+            cumsum(sg(: k - 1)) - GAS_spec%get_cmin(idx(: k - 1)) > 0, &
+            .true., back=.true.)
+        ! TODO(@Oskar): Probably account for Pauli
+        tgt = src + 1
+    end subroutine
+
+    pure function move_particles_cumul(GAS_spec, previous, src, tgt) result(res)
+        !! Move particles from `src -> tgt` and as many particles
+        !!  as possible from the right of `tgt`.
+        type(CumulGASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: previous(:)
+            !! The previous supergroup
+        integer, intent(in) :: src, tgt
+            !! Source and target GAS space
+        integer :: res(size(previous))
+        debug_function_name("move_particles")
+
+        if (tgt == 0) then
+            res(:) = -1
+            return
+        end if
+        @:pure_ASSERT(src < tgt)
+        res = previous
+        ! Transfer 1 from src to target
+        res(src) = res(src) - 1
+        res(tgt) = res(tgt) + 1
     end function
 
     pure function composition_idx(composition) result(idx)
@@ -319,8 +410,8 @@ contains
         integer(int64) :: start_idx, end_idx
         type(buffer_int_2D_t) :: supergroups
 
-        start_comp = get_lowest_supergroup(GAS_spec, N)
-        end_comp = get_highest_supergroup(GAS_spec, N)
+        start_comp = get_first_supergroup(GAS_spec, N)
+        end_comp = get_last_supergroup(GAS_spec, N)
         start_idx = composition_idx(start_comp)
         end_idx = composition_idx(end_comp)
 
@@ -335,7 +426,7 @@ contains
         @:pure_ASSERT(all(res(:, size(res, 2)) == end_comp))
     end function
 
-    pure function get_lowest_supergroup(GAS_spec, N) result(res)
+    pure function get_first_supergroup(GAS_spec, N) result(res)
         class(GASSpec_t), intent(in) :: GAS_spec
             !! GAS constraints
         integer, intent(in) :: N
@@ -354,17 +445,20 @@ contains
 
             iGAS = 1
             do while (remaining > 0)
-                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
+                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), &
+                             GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
                 res(iGAS) = res(iGAS) + to_add
                 remaining = remaining - to_add
                 iGAS = iGAS + 1
             end do
         type is(CumulGASSpec_t)
-            res = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmax(), shift=-1)
+            res = GAS_spec%get_cmin() &
+                    - eoshift(GAS_spec%get_cmax(), shift=-1)
             remaining = N - sum(res)
             iGAS = 1
             do while (remaining > 0)
-                to_add = min(GAS_spec%get_cmax(iGAS) - sum(res(:iGAS)), GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
+                to_add = min(GAS_spec%get_cmax(iGAS) - sum(res(:iGAS)), &
+                             GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
                 res(iGAS) = res(iGAS) + to_add
                 remaining = remaining - to_add
                 iGAS = iGAS + 1
@@ -373,7 +467,7 @@ contains
         @:pure_ASSERT(remaining == 0)
     end function
 
-    pure function get_highest_supergroup(GAS_spec, N) result(res)
+    pure function get_last_supergroup(GAS_spec, N) result(res)
         class(GASSpec_t), intent(in) :: GAS_spec
             !! GAS constraints
         integer, intent(in) :: N
@@ -390,13 +484,15 @@ contains
 
             iGAS = GAS_spec%nGAS()
             do while (remaining > 0)
-                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
+                to_add = min(GAS_spec%get_max(iGAS) - res(iGAS), &
+                             GAS_spec%GAS_size(iGAS) - res(iGAS), remaining)
                 res(iGAS) = res(iGAS) + to_add
                 remaining = remaining - to_add
                 iGAS = iGAS - 1
             end do
         type is(CumulGASSpec_t)
-            res = min(GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1), GAS_spec%GAS_size())
+            res = min(GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1), &
+                      GAS_spec%GAS_size())
             remaining = N - sum(res)
 
             iGAS = GAS_spec%nGAS()
