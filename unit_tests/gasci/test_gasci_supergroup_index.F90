@@ -19,8 +19,8 @@ contains
         call run_test_case(test_first_supergroup, "test_first_supergroup")
         call run_test_case(test_last_supergroup, "test_last_supergroup")
         call run_test_case(test_next_supergroup, "test_next_supergroup")
-        ! call run_test_case(test_get_supergroups, "test_get_supergroups")
-        ! call run_test_case(test_count_supergroups, "test_count_supergroups")
+        call run_test_case(test_get_supergroups, "test_get_supergroups")
+        call run_test_case(test_count_supergroups, "test_count_supergroups")
         ! call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
     end subroutine
 
@@ -55,8 +55,11 @@ contains
                 spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, 5)])
             call assert_true(GAS_spec%is_valid())
 
+            write(*, *) 'hello', 1
             indexer = SuperGroupIndexer_t(GAS_spec, 30)
+            write(*, *) 'hello', 2
             supergroups = indexer%get_supergroups()
+            write(*, *) 'hello', 3
 
             correct = .true.
             do i = 1, size(supergroups, 2)
@@ -331,6 +334,22 @@ contains
             integer :: N
             integer(int64) :: idx_last
 
+            GAS_spec = LocalGASSpec_t(n_min=[0, 0, 0, 0, 0], n_max=[2, 2, 2, 2, 2], &
+                                      spat_GAS_orbs=[1, 2, 3, 4, 5])
+            N = 7
+            idx_last = composition_idx(get_last_supergroup(GAS_spec, N))
+
+            sg = [2, 0, 1, 2, 2]
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 2, 2, 2, 0], 5)
+        end block
+
+        block
+            type(LocalGASSpec_t) :: GAS_spec
+            integer, allocatable :: sg(:)
+            integer :: N
+            integer(int64) :: idx_last
+
             GAS_spec = LocalGASSpec_t(&
                 n_min=[0, 0, 1], &
                 n_max=[2, 2, 2], &
@@ -358,6 +377,26 @@ contains
         end block
 
         block
+            type(LocalGASSpec_t) :: GAS_spec
+            integer, allocatable :: sg(:)
+            integer :: N, i, j
+            integer(int64) :: idx_last
+            GAS_spec = LocalGASSpec_t(&
+                n_min=[5,  4,  4,  4,  5], &
+                n_max=[7,  8,  8,  8,  7], &
+                spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, 5)])
+            call assert_true(GAS_spec%is_valid())
+
+            N = 30
+            idx_last = composition_idx(get_last_supergroup(GAS_spec, N))
+            sg = get_first_supergroup(GAS_spec, N)
+            call assert_equals(sg, [7, 8, 6, 4, 5], 5)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [7, 8, 5, 5, 5], 5)
+        end block
+
+        block
             type(CumulGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N
@@ -375,15 +414,15 @@ contains
 
             sg = next_supergroup(GAS_spec, idx_last, sg)
             call assert_equals(sg, [1, 0, 2], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 2, 1], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 1, 2], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [-1, -1, -1], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 2, 1], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 1, 2], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1], 3)
         end block
 
         block
@@ -405,14 +444,14 @@ contains
             sg = next_supergroup(GAS_spec, idx_last, sg)
             call assert_equals(sg, [1, 0, 2], 3)
 
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 2, 1], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 1, 2], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [-1, -1, -1], 3)
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 2, 1], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 1, 2], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1], 3)
         end block
 
         block
@@ -433,24 +472,24 @@ contains
 
             sg = next_supergroup(GAS_spec, idx_last, sg)
             call assert_equals(sg, [2, 0, 1], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [1, 2, 0], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [1, 1, 1], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [1, 0, 2], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 2, 1], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 1, 2], 3)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [-1, -1, -1], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 2, 0], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 1, 1], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 0, 2], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 2, 1], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 1, 2], 3)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1], 3)
         end block
 
         block
@@ -476,29 +515,25 @@ contains
             call assert_equals(sg, [2, 0, 0, 2], 4)
 
             sg = next_supergroup(GAS_spec, idx_last, sg)
-            write(*, *)
-            write(*, *) sg
-            write(*, *) [1, 1, 2, 0]
-            write(*, *)
             call assert_equals(sg, [1, 1, 2, 0], 4)
 
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [1, 1, 1, 1], 4)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [1, 1, 0, 2], 4)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 2, 2, 0], 4)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 2, 1, 1], 4)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [0, 2, 0, 2], 4)
-            !
-            ! sg = next_supergroup(GAS_spec, idx_last, sg)
-            ! call assert_equals(sg, [-1, -1, -1, -1], 4)
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 1, 1, 1], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 1, 0, 2], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 2, 2, 0], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 2, 1, 1], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 2, 0, 2], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1, -1], 4)
         end block
 
     end subroutine

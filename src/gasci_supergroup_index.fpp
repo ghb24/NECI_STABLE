@@ -247,9 +247,6 @@ contains
         integer :: res(size(previous))
         debug_function_name("move_particles")
 
-        integer :: still_open, n_available(tgt + 1 : size(res)), &
-            move_total, move_from_here, iGAS, idx(size(previous)), i
-
         if (tgt == 0) then
             res(:) = -1
             return
@@ -261,19 +258,30 @@ contains
         res(tgt) = res(tgt) + 1
 
         ! Transfer everything from all right neighbours to tgt, if possible
-        still_open = GAS_spec%get_max(tgt) - res(tgt)
+        from_right_to_left: block
+            integer :: n_open(tgt : size(res)), n_available(tgt + 1 : size(res)), &
+                n_move, from, to, idx(size(previous)), i
 
-        idx(:) = [(i, i = 1, size(previous))]
-        n_available = res(tgt + 1 : ) - GAS_spec%get_min(idx(tgt + 1 :))
-        move_total = min(still_open, sum(n_available))
-        res(tgt) = res(tgt) + move_total
-        iGAS = size(res)
-        do while (move_total > 0)
-            move_from_here = min(move_total, n_available(iGAS))
-            res(iGAS) = res(iGAS) - move_from_here
-            move_total = move_total - move_from_here
-            iGAS = iGAS - 1
-        end do
+
+            idx(:) = [(i, i = 1, size(previous))]
+            n_open = GAS_spec%get_max(idx(tgt : )) - res(tgt :)
+            n_available = res(tgt + 1 : ) - GAS_spec%get_min(idx(tgt + 1 :))
+            to = tgt
+            from = size(res)
+            do while (to < from)
+                if (n_open(to) == 0) then
+                    to = to + 1
+                else if (n_available(from) == 0) then
+                    from = from - 1
+                else
+                    n_move = min(n_open(to), n_available(from))
+                    res(from) = res(from) - n_move
+                    res(to) = res(to) + n_move
+                    n_open(to) = n_open(to) - n_move
+                    n_available(from) = n_available(from) + n_move
+                end if
+            end do
+        end block from_right_to_left
     end function
 
     pure subroutine find_flip_cumul(GAS_spec, sg, src, tgt)
@@ -300,10 +308,12 @@ contains
         k = size(sg)
 
         src = custom_findloc(&
-            cumsum(sg(: k - 1)) - GAS_spec%get_cmin(idx(: k - 1)) > 0, &
+            cumsum(sg(: k - 1)) - GAS_spec%get_cmin(idx(: k - 1)) > 0 &
+            .and. sg(: k - 1) > 0, &
             .true., back=.true.)
-        ! TODO(@Oskar): Probably account for Pauli
-        tgt = src + 1
+        ! Also account for Pauli
+        tgt = custom_findloc(GAS_spec%GAS_size(idx(src + 1 :)) - sg(src + 1 :) > 0, .true.)
+        if (tgt /= 0) tgt = tgt + src
     end subroutine
 
     pure function move_particles_cumul(GAS_spec, previous, src, tgt) result(res)
@@ -326,6 +336,34 @@ contains
         ! Transfer 1 from src to target
         res(src) = res(src) - 1
         res(tgt) = res(tgt) + 1
+
+        ! Transfer everything from all right neighbours to tgt, if possible
+        from_right_to_left: block
+            integer :: n_open(tgt : size(res)), n_available(tgt + 1 : size(res)), &
+                n_move, from, to, idx(size(previous)), i, c_res(size(res))
+
+
+            idx(:) = [(i, i = 1, size(previous))]
+            c_res = cumsum(res)
+            n_open = min(GAS_spec%get_cmax(idx(tgt : )) - c_res(tgt :), &
+                         GAS_spec%GAS_size(idx(tgt : )) - res(tgt:))
+            n_available = res(tgt + 1 : )
+            to = tgt
+            from = size(res)
+            do while (to < from)
+                if (n_open(to) == 0) then
+                    to = to + 1
+                else if (n_available(from) == 0) then
+                    from = from - 1
+                else
+                    n_move = min(n_open(to), n_available(from))
+                    res(from) = res(from) - n_move
+                    res(to) = res(to) + n_move
+                    n_open(to : from - 1) = n_open(to : from - 1) - n_move
+                    n_available(from) = n_available(from) + n_move
+                end if
+            end do
+        end block from_right_to_left
     end function
 
     pure function composition_idx(composition) result(idx)
