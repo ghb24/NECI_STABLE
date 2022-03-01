@@ -259,13 +259,13 @@ contains
 
         ! Transfer everything from all right neighbours to tgt, if possible
         from_right_to_left: block
-            integer :: n_open(tgt : size(res)), n_available(tgt + 1 : size(res)), &
-                n_move, from, to, idx(size(previous)), i
+            integer :: n_open(size(res)), n_available(size(res))
+            integer :: n_move, from, to, idx(size(previous)), i
 
 
             idx(:) = [(i, i = 1, size(previous))]
-            n_open = GAS_spec%get_max(idx(tgt : )) - res(tgt :)
-            n_available = res(tgt + 1 : ) - GAS_spec%get_min(idx(tgt + 1 :))
+            n_open = GAS_spec%get_max() - res(:)
+            n_available = res(:) - GAS_spec%get_min()
             to = tgt
             from = size(res)
             do while (to < from)
@@ -278,7 +278,7 @@ contains
                     res(from) = res(from) - n_move
                     res(to) = res(to) + n_move
                     n_open(to) = n_open(to) - n_move
-                    n_available(from) = n_available(from) + n_move
+                    n_available(from) = n_available(from) - n_move
                 end if
             end do
         end block from_right_to_left

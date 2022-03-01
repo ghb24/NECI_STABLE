@@ -21,7 +21,7 @@ contains
         call run_test_case(test_next_supergroup, "test_next_supergroup")
         call run_test_case(test_get_supergroups, "test_get_supergroups")
         call run_test_case(test_count_supergroups, "test_count_supergroups")
-        ! call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
+        call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
     end subroutine
 
     subroutine test_compositioning()
@@ -55,11 +55,8 @@ contains
                 spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, 5)])
             call assert_true(GAS_spec%is_valid())
 
-            write(*, *) 'hello', 1
             indexer = SuperGroupIndexer_t(GAS_spec, 30)
-            write(*, *) 'hello', 2
             supergroups = indexer%get_supergroups()
-            write(*, *) 'hello', 3
 
             correct = .true.
             do i = 1, size(supergroups, 2)
@@ -394,6 +391,12 @@ contains
 
             sg = next_supergroup(GAS_spec, idx_last, sg)
             call assert_equals(sg, [7, 8, 5, 5, 5], 5)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [7, 8, 5, 4, 6], 5)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [7, 8, 4, 6, 5], 5)
         end block
 
         block
