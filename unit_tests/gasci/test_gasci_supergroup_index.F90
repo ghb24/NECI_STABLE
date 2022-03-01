@@ -6,7 +6,7 @@ module test_gasci_supergroup_index_mod
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions, &
-        get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
+        get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup, composition_from_idx
 
     implicit none
     private
@@ -16,6 +16,7 @@ contains
 
     subroutine test_gasci_driver()
         call run_test_case(test_compositioning, "test_compositioning")
+        call run_test_case(test_composition_from_idx, "test_composition_from_idx")
         call run_test_case(test_first_supergroup, "test_first_supergroup")
         call run_test_case(test_last_supergroup, "test_last_supergroup")
         call run_test_case(test_next_supergroup, "test_next_supergroup")
@@ -36,6 +37,34 @@ contains
                 do i = 1, size(compositions, 2)
                     if (i /= composition_idx(compositions(:, i))) correct = .false.
                 end do
+            end do
+        end do
+        call assert_true(correct)
+    end subroutine
+
+    subroutine test_composition_from_idx()
+        integer, allocatable :: compositions(:, :)
+        integer :: i, n, k
+        logical :: correct
+
+        correct = .true.
+        do n = 3, 3
+            do k = 3, 3
+                compositions = get_compositions(k, n)
+                block
+                    integer(int64), allocatable :: comp_indices(:)
+                    allocate(comp_indices(size(compositions, 2)))
+                    do i = 1, size(compositions, 2)
+                        comp_indices(i) = composition_idx(compositions(:, i))
+                    end do
+                    do i = 1, size(compositions, 2)
+                        if (any(compositions(:, i) /= composition_from_idx(k, n, comp_indices(i)))) then
+                            write(*, *) compositions(:, i)
+                            write(*, *) composition_from_idx(k, n, comp_indices(i))
+                            correct = .false.
+                        end if
+                    end do
+                end block
             end do
         end do
         call assert_true(correct)

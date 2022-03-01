@@ -66,7 +66,7 @@ module gasci_supergroup_index
 
     public :: SuperGroupIndexer_t, lookup_supergroup_indexer
 
-    public :: n_compositions, get_compositions, composition_idx
+    public :: n_compositions, get_compositions, composition_idx, composition_from_idx
     public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
 
     type :: SuperGroupIndexer_t
@@ -370,18 +370,45 @@ contains
         integer, intent(in) :: composition(:)
         integer(int64) :: idx
 
-        integer :: reminder, i_summand, leading_term
+        integer :: remaining, i_summand, leading_term
 
         idx = 1_int64
         i_summand = 1
-        reminder = sum(composition)
-        do while (reminder /= 0)
-            do leading_term = reminder, composition(i_summand) + 1, -1
-                idx = idx + n_compositions(size(composition) - i_summand, reminder - leading_term)
+        remaining = sum(composition)
+        do while (remaining /= 0)
+            do leading_term = remaining, composition(i_summand) + 1, -1
+                idx = idx + n_compositions(size(composition) - i_summand, remaining - leading_term)
             end do
-            reminder = reminder - composition(i_summand)
+            remaining = remaining - composition(i_summand)
             i_summand = i_summand + 1
         end do
+    end function
+
+
+    function composition_from_idx(k, N, idx) result(composition)
+        integer, intent(in) :: k, N
+        integer(int64), intent(in) :: idx
+        integer :: composition(k)
+
+        integer(int64) :: new_idx, prev_idx
+        integer :: remaining, i_summand, leading_term
+
+        composition(:) = -1
+        remaining = N
+        new_idx = 1_int64
+        do i_summand = 1, k - 1
+            loop_leading_term: do leading_term = remaining, 0, -1
+                prev_idx = new_idx
+                new_idx = new_idx + n_compositions(k - i_summand, remaining - leading_term)
+                if (new_idx > idx) then
+                    new_idx = prev_idx
+                    composition(i_summand) = leading_term
+                    remaining = remaining - leading_term
+                    exit loop_leading_term
+                end if
+            end do loop_leading_term
+        end do
+        composition(k) = remaining
     end function
 
 
