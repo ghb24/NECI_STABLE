@@ -10,7 +10,7 @@ module gasci_util
     use constants, only: n_int, dp, int64
     use SystemData, only: nEl, nBasis
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, GAS_specification
-    use gasci_supergroup_index, only: SuperGroupIndexer_t
+    use gasci_supergroup_index, only: get_supergroups
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
         alpha, beta
     use sort_mod, only: sort
@@ -292,15 +292,13 @@ contains
         if (mod(S_z%val + N, 2) == 0) then
         block
             type(LocalGASSpec_t) :: sg_alpha_constraint
-            type(SuperGroupIndexer_t) :: sg_indexer
             integer :: N_alpha
             N_alpha = (N + S_z%val) .div. 2
             sg_alpha_constraint = LocalGASSpec_t(&
                                 n_min=max(sg - n_orbs, 0), &
                                 n_max=min(sg, n_orbs), &
                                 spat_GAS_orbs=[((j, i = 1, n_orbs(j)), j = 1, size(n_orbs))])
-            sg_indexer = SuperGroupIndexer_t(sg_alpha_constraint, N_alpha)
-            sg_alpha = sg_indexer%get_supergroups()
+            sg_alpha = get_supergroups(sg_alpha_constraint, N_alpha)
         end block
         else
             allocate(sg_alpha(0, 0))
@@ -317,11 +315,9 @@ contains
             !! Spin projection
         integer(int64) :: n_SDs
         integer, allocatable :: supergroups(:, :), alpha_supergroups(:, :)
-        type(SuperGroupIndexer_t) :: sg_indexer
         integer :: i, j
 
-        sg_indexer = SuperGroupIndexer_t(GAS_spec, N)
-        supergroups = sg_indexer%get_supergroups()
+        supergroups = get_supergroups(GAS_spec, N)
 
         block
             integer :: N_alpha(GAS_spec%nGAS()), N_beta(GAS_spec%nGAS()), n_spat_orbs(GAS_spec%nGAS())
@@ -369,8 +365,8 @@ contains
         !     N_beta = N - N_alpha
         !     n_spat_orbs = GAS_spec%n_spin_orbs() .div. 2
         !     size_CAS = choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta)
-        !     size_GAS = get_n_SDs(GAS_spec, nEl, S_z)
         !     write(iunit, '(A, 1x, I0)') 'The size of the CAS space is:', size_CAS
+        !     size_GAS = get_n_SDs(GAS_spec, nEl, S_z)
         !     write(iunit, '(A, 1x, I0)') 'The size of the GAS space is:', size_GAS
         !     write(iunit, '(A, 1x, E10.5)') 'The fraction of the GAS space is:', real(size_GAS, dp) / real(size_CAS, dp)
         ! end block
