@@ -48,8 +48,8 @@ contains
         logical :: correct
 
         correct = .true.
-        do n = 3, 3
-            do k = 3, 3
+        do n = 0, 10
+            do k = 1, 10
                 compositions = get_compositions(k, n)
                 block
                     integer(int64), allocatable :: comp_indices(:)
@@ -59,8 +59,6 @@ contains
                     end do
                     do i = 1, size(compositions, 2)
                         if (any(compositions(:, i) /= composition_from_idx(k, n, comp_indices(i)))) then
-                            write(*, *) compositions(:, i)
-                            write(*, *) composition_from_idx(k, n, comp_indices(i))
                             correct = .false.
                         end if
                     end do
@@ -75,7 +73,8 @@ contains
             type(LocalGASSpec_t) :: GAS_spec
             type(SuperGroupIndexer_t) :: indexer
             integer :: i, j
-            integer, allocatable :: supergroups(:, :)
+            integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
+                !! The supergroups as calculated by the indexer and by the free function
             logical :: correct
 
             GAS_spec = LocalGASSpec_t(&
@@ -86,10 +85,14 @@ contains
 
             indexer = SuperGroupIndexer_t(GAS_spec, 30)
             supergroups = indexer%get_supergroups()
+            supergroups_from_free = get_supergroups(GAS_spec, 30)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i))) correct = .false.
+                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                        .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
+                    correct = .false.
+                end if
             end do
             call assert_true(correct)
         end block
