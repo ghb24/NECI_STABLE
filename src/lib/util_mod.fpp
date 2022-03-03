@@ -13,7 +13,7 @@ module util_mod
     use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
-    use binomial_lookup, only: factrl => factorial, binomial_lookup_table
+    use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64, binomial_lookup_table_i128
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
@@ -70,9 +70,15 @@ module util_mod
         module procedure implies
     end interface
 
-    interface choose
+    interface choose_i64
     #:for kind in primitive_types['integer']
-        module procedure choose_${kind}$
+        module procedure choose_i64_${kind}$
+    #:endfor
+    end interface
+
+    interface choose_i128
+    #:for kind in primitive_types['integer']
+        module procedure choose_i128_${kind}$
     #:endfor
     end interface
 
@@ -530,14 +536,28 @@ contains
 #endif
     end function
 
+        !> @brief
+        !> Calculate 1 + ... + n
+        integer elemental function gauss_sum(n)
+            integer, intent(in) :: n
+            gauss_sum = (n * (n + 1)) .div. 2
+        end function
+
+        !> @brief
+        !> Get the index in the binomial_lookup_table
+        integer elemental function get_index(n, k)
+            integer, intent(in) :: n, k
+            get_index = gauss_sum((n - 3) .div. 2) + gauss_sum((n - 4) .div. 2) + k - 1
+        end function
+
 #:for kind in primitive_types['integer']
     !> @brief
     !> Return the binomail coefficient nCr
-    elemental function choose_${kind}$(n, r) result(res)
+    elemental function choose_i64_${kind}$(n, r) result(res)
         integer(${kind}$), intent(in) :: n, r
         integer(int64) :: res
-        integer(int64) :: i, k
-        character(*), parameter :: this_routine = "choose"
+        integer(int64) :: k
+        character(*), parameter :: this_routine = "choose_i64"
 
         ! NOTE: This is highly optimized. If you change something, please time it!
 
@@ -557,29 +577,42 @@ contains
             res = int(n, int64)
         else if (n <= 66) then
             ! use lookup table
-            res = binomial_lookup_table(get_index(int(n), int(k)))
+            res = binomial_lookup_table_i64(get_index(int(n), int(k)))
         else
-            ! Will overflow in most cases. Perhaps throw an error?
-            res = 1_${kind}$
-            do i = 0_${kind}$, k - 1_${kind}$
-                res = (res * (n - i)) / (i + 1_${kind}$)
-            enddo
+            call stop_all(this_routine, 'result exceeds range of int type')
+        end if
+    end function
+
+    !> @brief
+    !> Return the binomail coefficient nCr
+    elemental function choose_i128_${kind}$(n, r) result(res)
+        integer(${kind}$), intent(in) :: n, r
+        integer(int128) :: res
+        integer(int128) :: k
+        character(*), parameter :: this_routine = "choose_i128"
+
+        ! NOTE: This is highly optimized. If you change something, please time it!
+
+        @:pure_ASSERT(n >= 0_${kind}$, import_stop_all=False)
+        @:pure_ASSERT(r >= 0_${kind}$, import_stop_all=False)
+
+        if(r > n) then
+            res = 0_int128
+            return
         end if
 
-    contains
-        !> @brief
-        !> Calculate 1 + ... + n
-        integer elemental function gauss_sum(n)
-            integer, intent(in) :: n
-            gauss_sum = (n * (n + 1)) .div. 2
-        end function
+        k = int(merge(r, n - r, r <= n - r), int128)
 
-        !> @brief
-        !> Get the index in the binomial_lookup_table
-        integer elemental function get_index(n, k)
-            integer, intent(in) :: n, k
-            get_index = gauss_sum((n - 3) .div. 2) + gauss_sum((n - 4) .div. 2) + k - 1
-        end function
+        if (k == 0) then
+            res = 1_int128
+        else if (k == 1) then
+            res = int(n, int128)
+        else if (n <= 130) then
+            ! use lookup table
+            res = binomial_lookup_table_i128(get_index(int(n), int(k)))
+        else
+            call stop_all(this_routine, 'result exceeds range of int type')
+        end if
     end function
 #:endfor
 

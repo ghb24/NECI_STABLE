@@ -17,7 +17,7 @@ module unit_test_helpers
 
     use fcimcdata, only: excit_gen_store_type, pSingles, pDoubles
 
-    use util_mod, only: binary_search, choose, operator(.div.), operator(.isclose.), near_zero
+    use util_mod, only: binary_search, choose_i64, operator(.div.), operator(.isclose.), near_zero
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 
@@ -281,7 +281,7 @@ contains
         ms = sum(get_spin_pn(nI))
 
         ! the number of possible spin distributions:
-        n_states = int(choose(n_open, n_open / 2 + ms))
+        n_states = int(choose_i64(n_open, n_open / 2 + ms))
 
         allocate(spin_flips(num, n_states))
         spin_flips = 0
@@ -824,7 +824,7 @@ contains
         end if
 
         ! estimate the total number of excitations
-        n_total = int(choose(nBasis / 2, nOccAlpha) * choose(nBasis / 2, nOccBeta))
+        n_total = int(choose_i64(nBasis / 2, nOccAlpha) * choose_i64(nBasis / 2, nOccBeta))
 
         n_states = 1
         allocate(temp_list_ilut(0:niftot, n_total))

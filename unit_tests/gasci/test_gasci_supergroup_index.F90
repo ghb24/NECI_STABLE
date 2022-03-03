@@ -1,7 +1,7 @@
 module test_gasci_supergroup_index_mod
     use fruit
     use constants, only: dp, int64, n_int
-    use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
+    use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use util_mod, only: factrl, intswap, cumsum, custom_findloc
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t

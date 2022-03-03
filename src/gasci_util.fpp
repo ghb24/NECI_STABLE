@@ -16,7 +16,7 @@ module gasci_util
     use sort_mod, only: sort
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
-        operator(.isclose.), custom_findloc, choose
+        operator(.isclose.), custom_findloc, choose_i64
     use dSFMT_interface, only: genrand_real2_dSFMT
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use bit_rep_data, only: NIfTot, NIfD
@@ -336,7 +336,7 @@ contains
                     !   (coming from the distribution of alpha electrons)
                     !   the number of possible configurations in each GAS space is calculated.
                     ! The overall number is just the product over the GAS spaces.
-                    n_SDs = n_SDs + product(choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta))
+                    n_SDs = n_SDs + product(choose_i64(n_spat_orbs, N_alpha) * choose_i64(n_spat_orbs, N_beta))
                 end do
             end do
         end block

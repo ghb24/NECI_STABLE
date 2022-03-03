@@ -10,7 +10,7 @@ module tc_three_body_excitgen
     use FciMCData, only: excit_gen_store_type, pDoubles, pSingles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use lattice_models_utils, only: make_ilutJ
-    use util_mod, only: choose, intswap
+    use util_mod, only: choose_i64, intswap
     use excit_gens_int_weighted, only: pick_biased_elecs, pick_oppspin_elecs
     use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
                                     createSingleExcit, createDoubExcit, construct_class_counts, &
@@ -253,15 +253,15 @@ contains
             p0A = 0.0_dp
             p0B = 0.0_dp
 !       We determine the rate uniformly between all the possible exciations
-            p2B = choose(nOccBeta, 2) * nOccAlpha
-            normalization = p2B + choose(nOccAlpha, 2) * nOccBeta
+            p2B = choose_i64(nOccBeta, 2) * nOccAlpha
+            normalization = p2B + choose_i64(nOccAlpha, 2) * nOccBeta
             p2B = p2B / normalization
         else
             ! scale the probabilities with the number of possible picks
-            normalization = choose(nel, 3)
-            p0A = choose(nOccBeta, 3) / normalization
-            p0B = choose(noccAlpha, 3) / normalization
-            p2B = choose(nOccBeta, 2) * nOccAlpha / normalization
+            normalization = choose_i64(nel, 3)
+            p0A = choose_i64(nOccBeta, 3) / normalization
+            p0B = choose_i64(noccAlpha, 3) / normalization
+            p2B = choose_i64(nOccBeta, 2) * nOccAlpha / normalization
         end if
         p1B = 1.0_dp - p0A - p0B - p2B
     end subroutine init_mol_tc_biases

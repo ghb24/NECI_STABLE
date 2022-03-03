@@ -53,7 +53,7 @@
 ! for all allowed super groups.
 module gasci_supergroup_index
     use constants, only: int64, n_int
-    use util_mod, only: choose, cumsum, binary_search_first_ge, custom_findloc
+    use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc
     use bit_rep_data, only: nIfD
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t
     use hash, only: hash_table_lookup
@@ -96,7 +96,7 @@ contains
     elemental function n_compositions(k, n) result(res)
         integer, intent(in) :: k, n
         integer(int64) :: res
-        res = choose(n + k - 1, k - 1)
+        res = choose_i64(n + k - 1, k - 1)
     end function
 
 

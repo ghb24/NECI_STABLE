@@ -50,7 +50,7 @@ module real_space_hubbard
 
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
-    use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
+    use util_mod, only: binary_search_first_ge, swap, get_free_unit, &
                         binary_search, near_zero, operator(.isclose.), &
                         operator(.div.), stop_all
 

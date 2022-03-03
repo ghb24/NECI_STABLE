@@ -1,7 +1,6 @@
 module constants
-use, intrinsic :: iso_fortran_env, only : stdin => input_unit, &
-                                          stdout => output_unit, &
-                                          stderr => error_unit
+use, intrinsic :: iso_fortran_env, only : &
+    stdin => input_unit,  stdout => output_unit, stderr => error_unit
 implicit none
 
 ! Constant data.
@@ -11,6 +10,7 @@ integer, parameter :: dp = selected_real_kind(15,307)
 integer, parameter :: qp = selected_real_kind(33,4931)
 integer, parameter :: int32 = selected_int_kind(8)
 integer, parameter :: int64 = selected_int_kind(15)
+integer, parameter :: int128 = selected_int_kind(38)
 integer, parameter :: cLineSize = 8
 
 real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993751_dp
