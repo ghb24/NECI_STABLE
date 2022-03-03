@@ -65,13 +65,12 @@ module gasci_supergroup_index
     private
 
     public :: SuperGroupIndexer_t, lookup_supergroup_indexer
-
     public :: n_compositions, get_compositions, composition_idx, composition_from_idx
     public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
 
     type :: SuperGroupIndexer_t
         private
-        class(GASSpec_t), allocatable :: GASspec
+        class(GASSpec_t), allocatable :: GAS_spec
         integer(int128), allocatable :: allowed_composition_indices(:)
         !> The particle number.
         integer :: N
@@ -93,7 +92,13 @@ module gasci_supergroup_index
 
 contains
 
+
     elemental function n_compositions(k, n) result(res)
+        !! Return the number of compositions for `k` summands and a sum of `n`
+        !!
+        !! A composition is a solution to the integer equation
+        !! \( n = x_1 + ... + x_k \)
+        !! with \( x_i, n \in \mathbb{N}^0, k \in \mathbb{N}\).
         integer, intent(in) :: k, n
         integer(int128) :: res
         res = choose_i128(n + k - 1, k - 1)
@@ -130,10 +135,10 @@ contains
         !! Get the ordered compositions of n into k summands.
         !!
         !! Get all possible solutions for the k dimensional hypersurface.
-        !! \f[x_1 + ... + x_k = n  \f]
+        !! \( x_1 + ... + x_k = n  \)
         !! by taking into account the order.
-        !! \f[ 1 + 0 = 1 \f] is different from
-        !! \f[ 0 + 1 = 1 \f].
+        !! \( 1 + 0 = 1 \) is different from
+        !! \( 0 + 1 = 1 \).
         !! The German wikipedia has a nice article
         !! https://de.wikipedia.org/wiki/Partitionsfunktion#Geordnete_Zahlcompositionen
         !!
@@ -218,7 +223,7 @@ contains
         class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: N
         integer, allocatable :: res(:, :)
-        character(*), parameter :: this_routine = 'indexer_get_supergroups'
+        character(*), parameter :: this_routine = 'get_supergroups'
 
         integer :: start_comp(GAS_spec%nGAS()), &
             end_comp(GAS_spec%nGAS()), &
@@ -227,23 +232,30 @@ contains
         type(buffer_int_2D_t) :: supergroups
 
         start_comp = get_first_supergroup(GAS_spec, N)
-        end_comp = get_last_supergroup(GAS_spec, N)
-        start_idx = composition_idx(start_comp)
-        end_idx = composition_idx(end_comp)
+        if (.not. GAS_spec%is_connected()) then
+            res = reshape(start_comp, [size(start_comp), 1])
+        else
+            end_comp = get_last_supergroup(GAS_spec, N)
+            start_idx = composition_idx(start_comp)
+            end_idx = composition_idx(end_comp)
 
-        call supergroups%init(rows=GAS_spec%nGAS())
-        sg = start_comp
-        do while (sg(1) /= -1)
-            call supergroups%push_back(sg)
-            sg = next_supergroup(GAS_spec, end_idx, sg)
-        end do
-        call supergroups%dump_reset(res)
-        @:pure_ASSERT(all(res(:, 1) == start_comp))
-        @:pure_ASSERT(all(res(:, size(res, 2)) == end_comp))
+            call supergroups%init(rows=GAS_spec%nGAS())
+            sg = start_comp
+            do while (sg(1) /= -1)
+                call supergroups%push_back(sg)
+                sg = next_supergroup(GAS_spec, end_idx, sg)
+            end do
+            call supergroups%dump_reset(res)
+            @:pure_ASSERT(all(res(:, 1) == start_comp))
+            @:pure_ASSERT(all(res(:, size(res, 2)) == end_comp))
+        end if
     end function
 
 
     pure function get_first_supergroup(GAS_spec, N) result(res)
+        !! Return the first supergroup
+        !!
+        !! "First" as defined by lexicographically decreasing order.
         class(GASSpec_t), intent(in) :: GAS_spec
             !! GAS constraints
         integer, intent(in) :: N
@@ -286,6 +298,9 @@ contains
 
 
     pure function get_last_supergroup(GAS_spec, N) result(res)
+        !! Return the last supergroup
+        !!
+        !! "Last" as defined by lexicographically decreasing order.
         class(GASSpec_t), intent(in) :: GAS_spec
             !! GAS constraints
         integer, intent(in) :: N
@@ -326,9 +341,13 @@ contains
 
 
     pure function next_supergroup(GAS_spec, comp_idx_last, previous) result(res)
+        !! Return the next supergoup
         class(GASSpec_t), intent(in) :: GAS_spec
         integer(int128), intent(in) :: comp_idx_last
+            !! The composition index of the last supergroup that can be generated.
+            !! "Last" as defined by lexicographically decreasing order.
         integer, intent(in) :: previous(:)
+            !! The previous supergroup.
         integer :: res(size(previous))
         integer :: k, n, src, tgt
         integer(int128) :: comp_idx
@@ -352,10 +371,6 @@ contains
                 call find_flip_local(GAS_spec, previous, src, tgt)
                 res = move_particles_local(GAS_spec, previous, src, tgt)
             type is(CumulGASSpec_t)
-                ! res = next_composition(previous)
-                ! do while (.not. GAS_spec%contains_supergroup(res))
-                !     res = next_composition(res)
-                ! end do
                 call find_flip_cumul(GAS_spec, previous, src, tgt)
                 res = move_particles_cumul(GAS_spec, previous, src, tgt)
             end select
@@ -493,7 +508,9 @@ contains
         integer, intent(in) :: src, tgt
             !! Source and target GAS space
         integer :: res(size(previous))
-        debug_function_name("move_particles")
+        debug_function_name("move_particles_cumul")
+        @:pure_ASSERT(GAS_spec%is_valid())
+        @:pure_ASSERT(has_enough_room(GAS_spec, sum(previous)))
 
         if (tgt == 0) then
             res(:) = -1
@@ -538,12 +555,14 @@ contains
     pure function get_allowed_composition_indices(GAS_spec, N) result(res)
         class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: N
-
         integer(int128), allocatable :: res(:)
+        debug_function_name("get_allowed_composition_indices")
 
         integer :: sg(GAS_spec%nGAS())
         integer(int128) :: end_idx
         type(buffer_int128_1D_t) :: buf_index
+        @:pure_ASSERT(GAS_spec%is_valid())
+        @:pure_ASSERT(has_enough_room(GAS_spec, N))
 
         sg = get_first_supergroup(GAS_spec, N)
         end_idx = composition_idx(get_last_supergroup(GAS_spec, N))
@@ -563,7 +582,11 @@ contains
         !! GAS allowed compositions are called supergroups.
         class(SuperGroupIndexer_t), intent(in) :: this
         integer :: res
-        res = size(this%allowed_composition_indices)
+        if (this%GAS_spec%is_connected()) then
+            res = size(this%allowed_composition_indices)
+        else
+            res = 1
+        end if
     end function
 
 
@@ -582,11 +605,22 @@ contains
         integer, allocatable :: res(:, :)
         integer(int128) :: i
 
-        allocate(res(this%GASspec%nGAS(), this%n_supergroups()))
-        do i = 1_int128, this%n_supergroups()
-            res(:, i) = composition_from_idx(&
-                this%GASspec%nGAS(), this%N, this%allowed_composition_indices(i))
-        end do
+        allocate(res(this%GAS_spec%nGAS(), this%n_supergroups()))
+        if (this%GAS_spec%is_connected()) then
+            do i = 1_int128, this%n_supergroups()
+                res(:, i) = composition_from_idx(&
+                    this%GAS_spec%nGAS(), this%N, this%allowed_composition_indices(i))
+            end do
+        else
+            associate(GAS_spec => this%GAS_spec)
+            select type(GAS_spec)
+            type is(LocalGASSpec_t)
+                res(:, 1) = GAS_spec%get_min()
+            type is(CumulGASSpec_t)
+                res(:, 1) = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1)
+            end select
+            end associate
+        end if
     end function
 
     pure function get_supergroup_idx(this, supergroup) result(idx)
@@ -595,7 +629,7 @@ contains
         integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx'
 
-        if (this%GASspec%is_connected()) then
+        if (this%GAS_spec%is_connected()) then
             idx = int(binary_search_first_ge(this%allowed_composition_indices, composition_idx(supergroup)))
         else
             idx = 1
@@ -612,9 +646,9 @@ contains
         integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx_det'
 
-        @:pure_ASSERT(this%GASspec%contains_conf(nI))
-        if (this%GASspec%is_connected()) then
-            idx = this%idx_supergroup(this%GASspec%count_per_GAS(nI))
+        @:pure_ASSERT(this%GAS_spec%contains_conf(nI))
+        if (this%GAS_spec%is_connected()) then
+            idx = this%idx_supergroup(this%GAS_spec%count_per_GAS(nI))
         else
             idx = 1
         end if
@@ -637,7 +671,7 @@ contains
         integer :: idx
         debug_function_name('lookup_supergroup_idx')
 
-        if (this%GASspec%is_connected()) then
+        if (this%GAS_spec%is_connected()) then
             idx = global_lookup(idet)
             ! Assert that looked up and computed index agree.
             @:pure_ASSERT(idx == this%idx_nI(nI))
@@ -647,15 +681,34 @@ contains
     end function
 
 
-    pure function construct_SuperGroupIndexer_t(GASspec, N) result(idxer)
-        class(GASSpec_t), intent(in) :: GASspec
+    pure function construct_SuperGroupIndexer_t(GAS_spec, N) result(idxer)
+        class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: N
         type(SuperGroupIndexer_t) :: idxer
+        character(*), parameter :: this_routine = 'construct_SuperGroupIndexer_t'
+        @:pure_ASSERT(GAS_spec%is_valid())
+        @:pure_ASSERT(has_enough_room(GAS_spec, N))
 
-        idxer%GASspec = GASspec
+        if (.not. has_enough_room(GAS_spec, N)) then
+            call stop_all(this_routine, 'Particle number too large for GAS constraints.')
+        end if
+
+        idxer%GAS_spec = GAS_spec
         idxer%N = N
-        idxer%allowed_composition_indices = get_allowed_composition_indices(GASspec, N)
+        if (GAS_spec%is_connected()) then
+            idxer%allowed_composition_indices = get_allowed_composition_indices(GAS_spec, N)
+        end if
+
     end function
 
-
+    logical elemental function has_enough_room(GAS_spec, N)
+        class(GASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: N
+        select type(GAS_spec)
+        type is(LocalGASSpec_t)
+            has_enough_room = sum(GAS_spec%get_max()) >= N
+        type is(CumulGASSpec_t)
+            has_enough_room = GAS_spec%get_cmax(GAS_spec%nGAS()) >= N
+        end select
+    end function
 end module gasci_supergroup_index

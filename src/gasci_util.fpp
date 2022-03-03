@@ -7,7 +7,7 @@
 !> This module contains functions for GAS that are not bound
 !>  to a specific GAS excitation generator.
 module gasci_util
-    use constants, only: n_int, dp, int64
+    use constants, only: n_int, dp, int64, int128
     use SystemData, only: nEl, nBasis
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, GAS_specification
     use gasci_supergroup_index, only: get_supergroups
@@ -16,7 +16,7 @@ module gasci_util
     use sort_mod, only: sort
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
-        operator(.isclose.), custom_findloc, choose_i64
+        operator(.isclose.), custom_findloc, choose_i64, choose_i128
     use dSFMT_interface, only: genrand_real2_dSFMT
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use bit_rep_data, only: NIfTot, NIfD
@@ -32,13 +32,15 @@ module gasci_util
 
     public :: get_cumulative_list, draw_from_cum_list
 
-    public :: write_GAS_info
+    public :: write_GAS_info, t_output_GAS_sizes
 
     interface get_cumulative_list
         #:for Excitation_t in ExcitationTypes
             module procedure get_cumulative_list_${Excitation_t}$
         #:endfor
     end interface
+
+    logical :: t_output_GAS_sizes = .false.
 
 contains
 
@@ -313,7 +315,7 @@ contains
             !! The number of particles
         type(SpinProj_t), intent(in) :: S_z
             !! Spin projection
-        integer(int64) :: n_SDs
+        integer(int128) :: n_SDs
         integer, allocatable :: supergroups(:, :), alpha_supergroups(:, :)
         integer :: i, j
 
@@ -358,17 +360,19 @@ contains
 
         @:unused_var(N, S_z)
 
-        ! block
-        !     integer :: n_alpha, n_beta, n_spat_orbs
-        !     integer(int64) :: size_CAS, size_GAS
-        !     N_alpha = (N + S_z%val) .div. 2
-        !     N_beta = N - N_alpha
-        !     n_spat_orbs = GAS_spec%n_spin_orbs() .div. 2
-        !     size_CAS = choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta)
-        !     write(iunit, '(A, 1x, I0)') 'The size of the CAS space is:', size_CAS
-        !     size_GAS = get_n_SDs(GAS_spec, nEl, S_z)
-        !     write(iunit, '(A, 1x, I0)') 'The size of the GAS space is:', size_GAS
-        !     write(iunit, '(A, 1x, E10.5)') 'The fraction of the GAS space is:', real(size_GAS, dp) / real(size_CAS, dp)
-        ! end block
+        if (t_output_GAS_sizes) then
+        block
+            integer :: n_alpha, n_beta, n_spat_orbs
+            integer(int128) :: size_CAS, size_GAS
+            N_alpha = (N + S_z%val) .div. 2
+            N_beta = N - N_alpha
+            n_spat_orbs = GAS_spec%n_spin_orbs() .div. 2
+            size_CAS = choose_i128(n_spat_orbs, N_alpha) * choose_i128(n_spat_orbs, N_beta)
+            write(iunit, '(A, 1x, I0)') 'The size of the CAS space is:', size_CAS
+            size_GAS = get_n_SDs(GAS_spec, nEl, S_z)
+            write(iunit, '(A, 1x, I0)') 'The size of the GAS space is:', size_GAS
+            write(iunit, '(A, 1x, E10.5)') 'The fraction of the GAS space is:', real(size_GAS, dp) / real(size_CAS, dp)
+        end block
+        end if
     end subroutine
 end module

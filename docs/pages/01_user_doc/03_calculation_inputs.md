@@ -308,6 +308,13 @@ considered. The block starts with the `system` keyword and ends with the
         disconnected spaces and performs there a bit better than the
         general implementation.
 
+-   **OUTPUT-GAS-HILBERT-SPACE-SIZE**<br>
+    *Optional keyword.* If a GAS calculation is performed, then output the
+    sizes of the CAS and GAS Hilbert-Space sizes.
+    Note that, depending on the GAS specifications, this operation can be actually
+    expensive, so it is not done by default.
+
+
 #### Hubbard model and UEG options
 
 -   **lattice \(type\) \(l_x\) \(l_y\) [\(l_Z\)]**<br>

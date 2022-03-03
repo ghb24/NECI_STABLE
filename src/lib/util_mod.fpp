@@ -579,7 +579,7 @@ contains
             ! use lookup table
             res = binomial_lookup_table_i64(get_index(int(n), int(k)))
         else
-            call stop_all(this_routine, 'result exceeds range of int type')
+            call stop_all(this_routine, 'result exceeds range of int64 type')
         end if
     end function
 
@@ -611,7 +611,7 @@ contains
             ! use lookup table
             res = binomial_lookup_table_i128(get_index(int(n), int(k)))
         else
-            call stop_all(this_routine, 'result exceeds range of int type')
+            call stop_all(this_routine, 'result exceeds range of int128 type')
         end if
     end function
 #:endfor

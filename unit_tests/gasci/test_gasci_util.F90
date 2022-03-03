@@ -1,6 +1,6 @@
 module test_gasci_util_mod
     use fruit
-    use constants, only: dp, n_int, int64
+    use constants, only: dp, n_int, int64, int128
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: calc_spin_raw, sum, alpha, beta, SpinOrbIdx_t, SpinProj_t
@@ -1100,11 +1100,11 @@ contains
 
         GAS_spec = LocalGASSpec_t(n_min=[12], n_max=[12], spat_GAS_orbs=[(1, i = 1, 12)])
 
-        call assert_equals(853776_int64, get_n_SDs(GAS_spec, 12, SpinProj_t(0)))
+        call assert_equals(853776_int128, get_n_SDs(GAS_spec, 12, SpinProj_t(0)))
 
         block
-            integer(int64), parameter :: expected(4) = [47148_int64, 468942_int64, 802122_int64, 853776_int64]
-            integer(int64) :: calculated(size(expected))
+            integer(int128), parameter :: expected(4) = [47148_int128, 468942_int128, 802122_int128, 853776_int128]
+            integer(int128) :: calculated(size(expected))
             calculated = get_n_SDs(create_N4_GAS_spec([0, 1, 2, 3]), 12, SpinProj_t(0))
             call assert_true(all(expected == calculated))
         end block

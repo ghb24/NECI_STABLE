@@ -100,6 +100,74 @@ contains
         block
             type(LocalGASSpec_t) :: GAS_spec
             type(SuperGroupIndexer_t) :: indexer
+            integer :: i
+            integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
+                !! The supergroups as calculated by the indexer and by the free function
+            logical :: correct
+            integer, parameter :: n_H_atoms = 100
+            integer :: n_min(n_H_atoms), n_max(n_H_atoms)
+            n_min(:) = 1
+            n_max(:) = 1
+
+            GAS_spec = LocalGASSpec_t(&
+                n_min=n_min, &
+                n_max=n_max, &
+                spat_GAS_orbs = [(i, i = 1, n_H_atoms)])
+            call assert_true(GAS_spec%is_valid())
+            call assert_false(GAS_spec%is_connected())
+
+            indexer = SuperGroupIndexer_t(GAS_spec, n_H_atoms)
+            supergroups = indexer%get_supergroups()
+            supergroups_from_free = get_supergroups(GAS_spec, n_H_atoms)
+
+            correct = .true.
+            do i = 1, size(supergroups, 2)
+                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                        .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
+                    correct = .false.
+                end if
+            end do
+            call assert_true(correct)
+        end block
+
+        block
+            type(LocalGASSpec_t) :: GAS_spec
+            type(SuperGroupIndexer_t) :: indexer
+            integer :: i
+            integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
+                !! The supergroups as calculated by the indexer and by the free function
+            logical :: correct
+            integer, parameter :: n_H_atoms = 12
+            integer :: n_min(n_H_atoms), n_max(n_H_atoms)
+            n_min(:) = 1
+            n_min(::1) = 0
+            n_max(:) = 1
+            n_max(::1) = 2
+
+            GAS_spec = LocalGASSpec_t(&
+                n_min=n_min, &
+                n_max=n_max, &
+                spat_GAS_orbs = [(i, i = 1, n_H_atoms)])
+            call assert_true(GAS_spec%is_valid())
+            call assert_true(GAS_spec%is_connected())
+
+            indexer = SuperGroupIndexer_t(GAS_spec, n_H_atoms)
+            supergroups = indexer%get_supergroups()
+            supergroups_from_free = get_supergroups(GAS_spec, n_H_atoms)
+
+            correct = .true.
+            do i = 1, size(supergroups, 2)
+                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                        .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
+                    correct = .false.
+                end if
+            end do
+            call assert_true(correct)
+        end block
+
+        block
+            type(LocalGASSpec_t) :: GAS_spec
+            type(SuperGroupIndexer_t) :: indexer
 
             GAS_spec = LocalGASSpec_t(&
                 n_min=[0, 0, 1], &
