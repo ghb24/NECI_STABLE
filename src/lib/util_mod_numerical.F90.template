@@ -1,11 +1,15 @@
-[int]
+[int32]
 type = integer(kind=int32)
-conditional_enable = !defined(SX)
 width = 20
 fmtstr = i15
 
 [int64]
 type = integer(kind=int64)
+width = 20
+fmtstr = i16
+
+[int128]
+type = integer(kind=int128)
 width = 20
 fmtstr = i16
 

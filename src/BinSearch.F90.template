@@ -6,6 +6,9 @@ op_lt= <
 [int64]
 type1=integer(kind=int64)
 
+[int128]
+type1=integer(kind=int128)
+
 [double]
 type1=real(dp)
 
@@ -36,8 +39,8 @@ contains
 
     SUBROUTINE BinarySearch(Value,List,MinInd,MaxInd,FoundIndex,tSuccess)
         INTEGER :: MinInd,MaxInd,FoundIndex
-        %(type1)s :: Value()
-        %(type1)s :: List(:)
+        %(type1)s, intent(in) :: Value()
+        %(type1)s, intent(in) :: List(:)
         INTEGER :: i,j,N
         LOGICAL :: CompLT,CompGT
         LOGICAL :: tSuccess
