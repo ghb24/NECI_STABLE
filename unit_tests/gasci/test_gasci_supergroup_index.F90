@@ -1,6 +1,6 @@
 module test_gasci_supergroup_index_mod
     use fruit
-    use constants, only: dp, int64, int128, n_int
+    use constants, only: dp, int64, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use util_mod, only: factrl, intswap, cumsum, custom_findloc
 
@@ -52,7 +52,7 @@ contains
             do k = 1, 10
                 compositions = get_compositions(k, n)
                 block
-                    integer(int128), allocatable :: comp_indices(:)
+                    integer(int64), allocatable :: comp_indices(:)
                     allocate(comp_indices(size(compositions, 2)))
                     do i = 1, size(compositions, 2)
                         comp_indices(i) = composition_idx(compositions(:, i))
@@ -404,7 +404,7 @@ contains
             type(LocalGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N
-            integer(int128) :: idx_last
+            integer(int64) :: idx_last
 
             GAS_spec = LocalGASSpec_t(n_min=[0, 1, 2], n_max=[1, 2, 3], &
                                       spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 3, 3, 3])
@@ -429,7 +429,7 @@ contains
             type(LocalGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N
-            integer(int128) :: idx_last
+            integer(int64) :: idx_last
 
             GAS_spec = LocalGASSpec_t(n_min=[0, 0, 0, 0, 0], n_max=[2, 2, 2, 2, 2], &
                                       spat_GAS_orbs=[1, 2, 3, 4, 5])
@@ -445,7 +445,7 @@ contains
             type(LocalGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N
-            integer(int128) :: idx_last
+            integer(int64) :: idx_last
 
             GAS_spec = LocalGASSpec_t(&
                 n_min=[0, 0, 1], &
@@ -477,7 +477,7 @@ contains
             type(LocalGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N, i, j
-            integer(int128) :: idx_last
+            integer(int64) :: idx_last
             GAS_spec = LocalGASSpec_t(&
                 n_min=[5,  4,  4,  4,  5], &
                 n_max=[7,  8,  8,  8,  7], &
@@ -503,7 +503,7 @@ contains
             type(CumulGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N
-            integer(int128) :: idx_last
+            integer(int64) :: idx_last
 
             GAS_spec = CumulGASSpec_t(&
                 cn_min=[0, 1, 2], &
@@ -532,7 +532,7 @@ contains
             type(CumulGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N
-            integer(int128) :: idx_last
+            integer(int64) :: idx_last
 
             GAS_spec = CumulGASSpec_t(&
                 cn_min=[0, 1, 2], &
@@ -561,7 +561,7 @@ contains
             type(CumulGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N
-            integer(int128) :: idx_last
+            integer(int64) :: idx_last
 
             GAS_spec = CumulGASSpec_t(&
                 cn_min=[0, 1, 2], &
@@ -599,7 +599,7 @@ contains
             type(CumulGASSpec_t) :: GAS_spec
             integer, allocatable :: sg(:)
             integer :: N
-            integer(int128) :: idx_last
+            integer(int64) :: idx_last
 
             GAS_spec = CumulGASSpec_t(&
                 cn_min=[0, 2, 2, 2], &

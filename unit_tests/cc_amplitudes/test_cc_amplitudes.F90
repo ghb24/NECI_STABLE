@@ -3,6 +3,7 @@ program test_cc_amplitudes
 
     use fruit
     use cc_amplitudes
+    use util_mod, only: binomial => choose_i64
     use systemdata, only: nel, nbasis
     use FciMCData, only: projedet, ilutref
     use detbitops, only: encodebitdet

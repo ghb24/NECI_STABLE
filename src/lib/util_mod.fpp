@@ -14,7 +14,6 @@ module util_mod
     use util_mod_cpts
     use util_mod_epsilon_close
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
-    use fortran_strings, only: str
 #ifdef GFORTRAN_
     use binomial_lookup, only: binomial_lookup_table_i128
 #endif
@@ -118,7 +117,10 @@ module util_mod
     end interface
 
     interface operator(.div.)
-        module procedure div_int32, div_int64, div_int128
+        module procedure div_int32, div_int64
+#ifdef GFORTRAN_
+        module procedure div_int128
+#endif
     end interface
 
     interface abs_sign
