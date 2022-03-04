@@ -8,11 +8,6 @@ type = integer(kind=int64)
 width = 20
 fmtstr = i16
 
-[int128]
-type = integer(kind=int128)
-width = 20
-fmtstr = i16
-
 [real]
 type = real(kind=sp)
 conditional_enable = !defined(SX)

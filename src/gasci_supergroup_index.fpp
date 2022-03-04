@@ -52,12 +52,12 @@
 ! and search the corresponding supergroup index in a precomputed list of composition indices
 ! for all allowed super groups.
 module gasci_supergroup_index
-    use constants, only: int64, int128, n_int
-    use util_mod, only: choose_i128, cumsum, binary_search_first_ge, custom_findloc
+    use constants, only: int64, n_int
+    use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc
     use bit_rep_data, only: nIfD
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t
     use hash, only: hash_table_lookup
-    use growing_buffers, only: buffer_int_2D_t, buffer_int128_1D_t
+    use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use util_mod, only: stop_all, cumsum
 
     better_implicit_none
@@ -71,7 +71,7 @@ module gasci_supergroup_index
     type :: SuperGroupIndexer_t
         private
         class(GASSpec_t), allocatable :: GAS_spec
-        integer(int128), allocatable :: allowed_composition_indices(:)
+        integer(int64), allocatable :: allowed_composition_indices(:)
         !> The particle number.
         integer :: N
     contains
@@ -100,8 +100,8 @@ contains
         !! \( n = x_1 + ... + x_k \)
         !! with \( x_i, n \in \mathbb{N}^0, k \in \mathbb{N}\).
         integer, intent(in) :: k, n
-        integer(int128) :: res
-        res = choose_i128(n + k - 1, k - 1)
+        integer(int64) :: res
+        res = choose_i64(n + k - 1, k - 1)
     end function
 
 
@@ -163,11 +163,11 @@ contains
         !!
         !! The index is assigned by **lexicographically decreasing** order.
         integer, intent(in) :: composition(:)
-        integer(int128) :: idx
+        integer(int64) :: idx
 
         integer :: remaining, i_summand, leading_term
 
-        idx = 1_int128
+        idx = 1_int64
         i_summand = 1
         remaining = sum(composition)
         do while (remaining /= 0)
@@ -189,16 +189,16 @@ contains
             !! `k` is the number of summands (`k == size(composition)`).
         integer, intent(in) :: N
             !! `N` is the sum over the composition (`N == sum(composition)`).
-        integer(int128), intent(in) :: idx
+        integer(int64), intent(in) :: idx
             !! The composition index.
         integer :: composition(k)
 
-        integer(int128) :: new_idx, prev_idx
+        integer(int64) :: new_idx, prev_idx
         integer :: remaining, i_summand, leading_term
 
         composition(:) = -1
         remaining = N
-        new_idx = 1_int128
+        new_idx = 1_int64
         do i_summand = 1, k - 1
             loop_leading_term: do leading_term = remaining, 0, -1
                 prev_idx = new_idx
@@ -228,7 +228,7 @@ contains
         integer :: start_comp(GAS_spec%nGAS()), &
             end_comp(GAS_spec%nGAS()), &
             sg(GAS_spec%nGAS())
-        integer(int128) :: start_idx, end_idx
+        integer(int64) :: start_idx, end_idx
         type(buffer_int_2D_t) :: supergroups
 
         start_comp = get_first_supergroup(GAS_spec, N)
@@ -343,14 +343,14 @@ contains
     pure function next_supergroup(GAS_spec, comp_idx_last, previous) result(res)
         !! Return the next supergoup
         class(GASSpec_t), intent(in) :: GAS_spec
-        integer(int128), intent(in) :: comp_idx_last
+        integer(int64), intent(in) :: comp_idx_last
             !! The composition index of the last supergroup that can be generated.
             !! "Last" as defined by lexicographically decreasing order.
         integer, intent(in) :: previous(:)
             !! The previous supergroup.
         integer :: res(size(previous))
         integer :: k, n, src, tgt
-        integer(int128) :: comp_idx
+        integer(int64) :: comp_idx
 
         debug_function_name("next_supergroup")
         k = size(previous)
@@ -555,12 +555,12 @@ contains
     pure function get_allowed_composition_indices(GAS_spec, N) result(res)
         class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: N
-        integer(int128), allocatable :: res(:)
+        integer(int64), allocatable :: res(:)
         debug_function_name("get_allowed_composition_indices")
 
         integer :: sg(GAS_spec%nGAS())
-        integer(int128) :: end_idx
-        type(buffer_int128_1D_t) :: buf_index
+        integer(int64) :: end_idx
+        type(buffer_int64_1D_t) :: buf_index
         @:pure_ASSERT(GAS_spec%is_valid())
         @:pure_ASSERT(has_enough_room(GAS_spec, N))
 
@@ -603,11 +603,11 @@ contains
         !! GAS allowed compositions are called supergroups.
         class(SuperGroupIndexer_t), intent(in) :: this
         integer, allocatable :: res(:, :)
-        integer(int128) :: i
+        integer(int64) :: i
 
         allocate(res(this%GAS_spec%nGAS(), this%n_supergroups()))
         if (this%GAS_spec%is_connected()) then
-            do i = 1_int128, this%n_supergroups()
+            do i = 1_int64, this%n_supergroups()
                 res(:, i) = composition_from_idx(&
                     this%GAS_spec%nGAS(), this%N, this%allowed_composition_indices(i))
             end do

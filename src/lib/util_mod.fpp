@@ -13,7 +13,11 @@ module util_mod
     use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
-    use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64, binomial_lookup_table_i128
+    use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
+    use fortran_strings, only: str
+#ifdef GFORTRAN_
+    use binomial_lookup, only: binomial_lookup_table_i128
+#endif
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
@@ -76,11 +80,13 @@ module util_mod
     #:endfor
     end interface
 
+#ifdef GFORTRAN_
     interface choose_i128
     #:for kind in primitive_types['integer']
         module procedure choose_i128_${kind}$
     #:endfor
     end interface
+#endif
 
 
     interface
@@ -112,7 +118,7 @@ module util_mod
     end interface
 
     interface operator(.div.)
-        module procedure div_int32, div_int64
+        module procedure div_int32, div_int64, div_int128
     end interface
 
     interface abs_sign
@@ -551,12 +557,15 @@ contains
         end function
 
 #:for kind in primitive_types['integer']
-    !> @brief
-    !> Return the binomail coefficient nCr
-    elemental function choose_i64_${kind}$(n, r) result(res)
+    recursive pure function choose_i64_${kind}$(n, r, signal_overflow) result(res)
+        !! Return the binomail coefficient nCr(n, r)
         integer(${kind}$), intent(in) :: n, r
+        logical, intent(in), optional :: signal_overflow
+            !! If true then the function returns -1 instead of aborting
+            !! when overflow is encountered.
         integer(int64) :: res
         integer(int64) :: k
+
         character(*), parameter :: this_routine = "choose_i64"
 
         ! NOTE: This is highly optimized. If you change something, please time it!
@@ -569,7 +578,7 @@ contains
             return
         end if
 
-        k = int(merge(r, n - r, r <= n - r), int64)
+        k = int(merge(r, n - r, r <= n - r), kind=int64)
 
         if (k == 0) then
             res = 1_int64
@@ -579,14 +588,29 @@ contains
             ! use lookup table
             res = binomial_lookup_table_i64(get_index(int(n), int(k)))
         else
-            call stop_all(this_routine, 'result exceeds range of int64 type')
+            ! Note that the recursion stops at n = 66
+            res = (choose_i64_${kind}$(n - 1, r - 1, signal_overflow) * n) .div. k
+            check_for_overflow: if (res < 0) then
+                if (present(signal_overflow)) then
+                    if (signal_overflow) then
+                        res = -1
+                    else
+                        call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+                    end if
+                else
+                    call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+                end if
+            end if check_for_overflow
         end if
     end function
 
-    !> @brief
-    !> Return the binomail coefficient nCr
-    elemental function choose_i128_${kind}$(n, r) result(res)
+#ifdef GFORTRAN_
+    recursive pure function choose_i128_${kind}$(n, r, signal_overflow) result(res)
+        !! Return the binomail coefficient nCr(n, r)
         integer(${kind}$), intent(in) :: n, r
+        logical, intent(in), optional :: signal_overflow
+            !! If true then the function returns -1 instead of aborting
+            !! when overflow is encountered.
         integer(int128) :: res
         integer(int128) :: k
         character(*), parameter :: this_routine = "choose_i128"
@@ -601,7 +625,7 @@ contains
             return
         end if
 
-        k = int(merge(r, n - r, r <= n - r), int128)
+        k = int(merge(r, n - r, r <= n - r), kind=int128)
 
         if (k == 0) then
             res = 1_int128
@@ -611,9 +635,22 @@ contains
             ! use lookup table
             res = binomial_lookup_table_i128(get_index(int(n), int(k)))
         else
-            call stop_all(this_routine, 'result exceeds range of int128 type')
+            ! Note that the recursion stops at n = 130
+            res = (choose_i128_${kind}$(n - 1, r - 1, signal_overflow) * n) .div. k
+            check_for_overflow: if (res < 0) then
+                if (present(signal_overflow)) then
+                    if (signal_overflow) then
+                        res = -1
+                    else
+                        call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+                    end if
+                else
+                    call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+                end if
+            end if check_for_overflow
         end if
     end function
+#endif
 #:endfor
 
     elemental integer(int32) function div_int32(a, b)
@@ -633,6 +670,17 @@ contains
         div_int64 = a / b
 #endif
     end function
+
+#ifdef GFORTRAN_
+    elemental integer(int128) function div_int128(a, b)
+        integer(int128), intent(in) :: a, b
+#ifdef WARNING_WORKAROUND_
+        div_int128 = int(real(a, kind=dp) / real(b, kind=dp), kind=int128)
+#else
+        div_int128 = a / b
+#endif
+    end function
+#endif
 
 !--- Comparison of subarrays ---
 

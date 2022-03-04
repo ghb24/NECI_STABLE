@@ -20,7 +20,6 @@
 !   2) Variable and methods are lower case connected with underscores.  i.e. init_fruit, and
 !      failed_assert_count
 !
-
 module fruit_util
     implicit none
     private
@@ -32,7 +31,6 @@ module fruit_util
     integer, parameter :: qp = selected_real_kind(33, 4931)
     integer, parameter, public :: int32 = selected_int_kind(8)
     integer, parameter, public :: int64 = selected_int_kind(15)
-    integer, parameter, public :: int128 = selected_int_kind(38)
 
     public :: equals, to_s, strip, sp, dp
 
@@ -41,7 +39,6 @@ module fruit_util
         module procedure floatEqual
         module procedure integer32Equal
         module procedure integer64Equal
-        module procedure integer128Equal
         module procedure integer32_64_equal
         module procedure integer64_32_equal
         module procedure doublePrecisionEqual
@@ -52,7 +49,6 @@ module fruit_util
     interface to_s
         module procedure to_s_int32_
         module procedure to_s_int64_
-        module procedure to_s_int128_
         module procedure to_s_real_
         module procedure to_s_logical_
         module procedure to_s_double_
@@ -84,14 +80,6 @@ contains
         write(result, *) value
         to_s_int64_ = adjustl(trim(result))
     end function to_s_int64_
-
-    function to_s_int128_(value)
-        character(len=500):: to_s_int128_
-        integer(int128), intent(in) :: value
-        character(len=500) :: result
-        write(result, *) value
-        to_s_int128_ = adjustl(trim(result))
-    end function to_s_int128_
 
     function to_s_real_(value)
         character(len=500):: to_s_real_
@@ -251,12 +239,6 @@ contains
         resultValue = number1 == number2
     end function integer64Equal
 
-    function integer128Equal(number1, number2) result(resultValue)
-        integer(int128), intent(in) :: number1, number2
-        logical :: resultValue
-        resultValue = number1 == number2
-    end function integer128Equal
-
     function integer32_64_equal(number1, number2) result(resultValue)
         integer(int32), intent(in) :: number1
         integer(int64), intent(in) :: number2
@@ -408,7 +390,6 @@ module fruit
         module procedure assert_eq_2d_string_
         module procedure assert_eq_int32_
         module procedure assert_eq_int64_
-        module procedure assert_eq_int128_
         module procedure assert_eq_int32_to_int64_
         module procedure assert_eq_int64_to_int32_
         module procedure assert_eq_1d_int_
@@ -445,7 +426,6 @@ module fruit
         module procedure assert_eq_2d_string_
         module procedure assert_eq_int32_
         module procedure assert_eq_int64_
-        module procedure assert_eq_int128_
         module procedure assert_eq_int32_to_int64_
         module procedure assert_eq_int64_to_int32_
         module procedure assert_eq_1d_int_
@@ -1541,22 +1521,6 @@ contains
 
         call add_success
     end subroutine assert_eq_int64_
-
-    subroutine assert_eq_int128_(var1, var2, message)
-
-        integer(int128), intent(in) :: var1, var2
-
-        character(len=*), intent(in), optional :: message
-
-        if (var1 /= var2) then
-            call failed_assert_action(&
-            & to_s(var1), &
-            & to_s(var2), message, if_is=.true.)
-            return
-        end if
-
-        call add_success
-    end subroutine assert_eq_int128_
 
     !------ 0d_int_32_to_64 ------
     subroutine assert_eq_int32_to_int64_(var1, var2, message)

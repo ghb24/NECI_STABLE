@@ -1,8 +1,14 @@
 module binomial_lookup
-    use constants, only: int64, int128
+    use constants, only: int64
+#ifdef GFORTRAN_
+    use constants, only: int128
+#endif
     implicit none
     private
-    public :: factorial, binomial_lookup_table_i64, binomial_lookup_table_i128
+    public :: factorial, binomial_lookup_table_i64
+#ifdef GFORTRAN_
+    public :: binomial_lookup_table_i128
+#endif
     ! Already binomial(67, 30) cannot be stored in a signed int64 anymore.
     ! => create a lookup table for all binomials up to binomial(66, k).
 
@@ -275,7 +281,6 @@ module binomial_lookup
             4472995859186094240_int64, 5516694892996182896_int64, 6406484391866534976_int64, 7007092303604022630_int64, 7219428434016265740_int64 &
     ]
 
-
     ! factorial(33) is the largest number that is contained in a signed int128
     ! This is one of the rare occasions where the Fortran Array Access syntax is helpful
     ! since the user can use this array, as if it was a function.
@@ -290,24 +295,18 @@ module binomial_lookup
     !             found = True
     !             break
     !     lookup = [faculty(i) for i in range(n)]
-    integer(int128), parameter :: factorial(0:33) = [1_int128, 1_int128, 2_int128, &
-        6_int128, 24_int128, &
-        120_int128, 720_int128, &
-        5040_int128, 40320_int128, &
-        362880_int128, 3628800_int128, &
-        39916800_int128, 479001600_int128, &
-        6227020800_int128, 87178291200_int128, &
-        1307674368000_int128, 20922789888000_int128, &
-        355687428096000_int128, 6402373705728000_int128, &
-        121645100408832000_int128, 2432902008176640000_int128, &
-        51090942171709440000_int128, 1124000727777607680000_int128, &
-        25852016738884976640000_int128, 620448401733239439360000_int128, &
-        15511210043330985984000000_int128, 403291461126605635584000000_int128, &
-        10888869450418352160768000000_int128, 304888344611713860501504000000_int128, &
-        8841761993739701954543616000000_int128, 265252859812191058636308480000000_int128, &
-        8222838654177922817725562880000000_int128, 263130836933693530167218012160000000_int128, &
-        8683317618811886495518194401280000000_int128]
+    integer(int64), parameter :: factorial(0:20) = [1_int64, 1_int64, 2_int64, &
+        6_int64, 24_int64, &
+        120_int64, 720_int64, &
+        5040_int64, 40320_int64, &
+        362880_int64, 3628800_int64, &
+        39916800_int64, 479001600_int64, &
+        6227020800_int64, 87178291200_int64, &
+        1307674368000_int64, 20922789888000_int64, &
+        355687428096000_int64, 6402373705728000_int64, &
+        121645100408832000_int64, 2432902008176640000_int64]
 
+#ifdef GFORTRAN_
     ! Lookup the logic at int64 table
     integer(int128), parameter :: binomial_lookup_table_i128(4096) = [6_int128, &
         10_int128, 15_int128, &
@@ -2358,5 +2357,5 @@ module binomial_lookup
         74452875578585231332857239989225224000_int128, 82858845401973886483341121923492588000_int128, &
         89434944243400385410590417314245968000_int128, 93627207254809778476711843125851247750_int128, &
         95067625827960698145584333020095113100_int128]
-    contains
+#endif
 end module

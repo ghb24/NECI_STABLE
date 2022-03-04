@@ -6,9 +6,6 @@ op_lt= <
 [int64]
 type1=integer(kind=int64)
 
-[int128]
-type1=integer(kind=int128)
-
 [double]
 type1=real(dp)
 

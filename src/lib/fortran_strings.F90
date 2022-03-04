@@ -44,7 +44,7 @@ character(*), parameter ::  &
 
 contains
 
-    function int32_to_str(i) result(str)
+    pure function int32_to_str(i) result(str)
         character(:), allocatable :: str
         integer(int32), intent(in) :: i
         character(range(i) + 2) :: tmp
@@ -53,7 +53,7 @@ contains
     end function
 
 
-    function int64_to_str(i) result(str)
+    pure function int64_to_str(i) result(str)
         character(:), allocatable :: str
         integer(int64), intent(in) :: i
         character(range(i) + 2) :: tmp

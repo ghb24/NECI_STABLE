@@ -10,7 +10,9 @@ integer, parameter :: dp = selected_real_kind(15,307)
 integer, parameter :: qp = selected_real_kind(33,4931)
 integer, parameter :: int32 = selected_int_kind(8)
 integer, parameter :: int64 = selected_int_kind(15)
+#ifdef GFORTRAN_
 integer, parameter :: int128 = selected_int_kind(38)
+#endif
 integer, parameter :: cLineSize = 8
 
 real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993751_dp

@@ -4,7 +4,7 @@
 ! fpp types
 #:set DATA_TYPES = {('real', 'dp'): 'real', ('HElement_t', 'dp'): 'hel', &
                     &('integer', ''): 'int', ('integer', 'int32'): 'int32', ('integer', 'int64'): 'int64', &
-                    &('integer', 'int128'): 'int128', ('Token_t', ''): 'token'}
+                    &('Token_t', ''): 'token'}
 
 #:set RANKS = [1, 2]
 
