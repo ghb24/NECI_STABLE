@@ -353,7 +353,6 @@ contains
     END SUBROUTINE NECI_ICOPY
 
     subroutine addToIntArray(arr, ind, elem)
-        implicit none
         integer, intent(inout), allocatable :: arr(:)
         integer, intent(in) :: ind, elem
 
@@ -425,7 +424,6 @@ contains
         ! the resulting index is not contigious in p or q
         ! Input: p,q - 2d-array indices
         ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
-        implicit none
         integer(int32), intent(in) :: p, q
         integer(int32) :: ind
 
@@ -442,7 +440,6 @@ contains
         ! i.e. their ordering does not matter
         ! Input: p,q - 2d-array indices
         ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
-        implicit none
         integer(int64), intent(in) :: x, y
         integer(int64) :: xy
 
@@ -497,7 +494,6 @@ contains
         ! Input: p,q - 2d-array indices
         !        dim - dimension of the underlying array in q-direction
         ! Output: ind - contiguous 1d-array index
-        implicit none
         integer, intent(in) :: p, q, dim
         integer :: ind
 
@@ -510,7 +506,6 @@ contains
         ! Output: ms - spin index of orb with the following values:
         !              0 - alpha
         !              1 - beta
-        implicit none
         integer, intent(in) :: orb
         integer :: ms
 
@@ -597,10 +592,18 @@ contains
                     if (signal_overflow) then
                         res = -1
                     else
+#ifdef IFORT_
+                        error stop 'Binomial coefficient exceeds range of int64.'
+#else
                         call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#endif
                     end if
                 else
-                    call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#ifdef IFORT_
+                        error stop 'Binomial coefficient exceeds range of int64.'
+#else
+                        call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#endif
                 end if
             end if check_for_overflow
         end if
@@ -1161,7 +1164,6 @@ contains
     function error_function_c(argument) result(res)
 
         use constants, only: dp
-        implicit none
 
         real(dp), intent(in) :: argument
         real(dp) :: res
@@ -1172,7 +1174,6 @@ contains
     function error_function(argument) result(res)
 
         use constants, only: dp
-        implicit none
 
         real(dp), intent(in) :: argument
         real(dp) :: res
@@ -1245,7 +1246,6 @@ contains
     end function neci_etime
 
     subroutine open_new_file(funit, filename)
-        implicit none
         integer, intent(in) :: funit
         character(*), intent(in) :: filename
         logical :: exists

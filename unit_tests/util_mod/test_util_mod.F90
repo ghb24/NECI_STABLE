@@ -37,6 +37,7 @@ end module
 
 program test_prog_util_mod
     use test_util_mod, only: test_driver
+    use Parallel_neci, only: MPIInit, MPIEnd
 
     use fruit
 
@@ -44,6 +45,7 @@ program test_prog_util_mod
 
     integer :: failed_count
 
+    call MPIInit(.false.)
     call init_fruit()
     call test_driver()
     call fruit_summary()
@@ -52,5 +54,6 @@ program test_prog_util_mod
     call get_failed_count(failed_count)
     if (failed_count /= 0) call stop_all('test_util_mod', 'failed_tests')
 
+    call MPIEnd(.false.)
 end program test_prog_util_mod
 
