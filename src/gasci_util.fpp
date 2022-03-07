@@ -338,7 +338,7 @@ contains
                     !   the number of possible configurations in each GAS space is calculated.
                     ! The overall number is just the product over the GAS spaces.
                     n_SDs = n_SDs + product([(choose_i64(n_spat_orbs(iGAS), N_alpha(iGAS)) &
-                                            * choose_i64(n_spat_orbs(iGAS), N_beta(iGAS)))])
+                                            * choose_i64(n_spat_orbs(iGAS), N_beta(iGAS)), iGAS = 1, GAS_spec%nGAS())])
                 end do
             end do
         end block

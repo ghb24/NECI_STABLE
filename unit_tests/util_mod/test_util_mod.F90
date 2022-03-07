@@ -28,6 +28,8 @@ contains
 
         call assert_equals(161700, choose_i64(100, 3))
 
+        call assert_equals(-1, choose_i64(100, 50, signal_overflow=.true.))
+
     end subroutine
 
 

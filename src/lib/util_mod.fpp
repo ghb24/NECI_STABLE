@@ -554,6 +554,7 @@ contains
         end function
 
 #:for kind in primitive_types['integer']
+    ! Unfortunately there are no recursive elemental functions in Fortran.
     recursive pure function choose_i64_${kind}$(n, r, signal_overflow) result(res)
         !! Return the binomail coefficient nCr(n, r)
         integer(${kind}$), intent(in) :: n, r
@@ -585,27 +586,31 @@ contains
             ! use lookup table
             res = binomial_lookup_table_i64(get_index(int(n), int(k)))
         else
+            block
+                integer(int64) :: prev
+                prev = choose_i64_${kind}$(n - 1, r - 1, signal_overflow)
             ! Note that the recursion stops at n = 66
-            res = (choose_i64_${kind}$(n - 1, r - 1, signal_overflow) * n) .div. k
-            check_for_overflow: if (res < 0) then
-                if (present(signal_overflow)) then
-                    if (signal_overflow) then
-                        res = -1
+                res = (prev * n) .div. k
+                check_for_overflow: if (prev < 0 .or. res < 0) then
+                    if (present(signal_overflow)) then
+                        if (signal_overflow) then
+                            res = -1
+                        else
+#ifdef IFORT_
+                            error stop 'Binomial coefficient exceeds range of int64.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#endif
+                        end if
                     else
 #ifdef IFORT_
-                        error stop 'Binomial coefficient exceeds range of int64.'
+                            error stop 'Binomial coefficient exceeds range of int64.'
 #else
-                        call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
 #endif
                     end if
-                else
-#ifdef IFORT_
-                        error stop 'Binomial coefficient exceeds range of int64.'
-#else
-                        call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
-#endif
-                end if
-            end if check_for_overflow
+                end if check_for_overflow
+            end block
         end if
     end function
 
@@ -641,18 +646,31 @@ contains
             res = binomial_lookup_table_i128(get_index(int(n), int(k)))
         else
             ! Note that the recursion stops at n = 130
-            res = (choose_i128_${kind}$(n - 1, r - 1, signal_overflow) * n) .div. k
-            check_for_overflow: if (res < 0) then
-                if (present(signal_overflow)) then
-                    if (signal_overflow) then
-                        res = -1
+            block
+                integer(int128) :: prev
+                prev = choose_i128_${kind}$(n - 1, r - 1, signal_overflow)
+            ! Note that the recursion stops at n = 66
+                res = (prev * n) .div. k
+                check_for_overflow: if (prev < 0 .or. res < 0) then
+                    if (present(signal_overflow)) then
+                        if (signal_overflow) then
+                            res = -1
+                        else
+#ifdef IFORT_
+                            error stop 'Binomial coefficient exceeds range of int128.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#endif
+                        end if
                     else
-                        call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#ifdef IFORT_
+                            error stop 'Binomial coefficient exceeds range of int128.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#endif
                     end if
-                else
-                    call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
-                end if
-            end if check_for_overflow
+                end if check_for_overflow
+            end block
         end if
     end function
 #endif
