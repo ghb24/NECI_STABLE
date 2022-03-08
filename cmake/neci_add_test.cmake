@@ -65,7 +65,7 @@ macro( neci_add_test )
         message( FATAL_ERROR "Unknown keywords given to neci_add_test(): \"${_p_UNPARSED_ARGUMENTS}\"" )
     endif()
 
-    set( _test_dir ${CMAKE_CURRENT_BINARY_DIR} )
+    set( _test_dir ${CMAKE_CURRENT_BINARY_DIR}/${_p_TARGET} )
 
     # TODO: Check for (and use) MPI. Modify _test_command to make uso of MPI if desired
     set( _test_command ${_p_TARGET} )
@@ -75,6 +75,9 @@ macro( neci_add_test )
     # Build the executable
 
     add_executable( ${_p_TARGET} ${_p_SOURCES} )
+    # make each target reside in its own work directory
+    set_target_properties( ${_p_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${_test_dir})
+
 
     # Add definitions to the compliation
     if (DEFINED _p_DEFINITIONS )
