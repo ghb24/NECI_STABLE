@@ -7,7 +7,7 @@ module lattice_models_utils
 
     use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
-    use util_mod, only: binary_search, binary_search_first_ge, choose, swap, &
+    use util_mod, only: binary_search, binary_search_first_ge, choose_i64, swap, &
                         operator(.isclose.), operator(.div.)
 
     use sort_mod, only: sort
@@ -746,7 +746,7 @@ contains
             else
                 ! we have to distribute the n_second remaining spins
                 ! across the n_orbs - n_first orbitals, so there are:
-                n_remain = int(choose(n_orbs - n_first, n_second))
+                n_remain = int(choose_i64(n_orbs - n_first, n_second))
                 ! states per first_basis states
                 ASSERT(n_remain * size(first_basis) == n_total)
 
@@ -884,7 +884,7 @@ contains
         integer :: n_max_states, i, right_zero
         integer(n_int) :: count_mask, n_set_zero
 
-        n_max_states = int(choose(n_orbs, n_spins))
+        n_max_states = int(choose_i64(n_orbs, n_spins))
 
         !
         allocate(one_spin_basis(n_max_states))
@@ -1010,17 +1010,17 @@ contains
         n_max = max(n_alpha, n_beta)
         n_min = min(n_alpha, n_beta)
 
-        n_first = choose(n_orbs, n_max)
+        n_first = choose_i64(n_orbs, n_max)
 
         allocate(n_double(n_min + 1))
 
         do i = 0, n_min
-            n_double(i + 1) = int(n_first * choose(n_max, i) * &
-                                  choose(n_orbs - n_max, n_min - i))
+            n_double(i + 1) = int(n_first * choose_i64(n_max, i) * &
+                                  choose_i64(n_orbs - n_max, n_min - i))
         end do
 
         ! make sure that the sum of basis states is the whole hilber space
-        ASSERT(sum(n_double) == choose(n_orbs, n_alpha) * choose(n_orbs, n_beta))
+        ASSERT(sum(n_double) == choose_i64(n_orbs, n_alpha) * choose_i64(n_orbs, n_beta))
 
     end function calc_n_double
 

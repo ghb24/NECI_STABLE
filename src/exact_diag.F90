@@ -47,7 +47,7 @@ contains
         use bit_rep_data, only: NIfTot
         use gndts_mod, only: gndts_all_sym_this_proc
         use SystemData, only: nbasis, nel
-        use util_mod, only: choose
+        use util_mod, only: choose_i64
 
         integer :: expected_ndets_tot
         integer(n_int), allocatable :: ilut_list(:, :)
@@ -69,7 +69,7 @@ contains
         write(stdout, '(1x,a9)') "Complete."
         call neci_flush(6)
 
-        expected_ndets_tot = int(choose(nbasis, nel))
+        expected_ndets_tot = int(choose_i64(nbasis, nel))
         if (ndets_ed /= expected_ndets_tot) then
             write(stdout, *) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &

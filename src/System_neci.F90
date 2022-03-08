@@ -32,6 +32,8 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
         LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
 
+    use gasci_util, only: t_output_GAS_sizes
+
 
     use SD_spin_purification_mod, only: possible_purification_methods, &
         SD_spin_purification, spin_pure_J
@@ -1866,6 +1868,10 @@ contains
                 case default
                     call Stop_All(t_r, trim(w)//" not a valid keyword")
                 end select
+
+            case("OUTPUT-GAS-HILBERT-SPACE-SIZE")
+                t_output_GAS_sizes = .true.
+
 
             case ("SD-SPIN-PURIFICATION")
                 allocate(SD_spin_purification, source=possible_purification_methods%FULL_S2)

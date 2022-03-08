@@ -308,6 +308,13 @@ considered. The block starts with the `system` keyword and ends with the
         disconnected spaces and performs there a bit better than the
         general implementation.
 
+-   **OUTPUT-GAS-HILBERT-SPACE-SIZE**<br>
+    *Optional keyword.* If a GAS calculation is performed, then output the
+    sizes of the CAS and GAS Hilbert-Space sizes.
+    Note that, depending on the GAS specifications, this operation can be actually
+    expensive, so it is not done by default.
+
+
 #### Hubbard model and UEG options
 
 -   **lattice \(type\) \(l_x\) \(l_y\) [\(l_Z\)]**<br>
@@ -481,10 +488,10 @@ and ends with the `endcalc` keyword.
     determinant.
 
 -   **davidson-max-iters \(n\)**<br>
-    Set the number of iterations in Davidson's algorithm when this is used. 
-    Such algorithm computes a few of the smallest (or largest) eigenvalues 
-    of a large sparse real symmetric matrix. This method is used, 
-    for instance, in the semi-stochastic implementation or when  
+    Set the number of iterations in Davidson's algorithm when this is used.
+    Such algorithm computes a few of the smallest (or largest) eigenvalues
+    of a large sparse real symmetric matrix. This method is used,
+    for instance, in the semi-stochastic implementation or when
     CI Davidson is used. The default value is \(25\).
 
 #### Population control options
@@ -504,8 +511,8 @@ and ends with the `endcalc` keyword.
     \(\zeta\). Has to be \(<1.0\). Defaults to \(0.1\).
 
 -   **target-shiftDamp \(\zeta\) [\(\eta\)]**<br>
- Uses the shift updating procedure presented in [@Yang2020] and 
- can be used instead of the shiftDamp keyword. \(zeta\)
+ Uses the shift updating procedure presented in [@Yang2020] and
+ can be used instead of the shiftDamp keyword. \(\zeta\)
  is the usual shift damping factor, \(\eta\) is the additional second
  shift damping factor. If \(\eta\) is not specified, it is set to
  \(\zeta^2 / 4\) to achieve critical damping. Both parameters have to

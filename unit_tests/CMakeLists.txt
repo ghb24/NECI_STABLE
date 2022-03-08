@@ -85,3 +85,5 @@ add_subdirectory( SD_spin_purification )
 add_subdirectory( lib )
 
 add_subdirectory( input_parser )
+
+add_subdirectory( util_mod )
