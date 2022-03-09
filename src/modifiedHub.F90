@@ -28,7 +28,7 @@ contains
         end do
     end subroutine setupMomIndexTable
 
-    function bHubIndexFunction(i, j, k, l) result(bInd)
+    elemental function bHubIndexFunction(i, j, k, l) result(bInd)
         ! this function gets the index of the matrix element of the breathing term
         ! corresponding to the four states i,j,k,l
 

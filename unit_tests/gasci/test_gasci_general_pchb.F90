@@ -1,7 +1,7 @@
 module test_gasci_general_pchb
     use fruit
     use constants, only: dp, int64, n_int, maxExcit
-    use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
+    use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use util_mod, only: factrl, intswap, cumsum
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use SystemData, only: nEl

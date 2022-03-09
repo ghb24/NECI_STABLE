@@ -12,7 +12,7 @@ module gasci
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==)
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
         operator(.isclose.), custom_findloc, EnumBase_t
-    use sets_mod, only: disjoint, union, complement, is_sorted
+    use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
         alpha, beta
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
@@ -101,37 +101,37 @@ module gasci
     end type
 
     abstract interface
-        logical pure function contains_supergroup_t(self, supergroup)
+        logical pure function contains_supergroup_t(this, supergroup)
             import :: GASSpec_t
             implicit none
-            class(GASSpec_t), intent(in) :: self
+            class(GASSpec_t), intent(in) :: this
             integer, intent(in) :: supergroup(:)
         end function
 
-        logical pure function is_valid_t(self, n_basis)
+        logical pure function is_valid_t(this, n_basis)
             import :: GASSpec_t
             implicit none
-            class(GASSpec_t), intent(in) :: self
+            class(GASSpec_t), intent(in) :: this
             integer, intent(in), optional :: n_basis
         end function
 
-        subroutine write_to_t(self, iunit)
+        subroutine write_to_t(this, iunit)
             !! Write a string representation of this GAS specification to iunit
             import :: GASSpec_t
             implicit none
-            class(GASSpec_t), intent(in) :: self
+            class(GASSpec_t), intent(in) :: this
             integer, intent(in) :: iunit
         end subroutine
 
-        pure function get_possible_spaces_t(self, supergroup, add_holes, add_particles, n_total) result(spaces)
+        pure function get_possible_spaces_t(this, supergroup, add_holes, add_particles, n_total) result(spaces)
             !!  Return the GAS spaces, where one particle can be created.
             !!
             !!  The returned array can be empty (allocated, but size == 0).
             import :: GASSpec_t
             implicit none
-            class(GASSpec_t), intent(in) :: self
+            class(GASSpec_t), intent(in) :: this
                 !!  Specification of GAS spaces.
-            integer, intent(in) :: supergroup(size(self%GAS_sizes))
+            integer, intent(in) :: supergroup(size(this%GAS_sizes))
                 !!  The particles per GAS space.
             integer, intent(in), optional :: add_holes(:)
                 !!  An index of orbitals where particles should be deleted
@@ -206,71 +206,71 @@ module gasci
 contains
 
     !> Returns the total number of GAS spaces.
-    integer pure function get_nGAS(self)
-        class(GASSpec_t), intent(in) :: self
-        get_nGAS = size(self%GAS_sizes)
+    integer pure function get_nGAS(this)
+        class(GASSpec_t), intent(in) :: this
+        get_nGAS = size(this%GAS_sizes)
     end function
 
     !> Returns the size of the largest GAS space.
-    integer pure function get_max_GAS_size(self)
-        class(GASSpec_t), intent(in) :: self
-        get_max_GAS_size = self%largest_GAS_size
+    integer pure function get_max_GAS_size(this)
+        class(GASSpec_t), intent(in) :: this
+        get_max_GAS_size = this%largest_GAS_size
     end function
 
     !>  Returns the size of the i-th GAS space in number of spin orbitals.
-    integer pure function get_GAS_size_i(self, iGAS)
-        class(GASSpec_t), intent(in) :: self
+    integer pure function get_GAS_size_i(this, iGAS)
+        class(GASSpec_t), intent(in) :: this
         integer, intent(in) :: iGAS
-        get_GAS_size_i = self%GAS_sizes(iGAS)
+        get_GAS_size_i = this%GAS_sizes(iGAS)
     end function
 
-    !>  Returns the sizes for all GAS spaces.
-    pure function get_GAS_size_idx(self, idx) result(res)
-        class(GASSpec_t), intent(in) :: self
+    !>  Returns the sizes for GAS spaces specified in idx.
+    pure function get_GAS_size_idx(this, idx) result(res)
+        class(GASSpec_t), intent(in) :: this
         integer, intent(in) :: idx(:)
         integer :: res(size(idx))
-        res(:) = self%GAS_sizes(idx)
+        res(:) = this%GAS_sizes(idx)
     end function
 
     !>  Returns the sizes for all GAS spaces.
-    pure function get_GAS_size_all(self) result(res)
-        class(GASSpec_t), intent(in) :: self
-        integer :: res(size(self%GAS_sizes))
-        res(:) = self%GAS_sizes(:)
+    pure function get_GAS_size_all(this) result(res)
+        class(GASSpec_t), intent(in) :: this
+        integer :: res(size(this%GAS_sizes))
+        res(:) = this%GAS_sizes(:)
     end function
 
     !> Returns the GAS space for a given spin orbital index.
-    integer elemental function get_iGAS(self, spin_orb_idx)
-        class(GASSpec_t), intent(in) :: self
+    integer elemental function get_iGAS(this, spin_orb_idx)
+        class(GASSpec_t), intent(in) :: this
         integer, intent(in) :: spin_orb_idx
-        get_iGAS = self%GAS_table(spin_orb_idx)
+        get_iGAS = this%GAS_table(spin_orb_idx)
     end function
 
-    integer elemental function get_nOrbs(self)
-        class(GASSpec_t), intent(in) :: self
-        get_nOrbs = size(self%GAS_table)
+    integer elemental function get_nOrbs(this)
+        class(GASSpec_t), intent(in) :: this
+        get_nOrbs = size(this%GAS_table)
     end function
 
     !> Returns the i-th spin orbital in the iGAS GAS space.
     !>
     !> Can be seen as the preimage of get_iGAS (which is usually not injective).
-    integer elemental function get_orb_idx(self, i, iGAS)
-        class(GASSpec_t), intent(in) :: self
+    integer elemental function get_orb_idx(this, i, iGAS)
+        class(GASSpec_t), intent(in) :: this
         integer, intent(in) :: i, iGAS
         character(*), parameter :: this_routine = 'get_orb_idx'
 
-        @:pure_ASSERT(1 <= i .and. i <= self%GAS_size(iGAS))
-        @:pure_ASSERT(1 <= iGAS .and. iGAS <= self%nGAS())
+        @:pure_ASSERT(1 <= i .and. i <= this%GAS_size(iGAS))
+        @:pure_ASSERT(1 <= iGAS .and. iGAS <= this%nGAS())
 
-        get_orb_idx = self%splitted_orbitals(i, iGAS)
+        get_orb_idx = this%splitted_orbitals(i, iGAS)
     end function
 
 
-    logical pure function get_is_connected(self)
+    logical pure function get_is_connected(this)
         !! Query if there are connected GAS spaces under the GAS specification.
-        class(GASSpec_t), intent(in) :: self
+        class(GASSpec_t), intent(in) :: this
             !!  Specification of GAS spaces.
-        get_is_connected = self%lookup_is_connected
+        get_is_connected = this%lookup_is_connected
     end function
 
 
@@ -279,18 +279,18 @@ contains
     !>  It is **assumed** that the configuration is contained in the
     !>  Full CI space and obeys e.g. the Pauli principle.
     !>  The return value is not defined, if that is not the case!
-    pure function contains_conf(self, nI) result(res)
+    pure function contains_conf(this, nI) result(res)
         !> Specification of GAS spaces.
-        class(GASSpec_t), intent(in) :: self
+        class(GASSpec_t), intent(in) :: this
         !> An index of occupied spin orbitals.
         integer, intent(in) :: nI(:)
         logical :: res
-        res = self%contains_supergroup(self%count_per_GAS(nI))
+        res = this%contains_supergroup(this%count_per_GAS(nI))
     end function
 
-    logical elemental function recoupling(self)
-        class(GASSpec_t), intent(in) :: self
-        recoupling = self%exchange_recoupling
+    logical elemental function recoupling(this)
+        class(GASSpec_t), intent(in) :: this
+        recoupling = this%exchange_recoupling
     end function
 
     !>  Query wether a determinant in bitmask format is contained in the GAS space.
@@ -299,29 +299,29 @@ contains
     !>  It is **assumed** that the determinant is contained in the
     !>  Full CI space and obeys e.g. the Pauli principle.
     !>  The return value is not defined, if that is not the case!
-    pure function contains_ilut(self, ilut) result(res)
+    pure function contains_ilut(this, ilut) result(res)
         !>  Specification of GAS spaces.
-        class(GASSpec_t), intent(in) :: self
+        class(GASSpec_t), intent(in) :: this
         !>  An index of occupied spin orbitals.
         integer(n_int), intent(in) :: ilut(0 : nIfTot)
         logical :: res
         integer :: nI(sum(popcnt(ilut)))
         call decode_bit_det(nI, ilut)
-        res = self%contains_conf(nI)
+        res = this%contains_conf(nI)
     end function
 
     !> Count the particles per GAS space. i.e. return the supergroup.
-    pure function count_per_GAS(self, occupied) result(supergroup)
-        class(GASSpec_t), intent(in) :: self
+    pure function count_per_GAS(this, occupied) result(supergroup)
+        class(GASSpec_t), intent(in) :: this
         integer, intent(in) :: occupied(:)
 
-        integer :: supergroup(get_nGAS(self))
+        integer :: supergroup(get_nGAS(this))
 
         integer :: iel, iGAS
 
         supergroup = 0
         do iel = 1, size(occupied)
-            iGAS = self%get_iGAS(occupied(iel))
+            iGAS = this%get_iGAS(occupied(iel))
             supergroup(iGAS) = supergroup(iGAS) + 1
         end do
     end function
@@ -520,9 +520,9 @@ contains
             end do
 
             if (present(add_particles)) then
-                possible_holes = complement(possible_values, union(det_I, add_particles))
+                possible_holes = possible_values .complement. (det_I .U. add_particles)
             else
-                possible_holes = complement(possible_values, det_I)
+                possible_holes = possible_values .complement. det_I
             end if
         end block
     end function
@@ -551,6 +551,11 @@ contains
         nGAS = maxval(spat_GAS_orbs)
         GAS_sizes = 2 * frequency(spat_GAS_orbs)
 
+        if (any(min(n_max, GAS_sizes) < n_min)) then
+            call stop_all(this_routine, 'any(min(n_max, GAS_sizes) < n_min) violated')
+        end if
+
+
         max_GAS_size = maxval(GAS_sizes)
         n_spin_orbs = sum(GAS_sizes)
 
@@ -572,13 +577,19 @@ contains
         end block
 
 
-
-        GAS_spec = LocalGASSpec_t(&
-                min=n_min, max=n_max, GAS_table=GAS_table, &
-                GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
-                splitted_orbitals=splitted_orbitals, &
-                lookup_is_connected=any(n_min(:) /= n_max(:)), &
-                exchange_recoupling=recoupling_)
+        ! This block and the additional declaration of new_n_max
+        ! is just necessary because of shitty intel compilers (Ifort 18).
+        ! If you can remove it, I am happy.
+        block
+            integer :: new_n_max(size(n_max))
+            new_n_max = min(n_max, GAS_sizes)
+            GAS_spec = LocalGASSpec_t(&
+                    min=n_min, max=new_n_max, GAS_table=GAS_table, &
+                    GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
+                    splitted_orbitals=splitted_orbitals, &
+                    lookup_is_connected=any(n_min(:) /= n_max(:)), &
+                    exchange_recoupling=recoupling_)
+        end block
 
         @:pure_ASSERT(GAS_spec%is_valid())
 
@@ -597,14 +608,14 @@ contains
     end function
 
     !>  Query wether a supergroup is contained in the GAS space.
-    pure function Local_contains_supergroup(self, supergroup) result(res)
+    pure function Local_contains_supergroup(this, supergroup) result(res)
         !> Specification of GAS spaces.
-        class(LocalGASSpec_t), intent(in) :: self
+        class(LocalGASSpec_t), intent(in) :: this
         !> A supergroup.
         integer, intent(in) :: supergroup(:)
         logical :: res
-        res = all(self%min(:) <= supergroup &
-                  .and. supergroup <= min(self%max(:), self%GAS_sizes(:)))
+        res = all(this%min(:) <= supergroup &
+                  .and. supergroup <= min(this%max(:), this%GAS_sizes(:)))
     end function
 
     !> Check if the GAS specification is valid
@@ -612,19 +623,19 @@ contains
     !> If the number of particles or the number of spin orbitals
     !> is provided, then the consistency with these numbers
     !> is checked as well.
-    logical pure function Local_is_valid(self, n_basis)
+    logical pure function Local_is_valid(this, n_basis)
         !>  Specification of GAS spaces with local constraints.
-        class(LocalGASSpec_t), intent(in) :: self
+        class(LocalGASSpec_t), intent(in) :: this
         integer, intent(in), optional :: n_basis
 
         logical :: shapes_match, pauli_principle, n_orbs_correct
 
-        associate(GAS_sizes => self%GAS_sizes, n_min => self%min, &
-                  n_max => self%max, nGAS => self%nGAS())
+        associate(GAS_sizes => this%GAS_sizes, n_min => this%min, &
+                  n_max => this%max, nGAS => this%nGAS())
 
             shapes_match = &
                 all([size(GAS_sizes), size(n_min), size(n_max)] == nGAS) &
-                .and. maxval(self%GAS_table) == nGAS
+                .and. maxval(this%GAS_table) == nGAS
 
             pauli_principle = all(n_min(:) <= GAS_sizes)
 
@@ -638,8 +649,8 @@ contains
         Local_is_valid = all([shapes_match, pauli_principle, n_orbs_correct])
     end function
 
-    subroutine Local_write_to(self, iunit)
-        class(LocalGASSpec_t), intent(in) :: self
+    subroutine Local_write_to(this, iunit)
+        class(LocalGASSpec_t), intent(in) :: this
         integer, intent(in) :: iunit
         integer :: iGAS, iorb
 
@@ -649,91 +660,91 @@ contains
         write(iunit, '(A)') 'n_max_i: maximum of particle number per i-th GAS space'
         write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'n_min_i', 'n_max_i'
         write(iunit, '(A)') '--------------------------------'
-        do iGAS = 1, self%nGAS()
-            write(iunit, '(I10, 1x, I10, 1x, I10)') self%GAS_size(iGAS) .div. 2, self%get_min(iGAS), self%get_max(iGAS)
+        do iGAS = 1, this%nGAS()
+            write(iunit, '(I10, 1x, I10, 1x, I10)') this%GAS_size(iGAS) .div. 2, this%get_min(iGAS), this%get_max(iGAS)
         end do
         write(iunit, '(A)') '--------------------------------'
         write(iunit, '(A)') 'The distribution of spatial orbitals to GAS spaces is given by:'
-        do iorb = 1, self%n_spin_orbs(), 2
-            write(iunit, '(I0, 1x)', advance='no') self%get_iGAS(iorb)
+        do iorb = 1, this%n_spin_orbs(), 2
+            write(iunit, '(I0, 1x)', advance='no') this%get_iGAS(iorb)
         end do
         write(iunit, *)
 
-        if (any(self%GAS_sizes < self%max)) then
+        if (any(this%GAS_sizes < this%max)) then
             write(iunit, '(A)') 'In at least one GAS space, the maximum allowed particle number by GAS constraints'
             write(iunit, '(A)') '   is larger than the particle number allowed by the Pauli principle.'
             write(iunit, '(A)') '   Was this intended when preparing your input?'
         end if
 
-        if (.not. self%recoupling()) then
+        if (.not. this%recoupling()) then
             write(iunit, '(A)') 'Double excitations with exchange are forbidden.'
         end if
     end subroutine
 
 
     !> Returns the minimum particle number for a given GAS space.
-    integer elemental function get_min_i(self, iGAS)
-        class(LocalGASSpec_t), intent(in) :: self
+    integer elemental function get_min_i(this, iGAS)
+        class(LocalGASSpec_t), intent(in) :: this
         integer, intent(in) :: iGAS
-        get_min_i = self%min(iGAS)
+        get_min_i = this%min(iGAS)
     end function
 
     !> Returns the minimum particle number for all GAS spaces.
-    pure function get_min_all(self) result(res)
-        class(LocalGASSpec_t), intent(in) :: self
+    pure function get_min_all(this) result(res)
+        class(LocalGASSpec_t), intent(in) :: this
         integer, allocatable :: res(:)
-        res = self%min(:)
+        res = this%min(:)
     end function
 
     !> Returns the maximum particle number for a given GAS space.
-    integer elemental function get_max_i(self, iGAS)
-        class(LocalGASSpec_t), intent(in) :: self
+    integer elemental function get_max_i(this, iGAS)
+        class(LocalGASSpec_t), intent(in) :: this
         integer, intent(in) :: iGAS
-        get_max_i = self%max(iGAS)
+        get_max_i = this%max(iGAS)
     end function
 
     !> Returns the maximum particle number for all GAS spaces.
-    pure function get_max_all(self) result(res)
-        class(LocalGASSpec_t), intent(in) :: self
+    pure function get_max_all(this) result(res)
+        class(LocalGASSpec_t), intent(in) :: this
         integer, allocatable :: res(:)
-        res = self%max(:)
+        res = this%max(:)
     end function
 
-    pure function Local_get_possible_spaces(self, supergroup, add_holes, add_particles, n_total) result(spaces)
-        class(LocalGASSpec_t), intent(in) :: self
-        integer, intent(in) :: supergroup(size(self%GAS_sizes))
+    pure function Local_get_possible_spaces(this, supergroup, add_holes, add_particles, n_total) result(spaces)
+        class(LocalGASSpec_t), intent(in) :: this
+        integer, intent(in) :: supergroup(size(this%GAS_sizes))
         integer, intent(in), optional :: add_holes(:), add_particles(:), n_total
         integer, allocatable :: spaces(:)
 
         integer :: n_total_, iGAS
         integer :: &
         !> pumber of particles per iGAS
-            n_particle(self%nGAS()), &
+            n_particle(this%nGAS()), &
         !> deficit per iGAS
-            deficit(self%nGAS()), &
+            deficit(this%nGAS()), &
         !> vacant orbitals per iGAS
-            vacant(self%nGAS())
+            vacant(this%nGAS())
         type(buffer_int_1D_t) :: space_buffer
 
         @:def_default(n_total_, n_total, 1)
 
         block
-            integer :: B(self%nGAS()), C(self%nGAS())
+            integer :: B(this%nGAS()), C(this%nGAS())
             if (present(add_holes)) then
-                B = self%count_per_GAS(add_holes)
+                B = this%count_per_GAS(add_holes)
             else
                 B = 0
             end if
             if (present(add_particles)) then
-                C = self%count_per_GAS(add_particles)
+                C = this%count_per_GAS(add_particles)
             else
                 C = 0
             end if
             n_particle = supergroup - B + C
         end block
 
-        deficit(:) = self%get_min() - n_particle(:)
-        vacant(:) = self%get_max() - n_particle(:)
+        deficit(:) = this%get_min() - n_particle(:)
+        vacant(:) = this%get_max() - n_particle(:)
 
         if (n_total_ < sum(deficit) .or. sum(vacant) < n_total_) then
             spaces = [integer::]
@@ -741,7 +752,7 @@ contains
             spaces = [custom_findloc(deficit == n_total_, val=.true.)]
         else
             call space_buffer%init()
-            do iGAS = 1, self%nGAS()
+            do iGAS = 1, this%nGAS()
                 if (vacant(iGAS) > 0) then
                     call space_buffer%push_back(iGAS)
                 end if
@@ -819,14 +830,14 @@ contains
     end function
 
     !> Query wether a supergroup is contained in the GAS space.
-    pure function Cumul_contains_supergroup(self, supergroup) result(res)
-        class(CumulGASSpec_t), intent(in) :: self
+    pure function Cumul_contains_supergroup(this, supergroup) result(res)
+        class(CumulGASSpec_t), intent(in) :: this
         integer, intent(in) :: supergroup(:)
         logical :: res
         associate(cumulated => cumsum(supergroup))
-            res = all(self%c_min(:) <= cumulated &
-                      .and. cumulated <= self%c_max(:) &
-                      .and. supergroup <= self%GAS_sizes(:))
+            res = all(this%c_min(:) <= cumulated &
+                      .and. cumulated <= this%c_max(:) &
+                      .and. supergroup <= this%GAS_sizes(:))
         end associate
     end function
 
@@ -835,9 +846,9 @@ contains
     !> If the number of particles or the number of spin orbitals
     !> is provided, then the consistency with these numbers
     !> is checked as well.
-    pure function Cumul_is_valid(self, n_basis) result(is_valid)
+    pure function Cumul_is_valid(this, n_basis) result(is_valid)
         !>  Specification of GAS spaces.
-        class(CumulGASSpec_t), intent(in) :: self
+        class(CumulGASSpec_t), intent(in) :: this
         !>  The number of spin orbitals.
         integer, intent(in), optional :: n_basis
         logical :: is_valid
@@ -845,12 +856,12 @@ contains
         logical :: shapes_match, pauli_principle, monotonic, &
             n_orbs_correct
 
-        associate(GAS_sizes => self%GAS_size(), n_min => self%get_cmin(), &
-                  n_max => self%get_cmax(), nGAS => self%nGAS())
+        associate(GAS_sizes => this%GAS_size(), n_min => this%get_cmin(), &
+                  n_max => this%get_cmax(), nGAS => this%nGAS())
 
             shapes_match = &
                 all([size(GAS_sizes), size(n_min), size(n_max)] == nGAS) &
-                .and. maxval(self%GAS_table) == nGAS
+                .and. maxval(this%GAS_table) == nGAS
 
             pauli_principle = all(n_min(:) <= cumsum(GAS_sizes))
 
@@ -872,8 +883,8 @@ contains
     end function
 
     !> Write a string representation of this GAS specification to iunit
-    subroutine Cumul_write_to(self, iunit)
-        class(CumulGASSpec_t), intent(in) :: self
+    subroutine Cumul_write_to(this, iunit)
+        class(CumulGASSpec_t), intent(in) :: this
         integer, intent(in) :: iunit
         integer :: iGAS, iorb
 
@@ -883,60 +894,60 @@ contains
         write(iunit, '(A)') 'cn_max_i: maximum of cumulative particle number per i-th GAS space'
         write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'cn_min_i', 'cn_max_i'
         write(iunit, '(A)') '--------------------------------'
-        do iGAS = 1, self%nGAS()
+        do iGAS = 1, this%nGAS()
             write(iunit, '(I10, 1x, I10, 1x, I10)') &
-                self%GAS_size(iGAS) .div. 2, self%get_cmin(iGAS), self%get_cmax(iGAS)
+                this%GAS_size(iGAS) .div. 2, this%get_cmin(iGAS), this%get_cmax(iGAS)
         end do
         write(iunit, '(A)') '--------------------------------'
         write(iunit, '(A)') 'The distribution of spatial orbitals to GAS spaces is given by:'
-        do iorb = 1, self%n_spin_orbs(), 2
-            write(iunit, '(I0, 1x)', advance='no') self%get_iGAS(iorb)
+        do iorb = 1, this%n_spin_orbs(), 2
+            write(iunit, '(I0, 1x)', advance='no') this%get_iGAS(iorb)
         end do
         write(iunit, *)
 
-        if (any(self%GAS_size() < (self%get_cmax() - eoshift(self%get_cmin(), -1)))) then
+        if (any(this%GAS_size() < (this%get_cmax() - eoshift(this%get_cmin(), -1)))) then
             write(iunit, '(A)') 'In at least one GAS space, the maximum allowed particle number by GAS constraints'
             write(iunit, '(A)') '   is larger than the particle number allowed by the Pauli principle.'
             write(iunit, '(A)') '   Was this intended when preparing your input?'
         end if
 
-        if (.not. self%recoupling()) then
+        if (.not. this%recoupling()) then
             write(iunit, '(A)') 'Double excitations with exchange are forbidden.'
         end if
     end subroutine
 
 
     !> Returns the minimum particle number for a given GAS space.
-    integer elemental function get_cmin_i(self, iGAS)
-        class(CumulGASSpec_t), intent(in) :: self
+    integer elemental function get_cmin_i(this, iGAS)
+        class(CumulGASSpec_t), intent(in) :: this
         integer, intent(in) :: iGAS
-        get_cmin_i = self%c_min(iGAS)
+        get_cmin_i = this%c_min(iGAS)
     end function
 
     !> Returns the minimum particle number for all GAS spaces.
-    pure function get_cmin_all(self) result(res)
-        class(CumulGASSpec_t), intent(in) :: self
+    pure function get_cmin_all(this) result(res)
+        class(CumulGASSpec_t), intent(in) :: this
         integer, allocatable :: res(:)
-        res = self%c_min(:)
+        res = this%c_min(:)
     end function
 
     !> Returns the maximum particle number for a given GAS space.
-    integer elemental function get_cmax_i(self, iGAS)
-        class(CumulGASSpec_t), intent(in) :: self
+    integer elemental function get_cmax_i(this, iGAS)
+        class(CumulGASSpec_t), intent(in) :: this
         integer, intent(in) :: iGAS
-        get_cmax_i = self%c_max(iGAS)
+        get_cmax_i = this%c_max(iGAS)
     end function
 
     !> Returns the maximum particle number for all GAS spaces.
-    pure function get_cmax_all(self) result(res)
-        class(CumulGASSpec_t), intent(in) :: self
+    pure function get_cmax_all(this) result(res)
+        class(CumulGASSpec_t), intent(in) :: this
         integer, allocatable :: res(:)
-        res = self%c_max(:)
+        res = this%c_max(:)
     end function
 
-    pure function Cumul_get_possible_spaces(self, supergroup, add_holes, add_particles, n_total) result(spaces)
-        class(CumulGASSpec_t), intent(in) :: self
-        integer, intent(in) :: supergroup(size(self%GAS_sizes))
+    pure function Cumul_get_possible_spaces(this, supergroup, add_holes, add_particles, n_total) result(spaces)
+        class(CumulGASSpec_t), intent(in) :: this
+        integer, intent(in) :: supergroup(size(this%GAS_sizes))
         integer, intent(in), optional :: add_holes(:), add_particles(:), n_total
         !> Lower and upper bound for spaces where a particle can be created.
         !> If no particle can be created, then spaces == 0 .
@@ -947,31 +958,31 @@ contains
 
         integer :: &
         !> Cumulated number of particles per iGAS
-            cum_n_particle(self%nGAS()), &
+            cum_n_particle(this%nGAS()), &
         !> Cumulated deficit per iGAS
-            deficit(self%nGAS()), &
+            deficit(this%nGAS()), &
         !> Cumulated vacant orbitals per iGAS
-            vacant(self%nGAS())
+            vacant(this%nGAS())
 
         @:def_default(n_total_, n_total, 1)
 
         block
-            integer :: B(self%nGAS()), C(self%nGAS())
+            integer :: B(this%nGAS()), C(this%nGAS())
             if (present(add_holes)) then
-                B = self%count_per_GAS(add_holes)
+                B = this%count_per_GAS(add_holes)
             else
                 B = 0
             end if
             if (present(add_particles)) then
-                C = self%count_per_GAS(add_particles)
+                C = this%count_per_GAS(add_particles)
             else
                 C = 0
             end if
             cum_n_particle = cumsum(supergroup - B + C)
         end block
 
-        deficit(:) = self%get_cmin() - cum_n_particle(:)
-        vacant(:) = self%get_cmax() - cum_n_particle(:)
+        deficit(:) = this%get_cmin() - cum_n_particle(:)
+        vacant(:) = this%get_cmax() - cum_n_particle(:)
 
         if (any(n_total_ < deficit) .or. all(vacant < n_total_)) then
             spaces = [integer :: ]
@@ -987,7 +998,7 @@ contains
         ! Find the first index, where a particle has to be created.
         upper_bound = custom_findloc(deficit, n_total_)
 
-        if (lower_bound > upper_bound .or. lower_bound > self%nGAS()) then
+        if (lower_bound > upper_bound .or. lower_bound > this%nGAS()) then
             spaces = [integer :: ]
         else
         block
@@ -1012,5 +1023,4 @@ contains
         end block
         end if
     end function
-
 end module gasci

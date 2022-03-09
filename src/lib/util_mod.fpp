@@ -13,7 +13,10 @@ module util_mod
     use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
-    use binomial_lookup, only: factrl => factorial, binomial_lookup_table
+    use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
+#ifdef GFORTRAN_
+    use binomial_lookup, only: binomial_lookup_table_i128
+#endif
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
@@ -60,17 +63,29 @@ module util_mod
         pure subroutine stop_all(sub_name, error_msg)
             character(*), intent(in) :: sub_name, error_msg
         end subroutine
+
+        subroutine neci_flush(n)
+            integer, intent(in) :: n
+        end subroutine
     end interface
 
     interface operator(.implies.)
         module procedure implies
     end interface
 
-    interface choose
+    interface choose_i64
     #:for kind in primitive_types['integer']
-        module procedure choose_${kind}$
+        module procedure choose_i64_${kind}$
     #:endfor
     end interface
+
+#ifdef GFORTRAN_
+    interface choose_i128
+    #:for kind in primitive_types['integer']
+        module procedure choose_i128_${kind}$
+    #:endfor
+    end interface
+#endif
 
 
     interface
@@ -103,6 +118,9 @@ module util_mod
 
     interface operator(.div.)
         module procedure div_int32, div_int64
+#ifdef GFORTRAN_
+        module procedure div_int128
+#endif
     end interface
 
     interface abs_sign
@@ -335,7 +353,6 @@ contains
     END SUBROUTINE NECI_ICOPY
 
     subroutine addToIntArray(arr, ind, elem)
-        implicit none
         integer, intent(inout), allocatable :: arr(:)
         integer, intent(in) :: ind, elem
 
@@ -407,7 +424,6 @@ contains
         ! the resulting index is not contigious in p or q
         ! Input: p,q - 2d-array indices
         ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
-        implicit none
         integer(int32), intent(in) :: p, q
         integer(int32) :: ind
 
@@ -424,7 +440,6 @@ contains
         ! i.e. their ordering does not matter
         ! Input: p,q - 2d-array indices
         ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
-        implicit none
         integer(int64), intent(in) :: x, y
         integer(int64) :: xy
 
@@ -479,7 +494,6 @@ contains
         ! Input: p,q - 2d-array indices
         !        dim - dimension of the underlying array in q-direction
         ! Output: ind - contiguous 1d-array index
-        implicit none
         integer, intent(in) :: p, q, dim
         integer :: ind
 
@@ -492,7 +506,6 @@ contains
         ! Output: ms - spin index of orb with the following values:
         !              0 - alpha
         !              1 - beta
-        implicit none
         integer, intent(in) :: orb
         integer :: ms
 
@@ -526,43 +539,6 @@ contains
 #endif
     end function
 
-#:for kind in primitive_types['integer']
-    !> @brief
-    !> Return the binomail coefficient nCr
-    elemental function choose_${kind}$(n, r) result(res)
-        integer(${kind}$), intent(in) :: n, r
-        integer(int64) :: res
-        integer(int64) :: i, k
-        character(*), parameter :: this_routine = "choose"
-
-        ! NOTE: This is highly optimized. If you change something, please time it!
-
-        @:pure_ASSERT(n >= 0_${kind}$, import_stop_all=False)
-        @:pure_ASSERT(r >= 0_${kind}$, import_stop_all=False)
-
-        if(r > n) then
-            res = 0_int64
-            return
-        end if
-
-        k = int(merge(r, n - r, r <= n - r), int64)
-
-        if (k == 0) then
-            res = 1_int64
-        else if (k == 1) then
-            res = int(n, int64)
-        else if (n <= 66) then
-            ! use lookup table
-            res = binomial_lookup_table(get_index(int(n), int(k)))
-        else
-            ! Will overflow in most cases. Perhaps throw an error?
-            res = 1_${kind}$
-            do i = 0_${kind}$, k - 1_${kind}$
-                res = (res * (n - i)) / (i + 1_${kind}$)
-            enddo
-        end if
-
-    contains
         !> @brief
         !> Calculate 1 + ... + n
         integer elemental function gauss_sum(n)
@@ -576,7 +552,128 @@ contains
             integer, intent(in) :: n, k
             get_index = gauss_sum((n - 3) .div. 2) + gauss_sum((n - 4) .div. 2) + k - 1
         end function
+
+#:for kind in primitive_types['integer']
+    ! Unfortunately there are no recursive elemental functions in Fortran.
+    recursive pure function choose_i64_${kind}$(n, r, signal_overflow) result(res)
+        !! Return the binomail coefficient nCr(n, r)
+        integer(${kind}$), intent(in) :: n, r
+        logical, intent(in), optional :: signal_overflow
+            !! If true then the function returns -1 instead of aborting
+            !! when overflow is encountered.
+        integer(int64) :: res
+        integer(int64) :: k
+
+        character(*), parameter :: this_routine = "choose_i64"
+
+        ! NOTE: This is highly optimized. If you change something, please time it!
+
+        @:pure_ASSERT(n >= 0_${kind}$, import_stop_all=False)
+        @:pure_ASSERT(r >= 0_${kind}$, import_stop_all=False)
+
+        if(r > n) then
+            res = 0_int64
+            return
+        end if
+
+        k = int(merge(r, n - r, r <= n - r), kind=int64)
+
+        if (k == 0) then
+            res = 1_int64
+        else if (k == 1) then
+            res = int(n, int64)
+        else if (n <= 66) then
+            ! use lookup table
+            res = binomial_lookup_table_i64(get_index(int(n), int(k)))
+        else
+            block
+                integer(int64) :: prev
+                prev = choose_i64_${kind}$(n - 1, r - 1, signal_overflow)
+            ! Note that the recursion stops at n = 66
+                res = (prev * n) .div. k
+                check_for_overflow: if (prev < 0 .or. res < 0) then
+                    if (present(signal_overflow)) then
+                        if (signal_overflow) then
+                            res = -1
+                        else
+#ifdef IFORT_
+                            error stop 'Binomial coefficient exceeds range of int64.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#endif
+                        end if
+                    else
+#ifdef IFORT_
+                            error stop 'Binomial coefficient exceeds range of int64.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#endif
+                    end if
+                end if check_for_overflow
+            end block
+        end if
     end function
+
+#ifdef GFORTRAN_
+    recursive pure function choose_i128_${kind}$(n, r, signal_overflow) result(res)
+        !! Return the binomail coefficient nCr(n, r)
+        integer(${kind}$), intent(in) :: n, r
+        logical, intent(in), optional :: signal_overflow
+            !! If true then the function returns -1 instead of aborting
+            !! when overflow is encountered.
+        integer(int128) :: res
+        integer(int128) :: k
+        character(*), parameter :: this_routine = "choose_i128"
+
+        ! NOTE: This is highly optimized. If you change something, please time it!
+
+        @:pure_ASSERT(n >= 0_${kind}$, import_stop_all=False)
+        @:pure_ASSERT(r >= 0_${kind}$, import_stop_all=False)
+
+        if(r > n) then
+            res = 0_int128
+            return
+        end if
+
+        k = int(merge(r, n - r, r <= n - r), kind=int128)
+
+        if (k == 0) then
+            res = 1_int128
+        else if (k == 1) then
+            res = int(n, int128)
+        else if (n <= 130) then
+            ! use lookup table
+            res = binomial_lookup_table_i128(get_index(int(n), int(k)))
+        else
+            ! Note that the recursion stops at n = 130
+            block
+                integer(int128) :: prev
+                prev = choose_i128_${kind}$(n - 1, r - 1, signal_overflow)
+            ! Note that the recursion stops at n = 66
+                res = (prev * n) .div. k
+                check_for_overflow: if (prev < 0 .or. res < 0) then
+                    if (present(signal_overflow)) then
+                        if (signal_overflow) then
+                            res = -1
+                        else
+#ifdef IFORT_
+                            error stop 'Binomial coefficient exceeds range of int128.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#endif
+                        end if
+                    else
+#ifdef IFORT_
+                            error stop 'Binomial coefficient exceeds range of int128.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#endif
+                    end if
+                end if check_for_overflow
+            end block
+        end if
+    end function
+#endif
 #:endfor
 
     elemental integer(int32) function div_int32(a, b)
@@ -596,6 +693,17 @@ contains
         div_int64 = a / b
 #endif
     end function
+
+#ifdef GFORTRAN_
+    elemental integer(int128) function div_int128(a, b)
+        integer(int128), intent(in) :: a, b
+#ifdef WARNING_WORKAROUND_
+        div_int128 = int(real(a, kind=dp) / real(b, kind=dp), kind=int128)
+#else
+        div_int128 = a / b
+#endif
+    end function
+#endif
 
 !--- Comparison of subarrays ---
 
@@ -1074,7 +1182,6 @@ contains
     function error_function_c(argument) result(res)
 
         use constants, only: dp
-        implicit none
 
         real(dp), intent(in) :: argument
         real(dp) :: res
@@ -1085,7 +1192,6 @@ contains
     function error_function(argument) result(res)
 
         use constants, only: dp
-        implicit none
 
         real(dp), intent(in) :: argument
         real(dp) :: res
@@ -1158,7 +1264,6 @@ contains
     end function neci_etime
 
     subroutine open_new_file(funit, filename)
-        implicit none
         integer, intent(in) :: funit
         character(*), intent(in) :: filename
         logical :: exists

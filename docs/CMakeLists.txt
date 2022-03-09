@@ -25,14 +25,15 @@ set(markdown_files_dev_doc
         pages/02_dev_doc/03_git_overview.md
         pages/02_dev_doc/04_review_guidelines.md
         pages/02_dev_doc/05_DRY.md
-        pages/02_dev_doc/06_compiler_help.md
         pages/02_dev_doc/06_premature_optimization.md
-        pages/02_dev_doc/07_memory_tracking.md
-        pages/02_dev_doc/08_templating.md
-        pages/02_dev_doc/09_testing.md
-        pages/02_dev_doc/10_interfacing_C.md
-        pages/02_dev_doc/11_debugging.md
-        pages/02_dev_doc/12_important_globals.md
+        pages/02_dev_doc/07_compiler_help.md
+        pages/02_dev_doc/08_tooling.md
+        pages/02_dev_doc/09_memory_tracking.md
+        pages/02_dev_doc/10_templating.md
+        pages/02_dev_doc/11_testing.md
+        pages/02_dev_doc/12_interfacing_C.md
+        pages/02_dev_doc/13_debugging.md
+        pages/02_dev_doc/14_important_globals.md
 )
 
 set(MEDIA_FILES
@@ -47,6 +48,7 @@ set(MEDIA_FILES
         media/plots1/check_totE.png
         media/plots1/check_totWalkers.png
         media/plots2/blocking.png
+        media/neci.jpg
 )
 
 set(DOC_ROOT_SRC ${PROJECT_SOURCE_DIR}/docs)
@@ -296,11 +298,14 @@ function(add_ford_documentation target configuration)
     get_absolute_sources(lib${configuration} lib_sources)
     set(fortran_sources ${prog_sources} ${lib_sources})
     get_unique_dirs(fortran_sources source_dirs)
-    foreach(dir ${source_dirs})
-        list(APPEND ford_options "--src_dir=${dir}")
-    endforeach()
-# Use the following instead if you want to compile ford fast
-#     list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
+    option(SHORT_FORD_COMPILATION "Speed up FORD compilation by documenting only a subset of source files" OFF)
+    if (SHORT_FORD_COMPILATION)
+        list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
+    else()
+        foreach(dir ${source_dirs})
+            list(APPEND ford_options "--src_dir=${dir}")
+        endforeach()
+    endif()
 
     get_target_property(include_dirs lib${configuration} INCLUDE_DIRECTORIES)
     foreach(dir ${include_dirs})

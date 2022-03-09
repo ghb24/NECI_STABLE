@@ -5,6 +5,8 @@ MODULE DetCalc
          t_non_hermitian
     use sort_mod
 
+    use bit_reps, only: writebitdet
+
     use DetCalcData
 
     use MemoryManager, only: TagIntType
@@ -52,7 +54,6 @@ CONTAINS
         use SystemData, only: tParity, tSpn, Symmetry, STot, NullBasisFn, tUHF, tMolpro
         use sym_mod
         use LoggingData, only: tLogDets
-        use legacy_data, only: irat
         use HElem
         use util_mod, only: get_free_unit, NECI_ICOPY
         Type(BasisFn) ISym
@@ -297,7 +298,6 @@ CONTAINS
         use Parallel_neci, only: iProcIndex
         use DetBitops, only: DetBitEQ, EncodeBitDet, FindBitExcitLevel
         use bit_rep_data, only: nifd, NIfTot, NIfD
-        use legacy_data, only: irat
         use bit_reps, only: decode_bit_det
         use sym_mod
         use HElem
@@ -506,7 +506,7 @@ CONTAINS
                                   "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians")
                 end if
                 CALL NECI_FRSBLKH(NDET, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A, W, V, AM, BM, T, WT, &
-         &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false., .true.)
+         &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .true.)
 
 !Multiply all eigenvalues by -1.
                 CALL DSCAL(NEVAL, -1.0_dp, W, 1)

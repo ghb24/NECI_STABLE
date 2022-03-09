@@ -218,11 +218,9 @@ contains
     subroutine test_setup_virtual_mask()
         use fcimcdata, only: projedet, ilutref
         use SystemData, only: nel, nBasis
-        use constants, only: inum_runs, dp
+        use constants, only: inum_runs
         use bit_rep_data, only: niftot
         use detbitops, only: EncodeBitDet
-
-        HElement_t(dp) :: test
 
         integer :: i, j
         nel = 6
@@ -345,7 +343,7 @@ contains
 
 
         real(dp) :: pgen
-        integer :: run, elecs(2), src(2), ispn, sum_ml
+        integer :: elecs(2), src(2), ispn, sum_ml
         integer, allocatable :: nI(:)
 
         ! i can make really stupid masks here too.. i just want to test
@@ -421,7 +419,7 @@ contains
         use SystemData, only: nel
         use DetBitOps, only: EncodeBitDet
 
-        integer :: nI(1) = 0, src = 1, cc_index = 1, run = 1
+        integer :: src = 1, cc_index = 1, run = 1
         real(dp) :: pgen
         integer :: orb
         integer(n_int), allocatable :: ilut(:)
@@ -634,7 +632,7 @@ contains
         use DetBitOps, only: EncodeBitDet
 
         integer, allocatable :: nI(:)
-        integer :: src(2) = 0, cc_b = 1, orb_a = 1, ispn = 0, run = 1
+        integer :: cc_b = 1, orb_a = 1, ispn = 0, run = 1
         real(dp) :: cpt, cum_sum
         integer :: orb
         integer(n_int), allocatable :: ilutI(:)
@@ -763,7 +761,7 @@ contains
 
     subroutine test_pick_virtual_electron_single
         use SystemData, only: nel
-        use constants, only: dp, n_int
+        use constants, only: dp
         use dSFMT_interface, only: dSFMT_init
         use bit_rep_data, only: niftot
         use DetBitOps, only: EncodeBitDet
@@ -817,7 +815,6 @@ contains
         use dSFMT_interface, only: dSFMT_init
         use bit_rep_data, only: niftot
         use DetBitOps, only: EncodeBitDet
-        use CalcData, only: occ_virt_level
 
         integer, allocatable :: nI(:)
         integer(n_int), allocatable :: ilutI(:)

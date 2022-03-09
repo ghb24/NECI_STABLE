@@ -12,7 +12,7 @@ module cc_amplitudes
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
     use hash, only: hash_table_lookup, FindWalkerHash
-    use util_mod, only: swap, binomial => choose, operator(.div.)
+    use util_mod, only: swap, choose_i64, operator(.div.)
     use bit_rep_data, only: nifd
     use MPI_wrapper, only: iProcIndex, root
     use Parallel_neci, only: MPISumAll, MPIReduce, MPI_SUM, MPI_LOR, MPIAllLorLogical
@@ -2067,7 +2067,7 @@ contains
         integer, intent(in) :: n_elecs, n_orbs, ic
         integer :: n_parallel
 
-        n_parallel = int(binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic))
+        n_parallel = int(choose_i64(n_elecs, ic) * choose_i64(n_orbs - n_elecs, ic))
 
     end function calc_n_parallel_excitations
 end module cc_amplitudes

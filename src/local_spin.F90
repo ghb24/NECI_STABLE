@@ -45,7 +45,7 @@ contains
 #endif
 
         ! the current b vector should be fine to get the total spin
-        loc_spin = csf_i%B_ilut / 2.0_dp * (csf_i%B_ilut / 2.0_dp + 1.0_dp)
+        loc_spin = csf_i%B_real / 2.0_dp * (csf_i%B_real / 2.0_dp + 1.0_dp)
 
         inst_local_spin = inst_local_spin + coeff * loc_spin
 

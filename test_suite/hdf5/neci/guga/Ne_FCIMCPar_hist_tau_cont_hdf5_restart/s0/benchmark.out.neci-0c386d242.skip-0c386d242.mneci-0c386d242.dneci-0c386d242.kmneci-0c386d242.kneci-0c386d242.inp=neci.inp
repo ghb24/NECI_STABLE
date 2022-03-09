@@ -1,0 +1,621 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Dec 10 2021 at 09:37:01
+ Compiled using configuration:
+     cmake-Intel--RELEASE
+ VCS BASE repository version:
+     0c386d24289ba541f20d5b436c9b4ccede78807e
+ Working directory: 
+     /home/dobrautz/neci-branches/GUGA_cleanup/test_suite/hdf5/neci/guga/Ne_FCIMCPar_hist_tau_cont_hdf5_restart/s0
+ Running on: allogin1
+ Started running on 10/12/2021 at 09:58:47
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 10
+nonuniformrandexcits mol_guga_weighted
+guga 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+seed -7
+nmcyc 1000
+totalwalkers 1000
+(tau 0.001 search
+new-tau-search 0.9999
+(WARNING: both the histogramming and standard tau-search option were chosen! TURNING STANDARD VERSION OFF!
+max-tau 0.02
+restart-hist-tau-search
+readpops
+startsinglepart
+truncinitiator
+addtoinitiator 3
+shiftdamp 0.03
+stepsshift 25
+jump-shift
+load-balance-blocks off
+maxwalkerbloom 3.0
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+popsfile -1
+hdf5-pops-read
+(hdf5-pops-write
+no-append-stats
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      5     17      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      6     18      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      7     23      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      8     24      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      9     33      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     10     34      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     11      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     12      6      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     13     19      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     14     20      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     15     25      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     16     26      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     17     35      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     18     36      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21      9      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     22     10      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     23     29      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     24     30      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     25     39      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     26     40      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     27     43      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     28     44      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     29     21      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     30     22      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     31     27      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     32     28      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     33     37      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     34     38      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     15      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     40     16      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     41     31      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     42     32      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     43     41      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     44     42      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     45     45      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     46     46      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     0
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already impleme
+ nted
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  38226
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   0   0|   0   0):   0.000000000000000E+000
+ Number of removed two-index integrals:                      1
+ Number of non-zero integrals:                   4806
+ ECORE=  0.000000000000000E+000
+ Setting normal GetUMatEl routine
+N_neg: 5 ; N_pos: 5 ; S: 0 ; nEl:10
+ Fermi det (D0):(    1,    2,    3,    4,   17,   18,   23,   24,   33,   34)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -74.5889843242640     
+======== FREEZING ORBITALS ==========
+ Freezing            2  core orbitals.
+ Freezing            0  virtual orbitals.
+ Post-Freeze Fermi det (D0):(    1,    2,   15,   16,   21,   22,   31,   32)
+ Symmetry:  ( 0, 0, 0) 0
+ ECORE now  -93.8489015454800     
+ Number of orbitals remaining:           44
+ Number of active electrons:           8
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      3     15      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      4     16      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      5     21      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      6     22      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      7     31      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      8     32      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      9      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     10      4      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     11     17      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     12     18      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     13     23      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     14     24      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     15     33      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     16     34      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     17      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     18      6      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21     27      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     22     28      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     23     37      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     24     38      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     25     41      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     26     42      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     27     19      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     28     20      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     29     25      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     30     26      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     31     35      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     32     36      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     33      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     34     10      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     29      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     40     30      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     41     39      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     42     40      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     43     43      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     44     44      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+ Setting normal GetUMatEl routine
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+For GUGA calculation set up a integer list of length:      4
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     0
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already impleme
+ nted
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          28  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -128.496349730325     
+ <D0|T|D0>=  -60.2958137810042     
+ <D0|U|D0>  -68.2005359493204     
+  !! NOTE: running a GUGA simulation, so following info makes no sense!
+  but is kept for now to not break remaining code!
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+              153 alpha-alpha (vacant) hole pairs
+              153 beta-beta (vacant) hole pairs
+              324 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:      -128.4963497303
+Highest energy determinant is (approximately):     -75.3862942834927    
+Corresponding to a correlation energy of:      53.1100554468320    
+This means tau should be no more than about         0.018828826134461
+ Highest energy determinant is:           13          14          29          30
+          39          40          43          44
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    960 double excitations, and      24 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.975610
+ pSingles set to:       0.024390
+ Connectivity of HF determinant is:          984
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         655360
+ Determinant related persistent storage requires:      25.000000 Mb / processor
+Spawning vectors allowing for a total of         1500 particles to be spawned in any one iteration per core.
+ Memory requirement   2.288818359375000E-002 MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             350
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,   15,   16,   21,   22,   31,   32)
+ 
+ ========== Reading in from HDF5 popsfile ==========
+ File name: popsfile.h5
+ Previous calculation
+ Date: 2020-02-19 11:20:12
+ Sequence no.:           1
+ VCS ver: 1c710fcb1f487c8822f0d3363158e32ad95530d8
+ Build config: cmake-Intel-par-RELEASE
+ Build date: Feb 17 2020
+ Build time: 16:23:53
+ 
+ Reading in                    504  determinants
+ Reading in                    252  determinants on this process ...
+ ... done
+ 
+ Completed iterations:         6250
+ Resuming calculation after    61.8358416049975       a.u.
+ Initial shift:  -0.200570825586681     
+ read-in tau optimization data: 
+ time-step:   8.077544426494346E-003
+ pSingles:   5.842757135164243E-002
+ pDoubles:   0.941572428648358     
+ pParallel:   0.500000000000000     
+ continuing tau-search!
+ Initial memory (without excitgens + temp arrays) consists of :      15.068665 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+WARNING: NO spawn truncation chosen with keyword: truncate-spawns [float] in input. this might cause bloom problems with histogramming tau-search! BE CAUTIOUS!
+ Setup of the Histogramming tau-search: 
+   Integration cut-off:   0.999900000000000     
+   Number of bins:       100000
+   Max. ratio:    10000.0000000000     
+   Bin-width:   0.100000000000000     
+ Using time-step from POPSFILE!
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+        6250  -0.2005708        0.000000        0.000000        975.0000        0.000000        0.000000        0.000000      -0.2126675        0.000000        0.000000        191.0000        0.000000        0.000000             504           0   0.0000    
+ Updating singles/doubles bias. pSingles =   4.659763313609468E-002
+  pDoubles =   0.953402366863905     
+ Updating time-step. New time-step =   7.396449704142011E-003  in: 
+ update_tau_hist
+        6275  -0.1988915        22.00000       0.9897026        997.0000        314.0000        1290.000        4143.000      -0.2125659        0.000000      -0.1962716        195.0000        460.0000       0.1717377             520         173  0.29136E-02
+ Updating singles/doubles bias. pSingles =   4.789660415610746E-002
+  pDoubles =   0.952103395843893     
+ Updating time-step. New time-step =   7.602635580334516E-003  in: 
+ update_tau_hist
+        6300  -0.2134086        97.00000        1.096336        1094.000        258.0000        1334.000        4376.000      -0.2125120        0.000000      -0.2037965        193.0000        501.0000       0.1654567             568         162  0.32174E-02
+        6325  -0.2166456       -51.00000        1.020720        1043.000        292.0000        1360.000        4416.000      -0.2124485        0.000000      -0.2021053        193.0000        463.0000       0.1635798             569         144  0.32174E-02
+ Updating singles/doubles bias. pSingles =   5.316973415132924E-002
+  pDoubles =   0.946830265848671     
+ Updating time-step. New time-step =   7.668711656441717E-003  in: 
+ update_tau_hist
+        6350  -0.2089167       -53.00000       0.9518077        990.0000        278.0000        1335.000        4088.000      -0.2124599        0.000000      -0.2143527        188.0000        467.0000       0.1590971             519         152  0.30670E-02
+ Updating singles/doubles bias. pSingles =   5.104294478527607E-002
+  pDoubles =   0.948957055214724     
+ Updating time-step. New time-step =   7.361963190184048E-003  in: 
+ update_tau_hist
+        6375  -0.1976301       -18.00000       0.9330998        972.0000        282.0000        1260.000        3881.000      -0.2124478        0.000000      -0.2103849        188.0000        456.0000       0.1618702             506         155  0.28018E-02
+        6400  -0.2051498        43.00000        1.047214        1015.000        272.0000        1223.000        3991.000      -0.2124630        0.000000      -0.2150771        187.0000        476.0000       0.1589533             529         152  0.29739E-02
+ Updating singles/doubles bias. pSingles =   5.316973415132924E-002
+  pDoubles =   0.946830265848671     
+ Updating time-step. New time-step =   7.668711656441717E-003  in: 
+ update_tau_hist
+        6425  -0.2093859        33.00000        1.027441        1048.000        288.0000        1266.000        4039.000      -0.2124771        0.000000      -0.2148729        191.0000        472.0000       0.1565686             563         177  0.29596E-02
+        6450  -0.2181669        26.00000        1.057720        1074.000        294.0000        1392.000        4458.000      -0.2125186        0.000000      -0.2195655        191.0000        481.0000       0.1633805             557         180  0.31630E-02
+ Updating singles/doubles bias. pSingles =   5.104294478527607E-002
+  pDoubles =   0.948957055214724     
+ Updating time-step. New time-step =   7.361963190184048E-003  in: 
+ update_tau_hist
+        6475  -0.2203093        20.00000        1.013230        1094.000        334.0000        1417.000        4531.000      -0.2125360        0.000000      -0.2155416        190.0000        495.0000       0.1638876             578         202  0.32165E-02
+        6500  -0.2206391        16.00000        1.002026        1110.000        320.0000        1390.000        4277.000      -0.2125954        0.000000      -0.2227786        197.0000        518.0000       0.1543876             580         167  0.33568E-02
+ Updating singles/doubles bias. pSingles =   5.106800883869383E-002
+  pDoubles =   0.948931991161306     
+ Updating time-step. New time-step =   7.365578197888534E-003  in: 
+ update_tau_hist
+        6525  -0.2299314        131.0000        1.058694        1241.000        366.0000        1483.000        4699.000      -0.2126679        0.000000      -0.2246086        205.0000        539.0000       0.1602169             653         194  0.35596E-02
+ Updating singles/doubles bias. pSingles =   5.245901639344262E-002
+  pDoubles =   0.947540983606557     
+ Updating time-step. New time-step =   7.566204287515762E-003  in: 
+ update_tau_hist
+        6550  -0.2331857       -79.00000        1.020730        1162.000        358.0000        1527.000        4742.000      -0.2126488        0.000000      -0.2095455        203.0000        534.0000       0.1583993             603         164  0.34727E-02
+ Updating singles/doubles bias. pSingles =   5.316973415132924E-002
+  pDoubles =   0.946830265848671     
+ Updating time-step. New time-step =   7.668711656441717E-003  in: 
+ update_tau_hist
+        6575  -0.2313613        15.00000       0.9884090        1177.000        370.0000        1501.000        4667.000      -0.2127053        0.000000      -0.2220919        202.0000        549.0000       0.1577222             596         177  0.34899E-02
+        6600  -0.2312555       -10.00000       0.9993241        1167.000        360.0000        1525.000        4999.000      -0.2127994        0.000000      -0.2285665        202.0000        507.0000       0.1690565             633         198  0.33222E-02
+        6625  -0.2230536        0.000000       0.9489347        1167.000        336.0000        1461.000        4697.000      -0.2127322        0.000000      -0.2015254        202.0000        529.0000       0.1673913             610         175  0.33579E-02
+        6650  -0.2327984        25.00000        1.064255        1192.000        372.0000        1635.000        4909.000      -0.2127459        0.000000      -0.2150329        207.0000        545.0000       0.1643840             638         201  0.36623E-02
+ Updating singles/doubles bias. pSingles =   5.333333333333333E-002
+  pDoubles =   0.946666666666667     
+ Updating time-step. New time-step =   7.692307692307691E-003  in: 
+ update_tau_hist
+        6675  -0.2376635        88.00000        1.031678        1280.000        312.0000        1660.000        5072.000      -0.2128701        0.000000      -0.2334215        207.0000        573.0000       0.1646272             677         224  0.38694E-02
+ Updating singles/doubles bias. pSingles =   5.404001039230969E-002
+  pDoubles =   0.945959989607690     
+ Updating time-step. New time-step =   7.794232268121589E-003  in: 
+ update_tau_hist
+        6700  -0.2463914        46.00000        1.058327        1326.000        394.0000        1762.000        5745.000      -0.2130378        0.000000      -0.2412418        204.0000        584.0000       0.1761946             715         209  0.40073E-02
+ Updating singles/doubles bias. pSingles =   5.456453305351521E-002
+  pDoubles =   0.945435466946485     
+ Updating time-step. New time-step =   7.869884575026232E-003  in: 
+ update_tau_hist
+        6725  -0.2404746       -76.00000       0.9619395        1250.000        348.0000        1735.000        5277.000      -0.2131097        0.000000      -0.2253317        203.0000        551.0000       0.1682449             669         205  0.36858E-02
+ Updating singles/doubles bias. pSingles =   5.442176870748299E-002
+  pDoubles =   0.945578231292517     
+ Updating time-step. New time-step =   7.849293563579277E-003  in: 
+ update_tau_hist
+        6750  -0.2418285        28.00000        1.008895        1278.000        350.0000        1702.000        5377.000      -0.2131806        0.000000      -0.2253673        201.0000        576.0000       0.1699216             653         200  0.36768E-02
+        6775  -0.2442871        15.00000        1.016212        1293.000        424.0000        1750.000        5435.000      -0.2132745        0.000000      -0.2299221        195.0000        557.0000       0.1690145             680         214  0.37225E-02
+ Updating singles/doubles bias. pSingles =   5.404001039230969E-002
+  pDoubles =   0.945959989607690     
+ Updating time-step. New time-step =   7.794232268121589E-003  in: 
+ update_tau_hist
+        6800  -0.2395764       -37.00000       0.9698666        1256.000        408.0000        1677.000        5190.000      -0.2132714        0.000000      -0.2127242        196.0000        527.0000       0.1664102             688         210  0.34195E-02
+ Updating singles/doubles bias. pSingles =   5.456453305351521E-002
+  pDoubles =   0.945435466946485     
+ Updating time-step. New time-step =   7.869884575026232E-003  in: 
+ update_tau_hist
+        6825  -0.2323172       -107.0000       0.9535078        1149.000        362.0000        1580.000        4932.000      -0.2131683        0.000000      -0.1942510        191.0000        485.0000       0.1658484             632         212  0.34729E-02
+ Updating singles/doubles bias. pSingles =   5.629746006808065E-002
+  pDoubles =   0.943702539931919     
+ Updating time-step. New time-step =   7.855459544383346E-003  in: 
+ update_tau_hist
+        6850  -0.2247728       -34.00000       0.9518125        1115.000        362.0000        1484.000        4865.000      -0.2131183        0.000000      -0.2038808        193.0000        499.0000       0.1718778             598         178  0.33943E-02
+ Updating singles/doubles bias. pSingles =   5.486093391171216E-002
+  pDoubles =   0.945139066088288     
+ Updating time-step. New time-step =   7.655014034192395E-003  in: 
+ update_tau_hist
+        6875  -0.2250439       -12.00000        1.001731        1103.000        360.0000        1462.000        4846.000      -0.2130979        0.000000      -0.2092466        187.0000        503.0000       0.1709106             590         167  0.34184E-02
+ Updating singles/doubles bias. pSingles =   5.502943434860506E-002
+  pDoubles =   0.944970565651395     
+ Updating time-step. New time-step =   7.678525723061171E-003  in: 
+ update_tau_hist
+        6900  -0.2253853        53.00000        1.002187        1156.000        326.0000        1521.000        4800.000      -0.2131589        0.000000      -0.2249911        183.0000        508.0000       0.1689189             643         195  0.33863E-02
+ Updating singles/doubles bias. pSingles =   5.572835666148263E-002
+  pDoubles =   0.944271643338517     
+ Updating time-step. New time-step =   7.776049766718507E-003  in: 
+ update_tau_hist
+        6925  -0.2226678       -16.00000       0.9825450        1140.000        356.0000        1534.000        4695.000      -0.2132621        0.000000      -0.2338966        184.0000        481.0000       0.1681590             637         206  0.33478E-02
+        6950  -0.2197440       -14.00000       0.9812321        1126.000        324.0000        1465.000        4690.000      -0.2132797        0.000000      -0.2168124        179.0000        495.0000       0.1711929             609         193  0.32606E-02
+        6975  -0.2181872       -81.00000       0.9899620        1045.000        408.0000        1446.000        4592.000      -0.2132731        0.000000      -0.2119371        182.0000        493.0000       0.1693153             537         183  0.31619E-02
+ Updating singles/doubles bias. pSingles =   5.575726141078838E-002
+  pDoubles =   0.944242738589212     
+ Updating time-step. New time-step =   7.780082987551866E-003  in: 
+ update_tau_hist
+        7000  -0.2142064       -2.000000       0.9745216        1043.000        312.0000        1378.000        4497.000      -0.2133131        0.000000      -0.2213882        182.0000        486.0000       0.1701476             567         167  0.32844E-02
+ Updating singles/doubles bias. pSingles =   5.572835666148263E-002
+  pDoubles =   0.944271643338517     
+ Updating time-step. New time-step =   7.776049766718507E-003  in: 
+ update_tau_hist
+        7025  -0.2062509       -25.00000       0.9497541        1018.000        240.0000        1263.000        4184.000      -0.2132543        0.000000      -0.2015182        187.0000        484.0000       0.1666799             533         182  0.30031E-02
+ Updating singles/doubles bias. pSingles =   5.615043092191172E-002
+  pDoubles =   0.943849569078088     
+ Updating time-step. New time-step =   7.834943849569077E-003  in: 
+ update_tau_hist
+        7050  -0.2039208       -31.00000       0.9849016        987.0000        278.0000        1300.000        4137.000      -0.2132061        0.000000      -0.2034665        184.0000        449.0000       0.1673341             522         154  0.30667E-02
+ Updating singles/doubles bias. pSingles =   5.575726141078838E-002
+  pDoubles =   0.944242738589212     
+ Updating time-step. New time-step =   7.780082987551866E-003  in: 
+ update_tau_hist
+        7075  -0.2058736        5.000000        1.012741        992.0000        332.0000        1273.000        4187.000      -0.2131965        0.000000      -0.2112185        180.0000        461.0000       0.1672258             524         175  0.28390E-02
+ Updating singles/doubles bias. pSingles =   5.554120382330147E-002
+  pDoubles =   0.944458796176699     
+ Updating time-step. New time-step =   7.749935417204856E-003  in: 
+ update_tau_hist
+        7100  -0.2075038        22.00000        1.010584        1014.000        306.0000        1321.000        4322.000      -0.2131896        0.000000      -0.2117710        183.0000        473.0000       0.1708098             532         150  0.30953E-02
+        7125  -0.2106476        18.00000        1.020511        1032.000        252.0000        1389.000        4247.000      -0.2131733        0.000000      -0.2097945        181.0000        456.0000       0.1644722             553         150  0.30251E-02
+        7150  -0.2183387        72.00000        1.050926        1104.000        302.0000        1381.000        4539.000      -0.2132249        0.000000      -0.2240655        181.0000        502.0000       0.1672624             578         181  0.33081E-02
+ Updating singles/doubles bias. pSingles =   5.575726141078838E-002
+  pDoubles =   0.944242738589212     
+ Updating time-step. New time-step =   7.780082987551866E-003  in: 
+ update_tau_hist
+        7175  -0.2175352       -18.00000       0.9948041        1086.000        300.0000        1412.000        4507.000      -0.2132365        0.000000      -0.2157233        178.0000        476.0000       0.1669507             605         179  0.32960E-02
+ Updating singles/doubles bias. pSingles =   5.554120382330147E-002
+  pDoubles =   0.944458796176699     
+ Updating time-step. New time-step =   7.749935417204856E-003  in: 
+ update_tau_hist
+        7200  -0.2147749        14.00000       0.9823307        1100.000        294.0000        1401.000        4438.000      -0.2132547        0.000000      -0.2171337        181.0000        489.0000       0.1673517             591         167  0.30743E-02
+ Updating singles/doubles bias. pSingles =   5.912863070539419E-002
+  pDoubles =   0.940871369294606     
+ Updating time-step. New time-step =   7.780082987551866E-003  in: 
+ update_tau_hist
+        7225  -0.2193816       -40.00000        1.030318        1060.000        338.0000        1446.000        4622.000      -0.2132693        0.000000      -0.2162975        187.0000        500.0000       0.1691615             563         162  0.32685E-02
+ Updating singles/doubles bias. pSingles =   5.870236869207002E-002
+  pDoubles =   0.941297631307930     
+ Updating time-step. New time-step =   7.723995880535530E-003  in: 
+ update_tau_hist
+Beginning to average shift value on iteration:           7250
+        7250  -0.2155361        9.000000       0.9755517        1069.000        310.0000        1347.000        4390.000      -0.2132481      -0.2155361      -0.2088138        182.0000        471.0000       0.1646971             581         182  0.31965E-02
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    3.33103291690350     
+ Time lost due to load imbalance:   0.432824611663818     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ writing singles frequency histogram...
+ Done!
+ Number of zero-valued singles excitations:                      0
+ Number of valid singles excitations:    58952.0000000000     
+ ratio of zero-valued singles excitations:   0.000000000000000E+000
+ Number of singles excitations above threshold:            0
+ ratio of singles excitations above threshold:   0.000000000000000E+000
+ Number of singles excitations below threshold:         9754
+ ratio of singles excitations below threshold:   0.165456642692360     
+ integrated singles H_ij/pgen ratio:    23.6000000000000     
+ for   0.999900000000000       percent coverage!
+ maximum singles H_ij/pgen ratio:    29.7130986502147     
+ singles maximum/integrated ratio:    1.25902960382266     
+ minimum singles H_ij/pgen ratio:   8.352840602677595E-012
+ writing doubles frequency histogram...
+ Done!
+ Number of zero-valued double excitations:                      0
+ Number of valid double excitations:    829985.000000000     
+ ratio of zero-valued double excitations:   0.000000000000000E+000
+ Number of excitations above threshold:            0
+ ratio of excitations above threshold:   0.000000000000000E+000
+ Number of excitations below threshold:            0
+ ratio of excitations below threshold:   0.000000000000000E+000
+ integrated doubles H_ij/pgen ratio:    2.90000000000000     
+ for   0.999900000000000       percent coverage!
+ maximum doubles H_ij/pgen ratio:    733.364787419182     
+ maximum/integrated doubles ratio:    252.884409454890     
+ minimum doubles H_ij/pgen ratio:   8.723185806382502E-004
+ Warning: attempting to log deallocation but never logged allocation.
+ 
+Current reference: 
+(    1,    2,   15,   16,   21,   22,   31,   32)
+ Number of superinitiators           1
+ 
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-4  17-18  23-24  33-34
+ 
+Most occupied         15 determinants as excitations from reference: 
+ 
+ Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   <D|H|D>  Proc
+11000000000000110000110000000011000000000000    0    0    181.0000      0.96725  Y  -1.28496350E+02       1
+11000000000000100001110000000010000100000000    2    4   -12.00000      0.06413  Y  -1.23703067E+02       1
+11000000000000110000110000000000100100000000    2    2   -8.000000      0.04275  Y  -1.25226866E+02       0
+11000000000000110000001001000011000000000000    2    2   -8.000000      0.04275  Y  -1.25226866E+02       0
+10000000100000110000110000000001000100000000    2    4    7.000000      0.03741  Y  -1.22225249E+02       0
+11000000000000100000110000010010000000000100    2    4    7.000000      0.03741  Y  -1.24090026E+02       0
+11000000110000110000110000000000000000000000    2    0   -7.000000      0.03741  Y  -1.22637230E+02       0
+11000000000000110000100001000010000100000000    2    4   -7.000000      0.03741  Y  -1.23703067E+02       1
+11000000000000001100110000000011000000000000    2    0   -7.000000      0.03741  Y  -1.26181704E+02       1
+11000000000000110000110000000000001100000000    2    0   -7.000000      0.03741  Y  -1.24013535E+02       1
+10010000000000110000110000000010000100000000    2    4   -7.000000      0.03741  Y  -1.24133956E+02       1
+11000000000000110000110000000000110000000000    2    0   -6.000000      0.03206  Y  -1.26181704E+02       0
+10010000000000100001110000000011000000000000    2    4   -6.000000      0.03206  Y  -1.24133956E+02       1
+11000000000000000011110000000011000000000000    2    0   -6.000000      0.03206  Y  -1.24013535E+02       1
+11000000000000100001100100000011000000000000    2    4   -6.000000      0.03206  Y  -1.25100724E+02       1
+ 
+ 
+
+ Load balancing information based on the last iteration:
+ 
+ Mean number of determinants/process     380.0000000000
+ Min number of determinants/process                376
+ Max number of determinants/process                384
+
+ 
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:     534.5000000000
+     Min number of walkers/process:          410.00000
+     Max number of walkers/process:          659.00000
+
+ 
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:            0
+Reading back in FCIMCStats datafile...
+Number of comment lines found in file:            3
+Number of data points found in file:           40
+Number of useable data points:           40
+Relaxation time for projected energy estimated to be        0 update cycles.
+Relaxation time for shift estimated to be        0 update cycles.
+Number of blocks assumed for calculation of error in projected energy denominator:      10
+Number of blocks assumed for calculation of error in projected energy numerator:      10
+Number of blocks assumed for calculation of error in shift:      10
+ProjE_denominator:        191.1590000000 +/-        2.6761180     Relative error:       0.1399943514E-01
+ProjE_numerator:          -41.2163722308 +/-       0.88103644     Relative error:       0.2137588510E-01
+ Current reference energy                            -128.496349730325
+ Projected correlation energy                          -0.215613035383
+ Estimated error in Projected correlation energy        0.002874962251
+ Shift correlation energy                              -0.221075967500
+ Estimated error in shift correlation energy            0.003767098377
+
+ Projected and shift energy estimates agree to within two sigma of largest error: EDiff =      0.00546293
+
+ Total projected energy        -128.71196277 +/-    0.287496E-02
+ Total shift energy            -128.71742570 +/-    0.376710E-02
+
+
+ Final energy estimate for state 1:     -128.70959782062    
+ Warning: attempting to log deallocation but never logged allocation.
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      40.3
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datclean_global_det_da  25.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   15.0MB
+ UMat              IntInit            IntFreeze           298.6KB
+ UMat2             IntFreeze          IntCleanup          251.0KB
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar   35.2KB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar   35.2KB
+ TMAT2D            SetupTMAT          DestroyTMat          16.5KB
+ TMAT2D2           SetupTMAT2         not deallocated      15.1KB
+ UMat2D            SetupUMat2d_dense  DESTROYUMATCACHE      3.8KB
+ SymPairProds      GenSymStatePairs   EndSym                3.0KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                1000      3.16
+ NECICUBE                                     1      0.18
+ AnnMainTime                               1000      0.12
+ StatsCommsTime                              40      0.03
+ AnnihilTime                               1000      0.02
+ SortTime                                  1000      0.02
+ Compress Sort interface                   1000      0.02
+ POPS-read                                    1      0.01
+ SysInit                                      1      0.01
+ CommsTime                                 1000      0.01
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   3.58
+
+ Global wall clock time          3.66
+ ================================================================
+ Calculation ended 10/12/2021 at 09:58:51
+ ================================================================

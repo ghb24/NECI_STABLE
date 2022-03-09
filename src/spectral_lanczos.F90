@@ -69,7 +69,6 @@ contains
         use load_balance_calcnodes, only: DetermineDetNode
         use sort_mod, only: sort
         use SystemData, only: nbasis, nel, BRR, nBasisMax, G1, tSpn, LMS, tParity, SymRestrict
-        use util_mod, only: choose
 
         integer :: ndets_this_proc, ndets_tot
         integer(MPIArg) :: mpi_temp

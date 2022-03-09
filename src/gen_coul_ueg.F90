@@ -12,19 +12,19 @@ module gen_coul_ueg_mod
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD, stdout
     use Parallel_neci, only: iProcIndex, root
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, stop_all
     use breathing_Hub, only: bHubIndexFunction
     implicit none
 
     interface
-        function uu_tc_t(k2) result(u_tc)
+        pure function uu_tc_t(k2) result(u_tc)
             use constants, only: dp
             real(dp), intent(in) :: k2
             real(dp)  :: u_tc
         end function
     end interface
 
-    procedure(uu_tc_t), pointer :: uu_tc
+    procedure(uu_tc_t), pointer :: uu_tc => null()
 
     save
 ! approximate the 3 body potential by 2 body terms and store them in  UMAT
@@ -114,7 +114,7 @@ contains
         call halt_timer(proc_timer)
     end subroutine
 
-    function get_hub_umat_el(i, j, k, l) result(hel)
+    pure function get_hub_umat_el(i, j, k, l) result(hel)
         use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
         use constants, only: pi
         use SystemData, only: breathingCont
@@ -140,7 +140,7 @@ contains
     end function
 
 !  the following fun is modified for transcorrelated Hamiltonian under RPA approx
-    function get_ueg_umat_el(idi, idj, idk, idl) result(hel)
+    pure function get_ueg_umat_el(idi, idj, idk, idl) result(hel)
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen, PotentialStrength, TranscorrCutoff, nOccAlpha, nOccBeta
         integer, intent(in) :: idi, idj, idk, idl
@@ -397,8 +397,7 @@ contains
             end if
 
         else
-            write(stdout, *) 'dimension error in get_ueg_umat_el', dimen
-            stop
+            call stop_all(this_routine, 'dimension error in get_ueg_umat_el')
         end if
 
     end function
@@ -406,7 +405,7 @@ contains
 !  the following fun is modified for three-particle excitations when one of the
 !  creation and annhillaiton operator is the same from the minorirty component, and we sum-up all the
 !  occupied orbitals
-    function get_contact_umat_el_3b_sp(idi, idj, idk, idl) result(hel)
+    pure function get_contact_umat_el_3b_sp(idi, idj, idk, idl) result(hel)
 
       use SystemData, only: kvec, dimen, PotentialStrength, TranscorrCutoff, nOccAlpha, nOccBeta, TranscorrGaussCutoff, t_trcorr_gausscutoff
         integer, intent(in) :: idi, idj, idk, idl
@@ -646,7 +645,7 @@ contains
     end function
 
 !  the following fun is modified for transcorrelated Hamiltonian under RPA approx
-    function get_contact_umat_el(idi, idj, idk, idl) result(hel)
+    pure function get_contact_umat_el(idi, idj, idk, idl) result(hel)
 
         use SystemData, only: kvec, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta,TranscorrGaussCutoff,t_trcorr_gausscutoff,Tperiodicinmom
         integer, intent(in) :: idi, idj, idk, idl
@@ -730,8 +729,6 @@ contains
 
                     hel = hel / ALAT(1)**3
 
-!                       write(stdout,*)'in hel'
-!                       write(stdout,*)hel, PotentialStrength, ALAT(1)
 
                 else    !renormalization
 
@@ -819,8 +816,7 @@ contains
             end if ! ((G1(k)%k(1) - G1(i)%k(1)) == a)
 
         else
-            write(stdout, *) 'dimension error in get_contact_umat_el', dimen
-            stop
+            call stop_all(this_routine, 'dimension error in get_contact_umat_el')
         end if
 
     end function
@@ -1166,7 +1162,7 @@ contains
 
     end subroutine
 
-    function uu_tc_interpl(k2) result(u_tc)
+    pure function uu_tc_interpl(k2) result(u_tc)
         real(dp), intent(in) :: k2
         real(dp) :: u_tc
 
@@ -1177,11 +1173,12 @@ contains
         end if
     end function
 
-    function uu_tc_trunc(k2) result(u_tc)
+    pure function uu_tc_trunc(k2) result(u_tc)
 
         use SystemData, only: dimen
         real(dp), intent(in) :: k2
         real(dp) :: u_tc
+        character(*), parameter :: this_routine = 'uu_tc_trunc'
         if (dimen == 3) then
             if (k2 <= ktc_cutoff2 * (1.0 + 1.d-10)) then
                 u_tc = 0.0
@@ -1195,8 +1192,7 @@ contains
                 u_tc = -6.283185307179586 / k2 / dsqrt(k2)
             end if
         else
-            write(stdout, *) 'dimension error in uu_tc_prod', dimen
-            stop
+            call stop_all(this_routine, 'dimension error in uu_tc_prod')
         end if
 
     end function
@@ -1396,13 +1392,14 @@ contains
         stop
     end subroutine
 
-    function get_lmat_ueg(l1, l2, l3, r1, r2, r3) result(hel)
+    pure function get_lmat_ueg(l1, l2, l3, r1, r2, r3) result(hel)
 
         use SystemData, only: dimen
         use constants, only: int64
         integer(int64), intent(in) :: l1, l2, l3, r1, r2, r3
         integer(int64) :: i, j, k, a, b, c, k1(3), k2(3), k3(3)
         real(dp) :: hel, ak(3), bk(3), ck(3), a2, b2, c2
+        character(*), parameter :: this_routine = 'get_lmat_ueg'
         i = (l1 - 1) * 2 + 1
         j = (l2 - 1) * 2 + 1
         k = (l3 - 1) * 2 + 1
@@ -1452,19 +1449,18 @@ contains
                 hel = 0.d0
             end if
         else
-            print *, 'at moment Lmat is only available for 3D UEG'
-            stop
+            call stop_all(this_routine, 'at moment Lmat is only available for 3D UEG')
         end if
 
     end function
 
-    function get_lmat_ua(l1, l2, l3, r1, r2, r3) result(hel)
+    pure function get_lmat_ua(l1, l2, l3, r1, r2, r3) result(hel)
         use SystemData, only: dimen, TranscorrCutoff, PotentialStrength, TranscorrGaussCutoff, t_trcorr_gausscutoff
         integer, intent(in) :: l1, l2, l3, r1, r2, r3
         integer :: i, j, k, a, b, c, k1(3), k2(3), k3(3)
         real(dp) :: hel, ak(3), bk(3), ck(3), a3, b3, c3, klength1, klength2
         real(dp) :: GaussCutoff, GaussCutoff2, Gaussfact
-!       logical :: tSpinCorrect
+        character(*), parameter :: this_routine = 'get_lmat_ua'
 
         if (dimen == 3) then
 
@@ -1552,8 +1548,7 @@ contains
 
             hel = hel / ALAT(1)
         else
-            print *, 'at moment Lmat is only available for 1D and 3D contact interactions'
-            stop
+            call stop_all(this_routine, 'at moment Lmat is only available for 1D and 3D contact interactions')
         end if
 
     end function

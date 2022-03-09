@@ -29,7 +29,7 @@ tau 6.342713037945149E-003 search
 endcalc
 
 integral
-freeze 2,0
+freeze 2 0
 endint
 
 logging

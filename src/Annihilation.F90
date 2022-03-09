@@ -5,7 +5,7 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF, tGUGA
     use CalcData, only: tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                         tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, tInitsRDM, &
-                        tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
+                        tContTimeFull, tau, tEN2, tEN2Init, &
                         tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                         n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                         tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
@@ -23,7 +23,7 @@ module AnnihilationMod
     use core_space_util, only: cs_replicas
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, &
+    use bit_reps, only: decode_bit_det, writebitdet, &
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &

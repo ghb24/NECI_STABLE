@@ -31,6 +31,9 @@
 #
 #   required so that <project>_<lang>_linker_flags can be made to work
 #
+# WARNERR : optional
+#   Treat warnings as errrors. Defaults to off.
+#
 # TEMPLATED_SOURCES : optional
 #   list of source files to be passed through f90_template.py (note that this ensures that they are
 #   not redefined multiple times).
@@ -213,7 +216,6 @@ macro( neci_add_library )
 
 
     # Add (private) includes
-
     if( DEFINED _p_PRIVATE_INCLUDES )
         list( REMOVE_DUPLICATES _p_PRIVATE_INCLUDES )
         foreach( include_path ${_p_PRIVATE_INCLUDES} )

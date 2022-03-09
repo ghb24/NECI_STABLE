@@ -5,7 +5,6 @@
       use global_utilities
       use util_mod, only : near_zero
       use constants, only: dp
-!      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       INTEGER :: NMSH,NMAX,NHG,I,J,K,L,ID1,ID2,ID3,ID4,ISPINSKIP,II
       TYPE(BASISFN) G1(NHG)

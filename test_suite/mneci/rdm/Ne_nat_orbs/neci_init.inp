@@ -7,7 +7,7 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 nmcyc 3700
 totalwalkers 5000
@@ -23,7 +23,7 @@ seed 12823
 endcalc
 
 integral
-freeze 2,0
+freeze 2 0
 endint
 
 logging

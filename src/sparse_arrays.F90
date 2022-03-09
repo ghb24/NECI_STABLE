@@ -28,8 +28,8 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH, set_det_offdiagH
     use shared_rhash, only: shared_rhash_t
     use SystemData, only: tGUGA
-    use guga_excitations, only: actHamiltonian, &
-                                calc_guga_matrix_element
+    use guga_excitations, only: actHamiltonian
+    use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
                               CSF_Info_t
     use util_mod, only: binary_search, near_zero
@@ -173,7 +173,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:, :)
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
 
         allocate(sparse_ham(num_states))
         allocate(SparseHamilTags(2, num_states))
@@ -210,6 +210,7 @@ contains
             do j = i, num_states
 
                 call decode_bit_det(nJ, ilut_list(:, j))
+                if (tGUGA) csf_j = CSF_Info_t(ilut_list(:, j))
 
                 ! If on the diagonal of the Hamiltonian.
                 if (i == j) then
@@ -226,8 +227,8 @@ contains
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
                                                                     ilut_list(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), &
-                                                      excitInfo, hamiltonian_row(j), .true., 1)
+                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), csf_j, &
+                                                      excitInfo, hamiltonian_row(j), .true.)
 #ifdef CMPLX_
                         hamiltonian_row(j) = conjg(hamiltonian_row(j))
 #endif
@@ -309,7 +310,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:, :)
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
 
         num_states_tot = int(sum(num_states), sizeof_int)
         disps(0) = 0
@@ -343,6 +344,7 @@ contains
             do j = 1, num_states_tot
 
                 call decode_bit_det(nJ, temp_store(:, j))
+                if (tGUGA) csf_j = CSF_Info_t(temp_store(:, j))
 
                 ! If on the diagonal of the Hamiltonian.
                 if (DetBitEq(ilut_list(:, i), temp_store(:, j), nifd)) then
@@ -360,8 +362,9 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), temp_store(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, temp_store(:, j), &
-                                                      excitInfo, hamiltonian_row(j), .true., 1)
+                        call calc_guga_matrix_element(&
+                            ilut_list(:, i), csf_i, temp_store(:, j), &
+                            csf_j, excitInfo, hamiltonian_row(j), .true.)
 #ifdef CMPLX_
                         hamiltonian_row(j) = conjg(hamiltonian_row(j))
 #endif
@@ -435,10 +438,10 @@ contains
 
         character(len=*), parameter :: this_routine = "calc_determ_hamil_sparse"
 
-        integer(n_int) :: tmp(0:NIfD)
-        integer :: IC
+        integer(n_int) :: tmp(0:NIfD), ilutI_tmp(0:NIfTot)
+        integer :: IC, nI_tmp(nel)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
         HElement_t(dp) :: tmp_mat, tmp_mat_2, HOffDiag
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
@@ -461,21 +464,30 @@ contains
 
             ilutI = SpawnedParts(0:niftot, i)
             call decode_bit_det(nI, IlutI)
+            if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
             row_size = 0
             hamiltonian_row = 0.0_dp
-
-            if (tGUGA) csf_i = CSF_Info_t(ilutI)
-
             ! Loop over all deterministic states.
             do j = 1, rep%determ_space_size
 
                 ilutJ = temp_store(:, j)
                 call decode_bit_det(nJ, ilutJ)
+                if (tGUGA) csf_j = CSF_Info_t(ilutJ)
+
+                if(t_evolve_adjoint(rep%first_run())) then
+                    nI_tmp = nJ
+                    nJ = nI
+                    ilutI_tmp = ilutJ
+                    ilutJ = ilutI
+                else
+                    nI_tmp = nI
+                    ilutI_tmp = ilutI
+                end if
 
                 ! If on the diagonal of the Hamiltonian.
                 if (DetBitEq(IlutI, ilutJ, nifd)) then
-                    hamiltonian_row(j) = get_diagonal_matel(nI, IlutI) - Hii
+                    hamiltonian_row(j) = get_diagonal_matel(nI_tmp, IlutI_tmp) - Hii
                     rep%core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store the diagonal matrix element at
                     ! this point for later access.
@@ -488,24 +500,18 @@ contains
                     row_size = row_size + 1
                 else
                     if (tHPHF) then
-                        hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, IlutI, IlutJ)
+                        hamiltonian_row(j) = hphf_off_diag_helement(nI_tmp, nJ, IlutI_tmp, IlutJ)
                     else if (tGUGA) then
-                        ! for the off-diagonal elements i have to call the GUGA
-                        ! specific function
-                        ! but this is a waste.. i do not have to do that for
-                        ! every nJ i could just check the list generated
-                        ! by H|nI>..
-                        ! TODO(@Oskar): Perhaps precalculate
-                        call calc_guga_matrix_element(IlutI, CSF_Info_t(IlutI), IlutJ, &
-                                                      excitInfo, tmp_mat, .true., 1)
+                        call calc_guga_matrix_element(&
+                                IlutI, csf_i, IlutJ, csf_j, excitInfo, tmp_mat, .true.)
 #ifdef DEBUG_
-                        call calc_guga_matrix_element(IlutI,  CSF_Info_t(IlutI), IlutJ, &
-                                                      excitInfo, tmp_mat_2, .true., 2)
+                        call calc_guga_matrix_element(&
+                                IlutI,  csf_i, IlutJ, csf_j, excitInfo, tmp_mat_2, .true.)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "type 1 and 2 do not agree!")
                         end if
-                        call calc_guga_matrix_element(IlutJ, CSF_Info_t(ilutJ), IlutI, &
-                                                      excitInfo, tmp_mat_2, .true., 2)
+                        call calc_guga_matrix_element(&
+                                IlutJ, csf_j, IlutI, csf_i, excitInfo, tmp_mat_2, .true.)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "not hermititan!")
                         end if
@@ -518,12 +524,12 @@ contains
 #endif
                     else
 
-                        tmp = ieor(IlutI(0:NIfD), IlutJ(0:NIfD))
-                        tmp = iand(IlutI(0:NIfD), tmp)
+                        tmp = ieor(IlutI_tmp(0:NIfD), IlutJ(0:NIfD))
+                        tmp = iand(IlutI_tmp(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
 
                         if (IC <= maxExcit) then
-                            hamiltonian_row(j) = get_helement(nI, nJ, IC, ilutI, IlutJ)
+                            hamiltonian_row(j) = get_helement(nI_tmp, nJ, IC, ilutI_tmp, IlutJ)
                         end if
                     end if
                     if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
@@ -635,7 +641,11 @@ contains
                     IC = CountBits(tmp, NIfD)
 
                     if (IC <= maxExcit .or. ((.not. CS_I) .and. (.not. cs(j)))) then
-                        hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, SpawnedParts(:, i), temp_store(:, j), IC, CS_I, cs(j))
+                        if(t_evolve_adjoint(rep%first_run())) then
+                            hamiltonian_row(j) = hphf_off_diag_helement_opt(nJ, temp_store(:, j), SpawnedParts(:, i), IC, cs(j), CS_I)
+                        else
+                            hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, SpawnedParts(:, i), temp_store(:, j), IC, CS_I, cs(j))
+                        endif
                         if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                     end if
                 end if
@@ -744,11 +754,16 @@ contains
                         IC = CountBits(tmp, NIfD)
 
                         if (IC <= maxExcit .or. ((.not. CS_I) .and. (.not. cs(j)))) then
-
-                            hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, &
-                                rep%core_space(:, i + rep%determ_displs(iProcIndex)), &
-                                rep%core_space(:, j), IC, CS_I, cs(j))
-
+                            if(t_evolve_adjoint(rep%first_run())) then
+                                hamiltonian_row(j) = hphf_off_diag_helement_opt(nJ, &
+                                    rep%core_space(:, j), &
+                                    rep%core_space(:, i + rep%determ_displs(iProcIndex)), &
+                                    IC, cs(j), CS_I)
+                            else
+                                hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, &
+                                    rep%core_space(:, i + rep%determ_displs(iProcIndex)), &
+                                    rep%core_space(:, j), IC, CS_I, cs(j))
+                            endif
                             if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                         end if
                     end if
@@ -877,5 +892,15 @@ contains
 
         end function loc_verify
     end function is_var_state
+
+    elemental function t_evolve_adjoint(run) result(transp)
+        use FciMCData, only: t_adjoint_replicas
+        integer, intent(in) :: run
+
+        logical :: transp
+
+        transp = t_adjoint_replicas .and. ( mod(run,2)==0 )
+    end function t_evolve_adjoint
+
 
 end module sparse_arrays
