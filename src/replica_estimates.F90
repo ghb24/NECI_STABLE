@@ -16,7 +16,6 @@ module replica_estimates
     use core_space_util, only: cs_replicas, min_pt
     implicit none
 
-    !TODO: Fix init when no semi-stochastic options
 contains
 
     subroutine get_ests_from_spawns(ValidSpawned, proj_energy)

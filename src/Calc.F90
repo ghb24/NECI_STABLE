@@ -1560,7 +1560,7 @@ contains
 
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
-                ! If there is ane extra item, it should specify that we turn
+                ! If there is an extra item, it should specify that we turn
                 ! semi-stochastic on later.
                 if(item < nitems) then
                     if(item < nitems) &
