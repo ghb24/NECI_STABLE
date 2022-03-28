@@ -5,6 +5,10 @@
 # Usage:
 #    auto_module.sh <config_file_name>
 
+source /usr/share/Modules/3.2.10/init/sh
+export MODULEPATH="${MODULEPATH}:/usr/local/fkf/modules"
+module purge
+
 echo "Loading modules for: $@"
 
 if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then
@@ -18,4 +22,3 @@ elif [ "gfortran-self_build_hdf5" == "$@" ]; then
 else
 	echo "Module configuration not set"
 fi
-
