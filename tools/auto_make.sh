@@ -5,7 +5,6 @@
 #	auto_make.sh <config_file_name>
 
 
-
 echo "Calling make for $@"
 
 if [ "gfortran-self_build_hdf5" == "$@" ]; then
