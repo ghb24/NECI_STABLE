@@ -24,6 +24,7 @@ module gasci
 
     implicit none
 
+
     private
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
