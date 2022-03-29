@@ -13,14 +13,14 @@ if [ "gfortran-self_build_hdf5" == "$@" ]; then
 	# for some reason on altest the hdf5 libs get installed in hdf5/lib64 instead of hdf5/lib
 	# have to solve this more elegantly
 	if [ -d "hdf5/lib" ]; then
-		make -j2 neci
+		make -j 2
 	elif [ -d "hdf5/lib64" ]; then
 		mkdir hdf5/lib
 		cp hdf5/lib64/* hdf5/lib
-		make -j2 neci mneci kneci kmneci dneci test_neci test_mneci test_kneci test_kmneci test_dneci
+		make -j 2
 	fi
 
 else
-	make VERBOSE=1 -j2 neci mneci kneci kmneci dneci test_neci test_mneci test_kneci test_kmneci test_dneci
+	make VERBOSE=1 -j 2
 fi
 
