@@ -249,12 +249,12 @@ function(add_ford_documentation target configuration)
 
     set(THIS_HTML_DOC ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
 
-    find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
+    find_program(FORD ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
     # The following test is necessary because `REQUIRED` inside
     # find_program is only supported for cmake >=3.18.
     # If the minimum version is >=3.18 you can remove it.
-    if (NOT ${ford})
-        message(FATAL_ERROR "Ford not found.")
+    if (NOT FORD)
+        message(FATAL_ERROR "Ford not found. It was expected at ${PROJECT_SOURCE_DIR}/External/ford/ford.py.")
     endif()
 
     set(FORD_WORKDIR ${FORD_ROOT_WORKDIR}/${configuration})
