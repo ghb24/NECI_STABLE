@@ -147,7 +147,7 @@ macro( neci_add_test )
 
     # Add the testing infrastructure to the executable
 
-    add_test( ${_p_TARGET} ${_test_command} "${_test_arguments}" ${_test_dir} )
+    add_test( NAME ${_p_TARGET} COMMAND ${_test_command} "${_test_arguments}" ${_test_dir} )
 
     set_tests_properties( ${_p_TARGET} PROPERTIES WORKING_DIRECTORY ${_test_dir} )
 
