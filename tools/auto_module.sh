@@ -15,7 +15,7 @@ echo "Loading modules for: $@"
 if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.8.20_ifort_19
     module load ifort/19.1.1 mpi.intel/2019.7
-elif [ "gfortran-debug" == "$@" ] || [ "gfortran" == "$@" ] || [ "gfortran-debug-integer8" == "$@" ]; then
+elif [ "gfortran-debug" == "$@" ] || [ "gfortran" == "$@" ] || [ "gfortran-doc" == "$@" ] || [ "gfortran-debug-integer8" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.8.20_gfort_19
     module load gnu-openmpi/3.1.6
 elif [ "gfortran-self_build_hdf5" == "$@" ]; then
