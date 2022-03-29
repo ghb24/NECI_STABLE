@@ -20,6 +20,10 @@ if [ "gfortran-self_build_hdf5" == "$@" ]; then
 		make -j 2
 	fi
 
+elif [ "gfortran-doc" == "$@" ]; then
+
+    make VERBOSE=1 -j 2 doc
+
 else
 	make VERBOSE=1 -j 2
 fi
