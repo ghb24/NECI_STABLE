@@ -12,7 +12,7 @@ if [ "gfortran" == "$@" ]; then
 elif [ "gfortran-debug" == "$@" ]; then
 	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
 elif [ "gfortran-doc" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DENABLE_DOC=ON -DSHORT_FORD_COMPILATION=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
+	cmake -DENABLE_HDF5=ON -DENABLE_DOC=ON -DSHORT_FORD_COMPILATION=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
 elif [ "gfortran-debug-integer8" == "$@" ]; then
 	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_FLAGS="-fdefault-integer-8" -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
 elif [ "ifort" == "$@" ] || [ "ifort-new" == "$@" ]; then
