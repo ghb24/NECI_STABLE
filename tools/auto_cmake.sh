@@ -7,7 +7,6 @@
 
 echo "Calling cmake for: $@"
 
-
 if [ "gfortran" == "$@" ]; then
 	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
 elif [ "gfortran-debug" == "$@" ]; then
