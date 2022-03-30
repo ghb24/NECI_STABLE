@@ -7,6 +7,7 @@
 echo "Calling make for $@"
 
 if [ "gfortran-self_build_hdf5" == "$@" ]; then
+
 	make VERBOSE=1 hdf5
 
 	# very ugle workaround to get this compilation working on altest..
