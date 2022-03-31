@@ -14,6 +14,7 @@ echo "Loading modules for: $@"
 
 if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.8.20_ifort_19
+    export FI_PROVIDER=sockets
     module load ifort/19.1.1 mpi.intel/2019.7
 elif [ "ifort18" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.8.20_ifort_18
