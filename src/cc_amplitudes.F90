@@ -12,7 +12,7 @@ module cc_amplitudes
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
     use hash, only: hash_table_lookup, FindWalkerHash
-    use util_mod, only: swap, choose_i64, operator(.div.)
+    use util_mod, only: intswap, choose_i64, operator(.div.)
     use bit_rep_data, only: nifd
     use MPI_wrapper, only: iProcIndex, root
     use Parallel_neci, only: MPISumAll, MPIReduce, MPI_SUM, MPI_LOR, MPIAllLorLogical
@@ -1051,13 +1051,13 @@ contains
 
         else if (ij_ab(1, 2) < kl_cd(1, 2)) then
             ! if j < l then i have to switch j and k
-            call swap(ij(2), kl(1))
+            call intswap(ij(2), kl(1))
             n = n + 1
 
         else
-            ! this means j > l so we have to swap j -> l and then k -> l
-            call swap(ij(2), kl(2))
-            call swap(ij(2), kl(1))
+            ! this means j > l so we have to intswap j -> l and then k -> l
+            call intswap(ij(2), kl(2))
+            call intswap(ij(2), kl(1))
             ! wich leaves the phase unchanged
 
         end if
@@ -1075,14 +1075,14 @@ contains
                 ! b < c so in this case nothing has to be done!
 
             else if (ij_ab(2, 2) < kl_cd(2, 2)) then
-                ! b < d: so b and c have to be swapped!
-                call swap(ab(2), cd(1))
+                ! b < d: so b and c have to be intswapped!
+                call intswap(ab(2), cd(1))
                 n = n + 1
 
             else
                 ! b > d: so switch b -> d and d -> c
-                call swap(ab(2), cd(2))
-                call swap(ab(2), cd(1))
+                call intswap(ab(2), cd(2))
+                call intswap(ab(2), cd(1))
                 ! and this does not change the phase
             end if
         else
@@ -1090,24 +1090,24 @@ contains
             ! so if b < d we know everything
             if (ij_ab(2, 2) < kl_cd(2, 2)) then
                 ! then c < a < b < d
-                call swap(ab(1), cd(1))
-                call swap(ab(2), cd(1))
+                call intswap(ab(1), cd(1))
+                call intswap(ab(2), cd(1))
                 ! so no phase factor!
 
             else if (ij_ab(2, 1) > kl_cd(2, 2)) then
                 ! here b and a > d
                 ! so c < d < a < b
-                call swap(ab(1), cd(1))
-                call swap(ab(2), cd(2))
+                call intswap(ab(1), cd(1))
+                call intswap(ab(2), cd(2))
                 ! also here no phase factor!
 
             else
                 ! this means c < a < d < b
-                call swap(ab(1), ab(2))
+                call intswap(ab(1), ab(2))
                 ! ba, cd
-                call swap(cd(1), cd(2))
+                call intswap(cd(1), cd(2))
                 ! ba, dc
-                call swap(ab(1), cd(2))
+                call intswap(ab(1), cd(2))
                 ! cadb
                 ! here we get a phase
                 n = n + 1
