@@ -2,7 +2,7 @@ module test_gasci_supergroup_index_mod
     use fruit
     use constants, only: dp, int64, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
-    use util_mod, only: factrl, intswap, cumsum, custom_findloc
+    use util_mod, only: factrl, swap, cumsum, custom_findloc
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions, &

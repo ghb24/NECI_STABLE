@@ -45,7 +45,7 @@ module util_mod
         stats_out
     public :: arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.), &
         find_next_comb, binary_search, binary_search_custom, binary_search_first_ge, &
-        cumsum, pairswap, swap, intswap, lex_leq, lex_geq, &
+        cumsum, pairswap, swap, lex_leq, lex_geq, &
         get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
         getSpinIndex, binary_search_int, binary_search_real
 
@@ -136,10 +136,10 @@ module util_mod
         module procedure fuseIndex_int64
     end interface fuseIndex
 
-    interface intSwap
-        module procedure intSwap_int64
-        module procedure intSwap_int32
-    end interface intSwap
+    interface swap
+        module procedure swap_int64
+        module procedure swap_int32
+    end interface swap
 
     interface custom_findloc
         #:for type, kinds in extended_types.items()
@@ -437,7 +437,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    pure subroutine intswap_int32(a, b)
+    elemental subroutine swap_int32(a, b)
         ! exchange the value of two integers a,b
         ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
         integer(int32), intent(inout) :: a, b
@@ -446,11 +446,11 @@ contains
         tmp = a
         a = b
         b = tmp
-    end subroutine intswap_int32
+    end subroutine swap_int32
 
 !------------------------------------------------------------------------------------------!
 
-    pure subroutine intswap_int64(a, b)
+    elemental subroutine swap_int64(a, b)
         ! exchange the value of two integers a,b
         ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
         integer(int64), intent(inout) :: a, b
@@ -459,7 +459,7 @@ contains
         tmp = a
         a = b
         b = tmp
-    end subroutine intswap_int64
+    end subroutine swap_int64
 
 !------------------------------------------------------------------------------------------!
 
@@ -467,8 +467,8 @@ contains
         ! exchange a pair of integers
         integer(int64), intent(inout) :: a, i, b, j
 
-        call intswap(a, b)
-        call intswap(i, j)
+        call swap(a, b)
+        call swap(i, j)
     end subroutine pairSwap
 
 !------------------------------------------------------------------------------------------!
@@ -1359,12 +1359,12 @@ contains
             do while (tmp(j) > tmp(i))
                 j = j + 1
             end do
-            call intswap(tmp(i), tmp(j))
+            call swap(tmp(i), tmp(j))
 
             i = i - 1
             j = 1
             do while (j < i)
-                call intswap(tmp(i), tmp(j))
+                call swap(tmp(i), tmp(j))
                 i = i - 1
                 j = j + 1
             end do
@@ -1509,4 +1509,3 @@ subroutine warning_neci(sub_name,error_msg)
     write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
     write (stderr,'(a/)') adjustl(error_msg)
 end subroutine warning_neci
-
