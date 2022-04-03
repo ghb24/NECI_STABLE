@@ -5,27 +5,25 @@
 # Usage:
 #    auto_module.sh <config_file_name>
 
+
+source /usr/share/Modules/3.2.10/init/sh
+export MODULEPATH="${MODULEPATH}:/usr/local/fkf/modules"
+module purge
+
 echo "Loading modules for: $@"
 
-if [ "fkf-ifort -g" == "$@" ] || [ "fkf-ifort" == "$@" ] || [ "fkf-ifort-new" == "$@" ]; then
-    export HDF5_ROOT=/usr/lib/custom_hdf5_ifort
-    module load ifort/18.0.1 mpi.intel/5.0.3 #hdf5-intel
-elif [ "gfortran-simple -g" == "$@" ] || [ "gfortran-simple" == "$@" ] || [ "gfortran-integer8" == "$@" ]; then
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/mpi/gcc/openmpi3/lib64
-	export PATH=$PATH:/usr/lib64/mpi/gcc/openmpi3/bin
-	export HDF5_ROOT=/usr/lib/custom_hdf5_gfortran
-#	module load gnu-openmpi/3.0.0 hdf5-gfortran/1.8.20
-elif [ "pgi-simple -g" == "$@" ] || [ "pgi-simple" == "$@" ]; then
-	module load PrgEnv-pgi/15.4 hdf5-pgi
-elif [ "fkf-ifort-hdf5" == "$@" ]; then
-	module load ifort/18.0.1 mpi.intel/5.0.3
-elif [ "gfortran-hdf5" == "$@" ]; then
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/mpi/gcc/openmpi3/lib64
-    export PATH=$PATH:/usr/lib64/mpi/gcc/openmpi3/bin
-#	module load gnu-openmpi/3.0.0
-elif [ "fkf-ifort-latest" == "$@" ]; then
-	module load fkf-ifort mpi.intel
+if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then
+    export HDF5_ROOT=/opt/hdf-1.8.20_ifort_19
+    export FI_PROVIDER=sockets
+    module load ifort/19.1.1 mpi.intel/2019.7
+elif [ "ifort18" == "$@" ]; then
+    export HDF5_ROOT=/opt/hdf-1.8.20_ifort_18
+    module load ifort/18.0.1 mpi.intel/5.0.3
+elif [ "gfortran-debug" == "$@" ] || [ "gfortran" == "$@" ] || [ "gfortran-doc" == "$@" ] || [ "gfortran-debug-integer8" == "$@" ]; then
+    export HDF5_ROOT=/opt/hdf-1.8.20_gfort_19
+    module load gnu-openmpi/3.1.6
+elif [ "gfortran-self_build_hdf5" == "$@" ]; then
+    module load gnu-openmpi/3.1.6
 else
 	echo "Module configuration not set"
 fi
-

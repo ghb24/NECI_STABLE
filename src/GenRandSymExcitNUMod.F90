@@ -1123,6 +1123,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
         IF (ElecsWNoExcits == NEl) THEN
 !There are no single excitations from this determinant - return a null excitation
             nJ(1) = 0
+            pgen = 0.0_dp
             RETURN
         end if
 
