@@ -30,40 +30,26 @@ module util_mod
 
     private
 
-    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-    public :: factrl, choose_i64, int_fmt
-    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+    public :: get_nan, isnan_neci, factrl, choose_i64, NECI_icopy, operator(.implies.), &
+        abs_l1, abs_sign, near_zero, operator(.isclose.), operator(.div.), &
+        stochastic_round, stochastic_round_r
 #ifdef GFORTRAN_
     public :: choose_i128
 #endif
 
-    public :: neci_etime,&
-        NECI_ICOPY, get_free_unit, int_fmt,&
-        strlen_wrap, record_length,&
-        find_next_comb, swap
-    public :: binary_search, binary_search_custom, binary_search_first_ge
-    public :: abs_l1
-    public :: abs_sign, error_function, error_function_c, &
-        near_zero, operator(.isclose.), operator(.div.)
-    public :: stochastic_round, stochastic_round_r
-    public :: stop_all, cumsum, open_new_file
-    public :: pairswap
-    public :: lex_leq, lex_geq, get_permutations, custom_findloc
-    public :: print_cstr_local
-    public :: addToIntArray
-    public :: fuseIndex
-    public :: linearIndex
-    public :: getSpinIndex
-    public :: binary_search_int
-    public :: binary_search_real
-    public :: arr_2d_ptr
-    public :: intswap
+    public :: error_function, error_function_c, stop_all, toggle_lprof
+    public :: arr_2d_ptr, ptr_abuse_1d, ptr_abuse_2d, ptr_abuse_scalar
+    public :: neci_etime, get_free_unit, int_fmt,&
+        strlen_wrap, record_length, open_new_file, &
+        append_ext, get_unique_filename, neci_flush, print_cstr_local, &
+        stats_out
+    public :: arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.), &
+        find_next_comb, binary_search, binary_search_custom, binary_search_first_ge, &
+        cumsum, pairswap, swap, intswap, lex_leq, lex_geq, &
+        get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
+        getSpinIndex, binary_search_int, binary_search_real
+
     public :: EnumBase_t
-    public :: stats_out
-    public :: operator(.implies.)
-    public :: neci_flush
-    public :: toggle_lprof
-    public :: ptr_abuse_1d, ptr_abuse_2d, ptr_abuse_scalar
 
 
     interface
