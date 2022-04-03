@@ -122,7 +122,7 @@ contains
 
                         !if (iter < 10) then
                         !    write(stdout,*) "CurrentDets before:"
-                        !    do idet = 1, int(TotWalkers, sizeof_int)
+                        !    do idet = 1, int(TotWalkers)
                         !        call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                         !                              fcimc_excit_gen_store)
                         !        if (tUseFlags) then
@@ -147,7 +147,7 @@ contains
                         !    end do
                         !end if
 
-                        do idet = 1, int(TotWalkers, sizeof_int)
+                        do idet = 1, int(TotWalkers)
 
                             ! The 'parent' determinant from which spawning is to be attempted.
                             ilut_parent => CurrentDets(:, idet)
@@ -292,7 +292,7 @@ contains
 
                         if (tSemiStochastic) call determ_projection()
 
-                        TotWalkersNew = int(TotWalkers, sizeof_int)
+                        TotWalkersNew = int(TotWalkers)
                         call end_iter_stats(TotWalkersNew)
                         call end_iteration_print_warn(TotWalkersNew)
 
@@ -448,24 +448,24 @@ contains
                     spin_matrix(:, :) = 0.0_dp
                 end if
 
-                call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), overlap_matrix)
+                call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers), overlap_matrix)
 
                 if (tExactHamil) then
-                    call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), hamil_matrix)
+                    call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers), hamil_matrix)
                 else
                     if (tSemiStochastic) then
                         associate(rep => cs_replicas(core_run))
-                            call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                            call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers), &
                                                       hamil_matrix, rep%partial_determ_vecs, rep%full_determ_vecs)
                         end associate
                     else
-                        call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                        call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers), &
                                                   hamil_matrix)
                     end if
                 end if
 
                 !write(stdout,*) "CurrentDets before:"
-                !do idet = 1, int(TotWalkers, sizeof_int)
+                !do idet = 1, int(TotWalkers)
                 !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                 !                          fcimc_excit_gen_store)
                 !    if (tUseFlags) then
@@ -492,7 +492,7 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 if (tCalcSpin) then
                     ! Calculate the spin squared projected into the subspace.
-                    call calc_projected_spin(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), spin_matrix)
+                    call calc_projected_spin(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers), spin_matrix)
                     call communicate_kp_matrices(overlap_matrix, hamil_matrix, spin_matrix)
                 else
                     call communicate_kp_matrices(overlap_matrix, hamil_matrix)
@@ -520,7 +520,7 @@ contains
                     iter = iter + 1
                     call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
 
-                    do idet = 1, int(TotWalkers, sizeof_int)
+                    do idet = 1, int(TotWalkers)
 
                         ! The 'parent' determinant from which spawning is to be attempted.
                         ilut_parent => CurrentDets(:, idet)
@@ -652,7 +652,7 @@ contains
 
                     if (tSemiStochastic) call determ_projection()
 
-                    TotWalkersNew = int(TotWalkers, sizeof_int)
+                    TotWalkersNew = int(TotWalkers)
                     call end_iter_stats(TotWalkersNew)
                     call end_iteration_print_warn(TotWalkersNew)
 

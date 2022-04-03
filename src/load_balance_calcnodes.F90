@@ -108,9 +108,9 @@ contains
         ! we can only use the the remaining (nNodes-1) processors to
         ! distribute the rest ofthe particles
         if (tUniqueHFNode) then
-            block = int(abs(mod(acc, int(balance_blocks - 1, int64))), sizeof_int)
+            block = int(abs(mod(acc, int(balance_blocks - 1, int64))))
         else
-            block = int(abs(mod(acc, int(balance_blocks, int64))), sizeof_int)
+            block = int(abs(mod(acc, int(balance_blocks, int64))))
         end if
         block = block + 1
 

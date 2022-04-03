@@ -589,7 +589,7 @@ contains
                     if (iters > iShiftVary) then
                         tRefToZero = .true.
                         validdata = 0
-                        iShiftVary = int(Iters, sizeof_int) + 1
+                        iShiftVary = int(Iters) + 1
                     end if
                 else
                     if (iters > iShiftVary) then
@@ -597,7 +597,7 @@ contains
                             !Denominator gone to zero - wipe the stats
                             tRefToZero = .true.
                             validdata = 0
-                            iShiftVary = int(Iters, sizeof_int) + 1
+                            iShiftVary = int(Iters) + 1
                         else
                             validdata = validdata + 1
                         end if
@@ -1171,7 +1171,7 @@ contains
 
         iroot = 1
         CALL GetSym(FDet, NEl, G1, NBasisMax, RefSym)
-        isymh = int(RefSym%Sym%S, sizeof_int) + 1
+        isymh = int(RefSym%Sym%S) + 1
         write(stdout, 10101) iroot, isymh
 10101   format(//'RESULTS FOR STATE', i2, '.', i1/'====================='/)
         write(stdout, '('' Current reference energy'',T52,F19.12)') Hii

@@ -52,7 +52,7 @@ contains
 
         call set_timer(nElRDM_Time, 30)
 
-        do i = 1, int(MaxTotWalkers, sizeof_int)
+        do i = 1, int(MaxTotWalkers)
 
             ! But if the actual number of determinants on this processor is
             ! less than the number  we're running through, feed in 0
@@ -808,7 +808,7 @@ contains
                     ! TotWalkers for determinant iLutnJ. If found, tDetFound
                     ! will be true, and PartInd the index in CurrentDets where
                     ! the determinant is.
-                    call BinSearchParts_rdm(iLutnJ, 1, int(TotWalkers, sizeof_int), PartInd, tDetFound)
+                    call BinSearchParts_rdm(iLutnJ, 1, int(TotWalkers), PartInd, tDetFound)
                     if (tDetFound) then
                         ! Determinant occupied; add c_i*c_j to the relevant
                         ! element of nElRDM. Need to first find the orbitals
@@ -893,7 +893,7 @@ contains
                     ! This binary searches CurrentDets between 1 and TotWalkers
                     ! for determinant iLutnJ. If found, tDetFound will be true,
                     ! and PartInd the index in CurrentDets where the determinant is.
-                    call BinSearchParts_rdm(iLutnJ, 1, int(TotWalkers, sizeof_int), PartInd, tDetFound)
+                    call BinSearchParts_rdm(iLutnJ, 1, int(TotWalkers), PartInd, tDetFound)
 
                     if (tDetFound) then
                         ! Determinant occupied; add c_i*c_j to the relevant
@@ -988,7 +988,7 @@ contains
                     ! This binary searches CurrentDets between 1 and TotWalkers
                     ! for determinant iLutnJ. If found, tDetFound will be true,
                     ! and PartInd the index in CurrentDets where the determinant is.
-                    call BinSearchParts_rdm(iLutnJ, 1, int(TotWalkers, sizeof_int), PartInd, tDetFound)
+                    call BinSearchParts_rdm(iLutnJ, 1, int(TotWalkers), PartInd, tDetFound)
 
                     ExcitLevel = FindBitExcitLevel(iLutHF_true, iLutnJ, NEl)
                     call find_hist_coeff_explicit(iLutnJ, ExcitLevel, PartInd, tDetFound)
@@ -1093,7 +1093,7 @@ contains
                     ! This binary searches CurrentDets between 1 and TotWalkers
                     ! for determinant iLutnJ. If found, tDetFound will be true,
                     ! and PartInd the index in CurrentDets where the  determinant is.
-                    call BinSearchParts_rdm(iLutnJ, 1, int(TotWalkers, sizeof_int), PartInd, tDetFound)
+                    call BinSearchParts_rdm(iLutnJ, 1, int(TotWalkers), PartInd, tDetFound)
 
                     ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnJ, NEl)
                     call find_hist_coeff_explicit(iLutnJ, ExcitLevel, PartInd, tDetFound)

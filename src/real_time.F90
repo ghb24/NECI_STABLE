@@ -640,7 +640,7 @@ contains
         ! prefactor for unbiasing if the number of spawns is cut off
         prefactor = 1.0_dp
         ! use part of nicks code, and remove the parts, that dont matter
-        do idet = 1, int(TotWalkers, sizeof_int)
+        do idet = 1, int(TotWalkers)
 
             parent_flags = 0_n_int
 
@@ -810,7 +810,7 @@ contains
         prefactor = 1.0_dp
         determ_index = 1
 
-        do idet = 1, int(TotWalkers, sizeof_int)
+        do idet = 1, int(TotWalkers)
 
             ! The 'parent' determinant from which spawning is to be attempted.
             parent_flags = 0_n_int
@@ -954,7 +954,7 @@ contains
         ! death-step too,
 
         ! this is the original number of dets.
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
 
         ! have to call end_iter_stats to get correct acceptance rate
 !         call end_iter_stats(TotWalkersNew)
@@ -965,7 +965,7 @@ contains
         call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
         call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data_fciqmc, err)
 
-        TotWalkers = int(TotWalkersNew, sizeof_int)
+        TotWalkers = int(TotWalkersNew)
 
     end subroutine first_real_time_spawn
 
@@ -1053,7 +1053,7 @@ contains
         ! meh.. that seems really inefficient, better do it more cleverly
         ! in the creation of the k2 spawned list + annihilation!
 
-!         do idet = 1, int(TotWalkers, sizeof_int)
+!         do idet = 1, int(TotWalkers)
 !
 !             ! do death_step only.. maybe..
 !         end do
@@ -1068,7 +1068,7 @@ contains
         ! the actual spawned particles, to best mimick the old algorithm and
         ! also to correctly keep the stats of the events!
 
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
 
         ! also have to set the SumWalkersCyc before the "proper" annihilaiton
         do run = 1, inum_runs
@@ -1077,7 +1077,7 @@ contains
         end do
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data)
-        TotWalkersNew = int(TotWalkersNew, sizeof_int)
+        TotWalkersNew = int(TotWalkersNew)
 
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
@@ -1089,7 +1089,7 @@ contains
         call check_update_growth(second_spawn_iter_data, "Error in second RK step")
 #endif
 
-        TotWalkers = int(TotWalkersNew, sizeof_int)
+        TotWalkers = int(TotWalkersNew)
 
         ! also do the update on the second_spawn_iter_data to combine both of
         ! them outside this function
@@ -1128,7 +1128,7 @@ contains
         ! merge delta_psi (now spawnedParts) into CurrentDets
         ! We need to cast TotWalkers to a regular int to pass it to the annihilation
         ! as it is modified, we need to pass an lvalue and cannot just pass int(TotWalkers)
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
         call end_iter_stats(TotWalkersNew)
         ! for semistochastic method, we add in the core -> core spawns
         ! if(tSemiStochastic) call deterministic_annihilation(iter_data_fciqmc)

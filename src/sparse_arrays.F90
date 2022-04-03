@@ -89,7 +89,7 @@ contains
         allocate(hamil_diag(num_states), stat=ierr)
         call LogMemAlloc('hamil_diag', num_states, 8, t_r, HDiagTag, ierr)
         allocate(sparse_row_sizes(num_states), stat=ierr)
-        call LogMemAlloc('sparse_row_sizes', num_states, bytes_int, t_r, SRTag, ierr)
+        call LogMemAlloc('sparse_row_sizes', num_states, sizeof_int, t_r, SRTag, ierr)
 
         ! Set each element to one to count the diagonal elements straight away.
         sparse_row_sizes = 1
@@ -182,11 +182,11 @@ contains
         allocate(hamil_diag(num_states), stat=ierr)
         call LogMemAlloc('hamil_diag', num_states, 8, t_r, HDiagTag, ierr)
         allocate(sparse_row_sizes(num_states), stat=ierr)
-        call LogMemAlloc('sparse_row_sizes', num_states, bytes_int, t_r, SRTag, ierr)
+        call LogMemAlloc('sparse_row_sizes', num_states, sizeof_int, t_r, SRTag, ierr)
         allocate(sparse_diag_positions(num_states), stat=ierr)
-        call LogMemAlloc('sparse_diag_positions', num_states, bytes_int, t_r, SDTag, ierr)
+        call LogMemAlloc('sparse_diag_positions', num_states, sizeof_int, t_r, SDTag, ierr)
         allocate(indices(num_states), stat=ierr)
-        call LogMemAlloc('indices', num_states, bytes_int, t_r, ITag, ierr)
+        call LogMemAlloc('indices', num_states, sizeof_int, t_r, ITag, ierr)
 
         ! Set each element to one to count the diagonal elements straight away.
         sparse_row_sizes = 1
@@ -312,7 +312,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(CSF_Info_t) :: csf_i, csf_j
 
-        num_states_tot = int(sum(num_states), sizeof_int)
+        num_states_tot = int(sum(num_states))
         disps(0) = 0
         do i = 1, nProcessors - 1
             disps(i) = disps(i - 1) + num_states(i - 1)
@@ -323,7 +323,7 @@ contains
         safe_realloc_e(hamiltonian_row, (num_states_tot), ierr)
         call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag, ierr)
         safe_realloc_e(hamil_diag, (num_states(iProcIndex)), ierr)
-        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex), sizeof_int), 8, t_r, HDiagTag, ierr)
+        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex)), 8, t_r, HDiagTag, ierr)
         safe_realloc_e(temp_store, (0:NIfTot, num_states_tot), ierr)
         call LogMemAlloc('temp_store', num_states_tot * (NIfTot + 1), 8, t_r, TempStoreTag, ierr)
 
@@ -379,7 +379,7 @@ contains
 
             if (tPrintInfo) then
                 if (i == 1) then
-                    bytes_required = row_size * (8 + bytes_int)
+                    bytes_required = row_size * (8 + sizeof_int)
                     write(stdout, '(1x,a43)') "About to allocate first row of Hamiltonian."
                     write(stdout, '(1x,a40,1x,i8)') "The memory (bytes) required for this is:", bytes_required
                     write(stdout, '(1x,a71,1x,i7)') "The total number of determinants (and hence rows) on this processor is:", &
@@ -447,7 +447,7 @@ contains
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
-        call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size, sizeof_int), 8, this_routine, HRTag, ierr)
+        call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size), 8, this_routine, HRTag, ierr)
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', rep%determ_space_size * (NIfTot + 1), 8, this_routine, TempStoreTag, ierr)
@@ -587,7 +587,7 @@ contains
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
-        call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size, sizeof_int), 8, t_r, HRTag, ierr)
+        call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size), 8, t_r, HRTag, ierr)
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', rep%determ_space_size * (NIfTot + 1), 8, t_r, TempStoreTag, ierr)
@@ -824,7 +824,7 @@ contains
 
         var_name = trim(sparse_matrix_name)//"_"//trim(string_row)//"_positions"
         allocate(sparse_matrix(row)%positions(sparse_row_size), stat=ierr)
-        call LogMemAlloc(var_name, sparse_row_size, bytes_int, t_r, sparse_tags(2), ierr)
+        call LogMemAlloc(var_name, sparse_row_size, sizeof_int, t_r, sparse_tags(2), ierr)
 
     end subroutine allocate_sparse_ham_row
 

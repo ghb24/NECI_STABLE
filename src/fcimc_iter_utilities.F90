@@ -229,7 +229,7 @@ contains
                 end if
                 allocate(TempSpawnedParts(0:nifd, TempSpawnedPartsSize), &
                           stat=ierr, source=0_n_int)
-                call LogMemAlloc('TempSpawnedParts', size(TempSpawnedParts), tbs_(TempSpawnedParts), &
+                call LogMemAlloc('TempSpawnedParts', size(TempSpawnedParts, kind=int64), size_per_element(TempSpawnedParts), &
                                  this_routine, TempSpawnedPartsTag, ierr)
                 write (6, "(' Allocating temporary array for walkers spawned &
                            &from a particular Di.')")
@@ -316,7 +316,7 @@ contains
 !                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
 !                                    int(proc_highest(run),n_int))
                     call MPIBcast(HighestPopDet(0:NIfTot, run), NIfTot + 1, &
-                                  int(proc_highest(run), sizeof_int))
+                                  int(proc_highest(run)))
 
                     call update_run_reference(HighestPopDet(:, run), run)
 
@@ -357,7 +357,7 @@ contains
 !                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
 !                                    int(proc_highest(run),n_int))
                     call MPIBcast(HighestPopDet(:, run), NIfTot + 1, &
-                                  int(proc_highest(run), sizeof_int))
+                                  int(proc_highest(run)))
 
                     call update_run_reference(HighestPopDet(:, run), run)
 
@@ -1466,7 +1466,7 @@ contains
 
         trial_count = 0
         total_amp = 0.0
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, j), SignCurr)
             if (.not. IsUnoccDet(SignCurr) .and. test_flag(CurrentDets(:, j), flag_trial)) then
                 trial_count = trial_count + 1

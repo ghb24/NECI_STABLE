@@ -78,6 +78,9 @@ module hdf5_popsfile
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
     use global_det_data, only: max_ratio_size, fvals_size, apvals_size
+    use FcimcData, only: SpawnedParts2, AllTotParts, MaxSpawned, PreviousCycles, tSinglePartPhase, &
+        SpawnedParts
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
 #ifdef USE_HDF_
     use hdf5
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
@@ -799,7 +802,7 @@ contains
         gdata_size = gdata_write_handler%entry_size()
         if (gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
 
-        do i = 1, int(TotWalkers, sizeof_int)
+        do i = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, i), CurrentSign)
             ! Skip empty determinants (unless we are accumulating its population)
             if (IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:, i))) cycle

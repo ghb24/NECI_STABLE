@@ -60,6 +60,9 @@ module fcimc_helper
                         tPrecond, &
                         tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
                         allowedSpawnSign, tAS_Offset, ShiftOffset
+
+    use dSFMT_interface, only: genrand_real2_dSFMT
+
     use adi_data, only: tSignedRepAv
 
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -2030,7 +2033,7 @@ contains
         integer :: i
         real(dp) :: sgn
 
-        do i = 1, int(TotWalkers, sizeof_int)
+        do i = 1, int(TotWalkers)
 
             sgn = extract_part_sign(CurrentDets(:, i), part_type)
             sgn = -sgn
@@ -2069,7 +2072,7 @@ contains
             write(stdout, '(A)') 'Diagonalising initiator subspace...'
 
             iSubspaceSize = 0
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 call extract_sign(CurrentDets(:, i), CurrentSign)
                 if ((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
                     (DetBitEQ(CurrentDets(:, i), iLutHF, nifd))) then
@@ -2083,7 +2086,7 @@ contains
             call LogMemAlloc('ExpandedWalkerDets', NEl * iSubspaceSize, 4, t_r, ExpandedWalkTag, ierr)
 
             iSubspaceSize = 0
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 call extract_sign(CurrentDets(:, i), CurrentSign)
                 if ((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
                     (DetBitEQ(CurrentDets(:, i), iLutHF, nifd))) then
@@ -2107,7 +2110,7 @@ contains
 
         end if
 
-        iSubspaceSizeFull = int(TotWalkers, sizeof_int)
+        iSubspaceSizeFull = int(TotWalkers)
 
         !Allocate memory for walker list.
         write(stdout, '(A)') "Allocating memory for diagonalisation of full walker subspace"
@@ -2239,7 +2242,7 @@ contains
         integer :: ex_level, nI(nel), j
         real(dp) :: sgn(lenof_sign), hdiag
 
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn)) cycle
@@ -2544,7 +2547,7 @@ contains
             ! new reference det.
             write(stdout, *) 'Regenerating the stored diagonal &
                            &HElements for all walkers.'
-            do i = 1, int(Totwalkers, sizeof_int)
+            do i = 1, int(Totwalkers)
                 call decode_bit_det(det, CurrentDets(:, i))
                 h_tmp =  get_diagonal_matel(det, CurrentDets(:, i))
                 hoff_tmp =  get_off_diagonal_matel(det, CurrentDets(:, i))
@@ -2621,7 +2624,7 @@ contains
         HFAccum = 0.0_dp
         ENumAccum = 0.0_dp
 
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             call extract_sign(CurrentDets(:, j), sgn)
 

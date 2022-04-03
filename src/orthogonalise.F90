@@ -3,6 +3,7 @@ module orthogonalise
 
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
                          NoBorn, NoDied, fcimc_iter_data, replica_overlaps_real, &
+                         all_overlaps, all_norms, &
 #ifdef CMPLX_
                          replica_overlaps_imag, &
 #endif
@@ -63,7 +64,7 @@ contains
         do tgt_run = 1, inum_runs
 
             HolesInList = 0
-            do j = 1, int(TotWalkers, sizeof_int)
+            do j = 1, int(TotWalkers)
 
                 ! n.b. We are using a non-contiguous list (Hash algorithm)
                 call extract_sign(CurrentDets(:, j), sgn)
@@ -301,7 +302,7 @@ contains
         do tgt_state = 1, inum_runs / 2
 
             HolesInList = 0
-            do j = 1, int(TotWalkers, sizeof_int)
+            do j = 1, int(TotWalkers)
 
                 ! n.b. We are using a non-contiguous list (Hash algorithm).
                 call extract_sign(CurrentDets(:, j), sgn)
@@ -458,7 +459,7 @@ contains
         ! We want them to be valid for the new psi...
         psi_squared = 0
         scal_prod = 0
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn)) cycle
             psi_squared = psi_squared + sgn**2
@@ -468,7 +469,7 @@ contains
         call MPISumAll(scal_prod, all_scal_prod)
 
         ! Calculate the change
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             ! Adjust the wavefunctions
             call extract_sign(CurrentDets(:, j), sgn)
@@ -573,7 +574,7 @@ contains
 
         ! Generate the overlap matrix (unnormalised)
         S = 0
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn)) cycle
@@ -626,7 +627,7 @@ contains
 
         ! Go through and update the values!
         HolesInList = 0
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             ! n.b. We are using a non-contiguous list (Hash algorith)
             call extract_sign(CurrentDets(:, j), sgn_orig)
@@ -699,7 +700,7 @@ contains
 
         norms = 0.0_dp
         overlaps = 0.0_dp
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             ! n.b. We are using a non-contiguous list (Hash algorithm)
             call extract_sign(CurrentDets(:, j), sgn)

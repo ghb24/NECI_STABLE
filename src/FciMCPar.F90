@@ -504,7 +504,7 @@ contains
                 ! The currentdets is almost full, we should start removing
                 ! dets which have been empty long enough
                 if (iAccumPopsExpireIters > 0 .and. TotWalkers > AccumPopsExpirePercent * real(MaxWalkersPart, dp)) then
-                    do j = 1, int(TotWalkers, sizeof_int)
+                    do j = 1, int(TotWalkers)
                         ! The loop is over empty dets only
                         call extract_sign(CurrentDets(:, j), CurrentSign)
                         if (.not. IsUnoccDet(CurrentSign)) cycle
@@ -1054,7 +1054,7 @@ contains
         call getProjEOffset()
         iroot = 1
         CALL GetSym(ProjEDet(:, 1), NEl, G1, NBasisMax, RefSym)
-        isymh = int(RefSym%Sym%S, sizeof_int) + 1
+        isymh = int(RefSym%Sym%S) + 1
         write(stdout, '('' Current reference energy'',T52,F19.12)') OutputHii
         if (tNoProjEValue) then
             write(stdout, '('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1), dp)
@@ -1265,7 +1265,7 @@ contains
             end if
         end if
         lstart = mpi_wtime()
-        loop_over_determinants: do j = 1, int(TotWalkers, sizeof_int)
+        loop_over_determinants: do j = 1, int(TotWalkers)
 
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -1777,7 +1777,7 @@ contains
 
         ! With this algorithm, the determinants do not move, and therefore
         ! TotWalkersNew is simply equal to TotWalkers
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
 
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
@@ -1858,9 +1858,9 @@ contains
         if (tFillingStochRDMonFly) then
             ! if we use the initiator-only rdms as gamma_0, get them in their own entity
             if (tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
-                                                      inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false., .false.)
+                                                      inits_one_rdms, CurrentDets, int(TotWalkers), .false., .false.)
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, &
-                                       CurrentDets, int(TotWalkers, sizeof_int), .true., tApplyLC)
+                                       CurrentDets, int(TotWalkers), .true., tApplyLC)
         end if
 
         if (tTrialWavefunction .and. tTrialShift) then

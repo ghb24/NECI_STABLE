@@ -11,6 +11,7 @@ module rdm_general
     use FciMCData, only: proje_iter, Hii
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use SystemData, only: tGUGA
     use util_mod, only: near_zero
 
@@ -49,7 +50,6 @@ contains
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
-        use MemoryManager, only: LogMemAlloc
 
         integer, intent(in) :: nrdms_standard, nrdms_transition
 
@@ -600,7 +600,6 @@ contains
         use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
         use FciMCData, only: SpawnedParts, SpawnedParts2
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        use util_mod_byte_size
 
         integer :: ierr, nifbcast_old
         character(len=*), parameter :: this_routine = 'realloc_SpawnedParts'
@@ -668,7 +667,6 @@ contains
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
         use RotateOrbsData, only: SymLabelListInv_rotTag
         use RotateOrbsMod, only: FourIndInts, FourIndIntsTag
-        use util_mod, only: LogMemDealloc
 
         character(len=*), parameter :: t_r = 'dealloc_global_rdm_data'
 

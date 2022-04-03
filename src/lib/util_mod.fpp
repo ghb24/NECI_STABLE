@@ -10,7 +10,6 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_numerical
-    use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
@@ -29,32 +28,42 @@ module util_mod
 #endif
     implicit none
 
-    ! sds: It would be nice to use a proper private/public interface here,
-    !      BUT PGI throws a wobbly on using the public definition on
-    !      a new declared operator. --> "Empty Operator" errors!
-    !      to fix when compilers work!
-!    private
+    private
 
-!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-!    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
+    public :: factrl, choose_i64, int_fmt
+    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+#ifdef GFORTRAN_
+    public :: choose_i128
+#endif
 
-!     private
-!     public :: neci_etime,&
-!         NECI_ICOPY, get_unique_filename, get_free_unit, int_fmt,&
-!         strlen_wrap, record_length,&
-!         find_next_comb,&
-!         swap, choose
-!     public :: binary_search, binary_search_custom, binary_search_first_ge
-!     public :: abs_l1
-!     public :: tbs_, abs_sign,&
-!         error_function, error_function_c,&
-!         get_nan,&
-!         isclose, operator(.isclose.), near_zero,&
-!         operator(.arrlt.), operator(.arrgt.), operator(.div.)
-!     public :: stochastic_round_r
-!     public :: pDoubles, pSingles
-!     public :: set_timer, halt_timer
+    public :: neci_etime,&
+        NECI_ICOPY, get_free_unit, int_fmt,&
+        strlen_wrap, record_length,&
+        find_next_comb, swap
+    public :: binary_search, binary_search_custom, binary_search_first_ge
+    public :: abs_l1
+    public :: abs_sign, error_function, error_function_c, &
+        near_zero, operator(.isclose.), operator(.div.)
+    public :: stochastic_round, stochastic_round_r
+    public :: stop_all, cumsum, open_new_file
+    public :: pairswap
+    public :: lex_leq, lex_geq, get_permutations, custom_findloc
+    public :: print_cstr_local
+    public :: addToIntArray
+    public :: fuseIndex
+    public :: linearIndex
+    public :: getSpinIndex
+    public :: binary_search_int
+    public :: binary_search_real
+    public :: arr_2d_ptr
+    public :: intswap
+    public :: EnumBase_t
+    public :: stats_out
+    public :: operator(.implies.)
+    public :: neci_flush
+    public :: toggle_lprof
+    public :: ptr_abuse_1d, ptr_abuse_2d, ptr_abuse_scalar
 
 
     interface
@@ -162,16 +171,6 @@ module util_mod
         #:endfor
     end interface
 
-    ! sds: It would be nice to use a proper private/public interface here,
-    !      BUT PGI throws a wobbly on using the public definition on
-    !      a new declared operator. --> "Empty Operator" errors!
-    !      to fix when compilers work!
-!    private
-
-!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-!    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
-
     type, abstract :: EnumBase_t
         integer :: val
     contains
@@ -210,7 +209,7 @@ contains
 
     end function
 
-    function stochastic_round_r(num, r) result(i)
+    elemental function stochastic_round_r(num, r) result(i)
 
         ! Perform the stochastic rounding of the above function where the
         ! random number is already specified.
@@ -1067,8 +1066,7 @@ contains
         integer, intent(in) :: bytes
         integer :: record_length_loc
         inquire(iolength=record_length_loc) bytes
-!       record_length = (bytes/4)*record_length
-        record_length = (bytes / sizeof_int) * int(record_length_loc, sizeof_int)
+        record_length = (bytes / sizeof_int) * int(record_length_loc)
 ! 8 indicates 8-byte words I think
     end function record_length
 
