@@ -13,7 +13,7 @@ module rdm_general
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use SystemData, only: tGUGA
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, operator(.div.)
 
     implicit none
 

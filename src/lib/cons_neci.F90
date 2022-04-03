@@ -3,7 +3,10 @@ module constants
         stdin => input_unit,  stdout => output_unit, stderr => error_unit
     implicit none
     ! private
-    public :: sp, dp, qp, int32, int64, int128
+    public :: sp, dp, qp, int32, int64
+#ifdef GFORTRAN_
+    public :: int128
+#endif
     public :: stdin, stdout, stderr
     public :: EPS
 
@@ -34,7 +37,11 @@ module constants
     integer, parameter :: sizeof_int32 = sizeof(0_int32)
     integer, parameter :: sizeof_int64 = sizeof(0_int64)
     integer, parameter :: sizeof_dp = sizeof(0._dp)
+#ifdef IFORT_
+    integer, parameter :: sizeof_complexdp = 2 * sizeof_dp
+#else
     integer, parameter :: sizeof_complexdp = sizeof(complex(0._dp, 0._dp))
+#endif
     integer, parameter :: sizeof_sp = sizeof(0._sp)
 
     ! number of possible excitations per step
