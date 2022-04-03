@@ -16,7 +16,7 @@ if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.8.20_ifort_19
     export FI_PROVIDER=sockets
     module load ifort/19.1.1 mpi.intel/2019.7
-elif [ "ifort18" == "$@" ]; then
+elif [ "ifort18-debug" == "$@" ] || [ "ifort18" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.8.20_ifort_18
     module load ifort/18.0.1 mpi.intel/5.0.3
 elif [ "gfortran-debug" == "$@" ] || [ "gfortran" == "$@" ] || [ "gfortran-doc" == "$@" ] || [ "gfortran-debug-integer8" == "$@" ]; then
