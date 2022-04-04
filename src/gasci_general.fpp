@@ -23,7 +23,7 @@ module gasci_general
         excite, ilut_excite
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, &
         operator(-), operator(==), operator(/=), sum
-    use util_mod, only: intswap
+    use util_mod, only: swap
 
     use excitation_generators, only: &
         SingleExcitationGenerator_t, DoubleExcitationGenerator_t, ExcitationGenerator_t,  &
@@ -449,7 +449,7 @@ contains
         end if
 
         reverted_exc = exc
-        call intswap(reverted_exc%val(2, 1), reverted_exc%val(2, 2))
+        call swap(reverted_exc%val(2, 1), reverted_exc%val(2, 2))
 
         possible_holes = this%get_possible_holes(nI, reverted_exc%val(1, :), reverted_exc%val(2, 1))
         i = binary_search_first_ge(possible_holes, reverted_exc%val(2, 2))

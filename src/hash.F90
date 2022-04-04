@@ -31,7 +31,7 @@ contains
             hash = (1099511628211_int64 * hash) + &
                    int(RandomHash2(orb_array(i)) * i, int64)
         end do
-        hashInd = int(abs(mod(hash, int(HashIndexLength, int64))), sizeof_int) + 1
+        hashInd = int(abs(mod(hash, int(HashIndexLength, int64)))) + 1
 
     end function FindWalkerHash
 

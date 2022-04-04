@@ -216,7 +216,7 @@ contains
 !   we don't have symmetry, so fake it.
                     SymClasses((I + 1) / 2) = 1
                 ELSE
-                    SymClasses((I + 1) / 2) = int(G1(I)%Sym%s, sizeof_int) + 1
+                    SymClasses((I + 1) / 2) = int(G1(I)%Sym%s) + 1
                 end if
             end do
 !   list the symmetry string of each sym label
@@ -1897,10 +1897,10 @@ contains
         integer(int64), intent(in) :: Isym
         integer, intent(out) :: AbelSym(3)
 !RShift
-        AbelSym(3) = int(IShft(Isym, -(PropBitLen * 2)), sizeof_int)
+        AbelSym(3) = int(IShft(Isym, -(PropBitLen * 2)))
 !RShift
-        AbelSym(2) = int(Iand(IShft(ISym, -PropBitLen), 2_int64**PropBitLen - 1), sizeof_int)
-        AbelSym(1) = int(Iand(Isym, 2_int64**PropBitLen - 1), sizeof_int)
+        AbelSym(2) = int(Iand(IShft(ISym, -PropBitLen), 2_int64**PropBitLen - 1))
+        AbelSym(1) = int(Iand(Isym, 2_int64**PropBitLen - 1))
     end subroutine DecomposeAbelianSym
 
     integer(int64) pure function ComposeAbelianSym(AbelSym)
@@ -1981,7 +1981,7 @@ contains
         do i = 1, Nirrep
             basirrep = SYMLABELCOUNTS(2, i)
             iSize = iSize + (basirrep * (basirrep + 1)) / 2
-            SYMLABELINTSCUM(i) = int(iSize, sizeof_int)
+            SYMLABELINTSCUM(i) = int(iSize)
             IF (i == 1) THEN
                 SYMLABELCOUNTSCUM(i) = 0
             ELSE

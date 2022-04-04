@@ -192,7 +192,7 @@ contains
         call set_timer(s2_timer)
 
         ssq = 0
-        do i = 1, int(TotWalkers, sizeof_int)
+        do i = 1, int(TotWalkers)
             if ((test_flag(CurrentDets(:, i), get_initiator_flag(1)) .or. &
                  test_flag(CurrentDets(:, i), get_initiator_flag(lenof_sign))) &
                 .and. .not. TestClosedShellDet(CurrentDets(:, i))) then
@@ -401,7 +401,7 @@ contains
         do p = 0, nProcessors - 1
 
             ! How many dets are on processor p
-            proc_dets = int(TotWalkers, sizeof_int)
+            proc_dets = int(TotWalkers)
             call MPIBcast(proc_dets, iProcIndex == p)
 
             ! Send the dets around bit by bit
@@ -412,7 +412,7 @@ contains
                     ! Loop over walkers and only add initiators to bcast list
                     nsend = 0
                     if (p == iProcIndex) then
-                        do i = start_pos, int(TotWalkers, sizeof_int)
+                        do i = start_pos, int(TotWalkers)
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 

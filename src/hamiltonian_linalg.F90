@@ -160,7 +160,7 @@ contains
                 mpi_temp = int(space_size, MPIArg)
                 call MPIAllGather(mpi_temp, this%space_sizes, ierr)
                 ! The total space size across all processors.
-                space_size = int(sum(this%space_sizes), sizeof_int)
+                space_size = int(sum(this%space_sizes))
                 allocate(hamil_diag_temp(space_size))
                 this%partial_H_ket_disps(0) = 0
                 do i = 1, nProcessors - 1

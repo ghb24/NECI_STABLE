@@ -21,7 +21,7 @@ subroutine VaspSystemInit(ArrLEN)
     call LogMemAlloc('KPntSym', 3 * nKP, 4, this_routine, tagKPntSym)
     do ik = 1, nKP
         do i = 1, 3
-            KPntSym(i, ik) = int(kpnts(i, ik) * real(nProp(i), dp), sizeof_int)
+            KPntSym(i, ik) = int(kpnts(i, ik) * real(nProp(i), dp))
         end do
     end do
 

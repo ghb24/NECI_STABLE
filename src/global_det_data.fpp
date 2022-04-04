@@ -8,6 +8,7 @@ module global_det_data
                         tReplicaEstimates, tMoveGlobalDetData, tScaleBlooms
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use constants
     use util_mod
     implicit none

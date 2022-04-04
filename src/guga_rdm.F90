@@ -1179,7 +1179,7 @@ contains
 
                     ilutJ = Doub_ExcDjs2(:, j)
 
-                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), &
+                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers), &
                                             PartInd, tDetFound)
 
                     if (tDetFound) then
@@ -1239,7 +1239,7 @@ contains
 
                     ilutJ = Sing_ExcDjs2(:, j)
 
-                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), PartInd, tDetFound)
+                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers), PartInd, tDetFound)
 
                     if (tDetFound) then
 

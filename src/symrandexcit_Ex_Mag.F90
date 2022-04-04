@@ -390,7 +390,7 @@ contains
         end if
 
         ! Pick a pair
-        rint = int(1.0_dp + (genrand_real2_dSFMT() * real(npairs, dp)), sizeof_int)
+        rint = int(1.0_dp + (genrand_real2_dSFMT() * real(npairs, dp)))
 
         ! Select which symmetry/spin category we want for the currently  occupied orbital
         !ind = binary_search_first_ge (pair_list, rint)

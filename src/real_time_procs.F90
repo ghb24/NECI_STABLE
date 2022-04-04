@@ -296,7 +296,7 @@ contains
 
         holes = 0
 
-        do idet = 1, int(TotWalkers, sizeof_int)
+        do idet = 1, int(TotWalkers)
 
             ilut_parent => CurrentDets(:, idet)
 
@@ -987,7 +987,7 @@ contains
         ! stored CurrentDets list!
         call clear_hash_table(HashIndex)
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, &
-                                int(TotWalkers, sizeof_int), .true.)
+                                int(TotWalkers), .true.)
 
         ! for correct load Balancin i also have to reset the the freeslot var.
         ! here i have to reset the freeslot values to the values after the

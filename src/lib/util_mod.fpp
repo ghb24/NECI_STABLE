@@ -10,7 +10,6 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_numerical
-    use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
@@ -29,32 +28,28 @@ module util_mod
 #endif
     implicit none
 
-    ! sds: It would be nice to use a proper private/public interface here,
-    !      BUT PGI throws a wobbly on using the public definition on
-    !      a new declared operator. --> "Empty Operator" errors!
-    !      to fix when compilers work!
-!    private
+    private
 
-!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-!    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+    public :: get_nan, isnan_neci, factrl, choose_i64, NECI_icopy, operator(.implies.), &
+        abs_l1, abs_sign, near_zero, operator(.isclose.), operator(.div.), &
+        stochastic_round, stochastic_round_r
+#ifdef GFORTRAN_
+    public :: choose_i128
+#endif
 
-!     private
-!     public :: neci_etime,&
-!         NECI_ICOPY, get_unique_filename, get_free_unit, int_fmt,&
-!         strlen_wrap, record_length,&
-!         find_next_comb,&
-!         swap, choose
-!     public :: binary_search, binary_search_custom, binary_search_first_ge
-!     public :: abs_l1
-!     public :: tbs_, abs_sign,&
-!         error_function, error_function_c,&
-!         get_nan,&
-!         isclose, operator(.isclose.), near_zero,&
-!         operator(.arrlt.), operator(.arrgt.), operator(.div.)
-!     public :: stochastic_round_r
-!     public :: pDoubles, pSingles
-!     public :: set_timer, halt_timer
+    public :: error_function, error_function_c, stop_all, toggle_lprof
+    public :: arr_2d_ptr, ptr_abuse_1d, ptr_abuse_2d, ptr_abuse_scalar
+    public :: neci_etime, get_free_unit, int_fmt,&
+        strlen_wrap, record_length, open_new_file, &
+        append_ext, get_unique_filename, neci_flush, print_cstr_local, &
+        stats_out
+    public :: arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.), &
+        find_next_comb, binary_search, binary_search_custom, binary_search_first_ge, &
+        cumsum, pairswap, swap, lex_leq, lex_geq, &
+        get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
+        getSpinIndex, binary_search_int, binary_search_real
+
+    public :: EnumBase_t
 
 
     interface
@@ -141,10 +136,10 @@ module util_mod
         module procedure fuseIndex_int64
     end interface fuseIndex
 
-    interface intSwap
-        module procedure intSwap_int64
-        module procedure intSwap_int32
-    end interface intSwap
+    interface swap
+        module procedure swap_int64
+        module procedure swap_int32
+    end interface swap
 
     interface custom_findloc
         #:for type, kinds in extended_types.items()
@@ -161,16 +156,6 @@ module util_mod
         #:endfor
         #:endfor
     end interface
-
-    ! sds: It would be nice to use a proper private/public interface here,
-    !      BUT PGI throws a wobbly on using the public definition on
-    !      a new declared operator. --> "Empty Operator" errors!
-    !      to fix when compilers work!
-!    private
-
-!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-!    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
 
     type, abstract :: EnumBase_t
         integer :: val
@@ -210,7 +195,7 @@ contains
 
     end function
 
-    function stochastic_round_r(num, r) result(i)
+    elemental function stochastic_round_r(num, r) result(i)
 
         ! Perform the stochastic rounding of the above function where the
         ! random number is already specified.
@@ -452,7 +437,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    pure subroutine intswap_int32(a, b)
+    elemental subroutine swap_int32(a, b)
         ! exchange the value of two integers a,b
         ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
         integer(int32), intent(inout) :: a, b
@@ -461,11 +446,11 @@ contains
         tmp = a
         a = b
         b = tmp
-    end subroutine intswap_int32
+    end subroutine swap_int32
 
 !------------------------------------------------------------------------------------------!
 
-    pure subroutine intswap_int64(a, b)
+    elemental subroutine swap_int64(a, b)
         ! exchange the value of two integers a,b
         ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
         integer(int64), intent(inout) :: a, b
@@ -474,7 +459,7 @@ contains
         tmp = a
         a = b
         b = tmp
-    end subroutine intswap_int64
+    end subroutine swap_int64
 
 !------------------------------------------------------------------------------------------!
 
@@ -482,8 +467,8 @@ contains
         ! exchange a pair of integers
         integer(int64), intent(inout) :: a, i, b, j
 
-        call intswap(a, b)
-        call intswap(i, j)
+        call swap(a, b)
+        call swap(i, j)
     end subroutine pairSwap
 
 !------------------------------------------------------------------------------------------!
@@ -1067,8 +1052,7 @@ contains
         integer, intent(in) :: bytes
         integer :: record_length_loc
         inquire(iolength=record_length_loc) bytes
-!       record_length = (bytes/4)*record_length
-        record_length = (bytes / sizeof_int) * int(record_length_loc, sizeof_int)
+        record_length = (bytes / sizeof_int) * int(record_length_loc)
 ! 8 indicates 8-byte words I think
     end function record_length
 
@@ -1375,12 +1359,12 @@ contains
             do while (tmp(j) > tmp(i))
                 j = j + 1
             end do
-            call intswap(tmp(i), tmp(j))
+            call swap(tmp(i), tmp(j))
 
             i = i - 1
             j = 1
             do while (j < i)
-                call intswap(tmp(i), tmp(j))
+                call swap(tmp(i), tmp(j))
                 i = i - 1
                 j = j + 1
             end do
@@ -1525,4 +1509,3 @@ subroutine warning_neci(sub_name,error_msg)
     write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
     write (stderr,'(a/)') adjustl(error_msg)
 end subroutine warning_neci
-

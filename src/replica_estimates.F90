@@ -221,7 +221,7 @@ contains
         tDetermSpawnedTo = .false.
         associate(rep => cs_replicas(core_run))
             ! Contributions from diagonal where necessary
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 hdiag = det_diagH(i) + Hii
                 call extract_sign(CurrentDets(:, i), cursign)
                 do j = 1, replica_est_len
@@ -391,7 +391,7 @@ contains
                 en2_new_all = 0.0_dp
                 mean_energy = var_e_num_all / rep_est_overlap_all
 
-                do i = 1, int(TotWalkers, sizeof_int)
+                do i = 1, int(TotWalkers)
                     hdiag = det_diagH(i) + Hii
                     call extract_sign(CurrentDets(:, i), cursign)
                     do j = 1, replica_est_len
@@ -530,7 +530,7 @@ contains
         tDetermSpawnedTo = .false.
         associate(rep => cs_replicas(core_run))
             ! Contributions from diagonal where necessary
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 hdiag = det_diagH(i) + Hii
                 call extract_sign(CurrentDets(:, i), cursign)
                 do j = 1, replica_est_len
@@ -712,7 +712,7 @@ contains
 
                 mean_energy = var_e_num_all / rep_est_overlap_all
 
-                do i = 1, int(TotWalkers, sizeof_int)
+                do i = 1, int(TotWalkers)
                     hdiag = det_diagH(i) + Hii
                     call extract_sign(CurrentDets(:, i), cursign)
                     do j = 1, replica_est_len

@@ -453,7 +453,6 @@ set( TEMPLATED_SRC_FILES
     shared_memory_mpi.F90.template
     scalar_shared_memory_mpi.F90.template
     lib/quicksort.F90.template
-    lib/util_mod_byte_size.F90.template
     lib/util_mod_comparisons.F90.template
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
