@@ -91,6 +91,7 @@ contains
         ! early
         cnt_sing = 0
         cnt_doub = 0
+        cnt_trip = 0
 
         cnt_opp = 0
         cnt_par = 0

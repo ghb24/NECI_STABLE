@@ -405,7 +405,7 @@ contains
         case ("BOX")
             tOneElecDiag = .true.   !One electron integrals diagonal
         case default
-            call stop_all(this_routine, "System type "//trim(w)//" not valid", .true.)
+            call stop_all(this_routine, "System type "//trim(w)//" not valid")
         end select
 
         ! Now parse the rest of the system block.
@@ -556,13 +556,13 @@ contains
                 case ("OFF")
                     TEXCH = .FALSE.
                 case default
-                    call stop_all(this_routine, "EXCHANGE "//trim(w)//" not valid", .true.)
+                    call stop_all(this_routine, "EXCHANGE "//trim(w)//" not valid")
                 end select
             case ("COULOMB")
-                call stop_all(this_routine, "Coulomb feature removed", .true.)
+                call stop_all(this_routine, "Coulomb feature removed")
 
             case ("COULOMB-DAMPING")
-                call stop_all(this_routine, "Coulomb damping feature removed", .true.)
+                call stop_all(this_routine, "Coulomb damping feature removed")
 
             case ("ENERGY-CUTOFF")
                 tOrbECutoff = .true.
@@ -1024,7 +1024,7 @@ contains
             case ("STATE")
                 ISTATE = to_int(tokens%next())
                 if (ISTATE /= 1) then
-                    call stop_all(this_routine, "Require ISTATE to be left set as 1", .true.)
+                    call stop_all(this_routine, "Require ISTATE to be left set as 1")
                 end if
             case ("MODK-OFFDIAG")
                 modk_offdiag = .true.
@@ -1490,7 +1490,7 @@ contains
                         tNoSymGenRandExcits = .true.
                     case ("IMPORTANCESAMPLE")
 !Importance sample the excitations for FCIMCPar
-                        CALL Stop_All("ReadSysInp", "IMPORTANCESAMPLE option depreciated")
+                        CALL Stop_All("ReadSysInp", "IMPORTANCESAMPLE option deprecated")
 !                        tImportanceSample=.true.
                     case ("PICK-VIRT-UNIFORM")
                         ! Pick virtual orbitals randomly and uniformly in the
@@ -1634,7 +1634,7 @@ contains
             case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in,
 ! and only these determinants will be allowed to be spawned at.
-                CALL Stop_All("ReadSysInp", "SPAWNLISTDETS option depreciated")
+                CALL Stop_All("ReadSysInp", "SPAWNLISTDETS option deprecated")
 
             case ("UMATEPSILON")
 
@@ -1894,7 +1894,7 @@ contains
             case ("ENDSYS")
                 exit system
             case default
-                call stop_all(this_routine, "Keyword "  //trim(w)//" not recognized in SYSTEM block", .true.)
+                call stop_all(this_routine, "Keyword "  //trim(w)//" not recognized in SYSTEM block")
             end select
         end do system
 
@@ -1914,20 +1914,20 @@ contains
         end if
 
         if (NEL == 0) then
-            call stop_all(this_routine, "Number of electrons cannot be zero.", .true.)
+            call stop_all(this_routine, "Number of electrons cannot be zero.")
         end if
 
         if (.not. tUEG2) then
             if (THUB .OR. TUEG .OR. .NOT. (TREADINT .OR. TCPMD .or. tVASP)) then
                 if (NMAXX == 0) then
                     call stop_all(this_routine, "Must specify CELL - &
-                        &the number of basis functions in each dim.", .true.)
+                        &the number of basis functions in each dim.")
                 end if
                 if (.NOT. THUB .AND. near_zero(BOX)) then
-                    call stop_all(this_routine, "Must specify BOX size.", .true.)
+                    call stop_all(this_routine, "Must specify BOX size.")
                 end if
                 if (TTILT .AND. .NOT. THUB) then
-                    call stop_all(this_routine, "TILT can only be specified with HUBBARD.", .true.)
+                    call stop_all(this_routine, "TILT can only be specified with HUBBARD.")
                 end if
             end if
         end if
@@ -2385,7 +2385,7 @@ contains
                 else if (TCPMD) THEN
                     !C.. If TCPMD, then we've generated the symmetry table earlier,
                     !C.. but we still need the sym reps table.
-                    call stop_all(this_routine, 'CPMD interface depricated')
+                    call stop_all(this_routine, 'CPMD interface deprecated')
 !              CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
                 else if (tVASP) THEN
                     !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
