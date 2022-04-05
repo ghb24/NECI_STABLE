@@ -36,6 +36,8 @@ module bit_reps
 
     use guga_bitRepOps, only: transfer_stochastic_rdm_info
 
+    use DeterminantData, only: write_det
+
     implicit none
 
     ! Structure of a bit representation:
@@ -142,19 +144,6 @@ module bit_reps
     private :: l51, l52, l53, l54, l55, l56, l57, l58, l59, l60, l61, l62, l63, l64, l65, l66, l67, l68, l69, l70
 
 contains
-
-    subroutine allocate_currentdets()
-
-        ! Allocate memory of the correct size for the currentdets array.
-
-        integer :: ierr
-        character(*), parameter :: this_routine = 'allocate_currentdets'
-
-        allocate(WalkVecDets(0:NIfTot, MaxWalkersPart), stat=ierr)
-        if (ierr /= 0) &
-            call stop_all(this_routine, "Allocation failed for WalkVecDets")
-
-    end subroutine allocate_currentdets
 
     subroutine init_bit_rep()
 
@@ -325,7 +314,7 @@ contains
         sgn = iLut(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1)
         real_sgn = transfer(sgn, real_sgn)
 
-        flags = int(iLut(IlutBits%ind_flag), sizeof_int)
+        flags = int(iLut(IlutBits%ind_flag))
 
     end subroutine extract_bit_rep
 
@@ -334,7 +323,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: flags
 
-        flags = int(ilut(IlutBits%ind_flag), sizeof_int)
+        flags = int(ilut(IlutBits%ind_flag))
 
     end function extract_flags
 
@@ -458,29 +447,6 @@ contains
 
     end subroutine encode_sign
 
-    subroutine encode_run_sign(ilut, real_sgn, imag_sgn, run)
-
-        ! Encode only the real AND imaginary component of the sign for the
-        ! walker. Sign argument is now a scalar.
-        !
-        ! In:    real_sgn  - The new sign component
-        !        imag_sgn  - The new imaginary sign component
-        !        run - Update given run. 1 ==> inum_runs
-        ! InOut:  ilut     - The bit representation to update
-        integer(n_int), intent(inout) :: ilut(0:NIfTot)
-        integer, intent(in) :: run
-        real(dp), intent(in) :: real_sgn, imag_sgn
-        character(*), parameter :: this_routine = 'encode_run_sign'
-
-        ASSERT(run <= inum_runs)
-        call encode_part_sign(ilut, real_sgn, min_part_type(run))
-#ifdef CMPLX_
-        call encode_part_sign(ilut, imag_sgn, max_part_type(run))
-#else
-        unused_var(imag_sgn)
-#endif
-    end subroutine encode_run_sign
-
     subroutine encode_part_sign(ilut, real_sgn, part_type)
 
         ! Encode only the real OR imaginary component of the sign for the
@@ -557,20 +523,6 @@ contains
 
     end subroutine set_flag_single
 
-    subroutine copy_flag(ilut_src, ilut_dest, flg)
-
-        ! Copy the selected flag between iluts
-
-        integer(n_int), intent(in) :: ilut_src(0:niftot)
-        integer(n_int), intent(inout) :: ilut_dest(0:niftot)
-        integer, intent(in) :: flg
-        logical :: state
-
-        state = test_flag(ilut_src, flg)
-        call set_flag_general(ilut_dest, flg, state)
-
-    end subroutine
-
     subroutine clr_flag(ilut, flg)
 
         ! Clear the specified flag (0 indexed) in the bit representation
@@ -620,20 +572,6 @@ contains
         zero = all(ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb) == 0)
 
     end function
-
-    subroutine extract_parent(ilut, parent_ilut)
-
-        integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
-        integer(n_int), intent(out) :: parent_ilut(0:IlutBits%len_orb)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = 'extract_parent'
-#endif
-
-        ASSERT(bit_rdm_init)
-
-        parent_ilut = ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb)
-
-    end subroutine
 
     subroutine encode_parent(ilut, ilut_parent, RDMBiasFacCurr)
 
@@ -973,7 +911,7 @@ contains
         offset = 0
         do i = 0, NIfD
             do j = 0, bits_n_int - 1, 8
-                val = int(iand(ishft(ilut(i), -j), int(255, n_int)), sizeof_int)
+                val = int(iand(ishft(ilut(i), -j), int(255, n_int)))
                 do k = 1, decode_map_arr(0, val)
                     elec = elec + 1
                     nI(elec) = offset + decode_map_arr(k, val)
@@ -984,34 +922,6 @@ contains
         end do
 
     end subroutine
-
-    pure subroutine decode_bit_det_bitwise(nI, iLut)
-
-        ! This is a routine to take a determinant in bit form and construct
-        ! the natural ordered integer forim of the det.
-        ! If CSFs are enabled, transfer the yamanouchi symbol as well.
-
-        integer(n_int), intent(in) :: iLut(0:NIfTot)
-        integer, intent(out) :: nI(:)
-        integer :: i, j, elec, pos, nopen
-        integer :: nel_loc
-
-        nel_loc = size(nI)
-
-        elec = 0
-        do i = 0, NIfD
-            do j = 0, end_n_int
-                if (btest(iLut(i), j)) then
-                    !An electron is at this orbital
-                    elec = elec + 1
-                    nI(elec) = (i * bits_n_int) + (j + 1)
-                    if (elec == nel_loc) exit
-                end if
-            end do
-            if (elec == nel_loc) exit
-        end do
-
-    end subroutine decode_bit_det_bitwise
 
     subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
                               ndets_out, prefactor)
@@ -1090,4 +1000,12 @@ contains
 
     end subroutine add_ilut_lists
 
+    ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
+    subroutine writebitdet(nunit, ilutni, lterm)
+        integer nunit, ni(nel)
+        integer(kind=n_int) :: ilutni(0:niftot)
+        logical lterm
+        call decode_bit_det(ni, ilutni)
+        call write_det(nunit, ni, lterm)
+    end
 end module bit_reps

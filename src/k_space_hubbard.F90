@@ -25,7 +25,7 @@ module k_space_hubbard
                            dispersion_rel_cached, init_dispersion_rel_cache, &
                            epsilon_kvec
 
-    use procedure_pointers, only: get_umat_el, generate_excitation
+    use procedure_pointers, only: get_umat_el
 
     use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit, stdout
 
@@ -89,11 +89,12 @@ module k_space_hubbard
                                     pick_spin_opp_elecs, pick_from_cum_list, &
                                     pick_spin_par_elecs, pick_three_opp_elecs
 
-    use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
-                                calc_guga_matrix_element, global_excitinfo, print_excitInfo
-    use guga_bitRepOps, only: convert_ilut_toGUGA, init_csf_information, &
-                              isProperCSF_ilut
-    use guga_data, only: ExcitationInformation_t, tNewDet
+    use guga_main, only: generate_excitation_guga
+    use guga_excitations, only: global_excitinfo, print_excitInfo
+    use guga_matrixElements, only: calc_guga_matrix_element
+    use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
+                              isProperCSF_ilut, current_csf_i, CSF_Info_t
+    use guga_data, only: ExcitationInformation_t
 
     implicit none
 
@@ -323,36 +324,7 @@ contains
 
     end subroutine setup_symmetry_table
 
-    subroutine gen_symreps()
-        ! i have to figure out what exactly those symreps do and how
-        ! i should set them up..
-        use SystemData, only: arr, brr
-        use SymData, only: symreps
-
-        integer :: i, j
-        if (allocated(symreps)) deallocate(symreps)
-        allocate(symreps(2, nbasis))
-        symreps = 0
-
-        j = 0
-
-        print *, "arr: "
-        do i = 1, nbasis
-            print *, arr(i, :)
-        end do
-
-        print *, "brr: "
-        do i = 1, nbasis
-            print *, brr(i)
-        end do
-
-        do i = 1, 2 * lat%get_nsites()
-
-        end do
-
-    end subroutine gen_symreps
-
-    function get_umat_kspace(i, j, k, l) result(hel)
+    pure function get_umat_kspace(i, j, k, l) result(hel)
         ! simplify this get_umat function for the k-space hubbard..
         ! since there was a lot of unnecessary stuff going on in the other
         ! essentially we only have to check if the momenta involved
@@ -373,9 +345,6 @@ contains
         else
             hel = 0.0_dp
         end if
-
-        ! old implo:
-
     end function get_umat_kspace
 
     subroutine init_k_space_hubbard()
@@ -408,24 +377,6 @@ contains
             root_print "    use uniform for doubles!"
             t_uniform_excits = .true.
         end if
-
-        if (.not. tHPHF .and. .not. t_uniform_excits) then
-            generate_excitation => gen_excit_k_space_hub
-        end if
-
-        ! for more efficiency, use the uniform excitation generation
-        if (t_uniform_excits) then
-            generate_excitation => gen_excit_uniform_k_space_hub
-        end if
-
-        if (tGUGA) then
-            if (tgen_guga_crude) then
-                generate_excitation => gen_excit_k_space_hub
-            else
-                generate_excitation => generate_excitation_guga
-            end if
-        end if
-
         tau_opt = determine_optimal_time_step()
 
         if (tau < EPS) then
@@ -567,6 +518,9 @@ contains
 
     subroutine gen_excit_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                      ex, tParity, pGen, hel, store, run)
+        !! An API interfacing function for generate_excitation to the rest of NECI:
+        !!
+        !! Requires guga_bitRepOps::current_csf_i to be set according to the ilutI.
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -585,14 +539,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
-        unused_var(exFlag)
-        unused_var(store)
-#ifdef WARNING_WORKAROUND_
-        ! mark unused vars
-        if (present(run)) then
-            unused_var(run)
-        end if
-#endif
+        unused_var(exFlag); unused_var(store); unused_var(run)
 
         hel = h_cast(0.0_dp)
         ic = 0
@@ -636,19 +583,8 @@ contains
                 return
             end if
 
-            if (tNewDet) then
-                call convert_ilut_toGUGA(ilutI, ilutGi)
-                ! use new setup function for additional CSF informtation
-                ! instead of calculating it all seperately..
-                call init_csf_information(ilutGi(0:nifd))
-
-                ! then set tNewDet to false and only set it after the walker loop
-                ! in FciMCPar
-                tNewDet = .false.
-
-            end if
-
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 1)
+            ASSERT(is_compatible(ilutI, current_csf_i))
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2386,6 +2322,67 @@ contains
 
     end function get_diag_helement_k_sp_hub
 
+    function get_2_body_diag_transcorr(nI) result(two_body)
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: two_body
+        integer :: i, j, id(nel), idX, idN
+
+        two_body = h_cast(0.0_dp)
+
+        id = get_spatial(nI)
+
+        do i = 1, nel
+            do j = 1, nel
+                if (.not. same_spin(nI(i), nI(j))) then
+
+                    idX = max(id(i), id(j))
+                    idN = min(id(i), id(j))
+
+                    ! now we need 1/2, since we loop over all electrons
+                    two_body = two_body + 0.5_dp * get_umat_kspace(idN, idX, idN, idX)
+
+                    two_body = two_body + epsilon_kvec(G1(nI(i))%Sym) &
+                              * omega * three_body_prefac
+
+                end if
+            end do
+        end do
+
+    end function get_2_body_diag_transcorr
+
+    function get_3_body_diag_transcorr(nI) result(three_body)
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: three_body
+
+        integer :: i, j, k
+        type(symmetry) :: p_sym, k_sym
+
+        three_body = h_cast(0.0_dp)
+
+        do i = 1, nel
+            do j = 1, nel
+                if (.not. same_spin(nI(i), nI(j))) then
+
+                    do k = 1, nel
+
+                        if (j == k) cycle
+
+                        if (same_spin(nI(j), nI(k))) then
+                            p_sym = G1(nI(i))%sym
+                            k_sym = SymTable(G1(nI(j))%sym%s, SymConjTab(G1(nI(k))%sym%s))
+
+                            three_body = three_body - three_body_prefac * ( &
+                                        epsilon_kvec(p_sym) - &
+                                        (epsilon_kvec(SymTable(p_sym%s, k_sym%s))))
+
+                        end if
+                    end do
+                end if
+            end do
+        end do
+
+    end function get_3_body_diag_transcorr
+
     real(dp) function get_j_opt(nI, corr_J)
         ! routine to evaluate Hongjuns J-optimization formulas
         integer, intent(in) :: nI(nel)
@@ -2831,71 +2828,6 @@ contains
         if (tpar) hel = -hel
 
     end function get_offdiag_helement_k_sp_hub
-
-    subroutine get_transferred_momenta(ex, k_vec_a, k_vec_b)
-        ! routine to reobtain transferred momentum from a given excitation
-        ! for spin-opposite double excitations i am pretty sure how, but
-        ! for triple excitations and spin-parallel doubles not so much.. todo
-        integer, intent(in) :: ex(:, :)
-        integer, intent(out) :: k_vec_a(3), k_vec_b(3)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "get_transferred_momenta"
-#endif
-        integer :: sort_ex(2, size(ex, 2))
-
-        ! just to be sure, sort ex again..
-        sort_ex(1, :) = [minval(ex(1, :)), maxval(ex(1, :))]
-        sort_ex(2, :) = [minval(ex(2, :)), maxval(ex(2, :))]
-
-        ASSERT(size(ex, 1) == 2)
-        ASSERT(size(ex, 2) == 2 .or. size(ex, 2) == 3)
-
-        if (size(sort_ex, 2) == 2) then
-            ! double excitation
-            if (same_spin(sort_ex(1, 1), sort_ex(1, 2))) then
-                ! spin-parallel excitation
-                ASSERT(same_spin(sort_ex(2, 1), sort_ex(2, 2)))
-                ASSERT(same_spin(sort_ex(1, 1), sort_ex(2, 1)))
-
-                ! for now just take the momentum of ex(1,2) - ex(2,1)
-                ! and ex(2,1) - ex(1,1)
-                k_vec_a = lat%subtract_k_vec(G1(sort_ex(1, 1))%k, G1(sort_ex(2, 1))%k)
-                k_vec_b = lat%subtract_k_vec(G1(sort_ex(1, 2))%k, G1(sort_ex(2, 1))%k)
-
-                if (.not. t_k_space_hubbard) then
-                    call mompbcsym(k_vec_a, nBasisMax)
-                    call mompbcsym(k_vec_b, nBasisMax)
-                end if
-
-            else
-                ! "normal" hubbard spin-opposite excitation
-                ASSERT(.not. same_spin(ex(2, 1), ex(2, 2)))
-                ! here it is easier, we need the momentum difference of the
-                ! same spin-electrons
-                ! the sign of k should be irrelevant or? todo!
-                if (same_spin(ex(1, 1), ex(2, 1))) then
-
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1, 1))%k, G1(ex(2, 1))%k)
-                    k_vec_b = lat%subtract_k_vec(G1(ex(1, 2))%k, G1(ex(2, 2))%k)
-
-                else
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1, 1))%k, G1(ex(2, 2))%k)
-                    k_vec_b = lat%subtract_k_vec(G1(ex(1, 2))%k, G1(ex(2, 1))%k)
-
-                end if
-
-                if (.not. t_k_space_hubbard) then
-                    call mompbcsym(k_vec_a, nBasisMax)
-                    call mompbcsym(k_vec_b, nBasisMax)
-                end if
-            end if
-        else
-            ! triple excitations..
-            ! i think i do not really need the triples..
-            ASSERT(.false.)
-        end if
-
-    end subroutine get_transferred_momenta
 
     subroutine setup_k_total(nI)
         integer, intent(in), optional :: nI(nel)
@@ -3698,19 +3630,6 @@ contains
         end if
 
     end function check_momentum_sym
-
-    logical function sym_equal(sym_1, sym_2)
-        type(BasisFN), intent(in) :: sym_1, sym_2
-
-        sym_equal = .true.
-
-        ! just check if every entries are the same!
-        if (.not. all(sym_1%k == sym_2%k)) sym_equal = .false.
-        if (sym_1%ms /= sym_2%ms) sym_equal = .false.
-        if (sym_1%ml /= sym_2%ml) sym_equal = .false.
-        if (sym_1%Sym%s /= sym_2%Sym%s) sym_equal = .false.
-
-    end function sym_equal
 
     subroutine make_triple(nI, nJ, elecs, orbs, ex, tPar)
         integer, intent(in) :: nI(nel), elecs(3), orbs(3)

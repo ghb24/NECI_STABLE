@@ -3,6 +3,7 @@ program test_cc_amplitudes
 
     use fruit
     use cc_amplitudes
+    use util_mod, only: binomial => choose_i64
     use systemdata, only: nel, nbasis
     use FciMCData, only: projedet, ilutref
     use detbitops, only: encodebitdet
@@ -25,7 +26,6 @@ contains
     subroutine cc_amplitudes_test_driver
 
         call run_test_case(get_ind_test, "get_ind_test")
-        call run_test_case(calc_n_single_excits_test, "calc_n_single_excits_test")
         call run_test_case(binomial_test, "binomial_test")
         call run_test_case(calc_number_of_excitations_test, "calc_number_of_excitations_test")
         call run_test_case(calc_n_parallel_excitations_test, "calc_n_parallel_excitations_test")
@@ -211,19 +211,6 @@ contains
         deallocate(projedet)
 
     end subroutine get_ind_test
-
-    subroutine calc_n_single_excits_test
-
-        print *, ""
-        print *, "testing: calc_n_single_excits "
-
-        call assert_equals(4, calc_n_single_excits(2,4))
-        call assert_equals(6, calc_n_single_excits(2,5))
-        call assert_equals(2, calc_n_single_excits(2,3))
-        call assert_equals(1, calc_n_single_excits(1,2))
-        call assert_equals(3, calc_n_single_excits(3,4))
-
-    end subroutine calc_n_single_excits_test
 
     subroutine binomial_test
         print *, ""

@@ -8,8 +8,7 @@ module tJ_model
                           t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
                           t_trans_corr, trans_corr_param, &
                           t_trans_corr_2body, trans_corr_param_2body, &
-                          nSpatOrbs, current_stepvector, currentB_int, &
-                          t_bipartite_order
+                          nSpatOrbs, t_bipartite_order
 
     use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
 
@@ -17,18 +16,18 @@ module tJ_model
                                   check_real_space_hubbard_input, init_tmat, &
                                   init_spin_free_tmat
 
-    use procedure_pointers, only: get_umat_el, generate_excitation
+    use procedure_pointers, only: get_umat_el
 
     use FciMCData, only: tsearchtau, tsearchtauoption, excit_gen_store_type, &
                          pSingles, pDoubles
 
     use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
 
-    use bit_rep_data, only: NIfTot, nifguga, nifd
+    use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits
 
     use umatcache, only: gtid
 
-    use util_mod, only: operator(.div.), near_zero, get_free_unit
+    use util_mod, only: operator(.div.), near_zero, get_free_unit, stop_all
 
     use util_mod_numerical, only: binary_search_first_ge
 
@@ -55,13 +54,16 @@ module tJ_model
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
-                                assign_excitInfo_values_double, assign_excitInfo_values_single
+    use guga_main, only: generate_excitation_guga
+
+    use guga_excitations, only: assign_excitInfo_values_double, assign_excitInfo_values_single
+
+    use guga_matrixElements, only: calc_guga_matrix_element
 
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type
 
     use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij, &
-                              write_det_guga
+                              write_det_guga, CSF_Info_t
 
     implicit none
 
@@ -156,8 +158,6 @@ contains
             root_print "but tau specified in input!"
         end if
 
-        generate_excitation => generate_excitation_guga
-
     end subroutine init_guga_tJ_model
 
     subroutine init_tJ_model
@@ -223,10 +223,6 @@ contains
 
         ! and i have to calculate the optimal time-step for the hubbard models.
         ! where i need the connectivity of the lattice i guess?
-        if (.not. tHPHF) then
-            generate_excitation => gen_excit_tJ_model
-        end if
-
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
@@ -338,8 +334,6 @@ contains
         t_hist_tau_search = .false.
         t_hist_tau_search_option = .false.
 
-        generate_excitation => generate_excitation_guga
-
     end subroutine init_guga_heisenberg_model
 
     subroutine init_heisenberg_model
@@ -403,10 +397,6 @@ contains
 
         ! and i have to calculate the optimal time-step for the hubbard models.
         ! where i need the connectivity of the lattice i guess?
-        if (.not. tHPHF) then
-            generate_excitation => gen_excit_heisenberg_model
-        end if
-
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
@@ -922,7 +912,7 @@ contains
 
     end function calc_pgen_tJ_model
 
-    subroutine pick_orbitals_guga_tJ(ilut, nI, excitInfo, orb_pgen)
+    subroutine pick_orbitals_guga_tJ(ilut, nI, csf_i, excitInfo, orb_pgen)
         ! orbital picking routine for the GUGA t-J model.
         ! the most effective way would be to pick a hole first, instead
         ! of an random electron, so the chance of a succesful hop
@@ -930,6 +920,7 @@ contains
         ! actually.
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
         character(*), parameter :: this_routine = "pick_orbitals_guga_tJ"
@@ -948,7 +939,7 @@ contains
 
         neighbors = lat%get_neighbors(lat%get_site_index(id))
 
-        call gen_guga_tJ_cum_list(id, cum_arr)
+        call gen_guga_tJ_cum_list(csf_i, id, cum_arr)
 
         cum_sum = cum_arr(size(neighbors))
 
@@ -979,7 +970,8 @@ contains
 
     end subroutine pick_orbitals_guga_tJ
 
-    subroutine gen_guga_tJ_cum_list(id, cum_arr, tgt, tgt_pgen)
+    subroutine gen_guga_tJ_cum_list(csf_i, id, cum_arr, tgt, tgt_pgen)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: id
         real(dp), allocatable, intent(out) :: cum_arr(:)
         integer, intent(in), optional :: tgt
@@ -1004,7 +996,7 @@ contains
 
                 n = neighbors(i)
 
-                if (current_stepvector(n) == 0) then
+                if (csf_i%stepvector(n) == 0) then
                     tmp = 1.0_dp
                     cum_sum = cum_sum + tmp
                     if (tgt == n) tgt_pgen = tmp
@@ -1014,7 +1006,7 @@ contains
             do i = 1, size(neighbors)
                 n = neighbors(i)
 
-                if (current_stepvector(n) == 0) then
+                if (csf_i%stepvector(n) == 0) then
                     cum_sum = cum_sum + 1.0_dp
                 end if
 
@@ -1024,11 +1016,12 @@ contains
 
     end subroutine gen_guga_tJ_cum_list
 
-    subroutine pick_orbitals_guga_heisenberg(ilut, nI, excitInfo, orb_pgen)
+    subroutine pick_orbitals_guga_heisenberg(ilut, nI, csf_i, excitInfo, orb_pgen)
         ! i "just" need to implement a custom orbital picker for the
         ! spin-free Heisenberg exchange
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
         character(*), parameter :: this_routine = "pick_orbitals_guga_heisenberg"
@@ -1037,6 +1030,9 @@ contains
         real(dp) :: p_elec, cum_sum, r, p_orb
         integer, allocatable :: neighbors(:)
         real(dp), allocatable :: cum_arr(:)
+
+        ! Exists for the function pointer interface
+        unused_var(ilut)
 
         ! here i want to only pick nearest neighbor electrons, where a
         ! spin recoupling is possible
@@ -1052,7 +1048,7 @@ contains
 
         neighbors = lat%get_neighbors(lat%get_site_index(id))
 
-        call gen_guga_heisenberg_cum_list(ilut, id, cum_arr)
+        call gen_guga_heisenberg_cum_list(csf_i, id, cum_arr)
 
         cum_sum = cum_arr(size(neighbors))
 
@@ -1088,9 +1084,9 @@ contains
 
     end subroutine pick_orbitals_guga_heisenberg
 
-    subroutine gen_guga_heisenberg_cum_list(ilut, id, cum_arr, tgt, tgt_pgen)
+    subroutine gen_guga_heisenberg_cum_list(csf_i, id, cum_arr, tgt, tgt_pgen)
         ! make a routine for this, for easy pgen recalculation
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: id
         real(dp), allocatable, intent(out) :: cum_arr(:)
         integer, intent(in), optional :: tgt
@@ -1109,7 +1105,7 @@ contains
         cum_sum = 0.0_dp
         tmp = 0.0_dp
 
-        step = current_stepvector(id)
+        step = csf_i%stepvector(id)
 
         if (present(tgt)) then
 
@@ -1120,19 +1116,17 @@ contains
             do i = 1, size(neighbors)
                 n = neighbors(i)
 
-                if (current_stepvector(n) == 0) then
+                if (csf_i%stepvector(n) == 0) then
                     cycle
 
-                else if (current_stepvector(n) == step) then
+                else if (csf_i%stepvector(n) == step) then
                     if (abs(id - n) == 1) then
                         cycle
                     else
 
-                        if (step == 1 .and. &
-                            count_alpha_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) cycle
+                        if (step == 1 .and. count_alpha_orbs_ij(csf_i, min(id, n), max(id, n)) == 0) cycle
 
-                        if (step == 2 .and. &
-                            count_beta_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) cycle
+                        if (step == 2 .and. count_beta_orbs_ij(csf_i, min(id, n), max(id, n)) == 0) cycle
 
                         tmp = 1.0_dp
 
@@ -1141,14 +1135,20 @@ contains
                         if (tgt == n) tgt_pgen = tmp
                     end if
 
-                else if (current_stepvector(n) /= 0 .and. &
-                         current_stepvector(n) /= step) then
+                else if (csf_i%stepvector(n) /= 0 &
+                         .and. csf_i%stepvector(n) /= step) then
 
-                    if (id - n == -1 .and. current_stepvector(id) == 1 .and. &
-                        currentB_int(id) == 1) cycle
+                    if (id - n == -1 &
+                            .and. csf_i%stepvector(id) == 1 &
+                            .and.  csf_i%B_int(id) == 1) then
+                        cycle
+                    end if
 
-                    if (id - n == 1 .and. current_stepvector(n) == 1 .and. &
-                        currentB_int(n) == 1) cycle
+                    if (id - n == 1 &
+                            .and. csf_i%stepvector(n) == 1 &
+                            .and. csf_i%B_int(n) == 1) then
+                        cycle
+                    end if
 
                     tmp = 1.0_dp
 
@@ -1165,26 +1165,26 @@ contains
         else
             do i = 1, size(neighbors)
                 n = neighbors(i)
-                if (current_stepvector(n) == 0) then
+                if (csf_i%stepvector(n) == 0) then
                     ! t-J case
                     cum_arr(i) = cum_sum
                     cycle
 
-                else if (current_stepvector(n) == step) then
+                else if (csf_i%stepvector(n) == step) then
                     ! this can only be if we have space
                     ! between the step-vectors
                     if (abs(id - n) == 1) then
                         cum_arr(i) = cum_sum
                         cycle
                     else
-                        if (step == 1 .and. &
-                            count_alpha_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) then
+                        if (step == 1 &
+                                .and. count_alpha_orbs_ij(csf_i, min(id, n), max(id, n)) == 0) then
                             cum_arr(i) = cum_sum
                             cycle
                         end if
 
-                        if (step == 2 .and. &
-                            count_beta_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) then
+                        if (step == 2 &
+                                .and. count_beta_orbs_ij(csf_i, min(id, n), max(id, n)) == 0) then
                             cum_arr(i) = cum_sum
                             cycle
                         end if
@@ -1193,17 +1193,18 @@ contains
                         cum_sum = cum_sum + 1.0_dp
                     end if
 
-                else if (current_stepvector(n) /= 0 .and. &
-                         current_stepvector(n) /= step) then
+                else if (csf_i%stepvector(n) /= 0 .and. csf_i%stepvector(n) /= step) then
 
-                    if (id - n == -1 .and. current_stepvector(id) == 1 .and. &
-                        currentB_int(id) == 1) then
+                    if (id - n == -1 &
+                            .and. csf_i%stepvector(id) == 1 &
+                            .and.  csf_i%B_int(id) == 1) then
                         cum_arr(i) = cum_sum
                         cycle
                     end if
 
-                    if (id - n == 1 .and. current_stepvector(n) == 1 .and. &
-                        currentB_int(n) == 1) then
+                    if (id - n == 1 &
+                            .and. csf_i%stepvector(n) == 1 &
+                            .and. csf_i%B_int(n) == 1) then
                         cum_arr(i) = cum_sum
                         cycle
                     end if
@@ -1216,10 +1217,10 @@ contains
 
     end subroutine gen_guga_heisenberg_cum_list
 
-    subroutine calc_orbital_pgen_contr_heisenberg(ilut, occ_orbs, above_cpt, below_cpt)
+    subroutine calc_orbital_pgen_contr_heisenberg(csf_i, occ_orbs, above_cpt, below_cpt)
         ! and I also need an orbital pgen recalculator for the
         ! exchange type excitations
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
         character(*), parameter :: this_routine = "calc_orbital_pgen_contr_heisenberg"
@@ -1240,10 +1241,10 @@ contains
         ! the occ_orbs are spin-orbitals!  so convert!
         sp_orbs = gtID(occ_orbs)
 
-        call gen_guga_heisenberg_cum_list(ilut, minval(sp_orbs), cum_arr, &
+        call gen_guga_heisenberg_cum_list(csf_i, minval(sp_orbs), cum_arr, &
                                           maxval(sp_orbs), below_cpt)
 
-        call gen_guga_heisenberg_cum_list(ilut, maxval(sp_orbs), cum_arr, &
+        call gen_guga_heisenberg_cum_list(csf_i, maxval(sp_orbs), cum_arr, &
                                           minval(sp_orbs), above_cpt)
 
         above_cpt = above_cpt * p_elec
@@ -1802,7 +1803,7 @@ contains
 
     end function determine_optimal_time_step_heisenberg
 
-    function get_umat_heisenberg_spin_free(i, j, k, l) result(hel)
+    pure function get_umat_heisenberg_spin_free(i, j, k, l) result(hel)
         ! for the spin-free form, I do not need information about
         ! the spin-orbitals
         integer, intent(in) :: i, j, k, l
@@ -1827,7 +1828,7 @@ contains
 
     end function get_umat_heisenberg_spin_free
 
-    function get_umat_el_heisenberg(i, j, k, l) result(hel)
+    pure function get_umat_el_heisenberg(i, j, k, l) result(hel)
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 #ifdef DEBUG_

@@ -12,7 +12,7 @@ module pcpp_excitgen
     use UMatCache, only: gtID
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
-    use util_mod, only: binary_search_first_ge, getSpinIndex, intswap, custom_findloc, &
+    use util_mod, only: binary_search_first_ge, getSpinIndex, swap, custom_findloc, &
                         operator(.div.)
     use get_excit, only: make_double, make_single
     implicit none
@@ -86,7 +86,11 @@ contains
         end if
 
         ! assign ilutnJ
-        call EncodeBitDet(nJ, ilutnJ)
+        if (nJ(1) == 0) then
+          ilutnJ = 0_n_int
+        else
+          call EncodeBitDet(nJ, ilutnJ)
+        end if
 
     end subroutine gen_rand_excit_pcpp
 
@@ -147,7 +151,7 @@ contains
             return
         end if
 
-        if (src2 < src1) call intSwap(src1, src2)
+        if (src2 < src1) call swap(src1, src2)
 
         ! we could also have drawn the electrons the other way around
         pSSwap1 = double_elec_one_sampler%getProb(umElec2)
@@ -163,7 +167,7 @@ contains
         tgt2MS = getSpinIndex(src2)
         ! if we have opposite spins, chose their distribution randomly
         if (G1(src1)%MS /= G1(src2)%MS) then
-            if (genrand_real2_dSFMT() < 0.5) call intswap(tgt1MS, tgt2MS)
+            if (genrand_real2_dSFMT() < 0.5) call swap(tgt1MS, tgt2MS)
             pGen = pGen * 0.5
         end if
 
@@ -516,6 +520,7 @@ contains
             logical :: tPar
             integer :: iEl, jEl
 
+            tPar = .false.
             do iEl = 1, nel
                 w(iEl) = 0
                 do jEl = 1, nel
@@ -552,6 +557,7 @@ contains
             integer :: jEl
 
             allocate(double_elec_two_sampler(nBasis), stat=aerr)
+            tPar = .false.
             do i = 1, nBasis
                 w = 0.0_dp
                 do jEl = 1, nel

@@ -10,13 +10,13 @@
 ! This requires #{i, j | i < j} probability distributions.
 !
 ! The improved version to use spatial orbital indices to save memory is described in
-!    Guther K. et al., J. Chem. Phys. 153, 034107 (2020);
-! and described there.
+!    Guther K. et al., J. Chem. Phys. 153, 034107 (2020).
 ! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx) to draw a, b holes
 ! when i, j electrons were chosen for three distinc spin cases given by s_idx.
 ! This gives #{i, j | i < j} * 3 probability distributions.
 !
-! The generalization to GAS spaces is not yet published.
+! The generalization to GAS spaces is available in a preprint (should be available in JCTC soon as well)
+!    https://chemrxiv.org/engage/chemrxiv/article-details/61447e60b1d4a605d589af2e
 ! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx, i_sg) to draw a, b holes
 ! when i, j electrons were chosen for three distinc spin cases given by s_idx and a supergroup index i_sg
 ! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
@@ -27,7 +27,7 @@
 module gasci_pchb
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.), operator(.implies.), EnumBase_t
+    use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, operator(.div.), operator(.implies.), EnumBase_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
@@ -41,7 +41,6 @@ module gasci_pchb
     use shared_ragged_array, only: shared_ragged_array_int32_t
     use growing_buffers, only: buffer_int32_1D_t
     use parallel_neci, only: iProcIndex_intra
-    use sets_mod, only: complement, operator(.complement.)
     use get_excit, only: make_single
     use growing_buffers, only: buffer_int_2D_t
     use timing_neci, only: timer, set_timer, halt_timer
@@ -130,7 +129,7 @@ module gasci_pchb
 
     type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
 
-    !> The GAS PCHB excitation generator for doubleles
+    !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
         private
         !> Use a lookup for the supergroup index in global_det_data
@@ -205,6 +204,7 @@ contains
 
         allocate(this%allowed_holes(0 : nIfD, this%GAS_spec%n_spin_orbs(), size(supergroups, 2)), source=0_n_int)
 
+
         ! Find for each supergroup (i_sg)
         ! the allowed holes `tgt` for a given `src`.
         do i_sg = 1, size(supergroups, 2)
@@ -214,7 +214,8 @@ contains
                 do tgt = 1, this%GAS_spec%n_spin_orbs()
                     if (src /= tgt &
                             .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
-                            .and. this%GAS_spec%is_allowed(SingleExc_t(src, tgt), supergroups(:, i_sg))) then
+                            .and. this%GAS_spec%is_allowed(SingleExc_t(src, tgt), supergroups(:, i_sg)) &
+                            .and. symmetry_allowed(SingleExc_t(src, tgt))) then
                         call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
                     end if
                 end do
@@ -231,6 +232,13 @@ contains
                 integer, intent(in) :: orb
                 set_orb(ilut, orb)
             end subroutine
+
+            ! For single excitations it is simple
+            logical pure function symmetry_allowed(exc)
+                use SymExcitDataMod, only: SpinOrbSymLabel
+                type(SingleExc_t), intent(in) :: exc
+                symmetry_allowed = SpinOrbSymLabel(exc%val(1)) == SpinOrbSymLabel(exc%val(2))
+            end function
     end subroutine
 
 
@@ -381,13 +389,13 @@ contains
 
         integer :: src_copy(maxExcit)
 
-        ASSERT(this%GAS_spec%contains_det(nI))
+        ASSERT(this%GAS_spec%contains_conf(nI))
 
         call this%FCI_singles_generator%gen_exc(&
                     nI, ilutI, nJ, ilutJ, exFlag, ic, &
                     ex, tParity, pGen, hel, store, part_type)
         if (nJ(1) /= 0) then
-            if (.not. this%GAS_spec%contains_det(nJ)) then
+            if (.not. this%GAS_spec%contains_conf(nJ)) then
                 src_copy(:ic) = ex(1, :ic)
                 call sort(src_copy)
                 ex(1, :ic) = src_copy(:ic)
@@ -532,7 +540,7 @@ contains
 
         ! first, pick two random elecs
         call pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pGen)
-        if (src(1) > src(2)) call intswap(src(1), src(2))
+        if (src(1) > src(2)) call swap(src(1), src(2))
 
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
@@ -556,7 +564,7 @@ contains
                 ! adjust pgen
                 pGen = pGen * this%pExch(ij, i_sg)
                 ! the spins of the target are the opposite of the source spins
-                call intswap(spin(1), spin(2))
+                call swap(spin(1), spin(2))
             else
                 samplerIndex = OPP_SPIN_NO_EXCH
                 ! adjust pgen

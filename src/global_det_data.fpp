@@ -8,6 +8,7 @@ module global_det_data
                         tReplicaEstimates, tMoveGlobalDetData, tScaleBlooms
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use constants
     use util_mod
     implicit none
@@ -17,8 +18,8 @@ module global_det_data
         writeAPVals, readAPVals, writeFValsAsInt, &
         readFValsAsInt, &
         writeAPValsAsInt, readAPValsAsInt, len_av_sgn_tot, len_iter_occ_tot, &
-        get_determinant, set_det_diagH, det_diagH, max_ratio_size, &
-        fvals_size, apvals_size, &
+        get_determinant, set_det_diagH, det_diagH, set_det_offdiagH, &
+        det_offdiagH, max_ratio_size, fvals_size, apvals_size, &
         global_determinant_data, global_determinant_data_tmp, &
         set_spawn_rate, set_all_spawn_pops, reset_all_tau_ints, &
         reset_all_shift_ints, store_decoding, &
@@ -49,6 +50,9 @@ module global_det_data
     ! always has a length of 1 (never cplx). Therefore, encode these values
     ! as parameters to assist optimisation.
     integer, parameter :: pos_hel = 1, len_hel = 1
+
+    ! The off-diagonal matrix element <D0|H|D>.
+    integer :: pos_hel_off, len_hel_off
 
     ! The supergroup_idx is always an int64 and should have the same length
     ! as real64
@@ -161,6 +165,12 @@ contains
         ! pos_hel = 1
         ! len_hel = 1
 
+#ifdef CMPLX_
+        len_hel_off = 1
+#else
+        len_hel_off = 2
+#endif
+
         len_spawn_pop = lenof_sign
 
         if (tSeniorInitiators) then
@@ -242,7 +252,8 @@ contains
         end if
 
         ! Get the starting positions
-        pos_spawn_pop = pos_hel + len_hel
+        pos_hel_off = pos_hel + len_hel
+        pos_spawn_pop = pos_hel_off + len_hel_off
         pos_tau_int = pos_spawn_pop + len_spawn_pop
         pos_shift_int = pos_tau_int + len_tau_int
         pos_tot_spawns = pos_shift_int + len_shift_int
@@ -259,10 +270,11 @@ contains
         pos_max_ratio = pos_neg_spawns + len_neg_spawns
         pos_sg_idx = pos_max_ratio + len_max_ratio
 
-        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + &
-                  len_tot_spawns + len_acc_spawns + len_pops_sum + &
-                  len_pops_iter + len_av_sgn_tot + len_iter_occ_tot + &
-                  len_pos_spawns + len_neg_spawns + len_max_ratio + len_sg_idx
+        tot_len = len_hel + len_hel_off + len_spawn_pop + len_tau_int + &
+                  len_shift_int + len_tot_spawns + len_acc_spawns + &
+                  len_pops_sum + len_pops_iter + len_av_sgn_tot + &
+                  len_iter_occ_tot + len_pos_spawns + len_neg_spawns + &
+                  len_max_ratio + len_sg_idx
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign.div.2
@@ -364,6 +376,34 @@ contains
         real(dp) :: hel_r
 
         hel_r = global_determinant_data(pos_hel, j)
+
+    end function
+
+    subroutine set_det_offdiagH(j, hel)
+
+        integer, intent(in) :: j
+        HElement_t(dp), intent(in) :: hel
+
+#ifdef CMPLX_
+        global_determinant_data(pos_hel_off, j) = real(hel,dp)
+        global_determinant_data(pos_hel_off+1, j) = aimag(hel)
+#else
+        global_determinant_data(pos_hel_off, j) = hel
+#endif
+
+    end subroutine
+
+    function det_offdiagH(j) result(hel)
+
+        integer, intent(in) :: j
+        HElement_t(dp) :: hel
+
+#ifdef CMPLX_
+        hel = cmplx( global_determinant_data(pos_hel_off, j), &
+                     global_determinant_data(pos_hel_off+1, j), dp)
+#else
+        hel = global_determinant_data(pos_hel_off, j)
+#endif
 
     end function
 

@@ -10,10 +10,14 @@
 
 
 #:def log_alloc(arr, tag, ierr)
-if (${ierr}$ /= 0) then
-    call stop_all(this_routine, 'Error in allocation of ${arr}$.')
-end if
-$:'call LogMemAlloc("{arr}", size({arr}), tbs_({arr}), this_routine, {tag}, {ierr})'.format(arr=arr, tag=tag, ierr=ierr)
+block
+    use constants, only: int64
+    use util_mod, only: operator(.div.)
+    if (${ierr}$ /= 0) then
+        call stop_all(this_routine, 'Error in allocation of ${arr}$.')
+    end if
+    $:'call LogMemAlloc("{arr}", size({arr}, kind=int64), int(sizeof({arr}), kind=int64) .div. size({arr}, kind=int64), this_routine, {tag}, {ierr})'.format(arr=arr, tag=tag, ierr=ierr)
+end block
 #:enddef
 
 #:def def_default(Var_, Var, Val)

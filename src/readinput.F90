@@ -2,9 +2,13 @@
 !   Filename is a Character(255) string which contains a filename to read.
 !               If Filename=="" then we check to see if there's a filename on the command line.
 !               Failing that, we use stdin
-!   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
-    use constants, only: stdout
+    use constants, only: stdout, stdin
+    use util_mod, only: operator(.implies.)
+    Use Determinants, only: tDefineDet, DefDet
+    use SystemData, only: lms, user_input_m_s
+    use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -14,8 +18,7 @@ MODULE ReadInput_neci
 
 contains
 
-    Subroutine ReadInputMain(cFilename, ios, tOverride_input, kp)
-        USE input_neci
+    Subroutine ReadInputMain(cFilename, tOverride_input, kp)
         use SystemData, only: tMolpro
         use System, only: SysReadInput, SetSysDefaults
         use Calc, only: CalcReadInput, SetCalcDefaults
@@ -37,13 +40,12 @@ contains
 !        Integer :: iargc
 !#endif
         !  INPUT/OUTPUT params
+        character(*), parameter :: this_routine = 'ReadInputMain'
         Character(len=*) cFilename    !Input  filename or "" if we check arg list or stdin
-        Integer ios         !Output 0 if no error or nonzero iostat if error
 
         Character(len=255) cInp         !temp storage for command line params
         Character(len=32) cTitle
 !  Predeclared
-!        Integer             ir         !The file descriptor we are reading from
         Character(len=100) w, x         !strings for input storage
         Logical tEof        !set when read_line runs out of lines
         logical tExists     !test for existence of input file.
@@ -52,15 +54,14 @@ contains
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
         integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
+        integer, parameter :: id_scratch_file = 7
+        class(FileReader_t), allocatable :: file_reader
+        type(TokenIterator_t) :: tokens
 
         cTitle = ""
         idDef = idDefault                 !use the Default defaults (pre feb08)
-        ir = get_free_unit()              !default to a free unit which we'll open below
         If (trim(adjustl(cFilename)) /= '') Then
-            write(stdout, *) "Reading from file: ", Trim(cFilename)
-            inquire (file=cFilename, exist=tExists)
-            if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cFilename)//' does not exist.')
-            open(ir, File=cFilename, Status='OLD', err=99, iostat=ios)
+            file_reader = ManagingFileReader_t(trim(adjustl(cFilename)))
         else if (neci_iArgC() > 0) then
             ! We have some arguments we can process instead
 #ifdef BLUEGENE_HACKS
@@ -70,27 +71,20 @@ contains
 #endif
             write(stdout, *) "Processing arguments", cinp
             write(stdout, *) "Reading from file: ", Trim(cInp)
-            inquire (file=cInp, exist=tExists)
-            if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cInp)//' does not exist.')
-            open(ir, File=cInp, Status='OLD', FORM="FORMATTED", err=99, iostat=ios)
+            file_reader = ManagingFileReader_t(trim(adjustl(cInp)))
         Else
-            ir = 5                    !file descriptor 5 is stdin
             write(stdout, *) "Reading from STDIN"
             ! Save the input to a temporary file so we can scan for the
             ! defaults option and then re-read it for all other options.
-            open(7, status='scratch', iostat=ios)
+            open(id_scratch_file, status='scratch')
+            file_reader = AttachedFileReader_t(file_id=stdin, echo_lines=id_scratch_file)
         end if
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
 
-        !Look to find default options (line can be added anywhere in input)
-        Do
-            Call read_line(tEof)
-            if (ir == 5) write(7, *) trim(char) ! Dump line from STDIN to temporary file.
-            If (tEof) Exit
-            Call readu(w)
+        Do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
             Select case (w)
             Case ("DEFAULTS")
-                call readu(x)
+                x = to_upper(tokens%next())
                 select case (x)
 !Add default options here
                 case ("DEFAULT")
@@ -125,56 +119,56 @@ contains
         call SetIntDefaults
         call SetLogDefaults
 
-!Now return to the beginning and process the whole input file
-        if (ir == 5) ir = 7 ! If read from STDIN, re-read from our temporary scratch file.
-        Rewind (ir)
-        if (tMolpro .and. (.not. tOverride_input)) then
+        ! Now return to the beginning and process the whole input file
+        select type(file_reader)
+        type is (AttachedFileReader_t)
+            file_reader = AttachedFileReader_t(file_id=id_scratch_file)
+        end select
+
+        call file_reader%rewind()
+
 !Molpro writes out its own input file
-            Call input_options(echo_lines=.false., skip_blank_lines=.true.)
-        else
-            Call input_options(echo_lines=iProcIndex == 0, skip_blank_lines=.true.)
+        if (.not. tMolpro .or. tOverride_input) then
+            if (iProcIndex == 0) then
+                call file_reader%set_echo_lines(stdout)
+            else
+                call file_reader%set_echo_lines()
+            end if
             write(stdout, '(/,64("*"),/)')
         end if
 
-        Do
-            Call read_line(tEof)
-            If (tEof) exit
-            call readu(w)
+        Do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
             select case (w)
             case ("TITLE")
-                do while (item < nitems)
-                    call reada(w)
+                do while (tokens%remaining_items() > 0)
+                    w = tokens%next()
                     cTitle = trim(cTitle)//" "//trim(w)
                 end do
             case ("DEFAULTS")
                 CONTINUE
             case ("SYSTEM")
-                call SysReadInput()
+                call SysReadInput(file_reader, tokens)
             case ("CALC")
-                call CalcReadInput()
+                call CalcReadInput(file_reader)
             case ("INTEGRAL")
-                call IntReadInput()
+                call IntReadInput(file_reader)
             case ("LOGGING")
-                call LogReadInput()
+                call LogReadInput(file_reader)
             case ("KP-FCIQMC")
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
-                call kp_fciqmc_read_inp(kp)
+                call kp_fciqmc_read_inp(file_reader, kp)
             case ("REALTIME")
-                call real_time_read_input()
+                call real_time_read_input(file_reader)
             case ("END")
                 exit
             case default
-                call report("Keyword "//trim(w)//" not recognized", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized", .true.)
             end select
         end do
         write(stdout, '(/,64("*"),/)')
-!        IF(IR.EQ.1.or.IR.EQ.7) close(ir)
-        close(ir)
-99      IF (ios > 0) THEN
-            write(stdout, *) 'Problem reading input file ', TRIM(cFilename)
-            call stop_all('ReadInputMain', 'Input error.')
-        END IF
+        call file_reader%close()
         call sanitize_input()
         RETURN
     END SUBROUTINE ReadInputMain
@@ -205,6 +199,14 @@ contains
         if (allocated(user_input_seed)) then
             G_VMC_SEED = user_input_seed
         end if
+
+        if (allocated(user_input_m_s)) then
+            lms = user_input_m_s
+        else if (tDefinedet) then
+            lms = sum(merge(1, -1, mod(DefDet, 2) == 0))
+        else
+            lms = 0
+        end if
     end subroutine
 
     subroutine checkinput()
@@ -223,7 +225,8 @@ contains
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            MemoryFacPart, tSemiStochastic, &
+                            MemoryFacPart, &
+                            tSemiStochastic, semistoch_shift_iter, ss_space_in, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             tCheckHighestPop, &
                             tKP_FCIQMC, tReplicaEstimates, &
@@ -233,7 +236,9 @@ contains
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
-                            user_input_seed
+                            user_input_seed, tTargetShiftdamp, tFixedN0, t_core_inits, &
+                            tWalkContGrow
+        use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -246,12 +251,11 @@ contains
                                tCalcVariationalEnergy, tCalcInstantS2Init, &
                                tPopsFile, tRDMOnFly, tExplicitAllRDM, &
                                tHDF5PopsRead, tHDF5PopsWrite, tCalcFcimcPsi, &
-                               tHistEnergies, tPrintOrbOcc
+                               tHistEnergies, tPrintOrbOcc, tUserKnowsBiasedRDMS
         use Logging, only: calcrdmonfly_in_inp, RDMlinspace_in_inp
         use real_time_data, only: t_real_time_fciqmc
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
-        use input_neci
         use constants
         use global_utilities
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft, t_global_core_space
@@ -266,7 +270,7 @@ contains
         integer :: vv, kk, cc, ierr
         real(dp) :: InputDiagSftSingle
         logical :: check
-        character(*), parameter :: t_r = 'checkinput'
+        character(*), parameter :: t_r = 'checkinput', this_routine = t_r
 
         if (tDiagAllSpaceEver .and. .not. tHistSpawn) then
             call stop_all(t_r, "DIAGALLSPACEEVER requires HISTSPAWN option")
@@ -303,7 +307,7 @@ contains
         ! the other random graph algorithm cannot remove same excitation
         ! links yet.
         if (tNoSameExcit .and. .not. tInitStar) then
-            call report("If we are using TNoSameExcit, then we have to start&
+            call stop_all(this_routine, "If we are using TNoSameExcit, then we have to start&
                          & with the star. The other random graph algorithm &
                          &cannot remove same excitation links yet.", .true.)
         end if
@@ -311,89 +315,89 @@ contains
         ! The MoveDets and Biasing algorithms cannot both be used in the
         ! GraphMorph Algorithm.
         if (tBiasing .and. tMoveDets) then
-            call report("Biasing algorithm and MoveDets algorithm cannot both&
+            call stop_all(this_routine, "Biasing algorithm and MoveDets algorithm cannot both&
                         & be used", .true.)
         end if
 
         ! ..RmRootExcitStarsRootChange must be used with DiagStarStars, and not
         ! with ExcitStarsRootChange
         if (tRmRootExcitStarsRootChange .and. .not. tDiagStarStars) then
-            call report("RmRootExcitStarsRootChange can only with used with &
+            call stop_all(this_routine, "RmRootExcitStarsRootChange can only with used with &
                         &DiagStarStars currently", .true.)
         end if
 
         if (TRmRootExcitStarsRootChange .and. TExcitStarsRootChange) then
-            call report("RmRootExcitStarsRootChange and ExcitStarsRootChange &
+            call stop_all(this_routine, "RmRootExcitStarsRootChange and ExcitStarsRootChange &
                         &cannot both be used as they are both different &
                         &options with diagstarstars", .true.)
         end if
 
         !..ExcitStarsRootChange must be used with TDiagStarStars
         if (tExcitStarsRootChange .and. .not. tDiagStarStars) then
-            call report("ExcitStarsRootChange can only with used with &
+            call stop_all(this_routine, "ExcitStarsRootChange can only with used with &
                         &DiagStarStars currently", .true.)
         end if
 
         ! ..TDiagStarStars must be used with TStarStars, and cannot be used
         ! with TCalcExcitStar
         if (tDiagStarStars .and. .not. tStarStars) then
-            call report("DiagStarStars must be used with StarStars", .true.)
+            call stop_all(this_routine, "DiagStarStars must be used with StarStars", .true.)
         end if
         if (tDiagStarStars .and. tCalcExcitStar) then
-            call report("DiagStarStars is incompatable with CalcExcitStar", &
+            call stop_all(this_routine, "DiagStarStars is incompatable with CalcExcitStar", &
                         .true.)
         end if
         if (tDiagStarStars .and. (tNoDoubs .or. tJustQuads)) then
-            call report("NoDoubs/JustQuads cannot be used with DiagStarStars &
+            call stop_all(this_routine, "NoDoubs/JustQuads cannot be used with DiagStarStars &
                         &- try CalcExcitStar")
         end if
 
         ! ..TNoDoubs is only an option which applied to TCalcExcitStar, and
         ! cannot occurs with TJustQuads.
         if (tNoDoubs .and. .not. tCalcExcitStar) then
-            call report("STARNODOUBS is only an option which applied to &
+            call stop_all(this_routine, "STARNODOUBS is only an option which applied to &
                         &TCalcExcitStar", .true.)
         end if
 
         if (tNoDoubs .and. tJustQuads) then
-            call report("STARNODOUBS and STARQUADEXCITS cannot be applied &
+            call stop_all(this_routine, "STARNODOUBS and STARQUADEXCITS cannot be applied &
                         &together!", .true.)
         end if
 
         ! .. TJustQuads is only an option which applies to TCalcExcitStar
         if (tJustQuads .and. .not. tCalcExcitStar) then
-            call report("STARQUADEXCITS is only an option which applies to &
+            call stop_all(this_routine, "STARQUADEXCITS is only an option which applies to &
                         &tCalcExcitStar", .true.)
         end if
 
         !.. tCalcExcitStar can only be used with tStarStars
         if (tCalcExcitStar .and. .not. tStarStars) then
-            call report("CalcExcitStar can only be used with StarStars set", &
+            call stop_all(this_routine, "CalcExcitStar can only be used with StarStars set", &
                         .true.)
         end if
 
         !.. Brillouin Theorem must be applied when using TStarStars
         if (tStarStars .and. .not. tUseBrillouin) then
-            call report("Brillouin Theorem must be used when using &
+            call stop_all(this_routine, "Brillouin Theorem must be used when using &
                         &CalcExcitStar", .true.)
         end if
 
         !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
         if ((tQuadValMax .or. tQuadVecMax) .and. .not. tStarStars) then
-            call report("TQuadValMax or TQuadVecMax can only be specified if &
+            call stop_all(this_routine, "TQuadValMax or TQuadVecMax can only be specified if &
                         &STARSTARS specified in method line", .true.)
         end if
 
         !.. TQuadValMax and TQuadVecMax cannot both be set
         if (tQuadValMax .and. tQuadVecMax) then
-            call report("TQuadValMax and TQuadVecMax cannot both be set", &
+            call stop_all(this_routine, "TQuadValMax and TQuadVecMax cannot both be set", &
                         .true.)
         end if
 
         !.. TDISCONODES can only be set if NODAL is set in the star methods
         ! section
         if (tDiscoNodes .and. .not. tDiagNodes) then
-            call report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
+            call stop_all(this_routine, "DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
                         &METHOD", .true.)
         end if
 
@@ -401,15 +405,15 @@ contains
             tPreCond) then
             if (tHistSpawn .or. &
                 (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
-                call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references" &
+                call stop_all(this_routine, "HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references" &
                             , .true.)
             end if
         end if
 
         if (.not. t_global_core_space) then
-            if (t_real_time_fciqmc) call report("Real-time FCIQMC requires a global core space")
-            if (tKP_FCIQMC) call report("KP-FCIQMC requires a global core space")
-            if (tReplicaEstimates) call report("Replica estimates require a global core space")
+            if (t_real_time_fciqmc) call stop_all(this_routine, "Real-time FCIQMC requires a global core space")
+            if (tKP_FCIQMC) call stop_all(this_routine, "KP-FCIQMC requires a global core space")
+            if (tReplicaEstimates) call stop_all(this_routine, "Replica estimates require a global core space")
         end if
 
         !.. We still need a specdet space even if we don't have a specdet.
@@ -421,13 +425,13 @@ contains
         !..   Testing ILOGGING
         !     ILOGGING = 0771
         if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
-            call report('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
+            call stop_all(this_routine, 'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
                          &set', .true.)
         end if
 
         !Ensure beta is set.
         if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
-            call report("No beta value provided.", .true.)
+            call stop_all(this_routine, "No beta value provided.", .true.)
         end if
 
         do vv = 2, I_VMAX
@@ -448,15 +452,14 @@ contains
         ! if the LMS value specified is not reachable with the number of electrons,
         ! fix this
         if (mod(abs(lms), 2) /= mod(nel, 2)) then
-            write(stdout, *) "WARNING: LMS Value is not reachable with the given number of electrons."
-            write(stdout, *) "Resetting LMS"
-            LMS = -mod(nel, 2)
+            call stop_all(t_r, "LMS Value is not reachable with the given number of electrons.")
         end if
 
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
-            if (tUHF) &
+            if (tUHF) then
                 call stop_all(t_r, 'Cannot calculate instantaneous values of&
                               & S^2 with UF enabled.')
+            end if
             write(stdout, *) 'Enabling calculation of instantaneous S^2 each &
                        &iteration.'
         end if
@@ -533,6 +536,20 @@ contains
         end if
 #endif
 
+
+#if ! (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
+        if (tRDMonFly .and. .not. tUserKnowsBiasedRDMS) then
+            write(stdout, *) 'RDM sampling is specified, but this version of neci'
+            write(stdout, *) 'is not compiled with the replica trick.'
+            write(stdout, *) 'You probably want to use dneci or mneci &
+                    &(or their complex counterparts).'
+            write(stdout, *)
+            write(stdout, *) 'If you know what you do and really want to sample biased RDMS'
+            write(stdout, *) 'you can also add `BIASED-RDMS` to the Logging block.'
+            call stop_all(t_r, "Compiled version does not support RDM sampling.")
+        end if
+#endif
+
         if (tRDMOnFly .and. .not. tCheckHighestPop) then
             write(stdout, *) 'Highest population checking required for calculating &
                        &RDMs on the fly'
@@ -544,6 +561,17 @@ contains
             write(stdout, *) 'Semi-stochastic simulations only supported when using &
                        &ALLREALCOEFF option'
             call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
+        end if
+
+        if (ss_space_in%tPopsProportion &
+                .and. .not. tSemiStochastic &
+                .and. semistoch_shift_iter < 1) then
+            call stop_all(t_r, 'POPS-CORE-PROPORTION requires SEMI-STOCHASTIC option')
+        end if
+
+        if (ss_space_in%tPopsCore .and. ss_space_in%tPopsProportion) then
+            call stop_all(t_r, 'POPS-CORE and POPS-CORE-PROPORTION cannot be used&
+                               & at the same time')
         end if
 
         if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
@@ -619,7 +647,7 @@ contains
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
             endif
-            if (.not. GAS_specification%contains_det(DefDet)) then
+            if (.not. GAS_specification%contains_conf(DefDet)) then
                 call stop_all(t_r, "Reference determinant has to be contained in GAS space.")
             endif
             if (.not. GAS_specification%is_valid()) then
@@ -633,8 +661,26 @@ contains
             end if
         end if
 
+        if (tDefineDet .and. allocated(user_input_m_s)) then
+            if (sum(merge(1, -1, mod(DefDet, 2) == 0)) /= user_input_m_s) then
+                call stop_all(t_r, "Spin of Definedet and Spin-restrict is not consistent.")
+            end if
+        end if
+
         if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+        end if
+
+        if (tTargetShiftdamp .and. tFixedN0) then
+            call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
+        end if
+
+        if (tTargetShiftdamp .and. tWalkContGrow) then
+            call stop_all(t_r, "TARGET-SHIFTDAMP and WALKCONTGROW not compatible.")
+        end if
+
+        if (.not. (tInfInit .implies. t_core_inits)) then
+            call stop_all(t_r, 'INFINITE-INIT requires CORE-INITS OFF.')
         end if
 
         block
@@ -650,6 +696,7 @@ contains
                 end if
             end if
         end block
+
     end subroutine checkinput
 
 end Module ReadInput_neci

@@ -2,6 +2,7 @@
 #define MACROS_INCLUDEGUARD_
 
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
+#define size_per_element(arr) int(sizeof(TempSpawnedParts), kind=int64) .div. size(TempSpawnedParts, kind=int64)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
 #define IsNullDet(nI) (any((nI) .eq. 0))
@@ -206,6 +207,13 @@ endif
 #else
 #define c_ptr_t type(c_ptr)
 #define loc_neci c_loc
+#endif
+
+! At the moment only gfortran supports implicit none(type, external)
+#ifdef GFORTRAN_
+#define better_implicit_none implicit none(type, external)
+#else
+#define better_implicit_none implicit none
 #endif
 
 

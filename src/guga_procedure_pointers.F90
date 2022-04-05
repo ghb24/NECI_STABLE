@@ -4,6 +4,8 @@ module guga_procedure_pointers
 
     use guga_data, only: ExcitationInformation_t, WeightData_t
 
+    use guga_bitRepOps, only: CSF_Info_t
+
     use bit_rep_data, only: GugaBits, IlutBits
 
     use SystemData, only: nel
@@ -14,55 +16,56 @@ module guga_procedure_pointers
     private
 
     public :: general_weight_dummy, general_weight_zero, pickorbitals_single, &
-              pickorbitals_double, calc_orbital_pgen_contr, calc_mixed_contr, &
-              calc_mixed_start_r2l_contr, calc_mixed_end_l2r_contr, &
-              calc_mixed_start_l2r_contr, calc_mixed_end_r2l_contr, &
+              pickorbitals_double, calc_orbital_pgen_contr, &
               pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
-              calc_off_diag_guga_ref, gen_single_excit_guga, gen_double_excit_guga, &
+              calc_off_diag_guga_ref, &
               calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
     abstract interface
-        subroutine PickOrbitals_t(ilut, nI, excitInfo, pgen)
-            import :: dp, n_int, GugaBits, ExcitationInformation_t, nel
+        subroutine PickOrbitals_t(ilut, nI, csf_i, excitInfo, pgen)
+            import :: dp, n_int, GugaBits, CSF_Info_t, ExcitationInformation_t, nel
             implicit none
             integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
             integer, intent(in) :: nI(nel)
+            type(CSF_Info_t), intent(in) :: csf_i
             type(ExcitationInformation_t), intent(out) :: excitInfo
             real(dp), intent(out) :: pgen
         end subroutine PickOrbitals_t
 
-        subroutine CalcOrbitalPgenContr_t(occ_orbs, orb_a, orb_pgen)
-            import :: dp
+        subroutine CalcOrbitalPgenContr_t(csf_i, occ_orbs, orb_a, orb_pgen)
+            import :: dp, CSF_Info_t
             implicit none
+            type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: occ_orbs(2), orb_a
             real(dp), intent(out) :: orb_pgen
-
         end subroutine CalcOrbitalPgenContr_t
 
-        subroutine calc_orbital_pgen_contr_t(ilut, occ_orbs, above_cpt, below_cpt)
-            import :: dp, n_int, GugaBits
+        subroutine calc_orbital_pgen_contr_t(csf_i, occ_orbs, above_cpt, below_cpt)
+            import :: dp, CSF_Info_t
             implicit none
-            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+            type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: occ_orbs(2)
             real(dp), intent(out) :: above_cpt, below_cpt
         end subroutine calc_orbital_pgen_contr_t
 
-        subroutine calc_mixed_contr_t(ilut, t, excitInfo, pgen, integral)
-            import :: dp, n_int, GugaBits, ExcitationInformation_t
+        subroutine calc_mixed_contr_t(ilut, csf_i, t, excitInfo, pgen, integral)
+            import :: dp, n_int, CSF_Info_t, GugaBits, ExcitationInformation_t
             implicit none
             integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot), &
                                              t(0:GugaBits%len_tot)
+            type(CSF_Info_t), intent(in) :: csf_i
             type(ExcitationInformation_t), intent(inout) :: excitInfo
             real(dp), intent(out) :: pgen
             HElement_t(dp), intent(out) :: integral
         end subroutine calc_mixed_contr_t
 
-        subroutine calc_mixed_start_contr_t(ilut, t, excitInfo, branch_pgen, pgen, &
+        subroutine calc_mixed_start_contr_t(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
                                             integral, rdm_ind, rdm_mat)
-            import :: dp, n_int, int_rdm, GugaBits, ExcitationInformation_t
+            import :: dp, n_int, int_rdm, GugaBits, CSF_Info_t, ExcitationInformation_t
             implicit none
             integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot), &
                                              t(0:GugaBits%len_tot)
+            type(CSF_Info_t), intent(in) :: csf_i
             real(dp), intent(inout) :: branch_pgen
             type(ExcitationInformation_t), intent(inout) :: excitInfo
             real(dp), intent(out) :: pgen
@@ -102,55 +105,29 @@ module guga_procedure_pointers
             real(dp) :: orb_pgen
         end function orb_pgen_contrib_type_t
 
-        function calc_off_diag_guga_t(ilut, run, exlevel) result(hel)
-            import :: n_int, dp, IlutBits
+        function calc_off_diag_guga_t(ilut, csf_i, run, exlevel) result(hel)
+            import :: n_int, dp, IlutBits, CSF_Info_t
             implicit none
             integer(n_int), intent(in) :: ilut(0:IlutBits%len_tot)
+            type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in), optional :: run
             integer, intent(out), optional :: exlevel
             HElement_t(dp) :: hel
         end function calc_off_diag_guga_t
 
-        subroutine CreateSingleExcitGUGA_t(ilut, nI, excitation, pgen)
-            import :: n_int, dp, GugaBits, nel
-            implicit none
-            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-            integer, intent(in) :: nI(nel)
-            integer(n_int), intent(out) :: excitation(0:GugaBits%len_tot)
-            real(dp), intent(out) :: pgen
-        end subroutine CreateSingleExcitGUGA_t
-
-        subroutine CreateDoubleExcitGUGA_t(ilut, nI, excitation, pgen, excit_typ)
-            import :: n_int, dp, GugaBits, nel
-            implicit none
-            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-            integer, intent(in) :: nI(nel)
-            integer(n_int), intent(out) :: excitation(0:GugaBits%len_tot)
-            real(dp), intent(out) :: pgen
-            integer, intent(out) :: excit_typ(2)
-        end subroutine CreateDoubleExcitGUGA_t
-
     end interface
 
-    procedure(PickOrbitals_t), pointer :: pickOrbitals_single
-    procedure(PickOrbitals_t), pointer :: pickOrbitals_double
-    procedure(calc_orbital_pgen_contr_t), pointer :: calc_orbital_pgen_contr
-    procedure(calc_mixed_contr_t), pointer :: calc_mixed_contr
-    procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_start_l2r_contr
-    procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_start_r2l_contr
-    procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_end_r2l_contr
-    procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_end_l2r_contr
+    procedure(PickOrbitals_t), pointer :: pickOrbitals_single => null()
+    procedure(PickOrbitals_t), pointer :: pickOrbitals_double => null()
+    procedure(calc_orbital_pgen_contr_t), pointer :: calc_orbital_pgen_contr => null()
 
-    procedure(pick_first_orbital_t), pointer :: pick_first_orbital
-    procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_3
-    procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_2
+    procedure(pick_first_orbital_t), pointer :: pick_first_orbital => null()
+    procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_3 => null()
+    procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_2 => null()
 
-    procedure(calc_off_diag_guga_t), pointer :: calc_off_diag_guga_ref
+    procedure(calc_off_diag_guga_t), pointer :: calc_off_diag_guga_ref => null()
 
-    procedure(CreateSingleExcitGUGA_t), pointer :: gen_single_excit_guga
-    procedure(CreateDoubleExcitGUGA_t), pointer :: gen_double_excit_guga
-
-    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contrib_start
-    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contrib_end
+    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contrib_start => null()
+    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contrib_end => null()
 
 end module

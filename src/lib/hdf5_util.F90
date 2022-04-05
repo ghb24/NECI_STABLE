@@ -31,6 +31,7 @@ module hdf5_util
         h5sselect_hyperslab_f, h5dwrite_f, h5tcreate_f, h5tinsert_f, &
         h5dwrite_f, h5screate_f, h5screate_f, h5tcopy_f, h5tset_size_f, size_t
     use MPI_wrapper
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc, TagIntType
     implicit none
 
     interface read_int32_attribute

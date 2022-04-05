@@ -296,7 +296,7 @@ contains
         call shared_allocate_mpi(umat_win, umat, [umatsize])
 
         UMat = h_cast(0._dp)
-        call readfciint(UMat, umat_win, nBasis, ecore, .false.)
+        call readfciint(UMat, umat_win, nBasis, ecore)
 
         ! init the umat2d storage
         call setupUMat2d_dense(nBasis)

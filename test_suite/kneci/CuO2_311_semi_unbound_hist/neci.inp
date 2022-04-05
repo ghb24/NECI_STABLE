@@ -3,9 +3,9 @@ title
 system read
 freeformat
 electrons 10
-spin-restrict 1
+spin-restrict 0
 nonuniformrandexcits 4ind-weighted-unbound
-hphf 0 
+hphf 0
 endsys
 
 calc
@@ -14,7 +14,7 @@ method vertex fcimc
 endmethods
 seed -7
 load-balance-interval 1000
-totalwalkers 20000
+totalwalkers 5000
 startsinglepart 10
 shiftdamp 0.05
 stepsshift 10
@@ -22,7 +22,7 @@ proje-changeref 1.2
 truncinitiator
 addtoinitiator 3
 walkcontgrow
-semi-stochastic,100
+semi-stochastic 100
 pops-core 100
 core-inits
 allrealcoeff
@@ -31,12 +31,12 @@ jump-shift
 hist-tau-search 0.999
 max-tau 0.02
 tau 0.005
-(tau 0.005 search
+# tau 0.005 search
 maxwalkerbloom 1
 memoryfacspawn 25.0
 memoryfacpart 5.0
 time 1200.0
-nmcyc 6000
+nmcyc 500
 endcalc
 
 integral

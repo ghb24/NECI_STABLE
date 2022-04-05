@@ -5,54 +5,40 @@ module guga_excitations
     ! modules
     use CalcData, only: t_trunc_guga_pgen, t_trunc_guga_matel, &
                         trunc_guga_pgen, trunc_guga_matel, t_trunc_guga_pgen_noninits, &
-                        t_guga_back_spawn, n_guga_back_spawn_lvl, t_guga_back_spawn_trunc, &
                         t_matele_cutoff, matele_cutoff
 
-    use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
-                          nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
-                          current_stepvector, currentOcc_ilut, currentOcc_int, &
-                          currentB_ilut, currentB_int, current_cum_list, &
-                          tGen_guga_weighted, ref_stepvector, ref_b_vector_real, &
-                          ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
-                          nBasisMax, tHub, treal, t_guga_testsuite, tgen_guga_crude, &
-                          tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
-                          t_crude_exchange, t_crude_exchange_noninits, &
+    use SystemData, only: nEl, nBasis, ElecPairs, G1, nSpatOrbs, &
+                          tGen_guga_weighted, nBasisMax, treal, &
                           t_approx_exchange, t_approx_exchange_noninits, &
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
-                          t_guga_pchb
+                          t_guga_pchb, thub
 
-    use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
-                         EPS, bni_, bn2_, stdout, int64, inum_runs, maxExcit, int_rdm
+    use constants, only: dp, n_int, bits_n_int, Root2, &
+                         EPS, bni_, bn2_, stdout, int_rdm
 
-    use bit_reps, only: decode_bit_det, encode_det, encode_part_sign, &
-                        extract_part_sign
+    use bit_reps, only: decode_bit_det
 
     use bit_rep_data, only: GugaBits, niftot, nifguga, nifd
 
-    use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ, &
-                         return_ms
+    use DetBitOps, only: count_open_orbs, return_ms
 
     use guga_data, only: ExcitationInformation_t, getSingleMatrixElement, &
                          getDoubleMatrixElement, getMixedFullStop, &
-                         WeightData_t, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
-                         funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
-                         funA_2_0_overR2, getDoubleContribution, projE_replica, &
-                         tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
+                         WeightData_t, orbitalIndex, &
+                         tag_excitations, tag_tmp_excits, &
                          excit_type, gen_type, excit_names
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
-                              setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
+                              setDeltaB, count_open_orbs_ij, &
                               encode_matrix_element, update_matrix_element, &
-                              extract_matrix_element, write_det_guga, convert_ilut_toGUGA, &
+                              extract_matrix_element, write_det_guga, &
                               write_guga_list, add_guga_lists, count_alpha_orbs_ij, &
                               count_beta_orbs_ij, findFirstSwitch, findLastSwitch, &
-                              calcStepvector, find_switches, convert_ilut_toNECI, &
-                              calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
-                              identify_excitation, init_csf_information, calc_csf_info, &
+                              calcStepvector, find_switches, &
+                              calcOcc_vector_int, &
                               extract_h_element, encode_stochastic_rdm_info, &
-                              get_preceeding_opposites
-
-    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
+                              get_preceeding_opposites, &
+                              CSF_Info_t, csf_ref
 
     use OneEInts, only: GetTMatEl
 
@@ -60,22 +46,15 @@ module guga_excitations
 
     use dSFMT_interface, only: genrand_real2_dSFMT
 
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, ilutRef, &
-                         pExcit4, pExcit2, pExcit2_same, pExcit3_same, ilutHF, &
-                         tFillingStochRDMOnFly, nValidExcits, nInvalidExcits
+    use FciMCData, only: ilutRef, tFillingStochRDMOnFly
 
-    use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
-                        binary_search_first_ge, abs_l1, operator(.isclose.), &
-                        operator(.div.), near_zero
+    use util_mod, only: binary_search_first_ge, abs_l1, operator(.isclose.), &
+                        operator(.div.), near_zero, stop_all, neci_flush
 
-    use sort_mod, only: sort
-
-    use symrandexcit3, only: pick_elec_pair
-
-    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, IsMomentumAllowed
+    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
 
     use SymExcitDataMod, only: SpinOrbSymLabel, OrbClassCount, SymLabelCounts2, &
-                               SymLabelList2, KPointToBasisFn, sym_label_list_spat
+                               KPointToBasisFn, sym_label_list_spat
 
     use sym_general_mod, only: ClassCountInd
 
@@ -83,10 +62,8 @@ module guga_excitations
 
     use umatcache, only: gtID
 
-    use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
-                calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_r2l_contr, &
-                calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
-                pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
+    use guga_procedure_pointers, only: &
+                calc_orbital_pgen_contr, &
                 calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
     use Umatcache, only: UMat2D
@@ -99,19 +76,24 @@ module guga_excitations
 
     use sym_mod, only: MomPbcSym
 
-    use back_spawn, only: check_electron_location, check_orbital_location, &
-                          check_electron_location_spatial, check_orbital_location_spatial
-
-    use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
+    use guga_bitRepOps, only: contract_2_rdm_ind
 
     use lattice_models_utils, only: create_all_open_shell_dets
 
-    ! variables
-    implicit none
+    use guga_matrixElements, only:  calc_mixed_start_contr_sym, calc_mixed_end_contr_sym, &
+        calc_mixed_contr_sym, get_forced_zero_double, getminus_double, getminus_semistart, &
+        getplus_double, getplus_semistart, init_doubleweight, &
+        init_semistartweight, calc_guga_matrix_element, calc_mixed_contr_integral, &
+        calcremainingswitches_excitinfo_double, calcremainingswitches_excitinfo_single, &
+        calcstartprob, calcstayingprob, endfx, endgx, &
+        init_fullstartweight, init_singleweight, calc_mixed_start_contr_integral, &
+        calc_mixed_end_contr_integral, calc_mixed_contr_pgen, calc_mixed_start_contr_pgen, &
+        calc_mixed_end_contr_pgen
+
+    better_implicit_none
 
     private
-    public :: calc_guga_matrix_element, global_excitinfo, print_excitinfo, &
-              generate_excitation_guga, generate_excitation_guga_crude, &
+    public :: global_excitinfo, print_excitinfo, &
               assign_excitinfo_values_double, assign_excitinfo_values_single, &
               actHamiltonian, calcdoubleexcitation_withweight, &
               calcnonoverlapdouble, calcsingleoverlaplowering, calcsingleoverlapraising, &
@@ -123,30 +105,20 @@ module guga_excitations
               calcremainingswitches_excitinfo_double, checkcompatibility, &
               createsinglestart, singleupdate, singleend, init_singleweight, &
               calcremainingswitches_excitinfo_single, excitationIdentifier, &
-              create_proje_list, calc_pgen_mol_guga, &
               pickorbs_sym_uniform_ueg_single, pickorbs_sym_uniform_ueg_double, &
               pickorbs_sym_uniform_mol_single, pickorbs_sym_uniform_mol_double, &
-              pickorbitals_nosym_single, pickorbitals_nosym_double, &
               calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
-              calc_mixed_contr_sym, calc_mixed_contr_nosym, &
-              calc_mixed_start_l2r_contr_nosym, calc_mixed_start_r2l_contr_nosym, &
-              calc_mixed_start_contr_sym, calc_mixed_x2x_ueg, &
-              calc_mixed_end_l2r_contr_nosym, calc_mixed_end_r2l_contr_nosym, &
-              calc_mixed_end_contr_sym, pick_first_orbital_nosym_guga_diff, &
-              pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
-              orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
-              orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
-              temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
+              calc_mixed_x2x_ueg, &
+              calc_off_diag_guga_ref_direct, &
               pickorbs_real_hubbard_single, pickorbs_real_hubbard_double, &
               excitationIdentifier_single, excitationIdentifier_double, &
               init_doubleWeight, init_semiStartWeight, init_fullStartWeight, &
-              calcMixedContribution, deallocate_projE_list, calcoverlaprange, &
               calcremainingswitches_single, calcallexcitations_single, &
-              calcremainingswitches_double, calcallexcitations_double, &
-              createstochasticexcitation_single, createstochasticstart_single, &
+              calcallexcitations_double, &
+              createstochasticstart_single, &
               pickrandomorb_scalar, pickrandomorb_forced, pickrandomorb_vector, &
               pickrandomorb_restricted, singlestochasticupdate, &
-              singlestochasticend, createstochasticexcitation_double, &
+              singlestochasticend, &
               calcfullstartfullstopmixedstochastic, mixedfullstartstochastic, &
               doubleupdatestochastic, calcfullstartraisingstochastic, &
               calcfullstartloweringstochastic, calcfullstopraisingstochastic, &
@@ -158,18 +130,12 @@ module guga_excitations
               calcfullstopr2l_stochastic, calcdoubleloweringstochastic, &
               calcdoubleraisingstochastic, calcdoublel2r2l_stochastic, &
               calcdoubler2l2r_stochastic, calcdoublel2r_stochastic, &
-              calcdoubler2l_stochastic, test_excit_gen_guga, calcallexcitations, &
+              calcdoubler2l_stochastic, calcallexcitations, &
               pick_elec_pair_uniform_guga, get_guga_integral_contrib, &
               calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
               get_guga_integral_contrib_spat, calc_orbital_pgen_contrib_start_def, &
               calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga, &
-              csf_to_sds_ilut, csf_vector_to_sds
-
-    ! use a "global" bVector variable here so that a b vector only has to be
-    ! initialized once, for a given CSF when calculating all or only one
-    ! excitations from it
-    ! also use a "global" occupation number vector, as it is needed in
-    ! the matrix element calculation.
+              csf_to_sds_ilut, csf_vector_to_sds, checkCompatibility_single
 
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and
@@ -177,33 +143,13 @@ module guga_excitations
     type(ExcitationInformation_t) :: global_excitInfo
 
     abstract interface
-        function calc_pgen_general(i) result(pgen)
-            use constants, only: dp
+        function calc_pgen_general(csf_i, i) result(pgen)
+            import :: dp, CSF_Info_t
+            type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: i
             real(dp) :: pgen
         end function calc_pgen_general
     end interface
-
-    abstract interface
-        ! to make the recalculation of the branch-weights for mixed full-stop
-        ! excitations more efficient, set up an array of functions which
-        ! give the corresponding branching tree decision to easily recalculate
-        ! the branch_pgen for different fullends without having to check the
-        ! taken path for every iteration
-        function branch_weight_function(weight, bVal, negSwitches, posSwitches) &
-            result(prob)
-            use constants, only: dp
-            use guga_types, only: WeightObj_t
-            implicit none
-            type(WeightObj_t), intent(in) :: weight
-            real(dp), intent(in) :: bval, negSwitches, posSwitches
-            real(dp) :: prob
-        end function branch_weight_function
-    end interface
-
-    type :: BranchWeightArr_t
-        procedure(branch_weight_function), pointer, nopass :: ptr => null()
-    end type BranchWeightArr_t
 
     interface excitationIdentifier
         module procedure excitationIdentifier_single
@@ -215,11 +161,6 @@ module guga_excitations
         module procedure calcAllExcitations_double
         module procedure calcAllExcitations_excitInfo_single
     end interface calcAllExcitations
-
-    ! use some temporary permanently stored variables for the CSF matrix
-    ! calculation
-    integer, allocatable, save:: temp_step_i(:), temp_step_j(:), temp_delta_b(:)
-    real(dp), allocatable, save :: temp_occ_i(:), temp_b_real_i(:)
 
 contains
 
@@ -358,57 +299,37 @@ contains
     end subroutine csf_to_sds_ilut
 
 
-    function calc_off_diag_guga_ref_direct(ilut, run, exlevel) result(hel)
+    function calc_off_diag_guga_ref_direct(ilut, csf_i, run, exlevel) result(hel)
         integer(n_int), intent(in) :: ilut(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in), optional :: run
         integer, intent(out), optional :: exlevel
         HElement_t(dp) :: hel
 
-        integer(n_int) :: tmp_ilut(0:niftot)
+        integer :: run_
         type(ExcitationInformation_t) :: excitInfo
 
-        ! hm.. why is the calc_type always set to 2??
-        ! thats a waste of effort actually and can improve the code quite a
-        ! bit if i change that back! but only, if i have the test-code
-        ! setup and working properly!
-        if (present(run)) then
-            tmp_ilut = ilutRef(0:niftot, run)
-            if (run > 1) then
-                call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  1)
-            else
-                call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  0)
-            end if
-        else
-            tmp_ilut = ilutRef(0:niftot, 1)
-            call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  0)
-        end if
-
+        def_default(run_, run, 1)
+        call calc_guga_matrix_element(ilut, csf_i, ilutRef(0:niftot, run_), csf_ref(run_), excitInfo, hel, .true.)
 
         if (present(exlevel)) then
             if (excitInfo%valid) then
-                if (excitInfo%typ == excit_type%single) then
-                    ! singles:
-                    exlevel = 1
-                else
-                    ! doubles
-                    exlevel = 2
-                end if
+                exlevel = merge(1, 2, excitInfo%typ == excit_type%single)
             else
                 ! non-valid > 3 excit
                 exlevel = nel
             end if
         end if
-
     end function calc_off_diag_guga_ref_direct
 
-    function calc_guga_mat_wrapper(ilutI, ilutJ) result(mat_ele)
+    function calc_guga_mat_wrapper(ilutI, csf_i, ilutJ, csf_j) result(mat_ele)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         HElement_t(dp) :: mat_ele
 
         type(ExcitationInformation_t) :: excitInfo
 
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-            t_hamil = .true., calc_type = 2)
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, t_hamil = .true.)
 
     end function calc_guga_mat_wrapper
 
@@ -416,4553 +337,26 @@ contains
         integer(n_int), intent(in) :: ilut_list(:,:)
         HElement_t(dp) :: hamil(size(ilut_list,2), size(ilut_list,2))
 
+        type(CSF_Info_t) :: csf_i, csf_j
         integer :: i, j
 
         do i = 1, size(ilut_list,2)
+            csf_i = CSF_Info_t(ilut_list(:, i))
             do j = 1, size(ilut_list,2)
-                hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:,j),ilut_list(:,i))
+                csf_j = CSF_Info_t(ilut_list(:, j))
+                hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:, j), csf_j, ilut_list(:,i), csf_i)
             end do
         end do
 
     end function create_hamiltonian_guga
 
 
-    subroutine calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, t_hamil, &
-                                        calc_type, rdm_ind, rdm_mat)
-        ! function which, given the 2 CSFs ilutI/J and the excitation
-        ! information, connecting those 2, calculates the Hamiltionian
-        ! matrix element between those 2
-        ! use a flag to distinguish between only guga-mat_ele calculation
-        ! and full hamiltonian matrix element calculation
-        ! calc_type is an integer indicating for which purpose this function
-        ! is called:
-        ! 0 ... reference energy calculation -> both current_ilut and ref. info
-        !           is already calculated
-        ! 1 ... semi-stochastic/trial-wavefunction hamiltonian initialization
-        !           only the information of nI is already initialized, have to
-        !           calculate stepvector and all the other stuff for nJ
-        ! 2 ... rdm matrix element calculation, neither nI nor nJ has any
-        !           information initialized already -> init both
-        !           (does this mean i could get rid of the t_hamil flag?)
-
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(out) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_hamil
-        integer, intent(in) :: calc_type
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_guga_matrix_element"
-
-        integer :: temp_b(nSpatOrbs)
-        real(dp) :: temp_occ(nSpatOrbs)
-        integer(n_int) :: tmp_i(0:nifguga)
-
-        ! i have to decide which type of excitation it is and how to
-        ! calculate the corresponding matrix element then..
-        ! this probably involves a lot on intensive coding again..
-        ! but i probably can mimick a lot of stuff from the stochastic
-        ! implementation, with the benefit that i know the 2 CSFs already
-        ! and do not have to calculate branching stuff ..
-        ! having stepvector and b-vector information and stuff is probably
-        ! useful to have
-        ! i could also use the checkCompatibility routine to be 100% that
-        ! the determined excitation is actually possible
-
-        ! where do i need this function?
-        ! a) in the reference calculation! -> so i could initialize
-        !   stepvector and other information for this specific CSF once
-        !   and reuse it here, so i do not have to recompute this every
-        !   time..
-        ! b) in the semi-stochastic and trailwavefunction routines..
-        !    there i actually also have to do it only once in the loop
-        !    over 1 list of dets, i could also just calculate it once
-        !    for nI, and reuse it for the loop over nJ
-        ! c) in the rdm-calculation.. here i am not quite sure yet, since I
-        !    also only need the GUGA matrix element and not the 1 and 2 body
-        !    integral terms.. maybe write the function in such a way that
-        !    it can output both or additionally maybe only the GUGA element
-        !    (but for certain types of excitations multiple orbital index
-        !       combinations are possible to lead to the same CSF connection
-        !       there i would have to output all the different contributions.)
-
-        ! if the optional t_hamil is not there we assume we want to calc.
-        ! the full hamiltonian matrix element and not only the guga-csf overlap
-        ! matrix element, needed for the rdm calculation
-        ! change to not make this flag optional, but mandatory!
-        ! so i can use another flag to distinguish between the type of
-        ! calculation used ..
-
-        ! hm the nice thing is, in the loop over determinants, i also
-        ! initialize the csf information for the current determinant at
-        ! the beginning, so in the case of the reference calculation
-        ! i have both the current_ilut info and if i store it, also the
-        ! reference determinant info, like stepvector, bvalue etc..
-        ! so i do not have to recalculate that here..
-        ! only in the hamiltonian matrix element calculation for
-        ! semi-stochastic and trial wavefunction calculation i need to
-        ! recalc. that, but there also only once for nI, and then always
-        ! for the nJ loop!
-
-        ! if i only want to calculate the guga-csf overlap matrix element
-        ! i have to store the specific indices for different kind of
-        ! excitations connecting the same 2 CSFs in the rdm calculation
-        ! but do that later!
-
-        ! set defaults for early exits
-        mat_ele = h_cast(0.0_dp)
-
-#ifdef DEBUG_
-        if (present(rdm_ind)) then
-            ASSERT(present(rdm_mat))
-        end if
-        if (present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-        end if
-#endif
-
-        ! check diagonal case first
-        if (DetBitEQ(ilutI, ilutJ)) then
-
-            call convert_ilut_toGUGA(ilutI, tmp_i)
-
-            ! i think I should do a change here for the Heisenberg or
-            ! tJ model..
-            mat_ele = calcDiagMatEleGUGA_ilut(tmp_i)
-
-            ! should not be here for RDMs or?
-            ! otherwise I have to change smth here
-            ! print *, "3"
-            ! ASSERT(.not. present(rdm_ind))
-            return
-        end if
-
-        excitInfo = identify_excitation(ilutI, ilutJ)
-
-        ! more than a double excitation! leave with 0 matrix element
-        if (.not. excitInfo%valid) return
-
-        ! for the hubbard model implementation, depending if it is in the
-        ! momentum- or real-space i can get out of here if we identify
-        ! excitation types which are definetly 0
-        ! i could do that more efficiently if we identify it already
-        ! earlier but for now do it here!
-        if (t_hamil) then
-            ! make this check only if we want the hamiltonian matrix
-            ! element. for general coupling coefficients (eg. for RDMs)
-            ! i do need this contributions anyway
-            if (t_new_hubbard) then
-                if (treal .or. t_new_real_space_hubbard) then
-                    ! only singles in the real-space hubbard!
-                    if (excitInfo%typ /= excit_type%single) return
-                else
-                    ! only double excitations in the momentum-space hubbard!
-                    if (excitInfo%typ == excit_type%single) return
-                end if
-            end if
-
-            ! make the adjustment for the Heisenberg model
-            if (t_heisenberg_model &
-                .and. excitInfo%typ /= excit_type%fullstart_stop_mixed) then
-                return
-            end if
-
-            if (t_tJ_model .and. &
-                (.not. (excitInfo%typ == excit_type%single &
-                 .or. excitInfo%typ == excit_type%fullstart_stop_mixed))) &
-                return
-        end if
-
-        ! depending on the type of usage i have to init some csf information
-        select case (calc_type)
-        case (0)
-            ! reference energy calculation -> both nI and nJ info should
-            ! already be initialized .. -> but i have to assigne it to
-            ! intermediate variables here to be able to write the below
-            ! function generally
-
-            temp_step_i = current_stepvector
-            temp_b_real_i = currentB_ilut
-            temp_occ_i = currentOcc_ilut
-
-            temp_step_j = ref_stepvector
-
-            temp_delta_b = currentB_int - ref_b_vector_int
-
-        case (1)
-            ! this used in the initialization of semi-stochastic and
-            ! trail-wavefunction calculation
-            ! in this case "misuse" the current_ variables in the loop over nI
-            temp_step_i = current_stepvector
-            temp_b_real_i = currentB_ilut
-            temp_occ_i = currentOcc_ilut
-
-            ! and i need a function which calculates the stepvector and the
-            ! b-vector for a given ilutJ
-            call calc_csf_info(ilutJ, temp_step_j, temp_b, temp_occ)
-
-            temp_delta_b = currentB_int - temp_b
-
-        case (2)
-            ! thats the case of an rdm-matrix calculation here i do not
-            ! have any information on both CSFs. so i have to recalculate
-            ! everything
-            ! write the function above with a optional occupation number
-            ! output, since it is not much effort to also calc that
-            call calc_csf_info(ilutI, temp_step_i, temp_b, temp_occ_i)
-
-            temp_b_real_i = real(temp_b, dp)
-
-            call calc_csf_info(ilutJ, temp_step_j, temp_b, temp_occ)
-
-            temp_delta_b = int(temp_b_real_i) - temp_b
-
-        end select
-
-        ! i think in the excitation identification i can not find out if the
-        ! delta B value is abs>2 so i have to do that here.. or specific for
-        ! the type of excitations below.. for singles its not allowed
-        ! abs > 1 ..
-        ! but i think for the double excitations i cannot do that generally
-        ! since i have to check for the overlap and non-overlap regions
-        ! specifically
-
-        ! then i need a select case to specifically calculate all the
-        ! different types of excitations
-        ! essentially i can just mimick the stochastic excitation creation
-        ! routines but with a fixed chosen excitation
-        select case (excitInfo%typ)
-
-        case (excit_type%single)
-            ! pure single excitation
-
-            ! but here i have to calculate all the double excitation
-            ! influences which can lead to the same excitation(weights etc.)
-            call calc_single_excitation_ex(ilutJ, excitInfo, mat_ele, &
-                                           t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%single_overlap_L_to_R)
-            ! single overlap lowering into raising
-
-            ! maybe i have to check special conditions on the overlap site.
-            call calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
-                                              t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%single_overlap_R_to_L)
-            ! single overlap raising into lowering
-
-            ! maybe i have to check special conditions on the overlap site.
-            call calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
-                                              t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%double_lowering)
-            ! normal double lowering
-
-            ! question is can i combine more functions here since i know
-            ! both CSFs.. i think so!
-
-            ! deal with order parameter for switched indices
-            call calc_normal_double_ex(excitInfo, mat_ele, &
-                                       t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%double_raising)
-            ! normal double raising
-
-            ! here i have to deal with the order parameter for switched
-            ! indices ..
-            call calc_normal_double_ex(excitInfo, mat_ele, &
-                                       t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%double_L_to_R_to_L)
-            ! lowering into raising into lowering
-
-            ! can i combine these 4 similar excitations in one routine?
-            ! deal with non-overlap if no spin-coupling changes!
-            call calc_normal_double_ex(excitInfo, mat_ele, &
-                                       t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%double_R_to_L_to_R)
-            ! raising into lowering into raising
-
-            ! here i have to consider the non-overlap contribution if no
-            ! spin-coupling changes in the overlap range
-            call calc_normal_double_ex(excitInfo, mat_ele, &
-                                       t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%double_L_to_R)
-            ! lowering into raising double
-
-            ! consider non-overlap if no spin-coupling changes!
-            call calc_normal_double_ex(excitInfo, mat_ele, &
-                                       t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%double_R_to_L)
-            ! raising into lowering double
-
-            ! here i also have to consider the non-overlap contribution if no
-            ! spin-coupling changes in the overlap range
-            call calc_normal_double_ex(excitInfo, mat_ele, &
-                                       t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstop_lowering)
-            ! full-stop 2 lowering
-
-            ! here only x0 matrix element in overlap range!
-            ! also combine fullstop-alike
-            call calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
-                                        t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstop_raising)
-            ! full-stop 2 raising
-
-            ! here only x0 matrix elment in overlap range!
-            call calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
-                                        t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstop_L_to_R)
-            ! full-stop lowering into raising
-
-            ! here i have to consider all the singly occupied orbital
-            ! influences ABOVE the last spin-coupling change
-            ! this is more of a pain.. do later!
-            ! finished the "easy" ones.. now to the annoying..
-            call calc_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
-                                        t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstop_R_to_L)
-            ! full-stop raising into lowering
-
-            ! here i have to consider all the singly occupied orbital
-            ! influences ABOVE the last spin-coupling change
-            call calc_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
-                                        t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstart_lowering)
-            ! full-start 2 lowering
-
-            ! here only x0 matrix element in overlap range!
-            call calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
-                                         t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstart_raising)
-            ! full-start 2 raising
-
-            ! here only the x0-matrix in the overlap range (this implies no
-            ! spin-coupling changes, but i already dealt with that! (hopefully!))
-            call calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
-                                         t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullStart_L_to_R)
-            ! full-start lowering into raising
-
-            ! here i have to consider all the other singly occupied orbital
-            ! influences BELOW the first spin-coupling change
-            call calc_fullstart_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
-                                         t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstart_R_to_L)
-            ! full-start raising into lowering
-
-            ! here i have to consider all the other singly occupied orbital
-            ! influences BELOW the first spin-coupling change
-            call calc_fullstart_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
-                                         t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstart_stop_alike)
-            ! full-start into full-stop alike
-
-            ! here no spin-coupling changes are allowed!
-            call calc_fullstart_fullstop_alike_ex(ilutJ, excitInfo, &
-                                                  mat_ele, t_hamil, rdm_ind, rdm_mat)
-
-        case (excit_type%fullstart_stop_mixed)
-            ! full-start into full-stop mixed
-
-            ! here i have to consider all the singly occupied orbitals
-            ! below the first spin-change and above the last spin change
-            call calc_fullstart_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, &
-                                                  mat_ele, t_hamil, rdm_ind, rdm_mat)
-
-        case default
-            call stop_all(this_routine, "unexpected excitation type")
-
-        end select
-
-        if (t_matele_cutoff .and. abs(mat_ele) < matele_cutoff) mat_ele = h_cast(0.0_dp)
-
-    end subroutine calc_guga_matrix_element
-
-    subroutine calc_single_excitation_ex(ilutJ, excitInfo, mat_ele, &
-                                         t_calc_full, rdm_ind, rdm_mat)
-        ! routine to exactly calculate the matrix element between so singly
-        ! connected CSFs, with the option to output also all the indices and
-        ! overlap matrix elements necessary for the rdm calculation
-        integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_calc_full
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_single_excitation_ex"
-
-        integer :: iOrb, db, step1, step2
-        real(dp) :: bVal
-        HElement_t(dp) :: integral
-        ! have to temporarily store the current* quantities as they are used
-        ! in the integral contribution routine for the single excitations..
-        integer :: temp_curr_step(nSpatOrbs), temp_curr_b_int(nSpatOrbs)
-        real(dp) :: temp_curr_b(nSpatOrbs), temp_curr_occ(nSpatOrbs)
-        logical :: t_calc_full_
-        ! just mimick the stochastic single excitation!
-        real(dp) :: tmp_mat
-
-        def_default(t_calc_full_, t_calc_full, .true.)
-
-        ! set defaults for the output if we excit early..
-        mat_ele = h_cast(0.0_dp)
-
-        associate (i => excitInfo%i, j => excitInfo%j, st => excitInfo%fullstart, &
-                   en => excitInfo%fullEnd, gen => excitInfo%currentGen)
-
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
-                allocate(rdm_ind(1), source=0_int_rdm)
-                allocate(rdm_mat(1), source=0.0_dp)
-                rdm_ind = contract_1_rdm_ind(i, j)
-                rdm_mat = 0.0_dp
-            end if
-
-            ! this deltaB info can slip through the excitation identifier..
-            if (any(abs(temp_delta_b) > 1)) return
-
-            if (t_calc_full_) then
-                integral = getTmatEl(2 * i, 2 * j)
-            else
-                integral = h_cast(1.0_dp)
-            end if
-
-            tmp_mat = 1.0_dp
-
-            ! what do i need from the 2 CSFs to calculate all the matrix elements?
-            ! the 2 stepvalues: d, d' -> write a routine which only calculates those
-            ! the generator type: gen
-            ! the currentB value of I, b -> also calc. that in the routine to get d
-            ! and the deltaB value: db
-
-            ! since i mostly use this function to calculate the overlap with
-            ! the reference determinant it is probably a good idea to
-            ! calculate the necessary information for the reference determinant
-            ! once and store it.. and maybe use a flag here to check what
-            ! kind of usage of this function is.. or outside in the calling
-            ! function..
-
-            ! then i can just loop over the whole excitation range without
-            ! distinction between start.. (mabye end i have to deal with specifically!)
-
-            ! here i have to calculate the starting element
-            !
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            bVal = temp_b_real_i(st)
-            ! i think i have to take the deltaB for the next orb or?
-            ! because i need the outgoing deltaB value..
-            ! nah.. i need the incoming!
-            ! damn i think i need the deltaB value from the previous orbital..
-            ! no.. for the single start i need the outgoing deltab, that the
-            ! convention how to access the matrix elements, but then i need the
-            ! incoming deltaB value.. or lets check that out how this works
-            ! exactly
-            db = temp_delta_b(st)
-
-            tmp_mat = tmp_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
-
-            ! i think it can still always happen that the matrix element is 0..
-            ! but maybe for the rdm case i have to do something more involved..
-            ! to set all the corresponding indices to 0..
-
-            if (near_zero(tmp_mat)) return
-
-            do iOrb = st + 1, en - 1
-
-                step1 = temp_step_i(iOrb)
-                step2 = temp_step_j(iOrb)
-                bVal = temp_b_real_i(iOrb)
-                db = temp_delta_b(iOrb - 1)
-
-                tmp_mat = tmp_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
-
-                if (near_zero(tmp_mat)) return
-
-                if (t_calc_full_) then
-                    if (.not. (t_new_real_space_hubbard .or. t_heisenberg_model &
-                               .or. t_tJ_model .or. t_mixed_hubbard)) then
-                        integral = integral + get_umat_el(i, iOrb, j, iOrb) * temp_occ_i(iOrb)
-
-                        integral = integral + get_umat_el(i, iOrb, iOrb, j) * &
-                                   getDoubleContribution(step2, step1, db, gen, bVal)
-                    end if
-                end if
-
-            end do
-
-            step1 = temp_step_i(en)
-            step2 = temp_step_j(en)
-            bVal = temp_b_real_i(en)
-            db = temp_delta_b(en - 1)
-
-            tmp_mat = tmp_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
-
-            if (near_zero(tmp_mat)) return
-
-            ! this has to be adapted .. because inside there i use the
-            ! current_stepvector and similar quantities..
-            ! can i savely adjust the current_stepvector value here without
-            ! breaking other stuff.. especially for the FciMCPar loop..
-            temp_curr_step = current_stepvector
-            temp_curr_b = currentB_ilut
-            temp_curr_occ = currentOcc_ilut
-            temp_curr_b_int = currentB_int
-
-            current_stepvector = temp_step_i
-            currentB_ilut = temp_b_real_i
-            currentOcc_ilut = temp_occ_i
-            currentB_int = int(currentB_ilut)
-
-            ! i think i could also exclude the treal case here.. try!
-            if (t_calc_full_) then
-                if (.not. (treal .or. t_new_real_space_hubbard .or. &
-                           t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-                    call calc_integral_contribution_single(ilutJ, i, j, st, en, integral)
-                end if
-            end if
-
-            mat_ele = tmp_mat * integral
-
-            ! that should be it for the singles... check that when its fully
-            ! implemented
-            ! and assign back previous values
-            current_stepvector = temp_curr_step
-            currentB_ilut = temp_curr_b
-            currentOcc_ilut = temp_curr_occ
-            currentB_int = temp_curr_b_int
-
-            if (present(rdm_mat)) rdm_mat = tmp_mat
-
-        end associate
-
-    end subroutine calc_single_excitation_ex
-
-    subroutine calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
-                                            t_calc_full, rdm_ind, rdm_mat)
-        ! routine to exactly calculate the matrix element between 2 CSFs
-        ! connected by a single overlap excitation with mixed generators
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_calc_full
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_single_overlap_mixed_ex"
-
-        real(dp) :: bVal, temp_mat, guga_mat
-        HElement_t(dp) :: umat
-        integer :: i, db, gen2, step1, step2
-        logical :: t_calc_full_
-
-        ! in the case of rdm calculation, i know that this type of exitation
-        ! only has one (or two, with switches 2-body integrals..??)
-        ! rdm-contribution..
-
-        def_default(t_calc_full_, t_calc_full, .true.)
-
-        ! set some defaults in case of early exit
-        mat_ele = h_cast(0.0_dp)
-
-        associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                   ll => excitInfo%l, st => excitInfo%fullStart, &
-                   ss => excitInfo%secondStart, en => excitInfo%fullEnd, &
-                   gen => excitInfo%firstGen, fe => excitInfo%firstEnd, &
-                   typ => excitInfo%typ)
-
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
-                ! i am not sure yet if I will use symmetries in the RDM
-                ! calculation (some are also left out in the SD based implo..
-                ! so for now sample both combinations
-                allocate(rdm_ind(1), source=0_int_rdm)
-                allocate(rdm_mat(1), source=0.0_dp)
-                rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            end if
-
-            if (any(abs(temp_delta_b) > 1)) return
-
-            if (t_calc_full_) then
-                if (typ == excit_type%single_overlap_L_to_R) then
-
-                    umat = (get_umat_el(fe, ss, st, en) + &
-                            get_umat_el(ss, fe, en, st)) / 2.0_dp
-
-                else if (typ == excit_type%single_overlap_R_to_L) then
-                    umat = (get_umat_el(st, en, fe, ss) + &
-                            get_umat_el(en, st, ss, fe)) / 2.0_dp
-                else
-                    call stop_all(this_routine, "shouldnt be here!")
-                end if
-            else
-                umat = h_cast(1.0_dp)
-            end if
-
-            ! for the hamiltonian matrix element i can exit here if umat is 0
-            ! but for the rdm-contribution i need to calc. the GUGA element
-            if (t_calc_full .and. near_zero(umat)) return
-
-            guga_mat = 1.0_dp
-
-            ! i have to do the start specifically, due to the access of the
-            ! single matrix elements
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            bVal = temp_b_real_i(st)
-            db = temp_delta_b(st)
-
-            guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
-
-            if (near_zero(guga_mat)) return
-
-            do i = st + 1, ss - 1
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
-
-                guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
-
-                if (near_zero(guga_mat)) return
-
-            end do
-
-            step1 = temp_step_i(ss)
-            step2 = temp_step_j(ss)
-            bVal = temp_b_real_i(ss)
-            db = temp_delta_b(ss - 1)
-            gen2 = -gen
-
-            call getDoubleMatrixElement(step2, step1, db, gen, gen2, bVal, 1.0_dp, temp_mat)
-
-            guga_mat = guga_mat * temp_mat
-
-            if (near_zero(guga_mat)) return
-
-            do i = ss + 1, en
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
-
-                guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen2, bVal)
-
-                if (near_zero(guga_mat)) return
-
-            end do
-
-        end associate
-
-        mat_ele = guga_mat * umat
-
-        ! both coupling coeffs are the same
-        if (present(rdm_mat)) rdm_mat = guga_mat
-
-    end subroutine calc_single_overlap_mixed_ex
-
-    subroutine calc_normal_double_ex(excitInfo, mat_ele, &
-                                     t_hamil, rdm_ind, rdm_mat)
-        ! combined routine to calculate the mixed generator excitations with
-        ! 4 different spatial orbitals. here i have to consider if a
-        ! spin change happened in the overlap. if no, i also have to calc. the
-        ! non-overlap contribution!
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_normal_double_ex"
-
-        integer :: step1, step2, db, i
-        real(dp) :: temp_x0, temp_x1, temp_mat0, temp_mat1, bVal, guga_mat
-        logical :: t_hamil_
-
-        def_default(t_hamil_, t_hamil, .true.)
-
-        ! set defaults for early exits
-        mat_ele = h_cast(0.0_dp)
-
-        associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                   ll => excitInfo%l, start1 => excitInfo%fullStart, &
-                   start2 => excitInfo%secondStart, ende1 => excitInfo%firstEnd, &
-                   ende2 => excitInfo%fullEnd, gen1 => excitInfo%gen1, &
-                   gen2 => excitInfo%gen2, firstgen => excitInfo%firstgen, &
-                   lastgen => excitInfo%lastgen, order => excitInfo%order, &
-                   order1 => excitInfo%order1, typ => excitInfo%typ)
-
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
-                allocate(rdm_ind(2), source=0_int_rdm)
-                allocate(rdm_mat(2), source=0.0_dp)
-
-                ! this does get tricky now with the rdm inds and mats..
-                ! the indices which end up here should always be intertwined..
-                ! as we always deal with an overlap range in the excitation
-                ! generation
-                ASSERT(max(ii, jj) > min(kk, ll))
-
-                ! so the first two entries correspond to the overlap version
-                ! of the generators (in the case of mixed R and L)
-                rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-                ! and the second to the non-overlap (again only in the case of
-                ! mixed generator combinations!)
-                rdm_ind(2) = contract_2_rdm_ind(ii, ll, kk, jj)
-
-            end if
-
-            ! i have to check if the deltaB value is in its correct bounds for
-            ! the specific parts of the excitations
-            if (any(abs(temp_delta_b(start1:start2 - 1)) > 1) .or. &
-                any(abs(temp_delta_b(start2:ende1 - 1)) > 2) .or. &
-                any(abs(temp_delta_b(ende1:ende2)) > 1)) return
-
-            ! depending on which type of excitation the non-overlap has a specific
-            ! tbd generator! i should deal with that in the starting if statement
-            ! according to my stochastic implementation it is not so hard luckily..
-
-            ! do first single part
-            guga_mat = 1.0_dp
-
-            ! have to do the start specifically as i need the outgoing deltaB
-            ! value
-            step1 = temp_step_i(start1)
-            step2 = temp_step_j(start1)
-            db = temp_delta_b(start1)
-            bVal = temp_b_real_i(start1)
-
-            guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, firstgen, bVal)
-
-            if (near_zero(guga_mat)) return
-
-            do i = start1 + 1, start2 - 1
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
-
-                guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, firstgen, bVal)
-
-                if (near_zero(guga_mat)) return
-
-            end do
-
-            temp_x0 = guga_mat
-            temp_x1 = guga_mat
-
-            ! do overlap part
-            do i = start2, ende1
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
-
-                call getDoubleMatrixElement(step2, step1, db, gen1, gen2, bVal, 1.0_dp, &
-                                            temp_mat0, temp_mat1)
-
-                temp_x0 = temp_x0 * temp_mat0
-                temp_x1 = temp_x1 * temp_mat1
-
-                if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
-            end do
-
-            ! now do second single overlap part
-
-            do i = ende1 + 1, ende2
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
-
-                temp_mat0 = getSingleMatrixElement(step2, step1, db, lastgen, bVal)
-
-                temp_x0 = temp_x0 * temp_mat0
-                temp_x1 = temp_x1 * temp_mat0
-
-                if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
-            end do
-
-            ! now the excitation-type and spin question come into play..
-            ! i actually could combine all "normal" double excitations in one
-            ! routine with a if statement at the end here..
-
-            if (present(rdm_mat)) then
-                select case (typ)
-                case (excit_type%double_lowering, &
-                      excit_type%double_raising)
-
-                    ! in both the orbital picker and also excitation identifier
-                    ! the order quantities are setup to be 1.0..
-                    ! i hope I did everything right there.. then this would
-                    ! mean here
-                    ASSERT(order.isclose.1.0_dp)
-                    ASSERT(order1.isclose.1.0_dp)
-                    ! and now I have to fill in the correct combinations of
-                    ! signs here..
-                    ! to check that everything is correctly set to the default
-                    ! ordering I should assert that here
-#ifdef DEBUG_
-                    if (typ == excit_type%double_raising) then
-                        ASSERT(ii < jj)
-                        ASSERT(kk < ll)
-                        ASSERT(ii > kk)
-                        ASSERT(jj > ll)
-                    end if
-#endif
-                    ! be sure with the rdm_sign function:
-
-                    ! rdm_mat(1) = temp_x0 + generator_sign(ii,jj,kk,ll) * temp_x1
-                    ! rdm_mat(2) = temp_x0 + generator_sign(ii,ll,kk,jj) * temp_x1
-
-                    rdm_mat(1) = temp_x0 + temp_x1
-                    rdm_mat(2) = temp_x0 - temp_x1
-
-                case (excit_type%double_L_to_R_to_L, &
-                      excit_type%double_R_to_L_to_R, &
-                      excit_type%double_L_to_R, &
-                      excit_type%double_R_to_L)
-
-                    if (excitInfo%spin_change) then
-                        ! if we have a spin-change the non-overlap contribution
-                        ! must be 0! which is already intiated to 0 above
-                        rdm_mat(1) = temp_x1
-                    else
-                        ! if there is not spin-change the non-overlap is also
-                        ! 0, and in this case is -2 the original x0
-                        rdm_mat(1) = temp_x0 + temp_x1
-                        rdm_mat(2) = -2.0_dp * temp_x0
-                    end if
-                end select
-            end if
-
-            select case (typ)
-            case (excit_type%double_lowering)
-                ! double lowering
-                ! wait a minute.. i have to do that at the end apparently..
-                ! since i need to know the x0 and x1 matrix element contributions
-                mat_ele = (temp_x0 * (get_umat_el(ende1, ende2, start1, start2) + &
-                                      get_umat_el(ende2, ende1, start2, start1) + &
-                                      get_umat_el(ende2, ende1, start1, start2) + &
-                                      get_umat_el(ende1, ende2, start2, start1)) + &
-                           order * order1 *  temp_x1 * ( &
-                                      get_umat_el(ende1, ende2, start1, start2) + &
-                                      get_umat_el(ende2, ende1, start2, start1) - &
-                                      get_umat_el(ende2, ende1, start1, start2) - &
-                                      get_umat_el(ende1, ende2, start2, start1))) / 2.0_dp
-
-            case (excit_type%double_raising)
-                ! double raising
-                mat_ele = (temp_x0 * (get_umat_el(start1, start2, ende1, ende2) + &
-                                      get_umat_el(start2, start1, ende2, ende1) + &
-                                      get_umat_el(start1, start2, ende2, ende1) + &
-                                      get_umat_el(start2, start1, ende1, ende2)) + &
-                           order * order1 * temp_x1 * ( &
-                                      get_umat_el(start1, start2, ende1, ende2) + &
-                                      get_umat_el(start2, start1, ende2, ende1) - &
-                                      get_umat_el(start1, start2, ende2, ende1) - &
-                                      get_umat_el(start2, start1, ende1, ende2))) / 2.0_dp
-
-            case (excit_type%double_L_to_R_to_L)
-                ! L -> R -> L
-                if (excitInfo%spin_change) then
-                    ! if a spin-change happenend -> no non-overlap!
-                    mat_ele = temp_x1 * (get_umat_el(ende2, start2, start1, ende1) + &
-                                         get_umat_el(start2, ende2, ende1, start1)) / 2.0_dp
-
-                else
-                    mat_ele = (-temp_x0 * (get_umat_el(start2, ende2, start1, ende1) + &
-                                           get_umat_el(ende2, start2, ende1, start1)) * 2.0_dp + &
-                              (temp_x0 + temp_x1) * (get_umat_el(ende2, start2, start1, ende1) + &
-                                                     get_umat_el(start2, ende2, ende1, start1))) / 2.0_dp
-
-                end if
-
-            case (excit_type%double_R_to_L_to_R)
-                ! R -> L -> R
-                if (excitInfo%spin_change) then
-                    mat_ele = temp_x1 * (get_umat_el(start1, ende1, ende2, start2) + &
-                                         get_umat_el(ende1, start1, start2, ende2)) / 2.0_dp
-
-                else
-                    mat_ele = (-temp_x0 * (get_umat_el(start1, ende1, start2, ende2) + &
-                                           get_umat_el(ende1, start1, ende2, start2)) * 2.0_dp + &
-                              (temp_x0 + temp_x1) * (get_umat_el(start1, ende1, ende2, start2) + &
-                                                     get_umat_el(ende1, start1, start2, ende2))) / 2.0_dp
-
-                end if
-
-            case (excit_type%double_L_to_R)
-                ! L -> R
-                if (excitInfo%spin_change) then
-                    mat_ele = temp_x1 * (get_umat_el(ende1, start2, start1, ende2) + &
-                                         get_umat_el(start2, ende1, ende2, start1)) / 2.0_dp
-
-                else
-                    mat_ele = (-temp_x0 * (get_umat_el(start2, ende1, start1, ende2) + &
-                                           get_umat_el(ende1, start2, ende2, start1)) * 2.0_dp + &
-                              (temp_x0 + temp_x1) * (get_umat_el(ende1, start2, start1, ende2) + &
-                                                     get_umat_el(start2, ende1, ende2, start1))) / 2.0_dp
-                end if
-
-            case (excit_type%double_R_to_L)
-                ! R -> L
-                if (excitInfo%spin_change) then
-                    mat_ele = temp_x1 * (get_umat_el(start1, ende2, ende1, start2) + &
-                                         get_umat_el(ende2, start1, start2, ende1)) / 2.0_dp
-                else
-                    mat_ele = (-temp_x0 * (get_umat_el(start1, ende2, start2, ende1) + &
-                                           get_umat_el(ende2, start1, ende1, start2)) * 2.0_dp + &
-                              (temp_x0 + temp_x1) * (get_umat_el(start1, ende2, ende1, start2) + &
-                                                     get_umat_el(ende2, start1, start2, ende1))) / 2.0_dp
-                end if
-                ! combine the "normal" double RR/LL also in here, since the rest
-                ! of the routine is totally the same!
-            end select
-
-        end associate
-
-    end subroutine calc_normal_double_ex
-
-    subroutine calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
-                                      t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_fullstop_alike_ex"
-
-        real(dp) :: bVal, temp_mat, nOpen, guga_mat
-        HElement_t(dp) :: umat
-        integer :: i, step1, step2, db
-        logical :: t_hamil_
-
-        def_default(t_hamil_, t_hamil, .true.)
-
-        ! set some defaults in case of early exit
-        mat_ele = h_cast(0.0_dp)
-
-        associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                   ll => excitInfo%l, typ => excitInfo%typ, st => excitInfo%fullStart, &
-                   se => excitInfo%secondStart, gen => excitInfo%gen1, &
-                   en => excitInfo%fullEnd)
-
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
-                allocate(rdm_ind(1), source=0_int_rdm)
-                allocate(rdm_mat(1), source=0.0_dp)
-                rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            end if
-
-            ! can i exclude every deltaB > 1, since only db = 0 allowed in
-            ! double overlap region? i think so..
-            if (any(abs(temp_delta_b) > 1)) return
-
-            if (t_hamil_) then
-                if (typ == excit_type%fullstop_lowering) then
-                    ! LL
-                    umat = (get_umat_el(en, en, st, se) + &
-                            get_umat_el(en, en, se, st)) / 2.0_dp
-
-                else if (typ == excit_type%fullstop_raising) then
-                    ! RR
-                    umat = (get_umat_el(st, se, en, en) + &
-                            get_umat_el(se, st, en, en)) / 2.0_dp
-                end if
-            else
-                umat = h_cast(1.0_dp)
-            end if
-
-            if (t_hamil_ .and. near_zero(umat)) return
-
-            guga_mat = 1.0_dp
-
-            ! have to deal with start specifically
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            bVal = temp_b_real_i(st)
-            db = temp_delta_b(st)
-
-            guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
-
-            if (near_zero(guga_mat)) return
-
-            do i = st + 1, se - 1
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
-
-                guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bval)
-
-                if (near_zero(guga_mat)) return
-
-            end do
-
-            ! do semi-start:
-            step1 = temp_step_i(se)
-            step2 = temp_step_j(se)
-            db = temp_delta_b(se - 1)
-            bVal = temp_b_real_i(se)
-
-            call getDoubleMatrixElement(step2, step1, db, gen, gen, bVal, 1.0_dp, temp_mat)
-
-            guga_mat = guga_mat * temp_mat
-
-            if (near_zero(guga_mat)) return
-
-            nOpen = (-1.0_dp)**real(count_open_orbs_ij(se + 1, en - 1, ilutJ), dp)
-
-            ! is this the same for both type of gens?
-            mat_ele = guga_mat * nOpen * Root2 * umat
-
-            ! since the x1 element is 0 there is no sign influence from the
-            ! order of generators!
-            if (present(rdm_mat)) rdm_mat = guga_mat * nOpen * Root2
-
-        end associate
-
-    end subroutine calc_fullstop_alike_ex
-
-    subroutine calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
-                                       t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_fullstart_alike_ex"
-
-        integer :: i, step1, step2, db
-        real(dp) :: bVal, nOpen, temp_mat, guga_mat
-        HElement_t(dp) :: umat
-        logical :: t_hamil_
-
-        def_default(t_hamil_, t_hamil, .true.)
-
-        ! set defaults for early exits
-        mat_ele = h_cast(0.0_dp)
-
-        associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                   ll => excitInfo%l, start => excitInfo%fullstart, &
-                   ende => excitInfo%fullEnd, semi => excitInfo%firstEnd, &
-                   gen => excitInfo%firstGen, typ => excitInfo%typ)
-
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
-                allocate(rdm_ind(1), source=0_int_rdm)
-                allocate(rdm_mat(1), source=0.0_dp)
-                rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            end if
-
-            ! i think i can exclude every deltaB > 1 sinve only dB = 0 branch
-            ! allowed for the alike..
-            if (any(abs(temp_delta_b) > 1)) return
-
-            if (t_hamil_) then
-                if (typ == excit_type%fullstart_lowering) then
-                    ! LL
-                    umat = (get_umat_el(ende, semi, start, start) + &
-                            get_umat_el(semi, ende, start, start)) / 2.0_dp
-
-                else if (typ == excit_type%fullstart_raising) then
-                    ! RR
-                    umat = (get_umat_el(start, start, semi, ende) + &
-                            get_umat_el(start, start, ende, semi)) / 2.0_dp
-                end if
-            else
-                umat = h_cast(1.0_dp)
-            end if
-
-            if (t_hamil_ .and. near_zero(umat)) return
-
-            nOpen = real(count_open_orbs_ij(start, semi - 1, ilutJ), dp)
-
-            ! do semi-stop
-            step1 = temp_step_i(semi)
-            step2 = temp_step_j(semi)
-            db = temp_delta_b(semi - 1)
-            bVal = temp_b_real_i(semi)
-
-            call getDoubleMatrixElement(step2, step1, db, gen, gen, bVal, 1.0_dp, temp_mat)
-
-            if (near_zero(temp_mat)) return
-
-            guga_mat = Root2 * temp_mat * (-1.0_dp)**nOpen
-
-            ! do single range
-            do i = semi + 1, ende
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
-
-                guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
-
-                if (near_zero(guga_mat)) return
-
-            end do
-
-            mat_ele = guga_mat * umat
-
-            ! also no influence on coupling coefficient sign from generator order
-            if (present(rdm_mat)) rdm_mat = guga_mat
-
-        end associate
-
-    end subroutine calc_fullstart_alike_ex
-
-    subroutine calc_fullstart_fullstop_alike_ex(ilutJ, excitInfo, &
-                                                mat_ele, t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_fullstart_fullstop_alike_ex"
-
-        real(dp) :: nOpen, guga_mat
-        HElement_t(dp) :: umat
-        logical :: t_hamil_
-
-        def_default(t_hamil_, t_hamil, .true.)
-
-        ! set defaults for early exit
-        mat_ele = h_cast(0.0_dp)
-
-        associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                   ll => excitInfo%l, start => excitInfo%fullStart, &
-                   ende => excitInfo%fullEnd)
-
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
-                allocate(rdm_ind(1), source=0_int_rdm)
-                allocate(rdm_mat(1), source=0.0_dp)
-                ! only one element here, since indices are the same
-                rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            end if
-
-            if (t_hamil_) then
-                umat = get_umat_el(ii, ii, jj, jj) / 2.0_dp
-            else
-                umat = h_cast(1.0_dp)
-            end if
-
-            if (t_hamil_ .and. near_zero(umat)) return
-
-            nOpen = real(count_open_orbs_ij(start, ende, ilutJ(0:nifd)), dp)
-
-            guga_mat = 2.0_dp * (-1.0_dp)**nOpen
-            mat_ele = guga_mat * umat
-
-            if (present(rdm_mat)) rdm_mat = guga_mat
-
-        end associate
-
-    end subroutine calc_fullstart_fullstop_alike_ex
-
-    subroutine calc_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
-                                      t_hamil, rdm_ind, rdm_mat)
-        ! from the excitInfo i know the first switch position.
-        ! this makes things a bit easier for the exact calculation
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-
-        integer :: i, step1, step2, db
-        real(dp)  :: bVal, temp_mat0, temp_mat1, temp_x0, temp_x1
-        HElement_t(dp) :: integral
-        integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
-
-        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
-                   temp_curr_b_int(nSpatOrbs), st, se, en
-        real(dp) :: temp_curr_b(nSpatOrbs), guga_mat
-        logical :: t_hamil_
-
-        def_default(t_hamil_, t_hamil, .true.)
-
-        ! i can not associate to all stuff of excitInfo, since it will
-        ! get changed later on..
-        st = excitInfo%fullStart
-        se = excitInfo%secondStart
-        en = excitInfo%fullEnd
-
-        associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                   ll => excitInfo%l, firstGen => excitInfo%firstgen, &
-                   typ => excitInfo%typ)
-
-            ! set defaults in case of early exit
-            mat_ele = h_cast(0.0_dp)
-
-            if (any(abs(temp_delta_b(st:se - 1)) > 1) .or. &
-                any(abs(temp_delta_b(se:en)) > 2)) return
-
-            ! first do single overlap region
-            guga_mat = 1.0_dp
-
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            bVal = temp_b_real_i(st)
-            db = temp_delta_b(st)
-
-            guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, firstgen, bval)
-
-            if (near_zero(guga_mat)) return
-
-            do i = st + 1, se - 1
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
-
-                guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, firstgen, bVal)
-
-                if (near_zero(guga_mat)) return
-
-            end do
-
-            ! i also do not have to consider if there is a d=3 at the end since
-            ! i determine the last spin-coupling change and thus know it is
-            ! definetly a singly occupied orbital at the end
-
-            ! and actually the x0 matrix element has to be 0, otherwise it is
-            ! not the excitation i thought it was.. do this as a check to
-            ! abort if anything else happens
-            temp_x0 = guga_mat
-            temp_x1 = guga_mat
-
-            do i = se, en - 1
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
-
-                call getDoubleMatrixElement(step2, step1, db, gen_type%R, gen_type%L, bVal, &
-                                            1.0_dp, temp_mat0, temp_mat1)
-
-                temp_x0 = temp_x0 * temp_mat0
-                temp_x1 = temp_x1 * temp_mat1
-
-                if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
-            end do
-
-            ! to the fullstop
-            step1 = temp_step_i(en)
-            step2 = temp_step_j(en)
-            db = temp_delta_b(en - 1)
-            bVal = temp_b_real_i(en)
-
-            call getMixedFullStop(step2, step1, db, bVal, temp_mat0, temp_mat1)
-
-            temp_x0 = temp_x0 * temp_mat0
-            temp_x1 = temp_x1 * temp_mat1
-
-            ! so if x0 > 0 abort!
-
-            ! and here misuse the stochastic routine to calculate the influence
-            ! of all the other singly-occupied orbitals..
-            ! i probably should write a function which does that only for the
-            ! integral and stores the specific indices and matrix elements for
-            ! the rdm calculation, but to that later! todo
-            ! but to use this function i have to transform the 2 iluts to
-            ! GUGA iluts and store the matrix element in them..
-
-            call convert_ilut_toGUGA(ilutI, tmp_I)
-            call convert_ilut_toGUGA(ilutJ, tmp_J)
-
-            ! is the matrix element transformed within these functions?
-            ! no apparently not and not event touched.. so no need to encode the
-            ! matrix element
-
-            ! need to input dummy variable into the end contr functions
-            ! use temp_mat1
-            temp_mat1 = 1.0_dp
-
-            ! also temporarily have to store the current* quantities as they are
-            ! used in the below adapted routines from the stochasitc implementation
-            temp_curr_step = current_stepvector
-            temp_curr_b = currentB_ilut
-            temp_curr_occ_int = currentOcc_int
-            temp_curr_b_int = currentB_int
-
-            current_stepvector = temp_step_i
-            currentB_ilut = temp_b_real_i
-            currentOcc_int = int(temp_occ_i)
-            currentB_int = int(temp_b_real_i)
-
-            if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
-                if (typ == excit_type%fullstop_L_to_R) then
-                    ! L -> R
-                    ! what do i have to put in as the branch pgen?? does it have
-                    ! an influence on the integral and matrix element calculation?
-                    if (present(rdm_mat)) then
-                        call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                                                      temp_mat0, integral, rdm_ind, rdm_mat)
-                        ! need to multiply by x1
-                        rdm_mat = rdm_mat * temp_x1
-                    else
-                        call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                                                      temp_mat0, integral)
-                    end if
-
-                    mat_ele = temp_x1 * ((get_umat_el(en, se, st, en) + &
-                                          get_umat_el(se, en, en, st)) / 2.0_dp + integral)
-
-                else if (typ == excit_type%fullstop_R_to_L) then
-                    ! R -> L
-                    if (present(rdm_mat)) then
-                        call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                                                      temp_mat0, integral, rdm_ind, rdm_mat)
-                        rdm_mat = rdm_mat * temp_x1
-                    else
-                        call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                                                      temp_mat0, integral)
-                    end if
-
-                    mat_ele = temp_x1 * ((get_umat_el(en, st, se, en) + &
-                                          get_umat_el(st, en, en, se)) / 2.0_dp + integral)
-
-                end if
-            else
-                mat_ele = h_cast(temp_x1)
-            end if
-
-            current_stepvector = temp_curr_step
-            currentB_ilut = temp_curr_b
-            currentOcc_int = temp_curr_occ_int
-            currentB_int = temp_curr_b_int
-
-        end associate
-
-    end subroutine calc_fullstop_mixed_ex
-
-    subroutine calc_fullstart_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
-                                       t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-
-        integer :: step1, step2, db, i
-        real(dp) :: bVal, temp_mat0, temp_mat1, temp_x0, temp_x1
-        HElement_t(dp) :: integral
-        integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
-        logical :: t_hamil_
-
-        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
-                   temp_curr_b_int(nSpatOrbs), st, en, se
-        real(dp) :: temp_curr_b(nSpatOrbs), guga_mat
-
-        def_default(t_hamil_, t_hamil, .true.)
-
-        ! set defaults for early exit
-        mat_ele = h_cast(0.0_dp)
-
-        ! i can not associate to all stuff of excitInfo, since it will
-        ! get changed later on..
-        st = excitInfo%fullStart
-        en = excitInfo%fullEnd
-        se = excitInfo%firstEnd
-
-        associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                   ll => excitInfo%l, gen => excitInfo%lastGen, typ => excitInfo%typ)
-
-            if (any(abs(temp_delta_b(st:se - 1)) > 2) .or. &
-                any(abs(temp_delta_b(se:en)) > 1)) return
-
-            ! do the full-start, and i know here that it is singly occupied
-
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            ! to indicate the mixed fullstart matrix elements in the routine!
-            db = -1
-            bVal = temp_b_real_i(st)
-
-            call getDoubleMatrixElement(step2, step1, -1, gen_type%L, gen_type%R, bVal, 1.0_dp, &
-                                        temp_x0, temp_x1)
-
-            if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
-
-
-            ! then do the double overlap range
-
-            do i = st + 1, se
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
-
-                call getDoubleMatrixElement(step2, step1, db, gen_type%L, gen_type%R, bVal, 1.0_dp, &
-                                            temp_mat0, temp_mat1)
-
-                temp_x0 = temp_x0 * temp_mat0
-                temp_x1 = temp_x1 * temp_mat1
-
-                if (near_zero(temp_x1)) return
-
-            end do
-
-            ! i think here i should also check if the x0 matrix element is non-zero..
-
-            if (.not. near_zero(temp_x0)) return
-
-
-            guga_mat = temp_x1
-            ! do single range
-
-            do i = se + 1, en
-
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
-
-                guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
-
-                if (near_zero(guga_mat)) return
-
-            end do
-
-
-            ! then also reuse the stochastic routines to get the integral contribs
-
-            call convert_ilut_toGUGA(ilutI, tmp_I)
-            call convert_ilut_toGUGA(ilutJ, tmp_J)
-
-            ! need to input variable into start_contr routines, misuse temp_mat1
-            temp_mat1 = 1.0_dp
-
-            ! also temporarily have to store the current* quantities as they are
-            ! used in the below adapted routines from the stochasitc implementation
-            temp_curr_step = current_stepvector
-            temp_curr_b = currentB_ilut
-            temp_curr_occ_int = currentOcc_int
-            temp_curr_b_int = currentB_int
-
-            current_stepvector = temp_step_i
-            currentB_ilut = temp_b_real_i
-            currentOcc_int = int(temp_occ_i)
-            currentB_int = int(temp_b_real_i)
-
-            if (t_hamil .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
-                if (typ == excit_type%fullstart_L_to_R) then
-                    ! L -> R
-                    if (present(rdm_mat)) then
-                        call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                                                        temp_mat0, integral, rdm_ind, rdm_mat)
-                        ! need to multiply by guga-mat:
-                        rdm_mat = rdm_mat * guga_mat
-                    else
-                        call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                                                        temp_mat0, integral, rdm_ind, rdm_mat)
-                    end if
-
-                    mat_ele = guga_mat * ((get_umat_el(st, se, en, st) + &
-                                           get_umat_el(se, st, st, en)) / 2.0_dp + integral)
-
-                else if (typ == excit_type%fullstart_R_to_L) then
-
-                    if (present(rdm_mat)) then
-                        call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                                                        temp_mat0, integral, rdm_ind, rdm_mat)
-                        rdm_mat = rdm_mat * guga_mat
-                    else
-                        call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                                                        temp_mat0, integral)
-                    end if
-
-                    mat_ele = guga_mat * ((get_umat_el(st, en, se, st) + &
-                                           get_umat_el(en, st, st, se)) / 2.0_dp + integral)
-
-                end if
-            end if
-
-            current_stepvector = temp_curr_step
-            currentB_ilut = temp_curr_b
-            currentOcc_int = temp_curr_occ_int
-            currentB_int = temp_curr_b_int
-
-        end associate
-
-    end subroutine calc_fullstart_mixed_ex
-
-    subroutine calc_fullstart_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, &
-                                                mat_ele, t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        HElement_t(dp), intent(out) :: mat_ele
-        logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-
-        integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
-        ! also need temporary storage of current* quantities
-        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs)
-        real(dp) :: temp_curr_b(nSpatOrbs)
-        logical :: t_hamil_
-
-        def_default(t_hamil_, t_hamil, .true.)
-
-        ! set default for early exits
-        mat_ele = h_cast(0.0_dp)
-
-        associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                   ll => excitInfo%l, start => excitInfo%fullstart, &
-                   ende => excitInfo%fullEnd)
-
-            if (any(abs(temp_delta_b) > 2)) return
-
-            call convert_ilut_toGUGA(ilutI, tmp_I)
-            call convert_ilut_toGUGA(ilutJ, tmp_J)
-
-            temp_curr_occ_int = currentOcc_int
-            temp_curr_step = current_stepvector
-            temp_curr_b = currentB_ilut
-
-            current_stepvector = temp_step_i
-            currentOcc_int = int(temp_occ_i)
-            currentB_ilut = temp_b_real_i
-
-            if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
-                if (present(rdm_mat)) then
-                    mat_ele = calcMixedContribution(tmp_I, tmp_J, start, ende, &
-                                                    rdm_ind, rdm_mat)
-                else
-                    mat_ele = calcMixedContribution(tmp_I, tmp_J, start, ende)
-                end if
-            end if
-
-            current_stepvector = temp_curr_step
-            currentOcc_int = temp_curr_occ_int
-            currentB_ilut = temp_curr_b
-
-        end associate
-
-    end subroutine calc_fullstart_fullstop_mixed_ex
-
-    function plus_start_single(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, minus
-
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = plus / (plus + minus)
-
-    end function plus_start_single
-
-    function minus_start_single(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, minus
-
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = minus / (plus + minus)
-
-    end function minus_start_single
-
-    function minus_staying_single(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, minus
-
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = calcStayingProb(minus, plus, bVal)
-
-    end function minus_staying_single
-
-    function plus_staying_single(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, minus
-
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = calcStayingProb(plus, minus, bVal)
-
-    end function plus_staying_single
-
-    function plus_switching_single(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, minus
-
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = 1.0_dp - calcStayingProb(plus, minus, bVal)
-
-    end function plus_switching_single
-
-    function minus_switching_single(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, minus
-
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = 1.0_dp - calcStayingProb(minus, plus, bVal)
-
-    end function minus_switching_single
-
-    function minus_start_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: zero, minus
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = minus / (zero + minus)
-
-    end function minus_start_double
-
-    function plus_start_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, zero
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-
-        prob = plus / (zero + plus)
-
-    end function plus_start_double
-
-    function zero_plus_start_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, zero
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-
-        prob = zero / (zero + plus)
-
-    end function zero_plus_start_double
-
-    function zero_minus_start_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: zero, minus
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = zero / (zero + minus)
-
-    end function zero_minus_start_double
-
-    function zero_plus_staying_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, zero
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-
-        prob = calcStayingProb(zero, plus, bVal)
-
-    end function zero_plus_staying_double
-
-    function zero_minus_staying_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: zero, minus
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = calcStayingProb(zero, minus, bVal)
-
-    end function zero_minus_staying_double
-
-    function zero_plus_switching_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, zero
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-
-        prob = 1.0_dp - calcStayingProb(zero, plus, bVal)
-
-    end function zero_plus_switching_double
-
-    function zero_minus_switching_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: zero, minus
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = 1.0_dp - calcStayingProb(zero, minus, bVal)
-
-    end function zero_minus_switching_double
-
-    function minus_staying_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: zero, minus
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = calcStayingProb(minus, zero, bVal)
-
-    end function minus_staying_double
-
-    function plus_staying_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, zero
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-
-        prob = calcStayingProb(plus, zero, bVal)
-
-    end function plus_staying_double
-
-    function minus_switching_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: zero, minus
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
-
-        prob = 1.0_dp - calcStayingProb(minus, zero, bVal)
-
-    end function minus_switching_double
-
-    function plus_switching_double(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        real(dp) :: plus, zero
-
-        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
-        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
-
-        prob = 1.0_dp - calcStayingProb(plus, zero, bVal)
-
-    end function plus_switching_double
-
-    function probability_one(weights, bVal, negSwitches, posSwitches) result(prob)
-        type(WeightObj_t), intent(in) :: weights
-        real(dp), intent(in) :: bVal, negSwitches, posSwitches
-        real(dp) :: prob
-
-        unused_var(weights)
-        unused_var(bVal)
-        unused_var(negSwitches)
-        unused_var(posSwitches)
-
-        prob = 1.0_dp
-
-    end function probability_one
-
-    subroutine create_projE_list(run, ilutN)
-        ! creates a list of determinants and matrix elements connnected to
-        ! the determinant ilutRef
-        ! since ilutRef globally available make input optional
-        ! change that to be able to handle multiple runs, but that breaks
-        ! the optional ilutN input for now!
-        integer, intent(in) :: run
-        integer(n_int), intent(in), optional :: ilutN(0:niftot)
-        character(*), parameter :: this_routine = "create_projE_list"
-
-        integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), allocatable :: excitations(:, :)
-        integer :: nExcit, ierr, i
-
-        ! convert ilut to guga format
-        if (present(ilutN)) then
-            call convert_ilut_toGUGA(ilutN, ilutG)
-        else
-            ASSERT(allocated(ilutRef))
-            call convert_ilut_toGUGA(ilutRef(0:niftot, run), ilutG)
-        end if
-
-        ! calc. all excitations from it
-        call actHamiltonian(ilutG, excitations, nExcit)
-
-        ! they should be ordered due to the ordering in the add_ilut_list
-
-        ! allocate the nececarry output, for changing reference check if
-        ! already allocated
-        ! use temporary pointers..
-
-        ! i should also log the deallocation
-        if (allocated(projE_replica(run)%projE_ilut_list)) &
-            deallocate(projE_replica(run)%projE_ilut_list)
-        if (allocated(projE_replica(run)%projE_hel_list)) &
-            deallocate(projE_replica(run)%projE_hel_list)
-        if (allocated(projE_replica(run)%exlevel)) then
-            deallocate(projE_replica(run)%exlevel)
-            call LogMemDealloc(this_routine, tag_proje_list)
-        end if
-
-        allocate(projE_replica(run)%projE_ilut_list(0:niftot, nExcit), stat=ierr)
-        allocate(projE_replica(run)%projE_hel_list(nExcit), stat=ierr)
-        allocate(projE_replica(run)%exlevel(nExcit), stat=ierr)
-
-        call LogMemAlloc('projE_replica(1)', (niftot + 3) * nExcit, 8, this_routine, &
-                         tag_proje_list)
-
-        ! i also have to deallocate that somewhere...
-
-        projE_replica(run)%num_entries = nExcit
-
-        ! and convert them back to neci format and store the matrix elements
-        do i = 1, nExcit
-            call convert_ilut_toNECI(excitations(:, i), &
-                                     projE_replica(run)%projE_ilut_list(:, i), &
-                                     projE_replica(run)%projE_hel_list(i))
-
-#ifdef DEBUG_
-            if (.not. (getDeltaB(excitations(:, i)) == 1 .or. &
-                       getDeltaB(excitations(:, i)) == 2)) then
-
-                call write_det_guga(6, excitations(:, i))
-                print *, "delta B: ", getDeltaB(excitations(:, i))
-
-                call stop_all(this_routine, "wrong excit level information!")
-            end if
-#endif
-
-            projE_replica(run)%exlevel(i) = getDeltaB(excitations(:, i))
-        end do
-
-        deallocate(excitations)
-        call LogMemDealloc(this_routine, tag_excitations)
-
-    end subroutine create_projE_list
-
-    subroutine deallocate_projE_list()
-        ! at the end of the calculation i have to deallocate and log the
-        ! projected energy list
-        integer :: i
-        character(*), parameter :: this_routine = "deallocate_projE_list"
-
-        do i = 1, inum_runs
-            if (allocated(projE_replica(i)%projE_ilut_list)) &
-                deallocate(projE_replica(i)%projE_ilut_list)
-            if (allocated(projE_replica(i)%projE_hel_list)) &
-                deallocate(projE_replica(i)%projE_hel_list)
-            if (allocated(projE_replica(i)%exlevel)) then
-                deallocate(projE_replica(i)%exlevel)
-                if (i == 1) then
-                    ! only log it for one replica run
-                    call LogMemDealloc(this_routine, tag_proje_list)
-                end if
-            end if
-        end do
-
-        if (allocated(projE_replica)) deallocate(projE_replica)
-
-    end subroutine deallocate_projE_list
-
-    subroutine test_excit_gen_guga(ilut, iterations)
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: iterations
-        character(*), parameter :: this_routine = 'test_excit_gen_guga'
-
-        integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), allocatable :: excitations(:, :)
-
-        integer :: src_det(nel), det(nel), nexcit, ex(2, maxExcit)
-        integer :: ngen, pos, iunit, i, ic
-        type(excit_gen_store_type) :: store
-        integer(n_int) :: tgt_ilut(0:NifTot)
-        integer(n_int), allocatable :: det_list(:, :)
-        integer, allocatable :: excitTyp(:), excitLvl(:), excit_mat(:, :)
-        real(dp), allocatable :: contrib_list(:), pgen_list(:)
-        HElement_t(dp), allocatable :: matEle_list(:), exact_helements(:)
-        logical, allocatable :: generated_list(:)
-        logical :: par
-        real(dp) :: contrib, pgen, sum_helement, sum_pgens
-        HElement_t(dp) :: helgen, temp_mat
-        real(dp) :: diff
-        character(255) :: filename
-        type(ExcitationInformation_t) :: excitInfo
-
-        ! Decode the determiant
-        call decode_bit_det(src_det, ilut)
-
-        ! convert ilut to guga format
-        call convert_ilut_toGUGA(ilut, ilutG)
-
-        print *, ""
-        print *, "========================================================="
-        print *, "testing pgens for CSF: "
-        call write_det_guga(6, ilutG)
-        print *, "<Di|H|Di>: ", calcDiagMatEleGuga_ilut(ilutG)
-
-        ! calc. all excitations for the given ilut
-        call actHamiltonian(ilutG, excitations, nexcit)
-
-        print *, "all excact excitations: ", nexcit
-
-        call write_guga_list(stdout, excitations(:, 1:nexcit))
-
-        ! and convert them back to a list of neci iluts
-        allocate(det_list(0:niftot, nexcit))
-
-        allocate(exact_helements(nExcit))
-        exact_helements = 0.0_dp
-        allocate(excitLvl(nexcit), source=-1)
-        allocate(excit_mat(nexcit, 4), source=0)
-
-        call init_csf_information(ilutG(0:nifd))
-        do i = 1, nexcit
-            call convert_ilut_toNECI(excitations(:, i), det_list(:, i), helgen)
-
-            ! if i use guga-mateles keyword, should i also test for the
-            ! matrix element here? since i am using those routines to
-            ! calculate the reference energy.. and not actually the
-            ! actHamiltonian routine.. i probably should.. but this is quite
-            ! costly.. hm.. init_csf_information is already called in
-            ! acthamiltonian..
-            exact_helements(i) = helgen
-            excitLvl(i) = getDeltaB(excitations(:, i))
-            call calc_guga_matrix_element(ilut, det_list(:, i), excitInfo, &
-                                          temp_mat, .true., 1)
-
-            excit_mat(i, :) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
-
-            diff = abs(helgen - temp_mat)
-
-            if (diff < 1.0e-10_dp) diff = 0.0_dp
-
-            if (.not. near_zero(diff)) then
-                print *, "different matrix elements for CSFs: "
-                call write_det_guga(6, ilut)
-                call write_det_guga(6, excitations(:, i))
-                print *, "actHamiltonian result: ", helgen
-                print *, "calc_guga_matrix_element result: ", temp_mat
-            end if
-        end do
-
-        ! Sort the dets, so they are easy to find by binary searching
-        call sort(det_list, ilut_lt, ilut_gt)
-
-        ! Lists to keep track of things
-        allocate(generated_list(nexcit))
-        allocate(contrib_list(nexcit))
-        allocate(pgen_list(nexcit))
-        allocate(matEle_list(nExcit))
-        matEle_list = h_cast(0.0_dp)
-        allocate(excitTyp(nExcit), source=-1)
-        generated_list = .false.
-        contrib_list = 0
-        pgen_list = 0.0_dp
-
-        ! set the not needed inputs for guga
-        ex = 0
-
-        tNewDet = .true.
-        ! Repeated generation, and summing-in loop
-        ngen = 0
-        contrib = 0.0_dp
-        do i = 1, iterations
-            if (mod(i, 10000) == 0) then
-                write(stdout, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
-            end if
-
-            if (tgen_guga_crude) then
-                call stop_all(this_routine, &
-                              "change in source code below this line to activate tests!")
-!                 call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 3, &
-!                                           ic, ex, par, pgen, helgen, store)
-            else
-                call generate_excitation_guga(src_det, ilut, det, tgt_ilut, 3, &
-                                              ic, ex, par, pgen, helgen, store)
-            end if
-            if (det(1) == 0) cycle
-
-            call EncodeBitDet(det, tgt_ilut)
-            pos = binary_search(det_list(0:nifd, 1:nexcit), tgt_ilut(0:nifd))
-            if (pos < 0) then
-                write(stdout, *) 'FAILED DET', tgt_ilut
-                print *, "from CSF:"
-                call write_det_guga(6, ilutG)
-                call write_det_guga(6, tgt_ilut(0:nifd))
-                call print_excitInfo(global_excitInfo)
-                print *, "<i|H|j> = ", helgen
-                call stop_all(this_routine, 'Unexpected determinant generated')
-            else
-                generated_list(pos) = .true.
-
-                diff = abs(helgen - exact_helements(pos))
-
-                if (diff < 1.0e-10_dp) diff = 0.0_dp
-
-                if (.not. near_zero(diff)) then
-                    print *, "different matrix elements for CSFs: "
-                    call write_det_guga(6, ilut)
-                    call write_det_guga(6, excitations(:, i))
-                    print *, "actHamiltonian result: ", helgen
-                    print *, "calc_guga_matrix_element result: ", temp_mat
-                end if
-
-                ! Count this det, and sum in its contribution.
-                ngen = ngen + 1
-                contrib = contrib + 1.0_dp / pgen
-                matEle_list(pos) = HElGen
-                pgen_list(pos) = pgen
-                contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
-                excitTyp(pos) = global_excitInfo%typ
-            end if
-        end do
-
-        ! normalize matrix elements and pgens to compare with pgens
-        sum_helement = sum(abs(matEle_list))
-        sum_pgens = sum(pgen_list)
-
-        ! How many of the iterations generated a good det?
-        write(stdout, *) ngen, " dets generated in ", iterations, " iterations."
-        write(stdout, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
-            '% abortion rate'
-        ! Contribution averages
-        write(stdout, '("Averaged contribution: ", f15.10)') &
-            contrib / (real(nexcit, dp) * iterations)
-
-        if (t_full_guga_tests .or. t_guga_testsuite) then
-            ! do asserts in case of full guga tests to be certain no basic
-            ! bugs remain. but what should the threshold be??
-            ASSERT(abs((contrib / (real(nexcit, dp) * iterations)) - 1.0_dp) < 0.01_dp)
-        end if
-
-        print *, "for CSF: "
-        call write_det_guga(6, ilutG)
-
-        ! Output the determinant specific contributions
-        iunit = get_free_unit()
-        call get_unique_filename("contribs_guga", .true., .true., 1, filename)
-        open(iunit, file=filename, status='unknown')
-        write(iunit, *) "contributions for CSF:"
-        call write_det_guga(iunit, ilutG)
-        write(iunit, *) "=============================="
-        do i = 1, nexcit
-            call convert_ilut_toGUGA(det_list(:, i), ilutG, matEle_list(i), excitTyp(i))
-            call write_det_guga(iunit, ilutG, .false.)
-            write(iunit, "(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
-            write(iunit, "(e16.7)", advance='no') pgen_list(i)
-            write(iunit, "(e16.7)", advance='no') exact_helements(i)
-            write(iunit, "(I3)", advance='yes') excitLvl(i)
-        end do
-        close(iunit)
-
-        ! also output pgen and matrix elements only to compare
-        iunit = get_free_unit()
-        call get_unique_filename("pgen_vs_matrixElements", .true., .true., 1, filename)
-        open(iunit, file=filename, status='unknown')
-        write(iunit, *) "# pgens and matrix elements for CSF:"
-        call convert_ilut_toGUGA(ilut, ilutG)
-        call write_det_guga(iunit, ilutG)
-
-        do i = 1, nExcit
-            write(iunit, "(e16.7)", advance='no') pgen_list(i) !/sum_pgens
-            write(iunit, "(e16.7)", advance='no') exact_helements(i) !/sum_helement
-            write(iunit, "(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
-            write(iunit, "(i3)", advance='yes') excitLvl(i)
-        end do
-        close(iunit)
-
-        ! Check that all of the determinants were generated!!!
-        if (.not. all(generated_list)) then
-
-            write(stdout, *) count(.not. generated_list), '/', size(generated_list), &
-                'not generated'
-
-            if (near_zero(pDoubles)) then
-                print *, "expected ratio: ", 1.0_dp - real(count(.not. generated_list), dp) / &
-                    real(size(generated_list), dp)
-            end if
-
-            do i = 1, nexcit
-                if (.not. generated_list(i)) then
-                    call convert_ilut_toGUGA(det_list(:, i), ilutG, matEle_list(i), excitTyp(i))
-                    call write_det_guga(6, ilutG)
-                end if
-
-            end do
-            ! abort in the full-tests case!
-            if (t_full_guga_tests .or. t_guga_testsuite) then
-                call stop_all(this_routine, &
-                              "all excitations should be created in the full test setup!")
-            end if
-        end if
-        ! also do this again in the full-test case:
-        if (t_full_guga_tests .or. t_guga_testsuite) then
-            ! is 0.1 a small enough threshold?
-            if (any(abs(contrib_list / real(iterations, dp) - 1.0_dp) > 0.05_dp)) &
-                call stop_all(this_routine, "Insufficiently uniform generation")
-        end if
-
-        ! also check matrix elements if psingles and pdouble are > 0
-        do i = 1, nExcit
-            if (.not. near_zero(abs(extract_h_element(excitations(:, i)) - matEle_list(i)))) then
-                print *, "incorrect matrix element! for excitation: "
-                call write_det_guga(6, excitations(:, i), .false.)
-                print *, "stoch. <H>: ", matEle_list(i)
-                if (t_full_guga_tests .or. t_guga_testsuite) then
-                    call stop_all(this_routine, "incorrect matrix element!")
-                end if
-            end if
-        end do
-
-        ! Clean up
-        deallocate(det_list)
-        deallocate(contrib_list)
-        deallocate(generated_list)
-        deallocate(pgen_list)
-        deallocate(matEle_list)
-        deallocate(exact_helements)
-        deallocate(excitations)
-        call LogMemDealloc(this_routine, tag_excitations)
-
-    end subroutine test_excit_gen_guga
-
-    ! implement a crude approximation in the guga excitation, where we only
-    ! do changes a the beginning and the end of excitations
-    subroutine generate_excitation_guga_crude(nI, ilutI, nJ, ilutJ, exFlag, IC, &
-                                              excitMat, tParity, pgen, HElGen, store, part_type)
-        integer, intent(in) :: nI(nEl), exFlag
-        integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nEl), IC, excitMat(2, 2)
-        integer(n_int), intent(out) :: ilutJ(0:niftot)
-        logical, intent(out) :: tParity
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: HElGen
-        type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: part_type
-        character(*), parameter :: this_routine = "generate_excitation_guga_crude"
-
-        integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)
-        integer :: excit_typ(2)
-
-        unused_var(exFlag); unused_var(store); unused_var(part_type)
-
-        ! think about default values and unneeded variables for GUGA, but
-        ! which have to be processed anyway to interface to NECI
-
-        ! excitatioin matrix... i could set that up for GUGA too..
-        ! but its not needed specifically except for RDM and logging purposes
-
-        ! in new implementation with changing relative probabilites of different
-        ! types of excitation, misuse this array to log the type of excitation
-        excitMat = 0
-
-        ! the parity flag is also unneccesary in GUGA
-        tParity = .true.
-
-        ! the inputted exFlag variable, is also not needed probably..
-
-        ! then choose between single or double excitations..
-        ! TODO: still have to think how to set up pSingles and pDoubles in
-        ! GUGA...
-
-        ! and before i have to convert to GUGA iluts..
-        call convert_ilut_toGUGA(ilutI, ilut)
-
-        ASSERT(isProperCSF_ilut(ilut))
-
-        ! maybe i need to copy the flags of ilutI onto ilutJ
-        ilutJ = ilutI
-
-        ! TODO! probably have to do this allocation and calculation of
-        ! those lists outside of generate_excitation in the main loop of
-        ! NECI -> since it does this for every walker on an excitation
-
-        ! could essentially calc. b vector and occupation vector here...
-        ! do it only if tNewDet is set, so i only recalc this if i switch to a
-        ! new determinant -> is set in FciMCPar!
-        ! or just init_csf_info outside in FciMCPar to also use this info
-        ! for the matrix element calculation..
-
-        if (tNewDet) then
-            ! use new setup function for additional CSF informtation
-            ! instead of calculating it all seperately..
-            call init_csf_information(ilut(0:nifd))
-
-            ! then set tNewDet to false and only set it after the walker loop
-            ! in FciMCPar
-            tNewDet = .false.
-
-        end if
-
-        if (genrand_real2_dSFMT() < pSingles) then
-
-            IC = 1
-            call create_crude_guga_single(ilut, nI, excitation, pgen)
-            pgen = pgen * pSingles
-
-        else
-
-            IC = 2
-            call create_crude_guga_double(ilut, nI, excitation, pgen)
-            pgen = pgen * pDoubles
-
-        end if
-
-        ! check if excitation generation was successful
-        if (near_zero(pgen)) then
-            ! indicate NullDet to skip spawn step
-            nJ(1) = 0
-            HElGen = h_cast(0.0_dp)
-
-        else
-
-            ! also store information on type of excitation for the automated
-            ! tau-search for the non-weighted guga excitation generator in
-            ! the excitMat variable
-            excitMat(1, :) = excit_typ
-
-            ! profile tells me this costs alot of time.. so remove it
-            ! and only do it in debug mode..
-            ! i just have to be sure that no wrong csfs are created..
-
-            ASSERT(isProperCSF_ilut(excitation, .true.))
-            ! otherwise extract H element and convert to 0
-            call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-
-            call decode_bit_det(nJ, ilutJ)
-
-        end if
-
-    end subroutine generate_excitation_guga_crude
-
-    subroutine create_crude_guga_double(ilut, nI, exc, pgen, excitInfo_in)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(out) :: exc(0:nifguga)
-        real(dp), intent(out) :: pgen
-        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
-
-        type(ExcitationInformation_t) :: excitInfo
-        logical :: compFlag
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        real(dp) :: branch_pgen, orb_pgen
-        HElement_t(dp) :: mat_ele
-        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(WeightObj_t) :: weights
-        integer :: elecs(2), orbs(2)
-
-        if (present(excitInfo_in)) then
-            excitInfo = excitInfo_in
-        else
-            call pickOrbitals_double(ilut, nI, excitInfo, orb_pgen)
-
-            if (.not. excitInfo%valid) then
-                ! if no valid indices were picked, return 0 excitation and return
-                exc = 0_n_int
-                pgen = 0.0_dp
-                return
-            end if
-            call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches, &
-                                    weights)
-
-            if (.not. compFlag) then
-                exc = 0_n_int
-                pgen = 0.0_dp
-                return
-            end if
-
-        end if
-
-        ! here I have to do the actual crude double excitation..
-        ! my idea for now is to create pseudo random spin-orbital from the
-        ! picked spatial orbitals
-        call create_random_spin_orbs(ilut, excitInfo, elecs, orbs, branch_pgen)
-
-        if (any(elecs == 0) .or. any(orbs == 0)) then
-            exc = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        if (near_zero(branch_pgen)) then
-            exc = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        exc = ilut
-
-        clr_orb(exc, elecs(1))
-        clr_orb(exc, elecs(2))
-        set_orb(exc, orbs(1))
-        set_orb(exc, orbs(2))
-
-        ! this check is the same at the end of singles:
-        ! maybe I also need to do this only if no excitInfo_in is provided..
-        ! we also want to check if we produced a valid CSF here
-        if (.not. isProperCSF_ilut(exc, .true.)) then
-            exc = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        ! we also need to calculate the matrix element here!
-        call convert_ilut_toNECI(ilut, ilutI)
-        call convert_ilut_toNECI(exc, ilutJ)
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, .true., 2)
-
-        if (near_zero(mat_ele)) then
-            exc = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        call encode_matrix_element(exc, 0.0_dp, 2)
-        call encode_matrix_element(exc, mat_ele, 1)
-
-        global_excitInfo = excitInfo
-
-        if (present(excitInfo_in)) then
-            ! then the orbitals were already picked before and we only want
-            ! to give the branch_pgen here
-            pgen = branch_pgen
-        else
-            ! otherwise we want the full pgen
-            pgen = orb_pgen * branch_pgen
-        end if
-
-    end subroutine create_crude_guga_double
-
-    subroutine create_random_spin_orbs(ilut, excitInfo, elecs, orbs, pgen)
-        ! a subroutine to create random spin-orbitals from chosen
-        ! spatial orbital of a GUGA excitation.
-        ! this is needed in the crude back-spawn approximation to
-        ! create determinant-like excitations
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer, intent(out) :: elecs(2)
-        integer, intent(out) :: orbs(2)
-        real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = "create_random_spin_orbs"
-
-        integer :: elec_1, orb_1, elec_2, orb_2, d_elec, s_elec, d_orb, s_orb
-        real(dp) :: r
-
-        ! i essentially need electron and empty spin-orbitals to
-        ! create the excitation. the validity of the CSF will be checked
-        ! afterwards and then maybe thrown away..
-
-        elecs = 0
-        orbs = 0
-        pgen = 1.0_dp
-
-        if (excitInfo%typ == excit_type%single) then
-            ! the case of a single excitation
-            elec_1 = excitInfo%j
-            orb_1 = excitInfo%i
-
-            select case (current_stepvector(elec_1))
-
-            case (0)
-                call stop_all(this_routine, "empty elec index")
-
-            case (1)
-                ! 1 corresponds to a beta orbital
-                elecs(1) = 2 * elec_1 - 1
-                orbs(1) = 2 * orb_1 - 1
-
-            case (2)
-                ! 2 corresponds to alpha orbitals
-                elecs(1) = 2 * elec_1
-                orbs(1) = 2 * orb_1
-
-            case (3)
-                select case (current_stepvector(orb_1))
-                case (0)
-                    ! now we can have two possibilities
-                    r = genrand_real2_dSFMT()
-
-                    if (r < 0.5_dp) then
-                        elecs(1) = 2 * elec_1 - 1
-                        orbs(1) = 2 * orb_1 - 1
-                    else
-                        elecs(1) = 2 * elec_1
-                        orbs(1) = 2 * orb_1
-                    end if
-
-                    pgen = 0.5_dp
-
-                case (1)
-                    elecs(1) = 2 * elec_1
-                    orbs(1) = 2 * orb_1
-
-                case (2)
-                    elecs(1) = 2 * elec_1 - 1
-                    orbs(1) = 2 * orb_1 - 1
-
-                end select
-            end select
-
-        else
-            elec_1 = excitInfo%j
-            elec_2 = excitInfo%l
-
-            orb_1 = excitInfo%i
-            orb_2 = excitInfo%k
-
-            ASSERT(current_stepvector(elec_1) /= 0)
-            ASSERT(current_stepvector(elec_2) /= 0)
-            ASSERT(current_stepvector(orb_1) /= 3)
-            ASSERT(current_stepvector(orb_2) /= 3)
-
-            select case (excitInfo%typ)
-            case (excit_type%single_overlap_L_to_R, &
-                  excit_type%fullstop_lowering, &
-                  excit_type%fullstart_raising)
-                ! here i know the orbital indices are identical
-
-                ASSERT(orb_1 == orb_2)
-                orbs(1) = 2 * orb_1 - 1
-                orbs(2) = 2 * orb_1
-
-                ! write a general function which gives me valid spin-orbs
-                ! for GUGA CSFs (mayb as an input the 'neutral' number 3 here.c.
-                ! maybe later..
-
-                if ((current_stepvector(elec_1) == current_stepvector(elec_2)) &
-                    .and. currentOcc_int(elec_1) == 1) then
-                    ! in this case no crude excitation is possible
-                    pgen = 0.0_dp
-                    elecs = 0
-                    orbs = 0
-                    return
-                end if
-
-                select case (current_stepvector(elec_1))
-
-                case (0)
-                    call stop_all(this_routine, "something wrong happened")
-
-                case (1)
-
-                    elecs(1) = 2 * elec_1 - 1
-                    ! then the second must be of 'opposite' spin
-                    elecs(2) = 2 * elec_2
-
-                case (2)
-                    elecs(1) = 2 * elec_1
-                    elecs(2) = 2 * elec_2 - 1
-
-                case (3)
-                    if (current_stepvector(elec_2) == 3) then
-                        ! here we have a choice
-                        r = genrand_real2_dSFMT()
-
-                        if (r < 0.5_dp) then
-                            elecs(1) = 2 * elec_1 - 1
-                            elecs(2) = 2 * elec_2
-                        else
-                            elecs(1) = 2 * elec_1
-                            elecs(2) = 2 * elec_2 - 1
-                        end if
-
-                        pgen = 0.5_dp
-                    else if (current_stepvector(elec_2) == 1) then
-                        elecs(2) = 2 * elec_2 - 1
-                        elecs(1) = 2 * elec_1
-
-                    else if (current_stepvector(elec_2) == 2) then
-                        elecs(2) = 2 * elec_2
-                        elecs(1) = 2 * elec_1 - 1
-
-                    end if
-                end select
-
-            case (excit_type%single_overlap_R_to_L, &
-                  excit_type%fullstop_raising, &
-                  excit_type%fullstart_lowering)
-
-                ! here i know the electron indices are the same
-                ASSERT(elec_1 == elec_2)
-
-                elecs(1) = 2 * elec_1 - 1
-                elecs(2) = 2 * elec_1
-
-                if ((current_stepvector(orb_1) == current_stepvector(orb_2)) &
-                    .and. currentOcc_int(orb_1) == 1) then
-                    pgen = 0
-                    elecs = 0
-                    orbs = 0
-                    return
-                end if
-
-                select case (current_stepvector(orb_1))
-                case (3)
-                    call stop_all(this_routine, "something went wrong")
-
-                case (1)
-
-                    orbs(1) = 2 * orb_1
-                    orbs(2) = 2 * orb_2 - 1
-
-                case (2)
-
-                    orbs(1) = 2 * orb_1 - 1
-                    orbs(2) = 2 * orb_2
-
-                case (0)
-                    if (current_stepvector(orb_2) == 0) then
-                        r = genrand_real2_dSFMT()
-
-                        if (r < 0.5_dp) then
-                            orbs(1) = 2 * orb_1 - 1
-                            orbs(2) = 2 * orb_2
-                        else
-                            orbs(1) = 2 * orb_1
-                            orbs(2) = 2 * orb_2 - 1
-                        end if
-                        pgen = 0.5_dp
-
-                    else if (current_stepvector(orb_2) == 1) then
-                        orbs(2) = 2 * orb_2
-                        orbs(1) = 2 * orb_1 - 1
-
-                    else if (current_stepvector(orb_2) == 2) then
-                        orbs(2) = 2 * orb_2 - 1
-                        orbs(1) = 2 * orb_1
-
-                    end if
-                end select
-
-                ! do the same as above, just for two hole indices!
-
-            case (excit_type%fullstop_L_to_R, &
-                  excit_type%fullstop_R_to_L, &
-                  excit_type%fullStart_L_to_R, &
-                  excit_type%fullstart_R_to_L)
-
-                ! here i know one electron and hole index are the same
-                ASSERT(elec_1 /= elec_2)
-                ASSERT(orb_1 /= orb_2)
-
-                ! this case is very restrictive..
-                if (elec_1 == orb_1) then
-
-                    s_elec = elec_1
-                    s_orb = orb_1
-
-                    d_elec = elec_2
-                    d_orb = orb_2
-
-                else if (elec_1 == orb_2) then
-
-                    s_elec = elec_1
-                    s_orb = orb_1
-
-                    d_elec = elec_2
-                    d_orb = orb_1
-
-                else if (elec_2 == orb_1) then
-
-                    s_elec = elec_2
-                    s_orb = orb_1
-
-                    d_elec = elec_1
-                    d_orb = orb_2
-
-                else if (elec_2 == orb_2) then
-
-                    s_elec = elec_2
-                    s_orb = orb_2
-
-                    d_elec = elec_1
-                    d_orb = orb_1
-
-#ifdef DEBUG_
-                else
-                    call stop_all(this_routine, "something went wrong")
-#endif
-                end if
-
-                ASSERT(currentOcc_int(s_elec) == 1)
-
-                if (current_stepvector(s_elec) == 1) then
-                    if (IsOcc(ilut, 2 * d_elec) .and. IsNotOcc(ilut, 2 * d_orb - 1)) then
-                        ! this is the only case this is possible
-                        elecs(1) = 2 * s_elec - 1
-                        elecs(2) = 2 * d_elec
-
-                        orbs(1) = 2 * s_orb
-                        orbs(2) = 2 * d_orb - 1
-
-                    else
-                        pgen = 0.0_dp
-                    end if
-                else if (current_stepvector(s_elec) == 2) then
-                    if (IsOcc(ilut, 2 * d_elec - 1) .and. IsNotOcc(ilut, 2 * d_orb)) then
-                        elecs(1) = 2 * s_elec
-                        elecs(2) = 2 * d_elec - 1
-
-                        orbs(1) = 2 * s_orb - 1
-                        orbs(2) = 2 * d_orb
-                    else
-                        pgen = 0.0_dp
-                    end if
-                end if
-
-            case (excit_type%fullstart_stop_mixed)
-                ! full start full stop mixed
-                ASSERT(elec_1 /= elec_2)
-                ASSERT(orb_1 /= orb_2)
-                ASSERT(currentOcc_int(elec_1) == 1)
-                ASSERT(currentOcc_int(elec_2) == 1)
-
-                if (current_stepvector(elec_1) == current_stepvector(elec_2)) then
-                    pgen = 0.0_dp
-                else if (current_stepvector(elec_1) == 1) then
-                    elecs(1) = 2 * elec_1 - 1
-                    elecs(2) = 2 * elec_2
-
-                    orbs(1) = 2 * elec_2 - 1
-                    orbs(2) = 2 * elec_1
-
-                else if (current_stepvector(elec_1) == 2) then
-                    elecs(1) = 2 * elec_1
-                    elecs(2) = 2 * elec_2 - 1
-
-                    orbs(1) = 2 * elec_2
-                    orbs(2) = 2 * elec_1 - 1
-                end if
-
-            case (excit_type%fullstart_stop_alike)
-                ! full-start full-stop alike
-                ASSERT(elec_1 == elec_2)
-                ASSERT(orb_1 == orb_2)
-
-                elecs(1) = 2 * elec_1 - 1
-                elecs(2) = 2 * elec_1
-
-                orbs(1) = 2 * orb_1 - 1
-                orbs(2) = 2 * orb_1
-
-            case default
-                ! now the general 4-index double excitations..
-                ! this can be nasty again..
-
-                call pick_random_4ind(elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
-
-            end select
-        end if
-
-    end subroutine create_random_spin_orbs
-
-    subroutine pick_random_4ind(elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
-        integer, intent(in) :: elec_1, elec_2, orb_1, orb_2
-        integer, intent(out) :: elecs(2), orbs(2)
-        real(dp), intent(out) :: pgen
-
-        real(dp) :: r
-
-        elecs = 0
-        orbs = 0
-
-        pgen = 1.0_dp
-
-        select case (current_stepvector(elec_1))
-        case (1)
-            elecs(1) = 2 * elec_1 - 1
-
-        case (2)
-            elecs(1) = 2 * elec_1
-
-        case (3)
-            r = genrand_real2_dSFMT()
-
-            if (r < 0.5_dp) then
-                elecs(1) = 2 * elec_1 - 1
-            else
-                elecs(1) = 2 * elec_1
-            end if
-
-            pgen = 0.5_dp
-
-        end select
-
-        select case (current_stepvector(elec_2))
-        case (1)
-            elecs(2) = 2 * elec_2 - 1
-
-        case (2)
-            elecs(2) = 2 * elec_2
-
-        case (3)
-            r = genrand_real2_dSFMT()
-
-            if (r < 0.5_dp) then
-                elecs(2) = 2 * elec_2 - 1
-            else
-                elecs(2) = 2 * elec_2
-            end if
-
-            pgen = pgen * 0.5_dp
-
-        end select
-
-        select case (current_stepvector(orb_1))
-        case (0)
-            if (same_spin(elecs(1), elecs(2))) then
-                if (is_beta(elecs(1))) then
-                    orbs(1) = 2 * orb_1 - 1
-                else
-                    orbs(1) = 2 * orb_1
-                end if
-            else
-                r = genrand_real2_dSFMT()
-
-                if (r < 0.5_dp) then
-                    orbs(1) = 2 * orb_1 - 1
-                else
-                    orbs(1) = 2 * orb_1
-                end if
-
-                pgen = 0.5_dp * pgen
-            end if
-
-        case (1)
-            orbs(1) = 2 * orb_1
-
-        case (2)
-            orbs(1) = 2 * orb_1 - 1
-
-        end select
-
-        ! i think i can restrict the last one or?..
-
-        if (same_spin(elecs(1), elecs(2))) then
-            if (is_beta(elecs(1))) then
-                if (current_stepvector(orb_2) == 1) then
-                    pgen = 0.0_dp
-                    elecs = 0
-                    orbs = 0
-                    return
-                else
-                    orbs(2) = 2 * orb_2 - 1
-                end if
-            else
-                if (current_stepvector(orb_2) == 2) then
-                    pgen = 0.0_dp
-                    elecs = 0
-                    orbs = 0
-                    return
-                else
-                    orbs(2) = 2 * orb_2
-                end if
-            end if
-        else
-            if (is_beta(orbs(1))) then
-                if (current_stepvector(orb_2) == 2) then
-                    pgen = 0.0_dp
-                    elecs = 0
-                    orbs = 0
-                    return
-                else
-                    orbs(2) = 2 * orb_2
-                end if
-            else
-                if (current_stepvector(orb_2) == 1) then
-                    pgen = 0.0_dp
-                    elecs = 0
-                    orbs = 0
-                    return
-                else
-                    orbs(2) = 2 * orb_2 - 1
-                end if
-            end if
-        end if
-
-    end subroutine pick_random_4ind
-
-    subroutine create_crude_guga_single(ilut, nI, exc, pgen, excitInfo_in)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(out) :: exc(0:nifguga)
-        real(dp), intent(out) :: pgen
-        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
-        character(*), parameter :: this_routine = "create_crude_guga_single"
-
-        type(ExcitationInformation_t) :: excitInfo
-        integer :: i, j, st, en, start_d, end_d, gen
-        real(dp) :: orb_pgen, r, branch_pgen
-        HElement_t(dp) :: mat_ele
-        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-
-        ASSERT(isProperCSF_ilut(ilut))
-
-        ! can i use the original orbital picker? no.. since it allows for
-        ! switches..
-
-        if (present(excitInfo_in)) then
-            excitInfo = excitInfo_in
-        else
-            call pick_orbitals_single_crude(ilut, nI, excitInfo, orb_pgen)
-        end if
-
-        if (.not. excitInfo%valid) then
-            ! if no valid indices were picked, return 0 excitation and return
-            exc = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        ! reimplement it from scratch
-        i = excitInfo%i
-        j = excitInfo%j
-
-        ! try to make a valid, determinant-like single excitation,
-        ! respecting the spin-character of the CSF
-        st = excitInfo%fullStart
-        en = excitInfo%fullEnd
-        gen = excitInfo%currentGen
-        start_d = current_stepvector(st)
-        end_d = current_stepvector(en)
-
-        branch_pgen = 1.0_dp
-
-        exc = ilut
-        associate(b => currentB_int)
-            if (start_d == 3) then
-                ! here we now it is a lowering generator with d_j = 1 or 2
-                ! with restrictions however
-                ! here a d_j = 2 is theoretically possible
-                ASSERT(gen == gen_type%L)
-                ASSERT(end_d /= 3)
-                if (end_d == 0) then
-                    if (all(b(st:en - 1) > 0)) then
-                        ! in this case both starts are possible!
-                        r = genrand_real2_dSFMT()
-
-                        if (r < 0.5_dp) then
-                            ! make a 3 -> 1 and 0 -> 2
-                            set_zero(exc, st)
-                            set_one(exc, st)
-
-                            set_two(exc, en)
-
-                        else
-                            ! make 3 -> 2 and 0 -> 1
-                            set_zero(exc, st)
-                            set_two(exc, st)
-
-                            set_one(exc, en)
-
-                        end if
-                        branch_pgen = 0.5_dp
-                    else
-                        ! here only 3 > 1 and 0 > 2 is possible
-                        ! make
-                        set_zero(exc, st)
-                        set_one(exc, st)
-
-                        set_two(exc, en)
-
-                    end if
-
-                else if (end_d == 1) then
-                    ! then only the 3 > 1 start is possible and b is irrelevant
-                    ! make 3 > 1 and 1 > 3
-                    set_zero(exc, st)
-                    set_one(exc, st)
-
-                    set_three(exc, en)
-
-                else if (end_d == 2) then
-                    ! this is only possible if all b are > 0
-                    if (all(b(st:en - 1) > 0)) then
-                        ! make 3 > 2 and 2  > 3
-                        set_zero(exc, st)
-                        set_two(exc, st)
-
-                        set_three(exc, en)
-
-                    else
-                        pgen = 0.0_dp
-                        exc = 0_n_int
-                        return
-                    end if
-                end if
-
-            else if (start_d == 0) then
-                ! here we know it is a raising generator
-                ASSERT(gen == gen_type%R)
-                ASSERT(end_d /= 0)
-                if (end_d == 3) then
-                    if (all(b(st:en - 1) > 0)) then
-                        r = genrand_real2_dSFMT()
-
-                        if (r < 0.5_dp) then
-                            ! make 0 > 1 and  3 > 2
-                            set_one(exc, st)
-
-                            set_zero(exc, en)
-                            set_two(exc, en)
-
-                        else
-                            ! make 0 > 2 and 3 > 1
-                            set_two(exc, st)
-
-                            set_zero(exc, en)
-                            set_one(exc, en)
-
-                        end if
-                        branch_pgen = 0.5_dp
-                    else
-                        ! make  0 > 1 and 3 > 2
-                        set_one(exc, st)
-
-                        set_zero(exc, en)
-                        set_two(exc, en)
-
-                    end if
-
-                else if (end_d == 1) then
-                    ! make 0 > 1 and 1 > 0
-
-                    set_one(exc, st)
-
-                    set_zero(exc, en)
-
-                else if (end_d == 2) then
-                    if (all(b(st:en - 1) > 0)) then
-                        ! make 0 > 2 and 2 > 0
-                        set_two(exc, st)
-
-                        set_zero(exc, en)
-
-                    else
-                        pgen = 0.0_dp
-                        exc = 0_n_int
-                        return
-                    end if
-                end if
-            else if (start_d == 1) then
-                if (all(b(st:en - 1) > 0) .and. end_d /= 1) then
-                    ! only in this case it is possible
-                    if (end_d == 2) then
-                        if (gen == gen_type%R) then
-                            ! make 1 > 3 and 2 > 0
-                            set_three(exc, st)
-
-                            set_zero(exc, en)
-
-                        else if (gen == gen_type%L) then
-                            ! make 1 > 0 and 2 > 3
-                            set_zero(exc, st)
-
-                            set_three(exc, en)
-
-                        end if
-
-                    else if (end_d == 3) then
-                        ASSERT(gen == gen_type%R)
-                        ! make 1 > 3 and 3 > 1
-                        set_three(exc, st)
-
-                        set_zero(exc, en)
-                        set_one(exc, en)
-
-                    else if (end_d == 0) then
-                        ASSERT(gen == gen_type%L)
-                        ! make 1 > 0 and 0 > 1
-                        set_zero(exc, st)
-
-                        set_one(exc, en)
-
-                    end if
-                else
-                    pgen = 0.0_dp
-                    exc = 0_n_int
-                    return
-                end if
-
-            else if (start_d == 2) then
-                ! here I do not have a b restriction or?
-                if (end_d == 0) then
-                    ASSERT(gen == gen_type%L)
-                    ! make 2 > 0 and 0 > 2
-                    set_zero(exc, st)
-
-                    set_two(exc, en)
-
-                else if (end_d == 3) then
-                    ASSERT(gen == gen_type%R)
-                    ! make 2 > 3 and 3 > 2
-                    set_three(exc, st)
-
-                    set_zero(exc, en)
-                    set_two(exc, en)
-
-                else if (end_d == 1) then
-                    if (gen == gen_type%R) then
-                        ! make 2 > 3 and 1 > 0
-                        set_three(exc, st)
-
-                        set_zero(exc, en)
-
-                    else if (gen == gen_type%L) then
-                        ! make 2 > 0 and 1 > 3
-                        set_zero(exc, st)
-
-                        set_three(exc, en)
-
-                    end if
-                else if (end_d == 2) then
-                    pgen = 0.0_dp
-                    exc = 0_n_int
-                    return
-                end if
-            end if
-        end associate
-
-        ! we also want to check if we produced a valid CSF here
-        if (.not. isProperCSF_ilut(exc, .true.)) then
-            exc = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        ! we also need to calculate the matrix element here!
-        ! i think calc_guga_matrix_element also work with guga iluts, but
-        ! just to be super safe here:
-        call convert_ilut_toNECI(ilut, ilutI)
-        call convert_ilut_toNECI(exc, ilutJ)
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, .true., 2)
-
-        if (near_zero(mat_ele)) then
-            exc = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        call encode_matrix_element(exc, 0.0_dp, 2)
-        call encode_matrix_element(exc, mat_ele, 1)
-
-        global_excitInfo = excitInfo
-
-        if (present(excitInfo_in)) then
-            ! then the orbitals were already picked before and we only want
-            ! to give the branch_pgen here
-            pgen = branch_pgen
-        else
-            ! otherwise we want the full pgen
-            pgen = orb_pgen * branch_pgen
-        end if
-
-    end subroutine create_crude_guga_single
-
-    function increase_ex_levl(excitInfo) result(flag)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        logical :: flag
-        character(*), parameter :: this_routine = "increase_ex_levl"
-
-        integer :: elec_1, elec_2, orb_1, orb_2, orbs(2), elecs(2)
-        integer :: d_elec, s_elec, d_orb, s_orb
-        integer :: loc_elec, loc_orb
-
-        flag = .true.
-
-        ! first i need to check the location of the picked electrons.
-        ! which also has to be adapted for chosen spatial orbitals
-        if (excitInfo%typ == excit_type%single) then
-            ! single excitation
-            elec_1 = excitInfo%j
-            orb_1 = excitInfo%i
-
-            ! be general here and maybe a bit too cautious and check if
-            ! any spin-orbtial in the reference is occupied
-            loc_elec = check_electron_location_spatial([elec_1, 0], 1, 1)
-
-            ! now we also want to check if the orbitals are in the
-            ! virtual space of the reference det.
-            loc_orb = check_orbital_location_spatial([orb_1, 0], 1, 1)
-
-            flag = test_increase_on_loc(loc_elec, loc_orb, 1)
-
-        else
-            ! double excitations
-            elec_1 = excitInfo%j
-            elec_2 = excitInfo%l
-
-            orb_1 = excitInfo%i
-            orb_2 = excitInfo%k
-
-            ! there is now a difference depending on some type of
-            ! excitations
-            select case (excitInfo%typ)
-            case (excit_type%single_overlap_L_to_R, &
-                  excit_type%fullstop_lowering, &
-                  excit_type%fullstart_raising)
-
-                ! here i know the spatial orbital indices are the same
-                ASSERT(orb_1 == orb_2)
-                ASSERT(current_stepvector(orb_1) == 0)
-
-                ! here check for spin-orbital as we know the occupation
-                orbs = [2 * orb_1, 2 * orb_1 - 1]
-                loc_orb = check_orbital_location(orbs, 2, 1)
-
-                ! the electrons need to be specified generally
-                ! but are there any spin-restrictions in this case?
-                ! due to the possible spin-recouplings in CSFs maybe not..
-                ! use a testing function for spatial orbitals
-                loc_elec = check_electron_location_spatial([elec_1, elec_2], 2, 1)
-
-                flag = test_increase_on_loc(loc_elec, loc_orb, 2)
-
-            case (excit_type%single_overlap_R_to_L, &
-                  excit_type%fullstop_raising, &
-                  excit_type%fullstart_lowering)
-
-                ! here i know both spatial electon indices are the same
-                ASSERT(elec_1 == elec_2)
-                ASSERT(current_stepvector(elec_1) == 3)
-
-                elecs = [2 * elec_1, 2 * elec_1 - 1]
-
-                loc_elec = check_electron_location(elecs, 2, 1)
-
-                loc_orb = check_orbital_location_spatial([orb_1, orb_2], 2, 1)
-
-                flag = test_increase_on_loc(loc_elec, loc_orb, 2)
-
-            case (excit_type%fullstop_L_to_R, &
-                  excit_type%fullstop_R_to_L, &
-                  excit_type%fullStart_L_to_R, &
-                  excit_type%fullstart_R_to_L)
-
-                ! here i know one electron and one hole index are the same
-                ASSERT(elec_1 /= elec_2)
-                ASSERT(orb_1 /= orb_2)
-
-                ! the occupation in the overlap index does not change..
-                ! so we could treat the differing indices as a single
-                ! excitation or?
-                if (elec_1 == orb_1) then
-
-                    s_elec = elec_1
-                    s_orb = orb_1
-
-                    d_elec = elec_2
-                    d_orb = orb_2
-
-                else if (elec_1 == orb_2) then
-
-                    s_elec = elec_1
-                    s_orb = orb_1
-
-                    d_elec = elec_2
-                    d_orb = orb_1
-
-                else if (elec_2 == orb_1) then
-
-                    s_elec = elec_2
-                    s_orb = orb_1
-
-                    d_elec = elec_1
-                    d_orb = orb_2
-
-                else if (elec_2 == orb_2) then
-
-                    s_elec = elec_2
-                    s_orb = orb_2
-
-                    d_elec = elec_1
-                    d_orb = orb_1
-
-                end if
-
-                loc_elec = check_electron_location_spatial([d_elec, 0], 1, 1)
-                loc_orb = check_orbital_location_spatial([d_orb, 0], 1, 1)
-
-                flag = test_increase_on_loc(loc_elec, loc_orb, 1)
-
-            case (excit_type%fullstart_stop_mixed)
-                ! here i do not change the 'orbital excitation level'
-                if (n_guga_back_spawn_lvl < 0) then
-                    flag = .true.
-
-                else
-                    flag = .false.
-                end if
-
-            case default
-                ! the general 4-index excitations..
-                loc_elec = check_electron_location_spatial([elec_1, elec_2], 2, 1)
-                loc_orb = check_orbital_location_spatial([orb_1, orb_2], 2, 1)
-
-                flag = test_increase_on_loc(loc_elec, loc_orb, 2)
-
-            end select
-        end if
-
-    end function increase_ex_levl
-
-    function test_increase_on_loc(loc_elec, loc_orb, ic) result(flag)
-        ! test if the excitation increases the excit-lvl based on the
-        ! restriction and type of excitation
-        integer, intent(in) :: loc_elec, loc_orb, ic
-        logical :: flag
-
-        if (ic == 1) then
-            ! now the global restriction of n_guga_back_spawn_lvl comes into
-            ! play
-            select case (n_guga_back_spawn_lvl)
-            case (-2)
-                ! we want to treat double excitation decreasing the
-                ! excit-lvl by 2 fully ..
-                ! so single excitations from non-initiators (make this
-                ! default!) are always subjected to the approximation
-                flag = .true.
-
-            case (-1)
-                ! if this excitation decreases the excit-lvl by 1 we
-                ! treat it fully
-                ! for this to happen the electron must be in the
-                ! virtual space of the reference and the orbital must be
-                ! in the occupied space of the reference
-                if (loc_elec == 0 .and. loc_orb == 0) then
-                    flag = .false.
-                else
-                    flag = .true.
-                end if
-            case (0)
-                ! here we want to only restrict excitation increasing the
-                ! excitation lvl with the approximation
-                ! this happens if the electron is in the occupied space of
-                ! the reference and the orbital in the virtual space
-                if (loc_elec == 2 .and. loc_orb == 2) then
-                    flag = .true.
-                else
-                    flag = .false.
-                end if
-            case (1)
-                ! in this case we treat all single excitation fully
-                flag = .false.
-
-            end select
-        else if (ic == 2) then
-            ! maybe i need specific restriction for different types of
-            ! GUGA excitations.. figure that out!
-
-            select case (n_guga_back_spawn_lvl)
-            case (-2)
-                ! only doubles reducing ex-lvl by two get treated fully
-                if (loc_elec == 0 .and. loc_orb == 0) then
-                    flag = .false.
-                else
-                    ! everything else gets treated fully
-                    flag = .true.
-                end if
-
-            case (-1)
-                ! also doubles which increase the excit-lvl by 1
-                ! get treated fully ..
-                ! how does this happen?
-                ! at least one electron must hope from the reference
-                ! virtuals to the occupied reference space..
-                if (loc_elec == 0) then
-                    ! both electrons are in the virtual, so atleast
-                    ! one orbital must be in the reference
-                    if (loc_orb < 2) then
-                        flag = .false.
-                    else
-                        flag = .true.
-                    end if
-                else if (loc_elec == 1) then
-                    ! one electron in occupied and one in virtual
-                    ! then both holes must be in the occupied to decrease
-                    if (loc_orb == 0) then
-                        flag = .false.
-                    else
-                        flag = .true.
-                    end if
-                else
-                    ! if both electrons are in the occupied space
-                    ! it is not possible
-                    flag = .true.
-                end if
-
-            case (0)
-                ! here we also treat excitation leaving the excit-lvl
-                ! the same fully..
-                if (loc_elec == 0) then
-                    ! if both electron are in the virtual space we can not
-                    ! increase the excit-lvl
-                    flag = .false.
-
-                else if (loc_elec == 1) then
-                    ! if one of the electrons is in the occupied space
-                    ! atleast one orbital must also be in the virtual space
-                    if (loc_orb == 2) then
-                        flag = .true.
-                    else
-                        flag = .false.
-                    end if
-
-                else if (loc_elec == 2) then
-                    ! if both electrons are in occupied space
-                    ! both orbital must also be in the occupied space
-                    if (loc_orb == 0) then
-                        flag = .false.
-                    else
-                        flag = .true.
-                    end if
-                end if
-
-            case (1)
-                ! here we also want to treat excitation increasing the
-                ! excitation lvl by up to 1 fully
-
-                ! if both electrons are in the virtual space
-                ! we do not increase the excit-lvl
-                flag = .false.
-
-                ! if only one electron is in the occupied space
-                ! we at most increase it by 1, which is fine here
-                flag = .false.
-
-                ! if both electrons are in the virtual space
-                ! we increase by more than 1 only if both orbs are in
-                ! the virtual space
-
-                if (loc_elec == 2 .and. loc_orb == 2) then
-                    flag = .true.
-                else
-                    flag = .false.
-                end if
-            end select
-        end if
-
-    end function test_increase_on_loc
-
-    subroutine create_crude_double(ilut, exc, branch_pgen, excitInfo_in)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer(n_int), intent(inout) :: exc(0:nifguga)
-        real(dp), intent(out) :: branch_pgen
-        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
-        character(*), parameter :: this_routine = "create_crude_double"
-
-        type(ExcitationInformation_t) :: excitInfo
-
-        call stop_all(this_routine, "not yet implemented ")
-
-        if (present(excitInfo_in)) then
-            excitInfo = excitInfo_in
-        else
-            call stop_all(this_routine, "not yet implemented without excitInfo_in")
-        end if
-
-        ! i think i still have to reuse the excitInfo information of the
-        ! excitation type.. do I still know where the holes and electrons are
-        ! in the double excitations?
-        exc = ilut
-
-        select case (excitInfo%typ)
-
-            ! maybe i can combine some of them together
-            ! i think i can.. but i have to think about that more clearly!
-        case (excit_type%single_overlap_L_to_R, &
-              excit_type%single_overlap_R_to_L)
-            ! single overlap excitation
-
-        end select
-
-        if (.not. isProperCSF_ilut(exc)) then
-            ! i have to check if i created a proper CSF
-            branch_pgen = 0.0_dp
-        end if
-
-    end subroutine create_crude_double
-
-    subroutine create_crude_single(ilut, exc, branch_pgen, excitInfo_in)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer(n_int), intent(inout) :: exc(0:nifguga)
-        real(dp), intent(out) :: branch_pgen
-        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
-        character(*), parameter :: this_routine = "create_crude_single"
-
-        type(ExcitationInformation_t) :: excitInfo
-        integer :: elec, orb
-        real(dp) :: r
-
-#ifdef DEBUG_
-        ! also assert we are not calling it for a weight gen. accidently
-        ASSERT(excitInfo%currentGen /= 0)
-        ASSERT(isProperCSF_ilut(ilut))
-        ! also check if calculated b vector really fits to ilut
-        ASSERT(all(currentB_ilut.isclose.calcB_vector_ilut(ilut(0:nifd))))
-        if (excitInfo%currentGen == gen_type%R) then
-            ASSERT(.not. isThree(ilut, excitInfo%fullStart))
-        else if (excitInfo%currentGen == gen_type%L) then
-            ASSERT(.not. isZero(ilut, excitInfo%fullStart))
-        end if
-#endif
-
-        if (present(excitInfo_in)) then
-            excitInfo = excitInfo_in
-        else
-            call stop_all(this_routine, "not yet implemented without excitInfo_in")
-        end if
-
-        elec = excitInfo%j
-        orb = excitInfo%i
-
-        exc = ilut
-
-        select case (current_stepvector(elec))
-
-        case (0)
-            call stop_all(this_routine, "empty orbital picked as electron!")
-
-        case (1)
-
-            clr_orb(exc, 2 * elec - 1)
-            branch_pgen = 1.0_dp
-
-            if (current_stepvector(orb) == 0) then
-
-                set_orb(exc, 2 * orb - 1)
-
-            else if (current_stepvector(orb) == 1) then
-
-                branch_pgen = 0.0_dp
-
-            else if (current_stepvector(orb) == 2) then
-
-                set_orb(exc, 2 * orb - 1)
-
-            end if
-
-        case (2)
-
-            clr_orb(exc, 2 * elec)
-            branch_pgen = 1.0_dp
-
-            if (current_stepvector(orb) == 0) then
-
-                set_orb(exc, 2 * orb)
-
-            else if (current_stepvector(orb) == 1) then
-
-                set_orb(exc, 2 * orb)
-
-            else if (current_stepvector(orb) == 2) then
-
-                branch_pgen = 0.0_dp
-
-            end if
-
-        case (3)
-
-            if (current_stepvector(orb) == 0) then
-
-                ! here i have to decide..
-                branch_pgen = 0.5_dp
-
-                r = genrand_real2_dSFMT()
-
-                if (r < 0.5_dp) then
-
-                    ! 1 -> 2
-                    clr_orb(exc, 2 * elec)
-                    set_orb(exc, 2 * orb)
-
-                else
-                    ! 2 -> 1
-                    clr_orb(exc, 2 * elec - 1)
-                    set_orb(exc, 2 * orb - 1)
-
-                end if
-
-            else
-                branch_pgen = 1.0_dp
-
-                if (current_stepvector(orb) == 1) then
-
-                    clr_orb(exc, 2 * elec)
-                    set_orb(exc, 2 * orb)
-
-                else if (current_stepvector(orb) == 2) then
-
-                    clr_orb(exc, 2 * elec - 1)
-                    set_orb(exc, 2 * orb - 1)
-
-                end if
-            end if
-        end select
-
-        if (.not. isProperCSF_ilut(exc)) then
-            ! i have to check if i created a proper CSF
-            branch_pgen = 0.0_dp
-        end if
-
-    end subroutine create_crude_single
-
-    subroutine pick_orbitals_single_crude(ilut, nI, excitInfo, pgen)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: nI(nel)
-        type(ExcitationInformation_t), intent(out) :: excitInfo
-        real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = "pick_orbitals_single_crude"
-
-        integer :: elec, cc_i, ierr, nOrb, orb_i
-        real(dp), allocatable :: cum_arr(:)
-        real(dp) :: elec_factor
-
-        unused_var(ilut)
-
-        ! first pick completely random from electrons only!
-        elec = 1 + floor(genrand_real2_dSFMT() * nEl)
-        ! have to adjust pgen if it is a doubly occupied orbital afterwards
-        ! -> since twice the chance to pick that orbital then!
-
-        ! pick associated "spin orbital"
-        orb_i = nI(elec)
-
-        ! get the symmetry index:
-        ! since there is no spin restriction here have to consider both
-        ! again
-        cc_i = ClassCountInd(1, SpinOrbSymLabel(orb_i), G1(orb_i)%Ml)
-
-        ! get the number of orbitals in this symmetry sector
-        nOrb = OrbClassCount(cc_i)
-        allocate(cum_arr(nOrb), stat=ierr)
-        select case (current_stepvector(gtID(orb_i)))
-            ! der stepvalue sagt mir auch, ob es ein alpha oder beta
-            ! elektron war..
-            ! i have to change this for the crude implementation
-        case (1)
-            elec_factor = 1.0_dp
-            call gen_crude_guga_single_1(nI, orb_i, cc_i, cum_arr)
-
-        case (2)
-            ! to do
-            elec_factor = 1.0_dp
-            call gen_crude_guga_single_2(nI, orb_i, cc_i, cum_arr)
-
-        case (3)
-            ! adjust pgen, the chance to pick a doubly occupied with
-            ! spinorbitals is twice as high..
-            elec_factor = 2.0_dp
-            call gen_crude_guga_single_3(nI, orb_i, cc_i, cum_arr)
-
-        case default
-            call stop_all(this_routine, "should not have picked empty orbital")
-
-        end select
-
-        call stop_all(this_routine, "TODO")
-        pgen = 0.0_dp
-
-    end subroutine pick_orbitals_single_crude
-
-    subroutine gen_crude_guga_single_1(nI, orb_i, cc_i, cum_arr)
-        integer, intent(in) :: nI(nel)
-        integer, intent(in) :: orb_i, cc_i
-        real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
-
-        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, s_orb
-        real(dp) :: hel, cum_sum
-
-        nOrb = OrbClassCount(cc_i)
-        label_index = SymLabelCounts2(1, cc_i)
-        n_id = gtID(nI)
-        id_i = gtID(orb_i)
-
-        cum_sum = 0.0_dp
-
-        do i = 1, nOrb
-            s_orb = sym_label_list_spat(label_index + i - 1)
-
-            if (s_orb == id_i) then
-                cum_arr(i) = cum_sum
-                cycle
-            end if
-
-            hel = 0.0_dp
-
-            select case (current_stepvector(s_orb))
-            case (0)
-
-                hel = hel + abs(GetTMatEl(orb_i, 2 * s_orb))
-
-                do j = 1, nEl
-
-                    ! todo: finish all contributions later for now only do
-                    ! those which are the same for all
-                    ! exclude initial orbital, since this case gets
-                    ! contributed already outside of loop over electrons!
-                    ! but only spin-orbital or spatial??
-                    if (n_id(j) == id_i) cycle
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                end do
-
-            case (2)
-                ! no restrictions for 2 -> 1 excitations
-                hel = hel + abs(GetTMatEl(orb_i, 2 * s_orb))
-                ! do the loop over all the other electrons
-                ! (is this always symmetrie allowed?..)
-                hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-
-                do j = 1, nEl
-                    ! todo: finish all contributions later for now only do
-                    ! those which are the same for all
-                    if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                end do
-
-            end select
-
-            cum_sum = cum_sum + abs_l1(hel)
-            cum_arr(i) = cum_sum
-
-        end do
-
-    end subroutine gen_crude_guga_single_1
-
-    subroutine gen_crude_guga_single_2(nI, orb_i, cc_i, cum_arr)
-        integer, intent(in) :: nI(nel)
-        integer, intent(in) :: orb_i, cc_i
-        real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
-
-        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, s_orb
-        real(dp) :: cum_sum, hel
-
-        nOrb = OrbClassCount(cc_i)
-        label_index = SymLabelCounts2(1, cc_i)
-        n_id = gtID(nI)
-        id_i = gtID(orb_i)
-
-        cum_sum = 0.0_dp
-
-        do i = 1, nOrb
-            s_orb = sym_label_list_spat(label_index + i - 1)
-
-            if (s_orb == id_i) then
-                cum_arr(i) = cum_sum
-                cycle
-            end if
-
-            hel = 0.0_dp
-
-            select case (current_stepvector(s_orb))
-            case (0)
-
-                hel = hel + abs(GetTMatEl(orb_i, 2 * s_orb))
-
-                do j = 1, nEl
-
-                    ! todo: finish all contributions later for now only do
-                    ! those which are the same for all
-                    ! exclude initial orbital, since this case gets
-                    ! contributed already outside of loop over electrons!
-                    ! but only spin-orbital or spatial??
-!                         if (nI(j) == orb_i) cycle
-                    if (n_id(j) == id_i) cycle
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
-                    ! now depending on generator and relation of j to
-                    ! st and en -> i know sign or don't
-
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                end do
-
-            case (1)
-                ! no restrictions for 2 -> 1 excitations
-                hel = hel + abs(GetTMatEl(orb_i, 2 * s_orb))
-                ! do the loop over all the other electrons
-                ! (is this always symmetrie allowed?..)
-                hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-
-                do j = 1, nEl
-                    ! todo: finish all contributions later for now only do
-                    ! those which are the same for all
-                    if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                end do
-
-            end select
-            cum_sum = cum_sum + abs_l1(hel)
-            cum_arr(i) = cum_sum
-        end do
-
-    end subroutine gen_crude_guga_single_2
-
-    subroutine gen_crude_guga_single_3(nI, orb_i, cc_i, cum_arr)
-        integer, intent(in) :: nI(nel)
-        integer, intent(in) :: orb_i, cc_i
-        real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
-
-        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, s_orb
-        real(dp) :: cum_sum, hel
-
-        nOrb = OrbClassCount(cc_i)
-        label_index = SymLabelCounts2(1, cc_i)
-        n_id = gtID(nI)
-        id_i = gtID(orb_i)
-
-        cum_sum = 0.0_dp
-
-        do i = 1, nOrb
-            s_orb = sym_label_list_spat(label_index + i - 1)
-
-            if (s_orb == id_i) then
-                cum_arr(i) = cum_sum
-                cycle
-            end if
-
-            hel = 0.0_dp
-
-            select case (current_stepvector(s_orb))
-            case (0)
-
-                hel = hel + abs(GetTMatEl(orb_i, 2 * s_orb))
-
-                hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
-
-                do j = 1, nEl
-
-                    ! todo: finish all contributions later for now only do
-                    ! those which are the same for all
-                    ! exclude initial orbital, since this case gets
-                    ! contributed already outside of loop over electrons!
-                    ! but only spin-orbital or spatial??
-                    if (n_id(j) == id_i) cycle
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                end do
-
-            case (1)
-                ! no restrictions for 2 -> 1 excitations
-                hel = hel + abs(GetTMatEl(orb_i, 2 * s_orb))
-                ! do the loop over all the other electrons
-
-                hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-                hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
-
-                do j = 1, nEl
-                    ! todo: finish all contributions later for now only do
-                    ! those which are the same for all
-                    if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                end do
-
-            case (2)
-
-                hel = hel + abs(GetTMatEl(orb_i, 2 * s_orb))
-                ! do the loop over all the other electrons
-                ! (is this always symmetrie allowed?..)
-
-                hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
-                hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-
-                do j = 1, nEl
-
-                    ! todo: finish all contributions later for now only do
-                    ! those which are the same for all
-                    if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                    hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                end do
-
-            end select
-
-            cum_sum = cum_sum + abs_l1(hel)
-            cum_arr(i) = cum_sum
-
-        end do
-
-    end subroutine gen_crude_guga_single_3
-
-    ! need an API interfacing function for generate_excitation to the rest of NECI:
-    subroutine generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, &
-                                        excitMat, tParity, pgen, HElGen, store, part_type)
-        integer, intent(in) :: nI(nEl), exFlag
-        integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nEl), IC, excitMat(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:niftot)
-        logical, intent(out) :: tParity
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: HElGen
-        type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: part_type
-        character(*), parameter :: this_routine = "generate_excitation_guga"
-
-        integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)
-        integer :: excit_typ(2)
-
-        type(ExcitationInformation_t) :: excitInfo
-        real(dp) :: diff
-        HElement_t(dp) :: tmp_mat1
-        HElement_t(dp) :: tmp_mat
-
-        unused_var(exFlag)
-        unused_var(part_type)
-        unused_var(store)
-
-        ! think about default values and unneeded variables for GUGA, but
-        ! which have to be processed anyway to interface to NECI
-
-        ! excitatioin matrix... i could set that up for GUGA too..
-        ! but its not needed specifically except for RDM and logging purposes
-
-        ! in new implementation with changing relative probabilites of different
-        ! types of excitation, misuse this array to log the type of excitation
-        excitMat = 0
-
-        ! the parity flag is also unneccesary in GUGA
-        tParity = .true.
-
-        ! the inputted exFlag variable, is also not needed probably..
-
-        ! then choose between single or double excitations..
-        ! TODO: still have to think how to set up pSingles and pDoubles in
-        ! GUGA...
-
-        ! and before i have to convert to GUGA iluts..
-        call convert_ilut_toGUGA(ilutI, ilut)
-
-        ASSERT(isProperCSF_ilut(ilut, .true.))
-
-        ! maybe i need to copy the flags of ilutI onto ilutJ
-        ilutJ = ilutI
-
-        ! TODO! probably have to do this allocation and calculation of
-        ! those lists outside of generate_excitation in the main loop of
-        ! NECI -> since it does this for every walker on an excitation
-
-        ! could essentially calc. b vector and occupation vector here...
-        ! do it only if tNewDet is set, so i only recalc this if i switch to a
-        ! new determinant -> is set in FciMCPar!
-        ! or just init_csf_info outside in FciMCPar to also use this info
-        ! for the matrix element calculation..
-
-        if (tNewDet) then
-            ! use new setup function for additional CSF informtation
-            ! instead of calculating it all seperately..
-            call init_csf_information(ilut(0:nifd))
-
-            ! then set tNewDet to false and only set it after the walker loop
-            ! in FciMCPar
-            tNewDet = .false.
-
-        end if
-
-        if (genrand_real2_dSFMT() < pSingles) then
-
-            IC = 1
-            call createStochasticExcitation_single(ilut, nI, excitation, pgen)
-            pgen = pgen * pSingles
-
-        else
-
-            IC = 2
-            call createStochasticExcitation_double(ilut, nI, excitation, pgen, excit_typ)
-            pgen = pgen * pDoubles
-
-            if (near_zero(pgen)) then
-                nInvalidExcits = nInvalidExcits + 1
-            else
-                nValidExcits = nValidExcits + 1
-            end if
-
-        end if
-
-        ! for now add a sanity check to compare the stochastic obtained
-        ! matrix elements with the exact calculation..
-        ! since something is going obviously wrong..
-#ifdef DEBUG_
-        if (.not. near_zero(pgen)) then
-            call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
-                                          .true., 2)
-
-            diff = abs(HElGen - tmp_mat)
-            if (diff > 1.0e-10_dp) then
-                print *, "WARNING: differing stochastic and exact matrix elements!"
-                call write_det_guga(6, ilutI, .true.)
-                call write_det_guga(6, ilutJ, .true.)
-                print *, "mat eles and diff:", HElGen, tmp_mat, diff
-                print *, " pgen: ", pgen
-                print *, " deduced excit-info: "
-                call print_excitInfo(excitInfo)
-                print *, " global excit-info: "
-                call print_excitInfo(global_excitInfo)
-                call neci_flush(6)
-            end if
-
-            ! is the other order also fullfilled?
-            call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
-                                          .true., 2)
-
-#ifdef CMPLX_
-            diff = abs(tmp_mat1 - conjg(tmp_mat))
-#else
-            diff = abs(tmp_mat1 - tmp_mat)
-#endif
-            if (diff > 1.0e-10_dp) then
-                print *, "WARNING: differing sign in matrix elements!"
-                call write_det_guga(6, ilutI, .true.)
-                call write_det_guga(6, ilutJ, .true.)
-                print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
-                print *, "<I|H|J> excitInfo:"
-                call print_excitInfo(excitInfo)
-                excitInfo = identify_excitation(ilutI, ilutJ)
-                print *, "<J|H|I> excitInfo:"
-                call print_excitInfo(excitInfo)
-                call neci_flush(6)
-            end if
-        end if
-#endif
-
-        ! check if excitation generation was successful
-        if (near_zero(pgen)) then
-            ! indicate NullDet to skip spawn step
-            nJ(1) = 0
-            HElGen = h_cast(0.0_dp)
-
-        else
-
-            ! also store information on type of excitation for the automated
-            ! tau-search for the non-weighted guga excitation generator in
-            ! the excitMat variable
-            excitMat(1, 1:2) = excit_typ
-
-            ! profile tells me this costs alot of time.. so remove it
-            ! and only do it in debug mode..
-            ! i just have to be sure that no wrong csfs are created..
-
-            ASSERT(isProperCSF_ilut(excitation, .true.))
-            ! otherwise extract H element and convert to 0
-
-            call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-
-            if (t_matele_cutoff .and. abs(HElGen) < matele_cutoff) then
-                HElgen = h_cast(0.0_dp)
-                nJ(1) = 0
-                pgen = 0.0_dp
-                return
-            end if
-
-            call decode_bit_det(nJ, ilutJ)
-
-            if (tHub .and. .not. treal) then
-                if (.not. (IsMomentumAllowed(nJ))) then
-                    call write_det_guga(6, excitation)
-                end if
-            end if
-        end if
-
-    end subroutine generate_excitation_guga
-
-    subroutine createStochasticExcitation_double(ilut, nI, excitation, pgen, excit_typ)
-        ! calculate one possible double excitation and the corresponding
-        ! probabilistic weight. and hamilton matrix element for a given CSF
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(out) :: excitation(0:nifguga)
-        real(dp), intent(out) :: pgen
-        integer, intent(out) :: excit_typ(2)
-        character(*), parameter :: this_routine = "createStochasticExcitation_double"
-
-        type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), allocatable :: excitations(:, :)
-        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        real(dp) :: orb_pgen, branch_pgen
-        HElement_t(dp) :: mat_ele
-        type(WeightObj_t) :: weights
-
-        logical :: compFlag
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-
-        ASSERT(isProperCSF_ilut(ilut))
-
-        ! do that in the calling interface funcition already..
-        ! or maybe even in the FciMCPar to use the same b and occvector
-        ! for and occupied determinant/CSF
-
-        call pickOrbitals_double(ilut, nI, excitInfo, orb_pgen)
-
-        ! check if orbitals were correctly picked
-        if ( .not. excitInfo%valid ) then
-            excitation = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        ! do i need the checkcomp flag here?? how often does it happen that
-        ! i create a wrong excitation information? can i avoid to create
-        ! a wrong excitation information and thus not use checkComp here?
-        ! profiler tells me this takes a lot of time..
-        ! and if i have to do it, i could get rid of all the other uncessary
-        ! call of calcRemainingSwitches ..
-        !todo: since the weights also get initialized within the
-        !checkcompatibility function, i should maybe output it also, similar to
-        !the posSwitches and negSwitches quantitites..
-        ! or just dont do a compatibility check, since it will get aborted
-        ! anyway if it does not work in the excitation generation..
-
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches, &
-                                weights)
-
-        if (.not. compFlag) then
-            excitation = 0
-            pgen = 0.0_dp
-            return
-        end if
-
-        if (t_guga_back_spawn) then
-            if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then
-
-                if (t_guga_back_spawn_trunc) then
-                    pgen = 0.0_dp
-                    excitation = 0_n_int
-                    return
-                end if
-
-                call create_crude_guga_double(ilut, nI, excitation, branch_pgen, excitInfo)
-
-                pgen = orb_pgen * branch_pgen
-
-                return
-            end if
-        end if
-
-        if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
-            ! do the crude approximation here, where i do not switch
-            ! in the excitation range, but only at the picked electrons
-            ! and orbitals
-            ! this includes the change, that I always switch at mixed
-            ! start and ends too!
-
-            call create_crude_double(ilut, excitation, branch_pgen, excitInfo)
-
-            if (near_zero(branch_pgen)) then
-                excitation = 0_n_int
-                pgen = 0.0_dp
-                return
-            end if
-
-            call convert_ilut_toNECI(ilut, ilutI)
-            call convert_ilut_toNECI(excitation, ilutJ)
-
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-                                          .true., 2)
-
-            if (near_zero(mat_ele)) then
-                excitation = 0
-                pgen = 0.0_dp
-
-                return
-            end if
-
-            call encode_matrix_element(excitation, 0.0_dp, 2)
-            call encode_matrix_element(excitation, mat_ele, 1)
-
-            pgen = orb_pgen * branch_pgen
-
-            return
-        end if
-
-        ! depending on the excitation chosen -> call specific stochastic
-        ! excitation calculators. similar to the exact calculation
-        ! only certain cases, where the excitation really can not be
-        ! described by a single excitation, should arrive here.
-        select case (excitInfo%typ)
-
-        case (excit_type%single_overlap_L_to_R)
-            ! single overlap lowering into raising
-            ! similar to a single excitation except the (predetermined)
-            ! single overlap site.
-            call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation, &
-                                                  branch_pgen, posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%single_overlap_R_to_L) ! single overlap raising into lowering
-            ! similar to a single excitation except the (predetermined)
-            ! single overlap site.
-            !todo: mention on the weight input here: in some routines below,
-            ! the weights get reinitialized in the different sectors! so be
-            ! careful to just input the weights everywhere, and also check the
-            ! checkCompatibility function, if the weights get reinitialized
-            ! there correctly!
-            call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation, &
-                                                  branch_pgen, posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%double_lowering) ! normal double two lowering
-            call calcDoubleLoweringStochastic(ilut, excitInfo, excitation, branch_pgen, &
-                                              posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%double_raising) ! normal double two raising
-            call calcDoubleRaisingStochastic(ilut, excitInfo, excitation, branch_pgen, &
-                                             posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%double_L_to_R_to_L) ! lowergin into raising into lowering
-            ! should be able to use the same general function as above to
-            ! calculate the excitation, but the matrix element calculation
-            ! should be a little bit different... maybe additional input needed
-            call calcDoubleL2R2L_stochastic(ilut, excitInfo, excitation, branch_pgen, &
-                                            posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
-            ! dito about matrix elements as above...
-            call calcDoubleR2L2R_stochastic(ilut, excitInfo, excitation, branch_pgen, &
-                                            posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%double_L_to_R) ! lowering into raising double
-            call calcDoubleL2R_stochastic(ilut, excitInfo, excitation, branch_pgen, &
-                                          posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%double_R_to_L) ! raising into lowering double
-            call calcDoubleR2L_stochastic(ilut, excitInfo, excitation, branch_pgen, &
-                                          posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%fullstop_lowering) ! full stop 2 lowering
-            ! again the double overlap part is easy to deal with, since its
-            ! only the deltaB=0 branch
-            call calcFullstopLoweringStochastic(ilut, excitInfo, excitation, &
-                                                branch_pgen, posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%fullstop_raising) ! full-stop 2 raising
-            ! again only deltaB = 0 branch in DE overlap region
-            call calcFullstopRaisingStochastic(ilut, excitInfo, excitation, &
-                                               branch_pgen, posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%fullstop_L_to_R) ! full-stop lowering into raising
-
-            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                ! in case of "crude" exchange excitation perform a
-                ! determinant-like excitation without spin-recouplings
-                ! but only for non-inits.. so this information has to
-                ! be passed in here!
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
-
-                ! in this case the pgen is just the orbital pgen, as only
-                ! on CSF can be created from it..
-                ! but be sure if the excitation is then actually possible
-                if (.not. compFlag) then
-                    excitation = 0_n_int
-                    pgen = 0.0_dp
-                    return
-                else
-                    pgen = orb_pgen
-                end if
-
-            else
-                call calcFullStopL2R_stochastic(ilut, excitInfo, excitation, &
-                                                branch_pgen, posSwitches, negSwitches, weights)
-
-                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-                    pgen = branch_pgen * orb_pgen
-                else
-                    pgen = branch_pgen
-                end if
-
-            end if
-
-        case (excit_type%fullstop_R_to_L) ! full-stop raising into lowering
-
-            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
-
-                ! in this case the pgen is just the orbital pgen, as only
-                ! on CSF can be created from it..
-                ! but be sure if the excitation is then actually possible
-                if (.not. compFlag) then
-                    excitation = 0_n_int
-                    pgen = 0.0_dp
-                    return
-                else
-                    pgen = orb_pgen
-                end if
-
-            else
-
-                call calcFullStopR2L_stochastic(ilut, excitInfo, excitation, &
-                                                branch_pgen, posSwitches, negSwitches, weights)
-
-                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-                    pgen = branch_pgen * orb_pgen
-                else
-                    pgen = branch_pgen
-                end if
-
-            end if
-
-        case (excit_type%fullstart_lowering) ! full-start 2 lowering
-            ! again only deltaB = 0 branch in DE overlap region
-            call calcFullStartLoweringStochastic(ilut, excitInfo, excitation, &
-                                                 branch_pgen, posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%fullstart_raising) ! full-start 2 raising
-            ! the double overlap part is again really easy here, since only
-            ! the deltaB=0 branch is non-zero -> and the second part can be
-            ! treated as a single excitation
-            call calcFullStartRaisingStochastic(ilut, excitInfo, excitation, &
-                                                branch_pgen, posSwitches, negSwitches, weights)
-
-            pgen = orb_pgen * branch_pgen
-
-        case (excit_type%fullStart_L_to_R) ! full-start lowering into raising
-
-            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
-
-                ! in this case the pgen is just the orbital pgen, as only
-                ! on CSF can be created from it..
-                ! but be sure if the excitation is then actually possible
-                if (.not. compFlag) then
-                    excitation = 0_n_int
-                    pgen = 0.0_dp
-                    return
-                else
-                    pgen = orb_pgen
-                end if
-
-            else
-
-                call calcFullStartL2R_stochastic(ilut, excitInfo, excitation, &
-                                                 branch_pgen, posSwitches, negSwitches, weights)
-
-                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-                    pgen = branch_pgen * orb_pgen
-                else
-                    pgen = branch_pgen
-                end if
-
-            end if
-
-        case (excit_type%fullstart_R_to_L) ! full-start raising into lowering
-
-            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
-
-                ! in this case the pgen is just the orbital pgen, as only
-                ! on CSF can be created from it..
-                ! but be sure if the excitation is then actually possible
-                if (.not. compFlag) then
-                    excitation = 0_n_int
-                    pgen = 0.0_dp
-                    return
-                else
-                    pgen = orb_pgen
-                end if
-
-            else
-
-                call calcFullStartR2L_stochastic(ilut, excitInfo, excitation, &
-                                                 branch_pgen, posSwitches, negSwitches, weights)
-
-                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-                    pgen = branch_pgen * orb_pgen
-                else
-                    pgen = branch_pgen
-                end if
-
-            end if
-
-            ! start, case by case how they appear in the documentary
-        case (excit_type%fullstart_stop_alike) ! full-start into full-stop alike
-            ! since there is only the deltaB = 0 branch with non-zero weight
-            ! only 1 excitation is possible, which is calculated by the
-            ! exact version
-
-            ! check matrix element before calculating anything
-            if (near_zero(get_umat_el(excitInfo%i, excitInfo%i, excitInfo%j, excitInfo%j))) then
-                excitation = 0_n_int
-                pgen = 0.0_dp
-                return
-            end if
-
-            call calcFullStartFullStopAlike(ilut, excitInfo, excitations)
-
-            excitation = excitations(:, 1)
-
-            ! have to encode the umat/2 matrix element here to keep this
-            ! above function compatible with the exact routines
-            call update_matrix_element(excitation, get_umat_el(excitInfo%i, &
-                                                               excitInfo%i, excitInfo%j, excitInfo%j) / 2.0_dp, 1)
-
-            ! probWeight is just the index choosing probability
-            ! multiply further down
-            pgen = orb_pgen
-            ! can a full-start-full stop alike excitation have zero
-            ! matrix element?
-            ! yes since D(b=1,0) and d(b=0,1) can be zero
-
-            ! to use t_trunc_guga_pgen
-            branch_pgen = 1.0_dp
-
-            deallocate(excitations)
-
-        case (excit_type%fullstart_stop_mixed) ! full-start into full-stop mixed
-            ! here it is garuanteed that its a open orbital at the start and
-            ! end to allow for an non-diagonal excitation.
-            ! but somehow i have to ensure, that the deltaB=0 path is left
-            ! at somepoint... -> chances are slim, but there.. maybe can bias
-            ! for that.. since i know how many switche possibilities are
-            ! left and could include that somehow... todo
-            ! on another note... since i know, that i have to switch at some
-            ! point, i could totally ignore the x0-matrix element since it
-            ! will be zero in the event of switching...
-            ! i also need this behavior in the case of mixed full starts and
-            ! full stops... -> so maybe write a specific double update function
-            ! for that ...
-            ! would have to include some alreadySwitched flag in the excitation
-            ! to see and save if a switch already happened to enforce if
-            ! necessary..
-            ! or use the x0 matrix element as a kind of flag...
-            ! since if its 0 it means a switch happended at some point, but
-            ! thats seems a bit inefficient.
-
-            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
-
-                ! in this case the pgen is just the orbital pgen, as only
-                ! on CSF can be created from it..
-                ! but be sure if the excitation is then actually possible
-                if (.not. compFlag) then
-                    excitation = 0_n_int
-                    pgen = 0.0_dp
-                    return
-                else
-                    pgen = orb_pgen
-                end if
-
-            else
-
-                call calcFullStartFullStopMixedStochastic(ilut, excitInfo, &
-                                                          excitation, branch_pgen, posSwitches, negSwitches, weights)
-
-                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-                    pgen = branch_pgen * orb_pgen
-                else
-                    pgen = branch_pgen
-                end if
-
-            end if
-
-            ! random notes:
-
-            ! those are the "easy" ones..., which dont actually have something
-            ! to do in the DE overlap region.. well except the full-start into
-            ! full-stop mixed excitation, where we actually HAVE to do a switch or
-            ! else we get a already dealt with single excitation
-            ! UPDATE: see the picking of the full-start or stop orbital as picking
-            ! the first or last, necessary, stepvector switch. since it has to be
-            ! switched somewhere anyway
-            ! these are all the possibilities for (ii,jj), (ii,jk) index picking.
-
-            ! a thinking still is to maybe combine all of them into one orbital picker
-            ! and allow the second picked orbital to be the same as the first , so
-            ! also this would account for the correct probability to pick to similar
-            ! ones.. (a little bit of renormalization is needed, since the order
-            ! how to pick the orbitals shouldnt matter and thus has to be accounted
-            ! for. after here 4 differeing (ij,kl) indices were picked:
-            ! that should be about all...
-
-        end select
-
-        ! what if probWeight is 0 for some reason? shouldnt be..
-        ! yes it could be since i indicate zero-values excitations in this way
-
-        if (t_trunc_guga_pgen .or. (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-            if (branch_pgen < trunc_guga_pgen) then
-                pgen = 0.0_dp
-                excitation = 0_n_int
-                return
-            end if
-        end if
-
-        ! check if for some reason the matrix element of the excitation is 0
-        if (near_zero(extract_h_element(excitation))) then
-            pgen = 0.0_dp
-            excitation = 0
-
-        else
-            ! also store information of type of excitation for automated tau-search
-            ! for the non-weighted guga-excitation-generator
-            select case (excitInfo%excitLvl)
-            case (0)
-                ! (ii,jj) RR/LL excitation
-                excit_typ(1) = 2
-                excit_typ(2) = 1
-
-            case (1)
-                ! (ii,jj) RL excitation
-                excit_typ(1) = 2
-                excit_typ(2) = 0
-
-            case (2)
-                ! (ii,jk) RR/LL excitation
-                excit_typ(1) = 3
-                excit_typ(2) = 1
-
-            case (3)
-                ! (ii,jk) RL excitation
-                excit_typ(1) = 3
-                excit_typ(2) = 0
-
-            case (4)
-                ! (ij,kl) excitation
-                excit_typ(1) = 4
-                excit_typ(2) = 0
-
-            case default
-                call print_excitInfo(excitInfo)
-                call stop_all(this_routine, "wrong excit level info!")
-
-            end select
-        end if
-
-        select case(excitInfo%typ)
-        case (excit_type%single_overlap_L_to_R, &
-              excit_type%single_overlap_R_to_L, &
-              excit_type%double_lowering, &
-              excit_type%double_raising, &
-              excit_type%double_L_to_R_to_L, &
-              excit_type%double_R_to_L_to_R, &
-              excit_type%double_L_to_R, &
-              excit_type%double_R_to_L, &
-              excit_type%fullstop_raising, &
-              excit_type%fullstop_lowering, &
-              excit_type%fullstart_lowering, &
-              excit_type%fullstart_raising, &
-              excit_type%fullstart_stop_alike)
-
-            ! in the other cases global_excitInfo gets assigned before it
-            ! gets changed
-            global_excitInfo = excitInfo
-        end select
-
-    end subroutine createStochasticExcitation_double
-
     ! write up all the specific stochastic excitation routines
 
-    subroutine calcFullStartFullStopMixedStochastic(ilut, excitInfo, t, pgen, &
+    subroutine calcFullStartFullStopMixedStochastic(ilut, csf_i, excitInfo, t, pgen, &
                                                 posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
@@ -4985,17 +379,17 @@ contains
         else
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. &
                     (.not. is_init_guga))) then
-                weights = init_forced_end_exchange_weight(ilut, excitInfo%fullEnd)
+                weights = init_forced_end_exchange_weight(csf_i, excitInfo%fullEnd)
             else
-                weights = init_doubleWeight(ilut, excitInfo%fullEnd)
+                weights = init_doubleWeight(csf_i, excitInfo%fullEnd)
             end if
         end if
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. &
                 (.not. is_init_guga))) then
-            call forced_mixed_start(ilut, excitInfo, t, branch_pgen)
+            call forced_mixed_start(ilut, csf_i, excitInfo, t, branch_pgen)
         else
-            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+            call mixedFullStartStochastic(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
         end if
 
@@ -5014,7 +408,7 @@ contains
         temp_pgen = 1.0_dp
 
         do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_i, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
 
             ! zero x1 - elements can also happen in the double update
@@ -5024,7 +418,7 @@ contains
             end if
         end do
 
-        call mixedFullStopStochastic(ilut, excitInfo, t)
+        call mixedFullStopStochastic(ilut, csf_i, excitInfo, t)
 
         ! check if there was a change in the stepvector in the double
         ! overlap region
@@ -5046,7 +440,7 @@ contains
             l = excitInfo%l
             typ = excitInfo%typ
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contr(ilut, [2 * i, 2 * j], above_cpt, &
+            call calc_orbital_pgen_contr(csf_i, [2 * i, 2 * j], above_cpt, &
                                          below_cpt)
             p_orig = (above_cpt + below_cpt) * branch_pgen
             if (.not. (t_heisenberg_model .or. t_tJ_model)) then
@@ -5063,13 +457,21 @@ contains
                 return
             end if
 
-            integral = calcMixedContribution(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
+            call calc_mixed_contr_integral(ilut, csf_i, t, excitInfo%fullStart, &
+                excitInfo%fullEnd, integral)
+
             pgen = branch_pgen
 
             ! just to be save that a switch always happens at the end
             ! print that out for now
         else
-            call calc_mixed_contr(ilut, t, excitInfo, pgen, integral)
+            call calc_mixed_contr_integral(ilut, csf_i, t, excitInfo%fullStart, &
+                excitInfo%fullEnd, integral)
+            if (.not. near_zero(integral)) then
+                call calc_mixed_contr_pgen(ilut, csf_i, t, excitInfo, pgen)
+            end if
+
+!             call calc_mixed_contr_sym(ilut, csf_i, t, excitInfo, pgen, integral)
         end if
 
         if (near_zero(integral)) then
@@ -5091,31 +493,16 @@ contains
 
     end subroutine calcFullStartFullStopMixedStochastic
 
-    subroutine calc_mixed_contr_nosym(ilut, t, excitInfo, pgen, integral)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-
-        ! for now: just use old (inefficient) but already provided functions:
-        integral = calcMixedContribution(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
-
-        pgen = calcMixedPgenContribution(ilut, t, excitInfo)
-
-    end subroutine calc_mixed_contr_nosym
-
-    subroutine calc_orbital_pgen_contr_mol(ilut, occ_orbs, cpt_a, cpt_b)
+    subroutine calc_orbital_pgen_contr_mol(csf_i, occ_orbs, cpt_a, cpt_b)
         ! calculates the cumulatice probability list for different
         ! full-start -> full-stop mixed excitations, used in the recalculation of
         ! contrbuting pgens from different picked orbitals
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
 
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt_ab, cpt_ba, ba_sum, ab_sum
-
-        unused_var(ilut)
 
         ! given 2 already picked electrons, this routine creates a list of
         ! p(a)*p(b|a) probabilities to pick the already determined holes
@@ -5147,7 +534,7 @@ contains
         if (tGen_guga_weighted) then
             do orb = 1, i - 1
                 ! calc. the p(a)
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
 
                 end if
@@ -5162,11 +549,11 @@ contains
 
         ! also get p(b|a)
         ! did i get that the wrong way around??
-        call pgen_select_orb_guga_mol(occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
+        call pgen_select_orb_guga_mol(csf_i, occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
 
         if (tGen_guga_weighted) then
             do orb = i + 1, j - 1
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
@@ -5178,20 +565,20 @@ contains
         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
-        call pgen_select_orb_guga_mol(occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
+        call pgen_select_orb_guga_mol(csf_i, occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
 
         ! and deal with rest:
 
         if (tGen_guga_weighted) then
             do orb = j + 1, nSpatOrbs
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
         end if
 
         if (.not. tGen_guga_weighted) then
-            cum_sum = current_cum_list(nSpatOrbs)
+            cum_sum = csf_i%cum_list(nSpatOrbs)
         end if
 
         if (near_zero(cum_sum) .or. near_zero(ab_sum) .or. near_zero(ba_sum)) then
@@ -5205,8 +592,8 @@ contains
 
     end subroutine calc_orbital_pgen_contr_mol
 
-    subroutine calc_orbital_pgen_contr_ueg(ilut, occ_orbs, above_cpt, below_cpt)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+    subroutine calc_orbital_pgen_contr_ueg(csf_i, occ_orbs, above_cpt, below_cpt)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
 
@@ -5215,7 +602,7 @@ contains
         integer :: tmp_orbArr(nSpatOrbs)
         integer :: i, j
 
-        call gen_ab_cum_list_1_1(ilut, occ_orbs, cum_arr, tmp_excitInfo, tmp_orbArr)
+        call gen_ab_cum_list_1_1(csf_i, occ_orbs, cum_arr, tmp_excitInfo, tmp_orbArr)
         cum_sum = cum_arr(nSpatOrbs)
 
         i = gtID(occ_orbs(1))
@@ -5234,731 +621,10 @@ contains
 
     end subroutine calc_orbital_pgen_contr_ueg
 
-    subroutine calc_mixed_contr_sym(ilut, t, excitInfo, pgen, integral)
-        ! new implementation of the pgen contribution calculation for
-        ! fullstart into fullstop excitation with mixed generators
-        ! this is a specific implementation for the hubbard/ueg model with
-        ! full k-point symmetry information, since in this case the condition
-        ! ki + kj = ka + kb is always fullfilled since ka = ki, kj = kb or vv.
-        ! NEW: combine pgen and matrix element contribution finally!
-        ! to optimize!
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-
-        integer :: first, last, deltaB(nSpatOrbs), i, j, k, step1, step2
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
-                    zeroWeight, minusWeight, plusWeight, branch_weight, tempWeight, &
-                    inter, tempWeight_1, &
-                    above_cpt, below_cpt
-        type(WeightObj_t) :: weights
-        logical :: above_flag, below_flag
-        HElement_t(dp) :: temp_int
-        type(ExcitationInformation_t) :: tmp_excitInfo
-
-        tmp_excitInfo = excitInfo
-
-        ! also need the pgen contributions from all other index combinations
-        ! shich could lead to this excitation
-        first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
-        last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
-
-        below_flag = .false.
-        above_flag = .false.
-        pgen = 0.0_dp
-
-        deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
-
-        inter = 1.0_dp
-        integral = h_cast(0.0_dp)
-
-        ! calculate the always involved intermediate matrix element from
-        ! first switch to last switch
-        do i = first + 1, last - 1
-            if (currentOcc_int(i) /= 1) cycle
-
-            step1 = current_stepvector(i)
-            step2 = getStepvalue(t, i)
-            call getDoubleMatrixElement(step2, step1, deltaB(i - 1), gen_type%L, gen_type%R, &
-                                        currentB_ilut(i), 1.0_dp, x1_element=tempWeight)
-
-            inter = inter * tempWeight
-        end do
-
-        ! also have to recalc. the ab-orbital cumulative probability distrib
-        ! essentially this should be the only difference to molucular
-        ! calculations.. where i additionally have to check if the corresponding
-        ! orbitals are symmetry allowed.. todo
-        ! cant do that so generally out here.. since this list depends on the
-        ! picked electrons too! -> which i have to recalc.
-
-        ! use a global list of open orbitals to reduce computational amount
-        ! and also check for (d=1,b=1) / (d=2,b=0) spot below/above there
-        ! is no additional contribution, due to 0 matrix element
-        ! hm... or is it too much effort to recalc. a list of open orbitals
-        ! generally .. since its actually only used here,
-        ! or think about storing a persistent list of open orbitals, and
-        ! the number of open orbitals for every CSF updated and calculated
-        ! during excitation generation...
-
-        ! still think about that and then make a new efficient implementation
-        ! todo!
-        ! better to first loop over j, since only for each new end, the weights
-        ! have to be recalced..
-
-        do j = last, nSpatOrbs
-            if (currentOcc_int(j) /= 1) cycle
-
-            ! calculate the remaining switches once for each (j) but do it
-            ! for the worst case until i = 1
-
-            ! check if this is the last end needed to consider
-            if (current_stepvector(j) == 2 .and. currentB_int(j) == 0) then
-                above_flag = .true.
-            end if
-
-            excitInfo%fullStart = 1
-            excitInfo%secondStart = 1
-            excitInfo%fullEnd = j
-            excitInfo%firstEnd = j
-            ! reinit remainings switches and weights
-            ! i think i could also do a on-the fly switch recalculation..
-            ! so only the weights have to be reinited
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
-                                                        negSwitches)
-
-            weights = init_doubleWeight(ilut, j)
-
-            ! i have to reset the below flag each iteration of j..
-            below_flag = .false.
-
-            do i = first, 1, -1
-                if (currentOcc_int(i) /= 1) cycle
-
-                if (below_flag) exit
-
-                ! this is the only difference for molecular/hubbard/ueg
-                ! calculations
-                call calc_orbital_pgen_contr(ilut, [2 * i, 2 * j], above_cpt, &
-                                             below_cpt)
-
-                ! yes they can, and then this orbital does not contribute to the
-                ! obtained excitaiton -> cycle..
-                ! only from the names.. shouldnt here be below_cpt?
-                ! ah ok below is the below_flag!
-
-                ! if the bottom stepvector d = 1 and b = 1 there is no
-                ! additional contribution from below, since the x1 matrix
-                ! element is 0
-                ! same if d = 2 and b = 0 for fullstop stepvector
-                if (current_stepvector(i) == 1 .and. currentB_int(i) == 1) then
-                    below_flag = .true.
-                end if
-
-                if (near_zero(above_cpt)) cycle
-
-                if (near_zero(below_cpt)) cycle
-
-                ! calculate the branch probability
-
-                temp_int = (get_umat_el(i, j, j, i) + get_umat_el(j, i, i, j)) / 2.0_dp
-
-                if (t_heisenberg_model .or. t_tJ_model) then
-                    ! in the heisenberg and t-J i never pick combinations,
-                    ! with 0 matrix element..
-                    if (near_zero(temp_int)) cycle
-                end if
-
-                zeroWeight = weights%proc%zero(negSwitches(i), &
-                                               posSwitches(i), currentB_ilut(i), weights%dat)
-
-                ! deal with the start seperately:
-                if (current_stepvector(i) == 1) then
-                    plusWeight = weights%proc%plus(posSwitches(i), &
-                                                   currentB_ilut(i), weights%dat)
-                    if (isOne(t, i)) then
-                        branch_weight = zeroWeight / (zeroWeight + plusWeight)
-                    else
-                        branch_weight = plusWeight / (zeroWeight + plusWeight)
-                    end if
-                else
-                    minusWeight = weights%proc%minus(negSwitches(i), &
-                                                     currentB_ilut(i), weights%dat)
-                    if (isTwo(t, i)) then
-                        branch_weight = zeroWeight / (zeroWeight + minusWeight)
-                    else
-                        branch_weight = minusWeight / (zeroWeight + minusWeight)
-                    end if
-                end if
-
-                ! get the starting matrix element
-                step1 = current_stepvector(i)
-                step2 = getStepvalue(t, i)
-                call getDoubleMatrixElement(step2, step1, -1, gen_type%L, gen_type%R, &
-                                            currentB_ilut(i), 1.0_dp, x1_element=tempWeight)
-
-                ! loop over excitation range
-                ! distinguish between different regimes
-                ! if i do it until switch - 1 -> i know that dB = 0 and
-                ! the 2 stepvalues are always the same..
-                do k = i + 1, first - 1
-                    if (currentOcc_int(k) /= 1) cycle
-
-                    step1 = current_stepvector(k)
-                    ! only 0 branch here
-                    call getDoubleMatrixElement(step1, step1, 0, gen_type%L, gen_type%R, &
-                                                currentB_ilut(k), 1.0_dp, x1_element=tempWeight_1)
-
-                    tempWeight = tempWeight * tempWeight_1
-
-                    zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                   posSwitches(k), currentB_ilut(k), weights%dat)
-
-                    if (step1 == 1) then
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       currentB_ilut(k), weights%dat)
-
-                        branch_weight = branch_weight * calcStayingProb( &
-                                        zeroWeight, plusWeight, currentB_ilut(k))
-
-                    else
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         currentB_ilut(k), weights%dat)
-
-                        branch_weight = branch_weight * calcStayingProb( &
-                                        zeroWeight, minusWeight, currentB_ilut(k))
-                    end if
-
-                end do
-
-                ! then do first switch site seperately, if (i) is not first
-                ! and what if (i) is first??
-                if (i /= first) then
-                    step1 = current_stepvector(first)
-
-                    zeroWeight = weights%proc%zero(negSwitches(first), &
-                           posSwitches(first), currentB_ilut(first), weights%dat)
-
-                    if (step1 == 1) then
-                        ! i know that step2 = 2
-                        call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, &
-                                currentB_ilut(first), 1.0_dp, x1_element=tempWeight_1)
-
-                        plusWeight = weights%proc%plus(posSwitches(first), &
-                                                       currentB_ilut(first), weights%dat)
-
-                        branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                         zeroWeight, plusWeight, currentB_ilut(first)))
-
-                    else
-                        ! i know that step2 = 1
-                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, &
-                            currentB_ilut(first), 1.0_dp, x1_element=tempWeight_1)
-
-                        minusWeight = weights%proc%minus(negSwitches(first), &
-                                             currentB_ilut(first), weights%dat)
-
-                        branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                         zeroWeight, minusWeight, currentB_ilut(first)))
-
-                    end if
-                    tempWeight = tempWeight * tempWeight_1
-
-                end if
-
-                ! loop over the range where switch happened
-                do k = first + 1, last - 1
-                    ! in this region i know, that the matrix element is
-                    ! definetly not 0, since otherwise the excitation would
-                    ! have been aborted before
-                    ! combine stepvalue and deltaB info in select statement
-
-                    if (currentOcc_int(k) /= 1) cycle
-
-                    zeroWeight = weights%proc%zero(negSwitches(k), &
-                                       posSwitches(k), currentB_ilut(k), weights%dat)
-
-                    select case (deltaB(k - 1) + current_stepvector(k))
-
-                    case (1)
-                        ! d=1 + b=0 : 1
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       currentB_ilut(k), weights%dat)
-                        if (isOne(t, k)) then
-                            branch_weight = branch_weight * calcStayingProb( &
-                                            zeroWeight, plusWeight, currentB_ilut(k))
-                        else
-                            branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                             zeroWeight, plusWeight, currentB_ilut(k)))
-                        end if
-
-                    case (2)
-                        ! d=2 + b=0 : 2
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         currentB_ilut(k), weights%dat)
-
-                        if (isTwo(t, k)) then
-                            branch_weight = branch_weight * calcStayingProb( &
-                                            zeroWeight, minusWeight, currentB_ilut(k))
-                        else
-                            branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                 zeroWeight, minusWeight, currentB_ilut(k)))
-                        end if
-
-                    case (-1)
-                        ! d=1 + b=-2 : -1
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                 currentB_ilut(k), weights%dat)
-
-                        if (isOne(t, k)) then
-                            branch_weight = branch_weight * calcStayingProb(minusWeight, &
-                                                            zeroWeight, currentB_ilut(k))
-                        else
-                            branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                             minusWeight, zeroWeight, currentB_ilut(k)))
-                        end if
-
-                    case (4)
-                        ! d=2 + b=2 : 4
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                           posSwitches(k), currentB_ilut(k), weights%dat)
-
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                   currentB_ilut(k), weights%dat)
-
-                        if (isTwo(t, k)) then
-                            branch_weight = branch_weight * calcStayingProb(plusWeight, &
-                                                            zeroWeight, currentB_ilut(k))
-                        else
-                            branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                 plusWeight, zeroWeight, currentB_ilut(k)))
-                        end if
-
-                    end select
-
-                end do
-
-                ! more efficient to do "last" step seperately, since i have to
-                ! check deltaB value and also have to consider matrix element
-                ! but only of (j) is not last or otherwise already dealt with
-                if (j /= last) then
-
-                    if (current_stepvector(last) == 1) then
-                        ! then i know step2 = 2 & dB = -2!
-                        call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, &
-                                    currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
-
-                        zeroWeight = weights%proc%zero(negSwitches(last), &
-                                       posSwitches(last), currentB_ilut(last), weights%dat)
-
-                        minusWeight = weights%proc%minus(negSwitches(last), &
-                                             currentB_ilut(last), weights%dat)
-
-                        branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                             minusWeight, zeroWeight, currentB_ilut(last)))
-
-                    else
-                        ! i know step2 == 1 and dB = +2
-                        call getDoubleMatrixElement(1, 2, +2, gen_type%L, gen_type%R, &
-                                        currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
-
-                        zeroWeight = weights%proc%zero(negSwitches(last), &
-                                           posSwitches(last), currentB_ilut(last), weights%dat)
-
-                        plusWeight = weights%proc%plus(posSwitches(last), &
-                                                   currentB_ilut(last), weights%dat)
-
-                        branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                             plusWeight, zeroWeight, currentB_ilut(last)))
-
-                    end if
-
-                    tempWeight = tempWeight * tempWeight_1
-                end if
-
-                ! then do remaining top range, where i know stepvalues are
-                ! the same again and dB = 0 always!
-                do k = last + 1, j - 1
-                    if (currentOcc_int(k) /= 1) cycle
-
-                    step1 = current_stepvector(k)
-                    ! only 0 branch here
-                    call getDoubleMatrixElement(step1, step1, 0, gen_type%L, gen_type%R, &
-                                    currentB_ilut(k), 1.0_dp, x1_element=tempWeight_1)
-
-                    tempWeight = tempWeight * tempWeight_1
-
-                    zeroWeight = weights%proc%zero(negSwitches(k), &
-                               posSwitches(k), currentB_ilut(k), weights%dat)
-
-                    if (step1 == 1) then
-                        ! i know step2 = 1 als
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                               currentB_ilut(k), weights%dat)
-
-                        branch_weight = branch_weight * calcStayingProb( &
-                                        zeroWeight, plusWeight, currentB_ilut(k))
-                    else
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         currentB_ilut(k), weights%dat)
-                        branch_weight = branch_weight * calcStayingProb( &
-                                        zeroWeight, minusWeight, currentB_ilut(k))
-                    end if
-                end do
-
-                ! and handle fullend
-                ! and then do the the end value at j
-                step1 = current_stepvector(j)
-                step2 = getStepvalue(t, j)
-                call getMixedFullStop(step2, step1, deltaB(j - 1), currentB_ilut(j), &
-                                      x1_element=tempWeight_1)
-
-                temp_int = tempWeight * tempWeight_1 * inter * temp_int
-
-                ! and multiply and add up all contribution elements
-                integral = integral + temp_int
-
-                if (t_trunc_guga_pgen .or. &
-                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                    if (branch_weight < trunc_guga_pgen) then
-                        branch_weight = 0.0_dp
-                    end if
-                end if
-
-                if (t_trunc_guga_matel) then
-                    if (abs(tempWeight * tempWeight_1 * inter) < trunc_guga_matel) then
-                        branch_weight = 0.0_dp
-                    end if
-                end if
-
-                ! add up pgen contributions..
-                pgen = pgen + (below_cpt + above_cpt) * branch_weight
-
-                ! check if i deal with that correctly...
-                if (below_flag) exit
-            end do
-            ! todo: i cant use tthat like that.. or else some combinations
-            ! of i and j get left out! i have to reinit it somehow..
-            ! not yet sure how..
-            if (above_flag) exit
-        end do
-
-        ! multiply by always same probability to pick the 2 electrons
-        if (.not. (t_heisenberg_model .or. t_tJ_model)) then
-            pgen = pgen / real(ElecPairs, dp)
-        end if
-
-    end subroutine calc_mixed_contr_sym
-
-    function calcMixedPgenContribution(ilut, t, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp) :: pgen
-
-        integer :: first, last, i, j, k, deltaB(nSpatOrbs)
-        real(dp) ::  posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
-                    zeroWeight, minusWeight, plusWeight, probWeight, tempWeight
-        type(WeightObj_t) :: weights
-
-        ! also need the pgen contributions from all other index combinations
-        ! shich could lead to this excitation
-        first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
-        last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
-
-        deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
-
-        pgen = 0.0_dp
-
-        do i = 1, first
-            do j = last, nSpatOrbs
-                ! can cycle over 0 or 3 stepvalues
-                if (currentOcc_int(i) /= 1 .or. currentOcc_int(j) /= 1) then
-                    cycle
-                end if
-
-                excitInfo%fullStart = i
-                excitInfo%secondStart = i
-                excitInfo%fullEnd = j
-                excitInfo%firstEnd = j
-                ! reinit remainings switches and weights
-                call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
-                                                            negSwitches)
-
-                weights = init_doubleWeight(ilut, j)
-
-                zeroWeight = weights%proc%zero(negSwitches(i), &
-                                               posSwitches(i), currentB_ilut(i), weights%dat)
-
-                ! deal with the start seperately:
-                if (current_stepvector(i) == 1) then
-                    plusWeight = weights%proc%plus(posSwitches(i), &
-                                                   currentB_ilut(i), weights%dat)
-                    if (isOne(t, i)) then
-                        probWeight = zeroWeight / (zeroWeight + plusWeight)
-                    else
-                        probWeight = plusWeight / (zeroWeight + plusWeight)
-                    end if
-                else
-                    minusWeight = weights%proc%minus(negSwitches(i), &
-                                                     currentB_ilut(i), weights%dat)
-                    if (isTwo(t, i)) then
-                        probWeight = zeroWeight / (zeroWeight + minusWeight)
-                    else
-                        probWeight = minusWeight / (zeroWeight + minusWeight)
-                    end if
-                end if
-
-                ! loop over excitation range
-                do k = i + 1, j - 1
-                    if (currentOcc_int(k) /= 1) then
-                        cycle
-                    end if
-
-                    ! combine both deltaB and stepvalue info in the select
-                    ! case statement
-                    select case (deltaB(k - 1) + current_stepvector(k))
-
-                    case (1)
-                        ! d=1 + b=0 : 1
-
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), currentB_ilut(k), weights%dat)
-
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       currentB_ilut(k), weights%dat)
-                        if (isOne(t, k)) then
-                            probWeight = probWeight * calcStayingProb( &
-                                         zeroWeight, plusWeight, currentB_ilut(k))
-
-                            call getDoubleMatrixElement(1, 1, 0, gen_type%L, gen_type%R, &
-                                                        currentB_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        else
-                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                       zeroWeight, plusWeight, currentB_ilut(k)))
-
-                            call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, &
-                                                        currentB_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        end if
-
-                    case (2)
-                        ! d=2 + b=0 : 2
-
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), currentB_ilut(k), weights%dat)
-
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         currentB_ilut(k), weights%dat)
-                        if (isTwo(t, k)) then
-                            probWeight = probWeight * calcStayingProb( &
-                                         zeroWeight, minusWeight, currentB_ilut(k))
-                            call getDoubleMatrixElement(2, 2, 0, gen_type%L, gen_type%R, &
-                                                        currentB_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        else
-                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                       zeroWeight, minusWeight, currentB_ilut(k)))
-                            call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, &
-                                                        currentB_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        end if
-
-                    case (-1)
-                        ! d=1 + b=-2 : -1
-
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), currentB_ilut(k), weights%dat)
-
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         currentB_ilut(k), weights%dat)
-
-                        if (isOne(t, k)) then
-                            probWeight = probWeight * calcStayingProb(minusWeight, &
-                                                                      zeroWeight, currentB_ilut(k))
-                            call getDoubleMatrixElement(1, 1, -2, gen_type%L, gen_type%R, &
-                                                        currentB_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        else
-                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                       minusWeight, zeroWeight, currentB_ilut(k)))
-                            call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, &
-                                                        currentB_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        end if
-
-                    case (4)
-                        ! d=2 + b=2 : 4
-
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), currentB_ilut(k), weights%dat)
-
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       currentB_ilut(k), weights%dat)
-
-                        if (isTwo(t, k)) then
-                            probWeight = probWeight * calcStayingProb(plusWeight, &
-                                                                      zeroWeight, currentB_ilut(k))
-                            call getDoubleMatrixElement(2, 2, 2, gen_type%L, gen_type%R, &
-                                                        currentB_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        else
-                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                       plusWeight, zeroWeight, currentB_ilut(k)))
-                            call getDoubleMatrixElement(1, 2, 2, gen_type%L, gen_type%R, &
-                                                        currentB_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        end if
-
-                    end select
-
-                    if (near_zero(tempWeight)) then
-                        probWeight = 0.0_dp
-                    end if
-                end do
-
-                ! that should be it...
-                ! as no probabillity involved in end step
-
-                ! add up for all the i,j combinations
-                pgen = pgen + probWeight
-            end do
-        end do
-
-        ! and modify with the general 2*p(iijj)p(i)p(j|i) prob.
-
-        pgen = pgen * orb_pgen_contrib_type_2()
-
-        ! this above must also be adjusted for the use of the pExcit4/3 etc.
-        ! quantities and depending if i consider diff bias!
-
-    end function calcMixedPgenContribution
-
-    function calcMixedContribution(ilut, t, start, ende, rdm_ind, rdm_mat) result(integral)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        integer, intent(in) :: start, ende
-        HElement_t(dp) :: integral
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calcMixedContribution"
-
-        real(dp) :: inter, tempWeight, tempWeight_1
-        HElement_t(dp) :: temp_int
-        integer :: i, j, k, step1, step2, bVector(nSpatOrbs), first, last
-        logical :: rdm_flag
-        integer :: max_num_rdm, rdm_count
-        integer(int_rdm), allocatable :: tmp_rdm_ind(:)
-        real(dp), allocatable :: tmp_rdm_mat(:)
-        real(dp) :: tmp_mat
-
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            rdm_flag = .true.
-        else
-            rdm_flag = .false.
-        end if
-        ! do it differently... since its always a mixed double overlap region
-        ! and only 2 indices are involved.. just recalc all possible
-        ! matrix elements in this case..
-        ! so first determine the first and last switches and calculate
-        ! the overlap matrix element in this region, since atleast thats
-        ! always the same
-        first = findFirstSwitch(ilut, t, start, ende)
-        last = findLastSwitch(ilut, t, first, ende)
-
-        if (rdm_flag) then
-            max_num_rdm = first * (nSpatOrbs - last + 1)
-            allocate(tmp_rdm_ind(max_num_rdm), source=0_int_rdm)
-            allocate(tmp_rdm_mat(max_num_rdm), source=0.0_dp)
-            rdm_count = 0
-        end if
-        ! calc. the intermediate matrix element..
-        ! but what is the deltaB value inbetween? calculate it on the fly..
-        bVector = int(calcB_vector_ilut(ilut(0:nifd)) - calcB_vector_ilut(t(0:nifd)))
-
-        inter = 1.0_dp
-        integral = h_cast(0.0_dp)
-
-
-        do i = first + 1, last - 1
-            if (currentOcc_int(i) /= 1) cycle
-
-            step1 = current_stepvector(i)
-            step2 = getStepvalue(t, i)
-            call getDoubleMatrixElement(step2, step1, bVector(i - 1), gen_type%L, gen_type%R, &
-                                        currentB_ilut(i), 1.0_dp, x1_element=tempWeight)
-
-            inter = inter * tempWeight
-        end do
-
-        ! and then add up all the possible integral contribs
-
-        do i = 1, first
-            if (currentOcc_int(i) /= 1) cycle
-
-            do j = last, nSpatOrbs
-                if (currentOcc_int(j) /= 1) cycle
-
-                temp_int = (get_umat_el(i, j, j, i) + get_umat_el(j, i, i, j)) / 2.0_dp
-
-
-                if ((.not. rdm_flag) .and. near_zero(temp_int)) cycle
-
-                ! get the starting matrix element
-                step1 = current_stepvector(i)
-                step2 = getStepvalue(t, i)
-                call getDoubleMatrixElement(step2, step1, -1, gen_type%L, gen_type%R, &
-                                            currentB_ilut(i), 1.0_dp, x1_element=tempWeight)
-
-                ! then calc. the product:
-                do k = i + 1, first
-                    if (currentOcc_int(k) /= 1) cycle
-
-                    step1 = current_stepvector(k)
-                    step2 = getStepvalue(t, k)
-                    ! only 0 branch here
-                    call getDoubleMatrixElement(step2, step1, 0, gen_type%L, gen_type%R, &
-                                                currentB_ilut(k), 1.0_dp, x1_element=tempWeight_1)
-
-                    tempWeight = tempWeight * tempWeight_1
-
-                end do
-
-                do k = last, j - 1
-                    if (currentOcc_int(k) /= 1) cycle
-
-                    step1 = current_stepvector(k)
-                    step2 = getStepvalue(t, k)
-                    call getDoubleMatrixElement(step2, step1, bVector(k - 1), gen_type%L, gen_type%R, &
-                                                currentB_ilut(k), 1.0_dp, x1_element=tempWeight_1)
-
-                    tempWeight = tempWeight * tempWeight_1
-                end do
-
-                ! and then do the the end value at j
-                step1 = current_stepvector(j)
-                step2 = getStepvalue(t, j)
-                call getMixedFullStop(step2, step1, bVector(j - 1), currentB_ilut(j), &
-                                      x1_element=tempWeight_1)
-
-                ! and multiply and add up all contribution elements
-                integral = integral + tempWeight * tempWeight_1 * inter * temp_int
-
-                if (rdm_flag) then
-                    tmp_mat = tempWeight * tempWeight_1 * inter
-                    if (.not. near_zero(tmp_mat)) then
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i, j, j, i)
-                        tmp_rdm_mat(rdm_count) = tmp_mat
-                    end if
-                end if
-            end do
-        end do
-
-        if (rdm_flag) then
-            allocate(rdm_ind(rdm_count), source = tmp_rdm_ind(1:rdm_count))
-            allocate(rdm_mat(rdm_count), source = tmp_rdm_mat(1:rdm_count))
-        end if
-
-    end function calcMixedContribution
-
-    subroutine calcDoubleR2L_stochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcDoubleR2L_stochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                         posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -5985,19 +651,19 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                            currentB_ilut(start2), currentB_ilut(ende1))
+                                            csf_i%B_real(start2), csf_i%B_real(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
 
             branch_pgen = branch_pgen * temp_pgen
@@ -6010,14 +676,14 @@ contains
         ! then do lowering semi start
         weights = weights%ptr
 
-        call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                              posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_i, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! check validity
             check_abort_excit(branch_pgen, t)
@@ -6027,7 +693,7 @@ contains
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                            posSwitches, t, branch_pgen)
 
         ! check validity
@@ -6036,7 +702,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
 
             branch_pgen = branch_pgen * temp_pgen
@@ -6046,7 +712,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6123,9 +789,10 @@ contains
         end if
     end subroutine calcDoubleR2L_stochastic
 
-    subroutine calcDoubleL2R_stochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcDoubleL2R_stochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                         posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -6152,19 +819,19 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                            currentB_ilut(start2), currentB_ilut(ende1))
+                                            csf_i%B_real(start2), csf_i%B_real(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
 
@@ -6177,14 +844,14 @@ contains
         ! then do lowering semi start
         weights = weights%ptr
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_i, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! check validity
             check_abort_excit(branch_pgen, t)
@@ -6194,7 +861,7 @@ contains
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
 
-        call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
@@ -6203,7 +870,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
@@ -6212,7 +879,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6263,9 +930,10 @@ contains
         end if
     end subroutine calcDoubleL2R_stochastic
 
-    subroutine calcDoubleL2R2L_stochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcDoubleL2R2L_stochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                           posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -6295,19 +963,19 @@ contains
             weights = opt_weight
         else
             ! : create correct weights:
-            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                            currentB_ilut(start2), currentB_ilut(ende1))
+                                            csf_i%B_real(start2), csf_i%B_real(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity (defined in macros.h)
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6320,14 +988,14 @@ contains
         ! then do lowering semi start
         weights = weights%ptr
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_i, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! check validity
             check_abort_excit(branch_pgen, t)
@@ -6337,14 +1005,14 @@ contains
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                            posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6354,7 +1022,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6430,9 +1098,10 @@ contains
 
     end subroutine calcDoubleL2R2L_stochastic
 
-    subroutine calcDoubleRaisingStochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcDoubleRaisingStochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -6459,19 +1128,19 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                            currentB_ilut(start2), currentB_ilut(ende1))
+                                            csf_i%B_real(start2), csf_i%B_real(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6485,14 +1154,14 @@ contains
         ! just point to the next weight:
         weights = weights%ptr
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_i, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! check validity
 
@@ -6503,14 +1172,14 @@ contains
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                            posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6520,7 +1189,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6560,9 +1229,10 @@ contains
 
     end subroutine calcDoubleRaisingStochastic
 
-    subroutine calcDoubleR2L2R_stochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcDoubleR2L2R_stochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                           posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -6589,19 +1259,19 @@ contains
                 weights = opt_weight
             else
                 ! : create correct weights:
-                weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+                weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                                 negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                                currentB_ilut(start2), currentB_ilut(ende1))
+                                                csf_i%B_real(start2), csf_i%B_real(ende1))
             end if
 
-            call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+            call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                               negSwitches, t, branch_pgen)
 
             ! check validity
             check_abort_excit(branch_pgen, t)
 
             do iOrb = start1 + 1, start2 - 1
-                call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+                call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                             negSwitches, t, temp_pgen)
                 ! check validity
                 branch_pgen = branch_pgen * temp_pgen
@@ -6614,14 +1284,14 @@ contains
             ! then do lowering semi start
             weights = weights%ptr
 
-            call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+            call calcLoweringSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                                  posSwitches, t, branch_pgen)
 
             ! check validity
             check_abort_excit(branch_pgen, t)
 
             do iOrb = start2 + 1, ende1 - 1
-                call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+                call doubleUpdateStochastic(ilut, csf_i, iOrb, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
                 ! check validity
 
@@ -6632,14 +1302,14 @@ contains
             ! then update weights and and to lowering semi-stop
             weights = weights%ptr
 
-            call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+            call calcLoweringSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                                 posSwitches, t, branch_pgen)
 
             ! check validity
             check_abort_excit(branch_pgen, t)
 
             do iOrb = ende1 + 1, ende2 - 1
-                call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+                call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                             negSwitches, t, temp_pgen)
 
                 branch_pgen = branch_pgen * temp_pgen
@@ -6649,7 +1319,7 @@ contains
             end do
 
             ! and finally to end step
-            call singleStochasticEnd(excitInfo, t)
+            call singleStochasticEnd(csf_i, excitInfo, t)
 
             ! if we do RDMs also store the x0 and x1 coupling coeffs
             if (tFillingStochRDMOnFly) then
@@ -6705,9 +1375,10 @@ contains
 
     end subroutine calcDoubleR2L2R_stochastic
 
-    subroutine calcDoubleLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcDoubleLoweringStochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -6734,19 +1405,19 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                            currentB_ilut(start2), currentB_ilut(ende1))
+                                            csf_i%B_real(start2), csf_i%B_real(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6760,7 +1431,7 @@ contains
         weights = weights%ptr
 
         ! branch_pgen gets update insde the routine!
-        call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                              posSwitches, t, branch_pgen)
 
         ! check validity
@@ -6768,7 +1439,7 @@ contains
 
         do iOrb = start2 + 1, ende1 - 1
             ! branch_pgen gets updated inside update routine
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_i, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! here only need to have probweight, since i cant only check x1 element
             ! check validity
@@ -6780,14 +1451,14 @@ contains
         weights = weights%ptr
 
         ! branch_pgen gets updated inside funciton
-        call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6796,7 +1467,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6838,9 +1509,10 @@ contains
 
     end subroutine calcDoubleLoweringStochastic
 
-    subroutine calcFullStopL2R_stochastic(ilut, excitInfo, t, pgen, &
+    subroutine calcFullStopL2R_stochastic(ilut, csf_i, excitInfo, t, pgen, &
                                           posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
@@ -6864,17 +1536,17 @@ contains
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 ! the weights should be the only necessary change to force
                 ! a switch at the end, as the other branches get 0 weight..
-                weights = init_forced_end_semistart_weight(ilut, se, en, negSwitches(se), &
-                                                           posSwitches(se), currentB_ilut(se))
+                weights = init_forced_end_semistart_weight(csf_i, se, en, negSwitches(se), &
+                                                           posSwitches(se), csf_i%B_real(se))
 
             else
-                weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
-                                               posSwitches(se), currentB_ilut(se))
+                weights = init_semiStartWeight(csf_i, se, en, negSwitches(se), &
+                                               posSwitches(se), csf_i%B_real(se))
             end if
         end if
 
         ! create st
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! in case of early access the pgen should be set to 0
@@ -6884,7 +1556,7 @@ contains
         check_abort_excit(branch_pgen, t)
 
         do i = st + 1, se - 1
-            call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
@@ -6896,7 +1568,7 @@ contains
         ! try the new reusing of the weights object..
         weights = weights%ptr
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
@@ -6907,7 +1579,7 @@ contains
         ! actually that would be, in the full-stop case, temporary measure...
         ! but would unjust favor certain types of excitations..
         do i = se + 1, en - 1
-            call doubleUpdateStochastic(ilut, i, excitInfo, &
+            call doubleUpdateStochastic(ilut, csf_i, i, excitInfo, &
                                         weights, negSwitches, posSwitches, t, branch_pgen)
 
             if (near_zero(extract_matrix_element(t, 2)) .or. near_zero(branch_pgen)) then
@@ -6916,7 +1588,7 @@ contains
             end if
         end do
 
-        call mixedFullStopStochastic(ilut, excitInfo, t)
+        call mixedFullStopStochastic(ilut, csf_i, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
         if (.not. near_zero(extract_matrix_element(t, 1))) then
@@ -6953,10 +1625,10 @@ contains
             elecInd = st
             holeInd = se
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * en], &
-                                               holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_end(&
+                    csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (current_stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t, 2), 1)
@@ -6971,12 +1643,17 @@ contains
         global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_end_contr_approx(t, excitInfo, integral)
+            call calc_mixed_end_contr_approx(t, csf_i, excitInfo, integral)
             pgen = branch_pgen
 
         else
-            call calc_mixed_end_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, &
-                                          integral)
+            call calc_mixed_end_contr_integral(ilut, csf_i, t, excitInfo, &
+                integral)
+            call calc_mixed_end_contr_pgen(ilut, csf_i, t, excitInfo, &
+                branch_pgen, pgen)
+
+!             call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
+!                                           integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -6994,10 +1671,11 @@ contains
 
     end subroutine calcFullStopL2R_stochastic
 
-    subroutine calc_mixed_end_contr_approx(t, excitInfo, integral)
+    subroutine calc_mixed_end_contr_approx(t, csf_i, excitInfo, integral)
         ! for the approx. mixed end contribution i "just" need to
         ! calculate the correct matrix element influences
         integer(n_int), intent(in) :: t(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: integral
         character(*), parameter :: this_routine = "calc_mixed_end_contr_approx"
@@ -7022,7 +1700,7 @@ contains
 
         integral = h_cast(0.0_dp)
 
-        step = current_stepvector(en)
+        step = csf_i%stepvector(en)
 
         ! i am sure the last switch happens at the full-stop!
         sw = en
@@ -7031,20 +1709,20 @@ contains
             select case (step)
             case (1)
                 if (isOne(t, en)) then
-                    top_cont = -Root2 * sqrt((currentB_ilut(en) + 2.0_dp) / &
-                                             currentB_ilut(en))
+                    top_cont = -Root2 * sqrt((csf_i%B_real(en) + 2.0_dp) / &
+                                             csf_i%B_real(en))
 
                 else
-                    top_cont = -Root2 / sqrt(currentB_ilut(en) * (currentB_ilut(en) + 2.0_dp))
+                    top_cont = -Root2 / sqrt(csf_i%B_real(en) * (csf_i%B_real(en) + 2.0_dp))
 
                 end if
             case (2)
                 if (isOne(t, en)) then
-                    top_cont = -Root2 / sqrt(currentB_ilut(en) * (currentB_ilut(en) + 2.0_dp))
+                    top_cont = -Root2 / sqrt(csf_i%B_real(en) * (csf_i%B_real(en) + 2.0_dp))
 
                 else
-                    top_cont = Root2 * sqrt(currentB_ilut(en) / &
-                                            (currentB_ilut(en) + 2.0_dp))
+                    top_cont = Root2 * sqrt(csf_i%B_real(en) / &
+                                            (csf_i%B_real(en) + 2.0_dp))
                 end if
 
             case default
@@ -7058,10 +1736,10 @@ contains
                 mat_ele = 1.0_dp
 
                 do i = en + 1, nSpatOrbs
-                    if (currentOcc_int(i) /= 1) cycle
+                    if (csf_i%Occ_int(i) /= 1) cycle
 
                     ! then check if thats the last step
-                    if (current_stepvector(i) == 2 .and. currentB_int(i) == 0) then
+                    if (csf_i%stepvector(i) == 2 .and. csf_i%B_int(i) == 0) then
                         above_flag = .true.
                     end if
 
@@ -7070,12 +1748,12 @@ contains
                     ! also here?? or is this implicit if the matrix
                     ! element will be 0??
 
-                    step = current_stepvector(i)
+                    step = csf_i%stepvector(i)
 
-                    call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(i), &
+                    call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, csf_i%B_real(i), &
                                                 1.0_dp, x1_element=stay_mat)
 
-                    call getMixedFullStop(step, step, 0, currentB_ilut(i), &
+                    call getMixedFullStop(step, step, 0, csf_i%B_real(i), &
                                           x1_element=end_mat)
 
                     ! this check should never be true, but just to be sure
@@ -7100,408 +1778,10 @@ contains
 
     end subroutine calc_mixed_end_contr_approx
 
-    subroutine calc_mixed_end_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
-                                              pgen, integral, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(inout) :: branch_pgen
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_mixed_end_l2r_contr_nosym"
-
-        integer :: st, se, e, step, sw, i, j, step2, deltaB(nSpatOrbs)
-        real(dp) :: topCont, tempWeight, tempWeight_1, &
-                    posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), minusWeight, &
-                    plusWeight, probWeight, zeroWeight
-        type(WeightObj_t) :: weights
-        procedure(calc_pgen_general), pointer :: calc_pgen_yix
-
-        ASSERT(.not. present(rdm_ind))
-        ASSERT(.not. present(rdm_mat))
-        unused_var(branch_pgen)
-
-        st = excitInfo%fullStart
-        se = excitInfo%secondStart
-        e = excitInfo%fullEnd
-
-        ! for pgen contributions first initialize the orbitals pgen funcitons
-        ! we know its a L2R fullstop so some stepvalues at st and se
-        ! are impossible
-        if (current_stepvector(st) == 3) then
-            if (current_stepvector(se) == 0) then
-                calc_pgen_yix => calc_pgen_yix_end_02
-            else
-                calc_pgen_yix => calc_pgen_yix_end_21
-            end if
-        else
-            if (current_stepvector(se) == 0) then
-                calc_pgen_yix => calc_pgen_yix_end_01
-            else
-                calc_pgen_yix => calc_pgen_yix_end_11
-            end if
-        end if
-
-        integral = h_cast(0.0_dp)
-
-        ! initialize pgen with the original index contribution
-        ! maybe not even do that due to the mess this pgen contribution
-        ! calculation seems to be...
-
-        ! reinitalize weights
-        ! damn have to reinitialize the weights and remaining switches
-        ! for every new fullend...
-
-        ! fuck that: for now write a new loop to calc. all contributing
-        ! pgen influences
-
-        if (e < nSpatOrbs) then
-
-            ! top contribution:
-            if (current_stepvector(e) == 1) then
-                if (isOne(t, e)) then
-                    topCont = -Root2 * sqrt((currentB_ilut(e) + 2.0_dp) / &
-                                            currentB_ilut(e))
-
-                else if (isTwo(t, e)) then
-                    topCont = -Root2 / sqrt(currentB_ilut(e) * (currentB_ilut(e) + 2.0_dp))
-
-                end if
-            else if (current_stepvector(e) == 2) then
-                if (isOne(t, e)) then
-                    topCont = -Root2 / sqrt(currentB_ilut(e) * (currentB_ilut(e) + 2.0_dp))
-
-                else if (isTwo(t, e)) then
-                    topCont = Root2 * sqrt(currentB_ilut(e) / &
-                                           (currentB_ilut(e) + 2.0_dp))
-                end if
-            end if
-
-            if (.not. near_zero(topCont)) then
-
-                do i = e + 1, nSpatOrbs
-                    if (currentOcc_int(i) /= 1) then
-                        cycle
-                    end if
-
-                    tempWeight = 1.0_dp
-                    ! calc product
-                    do j = e + 1, i - 1
-                        step = current_stepvector(j)
-                        call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(j), &
-                                                    1.0_dp, x1_element=tempWeight_1)
-
-                        tempWeight = tempWeight * tempWeight_1
-
-                    end do
-
-                    step = current_stepvector(i)
-
-                    ! get the end contribution
-                    call getMixedFullStop(step, step, 0, currentB_ilut(i), x1_element=tempWeight_1)
-
-                    tempWeight = tempWeight * tempWeight_1
-
-                    integral = integral + tempWeight * (get_umat_el(i, se, st, i) + &
-                                                        get_umat_el(se, i, i, st)) / 2.0_dp
-
-                end do
-
-                integral = integral * topCont
-            end if
-        end if
-
-        ! determine last switch
-        sw = findLastSwitch(ilut, t, se, e)
-
-        ! already set above
-
-        deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
-        ! fuck that to a new loop for the pgen contributions
-        do i = sw, nSpatOrbs
-
-            ! can cycle if non-open orbitals
-            if (currentOcc_int(i) /= 1) then
-                cycle
-            end if
-            ! reinit remaining switches and weights
-            excitInfo%fullEnd = i
-            excitInfo%firstEnd = i
-
-            ! have to initialize probWeight all the time
-            probWeight = 1.0_dp
-
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
-
-            weights = init_semiStartWeight(ilut, se, i, negSwitches(se), &
-                                           posSwitches(se), currentB_ilut(se))
-
-            ! deal with st seperately
-            ! calc st prob cont.:o
-            ! we know its a L2R excitation so, lowering st -> only a
-            ! decision if its a 3 at st
-            if (current_stepvector(st) == 3) then
-                minusWeight = weights%proc%minus(negSwitches(st), &
-                                                 currentB_ilut(st), weights%dat)
-                plusWeight = weights%proc%plus(posSwitches(st), &
-                                               currentB_ilut(st), weights%dat)
-
-                if (isOne(t, st)) then
-                    probWeight = minusWeight / (plusWeight + minusWeight)
-                else
-                    probWeight = plusWeight / (plusWeight + minusWeight)
-                end if
-            end if
-
-            do j = st + 1, se - 1
-                if (currentOcc_int(j) /= 1) then
-                    cycle
-                end if
-
-                ! do i need delta B value too? i think so... fuck!!
-                ! also combine both delta b and stepvalue info here
-                select case (current_stepvector(j) + deltaB(j - 1))
-                case (0)
-                    ! d=1 + b=-1 : 0
-
-                    ! is its a 1 or 2 check stepvalues to get probability
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                                                     currentB_ilut(j), weights%dat)
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                                                   currentB_ilut(j), weights%dat)
-
-                    if (isOne(t, j)) then
-                        probWeight = probWeight * calcStayingProb(minusWeight, &
-                                                                  plusWeight, currentB_ilut(j))
-
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   minusWeight, plusWeight, currentB_ilut(j)))
-                    end if
-                case (3)
-                    ! d=2 + b=1 : 3
-
-                    ! is its a 1 or 2 check stepvalues to get probability
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                                                     currentB_ilut(j), weights%dat)
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                                                   currentB_ilut(j), weights%dat)
-
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(plusWeight, &
-                                                                  minusWeight, currentB_ilut(j))
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   plusWeight, minusWeight, currentB_ilut(j)))
-                    end if
-                end select
-            end do
-            ! do se-st seperately
-            ! its a L2R excitations -> so we know its a raising st here
-            ! only choice if its a 0 stepvalue
-
-            ! reinit double weights
-            weights = weights%ptr
-            if (current_stepvector(se) == 0) then
-                zeroWeight = weights%proc%zero(negSwitches(se), &
-                                               posSwitches(se), currentB_ilut(se), weights%dat)
-
-                if (isOne(t, se)) then
-                    if (deltaB(se - 1) == -1) then
-                        minusWeight = weights%proc%minus(negSwitches(se), &
-                                                         currentB_ilut(se), weights%dat)
-
-                        probWeight = probWeight * minusWeight / (zeroWeight + minusWeight)
-                    else
-                        plusWeight = weights%proc%plus(posSwitches(se), &
-                                                       currentB_ilut(se), weights%dat)
-                        probWeight = probWeight * zeroWeight / (zeroWeight + plusWeight)
-                    end if
-
-                else
-                    if (deltaB(se - 1) == -1) then
-                        minusWeight = weights%proc%minus(negSwitches(se), &
-                                                         currentB_ilut(se), weights%dat)
-                        probWeight = probWeight * zeroWeight / (zeroWeight + minusWeight)
-                    else
-                        plusWeight = weights%proc%plus(posSwitches(se), &
-                                                       currentB_ilut(se), weights%dat)
-                        probWeight = probWeight * plusWeight / (zeroWeight + plusWeight)
-                    end if
-                end if
-            end if
-
-            ! loop over double region
-            do j = se + 1, i - 1
-                if (currentOcc_int(j) /= 1) then
-                    cycle
-                end if
-
-                tempWeight_1 = 1.0_dp
-
-                zeroWeight = weights%proc%zero(negSwitches(j), posSwitches(j), &
-                                               currentB_ilut(j), weights%dat)
-
-                ! combine deltab and stepvalue information in a single select
-                ! case statement
-                select case (deltaB(j - 1) + current_stepvector(j))
-                case (1)
-                    ! d=1 + b=0 :1
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                                                   currentB_ilut(j), weights%dat)
-                    if (isOne(t, j)) then
-                        probWeight = probWeight * calcStayingProb(zeroWeight, &
-                                                                  plusWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(1, 1, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   zeroWeight, plusWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    end if
-                case (2)
-                    ! d=2 + b=0 : 2
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                                                     currentB_ilut(j), weights%dat)
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(zeroWeight, &
-                                                                  minusWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(2, 2, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   zeroWeight, minusWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    end if
-                case (-1)
-                    ! d=1 + b=-2 : -1
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                                                     currentB_ilut(j), weights%dat)
-                    if (isOne(t, j)) then
-                        probWeight = probWeight * calcStayingProb(minusWeight, &
-                                                                  zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(1, 1, -2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   minusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    end if
-                case (4)
-                    ! d=2 + b=2 : 4
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                                                   currentB_ilut(j), weights%dat)
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(plusWeight, &
-                                                                  zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(2, 2, 2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   plusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(1, 2, 2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    end if
-                end select
-
-                if (near_zero(tempWeight_1)) then
-                    probWeight = 0.0_dp
-                end if
-                ! that should be it...
-            end do
-
-            step = current_stepvector(i)
-            step2 = getStepvalue(t, i)
-
-            call getMixedFullStop(step2, step, int(deltaB(i - 1)), currentB_ilut(i), &
-                                  x1_element=tempWeight_1)
-
-            if (near_zero(tempWeight_1)) then
-                probWeight = 0.0_dp
-            end if
-            ! get orbitals prob. also
-            probWeight = probWeight * calc_pgen_yix(i)
-
-            pgen = pgen + probWeight
-
-        end do
-
-        if (sw < e) then
-            ! get inverse of fullstop
-
-            step = current_stepvector(e)
-
-            call getMixedFullStop(step, step, 0, currentB_ilut(e), x1_element=tempWeight)
-
-            tempWeight = 1.0_dp / tempWeight
-
-            do i = e - 1, sw + 1, -1
-                ! should i cycle here too if 0 or 3 stepvector? i guess...
-                if (currentOcc_int(i) /= 1) then
-                    cycle
-                end if
-
-                ! i cant go up until the switch in this case since at the
-                ! switch the deltaB value can be different...
-                step = current_stepvector(i)
-
-                ! update inverse product
-                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight = tempWeight / tempWeight_1
-
-                call getMixedFullStop(step, step, 0, currentB_ilut(i), x1_element=tempWeight_1)
-
-                tempWeight_1 = tempWeight * tempWeight_1
-
-                integral = integral + tempWeight_1 * (get_umat_el(i, se, st, i) + &
-                                                      get_umat_el(se, i, i, st)) / 2.0_dp
-
-            end do
-
-            ! do switch specifically! determine deltaB!
-            ! how?
-            select case (current_stepvector(sw))
-            case (1)
-                ! then a -2 branch arrived!
-                call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight = tempWeight / tempWeight_1
-
-                call getMixedFullStop(2, 1, -2, currentB_ilut(sw), x1_element=tempWeight_1)
-
-            case (2)
-                ! +2 branch arrived!
-
-                call getDoubleMatrixElement(1, 2, 2, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight = tempWeight / tempWeight_1
-
-                call getMixedFullStop(1, 2, 2, currentB_ilut(sw), x1_element=tempWeight_1)
-
-            end select
-
-            tempWeight_1 = tempWeight * tempWeight_1
-
-            integral = integral + tempWeight_1 * (get_umat_el(sw, se, st, sw) + &
-                                                  get_umat_el(se, sw, sw, st)) / 2.0_dp
-
-        end if
-
-        pgen = pgen * orb_pgen_contrib_type_3()
-
-    end subroutine calc_mixed_end_l2r_contr_nosym
-
-    subroutine calcFullStopR2L_stochastic(ilut, excitInfo, t, pgen, &
+    subroutine calcFullStopR2L_stochastic(ilut, csf_i, excitInfo, t, pgen, &
                                           posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
@@ -7523,16 +1803,16 @@ contains
             weights = opt_weight
         else
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-                weights = init_forced_end_semistart_weight(ilut, se, en, negSwitches(se), &
-                                                           posSwitches(se), currentB_ilut(se))
+                weights = init_forced_end_semistart_weight(csf_i, se, en, negSwitches(se), &
+                                                           posSwitches(se), csf_i%B_real(se))
             else
-                weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
-                                               posSwitches(se), currentB_ilut(se))
+                weights = init_semiStartWeight(csf_i, se, en, negSwitches(se), &
+                                               posSwitches(se), csf_i%B_real(se))
             end if
         end if
 
         ! create start
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! in case of early exit pgen should be set to 0
@@ -7542,7 +1822,7 @@ contains
         check_abort_excit(branch_pgen, t)
 
         do i = st + 1, se - 1
-            call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
@@ -7553,7 +1833,7 @@ contains
         ! do the specific semi-start
         weights = weights%ptr
 
-        call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                              posSwitches, t, branch_pgen)
 
         ! check validity
@@ -7564,7 +1844,7 @@ contains
         ! actually that would be, in the full-stop case, temporary measure...
         ! but would unjust favor certain types of excitations..
         do i = se + 1, en - 1
-            call doubleUpdateStochastic(ilut, i, excitInfo, &
+            call doubleUpdateStochastic(ilut, csf_i, i, excitInfo, &
                                         weights, negSwitches, posSwitches, t, branch_pgen)
             ! also here there has to be a switch at some point so check x1
             if (near_zero(extract_matrix_element(t, 2)) .or. near_zero(branch_pgen)) then
@@ -7573,7 +1853,7 @@ contains
             end if
         end do
 
-        call mixedFullStopStochastic(ilut, excitInfo, t)
+        call mixedFullStopStochastic(ilut, csf_i, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
         if (.not. near_zero(extract_matrix_element(t, 1))) then
@@ -7608,10 +1888,10 @@ contains
             elecInd = se
             holeInd = st
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * en], &
-                                               holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_end(&
+                    csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (current_stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
 
         end if
 
@@ -7623,11 +1903,16 @@ contains
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
-            call calc_mixed_end_contr_approx(t, excitInfo, integral)
+            call calc_mixed_end_contr_approx(t, csf_i, excitInfo, integral)
             pgen = branch_pgen
 
         else
-            call calc_mixed_end_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+            call calc_mixed_end_contr_integral(ilut, csf_i, t, excitInfo, &
+                integral)
+            call calc_mixed_end_contr_pgen(ilut, csf_i, t, excitInfo, &
+                branch_pgen, pgen)
+
+!             call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -7645,970 +1930,10 @@ contains
 
     end subroutine calcFullStopR2L_stochastic
 
-    subroutine setup_weight_funcs(t, st, se, weight_funcs)
-        integer(n_int), intent(in) :: t(0:nifguga)
-        integer, intent(in) :: st, se
-        type(BranchWeightArr_t), intent(out) :: weight_funcs(nSpatOrbs)
-
-        integer :: i, step, delta_b(nSpatOrbs)
-
-        delta_b = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
-
-        ! i know that a start was possible -> only check what the excitation
-        ! stepvalue is
-        ! damn.. where are my notes? im not sure about that..
-        if (isOne(t, st)) then
-            weight_funcs(st)%ptr => minus_start_single
-        else if (isTwo(t, st)) then
-            weight_funcs(st)%ptr => plus_start_single
-            ! i also need to consider an non-choosing start or deal with
-            ! that in the routines above..
-        end if
-
-        do i = st + 1, se - 1
-            if (currentOcc_int(i) /= 1) cycle
-
-            step = current_stepvector(i)
-
-            if (step == 1 .and. delta_b(i - 1) == -1) then
-                if (isOne(t, i)) then
-                    weight_funcs(i)%ptr => minus_staying_single
-                else
-                    weight_funcs(i)%ptr => minus_switching_single
-                end if
-            else if (step == 2 .and. delta_b(i - 1) == 1) then
-                if (isTwo(t, i)) then
-                    weight_funcs(i)%ptr => plus_staying_single
-                else
-                    weight_funcs(i)%ptr => plus_switching_single
-                end if
-                ! here i need a one-prob. if no switch was possible.. damn..
-            else
-                weight_funcs(i)%ptr => probability_one
-            end if
-
-        end do
-
-        ! similar to the start, only need to check  the stepvalue of the
-        ! excitaiton, since we know something must have worked
-        if (isOne(t, se)) then
-            if (delta_b(se - 1) == -1) then
-                weight_funcs(se)%ptr => minus_start_double
-            else
-                weight_funcs(se)%ptr => zero_plus_start_double
-            end if
-        else if (isTwo(t, se)) then
-            if (delta_b(se - 1) == -1) then
-                weight_funcs(se)%ptr => zero_minus_start_double
-            else
-                weight_funcs(se)%ptr => plus_start_double
-            end if
-        end if
-
-        do i = se + 1, nSpatOrbs
-            if (currentOcc_int(i) /= 1) cycle
-
-            step = current_stepvector(i)
-
-            ! also combine step and deltab value in a select case statement
-            select case (delta_b(i - 1) + step)
-            case (1)
-                ! d=1 + b=0 : 1
-                if (isOne(t, i)) then
-                    weight_funcs(i)%ptr => zero_plus_staying_double
-                else
-                    weight_funcs(i)%ptr => zero_plus_switching_double
-                end if
-            case (2)
-                ! d=2 + b=0 :2
-                if (isTwo(t, i)) then
-                    weight_funcs(i)%ptr => zero_minus_staying_double
-                else
-                    weight_funcs(i)%ptr => zero_minus_switching_double
-                end if
-
-            case (-1)
-                if (isOne(t, i)) then
-                    weight_funcs(i)%ptr => minus_staying_double
-                else
-                    weight_funcs(i)%ptr => minus_switching_double
-                end if
-
-            case (4)
-                if (isTwo(t, i)) then
-                    weight_funcs(i)%ptr => plus_staying_double
-                else
-                    weight_funcs(i)%ptr => plus_switching_double
-                end if
-
-                ! i also need a case default to prob 1. for a no-choice..
-            case default
-                weight_funcs(i)%ptr => probability_one
-
-            end select
-        end do
-
-    end subroutine setup_weight_funcs
-
-    subroutine calc_mixed_end_contr_sym(ilut, t, excitInfo, branch_pgen, pgen, &
-                                        integral, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(inout) :: branch_pgen
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_mixed_end_contr_sym"
-
-        integer :: st, se, en, step, sw, elecInd, holeInd, i, j
-        real(dp) :: top_cont, mat_ele, stay_mat, end_mat, orb_pgen, new_pgen, &
-                    posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
-                    tmp_pos(nSpatOrbs), tmp_neg(nSpatOrbs)
-        logical :: above_flag
-        type(BranchWeightArr_t) :: weight_funcs(nSpatOrbs)
-        type(WeightObj_t) :: weights
-
-        integer(int_rdm), allocatable :: tmp_rdm_ind(:)
-        real(dp), allocatable :: tmp_rdm_mat(:)
-        logical :: rdm_flag
-        integer :: rdm_count, max_num_rdm
-
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            rdm_flag = .true.
-        else
-            rdm_flag = .false.
-        end if
-
-        ! do as much stuff as possible beforehand
-        st = excitInfo%fullStart
-        se = excitInfo%secondStart
-        en = excitInfo%fullEnd
-        if (excitInfo%typ == excit_type%fullstop_L_to_R) then
-            elecInd = st
-            holeInd = se
-        else if (excitInfo%typ == excit_type%fullstop_R_to_L) then
-            elecInd = se
-            holeInd = st
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-        integral = h_cast(0.0_dp)
-        ! also here i didn't consider the actual end contribution or? ...
-        call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * en], &
-                                           holeInd, orb_pgen)
-
-        pgen = orb_pgen * branch_pgen
-
-        step = current_stepvector(en)
-
-        sw = findLastSwitch(ilut, t, se, en)
-
-        if (rdm_flag) then
-            max_num_rdm = (nSpatOrbs - sw + 1)
-            allocate(tmp_rdm_ind(max_num_rdm), source=0_int_rdm)
-            allocate(tmp_rdm_mat(max_num_rdm), source=0.0_dp)
-            rdm_count = 0
-        end if
-
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
-
-        ! need temporary switch arrays for more efficiently recalcing
-        ! weights
-        tmp_pos = posSwitches
-        tmp_neg = negSwitches
-        ! after last switch only dB = 0 branches! consider that
-        call setup_weight_funcs(t, st, se, weight_funcs)
-
-        if (en < nSpatOrbs) then
-            select case (step)
-            case (1)
-                if (isOne(t, en)) then
-                    top_cont = -Root2 * sqrt((currentB_ilut(en) + 2.0_dp) / &
-                                             currentB_ilut(en))
-
-                else
-                    top_cont = -Root2 / sqrt(currentB_ilut(en) * (currentB_ilut(en) + 2.0_dp))
-
-                end if
-            case (2)
-                if (isOne(t, en)) then
-                    top_cont = -Root2 / sqrt(currentB_ilut(en) * (currentB_ilut(en) + 2.0_dp))
-
-                else
-                    top_cont = Root2 * sqrt(currentB_ilut(en) / &
-                                            (currentB_ilut(en) + 2.0_dp))
-                end if
-
-            case default
-                call stop_all(this_routine, "wrong stepvalues!")
-
-            end select
-
-            if (.not. near_zero(top_cont)) then
-
-                above_flag = .false.
-                mat_ele = 1.0_dp
-
-                ! to avoid to recalc. remaining switches all the time
-                ! just increment them correctly
-                if (step == 1) then
-                    tmp_neg(se:en - 1) = tmp_neg(se:en - 1) + 1.0_dp
-                else
-                    tmp_pos(se:en - 1) = tmp_pos(se:en - 1) + 1.0_dp
-                end if
-
-                do i = en + 1, nSpatOrbs
-                    if (currentOcc_int(i) /= 1) cycle
-
-                    ! then check if thats the last step
-                    if (current_stepvector(i) == 2 .and. currentB_int(i) == 0) then
-                        above_flag = .true.
-                    end if
-
-                    ! then calc. orbital probability
-                    call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * i], &
-                                                       holeInd, orb_pgen)
-
-                    ! should be able to do that without second loop too!
-                    ! figure out!
-                    step = current_stepvector(i)
-
-                    call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                                1.0_dp, x1_element=stay_mat)
-
-                    call getMixedFullStop(step, step, 0, currentB_ilut(i), &
-                                          x1_element=end_mat)
-
-                    if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
-                        ! still have to update the switches before cycling
-                        ! update the switches
-                        if (current_stepvector(i) == 1) then
-                            tmp_neg(se:i - 1) = tmp_neg(se:i - 1) + 1.0_dp
-                        else
-                            tmp_pos(se:i - 1) = tmp_pos(se:i - 1) + 1.0_dp
-                        end if
-
-                        ! also have to update the matrix element, even if
-                        ! the orb pgen is 0
-                        mat_ele = mat_ele * stay_mat
-
-                        cycle
-                    end if
-
-                    ! this check should never be true, but just to be sure
-                    if (near_zero(stay_mat)) above_flag = .true.
-
-                    if (.not. near_zero(end_mat)) then
-                        integral = integral + end_mat * mat_ele * &
-                                   (get_umat_el(i, holeInd, elecInd, i) + &
-                                    get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
-
-                        if (rdm_flag) then
-                            rdm_count = rdm_count + 1
-                            tmp_rdm_ind(rdm_count) = &
-                                contract_2_rdm_ind(i, elecInd, holeInd, i)
-                            tmp_rdm_mat(rdm_count) = top_cont * end_mat * mat_ele
-                        end if
-
-                        ! also only recalc. pgen if matrix element is not 0
-                        excitInfo%fullEnd = i
-                        excitInfo%firstEnd = i
-
-                        weights = init_semiStartWeight(ilut, se, i, tmp_neg(se), &
-                                                       tmp_pos(se), currentB_ilut(se))
-
-                        new_pgen = 1.0_dp
-
-                        ! deal with the start and semi-start seperately
-                        if (currentOcc_int(st) /= 1) then
-                            new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
-                                                                       currentB_ilut(st), tmp_neg(st), tmp_pos(st))
-                        end if
-
-                        do j = st + 1, se - 1
-                            ! can and do i have to cycle here if its not
-                            ! singly occupied??
-                            if (currentOcc_int(j) /= 1) cycle
-
-                            new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
-                                                                      currentB_ilut(j), tmp_neg(j), tmp_pos(j))
-                        end do
-
-                        ! then need to reinit double weight
-                        weights = weights%ptr
-
-                        ! and also with the semi-start
-                        if (currentOcc_int(se) /= 1) then
-                            new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
-                                                                       currentB_ilut(se), tmp_neg(se), tmp_pos(se))
-                        end if
-
-                        do j = se + 1, i - 1
-                            if (currentOcc_int(j) /= 1) cycle
-
-                            new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
-                                                                      currentB_ilut(j), tmp_neg(j), tmp_pos(j))
-                        end do
-
-                        if (t_trunc_guga_pgen .or. &
-                            (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                            if (new_pgen < trunc_guga_pgen) then
-                                new_pgen = 0.0_dp
-                            end if
-                        end if
-
-                        pgen = pgen + new_pgen * orb_pgen
-
-                    end if
-
-                    if (above_flag) exit
-
-                    ! otherwise update your running pgen and matrix element vars
-                    mat_ele = mat_ele * stay_mat
-
-                    ! update the switches
-                    if (current_stepvector(i) == 1) then
-                        tmp_neg(se:i - 1) = tmp_neg(se:i - 1) + 1.0_dp
-                    else
-                        tmp_pos(se:i - 1) = tmp_pos(se:i - 1) + 1.0_dp
-                    end if
-
-                end do
-
-                integral = integral * top_cont
-            end if
-        end if
-
-        if (rdm_flag .and. sw == en) then
-            rdm_count = rdm_count + 1
-            tmp_rdm_ind(rdm_count) = &
-                contract_2_rdm_ind(sw, elecInd, holeInd, sw)
-            tmp_rdm_mat(rdm_count) = 1.0_dp
-        end if
-
-        if (sw < en) then
-
-            step = current_stepvector(en)
-
-            ! inverse fullstop matrix element
-            call getMixedFullStop(step, step, 0, currentB_ilut(en), x1_element=mat_ele)
-
-            ASSERT(.not. near_zero(mat_ele))
-
-            mat_ele = 1.0_dp / mat_ele
-
-            ! have to change the switches before the first cycle:
-            ! but for cycling backwards, thats not so easy.. need todo
-
-            do i = en - 1, sw + 1, -1
-
-                if (currentOcc_int(i) /= 1) cycle
-
-                ! get orbital pgen
-                call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * i], &
-                                                   holeInd, orb_pgen)
-
-                if (current_stepvector(i) == 1) then
-                    ! by looping in this direction i have to reduce
-                    ! the number of switches at the beginning
-                    ! but only to the left or??
-                    ! i think i have to rethink that.. thats not so easy..
-                    negSwitches(se:i - 1) = negSwitches(se:i - 1) - 1.0_dp
-
-                else
-                    posSwitches(se:i - 1) = posSwitches(se:i - 1) - 1.0_dp
-
-                end if
-
-                step = current_stepvector(i)
-                ! update inverse product
-                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=stay_mat)
-
-                call getMixedFullStop(step, step, 0, currentB_ilut(i), x1_element=end_mat)
-
-                ! update matrix element
-                ASSERT(.not. near_zero(stay_mat))
-                mat_ele = mat_ele / stay_mat
-
-                ! dont i still have to atleast update the matrix element
-                ! even if the orbital pgen is 0??
-                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
-
-                if (.not. near_zero(end_mat)) then
-
-                    integral = integral + end_mat * mat_ele * &
-                               (get_umat_el(i, holeInd, elecInd, i) + &
-                                get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
-
-                    if (rdm_flag) then
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = &
-                            contract_2_rdm_ind(i, elecInd, holeInd, i)
-                        tmp_rdm_mat(rdm_count) = end_mat * mat_ele
-                    end if
-
-                    ! only recalc. pgen if matrix element is not 0
-                    excitInfo%fullEnd = i
-                    excitInfo%firstEnd = i
-
-                    weights = init_semiStartWeight(ilut, se, i, negSwitches(se), &
-                                                   posSwitches(se), currentB_ilut(se))
-
-                    new_pgen = 1.0_dp
-
-                    ! deal with the start and semi-start seperately
-                    if (currentOcc_int(st) /= 1) then
-                        new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
-                                                                   currentB_ilut(st), negSwitches(st), posSwitches(st))
-                    end if
-
-                    do j = st + 1, se - 1
-                        if (currentOcc_int(j) /= 1) cycle
-
-                        new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
-                                                                  currentB_ilut(j), negSwitches(j), posSwitches(j))
-                    end do
-
-                    ! then need to reinit double weight
-                    weights = weights%ptr
-
-                    ! and also with the semi-start
-                    if (currentOcc_int(se) /= 1) then
-                        new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
-                                                                   currentB_ilut(se), negSwitches(se), posSwitches(se))
-                    end if
-
-                    do j = se + 1, i - 1
-                        if (currentOcc_int(j) /= 1) cycle
-
-                        new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
-                                                                  currentB_ilut(j), negSwitches(j), posSwitches(j))
-                    end do
-
-                    if (t_trunc_guga_pgen .or. &
-                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                        if (new_pgen < trunc_guga_pgen) then
-                            new_pgen = 0.0_dp
-                        end if
-                    end if
-
-                    pgen = pgen + new_pgen * orb_pgen
-
-                end if
-
-            end do
-
-            ! deal with switch specifically:
-
-            ! figure out orbital pgen
-            call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * sw], holeInd, &
-                                               orb_pgen)
-
-            if (.not. near_zero(orb_pgen) .or. rdm_flag) then
-
-                step = current_stepvector(sw)
-
-                if (step == 1) then
-                    ! then a -2 branch arrived!
-                    call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                                1.0_dp, x1_element=stay_mat)
-
-                    call getMixedFullStop(2, 1, -2, currentB_ilut(sw), x1_element=end_mat)
-
-                    ! also reduce negative switches then
-                    ! only everything to the left or?
-                    negSwitches(se:sw - 1) = negSwitches(se:sw - 1) - 1.0_dp
-
-                else
-                    ! +2 branch arrived!
-
-                    call getDoubleMatrixElement(1, 2, 2, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                                1.0_dp, x1_element=stay_mat)
-
-                    call getMixedFullStop(1, 2, 2, currentB_ilut(sw), x1_element=end_mat)
-
-                    ! reduce positive switchtes otherwise
-                    posSwitches(se:sw - 1) = posSwitches(se:sw - 1) - 1.0_dp
-
-                end if
-
-                ASSERT(.not. near_zero(stay_mat))
-
-                mat_ele = mat_ele * end_mat / stay_mat
-
-                integral = integral + mat_ele * (get_umat_el(sw, holeInd, elecInd, sw) + &
-                                                 get_umat_el(holeInd, sw, sw, elecInd)) / 2.0_dp
-
-                if (rdm_flag) then
-                    rdm_count = rdm_count + 1
-                    tmp_rdm_ind(rdm_count) = &
-                        contract_2_rdm_ind(sw, elecInd, holeInd, sw)
-                    tmp_rdm_mat(rdm_count) = mat_ele
-                end if
-
-                ! loop to get correct pgen
-                new_pgen = 1.0_dp
-
-                weights = init_semiStartWeight(ilut, se, sw, negSwitches(se), &
-                                               posSwitches(se), currentB_ilut(se))
-
-                ! deal with the start and semi-start seperately
-                if (currentOcc_int(st) /= 1) then
-                    new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
-                                                               currentB_ilut(st), negSwitches(st), posSwitches(st))
-                end if
-
-                do j = st + 1, se - 1
-                    if (currentOcc_int(j) /= 1) cycle
-
-                    new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
-                                                              currentB_ilut(j), negSwitches(j), posSwitches(j))
-                end do
-
-                weights = weights%ptr
-
-                ! and also with the semi-start
-                if (currentOcc_int(se) /= 1) then
-                    new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
-                                                               currentB_ilut(se), negSwitches(se), posSwitches(se))
-                end if
-
-                do j = se + 1, sw - 1
-                    if (currentOcc_int(j) /= 1) cycle
-
-                    new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
-                                                              currentB_ilut(j), negSwitches(j), posSwitches(j))
-                end do
-
-                if (t_trunc_guga_pgen .or. &
-                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                    if (new_pgen < trunc_guga_pgen) then
-                        new_pgen = 0.0_dp
-                    end if
-                end if
-
-                pgen = pgen + new_pgen * orb_pgen
-
-            end if
-        end if
-
-        pgen = pgen / real(ElecPairs, dp)
-
-        if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
-
-        if (rdm_flag) then
-            allocate(rdm_ind(rdm_count), source=tmp_rdm_ind(1:rdm_count))
-            allocate(rdm_mat(rdm_count), source=tmp_rdm_mat(1:rdm_count))
-
-            deallocate(tmp_rdm_ind)
-            deallocate(tmp_rdm_mat)
-        end if
-
-    end subroutine calc_mixed_end_contr_sym
-
-    subroutine calc_mixed_end_r2l_contr_nosym(ilut, t, excitInfo, branch_pgen, &
-                                              pgen, integral, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(inout) :: branch_pgen
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_mixed_end_r2l_contr_nosym"
-
-        integer :: st, se, en, step, sw, i, j, step2, deltaB(nSpatOrbs)
-        real(dp) :: topCont, tempWeight, tempWeight_1, &
-                    posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), minusWeight, &
-                    plusWeight, probWeight, zeroWeight
-        type(WeightObj_t) :: weights
-        procedure(calc_pgen_general), pointer :: calc_pgen_yix
-
-        ASSERT(.not. present(rdm_ind))
-        ASSERT(.not. present(rdm_mat))
-
-        unused_var(branch_pgen)
-
-        st = excitInfo%fullStart
-        se = excitInfo%secondStart
-        en = excitInfo%fullEnd
-
-        ! for pgen contributions first initialize the orbitals pgen funcitons
-        ! its a R2L fullstop -> some stepvalues at start and semi impossible
-        if (current_stepvector(st) == 0) then
-            if (current_stepvector(se) == 3) then
-                calc_pgen_yix => calc_pgen_yix_end_02
-            else
-                calc_pgen_yix => calc_pgen_yix_end_01
-            end if
-        else
-            if (current_stepvector(se) == 3) then
-                calc_pgen_yix => calc_pgen_yix_end_21
-            else
-                calc_pgen_yix => calc_pgen_yix_end_11
-            end if
-        end if
-
-        integral = h_cast(0.0_dp)
-        if (en < nSpatOrbs) then
-
-            ! top contribution:
-            if (current_stepvector(en) == 1) then
-                if (isOne(t, en)) then
-                    topCont = -Root2 * sqrt((currentB_ilut(en) + 2.0_dp) / &
-                                            currentB_ilut(en))
-
-                else if (isTwo(t, en)) then
-                    topCont = -Root2 / sqrt(currentB_ilut(en) * (currentB_ilut(en) + 2.0_dp))
-
-                end if
-            else if (current_stepvector(en) == 2) then
-                if (isOne(t, en)) then
-                    topCont = -Root2 / sqrt(currentB_ilut(en) * (currentB_ilut(en) + 2.0_dp))
-
-                else if (isTwo(t, en)) then
-                    topCont = Root2 * sqrt(currentB_ilut(en) / &
-                                           (currentB_ilut(en) + 2.0_dp))
-                end if
-#ifdef DEBUG_
-            else
-                call stop_all(this_routine, "wrong stepvalues!")
-#endif
-            end if
-
-            if (.not. near_zero(topCont)) then
-
-                do i = en + 1, nSpatOrbs
-
-                    tempWeight = 1.0_dp
-                    if (currentOcc_int(i) /= 1) then
-                        cycle
-                    end if
-
-                    ! calc product
-                    do j = en + 1, i - 1
-                        step = current_stepvector(j)
-                        call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(j), &
-                                                    1.0_dp, x1_element=tempWeight_1)
-
-                        tempWeight = tempWeight * tempWeight_1
-
-                    end do
-
-                    step = current_stepvector(i)
-
-                    ! get the end contribution
-                    call getMixedFullStop(step, step, 0, currentB_ilut(i), x1_element=tempWeight_1)
-
-                    tempWeight = tempWeight * tempWeight_1
-
-                    integral = integral + tempWeight * (get_umat_el(i, st, se, i) + &
-                                                        get_umat_el(st, i, i, se)) / 2.0_dp
-
-                end do
-
-                integral = integral * topCont
-            end if
-        end if
-
-        sw = findLastSwitch(ilut, t, se, en)
-
-        ASSERT(sw > se)
-
-        ! already set above
-
-        deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
-
-        ! fuck that to a new loop for the pgen contributions
-        do i = sw, nSpatOrbs
-            ! can cycle if non-open orbitals
-            if (currentOcc_int(i) /= 1) then
-                cycle
-            end if
-            ! reinit remaining switches and weights
-            excitInfo%fullEnd = i
-            excitInfo%firstEnd = i
-
-            ! have to initialize probWeight all the time
-            probWeight = 1.0_dp
-
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
-
-            weights = init_semiStartWeight(ilut, se, i, negSwitches(se), &
-                                           posSwitches(se), currentB_ilut(se))
-
-            ! deal with start seperately
-            ! calc start prob cont.:o
-            ! we know its a R2L excitation so, raising start -> only a
-            ! decision if its a 0 at start
-            if (current_stepvector(st) == 0) then
-                minusWeight = weights%proc%minus(negSwitches(st), &
-                                                 currentB_ilut(st), weights%dat)
-                plusWeight = weights%proc%plus(posSwitches(st), &
-                                               currentB_ilut(st), weights%dat)
-
-                if (isOne(t, st)) then
-                    probWeight = minusWeight / (plusWeight + minusWeight)
-                else
-                    probWeight = plusWeight / (plusWeight + minusWeight)
-                end if
-            end if
-
-            do j = st + 1, se - 1
-                if (currentOcc_int(j) /= 1) then
-                    cycle
-                end if
-
-                ! do i need delta B value too? i think so... fuck!!
-                if (current_stepvector(j) == 1 .and. deltaB(j - 1) == -1) then
-                    ! is its a 1 or 2 check stepvalues to get probability
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                                                     currentB_ilut(j), weights%dat)
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                                                   currentB_ilut(j), weights%dat)
-
-                    if (isOne(t, j)) then
-                        probWeight = probWeight * calcStayingProb(minusWeight, &
-                                                                  plusWeight, currentB_ilut(j))
-
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   minusWeight, plusWeight, currentB_ilut(j)))
-                    end if
-                else if (current_stepvector(j) == 2 .and. deltaB(j - 1) == 1) then
-
-                    ! is its a 1 or 2 check stepvalues to get probability
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                                                     currentB_ilut(j), weights%dat)
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                                                   currentB_ilut(j), weights%dat)
-
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(plusWeight, &
-                                                                  minusWeight, currentB_ilut(j))
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   plusWeight, minusWeight, currentB_ilut(j)))
-                    end if
-                end if
-            end do
-            ! do semi-start seperately
-            ! its a R2L excitations -> so we know its a lowering start here
-            ! only choice if its a 0 stepvalue
-
-            ! reinit double weights
-            weights = weights%ptr
-
-            if (current_stepvector(se) == 3) then
-                zeroWeight = weights%proc%zero(negSwitches(se), &
-                                               posSwitches(se), currentB_ilut(se), weights%dat)
-
-                if (isOne(t, se)) then
-                    if (deltaB(se - 1) == -1) then
-                        minusWeight = weights%proc%minus(negSwitches(se), &
-                                                         currentB_ilut(se), weights%dat)
-
-                        probWeight = probWeight * minusWeight / (zeroWeight + minusWeight)
-                    else
-                        plusWeight = weights%proc%plus(posSwitches(se), &
-                                                       currentB_ilut(se), weights%dat)
-                        probWeight = probWeight * zeroWeight / (zeroWeight + plusWeight)
-                    end if
-
-                else
-                    if (deltaB(se - 1) == -1) then
-                        minusWeight = weights%proc%minus(negSwitches(se), &
-                                                         currentB_ilut(se), weights%dat)
-                        probWeight = probWeight * zeroWeight / (zeroWeight + minusWeight)
-                    else
-                        plusWeight = weights%proc%plus(posSwitches(se), &
-                                                       currentB_ilut(se), weights%dat)
-                        probWeight = probWeight * plusWeight / (zeroWeight + plusWeight)
-                    end if
-                end if
-            end if
-
-            ! loop over double region
-            do j = se + 1, i - 1
-                if (currentOcc_int(j) /= 1) then
-                    cycle
-                end if
-
-                tempWeight_1 = 1.0_dp
-
-                zeroWeight = weights%proc%zero(negSwitches(j), posSwitches(j), &
-                                               currentB_ilut(j), weights%dat)
-
-                ! also combine deltaB and the stepvalue in the select case
-                ! here
-                select case (deltaB(j - 1) + current_stepvector(j))
-                case (1)
-                    ! d=1 + b=0 : 1
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                                                   currentB_ilut(j), weights%dat)
-                    if (isOne(t, j)) then
-                        probWeight = probWeight * calcStayingProb(zeroWeight, &
-                                                                  plusWeight, currentB_ilut(j))
-
-                        call getDoubleMatrixElement(1, 1, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   zeroWeight, plusWeight, currentB_ilut(j)))
-
-                        call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    end if
-                case (2)
-                    ! d=2 + b=0 : 2
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                                                     currentB_ilut(j), weights%dat)
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(zeroWeight, &
-                                                                  minusWeight, currentB_ilut(j))
-
-                        call getDoubleMatrixElement(2, 2, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   zeroWeight, minusWeight, currentB_ilut(j)))
-
-                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    end if
-                case (-1)
-                    ! d=1 + b=-2 : -1
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                                                     currentB_ilut(j), weights%dat)
-                    if (isOne(t, j)) then
-                        probWeight = probWeight * calcStayingProb(minusWeight, &
-                                                                  zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(1, 1, -2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   minusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    end if
-                case (4)
-                    ! d=2 + b=2 : 4
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                                                   currentB_ilut(j), weights%dat)
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(plusWeight, &
-                                                                  zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(2, 2, 2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                   plusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(1, 2, 2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(j), 1.0_dp, x1_element=tempWeight_1)
-                    end if
-                end select
-
-                if (near_zero(tempWeight_1)) then
-                    probWeight = 0.0_dp
-                end if
-                ! that should be it...
-            end do
-            ! get orbitals prob. also
-
-            step = current_stepvector(i)
-            step2 = getStepvalue(t, i)
-
-            call getMixedFullStop(step2, step, deltaB(i - 1), currentB_ilut(i), x1_element=tempWeight_1)
-
-            if (near_zero(tempWeight_1)) then
-                probWeight = 0.0_dp
-            end if
-
-            probWeight = probWeight * calc_pgen_yix(i)
-
-            pgen = pgen + probWeight
-
-        end do
-
-        if (sw < en) then
-            ! get inverse of fullstop
-            step = current_stepvector(en)
-
-            call getMixedFullStop(step, step, 0, currentB_ilut(en), x1_element=tempWeight)
-
-            tempWeight = 1.0_dp / tempWeight
-
-            do i = en - 1, sw + 1, -1
-                if (currentOcc_int(i) /= 1) then
-                    cycle
-                end if
-                ! i cant go up until the switch in this case since at the
-                ! switch the deltaB value can be different...
-                step = current_stepvector(i)
-
-                ! update inverse product
-                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight = tempWeight / tempWeight_1
-
-                call getMixedFullStop(step, step, 0, currentB_ilut(i), x1_element=tempWeight_1)
-
-                tempWeight_1 = tempWeight * tempWeight_1
-
-                integral = integral + tempWeight_1 * (get_umat_el(i, st, se, i) + &
-                                                      get_umat_el(st, i, i, se)) / 2.0_dp
-
-            end do
-
-            ! do switch specifically! determine deltaB!
-            ! how?
-            select case (current_stepvector(sw))
-            case (1)
-                ! then a -2 branch arrived!
-                call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight = tempWeight / tempWeight_1
-
-                call getMixedFullStop(2, 1, -2, currentB_ilut(sw), x1_element=tempWeight_1)
-
-            case (2)
-                ! +2 branch arrived!
-
-                call getDoubleMatrixElement(1, 2, 2, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight = tempWeight / tempWeight_1
-
-                call getMixedFullStop(1, 2, 2, currentB_ilut(sw), x1_element=tempWeight_1)
-
-#ifdef DEBUG_
-            case default
-                call stop_all(this_routine, "wrong stepvalues!")
-#endif
-            end select
-
-            tempWeight_1 = tempWeight * tempWeight_1
-
-            integral = integral + tempWeight_1 * (get_umat_el(sw, st, se, sw) + &
-                                                  get_umat_el(st, sw, sw, se)) / 2.0_dp
-
-        end if
-        ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-
-        pgen = pgen * orb_pgen_contrib_type_3()
-
-    end subroutine calc_mixed_end_r2l_contr_nosym
-
-    subroutine doubleUpdateStochastic(ilut, s, excitInfo, weights, negSwitches, &
+    subroutine doubleUpdateStochastic(ilut, csf_i, s, excitInfo, weights, negSwitches, &
                                       posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: s
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
@@ -8624,7 +1949,7 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(s > 0 .and. s <= nSpatOrbs)
 
-        if (currentOcc_int(s) /= 1) then
+        if (csf_i%Occ_int(s) /= 1) then
             ! no change in stepvector or matrix element in this case
             return
         end if
@@ -8632,7 +1957,7 @@ contains
         ! and for more readibility extract certain values:
         gen1 = excitInfo%gen1
         gen2 = excitInfo%gen2
-        bVal = currentB_ilut(s)
+        bVal = csf_i%B_real(s)
         ! stupid! only need at order at semistarts and semistops and not for
         ! the overlap region
         order = 1.0_dp
@@ -8643,7 +1968,7 @@ contains
         ! this give me 6 distinct integer quantities which i can choose
         ! from in a select case statement!
 
-        select case (current_stepvector(s) + deltaB)
+        select case (csf_i%stepvector(s) + deltaB)
             ! depending on the deltaB value different possibs
         case (3)
             ! d=1 + b=2 = 3
@@ -8703,7 +2028,7 @@ contains
             ! 1.. and then a switch to +2 cant happen..
             ! but that should have been dealt with the weights below
             ! probably.. so thats why it didnt matter probably..
-            if (currentB_int(s) == 1) then
+            if (csf_i%B_int(s) == 1) then
                 ! only staying branch
                 call getDoubleMatrixElement(1, 1, deltaB, gen1, gen2, bVal, &
                                             order, tempWeight_0, tempWeight_1)
@@ -8805,7 +2130,7 @@ contains
             ! d=2 + b=2 : 4
 
             ! have to check b value if branching is possible
-            if (currentB_int(s) < 2) then
+            if (csf_i%B_int(s) < 2) then
 
                 ! only switch possible
                 ! 2 -> 1
@@ -8887,8 +2212,9 @@ contains
         end if
     end subroutine doubleUpdateStochastic
 
-    subroutine mixedFullStopStochastic(ilut, excitInfo, t)
+    subroutine mixedFullStopStochastic(ilut, csf_i, excitInfo, t)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: t(0:nifguga)
         character(*), parameter :: this_routine = "mixedFullStopStochastic"
@@ -8901,7 +2227,7 @@ contains
         ! no 3 allowed at end or else it would be single-excitation-like
 
         ende = excitInfo%fullEnd
-        bVal = currentB_ilut(ende)
+        bVal = csf_i%B_real(ende)
 
         deltaB = getDeltaB(t)
 
@@ -8913,15 +2239,15 @@ contains
         ! asserts dont work anymore with new select case statements
         ! do it out here:
 #ifdef DEBUG_
-        if (current_stepvector(ende) == 1) then
+        if (csf_i%stepvector(ende) == 1) then
             ASSERT(deltaB /= 2)
         end if
-        if (current_stepvector(ende) == 2) then
+        if (csf_i%stepvector(ende) == 2) then
             ASSERT(deltaB /= -2)
         end if
 #endif
 
-        select case (deltaB + current_stepvector(ende))
+        select case (deltaB + csf_i%stepvector(ende))
         case (1)
             ! d=1 + b=0 : 1
             ! ! +2 branch not allowed here
@@ -8969,9 +2295,10 @@ contains
         ! switch happens...
     end subroutine mixedFullStopStochastic
 
-    subroutine calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+    subroutine calcRaisingSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                               posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
@@ -8988,7 +2315,7 @@ contains
         ! i can be sure that there is no 3 or 0 at the fullEnd, or otherwise
         ! this would be single-excitation like.
         se = excitInfo%secondStart
-        bVal = currentB_ilut(se)
+        bVal = csf_i%B_real(se)
 
         deltaB = getDeltaB(t)
 
@@ -9000,7 +2327,7 @@ contains
         ! i can probably fix it when i finally get to this point in
         ! test running
 
-        select case (current_stepvector(se))
+        select case (csf_i%stepvector(se))
         case (1)
             ! 1 -> 3
             set_orb(t, 2 * se)
@@ -9071,7 +2398,7 @@ contains
                 ! +1 branch arriving -> have to check b values
                 ! UPDATE: include b value check into probWeight calculation
                 ! todo
-                if (currentB_int(se) < 2) then
+                if (csf_i%B_int(se) < 2) then
                     ! only 0 branch possible
                     ! todo: in this forced cases due to the b value, have to
                     ! think about, how that influences the probWeight...
@@ -9142,9 +2469,10 @@ contains
 
     end subroutine calcRaisingSemiStartStochastic
 
-    subroutine calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+    subroutine calcLoweringSemiStartStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                                posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
@@ -9162,7 +2490,7 @@ contains
         ! this would be single-excitation like.
 
         se = excitInfo%secondStart
-        bVal = currentB_ilut(se)
+        bVal = csf_i%B_real(se)
 
         deltaB = getDeltaB(t)
 
@@ -9171,7 +2499,7 @@ contains
         ! do some debugging:
         ! same gfortran compilex issue fix as above
 
-        select case (current_stepvector(se))
+        select case (csf_i%stepvector(se))
         case (1)
             ! 1 -> 0
             clr_orb(t, 2 * se - 1)
@@ -9240,7 +2568,7 @@ contains
                 end if
             else
                 ! +1 branch arriving -> have to check b values
-                if (currentB_int(se) < 2) then
+                if (csf_i%B_int(se) < 2) then
                     ! only 0 branch possible
                     ! todo: in this forced cases due to the b value, have to
                     ! think about, how that influences the probWeight...
@@ -9311,9 +2639,10 @@ contains
 
     end subroutine calcLoweringSemiStartStochastic
 
-    subroutine calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+    subroutine calcRaisingSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                              posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
@@ -9328,14 +2657,14 @@ contains
         ASSERT(.not. isZero(ilut, excitInfo%firstEnd))
 
         semi = excitInfo%firstEnd
-        bVal = currentB_ilut(semi)
+        bVal = csf_i%B_real(semi)
 
         ! in the stochastic case i am sure that at there is no 3 or 0 at the
         ! full start... so definetly all deltaB branches can arrive here
         ! first deal with the forced ones
         deltaB = getDeltaB(t)
 
-        select case (current_stepvector(semi))
+        select case (csf_i%stepvector(semi))
         case (1)
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 if (getDeltaB(t) == 2) then
@@ -9405,7 +2734,7 @@ contains
 
             case (0)
                 ! deltaB = 0 branch arrives -> check b
-                if (currentB_int(semi) == 0) then
+                if (csf_i%B_int(semi) == 0) then
                     ! only 3 -> 1 possble
                     clr_orb(t, 2 * semi)
 
@@ -9488,9 +2817,10 @@ contains
 
     end subroutine calcRaisingSemiStopStochastic
 
-    subroutine calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+    subroutine calcLoweringSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                               posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
@@ -9505,14 +2835,14 @@ contains
         ASSERT(.not. isThree(ilut, excitInfo%firstEnd))
 
         semi = excitInfo%firstEnd
-        bVal = currentB_ilut(semi)
+        bVal = csf_i%B_real(semi)
 
         ! in the stochastic case i am sure that at there is no 3 or 0 at the
         ! full start... so definetly all deltaB branches can arrive here
         ! first deal with the forced ones
         deltaB = getDeltaB(t)
 
-        select case (current_stepvector(semi))
+        select case (csf_i%stepvector(semi))
         case (1)
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 if (getDeltaB(t) == 2) then
@@ -9580,7 +2910,7 @@ contains
 
             case (0)
                 ! deltaB=0 branch arrives -> check b
-                if (currentB_int(semi) == 0) then
+                if (csf_i%B_int(semi) == 0) then
                     ! only 0 -> 1 possble
                     set_orb(t, 2 * semi - 1)
 
@@ -9658,9 +2988,10 @@ contains
 
     end subroutine calcLoweringSemiStopStochastic
 
-    subroutine calcFullStartR2L_stochastic(ilut, excitInfo, t, pgen, &
+    subroutine calcFullStartR2L_stochastic(ilut, csf_i, excitInfo, t, pgen, &
                                            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
@@ -9689,15 +3020,15 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
-                                           posSwitches(se), currentB_ilut(se))
+            weights = init_fullStartWeight(csf_i, se, en, negSwitches(se), &
+                                           posSwitches(se), csf_i%B_real(se))
         end if
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             ! todo the switch
-            call forced_mixed_start(ilut, excitInfo, t, branch_pgen)
+            call forced_mixed_start(ilut, csf_i, excitInfo, t, branch_pgen)
         else
-            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+            call mixedFullStartStochastic(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
         end if
 
@@ -9712,7 +3043,7 @@ contains
         ! single excitations
 
         do i = st + 1, se - 1
-            call doubleUpdateStochastic(ilut, i, excitInfo, &
+            call doubleUpdateStochastic(ilut, csf_i, i, excitInfo, &
                                         weights, negSwitches, posSwitches, t, branch_pgen)
 
             ! check validity
@@ -9729,7 +3060,7 @@ contains
         ! and then use smth like
         weights = weights%ptr
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                            posSwitches, t, branch_pgen)
 
         ! check validity
@@ -9738,7 +3069,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do i = se + 1, en - 1
-            call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
 
@@ -9755,7 +3086,7 @@ contains
 
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
@@ -9771,10 +3102,10 @@ contains
             elecInd = se
             holeInd = en
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contrib_start([2 * st, 2 * elecInd], &
-                                                 holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_start(&
+                    csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (current_stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t, 1) + &
@@ -9791,12 +3122,17 @@ contains
         global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_start_contr_approx(t, excitInfo, integral)
+            call calc_mixed_start_contr_approx(t, csf_i, excitInfo, integral)
             pgen = branch_pgen
 
         else
-            call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, &
-                                            integral)
+            call calc_mixed_start_contr_integral(ilut, csf_i, t, excitInfo, &
+                integral)
+            call calc_mixed_start_contr_pgen(ilut, csf_i, t, excitInfo, &
+                branch_pgen, pgen)
+
+!             call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
+!                                             integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -9814,8 +3150,9 @@ contains
 
     end subroutine calcFullStartR2L_stochastic
 
-    subroutine calc_mixed_start_contr_approx(t, excitInfo, integral)
+    subroutine calc_mixed_start_contr_approx(t, csf_i, excitInfo, integral)
         integer(n_int), intent(in) :: t(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: integral
         character(*), parameter :: this_routine = "calc_mixed_start_contr_approx"
@@ -9843,7 +3180,7 @@ contains
         sw = st
 
         ! what can i precalculate beforehand?
-        step = current_stepvector(st)
+        step = csf_i%stepvector(st)
 
         integral = h_cast(0.0_dp)
 
@@ -9851,15 +3188,15 @@ contains
 
             ASSERT(isTwo(t, st))
 
-            bot_cont = -sqrt(2.0_dp / ((currentB_ilut(st) - 1.0_dp) * &
-                                       (currentB_ilut(st) + 1.0_dp)))
+            bot_cont = -sqrt(2.0_dp / ((csf_i%B_real(st) - 1.0_dp) * &
+                                       (csf_i%B_real(st) + 1.0_dp)))
 
         else
 
             ASSERT(isOne(t, st))
 
-            bot_cont = -sqrt(2.0_dp / ((currentB_ilut(st) + 1.0_dp) * &
-                                       (currentB_ilut(st) + 3.0_dp)))
+            bot_cont = -sqrt(2.0_dp / ((csf_i%B_real(st) + 1.0_dp) * &
+                                       (csf_i%B_real(st) + 3.0_dp)))
 
         end if
 
@@ -9869,22 +3206,22 @@ contains
             below_flag = .false.
 
             do i = st - 1, 1, -1
-                if (currentOcc_int(i) /= 1) cycle
+                if (csf_i%Occ_int(i) /= 1) cycle
 
                 ! then check if thats the last stepvalue to consider
-                if (current_stepvector(i) == 1 .and. currentB_int(i) == 1) then
+                if (csf_i%stepvector(i) == 1 .and. csf_i%B_int(i) == 1) then
                     below_flag = .true.
                 end if
 
                 ! then deal with the matrix element and branching probabilities
-                step = current_stepvector(i)
+                step = csf_i%stepvector(i)
 
                 ! get both start and staying matrix elements -> and update
                 ! matrix element contributions on the fly to avoid second loop!
-                call getDoubleMatrixElement(step, step, -1, gen_type%R, gen_type%L, currentB_ilut(i), &
+                call getDoubleMatrixElement(step, step, -1, gen_type%R, gen_type%L, csf_i%B_real(i), &
                                             1.0_dp, x1_element=start_mat)
 
-                call getDoubleMatrixElement(step, step, 0, gen_type%R, gen_type%L, currentB_ilut(i), &
+                call getDoubleMatrixElement(step, step, 0, gen_type%R, gen_type%L, csf_i%B_real(i), &
                                             1.0_dp, x1_element=stay_mat)
 
                 if (near_zero(stay_mat)) below_flag = .true.
@@ -9906,414 +3243,10 @@ contains
 
     end subroutine calc_mixed_start_contr_approx
 
-    subroutine calc_mixed_start_r2l_contr_nosym(ilut, t, excitInfo, branch_pgen, &
-                                                pgen, integral, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(inout) :: branch_pgen
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_mixed_start_r2l_contr_nosym"
-
-        integer :: se, en, st, i, j, step, sw, step2
-        type(WeightObj_t) :: weights
-        real(dp) :: origWeight, negSwitches(nSpatOrbs), posSwitches(nSpatOrbs), &
-                    switchWeight, startProb, botCont, tempWeight, orbitalProb, &
-                    zeroWeight, startWeight, tempWeight_1
-        procedure(calc_pgen_general), pointer :: calc_pgen_yix_start
-
-        ASSERT(.not. present(rdm_ind))
-        ASSERT(.not. present(rdm_mat))
-        st = excitInfo%fullStart
-
-        ! need remaining switches over full range
-        excitInfo%fullstart = 1
-        excitInfo%secondStart = 1
-
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
-
-        se = excitInfo%firstEnd
-        en = excitInfo%fullEnd
-
-        ! we know its a R2L full-st so some stepvalues are impossble:
-        if (current_stepvector(se) == 3) then
-            if (current_stepvector(en) == 0) then
-                calc_pgen_yix_start => calc_pgen_yix_start_02
-            else
-                calc_pgen_yix_start => calc_pgen_yix_start_21
-            end if
-        else
-            if (current_stepvector(en) == 0) then
-                calc_pgen_yix_start => calc_pgen_yix_start_01
-            else
-                calc_pgen_yix_start => calc_pgen_yix_start_11
-            end if
-        end if
-
-        ! initialize pgen with original picked orbital combination
-        ! although already calculated ... whatever..
-        pgen = branch_pgen * calc_pgen_yix_start(st)
-
-        ! also need to reinitialize the fullstart into semi-stop weights, as
-        ! i need those to recalc. the pgen contributions
-        weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
-                                       posSwitches(se), currentB_ilut(se))
-
-        ! otherwise continue with the additional contributions
-        ! get the first 2-body integral as start times the
-        integral = h_cast(0.0_dp)
-        origWeight = 1.0_dp
-
-        if (st > 1) then ! otherwise no additional contributions:
-
-            ! need the bottom contribution to the x1 element to express all
-            ! mixed fullstart excitations from < start in terms of the already
-            ! calculated matrix element
-
-            origWeight = weights%proc%zero(negSwitches(st), &
-                                           posSwitches(st), currentB_ilut(st), weights%dat)
-
-            if (current_stepvector(st) == 1) then
-
-                switchWeight = weights%proc%plus(posSwitches(st), &
-                                                 currentB_ilut(st), weights%dat)
-
-                if (isOne(t, st)) then
-                    botCont = Root2 * sqrt((currentB_ilut(st) - 1.0_dp) / &
-                                           (currentB_ilut(st) + 1.0_dp))
-
-                    startProb = calcStayingProb(origWeight, switchWeight, &
-                                                currentB_ilut(st))
-
-                    origWeight = origWeight / (origWeight + switchWeight)
-
-                    else if isTwo(t, st) then
-                    botCont = -sqrt(2.0_dp / ((currentB_ilut(st) - 1.0_dp) * &
-                                              (currentB_ilut(st) + 1.0_dp)))
-
-                    startProb = 1.0_dp - calcStayingProb(origWeight, switchWeight, &
-                                                         currentB_ilut(st))
-
-                    origWeight = switchWeight / (origWeight + switchWeight)
-
-                end if
-            else if (current_stepvector(st) == 2) then
-
-                switchWeight = weights%proc%minus(negSwitches(st), &
-                                                  currentB_ilut(st), weights%dat)
-
-                if (isOne(t, st)) then
-                    botCont = -sqrt(2.0_dp / ((currentB_ilut(st) + 1.0_dp) * &
-                                              (currentB_ilut(st) + 3.0_dp)))
-
-                    startProb = 1.0_dp - calcStayingProb(origWeight, switchWeight, &
-                                                         currentB_ilut(st))
-
-                    origWeight = switchWeight / (origWeight + switchWeight)
-
-                    else if isTwo(t, st) then
-                    botCont = -Root2 * sqrt((currentB_ilut(st) + 3.0_dp) / &
-                                            (currentB_ilut(st) + 1.0_dp))
-
-                    startProb = calcStayingProb(origWeight, switchWeight, &
-                                                currentB_ilut(st))
-
-                    origWeight = origWeight / (origWeight + switchWeight)
-                end if
-#ifdef DEBUG_
-            else
-                call stop_all(this_routine, "wrong stepvalues!")
-#endif
-            end if
-
-            ! rename that, so i can use the startProb further down, where
-            ! it is also needed
-
-            ! also need the remaining switches for the whole range....
-            ! not only until original fullstart...
-            ! already did that above..
-
-            ! the rest all gets modified by botCont.. so if it is zero do not
-            ! continue ( do not forget to encode the umat!
-            if (.not. near_zero(botCont)) then
-
-                ! then loop from 1 to start-1
-                do i = 1, st - 1
-                    ! no contributions if 0 or 3
-                    if (currentOcc_int(i) /= 1) then
-                        cycle
-                    end if
-
-                    ! first get the fullstart elements
-                    step = current_stepvector(i)
-
-                    call getDoubleMatrixElement(step, step, -1, gen_type%R, gen_type%L, currentB_ilut(i), &
-                                                1.0_dp, x1_element=tempWeight)
-
-                    ! for every open orbitals also add up pgen contributions
-                    orbitalProb = calc_pgen_yix_start(i)
-
-                    ! and now need the probabilities on the way:
-                    ! first the start: need the specific stepvalue unfortunately...
-                    zeroWeight = weights%proc%zero(negSwitches(i), &
-                                                   posSwitches(i), currentB_ilut(i), weights%dat)
-
-                    if (step == 1) then
-                        switchWeight = weights%proc%plus(posSwitches(i), &
-                                                         currentB_ilut(i), weights%dat)
-                    else
-                        switchWeight = weights%proc%minus(negSwitches(i), &
-                                                          currentB_ilut(i), weights%dat)
-                    end if
-
-                    startWeight = zeroWeight / (zeroWeight + switchWeight)
-
-                    ! then calc. the product
-                    do j = i + 1, st - 1
-                        step = current_stepvector(j)
-                        ! its always the 0 branch!
-                        call getDoubleMatrixElement(step, step, 0, gen_type%R, gen_type%L, currentB_ilut(j), &
-                                                    1.0_dp, x1_element=tempWeight_1)
-
-                        tempWeight = tempWeight * tempWeight_1
-
-                        ! no change in pgen if 3 or 0 stepvalue
-                        if (currentOcc_int(j) /= 1) then
-                            cycle
-                        end if
-
-                        zeroWeight = weights%proc%zero(negSwitches(j), &
-                                                       posSwitches(j), currentB_ilut(j), weights%dat)
-
-                        if (step == 1) then
-                            switchWeight = weights%proc%plus(posSwitches(j), &
-                                                             currentB_ilut(j), weights%dat)
-                        else
-                            switchWeight = weights%proc%minus(negSwitches(j), &
-                                                              currentB_ilut(j), weights%dat)
-                        end if
-
-                        zeroWeight = calcStayingProb(zeroWeight, switchWeight, &
-                                                     currentB_ilut(j))
-
-                        startWeight = startWeight * zeroWeight
-
-                    end do
-
-                    ! update the integral with this weight and the corresponding
-                    ! umat elements
-                    integral = integral + tempWeight * (get_umat_el(i, en, se, i) &
-                                                        + get_umat_el(en, i, i, se)) / 2.0_dp
-
-                    if (near_zero(tempWeight)) then
-                        startWeight = 0.0_dp
-                    end if
-                    ! add up all pgen contribs
-                    ! kind of...
-                    pgen = pgen + orbitalProb * startWeight * startProb * branch_pgen / origWeight
-
-                end do
-
-                ! and update the final matrix element
-                integral = integral * botCont
-
-                ! cant check that here since there could be additional contributions
-                ! from other integrals
-            end if
-        end if
-
-        ! have to determine the first stepvector change in the overlap region
-        sw = findFirstSwitch(ilut, t, st, se)
-        ! for test purposes:
-        ! if the first sw did not happen at the fullstart loop until the
-        ! sw
-
-        if (sw > st) then
-            ! need the inverse parts of the original excitation, start with
-            ! the starting element
-
-            step = current_stepvector(st)
-
-            call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(st), &
-                                        1.0_dp, x1_element=tempWeight)
-
-            tempWeight = 1.0_dp / tempWeight
-
-            branch_pgen = branch_pgen / origWeight
-
-            do i = st + 1, sw - 1
-                if (currentOcc_int(i) /= 1) then
-                    cycle
-                end if
-                ! until switch only 0 branch
-                step = current_stepvector(i)
-
-                ! update inverse product
-                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight = tempWeight / tempWeight_1
-
-                ! and also get starting contribution
-                call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight_1 = tempWeight * tempWeight_1
-
-                ! because the rest of the matrix element is still the same in
-                ! both cases...
-                integral = integral + tempWeight_1 * (get_umat_el(en, i, i, se) + &
-                                                      get_umat_el(i, en, se, i)) / 2.0_dp
-
-                ! for every open orbitals i need the starting probability and
-                ! the original staying probability
-                zeroWeight = weights%proc%zero(negSwitches(i), &
-                                               posSwitches(i), currentB_ilut(i), weights%dat)
-
-                if (step == 1) then
-                    switchWeight = weights%proc%plus(posSwitches(i), &
-                                                     currentB_ilut(i), weights%dat)
-                else
-                    switchWeight = weights%proc%minus(negSwitches(i), &
-                                                      currentB_ilut(i), weights%dat)
-                end if
-
-                origWeight = calcStayingProb(zeroWeight, switchWeight, &
-                                             currentB_ilut(i))
-
-                startWeight = zeroWeight / (zeroWeight + switchWeight)
-
-                ! and update probWeight
-
-                branch_pgen = branch_pgen * startWeight / origWeight
-                ! and also need the orbitals picking prob
-                orbitalProb = calc_pgen_yix_start(i)
-
-                ! and add up correctly
-                pgen = pgen + orbitalProb * branch_pgen
-
-            end do
-            ! do switch seperately again to also handle the pgens easier
-            step = current_stepvector(sw)
-            step2 = getStepvalue(t, sw)
-
-            ! update inverse product
-            call getDoubleMatrixElement(step2, step, 0, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                        1.0_dp, x1_element=tempWeight_1)
-
-            tempWeight = tempWeight / tempWeight_1
-
-            ! and also get starting contribution
-            call getDoubleMatrixElement(step2, step, -1, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                        1.0_dp, x1_element=tempWeight_1)
-
-            tempWeight_1 = tempWeight * tempWeight_1
-
-            ! because the rest of the matrix element is still the same in
-            ! both cases...
-            integral = integral + tempWeight_1 * (get_umat_el(en, sw, sw, se) + &
-                                                  get_umat_el(sw, en, se, sw)) / 2.0_dp
-
-            zeroWeight = weights%proc%zero(negSwitches(sw), posSwitches(sw), &
-                                           currentB_ilut(sw), weights%dat)
-
-            ! on the switch the original probability is:
-            if (step == 1) then
-                switchWeight = weights%proc%plus(posSwitches(sw), &
-                                                 currentB_ilut(sw), weights%dat)
-            else
-                switchWeight = weights%proc%minus(negSwitches(sw), &
-                                                  currentB_ilut(sw), weights%dat)
-            end if
-
-            origWeight = 1.0_dp - calcStayingProb(zeroWeight, switchWeight, &
-                                                  currentB_ilut(sw))
-
-            ! and the new startProb is also the non-b=0 branch
-
-            startWeight = switchWeight / (zeroWeight + switchWeight)
-
-            orbitalProb = calc_pgen_yix_start(sw)
-
-            pgen = pgen + orbitalProb * branch_pgen * startWeight / origWeight
-
-            ! and deal with switch seperately
-        end if
-
-        ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-
-        ! this is not correct in general... the probability of picking
-        ! p(x|i) is not always 1/(nOrbs-1) .. or atleast not anymore..
-        ! did I always forget to change that???
-        ! essentially it depends on the occupation from the already
-        ! picked i orbital..
-        ! NO, when i am here i alway no that the (ii) orbitals is singly
-        ! occupied! so, it is true that p(x|) = 1 / (norbs - 1) !!
-        ! does this change if t_consider_diff_bias = .true. ?
-        ! NO it luckily doesnt!
-        ! so if we do not consider diff bias, this below should to the work:
-        ! but if we consider diff bias (1.0_dp - pExcit3_same) has to be
-        ! multiplied and p(i) has to be changed to only consider
-        ! the number of singly occupied orbitals!
-        ! but i could do that outside these routines at the end of
-        ! the specific excitation routines! yeah... essentially i can in the
-        ! end just use the orb_pgen after all.. or?! modified only with
-        ! p(x|i) which is 1/(norbs-1)...
-        ! no i can not do it outside, due to the generality of the outside
-        ! routines for all kind of excitation generators(mol_sym, ueg etc)
-        ! so do it here, but write a general procedure pointed fncs, which
-        ! is pointed depending on if t_consider_diff_bias is set or not!
-        pgen = pgen * orb_pgen_contrib_type_3()
-
-    end subroutine calc_mixed_start_r2l_contr_nosym
-
-    function orb_pgen_contrib_type_3_uniform() result(orb_pgen)
-        ! function to get the p(iijk)*p(i)*p(x|i) influence for
-        ! mixed full-start or full-stop excitations if t_consider_diff_bias
-        ! is not set!
-        real(dp) :: orb_pgen
-
-        ! for the non diff biasing it is only:
-        orb_pgen = (1.0_dp - pExcit4) * (1.0_dp - pExcit2) / &
-                   real(nSpatOrbs * (nSpatOrbs - 1), dp)
-
-    end function orb_pgen_contrib_type_3_uniform
-
-    function orb_pgen_contrib_type_3_diff() result(orb_pgen)
-        ! while considering diff bias i have to adjust for pExcit3_same too
-        ! and p(i) is the number of singly occupied orbitals inverse
-        real(dp) :: orb_pgen
-        ! p(x|i) is still 1 / (nOrbs-1) in this case! always
-        orb_pgen = (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same) / &
-                   real(count(currentOcc_int == 1) * (nSpatOrbs - 1), dp)
-
-    end function orb_pgen_contrib_type_3_diff
-
-    function orb_pgen_contrib_type_2_uniform() result(orb_pgen)
-        ! similar function as above but for (iijj) mixed fullstart into
-        ! fullstop excitations
-        real(dp) :: orb_pgen
-        orb_pgen = 2.0_dp * (1.0_dp - pExcit4) * pExcit2 / &
-                   real(nSpatOrbs * (count(currentOcc_int == 1) - 1), dp)
-
-    end function orb_pgen_contrib_type_2_uniform
-
-    function orb_pgen_contrib_type_2_diff() result(orb_pgen)
-        ! same as above but if diff bias is considered..
-        real(dp) :: orb_pgen
-
-        ! here p(i) is again the number of singly occupied inverse
-
-        orb_pgen = 2.0_dp * (1.0_dp - pExcit4) * pExcit2 * (1.0_dp - pExcit2_same) / &
-                   real(count(currentOcc_int == 1) * (count(currentOcc_int == 1) - 1), dp)
-
-    end function orb_pgen_contrib_type_2_diff
-
-    subroutine calcFullStartL2R_stochastic(ilut, excitInfo, t, pgen, &
+    subroutine calcFullStartL2R_stochastic(ilut, csf_i, excitInfo, t, pgen, &
                                            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
@@ -10356,18 +3289,18 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
-                                           posSwitches(se), currentB_ilut(se))
+            weights = init_fullStartWeight(csf_i, se, en, negSwitches(se), &
+                                           posSwitches(se), csf_i%B_real(se))
         end if
 
         ! in the case of the approximate exchange excitations I need to
         ! force a switch at the beginning
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             ! do the switch
-            call forced_mixed_start(ilut, excitInfo, t, branch_pgen)
+            call forced_mixed_start(ilut, csf_i, excitInfo, t, branch_pgen)
 
         else
-            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+            call mixedFullStartStochastic(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
         end if
 
@@ -10384,7 +3317,7 @@ contains
         ! somehow garuantees a switch happens at some point, to avoid
         ! single excitations
         do i = st + 1, se - 1
-            call doubleUpdateStochastic(ilut, i, excitInfo, &
+            call doubleUpdateStochastic(ilut, csf_i, i, excitInfo, &
                                         weights, negSwitches, posSwitches, t, branch_pgen)
 
             ! to keep it general, i cant only check weights in doubleUpdate
@@ -10398,7 +3331,7 @@ contains
         ! and update weights here
         weights = weights%ptr
 
-        call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStopStochastic(ilut, csf_i, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
@@ -10407,7 +3340,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do i = se + 1, en - 1
-            call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
 
@@ -10423,7 +3356,7 @@ contains
             check_abort_excit(branch_pgen, t)
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
@@ -10439,10 +3372,10 @@ contains
             elecInd = en
             holeInd = se
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contrib_start([2 * st, 2 * elecInd], &
-                                                 holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_start(&
+                    csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (current_stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
 
         ! put everything in first entry
@@ -10471,10 +3404,15 @@ contains
         global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_start_contr_approx(t, excitInfo, integral)
+            call calc_mixed_start_contr_approx(t, csf_i, excitInfo, integral)
             pgen = branch_pgen
         else
-            call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+            call calc_mixed_start_contr_integral(ilut, csf_i, t, excitInfo, &
+                integral)
+            call calc_mixed_start_contr_pgen(ilut, csf_i, t, excitInfo, &
+                branch_pgen, pgen)
+
+!             call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -10492,240 +3430,10 @@ contains
 
     end subroutine calcFullStartL2R_stochastic
 
-    subroutine perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out) :: excitation(0:nifguga)
-        logical, intent(out) :: compFlag
-
-        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        HElement_t(dp) :: mat_ele
-        type(ExcitationInformation_t) :: dummy
-
-        excitation = ilut
-
-        select case (excitInfo%typ)
-        case (excit_type%fullstart_stop_mixed)
-            ! fully exchange is easy, just switch involved step-vectors
-            if (current_stepvector(excitInfo%fullstart) == 1) then
-                if (current_stepvector(excitInfo%fullEnd) == 1) then
-                    ! not valid if the same step-vectors
-                    compFlag = .false.
-                    return
-                end if
-
-                ! 1 -> 2 at start
-                set_two(excitation, excitInfo%fullstart)
-                clr_one(excitation, excitInfo%fullstart)
-
-                ! 2 -> 1 at end
-                set_one(excitation, excitInfo%fullEnd)
-                clr_two(excitation, excitInfo%fullEnd)
-
-            else
-                if (current_stepvector(excitInfo%fullEnd) == 2) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! 2 > 1 at start
-                set_one(excitation, excitInfo%fullStart)
-                clr_two(excitation, excitInfo%fullstart)
-
-                ! 1 -> 2 at end
-                clr_one(excitation, excitInfo%fullEnd)
-                set_two(excitation, excitInfo%fullEnd)
-
-            end if
-
-        case (excit_type%fullstop_R_to_L)
-            ! full stop raising into lowering
-            ! the start and semi-start step-values have to be
-            ! different than the full-stop, where a switch is enforced.
-            if (current_stepvector(excitInfo%fullEnd) == 1) then
-                ! the full-start and semi-start are not allowed to have
-                ! the same step-vector as the full-stop
-                if (current_stepvector(excitInfo%secondStart) == 1 &
-                    .or. current_stepvector(excitInfo%fullStart) == 1) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! in the case that the end is d = 1:
-                set_one(excitation, excitInfo%fullStart)
-
-                clr_two(excitation, excitInfo%secondStart)
-
-                clr_one(excitation, excitInfo%fullEnd)
-                set_two(excitation, excitInfo%fullEnd)
-
-            else
-                if (current_stepvector(excitInfo%secondStart) == 2 &
-                    .or. current_stepvector(excitInfo%fullStart) == 2) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! in the case of d = 2 at end
-
-                ! in the case that the end is d = 1:
-                set_two(excitation, excitInfo%fullStart)
-
-                clr_one(excitation, excitInfo%secondStart)
-
-                clr_two(excitation, excitInfo%fullEnd)
-                set_one(excitation, excitInfo%fullEnd)
-
-            end if
-
-        case (excit_type%fullstop_L_to_R)
-            ! full-stop lowering into raising
-
-            if (current_stepvector(excitInfo%fullEnd) == 1) then
-                ! the full-start and semi-start are not allowed to have
-                ! the same step-vector as the full-stop
-                if (current_stepvector(excitInfo%secondStart) == 1 &
-                    .or. current_stepvector(excitInfo%fullStart) == 1) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! in the case that the end is d = 1:
-                set_one(excitation, excitInfo%secondStart)
-
-                clr_two(excitation, excitInfo%fullStart)
-
-                clr_one(excitation, excitInfo%fullEnd)
-                set_two(excitation, excitInfo%fullEnd)
-
-            else
-                if (current_stepvector(excitInfo%secondStart) == 2 &
-                    .or. current_stepvector(excitInfo%fullStart) == 2) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! in the case of d = 2 at end
-
-                ! in the case that the end is d = 1:
-                set_two(excitation, excitInfo%secondStart)
-
-                clr_one(excitation, excitInfo%fullStart)
-
-                clr_two(excitation, excitInfo%fullEnd)
-                set_one(excitation, excitInfo%fullEnd)
-
-            end if
-
-        case (excit_type%fullStart_L_to_R)
-            ! full-start lowering into raising
-
-            if (current_stepvector(excitInfo%fullStart) == 1) then
-                ! the full-start and semi-start are not allowed to have
-                ! the same step-vector as the full-stop
-                if (current_stepvector(excitInfo%firstEnd) == 1 &
-                    .or. current_stepvector(excitInfo%fullEnd) == 1) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! in the case that the end is d = 1:
-                set_one(excitation, excitInfo%firstEnd)
-
-                clr_two(excitation, excitInfo%fullEnd)
-
-                clr_one(excitation, excitInfo%fullStart)
-                set_two(excitation, excitInfo%fullStart)
-
-            else
-                if (current_stepvector(excitInfo%firstEnd) == 2 &
-                    .or. current_stepvector(excitInfo%fullEnd) == 2) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! in the case of d = 2 at end
-
-                ! in the case that the end is d = 1:
-                set_two(excitation, excitInfo%firstEnd)
-
-                clr_one(excitation, excitInfo%fullEnd)
-
-                clr_two(excitation, excitInfo%fullStart)
-                set_one(excitation, excitInfo%fullStart)
-
-            end if
-
-        case (excit_type%fullstart_R_to_L)
-            ! full-start raising into lowering
-
-            if (current_stepvector(excitInfo%fullStart) == 1) then
-                ! the full-start and semi-start are not allowed to have
-                ! the same step-vector as the full-stop
-                if (current_stepvector(excitInfo%firstEnd) == 1 &
-                    .or. current_stepvector(excitInfo%fullEnd) == 1) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! in the case that the end is d = 1:
-                set_one(excitation, excitInfo%fullEnd)
-
-                clr_two(excitation, excitInfo%firstEnd)
-
-                clr_one(excitation, excitInfo%fullStart)
-                set_two(excitation, excitInfo%fullStart)
-
-            else
-                if (current_stepvector(excitInfo%firstEnd) == 2 &
-                    .or. current_stepvector(excitInfo%fullEnd) == 2) then
-                    compFlag = .false.
-                    return
-                end if
-
-                ! in the case of d = 2 at end
-
-                ! in the case that the end is d = 1:
-                set_two(excitation, excitInfo%fullEnd)
-
-                clr_one(excitation, excitInfo%firstEnd)
-
-                clr_two(excitation, excitInfo%fullStart)
-                set_one(excitation, excitInfo%fullStart)
-
-            end if
-
-        end select
-
-        compFlag = isProperCSF_ilut(excitation, .true.)
-
-        if (.not. compFlag) then
-            return
-        end if
-
-        ! and then recalculate the matrix element
-
-        call convert_ilut_toNECI(ilut, ilutI)
-        call convert_ilut_toNECI(excitation, ilutJ)
-
-        call calc_guga_matrix_element(ilutI, ilutJ, dummy, mat_ele, &
-                                      .true., 2)
-
-        if (near_zero(mat_ele)) then
-            compFlag = .false.
-            excitation = 0_n_int
-
-            return
-        end if
-
-        call encode_matrix_element(excitation, 0.0_dp, 2)
-        call encode_matrix_element(excitation, mat_ele, 1)
-
-    end subroutine perform_crude_excitation
-
-    subroutine calc_mixed_x2x_ueg(ilut, t, excitInfo, branch_pgen, pgen, &
+    subroutine calc_mixed_x2x_ueg(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
                                   integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
@@ -10736,481 +3444,22 @@ contains
 
         pgen = 0.0_dp
         integral = 0.0_dp
-
+        unused_var(ilut); unused_var(t); unused_var(excitInfo); unused_var(branch_pgen);
+        unused_var(csf_i)
         if (present(rdm_ind)) then
             allocate(rdm_ind(0), source=0_int_rdm)
         end if
         if (present(rdm_mat)) then
             allocate(rdm_mat(0), source=0.0_dp)
         end if
-
         call stop_all(this_routine, &
                       "in Hubbard/UEG calculations with full k-point symmetry, this excitation shouldnt be reached!")
-
-        unused_var(ilut)
-        unused_var(t)
-        unused_var(excitInfo)
-        unused_var(branch_pgen)
-
     end subroutine calc_mixed_x2x_ueg
 
-    subroutine calc_mixed_start_contr_sym(ilut, t, excitInfo, branch_pgen, &
-                                          pgen, integral, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(inout) :: branch_pgen
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_mixed_start_contr_sym"
-
-        integer :: sw, i, st, se, step, en, elecInd, holeInd
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), mat_ele, &
-                    new_pgen, zero_weight, switch_weight, stay_mat, start_mat, bot_cont, &
-                    orb_pgen, start_weight, stay_weight
-        type(WeightObj_t) :: weights
-        logical :: below_flag
-        integer(int_rdm), allocatable :: tmp_rdm_ind(:)
-        real(dp), allocatable :: tmp_rdm_mat(:)
-        integer :: rdm_count, max_num_rdm
-        logical :: rdm_flag
-
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            rdm_flag = .true.
-        else
-            rdm_flag = .false.
-        end if
-
-        ! whats different here?? what do i have to consider? and how to optimize?
-        ! to make it most similar to the full-start into full-stop calc.
-        ! i could loop from the first switch downwards and stop at
-        ! a d = 1, b = 1 stepvalue and definetly unify pgen and integral
-        ! calculation!
-        ! to similary reuse the already calculated quantities loop from
-        ! switch to start to 1
-        st = excitInfo%fullStart
-        se = excitInfo%firstEnd
-        en = excitInfo%fullEnd
-        ! depending on the type of excitaiton, calculation of orbital pgens
-        ! change
-        if (excitInfo%typ == excit_type%fullStart_L_to_R) then
-            elecInd = en
-            holeInd = se
-        else if (excitInfo%typ == excit_type%fullstart_R_to_L) then
-            elecInd = se
-            holeInd = en
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-        sw = findFirstSwitch(ilut, t, st, se)
-
-
-        if (rdm_flag) then
-            max_num_rdm = sw
-            allocate(tmp_rdm_ind(max_num_rdm), source=0_int_rdm)
-            allocate(tmp_rdm_mat(max_num_rdm), source=0.0_dp)
-            rdm_count = 0
-        end if
-
-        ! what can i precalculate beforehand?
-        step = current_stepvector(st)
-
-        integral = h_cast(0.0_dp)
-
-        ! do i actually deal with the actual start orbital influence??
-        ! fuck i don't think so.. wtf..
-        call calc_orbital_pgen_contrib_start([2 * st, 2 * elecInd], &
-                                             holeInd, orb_pgen)
-
-        pgen = orb_pgen * branch_pgen
-
-        ! since weights only depend on the number of switches at the
-        ! semistop and semistop and full-end index i can calculate
-        ! it beforehand for all?
-        excitInfo%fullStart = 1
-        excitInfo%secondStart = 1
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
-
-        weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
-                                       posSwitches(se), currentB_ilut(se))
-
-        ! determine the original starting weight
-        zero_weight = weights%proc%zero(negSwitches(st), posSwitches(st), &
-                                        currentB_ilut(st), weights%dat)
-
-        if (step == 1) then
-
-            switch_weight = weights%proc%plus(posSwitches(st), currentB_ilut(st), &
-                                              weights%dat)
-
-            if (isOne(t, st)) then
-
-                bot_cont = Root2 * sqrt((currentB_ilut(st) - 1.0_dp) / &
-                                        (currentB_ilut(st) + 1.0_dp))
-
-                stay_weight = calcStayingProb(zero_weight, switch_weight, &
-                                              currentB_ilut(st))
-
-                start_weight = zero_weight / (zero_weight + switch_weight)
-
-            else
-
-                bot_cont = -sqrt(2.0_dp / ((currentB_ilut(st) - 1.0_dp) * &
-                                           (currentB_ilut(st) + 1.0_dp)))
-
-                stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
-                                                       currentB_ilut(st))
-
-                start_weight = switch_weight / (zero_weight + switch_weight)
-
-            end if
-        else
-
-            switch_weight = weights%proc%minus(negSwitches(st), &
-                                               currentB_ilut(st), weights%dat)
-
-            if (isOne(t, st)) then
-                bot_cont = -sqrt(2.0_dp / ((currentB_ilut(st) + 1.0_dp) * &
-                                           (currentB_ilut(st) + 3.0_dp)))
-
-                stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
-                                                       currentB_ilut(st))
-
-                start_weight = switch_weight / (zero_weight + switch_weight)
-
-            else
-                bot_cont = -Root2 * sqrt((currentB_ilut(st) + 3.0_dp) / &
-                                         (currentB_ilut(st) + 1.0_dp))
-
-                stay_weight = calcStayingProb(zero_weight, switch_weight, &
-                                              currentB_ilut(st))
-
-                start_weight = zero_weight / (zero_weight + switch_weight)
-            end if
-        end if
-
-        ASSERT(.not. near_zero(start_weight))
-        ! update the pgen stumbs here to reuse start_weight variable
-        new_pgen = stay_weight * branch_pgen / start_weight
-
-        ! divide out the original starting weight:
-        branch_pgen = branch_pgen / start_weight
-
-        ! loop from start backwards so i can abort at a d=1 & b=1 stepvalue
-        ! also consider if bot_cont < EPS to avoid unnecarry calculations
-        if (.not. near_zero(bot_cont)) then
-
-
-            mat_ele = 1.0_dp
-            below_flag = .false.
-
-            do i = st - 1, 1, -1
-                if (currentOcc_int(i) /= 1) cycle
-
-                ! then check if thats the last stepvalue to consider
-                if (current_stepvector(i) == 1 .and. currentB_int(i) == 1) then
-                    below_flag = .true.
-                end if
-
-                ! then i need to calculate the orbital probability
-                ! from the fact that this is a lowering into raising fullstart
-                ! i know, more about the restrictions...
-                ! and that fullend is the electron eg.
-                ! depening on the type of excitation (r2l or l2r) the electron
-                ! orbitals change here
-                call calc_orbital_pgen_contrib_start([2 * i, 2 * elecInd], &
-                                                     holeInd, orb_pgen)
-
-                ! then deal with the matrix element and branching probabilities
-                step = current_stepvector(i)
-
-                ! get both start and staying matrix elements -> and update
-                ! matrix element contributions on the fly to avoid second loop!
-                call getDoubleMatrixElement(step, step, -1, gen_type%R, gen_type%L, currentB_ilut(i), &
-                                            1.0_dp, x1_element=start_mat)
-
-                call getDoubleMatrixElement(step, step, 0, gen_type%R, gen_type%L, currentB_ilut(i), &
-                                            1.0_dp, x1_element=stay_mat)
-
-                ! check if orb_pgen is non-zero
-                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
-                    ! still have to update matrix element, even if 0 pgen
-                    mat_ele = mat_ele * stay_mat
-
-                    cycle
-                end if
-
-                ! another check.. although this should not happen
-                ! except the other d = 1 & b = 1 condition is already met
-                ! above, to not continue:
-                if (near_zero(stay_mat)) below_flag = .true.
-
-                zero_weight = weights%proc%zero(negSwitches(i), &
-                                                posSwitches(i), currentB_ilut(i), weights%dat)
-
-                if (step == 1) then
-                    switch_weight = weights%proc%plus(posSwitches(i), &
-                                                      currentB_ilut(i), weights%dat)
-                else
-                    switch_weight = weights%proc%minus(negSwitches(i), &
-                                                       currentB_ilut(i), weights%dat)
-                end if
-
-                start_weight = zero_weight / (zero_weight + switch_weight)
-                stay_weight = calcStayingProb(zero_weight, switch_weight, &
-                                              currentB_ilut(i))
-
-                ! i think i could avoid the second loop over j
-                ! if i express everything in terms of already calculated
-                ! quantities!
-                ! "normally" matrix element shouldnt be 0 anymore... still check
-                if (.not. near_zero(start_mat)) then
-                    integral = integral + start_mat * mat_ele * (get_umat_el(i, holeInd, elecInd, i) &
-                                                                 + get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
-
-                    if (rdm_flag) then
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i, elecInd, holeInd, i)
-                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele * bot_cont
-                    end if
-
-                    if (t_trunc_guga_pgen .or. &
-                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                        if (new_pgen < trunc_guga_pgen) then
-                            new_pgen = 0.0_dp
-                        end if
-                    end if
-
-                    pgen = pgen + orb_pgen * start_weight * new_pgen
-                end if
-
-                if (below_flag) exit
-
-                if (t_trunc_guga_pgen .or. &
-                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                    if (new_pgen < trunc_guga_pgen) then
-                        new_pgen = 0.0_dp
-                    end if
-                end if
-
-                ! update new_pgen for next cycle
-                new_pgen = stay_weight * new_pgen
-
-                ! also update matrix element on the fly
-                mat_ele = stay_mat * mat_ele
-
-            end do
-
-            ! and update matrix element finally with bottom contribution
-            integral = integral * bot_cont
-
-        end if
-
-        ! start to switch loop: here matrix elements are not 0!
-        ! and its only db = 0 branch and no stepvalue change!
-        ! if the start is the switch nothing happens
-
-        step = current_stepvector(st)
-
-        ! calculate the necarry values needed to formulate everything in terms
-        ! of the already calculated quantities:
-        call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(st), &
-                                    1.0_dp, x1_element=mat_ele)
-
-        ! and calc. x1^-1
-        ! keep tempWweight as the running matrix element which gets updated
-        ! every iteration
-
-        ! for rdms (in this current setup) I need to make a dummy
-        ! output if sw == st)
-        if (rdm_flag .and. sw == st) then
-            rdm_count = rdm_count + 1
-            tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw, elecInd, holeInd, sw)
-            tmp_rdm_mat(rdm_count) = 1.0_dp
-        end if
-
-        if (.not. near_zero(abs(mat_ele))) then
-
-
-            mat_ele = 1.0_dp / mat_ele
-
-            do i = st + 1, sw - 1
-                ! the good thing here is, i do not need to loop a second time,
-                ! since i can recalc. the matrix elements and pgens on-the fly
-                ! here the matrix elements should not be 0 or otherwise the
-                ! excitation wouldnt have happended anyways
-                if (currentOcc_int(i) /= 1) cycle
-
-                ! calculate orbitals pgen first and cycle if 0
-                call calc_orbital_pgen_contrib_start([2 * i, 2 * elecInd], holeInd, &
-                                                     orb_pgen)
-
-                step = current_stepvector(i)
-
-                ! update inverse product
-                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=stay_mat)
-
-                ASSERT(.not. near_zero(stay_mat))
-
-                mat_ele = mat_ele / stay_mat
-
-                ! check if orb_pgen is non-zero
-                ! still have to update matrix element in this case..
-                ! so do the cycle only afterwards..
-
-                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
-
-                ! and also get starting contribution
-                call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=start_mat)
-
-                ! because the rest of the matrix element is still the same in
-                ! both cases...
-                if (.not. near_zero(start_mat)) then
-                    integral = integral + mat_ele * start_mat * (get_umat_el(holeInd, i, i, elecInd) + &
-                                                                 get_umat_el(i, holeInd, elecInd, i)) / 2.0_dp
-
-                    if (rdm_flag) then
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i, elecInd, holeInd, i)
-                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele
-                    end if
-
-                end if
-
-                ! and update pgens also
-                zero_weight = weights%proc%zero(negSwitches(i), &
-                                                posSwitches(i), currentB_ilut(i), weights%dat)
-
-                if (step == 1) then
-                    switch_weight = weights%proc%plus(posSwitches(i), &
-                                                      currentB_ilut(i), weights%dat)
-                else
-                    switch_weight = weights%proc%minus(negSwitches(i), &
-                                                       currentB_ilut(i), weights%dat)
-                end if
-
-                stay_weight = calcStayingProb(zero_weight, switch_weight, &
-                                              currentB_ilut(i))
-
-                start_weight = zero_weight / (zero_weight + switch_weight)
-
-                ! and update probWeight
-                ! i think i should not put in the intermediate start_weight
-                ! permanently..
-                branch_pgen = branch_pgen / stay_weight
-
-                if (t_trunc_guga_pgen .or. &
-                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-
-                    if (branch_pgen * start_weight > trunc_guga_pgen) then
-                        pgen = pgen + orb_pgen * branch_pgen * start_weight
-                    end if
-                else
-                    ! and add up correctly
-                    pgen = pgen + orb_pgen * branch_pgen * start_weight
-                end if
-
-            end do
-
-            ! handle switch seperately (but only if switch > start)
-            if (sw > st) then
-
-                ! check orb_pgen otherwise no influencce
-                call calc_orbital_pgen_contrib_start([2 * sw, 2 * elecInd], holeInd, &
-                                                     orb_pgen)
-
-                if (.not. near_zero(orb_pgen) .or. rdm_flag) then
-
-                    step = current_stepvector(sw)
-
-                    zero_weight = weights%proc%zero(negSwitches(sw), posSwitches(sw), &
-                                                    currentB_ilut(sw), weights%dat)
-
-                    ! on the switch the original probability is:
-                    if (step == 1) then
-                        switch_weight = weights%proc%plus(posSwitches(sw), &
-                                                          currentB_ilut(sw), weights%dat)
-
-                        call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                                    1.0_dp, x1_element=stay_mat)
-
-                        call getDoubleMatrixElement(2, 1, -1, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                                    1.0_dp, x1_element=start_mat)
-
-                    else
-                        switch_weight = weights%proc%minus(negSwitches(sw), &
-                                                           currentB_ilut(sw), weights%dat)
-
-                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                                    1.0_dp, x1_element=stay_mat)
-
-                        call getDoubleMatrixElement(1, 2, -1, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                                    1.0_dp, x1_element=start_mat)
-
-                    end if
-
-                    ! update inverse product
-                    ! and also get starting contribution
-                    ASSERT(.not. near_zero(stay_mat))
-
-                    mat_ele = mat_ele * start_mat / stay_mat
-
-                    ! because the rest of the matrix element is still the same in
-                    ! both cases...
-                    integral = integral + mat_ele * (get_umat_el(holeInd, sw, sw, elecInd) + &
-                                                     get_umat_el(sw, holeInd, elecInd, sw)) / 2.0_dp
-
-                    if (rdm_flag) then
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw, elecInd, holeInd, sw)
-                        tmp_rdm_mat(rdm_count) = mat_ele
-                    end if
-
-                    stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
-                                                           currentB_ilut(sw))
-
-                    ! and the new startProb is also the non-b=0 branch
-                    start_weight = switch_weight / (zero_weight + switch_weight)
-
-                    if (t_trunc_guga_pgen .or. &
-                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                        if (branch_pgen * start_weight / start_weight > trunc_guga_pgen) then
-                            pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
-                        end if
-
-                    else
-                        pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
-                    end if
-
-                end if
-            end if
-        end if
-
-        ! i also need to consider the electron pair picking probability..
-        pgen = pgen / real(ElecPairs, dp)
-        ! and if the second electron is in a double occupied orbital I have
-        ! to modify it with 2
-        if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
-
-        if (present(rdm_mat)) then
-            allocate(rdm_ind(rdm_count), source=tmp_rdm_ind(1:rdm_count))
-            allocate(rdm_mat(rdm_count), source=tmp_rdm_mat(1:rdm_count))
-
-            deallocate(tmp_rdm_ind)
-            deallocate(tmp_rdm_mat)
-        end if
-
-    end subroutine calc_mixed_start_contr_sym
-
-    subroutine calc_orbital_pgen_contrib_end_def(occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_end_def(csf_i, occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
 
@@ -11225,7 +3474,7 @@ contains
         if (tGen_guga_weighted) then
             do orb = 1, orb_a - 1
                 ! calc. the p(a)
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
 
                 end if
@@ -11242,17 +3491,17 @@ contains
         ! depending if its a r2l or l2r full-stop:
         if (i < orb_a) then
             ! its a L2R -> so no restrictions
-            call pgen_select_orb_guga_mol(occ_orbs, orb_a, j, cpt_ba, ba_sum)
+            call pgen_select_orb_guga_mol(csf_i, occ_orbs, orb_a, j, cpt_ba, ba_sum)
         else
             ! its a R2L so orbital i is off-limits
-            call pgen_select_orb_guga_mol(occ_orbs, orb_a, j, cpt_ba, ba_sum, i)
+            call pgen_select_orb_guga_mol(csf_i, occ_orbs, orb_a, j, cpt_ba, ba_sum, i)
         end if
 
         ! change to the fullstart into fullstop: loop until orbital j for the
         ! fullstop implementattion
         if (tGen_guga_weighted) then
             do orb = orb_a + 1, j - 1
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
@@ -11265,19 +3514,19 @@ contains
 
         ! and get p(a|b)
         ! only orbitals below j are allowed!
-        call pgen_select_orb_guga_mol(occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
+        call pgen_select_orb_guga_mol(csf_i, occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
 
         ! and deal with rest:
         if (tGen_guga_weighted) then
             do orb = j + 1, nSpatOrbs
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
         end if
 
         if (.not. tGen_guga_weighted) then
-            cum_sum = current_cum_list(nSpatOrbs)
+            cum_sum = csf_i%cum_list(nSpatOrbs)
         end if
 
         if (near_zero(cum_sum) .or. near_zero(ab_sum) .or. near_zero(ba_sum)) then
@@ -11293,9 +3542,10 @@ contains
 
     end subroutine calc_orbital_pgen_contrib_end_def
 
-    subroutine calc_orbital_pgen_contrib_start_def(occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_start_def(csf_i, occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
 
@@ -11312,7 +3562,7 @@ contains
         if (tGen_guga_weighted) then
             do orb = 1, i - 1
                 ! calc. the p(a)
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
 
@@ -11331,12 +3581,12 @@ contains
         ! over on the outside and is assumed picked first or 2nd here??
         ! taking i and j here is wrong! i is the open orbital, but j
         ! is the already picked electron! it has to be orb_a here or?
-        call pgen_select_orb_guga_mol(occ_orbs, i, orb_a, cpt_ba, ba_sum, i, .true.)
+        call pgen_select_orb_guga_mol(csf_i, occ_orbs, i, orb_a, cpt_ba, ba_sum, i, .true.)
 
         ! change to the fullstart into fullstop: loop until orbital a
         if (tGen_guga_weighted) then
             do orb = i + 1, orb_a - 1
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
@@ -11352,23 +3602,23 @@ contains
         ! play!
         if (orb_a > j) then
             ! then orb_j is off-limits
-            call pgen_select_orb_guga_mol(occ_orbs, orb_a, i, cpt_ab, ab_sum, j)
+            call pgen_select_orb_guga_mol(csf_i, occ_orbs, orb_a, i, cpt_ab, ab_sum, j)
         else
             ! in this case there is no restriction guga-wise..
-            call pgen_select_orb_guga_mol(occ_orbs, orb_a, i, cpt_ab, ab_sum)
+            call pgen_select_orb_guga_mol(csf_i, occ_orbs, orb_a, i, cpt_ab, ab_sum)
         end if
 
         ! and deal with rest:
         if (tGen_guga_weighted) then
             do orb = orb_a + 1, nSpatOrbs
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
         end if
 
         if (.not. tGen_guga_weighted) then
-            cum_sum = current_cum_list(nSpatOrbs)
+            cum_sum = csf_i%cum_list(nSpatOrbs)
         end if
 
         if (near_zero(cum_sum) .or. near_zero(ab_sum) .or. near_zero(ba_sum)) then
@@ -11384,383 +3634,12 @@ contains
 
     end subroutine calc_orbital_pgen_contrib_start_def
 
-    subroutine calc_mixed_start_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
-                                                pgen, integral, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(inout) :: branch_pgen
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
-        character(*), parameter :: this_routine = "calc_mixed_start_l2r_contr_nosym"
-
-        integer :: se, en, st, i, j, step, sw, step2
-        type(WeightObj_t) :: weights
-        real(dp) :: origWeight, negSwitches(nSpatOrbs), posSwitches(nSpatOrbs), &
-                    switchWeight, startProb, botCont, tempWeight, orbitalProb, &
-                    zeroWeight, startWeight, tempWeight_1
-        procedure(calc_pgen_general), pointer :: calc_pgen_yix_start
-
-        ASSERT(.not. present(rdm_ind))
-        ASSERT(.not. present(rdm_mat))
-        st = excitInfo%fullStart
-
-        ! need remaining switches over full range
-        excitInfo%fullstart = 1
-        excitInfo%secondStart = 1
-
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
-
-        se = excitInfo%firstEnd
-        en = excitInfo%fullEnd
-
-        ! stuff for the pgen corrections
-        ! need specific masks to count the number of available orbitals
-        ! dependeing on the stepvalues at j and k
-        ! we know its a L2R fullstart -> so some stepvalues at semi and end
-        ! are impossible
-        if (current_stepvector(se) == 0) then
-            if (current_stepvector(en) == 3) then
-                calc_pgen_yix_start => calc_pgen_yix_start_02
-            else
-                calc_pgen_yix_start => calc_pgen_yix_start_01
-            end if
-        else
-            if (current_stepvector(en) == 3) then
-                calc_pgen_yix_start => calc_pgen_yix_start_21
-            else
-                calc_pgen_yix_start => calc_pgen_yix_start_11
-            end if
-        end if
-
-        ! initialize pgen with original picked orbital combination
-        ! although already calculated ... whatever..
-        pgen = branch_pgen * calc_pgen_yix_start(st)
-
-        ! also need to reinitialize the fullstart into semi-stop weights, as
-        ! i need those to recalc. the pgen contributions
-        weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
-                                       posSwitches(se), currentB_ilut(se))
-
-        ! then i need to calc. the bottom contribution equivalent for the pgen
-        ! to formulate everything in the already calculated probWeight
-
-        ! otherwise continue with the additional contributions
-        ! get the first 2-body integral as start times the
-        integral = h_cast(0.0_dp)
-        origWeight = 1.0_dp
-        if (st > 1) then ! otherwise no additional contributions:
-            ! need the bottom contribution to the x1 element to express all
-            ! mixed fullstart excitations from < start in terms of the already
-            ! calculated matrix element
-
-            ! also need the influence on the branchweight and dont do it so
-            ! complicated as before...
-
-            origWeight = weights%proc%zero(negSwitches(st), &
-                                           posSwitches(st), currentB_ilut(st), weights%dat)
-
-            if (current_stepvector(st) == 1) then
-
-                switchWeight = weights%proc%plus(posSwitches(st), &
-                                                 currentB_ilut(st), weights%dat)
-
-                if (isOne(t, st)) then
-                    botCont = Root2 * sqrt((currentB_ilut(st) - 1.0_dp) / &
-                                           (currentB_ilut(st) + 1.0_dp))
-
-                    startProb = calcStayingProb(origWeight, switchWeight, &
-                                                currentB_ilut(st))
-
-                    origWeight = origWeight / (origWeight + switchWeight)
-
-                    else if isTwo(t, st) then
-                    botCont = -sqrt(2.0_dp / ((currentB_ilut(st) - 1.0_dp) * &
-                                              (currentB_ilut(st) + 1.0_dp)))
-
-                    startProb = 1.0_dp - calcStayingProb(origWeight, switchWeight, &
-                                                         currentB_ilut(st))
-
-                    origWeight = switchWeight / (origWeight + switchWeight)
-
-                end if
-            else if (current_stepvector(st) == 2) then
-
-                switchWeight = weights%proc%minus(negSwitches(st), &
-                                                  currentB_ilut(st), weights%dat)
-
-                if (isOne(t, st)) then
-                    botCont = -sqrt(2.0_dp / ((currentB_ilut(st) + 1.0_dp) * &
-                                              (currentB_ilut(st) + 3.0_dp)))
-
-                    startProb = 1.0_dp - calcStayingProb(origWeight, switchWeight, &
-                                                         currentB_ilut(st))
-
-                    origWeight = switchWeight / (origWeight + switchWeight)
-
-                    else if isTwo(t, st) then
-                    botCont = -Root2 * sqrt((currentB_ilut(st) + 3.0_dp) / &
-                                            (currentB_ilut(st) + 1.0_dp))
-
-                    startProb = calcStayingProb(origWeight, switchWeight, &
-                                                currentB_ilut(st))
-
-                    origWeight = origWeight / (origWeight + switchWeight)
-
-                end if
-#ifdef DEBUG_
-            else
-                call stop_all(this_routine, "wrong stepvalues!")
-#endif
-            end if
-
-            ! rename that, so i can use the startProb further down, where
-            ! it is also needed
-
-            ! also need the remaining switches for the whole range....
-            ! not only until original fullstart...
-            excitInfo%fullStart = 1
-            excitInfo%secondStart = 1
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
-
-            ! the rest all gets modified by botCont.. so if it is zero do not
-            ! continue ( do not forget to encode the umat!
-            if (.not. near_zero(botCont)) then
-
-                ! then loop from 1 to start-1
-                do i = 1, st - 1
-
-                    ! i can cycle here if there is no open orbitals or?
-                    ! since those excitations cant even lead to a desired one..
-                    if (currentOcc_int(i) /= 1) then
-                        cycle
-                    end if
-
-                    ! first get the fullstart elements
-                    step = current_stepvector(i)
-
-                    call getDoubleMatrixElement(step, step, -1, gen_type%R, gen_type%L, currentB_ilut(i), &
-                                                1.0_dp, x1_element=tempWeight)
-
-                    ! for every open orbitals also add up pgen contributions
-                    orbitalProb = calc_pgen_yix_start(i)
-
-                    ! have to reinitialize the weights dont i? nah nid so richtig
-                    ! weils ja nur nach hinten geht...
-                    !
-                    ! and now need the probabilities on the way:
-                    ! first the start: need the specific stepvalue unfortunately...
-                    zeroWeight = weights%proc%zero(negSwitches(i), &
-                                                   posSwitches(i), currentB_ilut(i), weights%dat)
-
-                    if (step == 1) then
-                        switchWeight = weights%proc%plus(posSwitches(i), &
-                                                         currentB_ilut(i), weights%dat)
-                    else
-                        switchWeight = weights%proc%minus(negSwitches(i), &
-                                                          currentB_ilut(i), weights%dat)
-                    end if
-
-                    startWeight = zeroWeight / (zeroWeight + switchWeight)
-
-                    ! then calc. the product
-                    do j = i + 1, st - 1
-                        step = current_stepvector(j)
-                        ! its always the 0 branch!
-                        call getDoubleMatrixElement(step, step, 0, gen_type%R, gen_type%L, currentB_ilut(j), &
-                                                    1.0_dp, x1_element=tempWeight_1)
-
-                        tempWeight = tempWeight * tempWeight_1
-
-                        ! no change in pgen if 3 or 0 stepvalue
-                        if (currentOcc_int(j) /= 1) then
-                            cycle
-                        end if
-
-                        zeroWeight = weights%proc%zero(negSwitches(j), &
-                                                       posSwitches(j), currentB_ilut(j), weights%dat)
-
-                        if (step == 1) then
-                            switchWeight = weights%proc%plus(posSwitches(j), &
-                                                             currentB_ilut(j), weights%dat)
-                        else
-                            switchWeight = weights%proc%minus(negSwitches(j), &
-                                                              currentB_ilut(j), weights%dat)
-                        end if
-
-                        zeroWeight = calcStayingProb(zeroWeight, switchWeight, &
-                                                     currentB_ilut(j))
-
-                        startWeight = startWeight * zeroWeight
-
-                    end do
-
-                    ! update the integral with this weight and the corresponding
-                    ! umat elements
-                    integral = integral + tempWeight * (get_umat_el(i, se, en, i) &
-                                                        + get_umat_el(se, i, i, en)) / 2.0_dp
-
-                    ! add up all pgen contribs
-                    ! kind of...
-                    ! if the matrix element is 0 i should also set the pgen
-                    ! to 0
-                    if (near_zero(tempWeight)) then
-                        startWeight = 0.0_dp
-                    end if
-                    pgen = pgen + orbitalProb * startWeight * startProb * branch_pgen / origWeight
-
-                end do
-                ! and update the final matrix element
-                integral = integral * botCont
-
-            end if
-        end if
-
-        ! have to determine the first stepvector change in the overlap region
-        sw = findFirstSwitch(ilut, t, st, se)
-        ! for test purposes:
-        ! if the first switch did not happen at the fullstart loop until the
-        ! switch
-
-        if (sw > st) then
-            ! need the inverse parts of the original excitation, start with
-            ! the starting element
-
-            step = current_stepvector(st)
-
-            call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(st), &
-                                        1.0_dp, x1_element=tempWeight)
-
-            tempWeight = 1.0_dp / tempWeight
-
-            ! do similar to modify the pgens to reuse the already calculated
-            ! one to calc. the rest
-            ! need the pgen
-
-            branch_pgen = branch_pgen / origWeight
-
-            ! change to loop until switch - 1 again so pgen get easier to calc
-            do i = st + 1, sw - 1
-                if (currentOcc_int(i) /= 1) then
-                    cycle
-                end if
-                ! until switch only 0 branch
-                step = current_stepvector(i)
-
-                ! update inverse product
-                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight = tempWeight / tempWeight_1
-
-                ! and also get starting contribution
-                call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(i), &
-                                            1.0_dp, x1_element=tempWeight_1)
-
-                tempWeight_1 = tempWeight * tempWeight_1
-
-                ! because the rest of the matrix element is still the same in
-                ! both cases...
-                integral = integral + tempWeight_1 * (get_umat_el(se, i, i, en) + &
-                                                      get_umat_el(i, se, en, i)) / 2.0_dp
-
-                ! for every open orbitals i need the starting probability and
-                ! the original staying probability
-                zeroWeight = weights%proc%zero(negSwitches(i), &
-                                               posSwitches(i), currentB_ilut(i), weights%dat)
-
-                if (step == 1) then
-                    switchWeight = weights%proc%plus(posSwitches(i), &
-                                                     currentB_ilut(i), weights%dat)
-                else
-                    switchWeight = weights%proc%minus(negSwitches(i), &
-                                                      currentB_ilut(i), weights%dat)
-                end if
-
-                origWeight = calcStayingProb(zeroWeight, switchWeight, &
-                                             currentB_ilut(i))
-
-                startWeight = zeroWeight / (zeroWeight + switchWeight)
-
-                ! and update probWeight
-
-                branch_pgen = branch_pgen * startWeight / origWeight
-                ! and also need the orbitals picking prob
-
-                orbitalProb = calc_pgen_yix_start(i)
-
-                ! and add up correctly
-                pgen = pgen + orbitalProb * branch_pgen
-
-                ! problem is i cant actually do that until the switch here...
-                ! since there the probs are for switching and not staying on the
-                ! 0 branch...
-                ! need to redo the matrix elements then too...
-
-            end do
-            ! do switch seperately again to also handle the pgens easier
-            step = current_stepvector(sw)
-            step2 = getStepvalue(t, sw)
-
-            ! update inverse product
-            call getDoubleMatrixElement(step2, step, 0, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                        1.0_dp, x1_element=tempWeight_1)
-
-            tempWeight = tempWeight / tempWeight_1
-
-            ! and also get starting contribution
-            call getDoubleMatrixElement(step2, step, -1, gen_type%L, gen_type%R, currentB_ilut(sw), &
-                                        1.0_dp, x1_element=tempWeight_1)
-
-            tempWeight_1 = tempWeight * tempWeight_1
-
-            ! because the rest of the matrix element is still the same in
-            ! both cases...
-            integral = integral + tempWeight_1 * (get_umat_el(se, sw, sw, en) + &
-                                                  get_umat_el(sw, se, en, sw)) / 2.0_dp
-
-            zeroWeight = weights%proc%zero(negSwitches(sw), posSwitches(sw), &
-                                           currentB_ilut(sw), weights%dat)
-
-            ! on the switch the original probability is:
-            if (step == 1) then
-                switchWeight = weights%proc%plus(posSwitches(sw), &
-                                                 currentB_ilut(sw), weights%dat)
-            else
-                switchWeight = weights%proc%minus(negSwitches(sw), &
-                                                  currentB_ilut(sw), weights%dat)
-            end if
-
-            origWeight = 1.0_dp - calcStayingProb(zeroWeight, switchWeight, &
-                                                  currentB_ilut(sw))
-
-            ! and the new startProb is also the non-b=0 branch
-
-            startWeight = switchWeight / (zeroWeight + switchWeight)
-
-            orbitalProb = calc_pgen_yix_start(sw)
-
-            pgen = pgen + orbitalProb * branch_pgen * startWeight / origWeight
-
-        end if
-
-        ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-
-        ! UPDATE: 17.03.2016: only figured that out now.. damn, for the
-        ! on the fly adaptation of the time-step depending on the chosen
-        ! type of excitation, i have to consider pExcit4, pExcit2 etc.
-        ! also have to differentiate if i consider t_consider_diff_bias ..
-
-        pgen = pgen * orb_pgen_contrib_type_3()
-
-    end subroutine calc_mixed_start_l2r_contr_nosym
-
-    subroutine forced_mixed_start(ilut, excitInfo, t, probWeight)
+    subroutine forced_mixed_start(ilut, csf_i, excitInfo, t, probWeight)
         ! NOTE: mixed full-start matrix elements are stores in the same row
         ! as delta B = -1 ones -> so access getDoubleMatrixElement with
         ! db = -1 below!
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: probWeight
@@ -11778,13 +3657,13 @@ contains
         ! to a single-excitation-like DE
 
         st = excitInfo%fullStart
-        bVal = currentB_ilut(st)
+        bVal = csf_i%B_real(st)
 
         t = ilut
 
-        select case (current_stepvector(st))
+        select case (csf_i%stepvector(st))
         case (1)
-            if (currentB_int(st) < 2) then
+            if (csf_i%B_int(st) < 2) then
                 ! actually not possible in this case, as only 0 branch valid..
                 probWeight = 0.0_dp
                 t = 0_n_int
@@ -11834,12 +3713,13 @@ contains
 
     end subroutine forced_mixed_start
 
-    subroutine mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+    subroutine mixedFullStartStochastic(ilut, csf_i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, probWeight)
         ! NOTE: mixed full-start matrix elements are stores in the same row
         ! as delta B = -1 ones -> so access getDoubleMatrixElement with
         ! db = -1 below!
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -11860,7 +3740,7 @@ contains
         ! to a single-excitation-like DE
 
         st = excitInfo%fullStart
-        bVal = currentB_ilut(st)
+        bVal = csf_i%B_real(st)
 
         t = ilut
 
@@ -11874,9 +3754,9 @@ contains
 
         ! no do not do that, as i have to check probweights inbetween if
         ! excitation yields non-zero matrix element
-        select case (current_stepvector(st))
+        select case (csf_i%stepvector(st))
         case (1)
-            if (currentB_int(st) < 2) then
+            if (csf_i%B_int(st) < 2) then
                 ! only 0-branch start possible, which always has weight > 0
                 ! no change in stepvector, so just calc matrix element
                 call getDoubleMatrixElement(1, 1, -1, gen_type%L, gen_type%R, &
@@ -11972,9 +3852,10 @@ contains
 
     end subroutine mixedFullStartStochastic
 
-    subroutine calcSingleOverlapMixedStochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcSingleOverlapMixedStochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                                 posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -12026,17 +3907,17 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, excitInfo%fullEnd)
+            weights = init_singleWeight(csf_i, excitInfo%fullEnd)
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check if weights were 0
         check_abort_excit(branch_pgen, t)
 
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check and update weights
             branch_pgen = branch_pgen * temp_pgen
@@ -12045,7 +3926,7 @@ contains
         end do
 
         iOrb = excitInfo%secondStart
-        bVal = currentB_ilut(iOrb)
+        bVal = csf_i%B_real(iOrb)
 
         deltaB = getDeltaB(t)
 
@@ -12076,7 +3957,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check and update weights
             branch_pgen = branch_pgen * temp_pgen
@@ -12084,7 +3965,7 @@ contains
             check_abort_excit(branch_pgen, t)
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
@@ -12099,9 +3980,10 @@ contains
 
     end subroutine calcSingleOverlapMixedStochastic
 
-    subroutine calcFullstopRaisingStochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcFullstopRaisingStochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                              posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -12138,11 +4020,11 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, excitInfo%secondStart)
+            weights = init_singleWeight(csf_i, excitInfo%secondStart)
         end if
 
         ! i only need normal single stochastic start then..
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! matrix element cannot be zero but both branch weights might have been
@@ -12150,7 +4032,7 @@ contains
 
         ! then stochastc single update
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check if branch weights turned 0
@@ -12159,12 +4041,12 @@ contains
 
         ! write it for specific lowering semi-start
         iOrb = excitInfo%secondStart
-        bVal = currentB_ilut(iOrb)
+        bVal = csf_i%B_real(iOrb)
 
         ! hope that the weighs correctly assert that only fitting deltaB
         ! values arrive here, to ensure a deltaB=0 branch in the DE overlap
         deltaB = getDeltaB(t)
-        select case (current_stepvector(iOrb))
+        select case (csf_i%stepvector(iOrb))
         case (1)
             ASSERT(deltaB == -1)
 
@@ -12218,8 +4100,9 @@ contains
         ! only deltaB = 0 branch, so only number of open orbitals important
         ! for matrix element in overlap region
 
-        nOpen = (-1.0_dp)**real(count_open_orbs_ij(excitInfo%secondStart + 1, &
-                                                   excitInfo%fullEnd - 1), dp)
+        nOpen = (-1.0_dp)**real(&
+                    count_open_orbs_ij(csf_i, excitInfo%secondStart + 1, excitInfo%fullEnd - 1), &
+                dp)
 
         iOrb = excitInfo%fullEnd
 
@@ -12242,9 +4125,10 @@ contains
 
     end subroutine calcFullstopRaisingStochastic
 
-    subroutine calcFullstopLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcFullstopLoweringStochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                               posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -12281,11 +4165,11 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, excitInfo%secondStart)
+            weights = init_singleWeight(csf_i, excitInfo%secondStart)
         end if
 
         ! i only need normal single stochastic start then..
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! matrix elements cant be 0, but maybe both branch weights were...
@@ -12293,7 +4177,7 @@ contains
 
         ! then stochastc single update
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! matrix elements cant be 0 but branch weight might be..
@@ -12302,13 +4186,13 @@ contains
 
         ! write it for specific lowering semi-start
         iOrb = excitInfo%secondStart
-        bVal = currentB_ilut(iOrb)
+        bVal = csf_i%B_real(iOrb)
 
         ! hope that the weighs correctly assert that only fitting deltaB
         ! values arrive here, to ensure a deltaB=0 branch in the DE overlap
         deltaB = getDeltaB(t)
 
-        select case (current_stepvector(iOrb))
+        select case (csf_i%stepvector(iOrb))
         case (1)
             ASSERT(getDeltaB(t) == -1)
 
@@ -12362,7 +4246,7 @@ contains
         ! only deltaB = 1 branch, so only number of open orbitals important
         ! for matrix element in overlap region
 
-        nOpen = (-1.0_dp)**real(count_open_orbs_ij(excitInfo%secondStart + 1, &
+        nOpen = (-1.0_dp)**real(count_open_orbs_ij(csf_i, excitInfo%secondStart + 1, &
                                                    excitInfo%fullEnd - 1), dp)
 
         iOrb = excitInfo%fullEnd
@@ -12386,12 +4270,13 @@ contains
 
     end subroutine calcFullstopLoweringStochastic
 
-    subroutine calcFullStartLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
+    subroutine calcFullStartLoweringStochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                                posSwitches, negSwitches, opt_weight)
         ! in this case there is no ambiguity in the matrix elements, as they
         ! are uniquely determined and thus can be efficiently calculated on
         ! the fly
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -12412,7 +4297,7 @@ contains
         ende = excitInfo%fullEnd
         semi = excitInfo%firstEnd
         gen = excitInfo%firstGen
-        bVal = currentB_ilut(semi)
+        bVal = csf_i%B_real(semi)
 
         ! could check U matrix element here.. although in the final version
         ! of the orbital picker, it probably should be accessed already
@@ -12440,22 +4325,22 @@ contains
 
         ! double overlap region influence only determined by number of open
         ! orbitals
-        nOpen = real(count_open_orbs_ij(start, semi - 1), dp)
+        nOpen = real(count_open_orbs_ij(csf_i, start, semi - 1), dp)
 
         deltaB = getDeltaB(t)
 
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, ende)
+            weights = init_singleWeight(csf_i, ende)
         end if
         ! could encode matrix element here, but do it later for more efficiency
 
         tempWeight = 0.0_dp
 
-        select case (current_stepvector(semi))
+        select case (csf_i%stepvector(semi))
         case (0)
-            if (currentB_int(semi) > 0) then
+            if (csf_i%B_int(semi) > 0) then
 
                 minusWeight = weights%proc%minus(negSwitches(semi), bVal, weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(semi), bVal, weights%dat)
@@ -12539,14 +4424,14 @@ contains
 
         ! and then we have to do just a regular single excitation
         do iOrb = semi + 1, ende - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, &
                                         posSwitches, negSwitches, t, temp_pgen)
             ! matrix element cant be 0 but maybe both branch weights were..
             branch_pgen = branch_pgen * temp_pgen
             check_abort_excit(branch_pgen, t)
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
@@ -12559,12 +4444,13 @@ contains
 
     end subroutine calcFullStartLoweringStochastic
 
-    subroutine calcFullStartRaisingStochastic(ilut, excitInfo, t, &
+    subroutine calcFullStartRaisingStochastic(ilut, csf_i, excitInfo, t, &
                                               branch_pgen, posSwitches, negSwitches, opt_weight)
         ! in this case there is no ambiguity in the matrix elements, as they
         ! are uniquely determined and thus can be efficiently calculated on
         ! the fly
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
@@ -12585,7 +4471,7 @@ contains
         ende = excitInfo%fullEnd
         semi = excitInfo%firstEnd
         gen = excitInfo%firstGen
-        bVal = currentB_ilut(semi)
+        bVal = csf_i%B_real(semi)
 
         ! could check U matrix element here.. although in the final version
         ! of the orbital picker, it probably should be accessed already
@@ -12620,20 +4506,20 @@ contains
 
         ! double overlap region influence only determined by number of open
         ! orbitals
-        nOpen = real(count_open_orbs_ij(start, semi - 1), dp)
+        nOpen = real(count_open_orbs_ij(csf_i, start, semi - 1), dp)
 
         deltaB = getDeltaB(t)
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, ende)
+            weights = init_singleWeight(csf_i, ende)
         end if
 
         ! could encode matrix element here, but do it later for more efficiency
 
-        select case (current_stepvector(semi))
+        select case (csf_i%stepvector(semi))
         case (3)
-            if (currentB_int(semi) > 0) then
+            if (csf_i%B_int(semi) > 0) then
                 minusWeight = weights%proc%minus(negSwitches(semi), bVal, weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(semi), bVal, weights%dat)
 
@@ -12720,7 +4606,7 @@ contains
         ! x0 matrix elements cant be 0 at a RR semistop
         ! and then we have to do just a regular single excitation
         do iOrb = semi + 1, ende - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, &
+            call singleStochasticUpdate(ilut, csf_i, iOrb, excitInfo, weights, &
                                         posSwitches, negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! in the single overlap regions matrix elements cant actually
@@ -12731,7 +4617,7 @@ contains
             check_abort_excit(branch_pgen, t)
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_i, excitInfo, t)
 
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
@@ -12744,420 +4630,9 @@ contains
 
     end subroutine calcFullStartRaisingStochastic
 
-    subroutine createStochasticExcitation_single(ilut, nI, exc, pgen)
-        ! calculate one possible single excitation and the corresponding
-        ! probabilistic weight and hamilton matrix element for a given CSF
-        ! store matrix element in ilut for now... maybe change that later
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(out) :: exc(0:nifguga)
-        real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = "createStochasticExcitation_single"
-
-        type(ExcitationInformation_t) :: excitInfo
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
-                    branch_pgen, orb_pgen, temp_pgen
-        HElement_t(dp) :: integral, mat_ele
-
-        type(WeightObj_t) :: weights
-        integer :: iO, st, en, step, i, j, gen, deltaB, step2
-        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        logical :: compFlag
-
-        ASSERT(isProperCSF_ilut(ilut))
-
-        ! first pick possible orbitals:
-        ! todo: combine that with integrals elements... otherwise it does not
-        ! make too much sense
-        ! but since there is a sum of contribution, which can lead to the
-        ! same excitaiton shouldn't i check if the whole sum is zero, and not
-        ! only the one-particle matrix element.
-
-        ! this pickOrbitals picker is the only difference in the symmetric
-        ! and non-symmetric excitation generator
-        ! so in the initialize function point a general orbital picker to
-        ! the specific one, depending on the input..
-        call pickOrbitals_single(ilut, nI, excitInfo, orb_pgen)
-
-        if (.not. excitInfo%valid) then
-            ! if no valid indices were picked, return 0 excitation and return
-            exc = 0_n_int
-            pgen = 0.0_dp
-            return
-        end if
-
-        if (t_guga_pchb) then
-            call checkCompatibility_single(ilut, excitInfo, compFlag, &
-                posSwitches, negSwitches, weights)
-
-            if (.not.compFlag) then
-                exc = 0_n_int
-                pgen = 0.0_dp
-                return
-            end if
-        end if
-
-
-        if (t_guga_back_spawn) then
-            ! do smth like this:
-            ! if i find to increase the excit-lvl with the chosen
-            ! orbitals and the current CSF is a non-initiator ->
-            ! perform a crude excitation
-            if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then
-
-                if (t_guga_back_spawn_trunc) then
-                    ! a 2 indicated we want to cancel excit-lvl increasing
-                    ! excitations.
-                    pgen = 0.0_dp
-                    exc = 0_n_int
-                    return
-                end if
-
-                call create_crude_guga_single(ilut, nI, exc, branch_pgen, excitInfo)
-
-                ! there is also this routine I already wrote:
-                ! I should combine those two as they do the same job
-
-                pgen = orb_pgen * branch_pgen
-
-                return
-            end if
-        end if
-
-        ! do the crude approximation here for now..
-        if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
-
-            call create_crude_single(ilut, exc, branch_pgen, excitInfo)
-
-            if (near_zero(branch_pgen)) then
-                exc = 0_n_int
-                pgen = 0.0_dp
-                return
-            end if
-
-            call convert_ilut_toNECI(ilut, ilutI)
-            call convert_ilut_toNECI(exc, ilutJ)
-
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-                                          .true., 2)
-
-            if (near_zero(mat_ele)) then
-                exc = 0
-                pgen = 0.0_dp
-
-                return
-            end if
-
-            call encode_matrix_element(exc, 0.0_dp, 2)
-            call encode_matrix_element(exc, mat_ele, 1)
-
-            pgen = orb_pgen * branch_pgen
-
-            return
-        end if
-
-        ! have to have these short variable names or otherwise compilation
-        ! fails due to line-length restrictions with is Three(), etc. macros
-        st = excitInfo%fullStart
-        en = excitInfo%fullEnd
-
-        ! reimplement it from scratch
-        i = excitInfo%i
-        j = excitInfo%j
-        ! first the "normal" contribution
-        ! not sure if i have to subtract that element or not...
-        integral = getTmatEl(2 * i, 2 * j)
-
-        ! then calculate the remaing switche given indices
-        if (.not. t_guga_pchb) then
-            call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
-            ! intitialize the weights
-            weights = init_singleWeight(ilut, excitInfo%fullEnd)
-        end if
-
-        ! create the start randomly(if multiple possibilities)
-        ! create the start in such a way to use it for double excitations too
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
-                                          negSwitches, exc, branch_pgen)
-
-        ! can it be zero here? maybe due to matrix element issues...
-        if (near_zero(branch_pgen)) then
-            pgen = 0.0_dp
-            exc = 0_n_int
-            return
-        end if
-
-        ! update at last...
-
-        gen = excitInfo%currentGen
-
-        ! then do the stochastic updates..
-        do iO = st + 1, en - 1
-
-            ! need the ongoing deltaB value to access the multFactor table in
-            ! the same way as single and double excitations..
-            deltaB = getDeltaB(exc)
-
-            call singleStochasticUpdate(ilut, iO, excitInfo, weights, posSwitches, &
-                                        negSwitches, exc, temp_pgen)
-
-            branch_pgen = branch_pgen * temp_pgen
-            ! also get the double contribution during this loop
-            ! depends on both stepvalues...
-
-            if (t_trunc_guga_pgen .or. &
-                (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                if (branch_pgen < trunc_guga_pgen) then
-                    pgen = 0.0_dp
-                    exc = 0_n_int
-                    return
-                end if
-            end if
-
-            ! how to modifiy the values?
-            ! one of it is just additional
-            if (.not. (treal .or. t_new_real_space_hubbard .or. t_mixed_hubbard &
-                       .or. t_tJ_model)) then
-                integral = integral + get_umat_el(i, iO, j, iO) * currentOcc_ilut(iO)
-
-                ! but the r_k part confuses me a bit ...
-                step = current_stepvector(iO)
-                step2 = getStepvalue(exc, iO)
-
-                integral = integral + get_umat_el(i, iO, iO, j) * &
-                           getDoubleContribution(step2, step, deltaB, gen, currentB_ilut(iO))
-            end if
-        end do
-
-        ! the end step should be easy in this case. since due to the
-        ! correct use of probabilistic weights only valid excitations should
-        ! come to this point
-        call singleStochasticEnd(excitInfo, exc)
-
-        ! maybe but a check here if the matrix element anyhow turned out zero
-        if (near_zero(extract_matrix_element(exc, 1))) then
-            pgen = 0.0_dp
-            exc = 0_n_int
-            return
-        end if
-
-        pgen = orb_pgen * branch_pgen
-
-        ! do all the integral calulation afterwards..
-        ! since it depends on the created excitation.
-        ! updates integral variable:
-        ! should i intermediately but a if-statement for the real-space
-        ! hubbard model here? or should i write a more efficient
-        ! single-excitation creator? i guess i should..
-        ! and also for the matrix element calculation maybe..
-        if (.not. (treal .or. t_new_real_space_hubbard .or. &
-                   t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-            call calc_integral_contribution_single(exc, i, j, st, en, integral)
-        end if
-
-        if (tFillingStochRDMOnFly) then
-            ! if we want to do 'fast' GUGA RDMs we need to store the
-            ! rdm index and the x0 (for singles here) coupling coefficient
-            ! as part of the ilut(0:nifguga). this also necessitates
-            ! a 'longer' nifguga (+3 i think for rdm_index and x0 and x1..)
-            ! with an accompanying change to niftot.. (this could get a bit
-            ! messy in the rest of the code..)
-            call encode_stochastic_rdm_info(GugaBits, exc, rdm_ind= &
-                                            contract_1_rdm_ind(i, j, excit_lvl=1, excit_typ=excit_type%single), &
-                                            x0=extract_matrix_element(exc, 1), x1=0.0_dp)
-        end if
-
-        call encode_matrix_element(exc, 0.0_dp, 2)
-        call update_matrix_element(exc, integral, 1)
-
-        if (near_zero(extract_matrix_element(exc, 1))) then
-            pgen = 0.0_dp
-            exc = 0_n_int
-        end if
-
-        ! store the most recent excitation information
-        global_excitInfo = excitInfo
-
-    end subroutine createStochasticExcitation_single
-
-    subroutine calc_integral_contribution_single(exc, i, j, st, en, integral)
-        ! calculates the double-excitaiton contribution to a single excitation
-        integer(n_int), intent(in) :: exc(0:nifguga)
-        integer, intent(in) :: i, j, st, en
-        HElement_t(dp), intent(inout) :: integral
-
-        real(dp) :: botCont, topCont, tempWeight, prod
-        integer :: iO, jO, step
-
-        ! calculate the bottom contribution depending on the excited stepvalue
-        select case (current_stepvector(st))
-        case (0)
-            ! this implicates a raising st:
-            if (isOne(exc, st)) then
-                call getDoubleMatrixElement(1, 0, 0, gen_type%L, gen_type%R, currentB_ilut(st), &
-                                            1.0_dp, x1_element=botCont)
-
-            else
-                call getDoubleMatrixElement(2, 0, 0, gen_type%L, gen_type%R, currentB_ilut(st), &
-                                            1.0_dp, x1_element=botCont)
-            end if
-
-        case (3)
-            ! implies lowering st
-            if (isOne(exc, st)) then
-                ! need tA(0,2)
-                botCont = funA_0_2overR2(currentB_ilut(st))
-
-            else
-                ! need -tA(2,0)
-                botCont = minFunA_2_0_overR2(currentB_ilut(st))
-            end if
-
-        case (1)
-            botCont = funA_m1_1_overR2(currentB_ilut(st))
-            ! check which generator
-            if (isZero(exc, st)) botCont = -botCont
-
-        case (2)
-            botCont = funA_3_1_overR2(currentB_ilut(st))
-            if (isThree(exc, st)) botCont = -botCont
-        end select
-
-        ! do top contribution also already
-
-        select case (current_stepvector(en))
-        case (0)
-            if (isOne(exc, en)) then
-                topCont = funA_2_0_overR2(currentB_ilut(en))
-            else
-                topCont = minFunA_0_2_overR2(currentB_ilut(en))
-            end if
-        case (3)
-            if (isOne(exc, en)) then
-                topCont = minFunA_2_0_overR2(currentB_ilut(en))
-            else
-                topCont = funA_0_2overR2(currentB_ilut(en))
-            end if
-        case (1)
-            topCont = funA_2_0_overR2(currentB_ilut(en))
-            if (isThree(exc, en)) topCont = -topCont
-
-        case (2)
-            topCont = funA_0_2overR2(currentB_ilut(en))
-            if (isZero(exc, en)) topCont = -topCont
-
-        end select
-
-        ! depending on i and j calulate the corresponding single and double
-        ! integral weights and check if they are non-zero...
-        ! gets quite involved... :( need to loop over all orbitals
-        ! have to reset prod inside the loop each time!
-
-        do iO = 1, st - 1
-            ! no contribution if not occupied.
-            if (current_stepvector(iO) == 0) cycle
-            ! else it gets a contrbution weighted with orbital occupation
-            ! first easy part:
-            integral = integral + get_umat_el(i, iO, j, iO) * currentOcc_ilut(iO)
-
-            ! also easy is the non-product involving part...
-            integral = integral - get_umat_el(i, iO, iO, j) * &
-                       currentOcc_ilut(iO) / 2.0_dp
-
-            ! the product part is annoying actually... but doesnt help... todo
-            ! have to do a second loop for the product
-            ! for the first loop iteration i have to access the mixed fullstart
-            ! elements, with a deltaB = -1 value!!
-            ! think about how to implement that !
-
-            ! do i have to do anything for a d = 3 ? since x1-element is 0
-            ! in this case anyway.. there should not be an influence.
-            ! also if its a d = 2 with b = 0 the matrix element is also 0
-            if (current_stepvector(iO) == 3 .or. currentB_int(iO) == 0) cycle
-
-            step = current_stepvector(iO)
-            call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(iO), &
-                                        1.0_dp, x1_element=prod)
-
-            ! and then do the remaining:
-            do jO = iO + 1, st - 1
-                ! need the stepvalue entries to correctly access the mixed
-                ! generator matrix elements
-                step = current_stepvector(jO)
-                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, &
-                                            currentB_ilut(jO), 1.0_dp, x1_element=tempWeight)
-
-                prod = prod * tempWeight
-            end do
-            prod = prod * botCont
-
-            integral = integral + get_umat_el(i, iO, iO, j) * prod
-
-        end do
-
-        ! also have to calc the top and bottom contribution to the product terms
-        ! BUT they also depend on the excitation -> so i should only calculate
-        ! these terms after i started the excitation! todo
-
-        ! at the start of excittaion also certain values.
-
-        ! need for second sum term the occupation of the excited state... ->
-        ! need generator type considerations.. todo
-        ! at i the occupation of the excited state is necessary ->
-        ! which. independently means
-
-        ! did some stupid double counting down there...
-        ! still something wrong down there...
-        ! i should be able to formulate that in terms of st and en..
-        integral = integral + get_umat_el(i, i, j, i) * currentOcc_ilut(i)
-        integral = integral + get_umat_el(i, j, j, j) * (currentOcc_ilut(j) - 1.0_dp)
-
-        ! have to reset prod here!!!
-
-        ! also do the same loop on the orbitals above the fullEnd. to get
-        ! the double contribution
-        do iO = en + 1, nSpatOrbs
-            ! do stuff
-            if (current_stepvector(iO) == 0) cycle
-
-            integral = integral + get_umat_el(i, iO, j, iO) * currentOcc_ilut(iO)
-
-            integral = integral - get_umat_el(i, iO, iO, j) * currentOcc_ilut(iO) / 2.0_dp
-
-            ! not necessary to do it for d = 3 or b = 1, d=1 end value! since
-            ! top matrix element 0 in this case
-
-            if (current_stepvector(iO) == 3 .or. (currentB_int(iO) == 1 &
-                                                  .and. current_stepvector(iO) == 1)) cycle
-
-            ! have to reset prod every loop
-            prod = 1.0_dp
-
-            do jO = en + 1, iO - 1
-                ! do stuff
-                step = current_stepvector(jO)
-                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, currentB_ilut(jO), &
-                                            1.0_dp, x1_element=tempWeight)
-
-                prod = prod * tempWeight
-
-            end do
-            ! have to seperately access the top most mixed full-stop
-            step = current_stepvector(iO)
-            call getMixedFullStop(step, step, 0, currentB_ilut(iO), &
-                                  x1_element=tempWeight)
-
-            prod = prod * tempWeight
-
-            prod = prod * topCont
-
-            integral = integral + get_umat_el(i, iO, iO, j) * prod
-        end do
-
-    end subroutine calc_integral_contribution_single
-
-    subroutine singleStochasticEnd(excitInfo, t)
+    subroutine singleStochasticEnd(csf_i, excitInfo, t)
         ! routine to end a stochastic excitation for a single generator
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: t(0:nifguga)
         character(*), parameter :: this_routine = "singleStochasticEnd"
@@ -13168,11 +4643,11 @@ contains
         ende = excitInfo%fullEnd
         deltaB = getDeltaB(t)
         tempWeight = extract_matrix_element(t, 1)
-        bVal = currentB_ilut(ende)
+        bVal = csf_i%B_real(ende)
         gen = excitInfo%currentGen
         ! should be really similar to full excitation routine, except all the
         ! clean up stuff
-        select case (current_stepvector(ende))
+        select case (csf_i%stepvector(ende))
         case (0)
             ! if it is zero it implies i have a lowering generator, otherwise
             ! i wouldnt even be here.
@@ -13266,9 +4741,10 @@ contains
 
     end subroutine singleStochasticEnd
 
-    subroutine singleStochasticUpdate(ilut, s, excitInfo, weights, posSwitches, &
+    subroutine singleStochasticUpdate(ilut, csf_i, s, excitInfo, weights, posSwitches, &
                                       negSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: s
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
@@ -13290,7 +4766,7 @@ contains
         ! set standard probWeight
         probWeight = 1.0_dp
 
-        select case (current_stepvector(s))
+        select case (csf_i%stepvector(s))
         case (0)
             ! do nothin actually.. not even change matrix elements
             return
@@ -13305,14 +4781,14 @@ contains
 
         ! to generally use this function i need to define a current generator...
         gen = excitInfo%currentGen
-        bVal = currentB_ilut(s)
+        bVal = csf_i%B_real(s)
 
         ! only need weights in certain cases..
         deltaB = getDeltaB(t)
 
         ! is it possible to only check for possible switches and else handle
         ! it in one go? try!
-        select case (current_stepvector(s) + deltaB)
+        select case (csf_i%stepvector(s) + deltaB)
         case (0)
             ! d=1 + b=-1 : 0
             ! no bValue restrictions here, so that should be handlebar
@@ -13349,7 +4825,7 @@ contains
             ! d=2 + b=1 : 3
             ! do i need bValue check here?
             ! probably... to distinguish forced switches
-            if (currentB_int(s) > 0) then
+            if (csf_i%B_int(s) > 0) then
                 ! both excitations possible
                 plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
                 minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
@@ -13394,8 +4870,8 @@ contains
                     print *, negSwitches
                     print *, "overlap:", excitInfo%overlap
 
-                    call write_det_guga(6, ilut)
-                    call write_det_guga(6, t)
+                    call write_det_guga(stdout, ilut)
+                    call write_det_guga(stdout, t)
                     call print_excitInfo(excitInfo)
                 end if
 
@@ -13445,7 +4921,7 @@ contains
             ! can i efficiently code that up?
             ! deltaB stays the same.., stepvector stays the same.. essentiall
             ! only matrix element changes.. -> need deltaB, generators and stepvalue
-            step = current_stepvector(s)
+            step = csf_i%stepvector(s)
 
             ! to get correct bValue use it for next spatial orbital..
             tempWeight = getSingleMatrixElement(step, step, deltaB, gen, bVal)
@@ -13463,12 +4939,13 @@ contains
 
     end subroutine singleStochasticUpdate
 
-    subroutine createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+    subroutine createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitches, &
                                             negSwitches, t, probWeight)
         ! create a stochastic start for a single generator
         ! essentially exactly the same as in the full excitation calculation
         ! except that at a 0/3 start we have to do it stochastically ...
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -13486,7 +4963,7 @@ contains
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
         ! also check if calculated b vector really fits to ilut
-        ASSERT(all(currentB_ilut.isclose.calcB_vector_ilut(ilut(0:nifd))))
+        ASSERT(all(csf_i%B_real .isclose. calcB_vector_ilut(ilut(0:nifd))))
         if (excitInfo%currentGen == gen_type%R) then
             ASSERT(.not. isThree(ilut, excitInfo%fullStart))
         else if (excitInfo%currentGen == gen_type%L) then
@@ -13498,11 +4975,11 @@ contains
         ! for more oversight
         st = excitInfo%fullStart
         gen = excitInfo%currentGen
-        bVal = currentB_ilut(st)
+        bVal = csf_i%B_real(st)
 
         t = ilut
 
-        select case (current_stepvector(st))
+        select case (csf_i%stepvector(st))
         case (1)
             ! set corresponding orbital to 0 or 3 depending on generator type
             if (gen == gen_type%R) then ! raising gen case
@@ -13629,312 +5106,40 @@ contains
 
     end subroutine createStochasticStart_single
 
-    function calcStartProb(prob1, prob2) result(ret)
-        ! calculate the probability of a starting branch, given two possibilities
-        real(dp), intent(in) :: prob1, prob2
-        real(dp) :: ret
-        character(*), parameter :: this_routine = "calcStartProb"
 
-        ASSERT(prob1 >= 0.0_dp)
-        ASSERT(prob2 >= 0.0_dp)
-
-        ret = prob1 / (prob1 + prob2)
-
-    end function calcStartProb
-
-    function calcStayingProb(prob1, prob2, bVal) result(ret)
-        ! calculate the probability to stay on a certain excitation branch
-        real(dp), intent(in) :: prob1, prob2, bVal
-        real(dp) :: ret, tmp
-        character(*), parameter :: this_routine = "calcStayingProb"
-
-        ASSERT(prob1 >= 0.0_dp)
-        ASSERT(prob2 >= 0.0_dp)
-        ASSERT(bVal >= 0.0_dp)
-
-        ! if b == 0 its stupid to use it..
-        tmp = max(bVal, 1.0_dp)
-
-        ret = tmp * prob1 / (tmp * prob1 + prob2)
-
-    end function calcStayingProb
-
-    ! proabbilistic weight objects:
-    function init_singleWeight(ilut, sOrb) result(singleWeight)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: sOrb
-        type(WeightObj_t) :: singleWeight
-        character(*), parameter :: this_routine = "init_singleWeight"
-
-        ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
-
-        singleWeight%dat%F = endFx(sOrb)
-        singleWeight%dat%G = endGx(sOrb)
-
-        singleWeight%proc%minus => getMinus_single
-        singleWeight%proc%plus => getPlus_single
-
-        singleWeight%initialized = .true.
-
-    end function init_singleWeight
-
-    function getMinus_single(nSwitches, bVal, single) result(minusWeight)
-        real(dp), intent(in) :: nSwitches, bVal
-        type(WeightData_t), intent(in) :: single
-        real(dp) :: minusWeight
-        character(*), parameter :: this_routine = "getMinus_single"
-        ASSERT(nSwitches >= 0.0_dp)
-        ! change that, to make it independend if b is zero
-        if (near_zero(bVal)) then
-            ! make it only depend on f and nSwitches
-            ! will be normalized to 1 anyway in the calcStayingProb function
-            minusWeight = single%F + nSwitches * single%G
-
-        else
-            minusWeight = single%F + nSwitches * single%G / bVal
-
-        end if
-
-        ASSERT(minusWeight >= 0.0_dp)
-
-    end function getMinus_single
-
-    function getPlus_single(nSwitches, bVal, single) result(plusWeight)
-        real(dp), intent(in) :: nSwitches, bVal
-        type(WeightData_t), intent(in) :: single
-        real(dp) :: plusWeight
-        character(*), parameter :: this_routine = "getPlus_single"
-        ASSERT(nSwitches >= 0.0_dp)
-
-        if (near_zero(bVal)) then
-            plusWeight = 0.0_dp
-        else
-            plusWeight = single%G + nSwitches * single%F / bVal
-        end if
-
-        ASSERT(plusWeight >= 0.0_dp)
-
-    end function getPlus_single
-
-    function init_forced_end_exchange_weight(ilut, sOrb) result(forced_double)
+    elemental function init_forced_end_exchange_weight(csf_i, sOrb) result(forced_double)
         ! obj has the same structure as the semi-start weight, reuse them!
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: sOrb
         type(WeightObj_t) :: forced_double
         character(*), parameter :: this_routine = "init_forced_end_exchange_weight"
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
-        forced_double%dat%F = endFx(sOrb)
-        forced_double%dat%G = endGx(sOrb)
+        forced_double%dat%F = endFx(csf_i, sOrb)
+        forced_double%dat%G = endGx(csf_i, sOrb)
 
         forced_double%proc%minus => getMinus_double
         forced_double%proc%plus => getPlus_double
         forced_double%proc%zero => get_forced_zero_double
 
         forced_double%initialized = .true.
-
     end function init_forced_end_exchange_weight
 
-    function init_doubleWeight(ilut, sOrb) result(doubleWeight)
-        ! obj has the same structure as the semi-start weight, reuse them!
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: sOrb
-        type(WeightObj_t) :: doubleWeight
-        character(*), parameter :: this_routine = "init_doubleWeight"
-        ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
-
-        doubleWeight%dat%F = endFx(sOrb)
-        doubleWeight%dat%G = endGx(sOrb)
-
-        doubleWeight%proc%minus => getMinus_double
-        doubleWeight%proc%plus => getPlus_double
-        doubleWeight%proc%zero => getZero_double
-
-        doubleWeight%initialized = .true.
-
-    end function init_doubleWeight
-
-    function getMinus_double(nSwitches, bVal, double) result(minusWeight)
-        real(dp), intent(in) :: nSwitches, bVal
-        type(WeightData_t), intent(in) :: double
-        real(dp) :: minusWeight
-        character(*), parameter :: this_routine = "getMinus_double"
-        ASSERT(nSwitches >= 0.0_dp)
-
-        minusWeight = double%F + nSwitches / max(1.0_dp, bVal)
-
-        ASSERT(minusWeight >= 0.0_dp)
-    end function getMinus_double
-
-    function getPlus_double(nSwitches, bVal, double) result(plusWeight)
-        real(dp), intent(in) :: nSwitches, bVal
-        type(WeightData_t), intent(in) :: double
-        real(dp) :: plusWeight
-        character(*), parameter :: this_routine = "getPlus_double"
-        ASSERT(nSwitches >= 0.0_dp)
-
-        ! update: the correct check for the b value in the case of the +2
-        ! double excitation branch should be that its not allowed to be
-        ! less than 2 on the current orbital with the new bVector
-        ! implementation:
-        ! or otherwise the excitation would lead to negative be values
-        if (bVal < 2.0_dp) then
-            plusWeight = 0.0_dp
-        else
-            plusWeight = double%G + nSwitches / bVal
-        end if
-
-        ASSERT(plusWeight >= 0.0_dp)
-    end function getPlus_double
-
-    function get_forced_zero_double(negSwitches, posSwitches, bVal, double) &
-        result(zeroWeight)
-        real(dp), intent(in) :: posSwitches, negSwitches, bVal
-        type(WeightData_t), intent(in) :: double
-        real(dp) :: zeroWeight
-
-        ! remove the order(1) branch as we want to switch at the end!
-        if (near_zero(bVal)) then
-            zeroWeight = negSwitches * double%G + posSwitches * double%F
-        else
-            zeroWeight = 1.0_dp / bVal * (negSwitches * double%G + posSwitches * double%F)
-        end if
-
-    end function get_forced_zero_double
-
-    function getZero_double(negSwitches, posSwitches, bVal, double) &
-        result(zeroWeight)
-        real(dp), intent(in) :: posSwitches, negSwitches, bVal
-        type(WeightData_t), intent(in) :: double
-        real(dp) :: zeroWeight
-        character(*), parameter :: this_routine = "getZero_double"
-        ASSERT(negSwitches >= 0.0_dp)
-        ASSERT(posSwitches >= 0.0_dp)
-
-        ! UPDATE: cant set it to one, because there are cases, when a 0
-        ! branch comes to a 2 in a double excitation, where one has to
-        ! compare against the -2 branch, which can also be non-zero
-        ! so to have the correct weights, just ignore b
-        zeroWeight = 1.0_dp + &
-                     (negSwitches * double%G + posSwitches * double%F) / max(1.0_dp, bVal)
-
-        ASSERT(zeroWeight >= 0.0_dp)
-    end function getZero_double
-
-    function init_fullStartWeight(ilut, sOrb, pOrb, negSwitches, &
-                                  posSwitches, bVal) result(fullStart)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: sOrb, pOrb
-        real(dp), intent(in) :: negSwitches, posSwitches
-        real(dp), intent(in) :: bVal
-        type(WeightObj_t) :: fullStart
-        character(*), parameter :: this_routine = "init_fullStartWeight"
-
-        type(WeightObj_t), target, save :: single
-        ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
-        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
-        ASSERT(negSwitches >= 0.0_dp)
-        ASSERT(posSwitches >= 0.0_dp)
-
-        fullStart%dat%F = endFx(sOrb)
-        fullStart%dat%G = endGx(sOrb)
-
-        ! have to set up a single weight obj.
-        single = init_singleWeight(ilut, pOrb)
-
-        ! try to reuse the already initialized singles weight in the cause of
-        ! an excitation, i hope this works with the pointers and stuff.
-        fullstart%ptr => single
-
-        fullStart%dat%minus = single%proc%minus(negSwitches, bVal, single%dat)
-        fullStart%dat%plus = single%proc%plus(posSwitches, bVal, single%dat)
-
-        fullStart%proc%minus => getMinus_fullStart
-        fullStart%proc%plus => getPlus_fullStart
-        fullStart%proc%zero => getZero_fullStart
-
-        fullStart%initialized = .true.
-
-    end function init_fullStartWeight
-
-    function getMinus_fullStart(nSwitches, bVal, fullStart) result(minusWeight)
-        real(dp), intent(in) :: nSwitches, bVal
-        type(WeightData_t), intent(in) :: fullStart
-        real(dp) :: minusWeight
-        character(*), parameter :: this_routine = "getMinus_fullStart"
-
-        ASSERT(nSwitches >= 0.0_dp)
-        ! here this assert is valid, since the bvalue really never should be
-        ! 0.. or else the parent CSF is invalid.
-        ! no of course it can still be 0 at a 0/3 start... but also
-        ! set it to the technical value only
-
-        ! try an adhoc second order fix..
-        minusWeight = fullStart%F * fullStart%minus + nSwitches / max(1.0_dp, bval) &
-                      * (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus) &
-                      + (max(nSwitches - 1, 0.0_dp) * fullStart%G * fullStart%plus / (max(1.0_dp, bval)**2))
-
-        ASSERT(minusWeight >= 0.0_dp)
-
-    end function getMinus_fullStart
-
-    function getPlus_fullStart(nSwitches, bVal, fullStart) result(plusWeight)
-        real(dp), intent(in) :: nSwitches, bVal
-        type(WeightData_t), intent(in) :: fullStart
-        real(dp) :: plusWeight
-        character(*), parameter :: this_routine = "getPlus_fullStart"
-
-        ASSERT(nSwitches >= 0.0_dp)
-
-        ! same as above: have to check if < 2
-        if (bVal < 2.0_dp) then
-            plusWeight = 0.0_dp
-        else
-            plusWeight = fullStart%G * fullStart%plus + nSwitches / bVal * &
-                         (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus) &
-                         + (max(nSwitches - 1, 0.0_dp) * fullStart%F * fullStart%minus / (max(1.0_dp, bval)**2))
-        end if
-
-        ASSERT(plusWeight >= 0.0_dp)
-
-    end function getPlus_fullStart
-
-    function getZero_fullStart(negSwitches, posSwitches, bVal, fullStart) &
-        result(zeroWeight)
-        real(dp), intent(in) :: negSwitches, posSwitches, bVal
-        type(WeightData_t), intent(in) :: fullStart
-        real(dp) :: zeroWeight
-        character(*), parameter :: this_routine = "getZero_fullStart"
-
-        ASSERT(negSwitches >= 0.0_dp)
-        ASSERT(posSwitches >= 0.0_dp)
-
-        zeroWeight = fullStart%F * fullStart%plus + fullStart%G * fullStart%minus + &
-                     (negSwitches * fullStart%G * fullStart%plus + &
-                      posSwitches * fullStart%F * fullStart%minus) / max(1.0_dp, bval)
-
-        ASSERT(zeroWeight >= 0.0_dp)
-
-    end function getZero_fullStart
-
-    function init_forced_end_semistart_weight(ilut, sOrb, pOrb, negSwitches, posSwitches, bVal) &
+    function init_forced_end_semistart_weight(csf_i, sOrb, pOrb, negSwitches, posSwitches, bVal) &
         result(forced_semistart)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
         type(WeightObj_t) :: forced_semistart
 
+        ! TODO(@Oskar): I think this is invalid code
         type(WeightObj_t), target, save :: double
 
-        forced_semistart%dat%F = endFx(sorb)
-        forced_semistart%dat%G = endGx(sorb)
+        forced_semistart%dat%F = endFx(csf_i, sorb)
+        forced_semistart%dat%G = endGx(csf_i, sorb)
 
-        double = init_forced_end_exchange_weight(ilut, porb)
+        double = init_forced_end_exchange_weight(csf_i, porb)
 
         forced_semistart%ptr => double
 
@@ -13946,83 +5151,11 @@ contains
         forced_semistart%proc%plus => getPlus_semiStart
 
         forced_semistart%initialized = .true.
-
     end function init_forced_end_semistart_weight
 
-    function init_semiStartWeight(ilut, sOrb, pOrb, negSwitches, posSwitches, bVal) &
-        result(semiStart)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: sOrb, pOrb
-        real(dp), intent(in) :: negSwitches, posSwitches, bVal
-        type(WeightObj_t) :: semiStart
-        character(*), parameter :: this_routine = "init_semiStartWeight"
-
-        type(WeightObj_t), target, save :: double
-
-        ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
-        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
-        ASSERT(negSwitches >= 0.0_dp)
-        ASSERT(posSwitches >= 0.0_dp)
-
-        semiStart%dat%F = endFx(sOrb)
-        semiStart%dat%G = endGx(sOrb)
-
-        double = init_doubleWeight(ilut, pOrb)
-
-        semiStart%ptr => double
-
-        semiStart%dat%minus = double%proc%minus(negSwitches, bVal, double%dat)
-        semiStart%dat%plus = double%proc%plus(posSwitches, bVal, double%dat)
-        semiStart%dat%zero = double%proc%zero(negSwitches, posSwitches, bVal, double%dat)
-
-        semiStart%proc%minus => getMinus_semiStart
-        semiStart%proc%plus => getPlus_semiStart
-
-        semiStart%initialized = .true.
-
-    end function init_semiStartWeight
-
-    function getMinus_semiStart(nSwitches, bVal, semiStart) result(minusWeight)
-        real(dp), intent(in) :: nSwitches, bVal
-        type(WeightData_t), intent(in) :: semiStart
-        real(dp) :: minusWeight
-        character(*), parameter :: this_routine = "getMinus_semiStart"
-
-        ASSERT(nSwitches >= 0.0_dp)
-        ! change b value treatment, by just checking if excitations is
-        ! technically possible if b == 0
-
-        minusWeight = semiStart%F * semiStart%zero + semiStart%G * semiStart%minus + &
-                      nSwitches / max(1.0_dp, bval) * (semiStart%F * semiStart%plus + semiStart%G * semiStart%zero)
-
-        ASSERT(minusWeight >= 0.0_dp)
-
-    end function getMinus_semiStart
-
-    function getPlus_semiStart(nSwitches, bVal, semiStart) result(plusWeight)
-        real(dp), intent(in) :: nSwitches, bVal
-        type(WeightData_t), intent(in) :: semiStart
-        real(dp) :: plusWeight
-        character(*), parameter :: this_routine = "getPlus_semiStart"
-
-        ASSERT(nSwitches >= 0.0_dp)
-        ! just set +1 branch probability to 0 if b == 0
-
-        if (near_zero(bVal)) then
-            plusWeight = 0.0_dp
-        else
-            plusWeight = semiStart%G * semiStart%zero + semiStart%F * semiStart%plus + &
-                         nSwitches / bVal * (semiStart%G * semiStart%minus + semiStart%F * semiStart%zero)
-        end if
-
-        ASSERT(plusWeight >= 0.0_dp)
-
-    end function getPlus_semiStart
-
-    function init_fullDoubleWeight(ilut, sOrb, pOrb, oOrb, negSwitches1, &
+    function init_fullDoubleWeight(csf_i, sOrb, pOrb, oOrb, negSwitches1, &
                                    negSwitches2, posSwitches1, posSwitches2, bVal1, bVal2) result(fullDouble)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: sOrb, pOrb, oOrb
         real(dp), intent(in) :: negSwitches1, negSwitches2, posSwitches1, &
                                 posSwitches2, bVal1, bVal2
@@ -14031,7 +5164,6 @@ contains
 
         type(WeightObj_t), target, save :: fullStart
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(oOrb > 0 .and. oOrb <= nSpatOrbs)
@@ -14040,10 +5172,10 @@ contains
         ASSERT(posSwitches1 >= 0.0_dp)
         ASSERT(posSwitches2 >= 0.0_dp)
 
-        fullDouble%dat%F = endFx(sOrb)
-        fullDouble%dat%G = endGx(sOrb)
+        fullDouble%dat%F = endFx(csf_i, sOrb)
+        fullDouble%dat%G = endGx(csf_i, sOrb)
 
-        fullStart = init_fullStartWeight(ilut, pOrb, oOrb, negSwitches2, &
+        fullStart = init_fullStartWeight(csf_i, pOrb, oOrb, negSwitches2, &
                                          posSwitches2, bVal2)
 
         fullDouble%ptr => fullStart
@@ -14060,9 +5192,9 @@ contains
 
     end function init_fullDoubleWeight
 
-    function init_singleOverlapRaising(ilut, sOrb, pOrb, negSwitches, posSwitches, &
+    function init_singleOverlapRaising(csf_i, sOrb, pOrb, negSwitches, posSwitches, &
                                        bVal) result(singleRaising)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
         type(WeightObj_t) :: singleRaising
@@ -14070,18 +5202,17 @@ contains
 
         type(WeightObj_t) :: single
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
 
         ! misuse zero data element as this L-function in this case!
-        singleRaising%dat%F = endFx(sOrb)
-        singleRaising%dat%G = endGx(sOrb)
-        singleRaising%dat%zero = endLx(sOrb)
+        singleRaising%dat%F = endFx(csf_i, sOrb)
+        singleRaising%dat%G = endGx(csf_i, sOrb)
+        singleRaising%dat%zero = endLx(csf_i, sOrb)
 
-        single = init_singleWeight(ilut, pOrb)
+        single = init_singleWeight(csf_i, pOrb)
 
         singleRaising%dat%minus = single%proc%minus(negSwitches, bVal, single%dat)
         singleRaising%dat%plus = single%proc%plus(posSwitches, bVal, single%dat)
@@ -14139,9 +5270,9 @@ contains
 
     end function getPlus_overlapRaising
 
-    function init_singleOverlapLowering(ilut, sOrb, pOrb, negSwitches, &
+    function init_singleOverlapLowering(csf_i, sOrb, pOrb, negSwitches, &
                                         posSwitches, bVal) result(singleLowering)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
         type(WeightObj_t) :: singleLowering
@@ -14149,17 +5280,16 @@ contains
 
         type(WeightObj_t), target, save :: single
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
 
         ! misuse zero data element as this L-function in this case!
-        singleLowering%dat%F = endFx(sOrb)
-        singleLowering%dat%G = endGx(sOrb)
+        singleLowering%dat%F = endFx(csf_i, sOrb)
+        singleLowering%dat%G = endGx(csf_i, sOrb)
 
-        single = init_singleWeight(ilut, pOrb)
+        single = init_singleWeight(csf_i, pOrb)
 
         singleLowering%ptr => single
 
@@ -14220,7 +5350,7 @@ contains
 
     end function getPlus_overlapLowering
 
-    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only, &
+    subroutine actHamiltonian(ilut, csf_i, excitations, nTot, t_singles_only, &
             t_print_time, t_full)
         ! subroutine to calculate the action of the full Hamiltonian on a
         ! a single CSF given in ilut bit representation and outputs a list
@@ -14228,6 +5358,7 @@ contains
         ! is stored, where usually the signed walker weight of an occupied
         ! determinant is stored
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nTot
         logical, intent(in), optional :: t_singles_only, t_print_time, t_full
@@ -14288,8 +5419,6 @@ contains
 
         nTot = 0
 
-        call init_csf_information(ilut(0:nifd))
-
         ! single excitations:
         ! does it help to not calculate stuff if not necessary..
         ! probably yes..
@@ -14307,7 +5436,7 @@ contains
                 ! have to think where and when to allocate excitations
                 ! or maybe call the routine below with a dummy variable.
                 ! and store calculated ones in a different variable here..
-                call calcAllExcitations(ilut, i, j, tempExcits, nExcits, t_full_)
+                call calcAllExcitations(ilut, csf_i, i, j, tempExcits, nExcits, t_full_)
 #ifdef DEBUG_
                 do n = 1, nExcits
                     ASSERT(isProperCSF_ilut(tempExcits(:, n), .true.))
@@ -14348,13 +5477,13 @@ contains
                         ! calculation
 
                         ! integral contributions
-                        call calcAllExcitations(ilut, i, j, k, l, tempExcits, &
+                        call calcAllExcitations(ilut, csf_i, i, j, k, l, tempExcits, &
                                                 nExcits, t_full_)
 
 #ifdef DEBUG_
                         do n = 1, nExcits
                             if (.not. isProperCSF_ilut(tempExcits(:, n), .true.)) then
-                                call write_guga_list(6, tempExcits(:, 1:nExcits))
+                                call write_guga_list(stdout, tempExcits(:, 1:nExcits))
                                 print *, "ijkl:", i, j, k, l
                             end if
                             ASSERT(isProperCSF_ilut(tempExcits(:, n), .true.))
@@ -14440,10 +5569,11 @@ contains
 
     end subroutine actHamiltonian
 
-    subroutine calcAllExcitations_excitInfo_single(ilut, excitInfo, posSwitches, &
+    subroutine calcAllExcitations_excitInfo_single(ilut, csf_i, excitInfo, posSwitches, &
                negSwitches, tmatFlag, excitations, nExcits)
         ! excitation calculation if excitInfo is already calculated
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(in) :: tmatFlag
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -14463,7 +5593,7 @@ contains
         ! i think this is always called with the flag as false... hm,
         ! maybe redundant and remove.
         ! when is this called actually? because this influences if i can use
-        ! the current_stepvector info and stuff..
+        ! the csf_i%stepvector info and stuff..
         ! i am pretty sure that in all the calls to this routine
         ! the necessary quantities are known!
         if (tmatFlag) then
@@ -14479,29 +5609,30 @@ contains
 
         ! also do not need to check if excitation is compatible, since this
         ! has already been done
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        weights = init_singleWeight(csf_i, excitInfo%fullEnd)
 
         ! have to give probabilistic weight object as input, to deal
-        call createSingleStart(ilut, excitInfo, posSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, &
                                negSwitches, weights, tempExcits, nExcits)
 
         ! to not call getTmatEl again in createSingleStart loop over
         ! the atmost two excitations here and multiply with tmat
         do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, &
                               negSwitches, weights, tempExcits, nExcits)
         end do
 
-        call singleEnd(ilut, excitInfo, tempExcits, &
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, &
                        nExcits, excitations)
 
     end subroutine calcAllExcitations_excitInfo_single
 
-    subroutine calcAllExcitations_single(ilut, i, j, excitations, nExcits, t_full)
+    subroutine calcAllExcitations_single(ilut, csf_i, i, j, excitations, nExcits, t_full)
         ! function to calculate all possible single excitation for a CSF
         ! given in (ilut) format and indices (i,j). used to calculated
         ! H|D> to calculate the projected energy.
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -14544,14 +5675,14 @@ contains
         ! determine the main restrictions of stepvalues depending on generator
         ! type -> no raising start at d = 3, no lowering start at d = 0 etc
         if (excitInfo%gen1 /= 0) then
-            if (current_stepvector(i) == 3 .or. current_stepvector(j) == 0) then
+            if (csf_i%stepvector(i) == 3 .or. csf_i%stepvector(j) == 0) then
                 allocate(excitations(0, 0), stat=ierr)
                 return
             end if
 
             if (t_tJ_model) then
                 ! restrict hops to singly occupied orbitals in t-J model
-                if (currentOcc_int(i) == 1) then
+                if (csf_i%Occ_int(i) == 1) then
                     allocate(excitations(0, 0), stat=ierr)
                     return
                 end if
@@ -14560,17 +5691,17 @@ contains
 
         ! also check necessary ending restrictions and probability weights
         ! to check if no excitation is possible
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
 
         ! change it here to also use the functions involving
         ! the WeightObj_t objects.. to efficiently determine
         ! if excitations have to aborted
         ! and to make the whole code more general
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        weights = init_singleWeight(csf_i, excitInfo%fullEnd)
         plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &
-                                       currentB_ilut(excitInfo%fullStart), weights%dat)
+                                       csf_i%B_real(excitInfo%fullStart), weights%dat)
         minusWeight = weights%proc%minus(negSwitches(excitInfo%fullStart), &
-                                         currentB_ilut(excitInfo%fullStart), weights%dat)
+                                         csf_i%B_real(excitInfo%fullStart), weights%dat)
 
         ! calc total weight functions of all possible branches
         ! if that is zero no excitation possible..
@@ -14611,26 +5742,26 @@ contains
         st = excitInfo%fullStart
         ! check compatibility of chosen indices
 
-        if ((current_stepvector(st) == 1 .and. near_zero(plusWeight)) .or. &
-            (current_stepvector(st) == 2 .and. near_zero(minusWeight)) .or. &
+        if ((csf_i%stepvector(st) == 1 .and. near_zero(plusWeight)) .or. &
+            (csf_i%stepvector(st) == 2 .and. near_zero(minusWeight)) .or. &
             near_zero(minusWeight + plusWeight)) then
             allocate(excitations(0, 0), stat=ierr)
             return
         end if
 
         ! have to give probabilistic weight object as input, to deal
-        call createSingleStart(ilut, excitInfo, posSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, &
                                negSwitches, weights, tempExcits, nExcits)
 
         ! to not call getTmatEl again in createSingleStart loop over
         ! the atmost two excitations here and multiply with tmat
 
         do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, &
                               negSwitches, weights, tempExcits, nExcits)
         end do
 
-        call singleEnd(ilut, excitInfo, tempExcits, &
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, &
                        nExcits, excitations)
 
         ! encode IC = 1 in the deltB information of the GUGA
@@ -14644,10 +5775,11 @@ contains
 
     end subroutine calcAllExcitations_single
 
-    subroutine doubleUpdate(ilut, sO, excitInfo, weights, tempExcits, nExcits, &
+    subroutine doubleUpdate(ilut, csf_i, sO, excitInfo, weights, tempExcits, nExcits, &
                             negSwitches, posSwitches)
         ! for double excitation weights are usually always already calculated
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: sO
         type(ExcitationInformation_t), intent(in) :: excitInfo
         type(WeightObj_t), intent(in) :: weights
@@ -14664,7 +5796,7 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sO > 0 .and. sO <= nSpatOrbs)
 
-        if (currentOcc_int(sO) /= 1) then
+        if (csf_i%Occ_int(sO) /= 1) then
             ! in this case no change in stepvector or matrix element
             return
         end if
@@ -14672,7 +5804,7 @@ contains
         ! and for more readibility extract certain values:
         gen1 = excitInfo%gen1
         gen2 = excitInfo%gen2
-        bVal = currentB_ilut(sO)
+        bVal = csf_i%B_real(sO)
         ! stupid!! order only needed at semistarts and semistops! so just set
         ! it to 1.0 here
         order = 1.0_dp
@@ -14685,7 +5817,7 @@ contains
 
         ! try new implementation with checking all 3 weights...
         ! ===================================================================
-        if (current_stepvector(sO) == 1) then
+        if (csf_i%stepvector(sO) == 1) then
             if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
                 ! all excitations are possible in this case.
                 ! first do the on track
@@ -14933,7 +6065,7 @@ contains
             end if
 
             ! also do the possibilities at a step=2
-        else if (current_stepvector(sO) == 2) then
+        else if (csf_i%stepvector(sO) == 2) then
             if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
                 ! everything possible!
                 do iEx = 1, nExcits
@@ -15167,7 +6299,7 @@ contains
 
     end subroutine doubleUpdate
 
-    subroutine singleUpdate(ilut, sOrb, excitInfo, posSwitches, negSwitches, &
+    subroutine singleUpdate(ilut, csf_i, sOrb, excitInfo, posSwitches, negSwitches, &
                             weightObj, tempExcits, nExcits)
         ! update function for calculation of all single excitations of a
         ! given CSF ilut. this implementation takes a general
@@ -15175,6 +6307,7 @@ contains
         ! probabilisitc weights, determining the different needed ones for
         ! specific excitations
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: sOrb
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -15190,15 +6323,15 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb < nSpatOrbs)
 
-        select case (current_stepvector(sOrb))
-!         if (current_stepvector(sOrb) == 0) then
+        select case (csf_i%stepvector(sOrb))
+!         if (csf_i%stepvector(sOrb) == 0) then
 !         if (isZero(ilut, sOrb)) then
             ! do nothin actually.. not even change matrix elements
         case (0)
 
             return
 
-!         else if (current_stepvector(sOrb) == 3) then
+!         else if (csf_i%stepvector(sOrb) == 3) then
 !         else if (isThree(ilut, sOrb)) then
             ! only change matrix element to negative one
         case (3)
@@ -15213,7 +6346,7 @@ contains
 
         ! to generally use this function i need to define a current generator...
         gen = excitInfo%currentGen
-        bVal = currentB_ilut(sOrb)
+        bVal = csf_i%B_real(sOrb)
         ! if 1 or 2 as stepvalue need probWeight
         ! here the change to the regular excitations is made:
         ! smth like: have yet to determine, when weight object gets initialized
@@ -15232,7 +6365,7 @@ contains
         ! have to do some sort of abort_excitations funciton here too
         ASSERT(.not. near_zero(plusWeight + minusWeight))
 
-        if (current_stepvector(sOrb) == 1) then
+        if (csf_i%stepvector(sOrb) == 1) then
             ! if its a deltaB = -1 this is a switch possib, indepentent
             ! of the b-vector..
             ! have to loop over already created excitations
@@ -15421,12 +6554,13 @@ contains
 
     end subroutine singleUpdate
 
-    subroutine singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+    subroutine singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
         ! end function to calculate all single excitations of a given CSF
         ! ilut
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "singleEnd"
@@ -15456,12 +6590,12 @@ contains
         ! hm... not sure how to treat the end b value... essentially need
         ! it from one orbital more than -> maybe jsut add or distract one
         ! if 2/1 step
-        bVal = currentB_ilut(ende)
+        bVal = csf_i%B_real(ende)
         gen = excitInfo%currentGen
 
         ! although I do not think I have to check if deltaB values fit,
         ! still do it for now and check if its really always correct...
-        select case (current_stepvector(ende))
+        select case (csf_i%stepvector(ende))
         case (0)
             ! if it is zero it implies i have a lowering generator, otherwise
             ! i wouldnt even be here.
@@ -15638,7 +6772,7 @@ contains
 
     end subroutine singleEnd
 
-    subroutine createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+    subroutine createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                  weightObj, tempExcits, nExcits)
         ! subroutine to create full single excitations starts for ilut
         ! allocates the necessary arrays and fills up first excitations,
@@ -15646,6 +6780,7 @@ contains
         ! probabilitstic weight functions(to exclude excitations eventually
         ! leading to zero weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         type(WeightObj_t), intent(in) :: weightObj
@@ -15675,7 +6810,7 @@ contains
         ! for more oversight
         st = excitInfo%fullStart
         gen = excitInfo%currentGen
-        bVal = currentB_ilut(st)
+        bVal = csf_i%B_real(st)
 
         ! first have to allocate both arrays for the determinant and weight list
         ! worse then worst case for single excitations are 2^|i-j| excitations
@@ -15684,7 +6819,7 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function.
         ! nMax = 2**(ende - start)
-        nMax = 4 + 4 * 2**count_open_orbs_ij(st, excitInfo%fullEnd, ilut(0:nifd))
+        nMax = 4 + 4 * 2**count_open_orbs_ij(csf_i, st, excitInfo%fullEnd)
         allocate(tempExcits(0:nifguga, nMax), stat=ierr)
 
         ! create start depending on stepvalue of ilut at start, b value,
@@ -15700,7 +6835,7 @@ contains
         ! maybe need temporary ilut storage
         t = ilut
         nExcits = 0
-        select case (current_stepvector(st))
+        select case (csf_i%stepvector(st))
         case (1)
             ! set corresponding orbital to 0 or 3 depending on generator type
             if (gen == gen_type%R) then ! raising gen case
@@ -15822,27 +6957,28 @@ contains
 
     end subroutine createSingleStart
 
-    function endLx(ind) result(ret)
+    elemental function endLx(csf_i, ind) result(ret)
         ! special function to determine if branching at the single overlap
         ! site of a RR excitation is possible
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: ind
         real(dp) :: ret
 
-        ret = 0.0_dp
-
-        if (current_stepvector(ind) == 2) then
-            if (currentB_int(ind) > 1) ret = 1.0_dp
+        if (csf_i%stepvector(ind) == 2 .and. csf_i%B_int(ind) > 1) then
+            ret = 1.0_dp
+        else
+            ret = 0.0_dp
         end if
-
     end function endLx
 
-    subroutine calcAllExcitations_double(ilut, i, j, k, l, excitations, nExcits,&
+    subroutine calcAllExcitations_double(ilut, csf_i, i, j, k, l, excitations, nExcits,&
             t_full)
         ! function to calculate all possible double excitation for a CSF
         ! given in (ilut) format and indices (i,j,k,l).
         ! used to calculate the action of the Hamiltonian H|D> to calculate
         ! the projected energy
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j, k, l
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -15858,7 +6994,7 @@ contains
 
         ! if called with k = l = 0 -> call single version of function
         if (k == 0 .and. l == 0) then
-            call calcAllExcitations(ilut, i, j, excitations, nExcits, t_full_)
+            call calcAllExcitations(ilut, csf_i, i, j, excitations, nExcits, t_full_)
             return
         end if
 
@@ -15892,7 +7028,7 @@ contains
         ! in checkCompatibility the number of switches is already
         ! calulated to check if the probabilistic weights fit... maybe but
         ! that out and reuse.. to not waste any effort.
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
         if (.not. compFlag) then
             allocate(excitations(0, 0), stat=ierr)
@@ -15933,19 +7069,19 @@ contains
         case (excit_type%raising) ! weight + lowering gen.
             ! can be treated almost like a single excitation
             ! essentially the same, except if d(w) == 3 in the excitaton regime
-            call calcDoubleExcitation_withWeight(ilut, excitInfo, excitations, &
+            call calcDoubleExcitation_withWeight(ilut, csf_i, excitInfo, excitations, &
                                                  nExcits, posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%lowering) ! weight + raising gen
-            call calcDoubleExcitation_withWeight(ilut, excitInfo, excitations, &
+            call calcDoubleExcitation_withWeight(ilut, csf_i, excitInfo, excitations, &
                                                  nExcits, posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%non_overlap) ! non overlap
-            call calcNonOverlapDouble(ilut, excitInfo, excitations, nExcits, &
+            call calcNonOverlapDouble(ilut, csf_i, excitInfo, excitations, nExcits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
@@ -15954,61 +7090,61 @@ contains
             ! how can i efficiently adress that?
             ! can i write that efficiently in one function or do i need more?
             ! probably need more... i already determined
-            call calcSingleOverlapLowering(ilut, excitInfo, excitations, nExcits, &
+            call calcSingleOverlapLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                            posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%single_overlap_raising) ! single overlap raising
-            call calcSingleOverlapRaising(ilut, excitInfo, excitations, nExcits, &
+            call calcSingleOverlapRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                           posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%single_overlap_L_to_R) ! single overlap lowering into raising
-            call calcSingleOverlapMixed(ilut, excitInfo, excitations, nExcits, &
+            call calcSingleOverlapMixed(ilut, csf_i, excitInfo, excitations, nExcits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%single_overlap_R_to_L) ! single overlap raising into lowering
-            call calcSingleOverlapMixed(ilut, excitInfo, excitations, nExcits, &
+            call calcSingleOverlapMixed(ilut, csf_i, excitInfo, excitations, nExcits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_lowering) ! normal double overlap two lowering
-            call calcDoubleLowering(ilut, excitInfo, excitations, nExcits, &
+            call calcDoubleLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_raising) ! normal double overlap two raising
-            call calcDoubleRaising(ilut, excitInfo, excitations, nExcits, &
+            call calcDoubleRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_L_to_R_to_L) ! lowering into raising into lowering
-            call calcDoubleRaising(ilut, excitInfo, excitations, nExcits, &
+            call calcDoubleRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
-            call calcDoubleLowering(ilut, excitInfo, excitations, nExcits, &
+            call calcDoubleLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_L_to_R) ! lowering into raising double
-            call calcDoubleL2R(ilut, excitInfo, excitations, nExcits, &
+            call calcDoubleL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_R_to_L) ! raising into lowering double
-            call calcDoubleR2L(ilut, excitInfo, excitations, nExcits, &
+            call calcDoubleR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
@@ -16016,19 +7152,19 @@ contains
         case (excit_type%fullstop_lowering) ! full stop 2 lowering
             ! can i write a function for both alike generator combinations
             ! i think i can
-            call calcFullstopLowering(ilut, excitInfo, excitations, nExcits, &
+            call calcFullstopLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstop_raising) ! full stop 2 raising
-            call calcFullstopRaising(ilut, excitInfo, excitations, nExcits, &
+            call calcFullstopRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                      posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstop_L_to_R) ! full stop lowering into raising
-            call calcFullStopL2R(ilut, excitInfo, excitations, nExcits, &
+            call calcFullStopL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                                  posSwitches, negSwitches)
 
             ! in this case there is also the possibility for one single-like
@@ -16037,46 +7173,46 @@ contains
             exlevel = 2
 
         case (excit_type%fullstop_R_to_L) ! full stop raising into lowering
-            call calcFullStopR2L(ilut, excitInfo, excitations, nExcits, &
+            call calcFullStopR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                                  posSwitches, negSwitches)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_lowering) ! full start 2 lowering
-            call calcFullStartLowering(ilut, excitInfo, excitations, nExcits, &
+            call calcFullStartLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                        posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstart_raising) ! full start 2 raising
-            call calcFulLStartRaising(ilut, excitInfo, excitations, nExcits, &
+            call calcFulLStartRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullStart_L_to_R) ! full start lowering into raising
-            call calcFullStartL2R(ilut, excitInfo, excitations, nExcits, &
+            call calcFullStartL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                                   posSwitches, negSwitches)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_R_to_L) ! full start raising into lowering
-            call calcFullStartR2L(ilut, excitInfo, excitations, nExcits, &
+            call calcFullStartR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                                   posSwitches, negSwitches)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_stop_alike) ! full start into full stop alike
-            call calcFullStartFullStopAlike(ilut, excitInfo, excitations)
+            call calcFullStartFullStopAlike(ilut, csf_i, excitInfo, excitations)
             nExcits = 1
 
             exlevel = 2
 
         case (excit_type%fullstart_stop_mixed) ! full start into full stop mixed
-            call calcFullStartFullStopMixed(ilut, excitInfo, excitations, nExcits, &
+            call calcFullStartFullStopMixed(ilut, csf_i, excitInfo, excitations, nExcits, &
                                             posSwitches, negSwitches)
 
             ! same as for 16
@@ -16102,9 +7238,10 @@ contains
 
     end subroutine calcAllExcitations_double
 
-    subroutine calcDoubleR2L(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcDoubleR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                              posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -16128,19 +7265,19 @@ contains
         ende2 = excitInfo%fullEnd
 
         ! todo: create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+        weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                         negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                        currentB_ilut(start2), currentB_ilut(ende1))
+                                        csf_i%B_real(start2), csf_i%B_real(ende1))
 
         excitInfo%currentGen = excitInfo%firstGen
 
         ! then do single start:
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         ! and single update until semi start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
@@ -16148,28 +7285,28 @@ contains
         ! maybe semistart is wrong here..
         weights = weights%ptr
 
-        minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(start2), csf_i%B_real(start2), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(start2), csf_i%B_real(start2), weights%dat)
         zeroWeight = weights%proc%zero(negSwitches(start2), posSwitches(start2), &
-                                       currentB_ilut(start2), weights%dat)
+                                       csf_i%B_real(start2), weights%dat)
 
         ! then do lowering semi start
-        call calcLoweringSemiStart(ilut, excitInfo, &
+        call calcLoweringSemiStart(ilut, csf_i, excitInfo, &
                                    tempExcits, nExcits, plusWeight, minusWeight, zeroWeight)
 
         ! then do double excitation over double excitation region
         do iOrb = excitInfo%secondStart + 1, excitInfo%firstEnd - 1
-            call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+            call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                               negSwitches, posSwitches)
         end do
 
         ! update weights again:
         weights = weights%ptr
-        minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(ende1), csf_i%B_real(ende1), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(ende1), csf_i%B_real(ende1), weights%dat)
 
         ! then do lowering semi stop
-        call calcRaisingSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
+        call calcRaisingSemiStop(ilut, csf_i, excitInfo, tempExcits, nExcits, plusWeight, &
                                  minusWeight)
 
         ! have to set used generators correctly
@@ -16177,20 +7314,21 @@ contains
 
         ! and then do final single region again
         do iOrb = excitInfo%firstEnd + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! and finally end step
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
         ! that should be it...
 
     end subroutine calcDoubleR2L
 
-    subroutine calcDoubleL2R(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcDoubleL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                              posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -16214,19 +7352,19 @@ contains
         ende2 = excitInfo%fullEnd
 
         !  create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+        weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                         negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                        currentB_ilut(start2), currentB_ilut(ende1))
+                                        csf_i%B_real(start2), csf_i%B_real(ende1))
 
         excitInfo%currentGen = excitInfo%firstGen
 
         ! then do single start:
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         ! and single update until semi start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
@@ -16234,28 +7372,28 @@ contains
         ! then do lowering semi start
         weights = weights%ptr
 
-        minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(start2), csf_i%B_real(start2), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(start2), csf_i%B_real(start2), weights%dat)
         zeroWeight = weights%proc%zero(negSwitches(start2), posSwitches(start2), &
-                                       currentB_ilut(start2), weights%dat)
+                                       csf_i%B_real(start2), weights%dat)
 
-        call calcRaisingSemiStart(ilut, excitInfo, &
+        call calcRaisingSemiStart(ilut, csf_i, excitInfo, &
                                   tempExcits, nExcits, plusWeight, minusWeight, zeroWeight)
 
         ! then do double excitation over double excitation region
         do iOrb = excitInfo%secondStart + 1, excitInfo%firstEnd - 1
-            call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+            call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                               negSwitches, posSwitches)
 
         end do
 
         ! update weights again: todo
         weights = weights%ptr
-        minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(ende1), csf_i%B_real(ende1), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(ende1), csf_i%B_real(ende1), weights%dat)
 
         ! then do lowering semi stop
-        call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
+        call calcLoweringSemiStop(ilut, csf_i, excitInfo, tempExcits, nExcits, plusWeight, &
                                   minusWeight)
 
         ! have to set used generators correctly
@@ -16263,23 +7401,24 @@ contains
 
         ! and then do final single region again
         do iOrb = excitInfo%firstEnd + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! and finally end step
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
         ! that should be it...
 
     end subroutine calcDoubleL2R
 
-    subroutine calcDoubleRaising(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcDoubleRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                  posSwitches, negSwitches)
         ! this function can deal with 2 raising and also the mixed L->R->L
         ! case since the called functions are the same
 
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -16312,47 +7451,47 @@ contains
         ende2 = excitInfo%fullEnd
 
         ! create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+        weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                         negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                        currentB_ilut(start2), currentB_ilut(ende1))
+                                        csf_i%B_real(start2), csf_i%B_real(ende1))
 
         excitInfo%currentGen = excitInfo%firstGen
         ! then do single start:
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         ! and single update until semi start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         weights = weights%ptr
 
-        minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(start2), csf_i%B_real(start2), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(start2), csf_i%B_real(start2), weights%dat)
         zeroWeight = weights%proc%zero(negSwitches(start2), posSwitches(start2), &
-                                       currentB_ilut(start2), weights%dat)
+                                       csf_i%B_real(start2), weights%dat)
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        call calcRaisingSemiStart(ilut, excitInfo, &
+        call calcRaisingSemiStart(ilut, csf_i, excitInfo, &
                                   tempExcits, nExcits, plusWeight, minusWeight, zeroWeight)
 
         ! then do double excitation over double excitation region
         do iOrb = excitInfo%secondStart + 1, excitInfo%firstEnd - 1
-            call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+            call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                               negSwitches, posSwitches)
 
         end do
 
         ! update weights again:
         weights = weights%ptr
-        minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(ende1), csf_i%B_real(ende1), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(ende1), csf_i%B_real(ende1), weights%dat)
 
         ! then do lowering semi stop
-        call calcRaisingSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
+        call calcRaisingSemiStop(ilut, csf_i, excitInfo, tempExcits, nExcits, plusWeight, &
                                  minusWeight)
 
         ! have to set used generators correctly (dont actually have to do it
@@ -16360,22 +7499,23 @@ contains
 
         ! and then do final single region again
         do iOrb = excitInfo%firstEnd + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! and finally end step
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
         ! that should be it...
 
     end subroutine calcDoubleRaising
 
-    subroutine calcDoubleLowering(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcDoubleLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                   posSwitches, negSwitches)
         ! this function can deal with 2 lowering and the mixed R->L-R
         ! case, since the called functions are the same
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -16407,18 +7547,18 @@ contains
         ende2 = excitInfo%fullEnd
 
         ! : create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+        weights = init_fullDoubleWeight(csf_i, start2, ende1, ende2, negSwitches(start2), &
                                         negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-                                        currentB_ilut(start2), currentB_ilut(ende1))
+                                        csf_i%B_real(start2), csf_i%B_real(ende1))
 
         excitInfo%currentGen = excitInfo%firstGen
         ! then do single start:
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         ! and single update until semi start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
@@ -16426,44 +7566,45 @@ contains
         ! then do lowering semi start
         weights = weights%ptr
 
-        minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(start2), csf_i%B_real(start2), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(start2), csf_i%B_real(start2), weights%dat)
         zeroWeight = weights%proc%zero(negSwitches(start2), posSwitches(start2), &
-                                       currentB_ilut(start2), weights%dat)
+                                       csf_i%B_real(start2), weights%dat)
 
-        call calcLoweringSemiStart(ilut, excitInfo, &
+        call calcLoweringSemiStart(ilut, csf_i, excitInfo, &
                                    tempExcits, nExcits, plusWeight, minusWeight, zeroWeight)
 
         ! then do double excitation over double excitation region
         do iOrb = excitInfo%secondStart + 1, excitInfo%firstEnd - 1
-            call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+            call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                               negSwitches, posSwitches)
         end do
 
         ! update weights again:
         weights = weights%ptr
-        minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(ende1), csf_i%B_real(ende1), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(ende1), csf_i%B_real(ende1), weights%dat)
 
         ! then do lowering semi stop
-        call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
+        call calcLoweringSemiStop(ilut, csf_i, excitInfo, tempExcits, nExcits, plusWeight, &
                                   minusWeight)
 
         ! have to set the used generators correctly to handle more versions
 
         ! and then do final single region again
         do iOrb = excitInfo%firstEnd + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! and finally end step
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
     end subroutine calcDoubleLowering
 
-    subroutine calcFullStartFullStopAlike(ilut, excitInfo, excitations)
+    subroutine calcFullStartFullStopAlike(ilut, csf_i, excitInfo, excitations)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calcFullStartFullStopAlike"
@@ -16495,7 +7636,7 @@ contains
 
         ! matrix element deüends only on the number of open orbitals in the
         ! excitaiton region
-        nOpen = real(count_open_orbs_ij(excitInfo%fullStart, excitInfo%fullEnd, t(0:nifd)), dp)
+        nOpen = real(count_open_orbs_ij(csf_i, excitInfo%fullStart, excitInfo%fullEnd), dp)
 
         ! update! the sum over two-particle integrals involves a 1/2, which
         ! does not get compensated here by
@@ -16514,9 +7655,10 @@ contains
 
     end subroutine calcFullStartFullStopAlike
 
-    subroutine calcFullStartFullStopMixed(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullStartFullStopMixed(ilut, csf_i, excitInfo, excitations, nExcits, &
                                           posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -16535,19 +7677,19 @@ contains
 
         associate(st => excitInfo%fullStart, en => excitInfo%fullEnd)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(en) == 0) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(en) == 0) then
                 nExcits = 0
                 allocate(excitations(0, 0))
                 return
             end if
 
-            if (current_stepvector(st) == 3 .or. current_stepvector(en) == 3) then
+            if (csf_i%stepvector(st) == 3 .or. csf_i%stepvector(en) == 3) then
                 nExcits = 1
                 allocate(excitations(0:nifguga, nExcits))
                 excitations(:, 1) = ilut
                 call encode_matrix_element(excitations(:, 1), 0.0_dp, 2)
                 call encode_matrix_element(excitations(:, 1), &
-                                           -real(currentOcc_int(st) * currentOcc_int(en), dp) / 2.0_dp, 1)
+                                           -real(csf_i%Occ_int(st) * csf_i%Occ_int(en), dp) / 2.0_dp, 1)
 
                 return
             end if
@@ -16556,32 +7698,33 @@ contains
             ! function specifically for these cases.
 
             ! can i just use already implemented fullStart? i think
-            weights = init_doubleWeight(ilut, en)
-            plusWeight = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            minusWeight = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            weights = init_doubleWeight(csf_i, en)
+            plusWeight = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            minusWeight = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
             zeroWeight = weights%proc%zero(negSwitches(st), posSwitches(st), &
-                                           currentB_ilut(st), weights%dat)
+                                           csf_i%B_real(st), weights%dat)
 
             ! then call it
-            call mixedFullStart(ilut, excitInfo, plusWeight, minusWeight, zeroWeight, tempExcits, &
+            call mixedFullStart(ilut, csf_i, excitInfo, plusWeight, minusWeight, zeroWeight, tempExcits, &
                                 nExcits)
 
             ! and just do double update for the excitation region
             do iOrb = st + 1, en - 1
-                call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+                call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                                   negSwitches, posSwitches)
             end do
 
             ! and then to already implemented mixed end
-            call mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations)
+            call mixedFullStop(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
         end associate
 
     end subroutine calcFullStartFullStopMixed
 
-    subroutine calcFullStartR2L(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullStartR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                                 posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -16610,7 +7753,7 @@ contains
             t_no_singles = .false.
         end if
 
-        if (t_no_singles .and. current_stepvector(start) == 3) then
+        if (t_no_singles .and. csf_i%stepvector(start) == 3) then
             nExcits = 0
             allocate(excitations(0, 0), stat=ierr)
             return
@@ -16620,7 +7763,7 @@ contains
         start2 = excitInfo%secondStart
 
         if (t_mixed_hubbard) then
-            if (current_stepvector(start) == 3) then
+            if (csf_i%stepvector(start) == 3) then
                 nExcits = 0
                 allocate(excitations(0, 0), stat=ierr)
                 return
@@ -16628,25 +7771,25 @@ contains
         end if
 
         ! create correct weights:
-        weights = init_fullStartWeight(ilut, semi, ende, negSwitches(semi), &
-                                       posSwitches(semi), currentB_ilut(semi))
+        weights = init_fullStartWeight(csf_i, semi, ende, negSwitches(semi), &
+                                       posSwitches(semi), csf_i%B_real(semi))
 
-        minusWeight = weights%proc%minus(negSwitches(start), currentB_ilut(start), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(start), currentB_ilut(start), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(start), csf_i%B_real(start), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(start), csf_i%B_real(start), weights%dat)
         zeroWeight = weights%proc%zero(negSwitches(start), posSwitches(start), &
-                                       currentB_ilut(start), weights%dat)
+                                       csf_i%B_real(start), weights%dat)
 
         ! check if first value is 3, so only 0 branch is compatible
-        call mixedFullStart(ilut, excitInfo, plusWeight, minusWeight, zeroWeight, tempExcits, &
+        call mixedFullStart(ilut, csf_i, excitInfo, plusWeight, minusWeight, zeroWeight, tempExcits, &
                             nExcits)
 
         ! then do pseudo double until semi stop
         ! should check for LR(3) start here, have to do nothing if a 3 at
         ! the full start since all matrix elements are one..
 
-        if (current_stepvector(start) /= 3) then
+        if (csf_i%stepvector(start) /= 3) then
             do iOrb = start + 1, semi - 1
-                call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+                call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                                   negSwitches, posSwitches)
             end do
         end if
@@ -16657,29 +7800,30 @@ contains
         ! do i only need single weight here?
         weights = weights%ptr
 
-        plusWeight = weights%proc%plus(posSwitches(semi), currentB_ilut(semi), &
+        plusWeight = weights%proc%plus(posSwitches(semi), csf_i%B_real(semi), &
                                        weights%dat)
-        minusWeight = weights%proc%minus(negSwitches(semi), currentB_ilut(semi), &
+        minusWeight = weights%proc%minus(negSwitches(semi), csf_i%B_real(semi), &
                                          weights%dat)
 
-        call calcRaisingSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
+        call calcRaisingSemiStop(ilut, csf_i, excitInfo, tempExcits, nExcits, plusWeight, &
                                  minusWeight, t_no_singles)
 
         excitInfo%currentGen = excitInfo%lastGen
         ! and continue on with single excitation region
         do iOrb = semi + 1, ende - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! and normal single end
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
     end subroutine calcFullStartR2L
 
-    subroutine calcFullStartL2R(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullStartL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                                 posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -16708,23 +7852,23 @@ contains
             t_no_singles = .false.
         end if
 
-        if (t_no_singles .and. current_stepvector(start) == 3) then
+        if (t_no_singles .and. csf_i%stepvector(start) == 3) then
             nExcits = 0
             allocate(excitations(0, 0), stat=ierr)
             return
         end if
 
         ! create correct weights:
-        weights = init_fullStartWeight(ilut, semi, ende, negSwitches(semi), &
-                                       posSwitches(semi), currentB_ilut(semi))
+        weights = init_fullStartWeight(csf_i, semi, ende, negSwitches(semi), &
+                                       posSwitches(semi), csf_i%B_real(semi))
 
-        minusWeight = weights%proc%minus(negSwitches(start), currentB_ilut(start), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(start), currentB_ilut(start), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(start), csf_i%B_real(start), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(start), csf_i%B_real(start), weights%dat)
         zeroWeight = weights%proc%zero(negSwitches(start), posSwitches(start), &
-                                       currentB_ilut(start), weights%dat)
+                                       csf_i%B_real(start), weights%dat)
 
         if (t_mixed_hubbard) then
-            if (current_stepvector(start) == 3) then
+            if (csf_i%stepvector(start) == 3) then
                 nExcits = 0
                 allocate(excitations(0, 0), stat=ierr)
                 return
@@ -16732,15 +7876,15 @@ contains
         end if
 
         ! check if first value is 3, so only 0 branch is compatible
-        call mixedFullStart(ilut, excitInfo, plusWeight, minusWeight, zeroWeight, tempExcits, &
+        call mixedFullStart(ilut, csf_i, excitInfo, plusWeight, minusWeight, zeroWeight, tempExcits, &
                             nExcits)
 
         ! then do pseudo double until semi stop
         ! should check for LR(3) start here, have to do nothing if a 3 at
         ! the full start since all matrix elements are one..
-        if (current_stepvector(start) /= 3) then
+        if (csf_i%stepvector(start) /= 3) then
             do iOrb = start + 1, semi - 1
-                call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+                call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                                   negSwitches, posSwitches)
             end do
         end if
@@ -16752,12 +7896,12 @@ contains
         ! then deal with the specific semi-stop here
         ! but todo update weights here..
         weights = weights%ptr
-        plusWeight = weights%proc%plus(posSwitches(semi), currentB_ilut(semi), &
+        plusWeight = weights%proc%plus(posSwitches(semi), csf_i%B_real(semi), &
                                        weights%dat)
-        minusWeight = weights%proc%minus(negSwitches(semi), currentB_ilut(semi), &
+        minusWeight = weights%proc%minus(negSwitches(semi), csf_i%B_real(semi), &
                                          weights%dat)
 
-        call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
+        call calcLoweringSemiStop(ilut, csf_i, excitInfo, tempExcits, nExcits, plusWeight, &
                                   minusWeight, t_no_singles)
 
         ! then reset weights todo!
@@ -16765,18 +7909,19 @@ contains
 
         ! and continue on with single excitation region
         do iOrb = semi + 1, ende - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! and normal single end
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
     end subroutine calcFullStartL2R
 
-    subroutine calcRaisingSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
+    subroutine calcRaisingSemiStop(ilut, csf_i, excitInfo, tempExcits, nExcits, plusWeight, &
                                    minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
@@ -16795,7 +7940,7 @@ contains
         ASSERT(minusWeight >= 0.0_dp)
 
         se = excitInfo%firstEnd
-        bVal = currentB_ilut(se)
+        bVal = csf_i%B_real(se)
         st = excitInfo%fullStart
         ss = excitInfo%secondStart
 
@@ -16813,10 +7958,10 @@ contains
         ! but for a double raising fullstart eg. there cant be a 3 at the
         ! fullstart... -> how stupid
 
-        if (current_stepvector(st) == 3 .and. st == ss) then
+        if (csf_i%stepvector(st) == 3 .and. st == ss) then
             ! only 0 branches in this case
             ! first do the non-branching possibs
-            select case (current_stepvector(se))
+            select case (csf_i%stepvector(se))
             case (1)
                 ! 1 -> 0 switch
                 do iEx = 1, nExcits
@@ -16873,7 +8018,7 @@ contains
 
             case (3)
                 ! three case -> branching possibilities according to b an weights
-                if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
+                if (csf_i%B_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
                     ! both excitations are possible then
                     do iEx = 1, nExcits
@@ -16915,7 +8060,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .or. near_zero(plusWeight)) then
+                else if (csf_i%B_int(se) == 0 .or. near_zero(plusWeight)) then
                     ! only -1 branch possibloe
                     if (near_zero(minusWeight)) then
                         nExcits = 0
@@ -16944,7 +8089,7 @@ contains
 
                     end do
 
-                else if (near_zero(minusWeight) .and. currentB_int(se) > 0) then
+                else if (near_zero(minusWeight) .and. csf_i%B_int(se) > 0) then
                     ! only +1 branches possible
                     if (near_zero(plusWeight)) then
                         nExcits = 0
@@ -16973,7 +8118,7 @@ contains
 
                     end do
 
-                else if (near_zero(minusWeight) .and. currentB_int(se) == 0) then
+                else if (near_zero(minusWeight) .and. csf_i%B_int(se) == 0) then
                     ! in this case no excitaiton is possible due to b value todo
                     call stop_all(this_routine, "implement cancelled excitations")
 
@@ -16986,7 +8131,7 @@ contains
         else
             ! also +2, and -2 branches arriving possible!
             ! again the non-branching values first
-            select case (current_stepvector(se))
+            select case (csf_i%stepvector(se))
             case (1)
                 ! 1 -> 0 for 0 and -2 branch
                 ! have to check different weight combinations
@@ -17071,7 +8216,7 @@ contains
                 ! for the 0 branch arriving i have to check if a branching
                 ! is possible.. and have to do that outside of the do-loops
                 ! to be more efficient
-                if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
+                if (csf_i%B_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
                     ! all excitations for 0 branch possible
                     do iEx = 1, nExcits
@@ -17169,7 +8314,7 @@ contains
                         end if
                     end do
 
-                else if (currentB_int(se) == 0 .or. near_zero(plusWeight)) then
+                else if (csf_i%B_int(se) == 0 .or. near_zero(plusWeight)) then
                     ! only -1 branch when 0 branch arrives... the switch from
                     ! +2 -> +1 branch shouldnt be affected, since i wouldn not
                     ! arrive at semi.stop if 0 weight, and if b value would
@@ -17224,7 +8369,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) > 0 .and. near_zero(minusWeight)) then
+                else if (csf_i%B_int(se) > 0 .and. near_zero(minusWeight)) then
                     ! only +1 branch possible afterwards
                     do iEx = 1, nExcits
                         t = tempExcits(:, iEx)
@@ -17274,7 +8419,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .and. near_zero(plusWeight)) then
+                else if (csf_i%B_int(se) == 0 .and. near_zero(plusWeight)) then
                     ! broken excitation due to b value restriction
                     ! todo how to deal with that ...
                     call stop_all(this_routine, "broken excitation due to b value. todo!")
@@ -17289,9 +8434,10 @@ contains
 
     end subroutine calcRaisingSemiStop
 
-    subroutine calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
+    subroutine calcLoweringSemiStop(ilut, csf_i, excitInfo, tempExcits, nExcits, plusWeight, &
                                     minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
@@ -17310,7 +8456,7 @@ contains
         ASSERT(minusWeight >= 0.0_dp)
 
         se = excitInfo%firstEnd
-        bVal = currentB_ilut(se)
+        bVal = csf_i%B_real(se)
         st = excitInfo%fullStart
         ss = excitInfo%secondStart
 
@@ -17325,10 +8471,10 @@ contains
         ! a full start, because i also want to use it for normal double
         ! excitations, and there it doesnt matter what the stepvector value
         ! at the fullstart is!!!
-        if (current_stepvector(st) == 3 .and. ss == st) then
+        if (csf_i%stepvector(st) == 3 .and. ss == st) then
             ! only 0 branches in this case
             ! first do the non-branching possibs
-            select case (current_stepvector(se))
+            select case (csf_i%stepvector(se))
             case (1)
                 ! 1 -> 3 switch
                 if (near_zero(plusWeight)) then
@@ -17393,7 +8539,7 @@ contains
 
             case (0)
                 ! zero case -> branching possibilities according to b an weights
-                if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
+                if (csf_i%B_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
                     ! both excitations are possible then
                     do iEx = 1, nExcits
@@ -17435,7 +8581,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .or. near_zero(plusWeight)) then
+                else if (csf_i%B_int(se) == 0 .or. near_zero(plusWeight)) then
                     ! only -1 branch possible
                     do iEx = 1, nExcits
                         t = tempExcits(:, iEx)
@@ -17458,7 +8604,7 @@ contains
 
                     end do
 
-                else if (near_zero(minusWeight) .and. currentB_int(se) > 0) then
+                else if (near_zero(minusWeight) .and. csf_i%B_int(se) > 0) then
                     ! only +1 branches possible
                     do iEx = 1, nExcits
                         t = tempExcits(:, iEx)
@@ -17481,7 +8627,7 @@ contains
 
                     end do
 
-                else if (near_zero(minusWeight) .and. currentB_int(se) == 0) then
+                else if (near_zero(minusWeight) .and. csf_i%B_int(se) == 0) then
                     ! in this case no excitaiton is possible due to b value todo
                     call stop_all(this_routine, "implement cancelled excitations")
 
@@ -17494,7 +8640,7 @@ contains
         else
             ! also +2, and -2 branches arriving possible!
             ! again the non-branching values first
-            select case (current_stepvector(se))
+            select case (csf_i%stepvector(se))
             case (1)
                 ! 1 -> 3 for 0 and -2 branch
                 ! have to check different weight combinations
@@ -17581,7 +8727,7 @@ contains
                 ! for the 0 branch arriving i have to check if a branching
                 ! is possible.. and have to do that outside of the do-loops
                 ! to be more efficient
-                if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
+                if (csf_i%B_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
                     ! all excitations for 0 branch possible
                     do iEx = 1, nExcits
@@ -17680,7 +8826,7 @@ contains
                         end if
                     end do
 
-                else if (currentB_int(se) == 0 .or. near_zero(plusWeight)) then
+                else if (csf_i%B_int(se) == 0 .or. near_zero(plusWeight)) then
                     ! only -1 branch when 0 branch arrives... the switch from
                     ! +2 -> +1 branch shouldnt be affected, since i wouldn not
                     ! arrive at semi.stop if 0 weight, and if b value would
@@ -17734,7 +8880,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) > 0 .and. near_zero(minusWeight)) then
+                else if (csf_i%B_int(se) > 0 .and. near_zero(minusWeight)) then
                     ! only +1 branch possible afterwards
                     do iEx = 1, nExcits
                         t = tempExcits(:, iEx)
@@ -17784,7 +8930,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .and. near_zero(plusWeight)) then
+                else if (csf_i%B_int(se) == 0 .and. near_zero(plusWeight)) then
                     ! broken excitation due to b value restriction
                     ! todo how to deal with that ...
                     call stop_all(this_routine, "broken excitation due to b value. todo!")
@@ -17799,12 +8945,13 @@ contains
 
     end subroutine calcLoweringSemiStop
 
-    subroutine mixedFullStart(ilut, excitInfo, plusWeight, minusWeight, &
+    subroutine mixedFullStart(ilut, csf_i, excitInfo, plusWeight, minusWeight, &
                               zeroWeight, tempExcits, nExcits)
         ! remember full-start matrix element are stored in the same row
         ! as deltaB = -1 mixed ones... so access matrix element below with
         ! deltaB = -1 !!
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: plusWeight, minusWeight, zeroWeight
         integer(n_int), intent(out), allocatable :: tempExcits(:, :)
@@ -17821,10 +8968,10 @@ contains
         ! depending on the stepvector create certain starting branches
 
         st = excitInfo%fullStart
-        bVal = currentB_ilut(st)
+        bVal = csf_i%B_real(st)
 
         ! determine worst case amount of excitations:
-        nMax = 2 + 2**count_open_orbs_ij(st, excitInfo%fullEnd, ilut(0:nifd))
+        nMax = 2 + 2**count_open_orbs_ij(csf_i, st, excitInfo%fullEnd)
         allocate(tempExcits(0:nifguga, nMax), stat=ierr)
 
         ! assert that at least one of the weights is non-zero
@@ -17832,7 +8979,7 @@ contains
 
         t = ilut
 
-        select case (current_stepvector(st))
+        select case (csf_i%stepvector(st))
         case (3)
             ! only deltaB 0 branch possible, and even no change in stepvector
             call encode_matrix_element(t, -Root2, 1)
@@ -17991,9 +9138,10 @@ contains
 
     end subroutine mixedFullStart
 
-    subroutine calcFullStartRaising(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullStartRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                     posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -18014,7 +9162,7 @@ contains
         ende = excitInfo%fullEnd
         semi = excitInfo%firstEnd
         gen = excitInfo%lastGen
-        bVal = currentB_ilut(semi)
+        bVal = csf_i%B_real(semi)
         ! first have to allocate both arrays for the determinant and weight list
         ! worse then worst case for single excitations are 2^|i-j| excitations
         ! for a given CSF -> for now use that to allocate the arrays first
@@ -18022,7 +9170,7 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function.
         ! nMax = 2**(ende - start)
-        nMax = 2 + 2**count_open_orbs_ij(start, ende, ilut(0:nifd))
+        nMax = 2 + 2**count_open_orbs_ij(csf_i, start, ende)
         allocate(tempExcits(0:nifguga, nMax), stat=ierr)
 
         t = ilut
@@ -18031,7 +9179,7 @@ contains
         ! additionally also already calculate the sign coming from the
         ! pseudo double excitation which only depends on the number of open
         ! orbitals in the overlap region
-        nOpen = real(count_open_orbs_ij(start, semi - 1, ilut(0:nifd)), dp)
+        nOpen = real(count_open_orbs_ij(csf_i, start, semi - 1), dp)
 
         ! set 0->3
         set_orb(t, 2 * start)
@@ -18050,16 +9198,16 @@ contains
 
         ! have to calc. weights here, which are only the normel single
         ! excitation weights
-        weights = init_singleWeight(ilut, ende)
-        minusWeight = weights%proc%minus(negSwitches(semi), currentB_ilut(semi), weights%dat)
-        plusWeight = weights%proc%plus(posSwitches(semi), currentB_ilut(semi), weights%dat)
+        weights = init_singleWeight(csf_i, ende)
+        minusWeight = weights%proc%minus(negSwitches(semi), csf_i%B_real(semi), weights%dat)
+        plusWeight = weights%proc%plus(posSwitches(semi), csf_i%B_real(semi), weights%dat)
 
         ASSERT(.not. isZero(ilut, semi))
         ASSERT(minusWeight + plusWeight > 0.0_dp)
 
         call encode_matrix_element(t, 0.0_dp, 2)
 
-        select case (current_stepvector(semi))
+        select case (csf_i%stepvector(semi))
         case (3)
             ! have to check a few things with 3 semi stop
 
@@ -18165,27 +9313,28 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = semi + 1, ende - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! and do a regular end step
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
         ! that should be it...
 
     end subroutine calcFullStartRaising
 
-    subroutine calcFullStartLowering(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullStartLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                      posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartLowering"
 
-        integer :: nMax, ierr, iOrb, start, ende, semi, gen
+        integer :: nMax, iOrb, start, ende, semi, gen
         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
         type(WeightObj_t) :: weights
@@ -18199,7 +9348,7 @@ contains
         ende = excitInfo%fullEnd
         semi = excitInfo%firstEnd
         gen = excitInfo%firstGen
-        bVal = currentB_ilut(semi)
+        bVal = csf_i%B_real(semi)
         ! first have to allocate both arrays for the determinant and weight list
         ! worse then worst case for single excitations are 2^|i-j| excitations
         ! for a given CSF -> for now use that to allocate the arrays first
@@ -18207,8 +9356,8 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function.
         ! nMax = 2**(ende - start)
-        nMax = 2 + 2**count_open_orbs_ij(start, ende, ilut(0:nifd))
-        allocate(tempExcits(0:nifguga, nMax), stat=ierr)
+        nMax = 2 + 2**count_open_orbs_ij(csf_i, start, ende)
+        allocate(tempExcits(0:nifguga, nMax))
 
         t = ilut
 
@@ -18217,7 +9366,7 @@ contains
         ! pseudo double excitation which only depends on the number of open
         ! orbitals in the overlap region
         ! just also count the semi here to take that additional -sign into account
-        nOpen = real(count_open_orbs_ij(start, semi, ilut(0:nifd)), dp)
+        nOpen = real(count_open_orbs_ij(csf_i, start, semi), dp)
 
         ! set 3->0
         clr_orb(t, 2 * start)
@@ -18230,7 +9379,7 @@ contains
 
         ! have to calc. weights here, which are only the normel single
         ! excitation weights
-        weights = init_singleWeight(ilut, ende)
+        weights = init_singleWeight(csf_i, ende)
         minusWeight = weights%proc%minus(negSwitches(semi), bVal, weights%dat)
         plusWeight = weights%proc%plus(posSwitches(semi), bVal, weights%dat)
 
@@ -18239,7 +9388,7 @@ contains
 
         call encode_matrix_element(t, 0.0_dp, 2)
 
-        select case (current_stepvector(semi))
+        select case (csf_i%stepvector(semi))
         case (0)
             ! have to check a few things with 0 start
             if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
@@ -18343,20 +9492,21 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = semi + 1, ende - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! and do a regular end step
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
         ! that should be it...
 
     end subroutine calcFullStartLowering
 
-    subroutine calcFullStopR2L(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullStopR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                                posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -18381,25 +9531,25 @@ contains
             t_no_singles = .false.
         end if
 
-        if (t_no_singles .and. current_stepvector(en) == 3) then
+        if (t_no_singles .and. csf_i%stepvector(en) == 3) then
             allocate(excitations(0, 0), stat=ierr)
             nExcits = 0
             return
         end if
 
         ! init weights
-        weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
-                                       posSwitches(se), currentB_ilut(se))
+        weights = init_semiStartWeight(csf_i, se, en, negSwitches(se), &
+                                       posSwitches(se), csf_i%B_real(se))
 
         excitInfo%currentGen = excitInfo%firstGen
 
         ! create start
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         ! loop until semi-start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
@@ -18409,8 +9559,8 @@ contains
         weights = weights%ptr
         ! depending if there is a 3 at the fullend there can be no switching
         ! possible
-        if (current_stepvector(en) == 3) then
-            zeroWeight = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(se), weights%dat)
+        if (csf_i%stepvector(en) == 3) then
+            zeroWeight = weights%proc%zero(0.0_dp, 0.0_dp, csf_i%B_real(se), weights%dat)
             ! is plus and minus weight zero then? i think so
             minusWeight = 0.0_dp
             plusWeight = 0.0_dp
@@ -18421,17 +9571,17 @@ contains
                 return
             end if
         else
-            minusWeight = weights%proc%minus(negSwitches(se), currentB_ilut(se), weights%dat)
-            plusWeight = weights%proc%plus(posSwitches(se), currentB_ilut(se), weights%dat)
+            minusWeight = weights%proc%minus(negSwitches(se), csf_i%B_real(se), weights%dat)
+            plusWeight = weights%proc%plus(posSwitches(se), csf_i%B_real(se), weights%dat)
             zeroWeight = weights%proc%zero(negSwitches(se), posSwitches(se), &
-                                           currentB_ilut(se), weights%dat)
+                                           csf_i%B_real(se), weights%dat)
         end if
         ! do i have to give them posSwitches and negSwitches or could I
         ! just put in actual weight values?
-        call calcLoweringSemiStart(ilut, excitInfo, tempExcits, nExcits, &
+        call calcLoweringSemiStart(ilut, csf_i, excitInfo, tempExcits, nExcits, &
                                    plusWeight, minusWeight, zeroWeight)
 
-        if (current_stepvector(en) == 3) then
+        if (csf_i%stepvector(en) == 3) then
             ! in mixed generator case there is no sign coming from the
             ! overlap region, so only finish up the excitation, by just
             ! giving it the correct matrix element
@@ -18464,21 +9614,22 @@ contains
             ! then i have to do a proper double excitation until the end
             ! with the new weights also
             do iOrb = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
-                call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+                call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                                   negSwitches, posSwitches)
             end do
 
             ! and then do a mixed fullstop. also write a general function for that
-            call mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations, &
+            call mixedFullStop(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations, &
                                t_no_singles)
 
         end if
 
     end subroutine calcFullStopR2L
 
-    subroutine calcFullStopL2R(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullStopL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                                posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -18503,24 +9654,24 @@ contains
             t_no_singles = .false.
         end if
 
-        if (t_no_singles .and. current_stepvector(en) == 3) then
+        if (t_no_singles .and. csf_i%stepvector(en) == 3) then
             allocate(excitations(0, 0), stat=ierr)
             nExcits = 0
             return
         end if
 
         ! init weights
-        weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
-                                       posSwitches(se), currentB_ilut(se))
+        weights = init_semiStartWeight(csf_i, se, en, negSwitches(se), &
+                                       posSwitches(se), csf_i%B_real(se))
 
         excitInfo%currentGen = excitInfo%firstGen
         ! create start
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         ! loop until semi-start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
@@ -18530,10 +9681,10 @@ contains
         ! do i have to give them posSwitches and negSwitches or could I
         ! just put in actual weight values?
         weights = weights%ptr
-        if (current_stepvector(en) == 3) then
+        if (csf_i%stepvector(en) == 3) then
             minusWeight = 0.0_dp
             plusWeight = 0.0_dp
-            zeroWeight = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(se), weights%dat)
+            zeroWeight = weights%proc%zero(0.0_dp, 0.0_dp, csf_i%B_real(se), weights%dat)
 
             if (t_mixed_hubbard) then
                 allocate(excitations(0, 0), stat=ierr)
@@ -18542,16 +9693,16 @@ contains
             end if
 
         else
-            minusWeight = weights%proc%minus(negSwitches(se), currentB_ilut(se), weights%dat)
-            plusWeight = weights%proc%plus(posSwitches(se), currentB_ilut(se), weights%dat)
+            minusWeight = weights%proc%minus(negSwitches(se), csf_i%B_real(se), weights%dat)
+            plusWeight = weights%proc%plus(posSwitches(se), csf_i%B_real(se), weights%dat)
             zeroWeight = weights%proc%zero(negSwitches(se), posSwitches(se), &
-                                           currentB_ilut(se), weights%dat)
+                                           csf_i%B_real(se), weights%dat)
         end if
 
-        call calcRaisingSemiStart(ilut, excitInfo, tempExcits, nExcits, &
+        call calcRaisingSemiStart(ilut, csf_i, excitInfo, tempExcits, nExcits, &
                                   plusWeight, minusWeight, zeroWeight)
 
-        if (current_stepvector(en) == 3) then
+        if (csf_i%stepvector(en) == 3) then
             ! in mixed generator case there is no sign coming from the
             ! overlap region, so only finish up the excitation, by just
             ! giving it the correct matrix element
@@ -18584,22 +9735,23 @@ contains
             ! then i have to do a proper double excitation until the end
             ! with the new weights also
             do iOrb = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
-                call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
+                call doubleUpdate(ilut, csf_i, iOrb, excitInfo, weights, tempExcits, nExcits, &
                                   negSwitches, posSwitches)
             end do
 
             ! and then do a mixed fullstop. also write a general function for that
-            call mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations, &
+            call mixedFullStop(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations, &
                                t_no_singles)
 
         end if
 
     end subroutine calcFullStopL2R
 
-    subroutine mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations, &
+    subroutine mixedFullStop(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations, &
                              t_no_singles_opt)
         ! full stop routine for mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
@@ -18623,9 +9775,9 @@ contains
         end if
 
         ende = excitInfo%fullEnd
-        bVal = currentB_ilut(ende)
+        bVal = csf_i%B_real(ende)
 
-        select case (current_stepvector(ende))
+        select case (csf_i%stepvector(ende))
         case (1)
             ! ending for -2 and 0 branches
             do iEx = 1, nExcits
@@ -18776,13 +9928,14 @@ contains
 
     end subroutine mixedFullStop
 
-    subroutine calcLoweringSemiStart(ilut, excitInfo, tempExcits, nExcits, &
+    subroutine calcLoweringSemiStart(ilut, csf_i, excitInfo, tempExcits, nExcits, &
                                      plusWeight, minusWeight, zeroWeight)
         ! try at creating a reusable raising generator semi start
         ! just realize, for double excitations i have to save 2 matrix elements
         ! so hopefully a way is to use the imaginary matrix element storage
         ! for these kind of excitations! -> ask simon
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
@@ -18796,7 +9949,7 @@ contains
         ! at semi start with alike generator full stops only the deltaB=0
         ! are compatible, i hope this is correctly accounted by the weights..
         s = excitInfo%secondStart
-        bVal = currentB_ilut(s)
+        bVal = csf_i%B_real(s)
         en = excitInfo%fullEnd
         fe = excitInfo%firstEnd
 
@@ -18804,9 +9957,9 @@ contains
         ! exitations to pseudo doubles -> make distinction
         ! the second if is to only apply this to fullstop cases but also be
         ! able to use it fore general double excitations
-        if (current_stepvector(en) == 3 .and. fe == en) then
+        if (csf_i%stepvector(en) == 3 .and. fe == en) then
             ! here only swiches to 0 branch are possible
-            select case (current_stepvector(s))
+            select case (csf_i%stepvector(s))
             case (1)
                 ! only -1 branches can lead to 0 branch
                 ! not yet asssured by weights that only -1 branch is
@@ -18905,7 +10058,7 @@ contains
 
         else
 
-            select case (current_stepvector(s))
+            select case (csf_i%stepvector(s))
             case (1)
                 ! always works if weights are fitting, check possibs.
 
@@ -19108,7 +10261,7 @@ contains
 
                         if (deltaB == +1) then
                             call print_indices(excitInfo)
-                            call write_guga_list(6, tempExcits(:, 1:nExcits))
+                            call write_guga_list(stdout, tempExcits(:, 1:nExcits))
                             ASSERT(deltaB /= 1)
                         end if
 
@@ -19192,7 +10345,7 @@ contains
 
                         if (deltaB == -1) then
                             call print_indices(excitInfo)
-                            call write_guga_list(6, tempExcits(:, 1:nExcits))
+                            call write_guga_list(stdout, tempExcits(:, 1:nExcits))
                             ASSERT(deltaB /= -1)
                         end if
 
@@ -19256,13 +10409,14 @@ contains
 
     end subroutine calcLoweringSemiStart
 
-    subroutine calcRaisingSemiStart(ilut, excitInfo, tempExcits, nExcits, &
+    subroutine calcRaisingSemiStart(ilut, csf_i, excitInfo, tempExcits, nExcits, &
                                     plusWeight, minusWeight, zeroWeight)
         ! try at creating a reusable raising generator semi start
         ! just realize, for double excitations i have to save 2 matrix elements
         ! so hopefully a way is to use the imaginary matrix element storage
         ! for these kind of excitations! -> ask simon
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
@@ -19276,7 +10430,7 @@ contains
         ! at semi start with alike generator full stops only the deltaB=0
         ! are compatible, i hope this is correctly accounted by the weights..
         s = excitInfo%secondStart
-        bVal = currentB_ilut(s)
+        bVal = csf_i%B_real(s)
         fe = excitInfo%firstEnd
         en = excitInfo%fullEnd
 
@@ -19286,9 +10440,9 @@ contains
         ! i am dealing with a full stop. otherwise stepvalue doesnt matter
         ! at end
         ! could avoid that is Three(end) now since included in weights...
-        if (current_stepvector(en) == 3 .and. en == fe) then
+        if (csf_i%stepvector(en) == 3 .and. en == fe) then
             ! here only swiches to 0 branch are possible
-            select case (current_stepvector(s))
+            select case (csf_i%stepvector(s))
             case (1)
                 ! only -1 branches can lead to 0 branch
                 ! not yet assured correctly by weights that only -1 branches
@@ -19383,7 +10537,7 @@ contains
 
         else
 
-            select case (current_stepvector(s))
+            select case (csf_i%stepvector(s))
             case (1)
                 ! always works if weights are fitting, check possibs.
 
@@ -19589,7 +10743,7 @@ contains
 
                         if (deltaB == 1) then
                             call print_indices(excitInfo)
-                            call write_guga_list(6, tempExcits(:, 1:nExcits))
+                            call write_guga_list(stdout, tempExcits(:, 1:nExcits))
                             ASSERT(deltaB /= 1)
                         end if
 
@@ -19673,7 +10827,7 @@ contains
 
                         if (deltaB == -1) then
                             call print_indices(excitInfo)
-                            call write_guga_list(6, tempExcits(:, 1:nExcits))
+                            call write_guga_list(stdout, tempExcits(:, 1:nExcits))
                             ASSERT(deltaB /= -1)
                         end if
 
@@ -19736,9 +10890,10 @@ contains
 
     end subroutine calcRaisingSemiStart
 
-    subroutine calcFullstopLowering(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullstopLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                     posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -19755,25 +10910,25 @@ contains
         ! create weight object here
         ! i think i only need single excitations weights here, since
         ! the semi stop in this case is like an end step...
-        weights = init_singleWeight(ilut, excitInfo%secondStart)
+        weights = init_singleWeight(csf_i, excitInfo%secondStart)
 
         ! create start
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         excitInfo%currentGen = excitInfo%firstGen
         ! loop until semi-start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! at semi start with alike generator full stops only the deltaB=0
         ! are compatible, i hope this is correctly accounted by the weights..
         iOrb = excitInfo%secondStart
-        bVal = currentB_ilut(iOrb)
+        bVal = csf_i%B_real(iOrb)
 
-        select case (current_stepvector(iOrb))
+        select case (csf_i%stepvector(iOrb))
         case (1)
             ! only delta -1 branches can lead to deltaB=0 in overlap here
             do iEx = 1, nExcits
@@ -19862,8 +11017,8 @@ contains
         ! continue on with double excitation region, only the 0 branch
         ! valid here, where there is no change in stepvector and matrix
         ! element only a sign dependent on the number of open orbitals
-        sig = (-1.0_dp)**real(count_open_orbs_ij(excitInfo%secondStart + 1, &
-                                                 excitInfo%fullEnd - 1, ilut(0:nifd)), dp)
+        sig = (-1.0_dp)**real(count_open_orbs_ij(csf_i, excitInfo%secondStart + 1, &
+                                                 excitInfo%fullEnd - 1), dp)
 
         ! do the ending
         ASSERT(isZero(ilut, excitInfo%fullEnd))
@@ -19899,9 +11054,10 @@ contains
 
     end subroutine calcFullstopLowering
 
-    subroutine calcFullstopRaising(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcFullstopRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                    posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -19916,26 +11072,26 @@ contains
         real(dp) :: tempWeight, sig, bVal
 
         ! create weight object here todo
-        weights = init_singleWeight(ilut, excitInfo%secondStart)
+        weights = init_singleWeight(csf_i, excitInfo%secondStart)
 
         excitInfo%currentGen = excitInfo%firstGen
 
         ! create start
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         ! loop until semi-start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! at semi start with alike generator full stops only the deltaB=0
         ! are compatible, i hope this is correctly accounted by the weights..
         iOrb = excitInfo%secondStart
-        bVal = currentB_ilut(iOrb)
+        bVal = csf_i%B_real(iOrb)
 
-        select case (current_stepvector(iOrb))
+        select case (csf_i%stepvector(iOrb))
         case (1)
             ! only delta -1 branches can lead to deltaB=0 in overlap here
             do iEx = 1, nExcits
@@ -20023,8 +11179,8 @@ contains
         ! continue on with double excitation region, only the 0 branch
         ! valid here, where there is no change in stepvector and matrix
         ! element only a sign dependent on the number of open orbitals
-        sig = (-1.0_dp)**real(count_open_orbs_ij(excitInfo%secondStart + 1, &
-                                                 excitInfo%fullEnd - 1, ilut(0:nifd)), dp)
+        sig = (-1.0_dp)**real(count_open_orbs_ij(csf_i, excitInfo%secondStart + 1, &
+                                                 excitInfo%fullEnd - 1), dp)
 
         ! do the ending
         ASSERT(isThree(ilut, excitInfo%fullEnd))
@@ -20057,9 +11213,10 @@ contains
 
     end subroutine calcFullstopRaising
 
-    subroutine calcSingleOverlapLowering(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcSingleOverlapLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                          posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -20078,17 +11235,17 @@ contains
 
         excitInfo%currentGen = excitInfo%firstGen
         ! have to make specific single start to correctly adress the weights
-        weights = init_singleOverlapLowering(ilut, excitInfo%firstEnd, &
+        weights = init_singleOverlapLowering(csf_i, excitInfo%firstEnd, &
                                              excitInfo%fullEnd, negSwitches(excitInfo%firstEnd), posSwitches(excitInfo%firstEnd), &
-                                             currentB_ilut(excitInfo%firstEnd))
+                                             csf_i%B_real(excitInfo%firstEnd))
 
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, weights, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, weights, &
                                tempExcits, nExcits)
 
         ss = excitInfo%secondStart
         ! loop until overlap site
         do i = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, i, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, i, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
@@ -20096,7 +11253,7 @@ contains
         ! two lowerings
 
         ! has only forced switches at switch possibilities
-        if (current_stepvector(ss) == 1) then
+        if (csf_i%stepvector(ss) == 1) then
             ! switch deltaB = -1 branches
             do iEx = 1, nExcits
                 deltaB = getDeltaB(tempExcits(:, iEx))
@@ -20114,7 +11271,7 @@ contains
                 end if
             end do
 
-        else if (current_stepvector(ss) == 2) then
+        else if (csf_i%stepvector(ss) == 2) then
             ! switch deltaB = +1
             do iEx = 1, nExcits
                 deltaB = getDeltaB(tempExcits(:, iEx))
@@ -20138,21 +11295,22 @@ contains
 
         ! continue with secon region normally
         do i = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, i, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, i, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
 
         end do
 
         ! normal end step
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
     end subroutine calcSingleOverlapLowering
 
-    subroutine calcSingleOverlapRaising(ilut, excitInfo, excitations, &
+    subroutine calcSingleOverlapRaising(ilut, csf_i, excitInfo, excitations, &
                                         nExcits, posSwitches, negSwitches)
         ! special function to calculate all excitations for a single overlap
         ! double excitations with only raising generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -20173,33 +11331,33 @@ contains
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
         ! create weight object here
-        weightObj = init_singleOverlapRaising(ilut, se, en, negSwitches(se), &
-                                              posSwitches(se), currentB_ilut(se))
+        weightObj = init_singleOverlapRaising(csf_i, se, en, negSwitches(se), &
+                                              posSwitches(se), csf_i%B_real(se))
 
         excitInfo%currentGen = excitInfo%firstGen
         ! have to make specific single start to correctly adress the weights
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weightObj, tempExcits, nExcits)
 
         ! loop until overlap site
         do i = excitInfo%fullStart + 1, se - 1
-            call singleUpdate(ilut, i, excitInfo, posSwitches, &
+            call singleUpdate(ilut, csf_i, i, excitInfo, posSwitches, &
                               negSwitches, weightObj, tempExcits, nExcits)
         end do
 
         i = excitInfo%secondStart
 
         ! update weights
-        weightObj = init_singleWeight(ilut, en)
+        weightObj = init_singleWeight(csf_i, en)
         plusWeight = weightObj%proc%plus(posSwitches(se), &
-                                         currentB_ilut(se), weightObj%dat)
+                                         csf_i%B_real(se), weightObj%dat)
         minusWeight = weightObj%proc%minus(negSwitches(se), &
-                                           currentB_ilut(se), weightObj%dat)
+                                           csf_i%B_real(se), weightObj%dat)
 
         ASSERT(plusWeight + minusWeight > 0.0_dp)
 
         ! do special stuff at single overlap raising site
-        if (current_stepvector(se) == 1) then
+        if (csf_i%stepvector(se) == 1) then
             ! in this case there should come a deltaB=+1 branch, nevertheless
             ! check for now..
             ! have to include probabilistic weights too... which are the normal
@@ -20248,7 +11406,7 @@ contains
                 end if
             end do
 
-        else if (current_stepvector(se) == 2) then
+        else if (csf_i%stepvector(se) == 2) then
             ! in this case always a switch, and i b allows also a stay
             ! how are the probs here...
 
@@ -20305,20 +11463,21 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do i = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, i, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, i, excitInfo, posSwitches, negSwitches, &
                               weightObj, tempExcits, nExcits)
         end do
 
         ! normal end step
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
     end subroutine calcSingleOverlapRaising
 
-    subroutine calcSingleOverlapMixed(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcSingleOverlapMixed(ilut, csf_i, excitInfo, excitations, nExcits, &
                                       posSwitches, negSwitches)
         ! control routine to calculate the single overlap excitation with
         ! mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -20333,17 +11492,17 @@ contains
 
         ! todo: create weight objects, here are the normal single excitation
         ! weight operators.
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        weights = init_singleWeight(csf_i, excitInfo%fullEnd)
 
         excitInfo%currentGen = excitInfo%firstGen
         ! create according start
-        call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
+        call createSingleStart(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                weights, tempExcits, nExcits)
 
         ! set current gen
         ! do normal updates up to the overlap site
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
@@ -20360,7 +11519,7 @@ contains
 
                 ! have to get double excitation matrix elements in here..
                 call getDoubleMatrixElement(3, 0, deltaB, excitInfo%firstGen, &
-                                            excitInfo%lastGen, currentB_ilut(iOrb), 1.0_dp, tempWeight)
+                                            excitInfo%lastGen, csf_i%B_real(iOrb), 1.0_dp, tempWeight)
 
                 call update_matrix_element(t, tempWeight, 1)
 
@@ -20382,7 +11541,7 @@ contains
                 deltaB = getDeltaB(t)
 
                 call getDoubleMatrixElement(0, 3, deltaB, excitInfo%firstGen, &
-                                            excitInfo%lastGen, currentB_ilut(iOrb), 1.0_dp, tempWeight)
+                                            excitInfo%lastGen, csf_i%B_real(iOrb), 1.0_dp, tempWeight)
 
                 call update_matrix_element(t, tempWeight, 1)
 
@@ -20399,19 +11558,20 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
-            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
+            call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, negSwitches, &
                               weights, tempExcits, nExcits)
         end do
 
         ! lets see if that calling works
-        call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
+        call singleEnd(ilut, csf_i, excitInfo, tempExcits, nExcits, excitations)
 
     end subroutine calcSingleOverlapMixed
 
-    subroutine calcNonOverlapDouble(ilut, excitInfo, excitations, nExcits, &
+    subroutine calcNonOverlapDouble(ilut, csf_i, excitInfo, excitations, nExcits, &
                                     posSwitches, negSwitches)
         ! specific subroutine to calculate the non overlap double excitations
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -20431,7 +11591,7 @@ contains
         tmpInfo%fullEnd = excitInfo%firstEnd
         tmpInfo%currentGen = excitInfo%firstGen
 
-        call calcAllExcitations(ilut, tmpInfo, posSwitches, negSwitches, &
+        call calcAllExcitations(ilut, csf_i, tmpInfo, posSwitches, negSwitches, &
                                 .false., tempExcits, tmpNum)
 
         ! then change tmpInfo to deal with second excitaion properly
@@ -20441,15 +11601,15 @@ contains
 
         nExcits = 0
         ! have to allocate excitation list to worst casce
-        nOpen1 = count_open_orbs_ij(excitInfo%fullStart, excitInfo%firstEnd, ilut(0:nifd))
-        nOpen2 = count_open_orbs_ij(excitInfo%secondStart, excitInfo%fullEnd, ilut(0:nifd))
+        nOpen1 = count_open_orbs_ij(csf_i, excitInfo%fullStart, excitInfo%firstEnd)
+        nOpen2 = count_open_orbs_ij(csf_i, excitInfo%secondStart, excitInfo%fullEnd)
 
         nMax = 4 + 2**(nOpen1 + nOpen2 + 2)
         allocate(tmp_excitations(0:nifguga, nMax), stat=ierr)
 
         ! and for all created excitations i have to calc. all possible tops
         do iEx = 1, tmpNum
-            call calcAllExcitations(tempExcits(:, iEx), tmpInfo, posSwitches, &
+            call calcAllExcitations(tempExcits(:, iEx), csf_i, tmpInfo, posSwitches, &
                                     negSwitches, .false., tempExcits2, tmpNum2)
 
             ! have to reencode matrix element of tempexcits(:,iEx) as it is
@@ -20489,11 +11649,12 @@ contains
 
     end subroutine calcNonOverlapDouble
 
-    subroutine calcDoubleExcitation_withWeight(ilut, excitInfo, excitations, &
+    subroutine calcDoubleExcitation_withWeight(ilut, csf_i, excitInfo, excitations, &
                                                nExcits, posSwitches, negSwitches)
         ! subroutine to calculate the double excitations involving a weight
         ! generator, which is really similar so a normal single excitation
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
@@ -20506,7 +11667,7 @@ contains
 
         ! in future
         we = excitInfo%weight
-        call calcAllExcitations(ilut, excitInfo, posSwitches, negSwitches, &
+        call calcAllExcitations(ilut, csf_i, excitInfo, posSwitches, negSwitches, &
                                 .false., excitations, nExcits)
 
         ! and then modify the matrix element if necessary
@@ -20528,81 +11689,12 @@ contains
 
     end subroutine calcDoubleExcitation_withWeight
 
-    subroutine checkCompatibility_single(L, excitInfo, flag, posSwitches, negSwitches, opt_weight)
-        integer(n_int), intent(in) :: L(0:nifguga)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        logical, intent(out) :: flag
-        real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
-                                           negSwitches(nSpatOrbs)
-
-        type(WeightObj_t), intent(out), optional :: opt_weight
-        debug_function_name("checkCompatibility_single")
-
-        real(dp) :: pw, mw
-        integer ::  st, en
-        type(WeightObj_t) :: weights
-
-        ASSERT(excitInfo%typ == excit_type%single)
-        ASSERT(excitInfo%gen1 == gen_type%R .or. excitInfo%gen1 == gen_type%L)
-
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
-
-        st = excitInfo%fullStart
-        en = excitInfo%fullEnd
-        flag = .true.
-
-        if (excitInfo%gen1 == gen_type%R) then
-            ! raising
-            if (current_stepvector(st) == 3 .or. current_stepvector(en) == 0) then
-                flag = .false.
-                return
-            end if
-
-            weights = init_singleWeight(L, en)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-
-            if ((near_zero(pw) .and. near_zero(mw)) &
-                .or. (current_stepvector(st) == 1 .and. near_zero(pw)) &
-                .or. (current_stepvector(st) == 2 .and. near_zero(mw))) then
-                flag = .false.
-                return
-            end if
-
-        else if (excitInfo%gen1 == gen_type%L) then
-            ! lowering
-
-            if (current_stepvector(en) == 3 .or. current_stepvector(st) == 0) then
-                flag = .false.
-                return
-            end if
-
-            weights = init_singleWeight(L, en)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-
-
-            if ((current_stepvector(st) == 1 .and. near_zero(pw)) &
-                .or. (current_stepvector(st) == 2 .and. near_zero(mw)) &
-                .or. (near_zero(pw + mw))) then
-                flag = .false.
-                return
-            end if
-        end if
-
-        if (present(opt_weight)) opt_weight = weights
-
-    end subroutine checkCompatibility_single
-
-
-    subroutine checkCompatibility(L, excitInfo, flag, posSwitches, negSwitches, opt_weight)
+    subroutine checkCompatibility(csf_i, excitInfo, flag, posSwitches, negSwitches, opt_weight)
         ! depending on the type of excitation determined in the
         ! excitationIdentifier check if the provided ilut and excitation and
         ! the probabilistic weight function allow an excitation
         ! dont do probabilistic weight for now. just check stepvector
-        ! TODO use current_stepvector quantity in here!
-        ! to improve performance
-        integer(n_int), intent(in) :: L(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(out) :: flag
         real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
@@ -20615,8 +11707,8 @@ contains
         type(WeightObj_t) :: weights
 
         ! also include probabilistic weights
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
-                                                    negSwitches)
+        call calcRemainingSwitches_excitInfo_double( &
+                csf_i, excitInfo, posSwitches, negSwitches)
 
         ! todo include probabilistic weights too.
         ! and check all if conditions todo! definetly mistakes there!
@@ -20633,20 +11725,20 @@ contains
         select case (excitInfo%typ)
             ! weight + raising generator:
         case (excit_type%raising)
-            if (current_stepvector(we) == 0 .or. current_stepvector(st) == &
-                3 .or. current_stepvector(en) == 0 .or. &
-                (we == en .and. current_stepvector(en) /= 3)) then
+            if (csf_i%stepvector(we) == 0 .or. csf_i%stepvector(st) == &
+                3 .or. csf_i%stepvector(en) == 0 .or. &
+                (we == en .and. csf_i%stepvector(en) /= 3)) then
                 flag = .false.
                 return
             end if
 
-            weights = init_singleWeight(L, en)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
 
-            if ((near_zero(pw) .and. near_zero(mw)) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+            if (near_zero(pw) .and. near_zero(mw) &
+                 .or. csf_i%stepvector(st) == 1 .and. near_zero(pw) &
+                 .or. csf_i%stepvector(st) == 2 .and. near_zero(mw)) then
                 flag = .false.
                 return
             end if
@@ -20654,19 +11746,20 @@ contains
             ! weight + lowering generator:
         case (excit_type%lowering)
 
-            if (current_stepvector(we) == 0 .or. current_stepvector(en) == &
-                3 .or. current_stepvector(st) == 0 .or. (we == st .and. &
-                                                         current_stepvector(st) /= 3)) then
+            if (csf_i%stepvector(we) == 0 &
+                .or. csf_i%stepvector(en) == 3 &
+                .or. csf_i%stepvector(st) == 0 &
+                .or. (we == st .and. csf_i%stepvector(st) /= 3)) then
                 flag = .false.
                 return
             end if
 
-            weights = init_singleWeight(L, en)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
 
-            if ((current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw)) .or. &
+            if ((csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw)) .or. &
                 (near_zero(pw + mw))) then
                 flag = .false.
                 return
@@ -20680,34 +11773,34 @@ contains
             k = excitInfo%k
             lO = excitInfo%l
 
-            if (current_stepvector(i) == 3 .or. current_stepvector(j) == 0 .or. &
-                current_stepvector(k) == 3 .or. current_stepvector(lO) == 0) then
+            if (csf_i%stepvector(i) == 3 .or. csf_i%stepvector(j) == 0 .or. &
+                csf_i%stepvector(k) == 3 .or. csf_i%stepvector(lO) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_singleWeight(L, fe)
+            weights = init_singleWeight(csf_i, fe)
 
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
 
             ! first check lower range
             if (near_zero(pw + mw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
 
             ! then second
-            weights = init_singleWeight(L, en)
+            weights = init_singleWeight(csf_i, en)
 
-            mw = weights%proc%minus(negSwitches(ss), currentB_ilut(ss), weights%dat)
-            pw = weights%proc%plus(posSwitches(ss), currentB_ilut(ss), weights%dat)
+            mw = weights%proc%minus(negSwitches(ss), csf_i%B_real(ss), weights%dat)
+            pw = weights%proc%plus(posSwitches(ss), csf_i%B_real(ss), weights%dat)
 
             if (near_zero(pw + mw) .or. &
-                (current_stepvector(ss) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(ss) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(ss) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(ss) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20715,8 +11808,8 @@ contains
             ! single overlap lowering
         case (excit_type%single_overlap_lowering)
 
-            if (current_stepvector(fe) == 0 .or. current_stepvector(en) == &
-                3 .or. current_stepvector(st) == 0) then
+            if (csf_i%stepvector(fe) == 0 .or. csf_i%stepvector(en) == &
+                3 .or. csf_i%stepvector(st) == 0) then
                 flag = .false.
                 return
             end if
@@ -20725,15 +11818,15 @@ contains
             ! bvalue restrictions to the calc.!!!
             ! todo
 
-            weights = init_singleOverlapLowering(L, fe, en, negSwitches(fe), &
-                                                 posSwitches(fe), currentB_ilut(fe))
+            weights = init_singleOverlapLowering(csf_i, fe, en, negSwitches(fe), &
+                                                 posSwitches(fe), csf_i%B_real(fe))
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(pw + mw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20744,21 +11837,21 @@ contains
             ! single overlap raising
         case (excit_type%single_overlap_raising)
 
-            if (current_stepvector(fe) == 0 .or. current_stepvector(st) == &
-                3 .or. current_stepvector(en) == 0) then
+            if (csf_i%stepvector(fe) == 0 .or. csf_i%stepvector(st) == &
+                3 .or. csf_i%stepvector(en) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_singleOverlapRaising(L, fe, en, negSwitches(fe), &
-                                                posSwitches(fe), currentB_ilut(fe))
+            weights = init_singleOverlapRaising(csf_i, fe, en, negSwitches(fe), &
+                                                posSwitches(fe), csf_i%B_real(fe))
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(pw + mw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20766,19 +11859,19 @@ contains
             ! single overlap lowering into raising
         case (excit_type%single_overlap_L_to_R)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(fe) /= &
-                0 .or. current_stepvector(en) == 0) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(fe) /= &
+                0 .or. csf_i%stepvector(en) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_singleWeight(L, en)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(pw + mw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20786,19 +11879,19 @@ contains
             ! single overlap raising into lowering
         case (excit_type%single_overlap_R_to_L)
 
-            if (current_stepvector(fe) /= 3 .or. current_stepvector(st) == &
-                3 .or. current_stepvector(en) == 3) then
+            if (csf_i%stepvector(fe) /= 3 .or. csf_i%stepvector(st) == &
+                3 .or. csf_i%stepvector(en) == 3) then
                 flag = .false.
                 return
             end if
 
-            weights = init_singleWeight(L, en)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(pw + mw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20806,23 +11899,23 @@ contains
             ! normal double two lowering
         case (excit_type%double_lowering)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(fe) == &
-                3 .or. current_stepvector(en) == 3 .or. &
-                current_stepvector(ss) == 0) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(fe) == &
+                3 .or. csf_i%stepvector(en) == 3 .or. &
+                csf_i%stepvector(ss) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, ss, fe, en, negSwitches(ss), &
-                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), currentB_ilut(ss), &
-                                            currentB_ilut(fe))
+            weights = init_fullDoubleWeight(csf_i, ss, fe, en, negSwitches(ss), &
+                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_i%B_real(ss), &
+                                            csf_i%B_real(fe))
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20830,23 +11923,23 @@ contains
             ! normal double two raising
         case (excit_type%double_raising)
 
-            if (current_stepvector(en) == 0 .or. current_stepvector(ss) == &
-                3 .or. current_stepvector(st) == 3 .or. &
-                current_stepvector(fe) == 0) then
+            if (csf_i%stepvector(en) == 0 .or. csf_i%stepvector(ss) == &
+                3 .or. csf_i%stepvector(st) == 3 .or. &
+                csf_i%stepvector(fe) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, ss, fe, en, negSwitches(ss), &
-                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), currentB_ilut(ss), &
-                                            currentB_ilut(fe))
+            weights = init_fullDoubleWeight(csf_i, ss, fe, en, negSwitches(ss), &
+                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_i%B_real(ss), &
+                                            csf_i%B_real(fe))
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20854,23 +11947,23 @@ contains
             ! lowering into raising into lowering
         case (excit_type%double_L_to_R_to_L)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(ss) == &
-                3 .or. current_stepvector(en) == 3 .or. &
-                current_stepvector(fe) == 0) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(ss) == &
+                3 .or. csf_i%stepvector(en) == 3 .or. &
+                csf_i%stepvector(fe) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, ss, fe, en, negSwitches(ss), &
-                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), currentB_ilut(ss), &
-                                            currentB_ilut(fe))
+            weights = init_fullDoubleWeight(csf_i, ss, fe, en, negSwitches(ss), &
+                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_i%B_real(ss), &
+                                            csf_i%B_real(fe))
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20878,23 +11971,23 @@ contains
             ! raising into lowering into raising
         case (excit_type%double_R_to_L_to_R)
 
-            if (current_stepvector(en) == 0 .or. current_stepvector(fe) == &
-                3 .or. current_stepvector(st) == 3 .or. &
-                current_stepvector(ss) == 0) then
+            if (csf_i%stepvector(en) == 0 .or. csf_i%stepvector(fe) == &
+                3 .or. csf_i%stepvector(st) == 3 .or. &
+                csf_i%stepvector(ss) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, ss, fe, en, negSwitches(ss), &
-                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), currentB_ilut(ss), &
-                                            currentB_ilut(fe))
+            weights = init_fullDoubleWeight(csf_i, ss, fe, en, negSwitches(ss), &
+                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_i%B_real(ss), &
+                                            csf_i%B_real(fe))
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20902,23 +11995,23 @@ contains
             ! lowering into raising double
         case (excit_type%double_L_to_R)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(ss) == 3 &
-                .or. current_stepvector(en) == 0 .or. &
-                current_stepvector(fe) == 3) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(ss) == 3 &
+                .or. csf_i%stepvector(en) == 0 .or. &
+                csf_i%stepvector(fe) == 3) then
                 flag = .false.
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, ss, fe, en, negSwitches(ss), &
-                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), currentB_ilut(ss), &
-                                            currentB_ilut(fe))
+            weights = init_fullDoubleWeight(csf_i, ss, fe, en, negSwitches(ss), &
+                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_i%B_real(ss), &
+                                            csf_i%B_real(fe))
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20926,23 +12019,23 @@ contains
             ! raising into lowering double
         case (excit_type%double_R_to_L)
 
-            if (current_stepvector(ss) == 0 .or. current_stepvector(st) == 3 &
-                .or. current_stepvector(en) == 3 .or. &
-                current_stepvector(fe) == 0) then
+            if (csf_i%stepvector(ss) == 0 .or. csf_i%stepvector(st) == 3 &
+                .or. csf_i%stepvector(en) == 3 .or. &
+                csf_i%stepvector(fe) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, ss, fe, en, negSwitches(ss), &
-                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), currentB_ilut(ss), &
-                                            currentB_ilut(fe))
+            weights = init_fullDoubleWeight(csf_i, ss, fe, en, negSwitches(ss), &
+                                            negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_i%B_real(ss), &
+                                            csf_i%B_real(fe))
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20950,20 +12043,20 @@ contains
             ! full stop two lowering
         case (excit_type%fullstop_lowering)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(en) /= 0 &
-                .or. current_stepvector(ss) == 0) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(en) /= 0 &
+                .or. csf_i%stepvector(ss) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_singleWeight(L, ss)
+            weights = init_singleWeight(csf_i, ss)
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20971,20 +12064,20 @@ contains
             ! full stop two raising
         case (excit_type%fullstop_raising)
 
-            if (current_stepvector(st) == 3 .or. current_stepvector(en) /= 3 .or. &
-                current_stepvector(ss) == 3) then
+            if (csf_i%stepvector(st) == 3 .or. csf_i%stepvector(en) /= 3 .or. &
+                csf_i%stepvector(ss) == 3) then
                 flag = .false.
                 return
             end if
 
-            weights = init_singleWeight(L, ss)
+            weights = init_singleWeight(csf_i, ss)
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20992,8 +12085,8 @@ contains
             ! full stop lowering into raising
         case (excit_type%fullstop_L_to_R)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(ss) == 3 &
-                .or. current_stepvector(en) == 0) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(ss) == 3 &
+                .or. csf_i%stepvector(en) == 0) then
                 flag = .false.
                 return
             end if
@@ -21009,22 +12102,22 @@ contains
                 ! need to check the compatibility differently as
                 ! the flips at the indices are enforced
 
-                weights = init_forced_end_semistart_weight(L, ss, en, &
-                                                           negSwitches(ss), posSwitches(ss), currentB_ilut(ss))
+                weights = init_forced_end_semistart_weight(csf_i, ss, en, &
+                                                           negSwitches(ss), posSwitches(ss), csf_i%B_real(ss))
 
             else
 
-                weights = init_semiStartWeight(L, ss, en, negSwitches(ss), &
-                                               posSwitches(ss), currentB_ilut(ss))
+                weights = init_semiStartWeight(csf_i, ss, en, negSwitches(ss), &
+                                               posSwitches(ss), csf_i%B_real(ss))
 
             end if
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -21032,8 +12125,8 @@ contains
             ! full stop raising into lowering
         case (excit_type%fullstop_R_to_L)
 
-            if (current_stepvector(ss) == 0 .or. current_stepvector(st) == 3 &
-                .or. current_stepvector(en) == 0) then
+            if (csf_i%stepvector(ss) == 0 .or. csf_i%stepvector(st) == 3 &
+                .or. csf_i%stepvector(en) == 0) then
                 flag = .false.
                 return
             end if
@@ -21041,22 +12134,22 @@ contains
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 ! todo: the logic
 
-                weights = init_forced_end_semistart_weight(L, ss, en, &
-                                                           negSwitches(ss), posSwitches(ss), currentB_ilut(ss))
+                weights = init_forced_end_semistart_weight(csf_i, ss, en, &
+                                                           negSwitches(ss), posSwitches(ss), csf_i%B_real(ss))
 
             else
 
-                weights = init_semiStartWeight(L, ss, en, negSwitches(ss), &
-                                               posSwitches(ss), currentB_ilut(ss))
+                weights = init_semiStartWeight(csf_i, ss, en, negSwitches(ss), &
+                                               posSwitches(ss), csf_i%B_real(ss))
 
             end if
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -21064,8 +12157,8 @@ contains
             ! full start two lowering
         case (excit_type%fullstart_lowering)
 
-            if (current_stepvector(st) /= 3 .or. current_stepvector(fe) == 3 &
-                .or. current_stepvector(en) == 3) then
+            if (csf_i%stepvector(st) /= 3 .or. csf_i%stepvector(fe) == 3 &
+                .or. csf_i%stepvector(en) == 3) then
                 flag = .false.
                 return
             end if
@@ -21073,7 +12166,7 @@ contains
             ! in the actual excitation generation i use the the
             ! single weights here.. and this make more sense i must
             ! admit.
-            weights = init_singleWeight(L, en)
+            weights = init_singleWeight(csf_i, en)
 
             ! update! here i shouldnt use the real available switches for
             ! the double overlap region since switches are not allowed in
@@ -21082,13 +12175,13 @@ contains
             ! the non-overlap region?
             ! and no.. i should check the weights of the single excitation
             ! region..
-            pw = weights%proc%plus(posSwitches(fe), currentB_ilut(fe), weights%dat)
-            mw = weights%proc%minus(negSwitches(fe), currentB_ilut(fe), weights%dat)
+            pw = weights%proc%plus(posSwitches(fe), csf_i%B_real(fe), weights%dat)
+            mw = weights%proc%minus(negSwitches(fe), csf_i%B_real(fe), weights%dat)
 
             ! only 0 deltab branch valid
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(fe) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(fe) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(fe) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(fe) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -21096,23 +12189,23 @@ contains
             ! full start two raising
         case (excit_type%fullstart_raising)
 
-            if (current_stepvector(st) /= 0 .or. current_stepvector(fe) == 0 &
-                .or. current_stepvector(en) == 0) then
+            if (csf_i%stepvector(st) /= 0 .or. csf_i%stepvector(fe) == 0 &
+                .or. csf_i%stepvector(en) == 0) then
                 flag = .false.
                 return
             end if
 
             ! i can actually use just the singles weight..
 
-            weights = init_singleWeight(L, en)
+            weights = init_singleWeight(csf_i, en)
 
-            pw = weights%proc%plus(posSwitches(fe), currentB_ilut(fe), weights%dat)
-            mw = weights%proc%minus(negSwitches(fe), currentB_ilut(fe), weights%dat)
+            pw = weights%proc%plus(posSwitches(fe), csf_i%B_real(fe), weights%dat)
+            mw = weights%proc%minus(negSwitches(fe), csf_i%B_real(fe), weights%dat)
 
             ! only 0 deltab branch valid
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(fe) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(fe) == 2 .and. near_zero(mw))) then
+                (csf_i%stepvector(fe) == 1 .and. near_zero(pw)) .or. &
+                (csf_i%stepvector(fe) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -21120,37 +12213,37 @@ contains
             ! full start lowering into raising
         case (excit_type%fullStart_L_to_R)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(fe) == 3 &
-                .or. current_stepvector(en) == 0) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(fe) == 3 &
+                .or. csf_i%stepvector(en) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
-                                           currentB_ilut(fe))
+            weights = init_fullStartWeight(csf_i, fe, en, negSwitches(fe), posSwitches(fe), &
+                                           csf_i%B_real(fe))
 
             ! then it is actually not a proper double excitation..
             ! and should not be considered here, as it is already
             ! contained in the single excitations
-            if (current_stepvector(st) == 3) then
+            if (csf_i%stepvector(st) == 3) then
                 ! but i need them for the exact excitation
                 ! generation
-                zw = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(st), weights%dat)
+                zw = weights%proc%zero(0.0_dp, 0.0_dp, csf_i%B_real(st), weights%dat)
                 pw = 0.0_dp
                 mw = 0.0_dp
             else
 
-                zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
+                zw = weights%proc%zero(negSwitches(st), posSwitches(st), csf_i%B_real(st), &
                                        weights%dat)
 
-                pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+                mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
             end if
 
             if (near_zero(mw + pw + zw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(zw + pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(zw + mw)) .or. &
-                (current_stepvector(st) == 3 .and. near_zero(zw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(zw + pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(zw + mw)) .or. &
+                (csf_i%stepvector(st) == 3 .and. near_zero(zw))) then
                 flag = .false.
                 return
             end if
@@ -21158,32 +12251,32 @@ contains
             ! full start raising into lowering
         case (excit_type%fullstart_R_to_L)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(en) == 3 &
-                .or. current_stepvector(fe) == 0) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(en) == 3 &
+                .or. csf_i%stepvector(fe) == 0) then
                 flag = .false.
                 return
             end if
 
-            weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
-                                           currentB_ilut(fe))
+            weights = init_fullStartWeight(csf_i, fe, en, negSwitches(fe), posSwitches(fe), &
+                                           csf_i%B_real(fe))
 
             ! if its a 3 start no switches in overlap region are possible
-            if (current_stepvector(st) == 3) then
-                zw = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(st), weights%dat)
+            if (csf_i%stepvector(st) == 3) then
+                zw = weights%proc%zero(0.0_dp, 0.0_dp, csf_i%B_real(st), weights%dat)
                 pw = 0.0_dp
                 mw = 0.0_dp
             else
-                zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
+                zw = weights%proc%zero(negSwitches(st), posSwitches(st), csf_i%B_real(st), &
                                        weights%dat)
 
-                pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+                mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
             end if
 
             if (near_zero(pw + mw + zw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(zw + pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(zw + mw)) .or. &
-                (current_stepvector(st) == 3 .and. near_zero(zw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(zw + pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(zw + mw)) .or. &
+                (csf_i%stepvector(st) == 3 .and. near_zero(zw))) then
                 flag = .false.
                 return
             end if
@@ -21193,7 +12286,7 @@ contains
             i = excitInfo%i
             j = excitInfo%j
 
-            if (current_stepvector(j) /= 3 .or. current_stepvector(i) /= 0) then
+            if (csf_i%stepvector(j) /= 3 .or. csf_i%stepvector(i) /= 0) then
                 flag = .false.
                 return
             end if
@@ -21201,9 +12294,9 @@ contains
             ! here i essentially do not need to check the weights..
             ! since no switch is possible anyway and there is only one
             ! connecting CSF..
-            weights = init_doubleWeight(L, en)
+            weights = init_doubleWeight(csf_i, en)
 
-            zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
+            zw = weights%proc%zero(negSwitches(st), posSwitches(st), csf_i%B_real(st), &
                                    weights%dat)
 
             ! again only zero weight counts, as no others allowed.
@@ -21212,34 +12305,34 @@ contains
             ! full start into full stop mixed
         case (excit_type%fullstart_stop_mixed)
 
-            if (current_stepvector(st) == 0 .or. current_stepvector(en) == 0 &
-                .or. current_stepvector(st) == 3 .or. &
-                current_stepvector(en) == 3) then
+            if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(en) == 0 &
+                .or. csf_i%stepvector(st) == 3 .or. &
+                csf_i%stepvector(en) == 3) then
                 flag = .false.
                 return
             end if
 
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 ! the weights also change for fully-exchange type
-                weights = init_forced_end_exchange_weight(L, en)
+                weights = init_forced_end_exchange_weight(csf_i, en)
 
             else
 
-                weights = init_doubleWeight(L, en)
+                weights = init_doubleWeight(csf_i, en)
             end if
 
-            zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
+            zw = weights%proc%zero(negSwitches(st), posSwitches(st), csf_i%B_real(st), &
                                    weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             ! if only the 0 branch is non-zero, and both + and - branch are
             ! zero, we should abort too, since this means we would produce a
             ! diagonal contribution..
             if (near_zero(mw + pw) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(zw + pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(zw + mw)) .or. &
-                (current_stepvector(st) == 3 .and. near_zero(zw))) then
+                (csf_i%stepvector(st) == 1 .and. near_zero(zw + pw)) .or. &
+                (csf_i%stepvector(st) == 2 .and. near_zero(zw + mw)) .or. &
+                (csf_i%stepvector(st) == 3 .and. near_zero(zw))) then
                 flag = .false.
                 return
             end if
@@ -21262,60 +12355,10 @@ contains
 
     end function get_excit_level_from_excitInfo
 
-    function calc_pgen_mol_guga_double(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
+    function calc_pgen_mol_guga_single(ilutI, nI, csf_i, ilutJ, nJ, excitInfo) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer, intent(in) :: nI(nel), nJ(nel)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_mol_guga_double"
-        real(dp) :: p_elec
-
-        p_elec = 1.0_dp / real(ElecPairs, dp)
-
-        call stop_all(this_routine, "TODO")
-
-        unused_var(ilutI)
-        unused_var(nI)
-        unused_var(ilutJ)
-        unused_var(nJ)
-        unused_var(excitInfo)
-        pgen = 0.0_dp
-
-    end function calc_pgen_mol_guga_double
-
-    function calc_pgen_mol_guga(nI, ilutI, nJ, ilutJ, excitInfo_in) result(pgen)
-        integer, intent(in) :: nI(nel), nJ(nel)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
-        real(dp) :: pgen
-        type(ExcitationInformation_t) :: excitInfo
-        integer :: ic
-
-        if (present(excitInfo_in)) then
-            excitInfo = excitInfo_in
-        else
-            excitInfo = identify_excitation(ilutI, ilutJ)
-        end if
-
-        ic = get_excit_level_from_excitInfo(excitInfo)
-
-        if (ic == 1) then
-            pgen = pSingles * calc_pgen_mol_guga_single(ilutI, nI, ilutJ, nJ, &
-                                                        excitInfo)
-
-        else if (ic == 2) then
-
-            pgen = pDoubles * calc_pgen_mol_guga_double(ilutI, nI, ilutJ, nJ, excitInfo)
-
-        else
-            pgen = 0.0_dp
-        end if
-
-    end function calc_pgen_mol_guga
-
-    function calc_pgen_mol_guga_single(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in) :: nI(nel), nJ(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         real(dp) :: p_orbs, p_guga
@@ -21323,7 +12366,7 @@ contains
         ! but only for the molecular for now!
 
         ! i need the orbital picking part of pgen:
-        p_orbs = calc_pgen_mol_guga_single_orbs(ilutI, nI, excitInfo)
+        p_orbs = calc_pgen_mol_guga_single_orbs(ilutI, nI, csf_i, excitInfo)
 
         p_guga = calc_pgen_mol_guga_single_guga(ilutI, nI, ilutJ, nJ, excitInfo)
 
@@ -21353,9 +12396,10 @@ contains
 
     end function calc_pgen_mol_guga_single_guga
 
-    function calc_pgen_mol_guga_single_orbs(ilut, nI, excitInfo) result(pgen)
+    function calc_pgen_mol_guga_single_orbs(ilut, nI, csf_i, excitInfo) result(pgen)
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         real(dp) :: p_elec, p_orb, cum_sum
@@ -21389,12 +12433,12 @@ contains
         allocate(cum_arr(nOrb), stat=ierr)
 
         if (IsDoub(ilut, i)) then
-            call gen_cum_list_guga_single_3(nI, i, cc_i, cum_arr)
+            call gen_cum_list_guga_single_3(nI, csf_i, i, cc_i, cum_arr)
         else
             if (is_beta(i)) then
-                call gen_cum_list_guga_single_1(nI, i, cc_i, cum_arr)
+                call gen_cum_list_guga_single_1(nI, csf_i, i, cc_i, cum_arr)
             else
-                call gen_cum_list_guga_single_2(nI, i, cc_i, cum_arr)
+                call gen_cum_list_guga_single_2(nI, csf_i, i, cc_i, cum_arr)
             end if
         end if
 
@@ -21431,7 +12475,7 @@ contains
 
     end subroutine get_orbs_from_excit_info
 
-    subroutine pickOrbs_sym_uniform_mol_single(ilut, nI, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_single(ilut, nI, csf_i, excitInfo, pgen)
         ! new implementation to pick single orbitals, more similar to the
         ! other neci implementations
         ! with this new looping over other orbitals it will probably also
@@ -21439,6 +12483,7 @@ contains
         ! this also applies for double excitations!! -> think about that !
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_mol_single"
@@ -21476,23 +12521,23 @@ contains
         ! at least not as easy as in the determinant case!!
         ! write an email to simon and ask ali if that makes any sense then
         ! eg. to use the one particle elements as an approximation..
-        select case (current_stepvector(gtID(orb_i)))
+        select case (csf_i%stepvector(gtID(orb_i)))
             ! der stepvalue sagt mir auch, ob es ein alpha oder beta
             ! elektron war..
         case (1)
             elec_factor = 1.0_dp
-            call gen_cum_list_guga_single_1(nI, orb_i, cc_i, cum_arr)
+            call gen_cum_list_guga_single_1(nI, csf_i, orb_i, cc_i, cum_arr)
 
         case (2)
             ! to do
             elec_factor = 1.0_dp
-            call gen_cum_list_guga_single_2(nI, orb_i, cc_i, cum_arr)
+            call gen_cum_list_guga_single_2(nI, csf_i, orb_i, cc_i, cum_arr)
 
         case (3)
             ! adjust pgen, the chance to pick a doubly occupied with
             ! spinorbitals is twice as high..
             elec_factor = 2.0_dp
-            call gen_cum_list_guga_single_3(nI, orb_i, cc_i, cum_arr)
+            call gen_cum_list_guga_single_3(nI, csf_i, orb_i, cc_i, cum_arr)
 
         case default
             call stop_all(this_routine, "should not have picked empty orbital")
@@ -21540,7 +12585,8 @@ contains
 
     end subroutine pickOrbs_sym_uniform_mol_single
 
-    subroutine gen_cum_list_real_hub_1(orb_i, cum_arr)
+    subroutine gen_cum_list_real_hub_1(csf_i, orb_i, cum_arr)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: orb_i
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
 
@@ -21551,7 +12597,7 @@ contains
 
         cum_sum = 0.0_dp
 
-        call find_switches(orb_i, lower, upper)
+        call find_switches(csf_i, orb_i, lower, upper)
 
         ! so from 1 to lower-1 d=1 is possible and allowed!
         ! if lower = 1 (default if no switch is found) no accessing loop anyway
@@ -21561,7 +12607,7 @@ contains
             ! excluded (i cant be orb_i also, since lower is strictly lower
             ! or 1, which means the loop is not entered!)
 
-            if (current_stepvector(i) == 3) then
+            if (csf_i%stepvector(i) == 3) then
                 cum_arr(i) = cum_sum
             else
                 cum_sum = cum_sum + abs(GetTMatEl(2 * orb_i, 2 * i))
@@ -21575,7 +12621,7 @@ contains
 
         do i = lower, upper
             ! here d = 1 and d = 3 are excluded!
-            if (mod(current_stepvector(i), 2) == 1) then
+            if (mod(csf_i%stepvector(i), 2) == 1) then
                 cum_arr(i) = cum_sum
             else
                 cum_sum = cum_sum + abs(GetTMatEl(2 * orb_i, 2 * i))
@@ -21585,7 +12631,7 @@ contains
 
         ! from upper+1 until end everything except d = 3 is allowed again
         do i = upper + 1, nSpatOrbs
-            if (current_stepvector(i) == 3) then
+            if (csf_i%stepvector(i) == 3) then
                 cum_arr(i) = cum_sum
             else
                 cum_sum = cum_sum + abs(GetTMatEl(2 * orb_i, 2 * i))
@@ -21595,7 +12641,8 @@ contains
 
     end subroutine gen_cum_list_real_hub_1
 
-    subroutine gen_cum_list_real_hub_2(orb_i, cum_arr)
+    subroutine gen_cum_list_real_hub_2(csf_i, orb_i, cum_arr)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: orb_i
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
 
@@ -21603,13 +12650,13 @@ contains
         integer :: i, lower, upper
         ! similar to the case above except the switch restrictrion..
 
-        call find_switches(orb_i, lower, upper)
+        call find_switches(csf_i, orb_i, lower, upper)
 
         cum_sum = 0.0_dp
 
         do i = 1, lower - 1
 
-            if (current_stepvector(i) == 3) then
+            if (csf_i%stepvector(i) == 3) then
                 cum_arr(i) = cum_sum
             else
                 cum_sum = cum_sum + abs(GetTMatEl(2 * orb_i, 2 * i))
@@ -21619,7 +12666,7 @@ contains
 
         do i = lower, upper
             ! here d = 2 and d = 3 are excluded!
-            if (current_stepvector(i) > 1) then
+            if (csf_i%stepvector(i) > 1) then
                 cum_arr(i) = cum_sum
             else
                 cum_sum = cum_sum + abs(GetTMatEl(2 * orb_i, 2 * i))
@@ -21628,7 +12675,7 @@ contains
         end do
 
         do i = upper + 1, nSpatOrbs
-            if (current_stepvector(i) == 3) then
+            if (csf_i%stepvector(i) == 3) then
                 cum_arr(i) = cum_sum
             else
                 cum_sum = cum_sum + abs(GetTMatEl(2 * orb_i, 2 * i))
@@ -21638,7 +12685,8 @@ contains
 
     end subroutine gen_cum_list_real_hub_2
 
-    subroutine gen_cum_list_real_hub_3(orb_i, cum_arr)
+    subroutine gen_cum_list_real_hub_3(csf_i, orb_i, cum_arr)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: orb_i
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
 
@@ -21665,7 +12713,7 @@ contains
             ! hopping possibility.. otherwise it would not make much sense..
             ! but remember: only spin-parallel hops allowed: so access TMAT
             ! always with the same spin-orbital index
-            if (current_stepvector(i) == 3) then
+            if (csf_i%stepvector(i) == 3) then
                 cum_arr(i) = cum_sum
             else
                 cum_sum = cum_sum + abs(GetTMatEl(2 * orb_i, 2 * i))
@@ -21675,30 +12723,27 @@ contains
 
     end subroutine gen_cum_list_real_hub_3
 
-    subroutine pickOrbs_real_hubbard_double(ilut, nI, excitInfo, pgen)
+    subroutine pickOrbs_real_hubbard_double(ilut, nI, csf_i, excitInfo, pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_real_hubbard_double"
 
-        ! should not be here in the real-space hubbard implementation!
-        print *, "psingles, pDoubles: ", pSingles, pDoubles
+        pgen = 0.0_dp
+        unused_var(ilut); unused_var(nI); unused_var(csf_i); unused_var(excitInfo)
         call stop_all(this_routine, &
                       "should not be at double excitations in the real-space hubbard model!")
-        unused_var(ilut)
-        unused_var(nI)
-        unused_var(excitInfo)
-        pgen = 0.0_dp
-
     end subroutine pickOrbs_real_hubbard_double
 
-    subroutine pickOrbs_real_hubbard_single(ilut, nI, excitInfo, pgen)
+    subroutine pickOrbs_real_hubbard_single(ilut, nI, csf_i, excitInfo, pgen)
         ! write a specialized orbital picker for the real-space hubbard
         ! implementation, since we do not need all the symmetry stuff and
         ! we have to take the correct TMAT values for the ml-spin values
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_real_hubbard_single"
@@ -21716,23 +12761,23 @@ contains
         ! still use cum arrays to enable applying guga restrictions!
         ! but all orbitals are possible now of course
 
-        select case (current_stepvector(orb_i))
+        select case (csf_i%stepvector(orb_i))
 
         case (1)
             ! i need a switch possibility for other d = 1 values
-            call gen_cum_list_real_hub_1(orb_i, cum_arr)
+            call gen_cum_list_real_hub_1(csf_i, orb_i, cum_arr)
 
             elec_factor = 1.0_dp
 
         case (2)
             ! i need a switch possibility for other d = 2 values
-            call gen_cum_list_real_hub_2(orb_i, cum_arr)
+            call gen_cum_list_real_hub_2(csf_i, orb_i, cum_arr)
 
             elec_factor = 1.0_dp
 
         case (3)
             ! no restrictions actually
-            call gen_cum_list_real_hub_3(orb_i, cum_arr)
+            call gen_cum_list_real_hub_3(csf_i, orb_i, cum_arr)
 
             ! but twice the chance to have picked this spatial orbital:
             elec_factor = 2.0_dp
@@ -21776,9 +12821,10 @@ contains
 
     end subroutine pickOrbs_real_hubbard_single
 
-    subroutine gen_cum_list_guga_single_1(nI, orb_i, cc_i, cum_arr)
+    subroutine gen_cum_list_guga_single_1(nI, csf_i, orb_i, cc_i, cum_arr)
         ! specific single orbital picker if stepvector of electron (i) is 1
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: orb_i, cc_i
         real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_1"
@@ -21800,7 +12846,7 @@ contains
 
         ! do some precalcing here to determine, which orbitals to exclude due
         ! to GUGA restrictions?..
-        call find_switches(id_i, lower, upper)
+        call find_switches(csf_i, id_i, lower, upper)
 
         if (is_beta(orb_i)) then
             spin = 1
@@ -21818,7 +12864,7 @@ contains
 
             hel = 0.0_dp
 
-            select case (current_stepvector(s_orb))
+            select case (csf_i%stepvector(s_orb))
 
                 ! include here the guga restrictions...
             case (0)
@@ -21940,9 +12986,10 @@ contains
 
     end subroutine gen_cum_list_guga_single_1
 
-    subroutine gen_cum_list_guga_single_2(nI, orb_i, cc_i, cum_arr)
+    subroutine gen_cum_list_guga_single_2(nI, csf_i, orb_i, cc_i, cum_arr)
         ! specific single orbital picker if stepvector of electron (i) is 2
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: orb_i, cc_i
         real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_2"
@@ -21963,7 +13010,7 @@ contains
 
         ! do some precalcing here to determine, which orbitals to exclude due
         ! to GUGA restrictions?..
-        call find_switches(id_i, lower, upper)
+        call find_switches(csf_i, id_i, lower, upper)
 
         if (is_beta(orb_i)) then
             spin = 1
@@ -21981,7 +13028,7 @@ contains
 
             hel = 0.0_dp
 
-            select case (current_stepvector(s_orb))
+            select case (csf_i%stepvector(s_orb))
 
                 ! include here the guga restrictions...
             case (0)
@@ -22066,9 +13113,10 @@ contains
 
     end subroutine gen_cum_list_guga_single_2
 
-    subroutine gen_cum_list_guga_single_3(nI, orb_i, cc_i, cum_arr)
+    subroutine gen_cum_list_guga_single_3(nI, csf_i, orb_i, cc_i, cum_arr)
         ! specific single orbital picker if stepvector of electron (i) is 3
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: orb_i, cc_i
         real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_3"
@@ -22106,7 +13154,7 @@ contains
             ! since if it a 1 or 2 i will at some point
             ! new spat. orb. impl. : check if not three
             ! or do a select case on stepvector?
-            select case (current_stepvector(s_orb))
+            select case (csf_i%stepvector(s_orb))
 
                 ! with the predetermination of the stepvalue at (a) and since
                 ! this routine only is called in the case of d(i) = 3 it makes
@@ -22195,11 +13243,12 @@ contains
 
     end subroutine gen_cum_list_guga_single_3
 
-    subroutine pickOrbs_sym_uniform_ueg_double(ilut, nI, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_double(ilut, nI, csf_i, excitInfo, pgen)
         ! specific orbital picker for hubbard and UEG type models with
         ! full k-point symmetry
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
 
@@ -22225,7 +13274,7 @@ contains
         occ_orbs(1) = nI(eleci)
         occ_orbs(2) = nI(elecj)
 
-        call gen_ab_cum_list_ueg(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
+        call gen_ab_cum_list_ueg(ilut, csf_i, occ_orbs, cum_arr, excit_arr, orb_arr)
 
         ! then pick a orbital randomly and consider a <> b contribution
         cum_sum = cum_arr(nSpatOrbs)
@@ -22260,36 +13309,37 @@ contains
         pgen = pelec * (cpt1 + cpt2) / cum_sum
 
         if (.not. is_in_pair(occ_orbs(1), occ_orbs(2))) then
-            if (current_stepvector(gtID(occ_orbs(1))) == 3) pgen = pgen * 2.0_dp
-            if (current_stepvector(gtID(occ_orbs(2))) == 3) pgen = pgen * 2.0_dp
+            if (csf_i%stepvector(gtID(occ_orbs(1))) == 3) pgen = pgen * 2.0_dp
+            if (csf_i%stepvector(gtID(occ_orbs(2))) == 3) pgen = pgen * 2.0_dp
         end if
 
     end subroutine pickOrbs_sym_uniform_ueg_double
 
-    subroutine pickOrbs_sym_uniform_ueg_single(ilut, nI, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_single(ilut, nI, csf_i, excitInfo, pgen)
         ! dummy function to abort calculation if single excitation in
         ! hubbard/ueg models gets called incorrectly
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_single"
+
+        pgen = 0.0_dp
+        unused_var(ilut); unused_var(nI); unused_var(csf_i); unused_var(excitInfo)
 
         ! single excitations shouldnt be called in hubbard/ueg simulations
         ! due to k-point symmetry
         call stop_all(this_routine, &
                       "single excitation should not be called in Hubbard/UEG models due to k-point symmetries! abort!")
-        pgen = 0.0_dp
-        unused_var(ilut)
-        unused_var(nI)
-        unused_var(excitInfo)
 
     end subroutine pickOrbs_sym_uniform_ueg_single
 
-    subroutine gen_ab_cum_list_ueg(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
+    subroutine gen_ab_cum_list_ueg(ilut, csf_i, occ_orbs, cum_arr, excit_arr, orb_arr)
         ! create the cummulative probability array for (ab) orbital pairs
         ! in the hubbard/UEG case with k-point symmetry
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_arr(nSpatOrbs)
@@ -22297,7 +13347,7 @@ contains
 
         ! determine the GUGA restrictions:
         if (is_in_pair(occ_orbs(1), occ_orbs(2))) then
-            call gen_ab_cum_list_3(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
+            call gen_ab_cum_list_3(csf_i, occ_orbs, cum_arr, excit_arr, orb_arr)
 
         else
             ! determine the different types
@@ -22307,17 +13357,17 @@ contains
             ! the hubbard model!
             ! not sure about this assumption above anymore! have to check that!
             if ((.not. IsDoub(ilut, occ_orbs(1))) .and. (.not. IsDoub(ilut, occ_orbs(2)))) then
-                call gen_ab_cum_list_1_1(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
+                call gen_ab_cum_list_1_1(csf_i, occ_orbs, cum_arr, excit_arr, orb_arr)
 
             else
-                call gen_ab_cum_list_3_3(occ_orbs, cum_arr, excit_arr, orb_arr)
+                call gen_ab_cum_list_3_3(csf_i, occ_orbs, cum_arr, excit_arr, orb_arr)
 
             end if
         end if
 
     end subroutine gen_ab_cum_list_ueg
 
-    subroutine gen_ab_cum_list_1_1(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
+    subroutine gen_ab_cum_list_1_1(csf_i, occ_orbs, cum_arr, excit_arr, orb_arr)
         ! specific routine when the occupaton of the already picked orbitals
         ! is 2 -> still think if i really want to outpout a cum_arr of lenght
         ! nBasis -> nSpatOrbs would be better and doable... !! todo
@@ -22326,7 +13376,7 @@ contains
         ! contraint then, that there has to be a possible switch between them!
         ! so, probably a good idea to check if there is a possible switch
         ! between i and j first, and only then allow a = (i,j)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         type(ExcitationInformation_t), intent(out), optional :: excit_arr(nSpatOrbs)
@@ -22357,11 +13407,11 @@ contains
         ! if the symmetry assumptions below(to be tested!) hold, i do not
         ! need to care about possible switches even here!
         ! meh except that a fullstart into fullstop mixed is possible..
-        if (current_stepvector(n_id(1)) == current_stepvector(n_id(2))) then
-            if (current_stepvector(n_id(1)) == 1) then
-                if (count_alpha_orbs_ij(ilut(0:nifd), n_id(1), n_id(2)) == 0) tSwitch = .false.
-            else if (current_stepvector(n_id(1)) == 2) then
-                if (count_beta_orbs_ij(ilut(0:nifd), n_id(1), n_id(2)) == 0) tSwitch = .false.
+        if (csf_i%stepvector(n_id(1)) == csf_i%stepvector(n_id(2))) then
+            if (csf_i%stepvector(n_id(1)) == 1) then
+                if (count_alpha_orbs_ij(csf_i, n_id(1), n_id(2)) == 0) tSwitch = .false.
+            else if (csf_i%stepvector(n_id(1)) == 2) then
+                if (count_beta_orbs_ij(csf_i, n_id(1), n_id(2)) == 0) tSwitch = .false.
             end if
         end if
 
@@ -22374,7 +13424,7 @@ contains
             excitInfo%valid = .false.
 
             ! avoid doubly occupied orbitals
-            if (current_stepvector(orb_a) /= 3) then
+            if (csf_i%stepvector(orb_a) /= 3) then
                 ka = G1(2 * orb_a)%k
                 kb = ki + kj - ka
 
@@ -22387,7 +13437,7 @@ contains
 
                 if (orb_a == orb_b) then
                     ! (a) must be empty and there must be a switch possible!
-                    if (current_stepvector(orb_a) == 0 .and. tSwitch) then
+                    if (csf_i%stepvector(orb_a) == 0 .and. tSwitch) then
                         ! have to make contrib twice as high here since
                         ! there is no second chance to pick it the other way
                         ! around..
@@ -22401,7 +13451,7 @@ contains
                     end if
                 else
                     ! check guga restrictions todo
-                    if (current_stepvector(orb_b) /= 3) then
+                    if (csf_i%stepvector(orb_b) /= 3) then
                         ! no additional restrictions or?...
                         contrib = 1.0_dp
 
@@ -22484,7 +13534,7 @@ contains
             excitInfo%valid = .false.
 
             ! avoid doubly occupied orbitals
-            if (current_stepvector(orb_a) /= 3) then
+            if (csf_i%stepvector(orb_a) /= 3) then
                 ka = G1(2 * orb_a)%k
                 kb = ki + kj - ka
 
@@ -22495,7 +13545,7 @@ contains
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
 
                 if (orb_a == orb_b) then
-                    if (current_stepvector(orb_a) == 0 .and. tSwitch) then
+                    if (csf_i%stepvector(orb_a) == 0 .and. tSwitch) then
                         contrib = 2.0_dp
                         ! _L(i) > ^LR_(ab) > ^R(j)
                         excitInfo = assign_excitInfo_values_double( &
@@ -22506,7 +13556,7 @@ contains
                     end if
                 else
                     ! check guga restrictions todo
-                    if (current_stepvector(orb_b) /= 3) then
+                    if (csf_i%stepvector(orb_b) /= 3) then
                         ! no additional restrictions or?...
                         contrib = 1.0_dp
 
@@ -22584,7 +13634,7 @@ contains
 
             contrib = 0.0_dp
             excitInfo%valid = .false.
-            if (current_stepvector(orb_a) /= 3) then
+            if (csf_i%stepvector(orb_a) /= 3) then
                 ka = G1(2 * orb_a)%k
                 kb = ki + kj - ka
 
@@ -22600,7 +13650,7 @@ contains
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
 
                 if (orb_a == orb_b) then
-                    if (current_stepvector(orb_a) == 0 .and. tSwitch) then
+                    if (csf_i%stepvector(orb_a) == 0 .and. tSwitch) then
                         contrib = 2.0_dp
                         ! _L(i) > _LL(j) > ^LL^(ab)
                         excitInfo = assign_excitInfo_values_double( &
@@ -22610,7 +13660,7 @@ contains
                                     0, 2, 1.0_dp, 1.0_dp)
                     end if
                 else
-                    if (current_stepvector(orb_b) /= 3) then
+                    if (csf_i%stepvector(orb_b) /= 3) then
                         ! only then its a possible excitation
                         contrib = 1.0_dp
 
@@ -22651,10 +13701,11 @@ contains
 
     end subroutine gen_ab_cum_list_1_1
 
-    subroutine gen_ab_cum_list_3_3(occ_orbs, cum_arr, excit_arr, orb_arr)
+    subroutine gen_ab_cum_list_3_3(csf_i, occ_orbs, cum_arr, excit_arr, orb_arr)
         ! specific routine when the occupaton of the already picked orbitals
         ! is 2 -> still think if i really want to outpout a cum_arr of lenght
         ! nBasis -> nSpatOrbs would be better and doable... !! todo
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_arr(nSpatOrbs)
@@ -22687,7 +13738,7 @@ contains
             excitInfo%valid = .false.
 
             ! avoid doubly occupied orbitals
-            if (current_stepvector(orb_a) /= 3) then
+            if (csf_i%stepvector(orb_a) /= 3) then
                 ka = G1(2 * orb_a)%k
                 kb = ki + kj - ka
 
@@ -22703,7 +13754,7 @@ contains
 
                 ! just to be safe also check if (a = b)
                 if (orb_a == orb_b) then
-                    if (current_stepvector(orb_a) == 0) then
+                    if (csf_i%stepvector(orb_a) == 0) then
                         contrib = 2.0_dp
                         ! _RR_(ab) > ^RR(i) > ^R(j)
                         excitInfo = assign_excitInfo_values_double( &
@@ -22715,7 +13766,7 @@ contains
                     end if
                 else
                     ! check guga restrictions todo
-                    if (current_stepvector(orb_b) /= 3) then
+                    if (csf_i%stepvector(orb_b) /= 3) then
                         ! no additional restrictions or?...
                         contrib = 1.0_dp
 
@@ -22767,7 +13818,7 @@ contains
             excitInfo%valid = .false.
 
             ! avoid doubly occupied orbitals
-            if (current_stepvector(orb_a) /= 3) then
+            if (csf_i%stepvector(orb_a) /= 3) then
                 ka = G1(2 * orb_a)%k
                 kb = ki + kj - ka
 
@@ -22779,7 +13830,7 @@ contains
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
 
                 if (orb_a == orb_b) then
-                    if (current_stepvector(orb_a) == 0) then
+                    if (csf_i%stepvector(orb_a) == 0) then
                         contrib = 2.0_dp
                         ! _L(i) > ^LR_(ab) > ^R(j)
                         excitInfo = assign_excitInfo_values_double( &
@@ -22791,7 +13842,7 @@ contains
                     end if
                 else
                     ! check guga restrictions todo
-                    if (current_stepvector(orb_b) /= 3) then
+                    if (csf_i%stepvector(orb_b) /= 3) then
                         ! no additional restrictions or?...
                         contrib = 1.0_dp
 
@@ -22840,7 +13891,7 @@ contains
 
             contrib = 0.0_dp
             excitInfo%valid = .false.
-            if (current_stepvector(orb_a) /= 3) then
+            if (csf_i%stepvector(orb_a) /= 3) then
                 ka = G1(2 * orb_a)%k
                 kb = ki + kj - ka
 
@@ -22856,7 +13907,7 @@ contains
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
 
                 if (orb_a == orb_b) then
-                    if (current_stepvector(orb_a) == 0) then
+                    if (csf_i%stepvector(orb_a) == 0) then
                         contrib = 2.0_dp
                         ! _L(i) > _LL(j) > ^LL^(ab)
                         excitInfo = assign_excitInfo_values_double( &
@@ -22866,7 +13917,7 @@ contains
                                     0, 2, 1.0_dp, 1.0_dp)
                     end if
                 else
-                    if (current_stepvector(orb_b) /= 3) then
+                    if (csf_i%stepvector(orb_b) /= 3) then
                         ! only then its a possible excitation
                         contrib = 1.0_dp
 
@@ -22911,10 +13962,10 @@ contains
 
     end subroutine gen_ab_cum_list_3_3
 
-    subroutine gen_ab_cum_list_3(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
+    subroutine gen_ab_cum_list_3(csf_i, occ_orbs, cum_arr, excit_arr, orb_arr)
         ! specific routine, when 2 already picked orbtitals are from same
         ! spatial orbital
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_arr(nSpatOrbs)
@@ -22950,7 +14001,7 @@ contains
             excitInfo%valid = .false.
             tSwitch = .true.
 
-            if (current_stepvector(a) /= 3) then
+            if (csf_i%stepvector(a) /= 3) then
                 ! determine fiting b by k-point restrictions ->
                 ! and only allow b > a
                 ka = G1(2 * a)%k
@@ -22981,7 +14032,7 @@ contains
                     ! then orb a has to be empty!
                     ! actually this type of excitation is not even possible
                     ! with momentum conservation.. todo!
-                    if (current_stepvector(a) == 0) then
+                    if (csf_i%stepvector(a) == 0) then
                         !todo: remove this possibility then!
                         ! _RR_(ab) > ^RR^(ij)
                         excitInfo = assign_excitInfo_values_double( &
@@ -23005,7 +14056,7 @@ contains
 
                     end if
                 else
-                    if (current_stepvector(b) /= 3) then
+                    if (csf_i%stepvector(b) /= 3) then
                         ! only then its a possible excitation
                         ! hm... i guess i should check if there is a possible
                         ! switch in this case too.. if both a and b have the
@@ -23017,11 +14068,11 @@ contains
                         st = min(a, b)
                         en = max(a, b)
 
-                        if (current_stepvector(a) == current_stepvector(b)) then
-                            if (current_stepvector(a) == 1 .and. &
-                                count_alpha_orbs_ij(ilut(0:nifd), st, en) == 0) tSwitch = .false.
-                            if (current_stepvector(a) == 2 .and. &
-                                count_beta_orbs_ij(ilut(0:nifd), st, en) == 0) tSwitch = .false.
+                        if (csf_i%stepvector(a) == csf_i%stepvector(b)) then
+                            if (csf_i%stepvector(a) == 1 .and. &
+                                count_alpha_orbs_ij(csf_i, st, en) == 0) tSwitch = .false.
+                            if (csf_i%stepvector(a) == 2 .and. &
+                                count_beta_orbs_ij(csf_i, st, en) == 0) tSwitch = .false.
                         end if
 
                         if (tSwitch) then
@@ -23068,7 +14119,7 @@ contains
             excitInfo%valid = .false.
             tSwitch = .true.
 
-            if (current_stepvector(a) /= 3) then
+            if (csf_i%stepvector(a) /= 3) then
                 ka = G1(2 * a)%k
                 kb = ki + kj - ka
 
@@ -23085,7 +14136,7 @@ contains
                 if (a == b) then
                     !todo: i think with momentum conservation this below is not
                     ! even possible, if really not -> remove it
-                    if (current_stepvector(a) == 0) then
+                    if (csf_i%stepvector(a) == 0) then
                         ! _LL_(ij) > ^LL^(ab)
                         excitInfo = assign_excitInfo_values_double( &
                                     excit_type%fullstart_stop_alike, &
@@ -23100,17 +14151,17 @@ contains
 
                     end if
                 else
-                    if (current_stepvector(b) /= 3) then
+                    if (csf_i%stepvector(b) /= 3) then
                         ! only then its a possible excitation
 
                         st = min(a, b)
                         en = max(a, b)
 
-                        if (current_stepvector(a) == current_stepvector(b)) then
-                            if (current_stepvector(a) == 1 .and. &
-                                count_alpha_orbs_ij(ilut(0:nifd), st, en) == 0) tSwitch = .false.
-                            if (current_stepvector(a) == 2 .and. &
-                                count_beta_orbs_ij(ilut(0:nifd), st, en) == 0) tSwitch = .false.
+                        if (csf_i%stepvector(a) == csf_i%stepvector(b)) then
+                            if (csf_i%stepvector(a) == 1 .and. &
+                                count_alpha_orbs_ij(csf_i, st, en) == 0) tSwitch = .false.
+                            if (csf_i%stepvector(a) == 2 .and. &
+                                count_beta_orbs_ij(csf_i, st, en) == 0) tSwitch = .false.
                         end if
 
                         if (tSwitch) then
@@ -23149,11 +14200,12 @@ contains
 
     end subroutine gen_ab_cum_list_3
 
-    subroutine pickOrbs_sym_uniform_mol_double(ilut, nI, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_double(ilut, nI, csf_i, excitInfo, pgen)
         ! new orbital picking routine, which is closer to simons already
         ! implemented one for the determinant version
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_mol_double"
@@ -23163,6 +14215,9 @@ contains
         real(dp) :: int_contrib(2), cum_sum(2), cum_arr(nSpatOrbs), &
                     int_switch(2), cum_switch(2)
         logical :: range_flag
+
+        ! has to be in the interface for function pointers
+        unused_var(ilut)
 
         ! pick 2 ocupied orbitals randomly:
         call pick_elec_pair_uniform_guga(nI, occ_orbs, sym_prod, sum_ml, &
@@ -23178,7 +14233,7 @@ contains
         ! implementation to choose!...
 
         ! then pick orbital a, weighted with FCIDUMP integrals
-        call pick_a_orb_guga_mol(occ_orbs, int_contrib(1), cum_sum(1), &
+        call pick_a_orb_guga_mol(csf_i, occ_orbs, int_contrib(1), cum_sum(1), &
                                  cum_arr, a)
 
         ! changed that orbital a is now a spatial orbital already!!
@@ -23272,7 +14327,7 @@ contains
             ! information into the pick_b orb function. since there i
             ! already have to check the relation to the other already picked
             ! orbitals.. but not now i guess..
-            call pick_b_orb_guga_mol(occ_orbs, a, cc_b, int_contrib(2), &
+            call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, int_contrib(2), &
                                      cum_sum(2), b)
             ! TODO: still have to decide if i output SPATIAL or SPIN orbital
             ! for picked b... so i might have to convert at some point here
@@ -23336,7 +14391,7 @@ contains
             ! no.. only first cum_arr -> have to reconstruct second one..
             ! but actually dont need an array
             ! do that below at the end since its always the same
-            call pgen_select_orb_guga_mol(occ_orbs, b, a, &
+            call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, a, &
                                           int_switch(2), cum_switch(2))
 
             ! should not happen but assert here that the cummulative
@@ -23347,7 +14402,7 @@ contains
             ! if they are not in a pair there are more possibilites
             ! i know through the triangular mapping, that the 2 picked
             ! electrons are always ordered!
-            if (current_stepvector(i) == 3) then
+            if (csf_i%stepvector(i) == 3) then
                 ! if the picked stepvector is doubly occupied, since i pick
                 ! based on spinorbitals but then only consider spatial orbitals
                 ! there are more chances to pick those orbitals then...
@@ -23357,13 +14412,13 @@ contains
                 !TODO: yes definetly not pick based on spin-orbitals then.
                 ! i unnaturally pick towards doubly occupied sites.. hm..
                 pgen = 2.0_dp * pgen
-                if (current_stepvector(j) == 3) then
+                if (csf_i%stepvector(j) == 3) then
 
                     ! see above for description
                     pgen = 2.0_dp * pgen
 
                     ! no additional restrictions in picking b
-                    call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                    call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                              int_contrib(2), cum_sum(2), b)
 
                     if (b == 0) then
@@ -23374,7 +14429,7 @@ contains
                     ! the good thing -> independent of the ordering, the pgens
                     ! have the same restrictions independent of the order how
                     ! a and b are picked!
-                    call pgen_select_orb_guga_mol(occ_orbs, b, a, &
+                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, a, &
                                                   int_switch(2), cum_switch(2))
 
                     ! now determine the type of excitation:
@@ -23458,7 +14513,7 @@ contains
                     ! have to check if A == J
                     if (a == j) then
                         ! then b has to be strictly lower then j!
-                        call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                        call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                  int_contrib(2), cum_sum(2), b, -j, .true.)
 
                         if (b == 0) then
@@ -23471,7 +14526,7 @@ contains
                         ! restriction on the orbitals
                         ! although for the nasty mixed full-stops i have to
                         ! recalculate the pgens anyway..
-                        call pgen_select_orb_guga_mol(occ_orbs, b, &
+                        call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                       a, int_switch(2), cum_switch(2))
 
                         ! determine excit
@@ -23500,7 +14555,7 @@ contains
                         ! if its not j
                         if (a > j) then
                             ! b can not be J!
-                            call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                            call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                      int_contrib(2), cum_sum(2), b, j)
 
                             if (b == 0) then
@@ -23514,7 +14569,7 @@ contains
                                 ! both are on top -> same pgen
                                 ! p(b) is always determinable from cum_arr... do
                                 ! it outside!
-                                call pgen_select_orb_guga_mol(occ_orbs, b, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                               a, int_switch(2), cum_switch(2), j)
 
                                 if (a == b) then
@@ -23537,7 +14592,7 @@ contains
 
                             else
                                 ! pgen is not restricted
-                                call pgen_select_orb_guga_mol(occ_orbs, b, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                               a, int_switch(2), cum_switch(2))
                                 if (b < i) then
                                     ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
@@ -23557,7 +14612,7 @@ contains
                             end if
                         else
                             ! there is no restriction in picking b
-                            call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                            call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                      int_contrib(2), cum_sum(2), b)
 
                             if (b == 0) then
@@ -23566,7 +14621,7 @@ contains
                             end if
                             ! check where b is
                             if (b == j) then
-                                call pgen_select_orb_guga_mol(occ_orbs, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                               b, a, int_switch(2), cum_switch(2), &
                                                               -j, .true.)
 
@@ -23589,7 +14644,7 @@ contains
                             else
                                 if (b > j) then
                                     ! a could not have been j
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2), j)
                                     if (a < i) then
                                         ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
@@ -23608,7 +14663,7 @@ contains
                                     end if
                                 else
                                     ! no restric, on other order
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2))
 
                                     if (a == b) then
@@ -23660,12 +14715,12 @@ contains
                     end if
                 end if
             else
-                if (current_stepvector(j) == 3) then
+                if (csf_i%stepvector(j) == 3) then
                     pgen = 2.0_dp * pgen
                     ! its a [1 3] configuration -> very similar to [3 1]
                     if (a == i) then
                         ! b has to be strictly higher then I
-                        call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                        call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                  int_contrib(2), cum_sum(2), b, i, .true.)
 
                         if (b == 0) then
@@ -23673,7 +14728,7 @@ contains
                             return
                         end if
                         ! no restriction the other way around
-                        call pgen_select_orb_guga_mol(occ_orbs, b, a, &
+                        call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, a, &
                                                       int_switch(2), cum_switch(2))
 
                         ! ATTENTION: here there have to be the additional
@@ -23701,7 +14756,7 @@ contains
                         ! if its not i
                         if (a < i) then
                             ! b cannot be I
-                            call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                            call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                      int_contrib(2), cum_sum(2), b, i)
 
                             if (b == 0) then
@@ -23711,7 +14766,7 @@ contains
 
                             if (b < i) then
                                 ! same pgen restrictions
-                                call pgen_select_orb_guga_mol(occ_orbs, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                               b, a, int_switch(2), cum_switch(2), i)
 
                                 if (a == b) then
@@ -23732,7 +14787,7 @@ contains
                                 end if
                             else
                                 ! pgen is not restricted
-                                call pgen_select_orb_guga_mol(occ_orbs, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                               b, a, int_switch(2), cum_switch(2))
 
                                 if (b > j) then
@@ -23753,7 +14808,7 @@ contains
                             end if
                         else
                             ! there is no restriction on b
-                            call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                            call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                      int_contrib(2), cum_sum(2), b)
 
                             if (b == 0) then
@@ -23763,7 +14818,7 @@ contains
 
                             ! check where b is:
                             if (b == i) then
-                                call pgen_select_orb_guga_mol(occ_orbs, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                               b, a, int_switch(2), cum_switch(2), i, .true.)
 
                                 if (a > j) then
@@ -23785,7 +14840,7 @@ contains
                             else
                                 if (b < i) then
                                     ! a coud not have been i
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2), i)
 
                                     if (a > j) then
@@ -23806,7 +14861,7 @@ contains
 
                                 else
                                     ! no restrictions on pgen
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2))
 
                                     if (a == b) then
@@ -23866,22 +14921,22 @@ contains
                     ! i have to check if there is a possible switch if
                     ! (a) is (i) or (j)
                     if (a == j) then
-                        if (current_stepvector(i) == 1 .and. &
-                            current_stepvector(j) == 1) then
-                            if (count_alpha_orbs_ij(ilut(0:nifd), i, j) == 0) then
+                        if (csf_i%stepvector(i) == 1 .and. &
+                            csf_i%stepvector(j) == 1) then
+                            if (count_alpha_orbs_ij(csf_i, i, j) == 0) then
                                 ! no valid excitation
                                 excitInfo%valid = .false.
                                 return
                             end if
-                        else if (current_stepvector(i) == 2 .and. &
-                                 current_stepvector(j) == 2) then
-                            if (count_beta_orbs_ij(ilut(0:nifd), i, j) == 0) then
+                        else if (csf_i%stepvector(i) == 2 .and. &
+                                 csf_i%stepvector(j) == 2) then
+                            if (count_beta_orbs_ij(csf_i, i, j) == 0) then
                                 excitInfo%valid = .false.
                                 return
                             end if
                         end if
                         ! b has to be lower than J
-                        call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                        call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                  int_contrib(2), cum_sum(2), b, -j, .true.)
 
                         if (b == 0) then
@@ -23893,7 +14948,7 @@ contains
                         ! pgen contribution!
                         if (b == i) then
                             ! a would have to have been > I
-                            call pgen_select_orb_guga_mol(occ_orbs, b, &
+                            call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                           a, int_switch(2), cum_switch(2), i, .true.)
 
                             ! _RL_(ib) > ^RL^(ja)
@@ -23905,7 +14960,7 @@ contains
                         else
                             if (b < i) then
                                 ! I is restricted for a
-                                call pgen_select_orb_guga_mol(occ_orbs, b, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                               a, int_switch(2), cum_switch(2), i)
 
                                 ! why am i never here??
@@ -23918,7 +14973,7 @@ contains
 
                             else
                                 ! no restrictions
-                                call pgen_select_orb_guga_mol(occ_orbs, b, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                               a, int_switch(2), cum_switch(2))
 
                                 ! _L(i) > _RL(b) > ^RL^(ja)
@@ -23932,22 +14987,22 @@ contains
                     else if (a == i) then
                         ! check if there is a possible switch if both i and j
                         ! have the same stepvalue
-                        if (current_stepvector(i) == 1 .and. &
-                            current_stepvector(j) == 1) then
-                            if (count_alpha_orbs_ij(ilut(0:nifd), i, j) == 0) then
+                        if (csf_i%stepvector(i) == 1 .and. &
+                            csf_i%stepvector(j) == 1) then
+                            if (count_alpha_orbs_ij(csf_i, i, j) == 0) then
                                 ! no valid excitation
                                 excitInfo%valid = .false.
                                 return
                             end if
-                        else if (current_stepvector(i) == 2 .and. &
-                                 current_stepvector(j) == 2) then
-                            if (count_beta_orbs_ij(ilut(0:nifd), i, j) == 0) then
+                        else if (csf_i%stepvector(i) == 2 .and. &
+                                 csf_i%stepvector(j) == 2) then
+                            if (count_beta_orbs_ij(csf_i, i, j) == 0) then
                                 excitInfo%valid = .false.
                                 return
                             end if
                         end if
                         ! b has to be higher than I
-                        call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                        call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                  int_contrib(2), cum_sum(2), b, i, .true.)
 
                         if (b == 0) then
@@ -23959,7 +15014,7 @@ contains
 
                         if (b == j) then
                             ! a would have to have been < J
-                            call pgen_select_orb_guga_mol(occ_orbs, b, &
+                            call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                           a, int_switch(2), cum_switch(2), -j, .true.)
 
                             ! _RL_(ia) > ^RL^(jb)
@@ -23970,7 +15025,7 @@ contains
                         else
                             if (b > j) then
                                 ! J would be restricted
-                                call pgen_select_orb_guga_mol(occ_orbs, b, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                               a, int_switch(2), cum_switch(2), j)
 
                                 ! _RL_(ia) > ^RL(j) > ^L(b)
@@ -23981,7 +15036,7 @@ contains
 
                             else
                                 ! no restrictions
-                                call pgen_select_orb_guga_mol(occ_orbs, b, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                               a, int_switch(2), cum_switch(2))
 
                                 ! _RL_(ia) > ^LR(b) > ^R(j)
@@ -23996,7 +15051,7 @@ contains
                         ! check were a is
                         if (a > j) then
                             ! b cant be J
-                            call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                            call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                      int_contrib(2), cum_sum(2), b, j)
 
                             if (b == 0) then
@@ -24008,23 +15063,23 @@ contains
                             if (b == i) then
                                 ! check if there is a possible switch if both i and j
                                 ! have the same stepvalue
-                                if (current_stepvector(i) == 1 .and. &
-                                    current_stepvector(j) == 1) then
-                                    if (count_alpha_orbs_ij(ilut(0:nifd), i, j) == 0) then
+                                if (csf_i%stepvector(i) == 1 .and. &
+                                    csf_i%stepvector(j) == 1) then
+                                    if (count_alpha_orbs_ij(csf_i, i, j) == 0) then
                                         ! no valid excitation
                                         excitInfo%valid = .false.
                                         return
                                     end if
-                                else if (current_stepvector(i) == 2 .and. &
-                                         current_stepvector(j) == 2) then
-                                    if (count_beta_orbs_ij(ilut(0:nifd), i, j) == 0) then
+                                else if (csf_i%stepvector(i) == 2 .and. &
+                                         csf_i%stepvector(j) == 2) then
+                                    if (count_beta_orbs_ij(csf_i, i, j) == 0) then
                                         excitInfo%valid = .false.
                                         return
                                     end if
                                 end if
 
                                 ! everything below I is restricted
-                                call pgen_select_orb_guga_mol(occ_orbs, b, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                               a, int_switch(2), cum_switch(2), i, .true.)
 
                                 ! _RL_(ib) > ^RL(j) > ^L(a)
@@ -24036,7 +15091,7 @@ contains
                             else
                                 if (b < i) then
                                     ! I would have been off limits
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2), i)
 
                                     ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
@@ -24065,7 +15120,7 @@ contains
 
                                         ! only extremes count.. and J would have
                                         ! been off-limits
-                                        call pgen_select_orb_guga_mol(occ_orbs, &
+                                        call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                       b, a, int_switch(2), cum_switch(2), j)
 
                                         st = min(a, b)
@@ -24080,7 +15135,7 @@ contains
 
                                 else
                                     ! no restrictions
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2))
 
                                     ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
@@ -24093,7 +15148,7 @@ contains
                             end if
                         else if (a < i) then
                             ! b cant be I
-                            call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                            call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                      int_contrib(2), cum_sum(2), b, i)
 
                             if (b == 0) then
@@ -24105,16 +15160,16 @@ contains
                             if (b == j) then
                                 ! check if there is a possible switch if both i and j
                                 ! have the same stepvalue
-                                if (current_stepvector(i) == 1 .and. &
-                                    current_stepvector(j) == 1) then
-                                    if (count_alpha_orbs_ij(ilut(0:nifd), i, j) == 0) then
+                                if (csf_i%stepvector(i) == 1 .and. &
+                                    csf_i%stepvector(j) == 1) then
+                                    if (count_alpha_orbs_ij(csf_i, i, j) == 0) then
                                         ! no valid excitation
                                         excitInfo%valid = .false.
                                         return
                                     end if
-                                else if (current_stepvector(i) == 2 .and. &
-                                         current_stepvector(j) == 2) then
-                                    if (count_beta_orbs_ij(ilut(0:nifd), i, j) == 0) then
+                                else if (csf_i%stepvector(i) == 2 .and. &
+                                         csf_i%stepvector(j) == 2) then
+                                    if (count_beta_orbs_ij(csf_i, i, j) == 0) then
                                         excitInfo%valid = .false.
                                         return
                                     end if
@@ -24125,7 +15180,7 @@ contains
                                 ! had to picked something below j, but why
                                 ! is it 0? but thats atleast consistent with
                                 ! above.. is the umat read in wrong?
-                                call pgen_select_orb_guga_mol(occ_orbs, b, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, b, &
                                                               a, int_switch(2), cum_switch(2), -j, .true.)
 
                                 ! _R(a) > _LR(i) > ^RL^(jb)
@@ -24137,7 +15192,7 @@ contains
                             else
                                 if (b > j) then
                                     ! J would have been off-limits
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2), j)
                                     ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
                                     excitInfo = assign_excitInfo_values_double( &
@@ -24161,7 +15216,7 @@ contains
 
                                         ! only extremes and I would have been off
                                         ! lmits
-                                        call pgen_select_orb_guga_mol(occ_orbs, &
+                                        call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                       b, a, int_switch(2), cum_switch(2), i)
 
                                         st = min(a, b)
@@ -24176,7 +15231,7 @@ contains
 
                                 else
                                     ! no restrictions
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2))
 
                                     ! _R(a) > _LR(i) > ^LR(b) > ^R(j)
@@ -24189,7 +15244,7 @@ contains
                             end if
                         else
                             ! a is between i and j -> no b restrictions
-                            call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
+                            call pick_b_orb_guga_mol(csf_i, occ_orbs, a, cc_b, &
                                                      int_contrib(2), cum_sum(2), b)
 
                             if (b == 0) then
@@ -24198,7 +15253,7 @@ contains
                             end if
                             if (b < i) then
                                 ! I off limits
-                                call pgen_select_orb_guga_mol(occ_orbs, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                               b, a, int_switch(2), cum_switch(2), i)
 
                                 ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
@@ -24209,7 +15264,7 @@ contains
 
                             else if (b > j) then
                                 ! J off limits
-                                call pgen_select_orb_guga_mol(occ_orbs, &
+                                call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                               b, a, int_switch(2), cum_switch(2), j)
 
                                 ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
@@ -24223,7 +15278,7 @@ contains
                                 ! check where b is
                                 if (a == b) then
                                     ! no restrictions on pgen
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2))
 
                                     ! _L(i) > ^LR_(ab) > ^R(j)
@@ -24234,7 +15289,7 @@ contains
 
                                 else if (b == i) then
                                     ! a > I
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2), i, .true.)
 
                                     ! _RL_(ib) > ^LR(a) > ^R(j)
@@ -24245,7 +15300,7 @@ contains
 
                                 else if (b == j) then
                                     ! a < J
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2), -j, .true.)
 
                                     ! _L(i) > _RL(a) > ^RL^(jb)
@@ -24256,7 +15311,7 @@ contains
 
                                 else
                                     ! no restrictions
-                                    call pgen_select_orb_guga_mol(occ_orbs, &
+                                    call pgen_select_orb_guga_mol(csf_i, occ_orbs, &
                                                                   b, a, int_switch(2), cum_switch(2))
 
                                     ! only extremes count
@@ -24301,12 +15356,13 @@ contains
 
     end subroutine pickOrbs_sym_uniform_mol_double
 
-    subroutine pgen_select_orb_guga_mol(occ_orbs, orb_b, orb_a, cpt, &
+    subroutine pgen_select_orb_guga_mol(csf_i, occ_orbs, orb_b, orb_a, cpt, &
                                         cum_sum, orb_res, range_flag)
         ! routine to recalculate the pgen contribution if orbital (a) and (b)
         ! could have been picked in the opposite order
         ! additional GUGA-restrictions on orbitals are again dealt with
         ! optional input paramters
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_b, orb_a
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(in), optional :: orb_res
@@ -24323,7 +15379,7 @@ contains
         ! otherwise choose beta
         ! UPDATE: change to only pick spatial orbitals -> only check if orbital
         ! was singly occupied
-        if (currentOcc_int(orb_b) == 1) then
+        if (csf_i%Occ_int(orb_b) == 1) then
             ! then i have to exclude orb_a in the recalculation of p(a|b) prob
             tSingle = .true.
         else
@@ -24352,7 +15408,7 @@ contains
 
                     orb = sym_label_list_spat(label_index + i - 1)
 
-                    if (current_stepvector(orb) /= 3 .and. orb < -orb_res) then
+                    if (csf_i%stepvector(orb) /= 3 .and. orb < -orb_res) then
 
                         tmp = get_guga_integral_contrib(occ_orbs, orb_b, orb)
 
@@ -24365,7 +15421,7 @@ contains
                 ! only orbitals above restriction
                 do i = 1, nOrbs
                     orb = sym_label_list_spat(label_index + i - 1)
-                    if (current_stepvector(orb) /= 3 .and. orb > orb_res) then
+                    if (csf_i%stepvector(orb) /= 3 .and. orb > orb_res) then
                         tmp = get_guga_integral_contrib(occ_orbs, orb_b, orb)
 
                         cum_sum = cum_sum + tmp
@@ -24384,7 +15440,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3 .and. orb /= orb_res &
+                        if (csf_i%stepvector(orb) /= 3 .and. orb /= orb_res &
                             .and. orb /= orb_b) then
 
                             tmp = get_guga_integral_contrib(occ_orbs, orb_b, orb)
@@ -24398,7 +15454,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3 .and. orb /= orb_res) then
+                        if (csf_i%stepvector(orb) /= 3 .and. orb /= orb_res) then
 
                             tmp = get_guga_integral_contrib(occ_orbs, orb_b, orb)
 
@@ -24413,7 +15469,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3 .and. orb /= orb_b) then
+                        if (csf_i%stepvector(orb) /= 3 .and. orb /= orb_b) then
 
                             tmp = get_guga_integral_contrib(occ_orbs, orb_b, orb)
 
@@ -24425,7 +15481,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3) then
+                        if (csf_i%stepvector(orb) /= 3) then
                             tmp = get_guga_integral_contrib(occ_orbs, orb_b, orb)
 
                             cum_sum = cum_sum + tmp
@@ -24439,10 +15495,11 @@ contains
 
     end subroutine pgen_select_orb_guga_mol
 
-    subroutine pick_b_orb_guga_mol(occ_orbs, orb_a, cc_b, int_contrib, &
+    subroutine pick_b_orb_guga_mol(csf_i, occ_orbs, orb_a, cc_b, int_contrib, &
                                    cum_sum, orb_b, orb_res, range_flag)
         ! restrict the b, if orbital (a) is singly occupied already..
         ! and switch to spatial orbital picking!
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a, cc_b
         real(dp), intent(out) :: int_contrib, cum_sum
         integer, intent(out) :: orb_b
@@ -24463,7 +15520,7 @@ contains
 
         ! have to predetermine is already picked orbital is singly occupied
         ! already: if yes, its not allowd to be picked again in here
-        if (currentOcc_int(orb_a) == 1) then
+        if (csf_i%Occ_int(orb_a) == 1) then
             tSingle = .true.
         else
             tSingle = .false.
@@ -24492,7 +15549,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3 .and. orb < -orb_res) then
+                        if (csf_i%stepvector(orb) /= 3 .and. orb < -orb_res) then
                             cum_sum = cum_sum + &
                                       get_guga_integral_contrib(occ_orbs, orb_a, orb)
                         end if
@@ -24504,7 +15561,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3 .and. orb > orb_res) then
+                        if (csf_i%stepvector(orb) /= 3 .and. orb > orb_res) then
                             cum_sum = cum_sum + &
                                       get_guga_integral_contrib(occ_orbs, orb_a, orb)
                         end if
@@ -24525,7 +15582,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3 .and. orb /= orb_res &
+                        if (csf_i%stepvector(orb) /= 3 .and. orb /= orb_res &
                             .and. orb /= orb_a) then
                             cum_sum = cum_sum + &
                                       get_guga_integral_contrib(occ_orbs, orb_a, orb)
@@ -24538,7 +15595,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3 .and. orb /= orb_res) then
+                        if (csf_i%stepvector(orb) /= 3 .and. orb /= orb_res) then
                             cum_sum = cum_sum + &
                                       get_guga_integral_contrib(occ_orbs, orb_a, orb)
                         end if
@@ -24553,7 +15610,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3 .and. orb /= orb_a) then
+                        if (csf_i%stepvector(orb) /= 3 .and. orb /= orb_a) then
                             cum_sum = cum_sum + &
                                       get_guga_integral_contrib(occ_orbs, orb_a, orb)
                         end if
@@ -24565,7 +15622,7 @@ contains
                     do i = 1, nOrbs
                         orb = sym_label_list_spat(label_index + i - 1)
 
-                        if (current_stepvector(orb) /= 3) then
+                        if (csf_i%stepvector(orb) /= 3) then
                             cum_sum = cum_sum + &
                                       get_guga_integral_contrib(occ_orbs, orb_a, orb)
                         end if
@@ -24593,13 +15650,14 @@ contains
 
     end subroutine pick_b_orb_guga_mol
 
-    subroutine pick_a_orb_guga_mol(occ_orbs, contrib, cum_sum, cum_arr, orb_a)
+    subroutine pick_a_orb_guga_mol(csf_i, occ_orbs, contrib, cum_sum, cum_arr, orb_a)
         ! general routine, which picks orbital a for a  double excitation in
         ! the guga formalism, with symmetry restrictions and weighted
         ! with the FCIDUMP integrals. This is for MOLECULAR calculations,
         ! since in Hubbard and UEG type calculation with existing k-point
         ! restrictions, there is a more efficient and direct way to pick
         ! weighted with the actual matrix elemetn
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: contrib, cum_sum, cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_a
@@ -24612,9 +15670,9 @@ contains
 
         ! generate the cummulative pgen list:
         if (tGen_guga_weighted) then
-            call gen_a_orb_cum_list_guga_mol(occ_orbs, cum_arr)
+            call gen_a_orb_cum_list_guga_mol(csf_i, occ_orbs, cum_arr)
         else
-            cum_arr = current_cum_list
+            cum_arr = csf_i%cum_list
         end if
 
         cum_sum = cum_arr(nSpatOrbs)
@@ -24639,10 +15697,11 @@ contains
 
     end subroutine pick_a_orb_guga_mol
 
-    subroutine gen_a_orb_cum_list_guga_mol(occ_orbs, cum_arr, tgt_orb, pgen)
+    subroutine gen_a_orb_cum_list_guga_mol(csf_i, occ_orbs, cum_arr, tgt_orb, pgen)
         ! subroutine to generate the molecular cumullative probability
         ! distribution. there are no (atleast until now) addiditonal restrictions
         ! or some spin alignement restrictions to generate this list..
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(in), optional :: tgt_orb
@@ -24661,7 +15720,7 @@ contains
         if (present(tgt_orb)) then
             ASSERT(present(pgen))
             do orb = 1, nSpatOrbs
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
                 cum_arr(orb) = cum_sum
@@ -24674,7 +15733,7 @@ contains
         else
             do orb = 1, nSpatOrbs
                 ! only check non-double occupied orbitals
-                if (current_stepvector(orb) /= 3) then
+                if (csf_i%stepvector(orb) /= 3) then
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
                 cum_arr(orb) = cum_sum
@@ -24800,2045 +15859,10 @@ contains
 
     end subroutine pick_elec_pair_uniform_guga
 
-    subroutine pick_first_orbital_nosym_guga_uniform(i, pgen, excitLvl, excit_typ)
-        ! when modifying the specific probabilities for the different types
-        ! of GUGA excitations, i need to procedure pointers for efficient
-        ! implementation
-        ! this is the version when not differentiating between mixed or same
-        ! generator types for type 2 and 3 excitations
-        integer, intent(out) :: i, excitLvl, excit_typ
-        real(dp), intent(out) :: pgen
-
-        ! pick first orbital at total random and set pgen uniformly to
-        ! 1/nOrbs
-        i = 1 + floor(genrand_real2_dSFMT() * real(nSpatOrbs, dp))
-        pgen = 1.0_dp / real(nSpatOrbs, dp)
-
-        ! do pgen uptdate, on which type of excitation is used in here now!
-
-        ! if orb (i) is picked, chance to pick i again 1/nOrbs
-        if (genrand_real2_dSFMT() > pExcit4) then
-            ! here choose between picking j also twice or not
-            ! one orbitals has to be excluded
-
-            pgen = pgen * (1.0_dp - pExcit4)
-
-            if (genrand_real2_dSFMT() < pExcit2) then
-                ! (ii,jj)
-                excitLvl = 2
-
-                pgen = pgen * pExcit2
-
-            else
-                ! (ii,jk):
-                excitLvl = 3
-
-                pgen = pgen * (1.0_dp - pExcit2)
-
-            end if
-        else
-            ! (ij,kl):
-            excitLvl = 4
-
-            pgen = pgen * pExcit4
-
-        end if
-
-        ! in excit_typ information, if we differentiate between same / mixed
-        ! generator type excitation, is stored
-        ! have to set that in here to indicate, not dealing with difference
-        ! between alike and mixed excitation generators...
-        excit_typ = 1
-
-    end subroutine pick_first_orbital_nosym_guga_uniform
-
-    subroutine pick_first_orbital_nosym_guga_diff(i, pgen, excitLvl, excit_typ)
-        ! when modifying the specific probabilities for the different types
-        ! of GUGA excitations, i need to procedure pointers for efficient
-        ! implementation
-        ! this is the version, where i differentiate between same and mixed
-        ! generator excitations, by forcing orbital (i) to be singly
-        ! occupied or empty/doubly occupied
-        integer, intent(out) :: i, excitLvl, excit_typ
-        real(dp), intent(out) :: pgen
-
-        ! default excit_typ: mixed type
-        excit_typ = 0
-
-        ! set pgen to 1 for inout charachter in pickRandomOrbs routines
-        pgen = 1.0_dp
-        ! if orb (i) is picked, chance to pick i again 1/nOrbs
-        if (genrand_real2_dSFMT() > pExcit4) then
-            ! here choose between picking j also twice or not
-            ! one orbitals has to be excluded
-
-            if (genrand_real2_dSFMT() < pExcit2) then
-                ! (ii,jj)
-                excitLvl = 2
-
-!                 print *, "excit_lvl 2 ?"
-!                 print *, "pExcit2_same?", pExcit2_same
-
-                if (genrand_real2_dSFMT() < pExcit2_same) then
-                    ! here i choose same-typed generator -> occupation of (i)
-                    ! has to be 0/2. do that by excluding nOcc = 1
-                    call pickRandomOrb_forced_negate(1, pgen, i)
-
-                    excit_typ = 1
-
-                    pgen = pgen * (1.0_dp - pExcit4) * pExcit2 * pExcit2_same
-
-                else
-                    ! otherwise the occupation has to be 1
-                    call pickRandomOrb_forced(1, pgen, i)
-
-                    pgen = pgen * (1.0_dp - pExcit4) * pExcit2 * (1.0_dp - pExcit2_same)
-
-                end if
-
-            else
-                ! (ii,jk):
-                excitLvl = 3
-
-                if (genrand_real2_dSFMT() < pExcit3_same) then
-                    ! same as above for type 2
-                    call pickRandomOrb_forced_negate(1, pgen, i)
-
-                    excit_typ = 1
-
-                    pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * pExcit3_same
-
-                else
-                    call pickRandomOrb_forced(1, pgen, i)
-
-                    pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * &
-                           (1.0_dp - pExcit3_same)
-
-                end if
-            end if
-        else
-            ! (ij,kl):
-            excitLvl = 4
-
-            ! here all is allowed
-            i = 1 + floor(genrand_real2_dSFMT() * real(nSpatOrbs, dp))
-            pgen = 1.0_dp / real(nSpatOrbs, dp)
-
-            pgen = pgen * pExcit4
-
-        end if
-
-    end subroutine pick_first_orbital_nosym_guga_diff
-
-    subroutine pickOrbitals_nosym_double(ilut, nI, excitInfo, pgen)
-        ! function to pick 4 calid excitation orbitals given a CSF for a
-        ! double excitation and also determine the type of that excitation
-        ! also a second specification of the general type of double excitation
-        ! is given as input
-        ! typ:
-        ! 1 ... (iii,j) 3 indices alike -> weight(at start/end) + generator
-        ! 2 ... (ii,jj) 2 different indices with 2 being alike
-        ! 3 ... (ii,jk) 3 differing indices with 2 being alike
-        ! 4 ... (ij,kl) 4 different indices
-        ! the type of excitation has to be chosen beforehand, depending on the
-        ! relative probabilities to pick those index combinations
-
-        ! design decision: use this prechosen types? or let it happen randomly
-        ! to maybe choose the same orbitals... ?
-        ! for now: implement it with this prechosen types and figure out
-        ! their relative probabilities, because i have the formulas for
-        ! them already
-        ! also not yet implement alis cauchy-schwartz criteria, but choose
-        ! the orbitals uniformly!
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: nI(nel)
-        type(ExcitationInformation_t), intent(out) :: excitInfo
-        real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = "pickOrbitals_nosym_double"
-
-        integer :: i, j, k, l, excit_lvl, excit_typ
-        real(dp) :: r, temp_pgen, temp_pgen2, temp_pgen3
-
-        unused_var(ilut)
-        unused_var(nI)
-
-        ! change to different excitation type biasing:
-        call pick_first_orbital(i, pgen, excit_lvl, excit_typ)
-
-        ! new way to determine pgen..
-        temp_pgen = 1.0_dp
-        temp_pgen2 = 1.0_dp
-        temp_pgen3 = 1.0_dp
-
-        select case (excit_lvl)
-            ! since this case is always like a single excitation this is never
-            ! reached here so remove!
-            ! (iii,j) excitation type: single excitation + weight at start/end
-            ! choose 2 indices with single excitation picker,... not quite
-            ! because there are additional restrictions in the start and end
-            ! to not pick zero valued excitation
-
-            ! neither i, and j can be a empty orbital
-            ! when d(i) = {1,2} -> d(j) == 3 is necessary
-            ! and if d(i) == 3 -> d(j) = {1,2} necessary for non-zero excittaion
-            ! plus there are completely incompatible iluts. like |3,3,0,0> or
-            ! |1,2,1,2> -> global restriction n(double) > 0 % n(single) > 0
-
-            ! todo write some kind of nDouble, nSingle determination or use
-            ! already implemented functionality
-
-            ! UPDATE: new insight... cant choose single excitation-like
-            ! excitation in the double excitation
-            ! so never access this function with this type of excitation
-
-        case (2)
-            ! (ii,jj) leaves full start into full stop with alike and mixed
-            ! generators possible
-            ! on this case the stepvalue of the first completely randomly
-            ! picked orbital determines the type of excitation taken..
-            ! new insights on how to choose exitaitons...
-            ! actually cant exclude weight generator including function just
-            ! because the excact picked orbital happens to be 0, because other
-            ! orbitals would lead to the same excitation and the whole hamilton
-            ! matrix element has to be considered... -> but thats already
-            ! taken into account in the single excitation creation.
-            ! so avoid taking indices here which would lead to single
-            ! excitation like DEs
-            ! but in this case, where only full-starts into full-stops are
-            ! possible, these cant be reproduced by single excitations
-            ! so leave it as it is
-
-            ! have to adjust pgen with the probability that 2 identical indices
-            ! pairs got chosen
-
-            select case (currentOcc_int(i))
-            case (0)
-                ! so there is a fullstart RR(i) or a fullStop(i)
-                ! -> have to pick a second doubly occupied orbital
-                ! which leaves a global restriction that there have to be
-                ! atelast one doubly and one empty orbital...
-                ! we know that there is one empty one since we picked one,
-                ! but if there is no doubly -> have to cancel here
-
-                call pickRandomOrb_forced(2, temp_pgen, j)
-
-                if (j == 0) then
-                    excitInfo%valid = .false.
-                    return
-                end if
-
-                ! if ni = 0 temp_pgen = 1/n2 = p(j|i)
-                ! so p(i|j) = 1/n0
-                temp_pgen2 = 1.0_dp / real(count(currentOcc_int == 0), dp)
-
-                ! i cannot do that here so generally, when using tau-search
-                ! for the non-weighted guga excitation generator
-                ! i have to include the to be changed probabilities p4 and p2
-                ! and also the p2_same, or?
-                ! new update: moved most of the pgen manipulations into
-                ! pick_first_orbital routine!
-
-                pgen = pgen * (temp_pgen + temp_pgen2)
-
-                if (j > i) then
-                    ! _RR_(i) -> ^RR^(j)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_stop_alike, &
-                                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                i, j, i, j, i, i, j, j, 0, 2, 1.0_dp, 1.0_dp)
-
-                else
-                    ! _LL_(j) -> ^LL^(i)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_stop_alike, &
-                                gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                i, j, i, j, j, j, i, i, 0, 2, 1.0_dp, 1.0_dp)
-
-                end if
-
-            case (2)
-                ! switch generators
-
-                call pickRandomOrb_forced(0, temp_pgen, j)
-
-                if (j == 0) then
-                    excitInfo%valid = .false.
-                    return
-                end if
-
-                temp_pgen2 = 1.0_dp / real(count(currentOcc_int == 2), dp)
-
-                pgen = pgen * (temp_pgen + temp_pgen2)
-
-                if (i > j) then
-                    ! _RR_(j) > ^RR^(i)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_stop_alike, &
-                                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                j, i, j, i, j, j, i, i, 0, 2, 1.0_dp, 1.0_dp)
-
-                else
-                    ! _LL_(i) > ^LL^(j)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_stop_alike, &
-                                gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                j, i, j, i, i, i, j, j, 0, 2, 1.0_dp, 1.0_dp)
-
-                end if
-
-            case (1)
-                ! d(i) = {1,2}
-                ! d(j) also has to be singly occupied, due to x1=0 if d(j) = 3
-                ! which would only lead to a diagonal element
-                ! here there is also a necessary switch condition...
-                ! todo deal with that later
-                call pickRandomOrb_forced(1, temp_pgen, j, i)
-
-                if (j == 0) then
-                    excitInfo%valid = .false.
-                    return
-                end if
-
-                temp_pgen2 = 1.0_dp / real(count(currentOcc_int == 1) - 1, dp)
-
-                pgen = pgen * (temp_pgen + temp_pgen2) / 2.0_dp
-
-                ! for these mixed excitations i have to adjust the pgens
-                ! similar to the matrix elements as there are a lot
-                ! of different index combinations which could lead to the
-                ! same excitation.. but do that after the excitations is
-                ! created alongside the matrix element calculation
-
-                if (j > i) then
-                    ! _LR_(i) > ^LR^(j)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_stop_mixed, &
-                                gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                i, j, j, i, i, i, j, j, 0, 2, 1.0_dp, 2.0_dp)
-
-                else
-                    ! _LR_(j) -> ^LR^(i)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_stop_mixed, &
-                                gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                i, j, j, i, j, j, i, i, 0, 2, 1.0_dp, 2.0_dp)
-
-                end if
-            end select
-
-        case (3)
-            ! with new insights on the way how indices should be picked,
-            ! just pick generators to ensure ALL excitations can be reached.
-            ! and the way there does not matter.
-
-            ! (ii,jk) leaves 6 possible distinct generator combinations
-            ! can still pick first orbital completely randomly and the rest
-            ! depends on the stepvalue at this index
-            ! UPDATE: have to restrict this DEs to only pick generators,
-            ! which lead to excitations, which cant be reproduced by single
-            ! excitations. since they are already accounted for.
-
-            ! pgen has to be adjusted with the probability that 2 identical
-            ! indices got picked
-
-            select case (currentOcc_int(i))
-            case (0)
-                ! only the generator e_(ij,ik) yields non-zero matrix element
-                ! and the only condition is that d(k) and d(j) are not empty.
-                ! the nececaryy switch condition i again ignore for now..
-                ! one global restriction is that there have to be atleast 2
-                ! non-empty orbitals
-                ! UPDATE: in the 0 case, the excitation cant be reproduced by
-                ! single excitations..
-
-                call pickRandomOrb_scalar(0, temp_pgen, j, 0)
-                call pickRandomOrb_scalar(j, temp_pgen2, k, 0)
-
-                if (j == 0 .or. k == 0) then
-                    excitInfo%valid = .false.
-                    return
-                end if
-
-                pgen = pgen * temp_pgen * temp_pgen2 * 2.0_dp
-
-                ! due to the first picking of the repeated index pgens get a
-                ! bit biased i think...
-
-                ! then determine the generator/excitation tylp
-                ! we have to also consider the relative relation between the
-                ! generator for the x1_element sign... todo although they lead
-                ! to the same kind of excitation -> todo think about htat
-                ! matrix elements...
-
-                ! only 3 of the 6 possible permutations since that only
-                ! introduces a relative sign of the x1 matrix elements
-                ! and this has to be dealt with anyway in the full matrix
-                ! element calculation during the excitation creation
-                ! TODO: settle on a x1 sign convention!!
-                ! assign it here in such a way that the not sign changed
-                ! branches are the standard excitations here and implement
-                ! the different sign through the matrix element calculation
-                ! in the excitation creation routines
-                if (i < j .and. j < k) then
-                    ! _RR_(i) -> ^RR(j) -> ^R(k)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_raising, &
-                                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                i, k, i, j, i, i, j, k, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                else if (j < k .and. k < i) then
-                    ! L_(j) -> L_L(k) -> ^LL^(i)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstop_lowering, &
-                                gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                i, j, i, k, j, k, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                else if (j < i .and. i < k) then
-                    ! L_(j) -> ^LR_(i) -> ^R(k)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%single_overlap_L_to_R, &
-                                gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, &
-                                i, j, i, k, j, i, i, k, 0, 2, 1.0_dp, 1.0_dp, 1)
-
-                else if (i < k .and. k < j) then
-                    ! _RR_(i) > ^RR(k) > ^R(j)
-                    ! same excitation except sign in x1.. but cover that sign
-                    ! in the matrix element calculation
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_raising, &
-                                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                i, k, i, j, i, i, k, j, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                else if (k < j .and. j < i) then
-                    ! _L(k) > _LL(j) > ^LL^(i)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstop_lowering, &
-                                gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                i, j, i, k, k, j, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                else if (k < i .and. i < j) then
-                    ! _L(k) > ^LR(i) > ^R(j)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%single_overlap_L_to_R, &
-                                gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, &
-                                i, j, i, k, k, i, i, j, 0, 2, 1.0_dp, 1.0_dp, 1)
-
-                end if
-
-            case (2)
-                ! previously i thought i have to include here also generators
-                ! which essentially lead to single excitations, but in fact I
-                ! have to ignore those excitations as they are already accounted
-                ! for in the single excitation calculation through the involved
-                ! inclusion of all the two-particle integral contributions
-                ! which reduced the used generator to
-                ! e_{ji,ki)
-                ! and have to pick orbitals not doubly occupied
-                ! since all the other generator combination with a fullstart
-                ! LR(3) or full stop or a single overlap with alike generators
-                ! in the middle lead only to single excitations (due to deltaB=0)
-
-                call pickRandomOrb_scalar(0, temp_pgen, j, 2)
-                call pickRandomOrb_scalar(j, temp_pgen2, k, 2)
-
-                if (j == 0 .or. k == 0) then
-                    excitInfo%valid = .false.
-                    return
-                end if
-
-                pgen = pgen * temp_pgen * temp_pgen2 * 2.0_dp
-
-                if (i < j .and. j < k) then
-                    ! _LL_(i) ^LL(j) ^L(k)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_lowering, &
-                                gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                j, i, k, i, i, i, j, k, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                else if (j < k .and. k < i) then
-                    ! _R(j) _RR(k) ^RR^(i)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstop_raising, &
-                                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                k, i, j, i, j, k, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                else if (j < i .and. i < k) then
-                    ! _R(j) ^RL_(i) ^L(k)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%single_overlap_R_to_L, &
-                                gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, &
-                                j, i, k, i, j, i, i, k, 0, 2, 1.0_dp, 1.0_dp, 1)
-
-                else if (i < k .and. k < j) then
-                    ! _LL_(i) > ^LL(k) > ^L(j)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstart_lowering, &
-                                gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                j, i, k, i, i, i, k, j, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                else if (k < j .and. j < i) then
-                    ! _R(k) > _RR(j) > ^RR^(i)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%fullstop_raising, &
-                                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                k, i, j, i, k, j, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                else if (k < i .and. i < j) then
-                    ! _R(k) > ^RL(i) > ^L(j)
-                    excitInfo = assign_excitInfo_values_double( &
-                                excit_type%single_overlap_R_to_L, &
-                                gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, &
-                                j, i, k, i, k, i, i, j, 0, 2, 1.0_dp, 1.0_dp, 1)
-
-                end if
-
-            case (1)
-                ! d(i) = {1,2}
-                ! still all stepvector values are possible for this case
-                call pickRandomOrb_scalar(i, temp_pgen, j)
-
-                if (j == 0) then
-                    excitInfo%valid = .false.
-                    return
-                end if
-
-                ! for these mixed excitations i have to adjust the pgens
-                ! similar to the matrix elements as there are a lot
-                ! of different index combinations which could lead to the
-                ! same excitation.. but do that after the excitations is
-                ! created alongside the matrix element calculation
-
-                ! UPDATE: have to only choose excitations which cant be
-                ! mimicked by single excitations -> and in this case
-                ! there are a lot which could do that...
-                ! for a mixed full-start or full stop i have to ensure
-                ! somehow that the deltaB=0 branch is not taken
-                ! and also the indices cant be chosen in such a way that
-                ! j < i < k or k < i < j
-                ! since then it would definetly act like a single excitation
-                ! so if j < i, k also has to be k < i
-                ! and if j > i, k also has to be k > i
-                ! .... that kind of fucks be up a bit..
-                ! because that greatly reduces the available orbitals and
-                ! it could easily be, that there are no valid index and
-                ! orbital combinations in this case...
-                ! maybe pick it first, and then check if it worked out
-                ! and repick otherwise...
-                select case (currentOcc_int(j))
-                case (0)
-                    ! have to choose between e_ii,kj and e_ji,ik and pick
-                    ! new insight.. dont choose between them, always pick
-                    ! mixed gen case. since it can reach same excitations
-                    ! d(k) != 0
-                    ! and dont pick indices above or below i,j, since then it
-                    ! is a excitation, which can be mimicked by a single
-                    ! excitation, which are already covered..
-                    ! so i need an orbitals picker which excludes
-                    ! multiple indices and an occupation number...
-
-                    ! no if j is higher than i k also has to be higher than
-                    ! i and j is lower then i, k has to be too...
-                    ! so i always get mixed fullstart or fullstop
-                    ! so i
-                    if (i < j) then
-                        call pickRandomOrb_restricted(i, nSpatOrbs + 1, temp_pgen2, k, 0)
-                        temp_pgen3 = 1.0_dp / real(count(currentOcc_int(i + 1:) /= 0), dp)
-                    else
-                        call pickRandomOrb_restricted(0, i, temp_pgen2, k, 0)
-                        temp_pgen3 = 1.0_dp / real(count(currentOcc_int(:i - 1) /= 0), dp)
-                    end if
-
-                    if (k == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3)
-
-                    ! e_ji,ik
-                    ! the order of all 3 indices matter
-
-                    if (i < j .and. j < k) then
-                        ! _LR_(i) ^LR(j) ^R(k)
-                        excitInfo = assign_excitInfo_values_double( &
-                                    excit_type%fullstart_L_to_R, &
-                                    gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                    j, i, i, k, i, i, j, k, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                    else if (i < k .and. k < j) then
-                        ! _LR_(i) ^RL(k) ^L(j)
-                        excitInfo = assign_excitInfo_values_double( &
-                                    excit_type%fullstart_R_to_L, &
-                                    gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                                    j, i, i, k, i, i, k, j, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                    else if (j < k .and. k < i) then
-                        ! _R(j) _LR(k) ^RL^(i)
-                        excitInfo = assign_excitInfo_values_double( &
-                                    excit_type%fullstop_R_to_L, &
-                                    gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                                    j, i, i, k, j, k, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                    else if (k < j .and. j < i) then
-                        ! _L(k) _RL(j) ^RL^(i)
-                        excitInfo = assign_excitInfo_values_double( &
-                                    excit_type%fullstop_L_to_R, &
-                                    gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                    j, i, i, k, k, j, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                    else if (j < i .and. i < k) then
-                        ! _R(j) ^RR_(i) ^R(k)
-                        ! should not choose indices in such a way, since
-                        ! this is already covered by single excitations.
-                        ! write a orbital picker, which excludes this
-                        ! possibility
-                        !TODO
-                        ! set i to 0 to make choice invalid
-                        i = 0
-                        excitInfo%typ = excit_type%single_overlap_raising
-                        excitInfo%gen1 = 1
-                        excitInfo%gen2 = 1
-                        excitInfo%firstGen = 1
-                        excitInfo%lastGen = 1
-                        excitInfo%fullStart = j
-                        excitInfo%secondStart = i
-                        excitInfo%firstEnd = i
-                        excitInfo%fullEnd = k
-                    else if (k < i .and. i < j) then
-                        ! _L(k) ^LL_(i) ^L(j)
-                        ! same as above
-                        i = 0
-                        excitInfo%typ = excit_type%single_overlap_lowering
-                        excitInfo%gen1 = gen_type%L
-                        excitInfo%gen2 = gen_type%L
-                        excitInfo%firstGen = gen_type%L
-                        excitInfo%lastGen = gen_type%L
-                        excitInfo%fullStart = k
-                        excitInfo%secondStart = i
-                        excitInfo%firstEnd = i
-                        excitInfo%fullEnd = j
-                    end if
-
-                case (2)
-                    ! why did i comment that out? mistake? probably...
-                    ! have o pick a orbital from the list min(i,j)-max(i,j)
-                    ! with occupation restriction
-
-                    if (i < j) then
-                        call pickRandomOrb_restricted(i, nSpatOrbs + 1, temp_pgen2, k, 2)
-                        temp_pgen3 = 1.0_dp / real(count(currentOcc_int(i + 1:) /= 2), dp)
-                    else
-                        call pickRandomOrb_restricted(0, i, temp_pgen2, k, 2)
-                        temp_pgen3 = 1.0_dp / real(count(currentOcc_int(:i - 1) /= 2), dp)
-                    end if
-
-                    if (k == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3)
-
-                    ! todo think about the generator combinations here.
-                    ! e_{ij,ki}
-                    if (i < j .and. j < k) then
-                        ! _LR_(i) ^RL(j) ^L(k)
-                        excitInfo = assign_excitInfo_values_double( &
-                                    excit_type%fullstart_R_to_L, &
-                                    gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                    i, j, k, i, i, i, j, k, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                    else if (i < k .and. k < j) then
-                        ! _LR_(i) ^LR(k) ^R(j)
-                        excitInfo = assign_excitInfo_values_double( &
-                                    excit_type%fullstart_L_to_R, &
-                                    gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                                    i, j, k, i, i, i, k, j, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                    else if (j < k .and. k < i) then
-                        ! _L(j) _RL(k) ^RL^(i)
-                        excitInfo = assign_excitInfo_values_double( &
-                                    excit_type%fullstop_L_to_R, &
-                                    gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                                    i, j, k, i, j, k, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                    else if (k < j .and. j < i) then
-                        ! _R(k) _LR(j) ^RL^(i)
-                        excitInfo = assign_excitInfo_values_double( &
-                                    excit_type%fullstop_R_to_L, &
-                                    gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                    i, j, k, i, k, j, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                    else if (j < i .and. i < k) then
-                        ! _L(j) ^LL_(i) ^L(k)
-                        ! should not be here with correct orbital picker, since
-                        ! this excitation can be mimicked by a single
-                        ! excitation..
-                        i = 0
-
-                        excitInfo%typ = excit_type%single_overlap_lowering
-                        excitInfo%gen1 = gen_type%L
-                        excitInfo%gen2 = gen_type%L
-                        excitInfo%firstGen = gen_type%L
-                        excitInfo%lastGen = gen_type%L
-                        excitInfo%fullStart = j
-                        excitInfo%secondStart = i
-                        excitInfo%firstEnd = i
-                        excitInfo%fullEnd = k
-                    else if (k < i .and. i < j) then
-                        ! _R(k) ^RR_(i) ^R(j)
-                        i = 0
-
-                        excitInfo%typ = excit_type%single_overlap_raising
-                        excitInfo%gen1 = 1
-                        excitInfo%gen2 = 1
-                        excitInfo%firstGen = 1
-                        excitInfo%lastGen = 1
-                        excitInfo%fullStart = k
-                        excitInfo%secondStart = i
-                        excitInfo%firstEnd = i
-                        excitInfo%fullEnd = j
-                    end if
-
-                case (1)
-                    ! d(j) = {1,2} what are restrictions in d(k) and which
-                    ! generator combination are there?
-                    ! i think i can pick all except orbs i and j
-
-                    ! i have to exclude j here too...
-                    if (i < j) then
-                        call pickRandomOrb_restricted_index(i, nSpatOrbs + 1, temp_pgen2, k, j)
-                    else
-                        call pickRandomOrb_restricted_index(0, i, temp_pgen2, k, j)
-                    end if
-
-                    if (k == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    ! also here
-                    ! depending on last occupation choose generator comb.
-                    select case (currentOcc_int(k))
-                    case (0)
-                        ! e_{ij,ki}
-                        if (i < j .and. j < k) then
-                            ! _RL_(i) > ^RL(j) > ^L(k)
-                            excitInfo = assign_excitInfo_values_double( &
-                                        excit_type%fullstart_R_to_L, &
-                                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                        i, j, k, i, i, i, j, k, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                            temp_pgen3 = 1.0_dp / real(count(currentOcc_int(i + 1:) /= 0), dp)
-
-                        else if (i < j .and. k < j) then
-                            ! _RL_(i) > ^LR(k) > ^R(j)
-                            excitInfo = assign_excitInfo_values_double( &
-                                        excit_type%fullstart_L_to_R, &
-                                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                                        i, j, k, i, i, i, k, j, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                            temp_pgen3 = 1.0_dp / real(count(currentOcc_int(i + 1:) /= 0), dp)
-
-                        else if (j < k .and. k < i) then
-                            ! _L(j) > _RL(k) > ^RL^(i)
-                            excitInfo = assign_excitInfo_values_double( &
-                                        excit_type%fullstop_L_to_R, &
-                                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                                        i, j, k, i, j, k, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                            temp_pgen3 = 1.0_dp / real(count(currentOcc_int(:i - 1) /= 0), dp)
-
-                        else if (k < j .and. j < i) then
-                            ! _R(k) > _LR(j) > ^RL^(i)
-                            excitInfo = assign_excitInfo_values_double( &
-                                        excit_type%fullstop_R_to_L, &
-                                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                        i, j, k, i, k, j, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                            temp_pgen3 = 1.0_dp / real(count(currentOcc_int(:i - 1) /= 0), dp)
-
-                        else if (j < i .and. i < k) then
-                            ! _L(j) > ^LL_(i) > ^L(k)
-                            ! return in this case or? since its a single
-                            ! excitation like...
-                            ! or restrict indices to not pick those orbitals!
-                            ! todo!
-                            i = 0
-                        else if (k < i .and. i < j) then
-                            ! _R(k) > ^RR_(i) > ^R(j)
-                            ! return in this case or restrict orbitals to not
-                            ! pick this combination!
-                            i = 0
-
-                        else
-                            ! something went wrong!
-                            call stop_all(this_routine, "should not be here!")
-                        end if
-
-                    case (2)
-                        ! e_{ji,ik}
-                        if (i < j .and. j < k) then
-                            ! _RL(i) > ^LR(j) < ^R(k)
-                            excitInfo = assign_excitInfo_values_double( &
-                                        excit_type%fullstart_L_to_R, &
-                                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                        j, i, i, k, i, i, j, k, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                            temp_pgen3 = 1.0_dp / real(count(currentOcc_int(i + 1:) /= 2), dp)
-
-                        else if (i < k .and. k < j) then
-                            ! _RL_(i) > ^RL(k) > ^L(j)
-                            excitInfo = assign_excitInfo_values_double( &
-                                        excit_type%fullstart_R_to_L, &
-                                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                                        j, i, i, k, i, i, k, j, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                            temp_pgen3 = 1.0_dp / real(count(currentOcc_int(i + 1:) /= 2), dp)
-
-                        else if (j < k .and. k < i) then
-                            ! _R(j) > _LR(k) > ^RL^(i)
-                            excitInfo = assign_excitInfo_values_double( &
-                                        excit_type%fullstop_R_to_L, &
-                                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                                        j, i, i, k, j, k, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                            temp_pgen3 = 1.0_dp / real(count(currentOcc_int(:i - 1) /= 2), dp)
-
-                        else if (k < j .and. j < i) then
-                            ! _L(k) > _RL(j) > ^RL^(i)
-                            excitInfo = assign_excitInfo_values_double( &
-                                        excit_type%fullstop_L_to_R, &
-                                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                        j, i, i, k, k, j, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                            temp_pgen3 = 1.0_dp / real(count(currentOcc_int(:i - 1) /= 2), dp)
-
-                        else if (j < i .and. i < k) then
-                            ! _R(j) > ^RR_(i) > ^R(k)
-                            ! single-like excitation!
-                            ! avoid or abort!
-                            i = 0
-                        else if (k < i .and. i < j) then
-                            ! _L(k) > ^LL_(i) > ^L(j)
-                            ! single like!
-                            i = 0
-                        else
-                            call stop_all(this_routine, "should not be here!")
-                        end if
-
-                        pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3)
-
-                    case (1)
-                        ! e_{ij,ki} or e_{ji,ik}
-
-                        ! those 2 can lead to different excvitations!
-                        ! so choose randomly between them! and update pgen
-
-                        ! how the fuck did this work until now??
-                        ! i have totally missed the remaining pgen
-                        ! considerations here until 26.1.2016..
-
-                        if (genrand_real2_dSFMT() < 0.5_dp) then
-                            ! choose:
-                            ! e_{ij,ki}:
-                            if (i < j .and. j < k) then
-                                ! _RL_(i) > ^RL(j) > ^L(k)
-                                excitInfo = assign_excitInfo_values_double( &
-                                            excit_type%fullstart_R_to_L, &
-                                            gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                            i, j, k, i, i, i, j, k, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                                ! here i could not have taken orbitals < i
-                                ! no restriction on the occupation number since
-                                ! all (ijk) are singly occupied
-                                temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
-
-                            else if (i < j .and. k < j) then
-                                ! _RL_(i) > ^LR(k) > ^R(j)
-                                excitInfo = assign_excitInfo_values_double( &
-                                            excit_type%fullstart_L_to_R, &
-                                            gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                                            i, j, k, i, i, i, k, j, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                                temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
-
-                            else if (j < k .and. k < i) then
-                                ! _L(j) > _RL(k) > ^RL^(i)
-                                excitInfo = assign_excitInfo_values_double( &
-                                            excit_type%fullstop_L_to_R, &
-                                            gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                                            i, j, k, i, j, k, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                                ! here i could have only take orbitals < i:
-                                ! again: spatial occupation irrelevant, since
-                                ! all (ijk) singly occupied
-                                temp_pgen3 = 1.0_dp / real(i - 1, dp)
-
-                            else if (k < j .and. j < i) then
-                                ! _R(k) > _LR(j) > ^RL^(i)
-                                excitInfo = assign_excitInfo_values_double( &
-                                            excit_type%fullstop_R_to_L, &
-                                            gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                            i, j, k, i, k, j, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                                temp_pgen3 = 1.0_dp / real(i - 1, dp)
-
-                            else if (j < i .and. i < k) then
-                                ! _L(j) > ^LL_(i) > ^L(k)
-                                ! return in this case or? since its a single
-                                ! excitation like...
-                                ! or restrict indices to not pick those orbitals!
-                                ! todo!
-                                i = 0
-                            else if (k < i .and. i < j) then
-                                ! _R(k) > ^RR_(i) > ^R(j)
-                                ! return in this case or restrict orbitals to not
-                                ! pick this combination!
-                                i = 0
-
-                            else
-                                ! something went wrong!
-                                call stop_all(this_routine, "should not be here!")
-                            end if
-
-                        else
-                            ! e_{ji,ik}
-                            if (i < j .and. j < k) then
-                                ! _RL_(i) > ^LR(j) < ^R(k)
-                                excitInfo = assign_excitInfo_values_double( &
-                                            excit_type%fullstart_L_to_R, &
-                                            gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                            j, i, i, k, i, i, j, k, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                                temp_pgen3 = 1.0_dp / real(i - 1, dp)
-
-                            else if (i < k .and. k < j) then
-                                ! _RL_(i) > ^RL(k) > ^L(j)
-                                excitInfo = assign_excitInfo_values_double( &
-                                            excit_type%fullstart_R_to_L, &
-                                            gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                                            j, i, i, k, i, i, k, j, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                                temp_pgen3 = 1.0_dp / real(i - 1, dp)
-
-                            else if (j < k .and. k < i) then
-                                ! _R(j) > _LR(k) > ^RL^(i)
-                                excitInfo = assign_excitInfo_values_double( &
-                                            excit_type%fullstop_R_to_L, &
-                                            gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                                            j, i, i, k, j, k, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                                temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
-
-                            else if (k < j .and. j < i) then
-                                ! _L(k) > _RL(j) > ^RL^(i)
-                                excitInfo = assign_excitInfo_values_double( &
-                                            excit_type%fullstop_L_to_R, &
-                                            gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                                            j, i, i, k, k, j, i, i, 0, 2, 1.0_dp, 1.0_dp, 2)
-
-                                temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
-
-                            else if (j < i .and. i < k) then
-                                ! _R(j) > ^RR_(i) > ^R(k)
-                                ! single-like excitation!
-                                ! avoid or abort!
-                                i = 0
-                            else if (k < i .and. i < j) then
-                                ! _L(k) > ^LL_(i) > ^L(j)
-                                ! single like!
-                                i = 0
-                            else
-                                call stop_all(this_routine, "should not be here!")
-                            end if
-                        end if
-
-                        ! do the actual pgen calculation! dummy!!
-                        pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3) / 2.0_dp
-
-                    end select
-                end select
-            end select
-
-        case (4)
-            ! helpful quantities:
-            ! (ij,kl) leaves all 12 generator combination possible
-            ! since it is only necessary to reach all possible excitations from a
-            ! given CSF, pick generators in such a way that all these can be
-            ! reached and do not choose a very specific generator combination
-            ! from all the possible ones. since different generator combination
-            ! still can lead to the same excitations. and if i pick a proper
-            ! double excitation witch overlap range, also the same excitations
-            ! without overlap range could be reached, since the deltaB=0 branch
-            ! is always a possibility.
-            ! have forgotten about the new insight so only take the necesssary
-            ! generator combinations to be able to reach all excitations.
-            ! makes the orbital choice much easier.
-
-            ! first pick i completely random
-!              i = pickRandomOrb()
-            ! do it differently to check after every pick... will get bad but
-            ! was solls
-            ! j can also always be picked randomly except i!
-            call pickRandomOrb_scalar(i, temp_pgen, j)
-
-            if (j == 0) then
-                excitInfo%valid = .false.
-                return
-            end if
-
-            select case (currentOcc_int(i))
-            case (0)
-                select case (currentOcc_int(j))
-                case (0)
-                    ! then k and l have to be non-zero
-                    call pickRandomOrb_scalar(0, temp_pgen2, k, 0)
-                    call pickRandomOrb_scalar(k, temp_pgen3, l, 0)
-
-                    if (k == 0 .or. l == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    ! actually need all occupation number infos for the
-                    ! calculation of the pgen contribution of different
-                    ! index choosing
-                    if (current_stepvector(k) == 3) then
-                        if (current_stepvector(l) == 3) then
-
-                            ! 0022
-                            pgen = calc_pgen_0022()
-
-                        else
-                            ! 0021 or 0011
-                            pgen = calc_pgen_00xx()
-                        end if
-
-                    else
-                        pgen = calc_pgen_00xx()
-
-                    end if
-
-                    ! e_{ik,jl}
-                    excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-
-                    ! since there are two valid ways too choose generators
-                    ! adjust the pgen too?!
-
-                case (2)
-                    ! still free to pick k
-                    call pickRandomOrb_vector([i, j], temp_pgen2, k)
-
-                    if (k == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    select case (currentOcc_int(k))
-                    case (0)
-                        ! pick somethin != 0 for l
-                        call pickRandomOrb_scalar(j, temp_pgen3, l, 0)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        ! e_{il,kj}
-
-                        if (current_stepvector(l) == 3) then
-                            ! 0202
-
-                            pgen = calc_pgen_0022()
-
-                        else
-                            ! 0201
-                            pgen = calc_pgen_0022()
-
-                        end if
-
-                        excitInfo = create_excitInfo_il_kj(i, j, k, l)
-
-                    case (2)
-                        call pickRandomOrb_scalar(i, temp_pgen3, l, 2)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        ! e_{ik,lj}
-                        excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-
-                        if (current_stepvector(l) == 0) then
-                            ! 0220
-                            pgen = calc_pgen_0022()
-
-                        else
-                            !0221:
-                            pgen = calc_pgen_22xx()
-
-                        end if
-
-                    case (1)
-                        ! free to pick l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{ik,lj}
-                            excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-
-                            ! 0210
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{il,kj}
-                            excitInfo = create_excitInfo_il_kj(i, j, k, l)
-
-                            ! 0212
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! e_{il,kj} or e_{ik,lj}
-                            ! choose randomly between the 2 possibilities
-
-                            ! 0211
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            else
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            end if
-
-                        end select
-                    end select
-                case (1)
-                    ! n(j) = 1 -> free to pick k
-                    call pickRandomOrb_vector([i, j], temp_pgen2, k)
-
-                    if (k == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    select case (currentOcc_int(k))
-                    case (0)
-                        ! pick nonzero l
-                        call pickRandomOrb_scalar(j, temp_pgen3, l, 0)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        ! e_{il,kj}
-                        excitInfo = create_excitInfo_il_kj(i, j, k, l)
-
-                        ! 0102 or 0101
-                        pgen = calc_pgen_00xx()
-
-                    case (2)
-                        ! free to pick l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{ik,lj}
-                            excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            ! 0120
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{ik,jl}
-                            excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-                            ! 0122
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! e_{ik,jl} or e_{ik,lj}
-
-                            ! 0121
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-                            else
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            end if
-                        end select
-                    case (1)
-                        ! n(k) = 1
-                        ! free to pick
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{ik,lj}
-                            excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            ! 0110
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{il,jk} or e_{il,kj}
-                            ! 0112
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{il,jk}
-                                excitInfo = create_excitInfo_il_jk(i, j, k, l)
-                            else
-                                ! e_{il,kj}
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            end if
-                        case (1)
-                            ! choose between: 3 different possibilities:
-                            ! e_{il,kj} or e_{ik,jl} or e_{ik,lj}
-                            ! 0111
-                            pgen = calc_pgen_1102() * 2.0_dp / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < 0.3333333_dp) then
-                                ! e_{il,kj}:
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            else if (r >= 0.333333333_dp .and. r < 0.6666666_dp) then
-                                ! e_{ik,jl}:
-                                excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-                            else
-                                ! e_{ik,lj}
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            end if
-
-                        end select
-                    end select
-                end select
-            case (2)
-                ! j can be randomly picked
-                select case (currentOcc_int(j))
-                case (2)
-                    ! pick non-doubly k,l
-                    call pickRandomOrb_scalar(0, temp_pgen2, k, 2)
-                    call pickRandomOrb_scalar(k, temp_pgen3, l, 2)
-
-                    if (k == 0 .or. l == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    ! have to check k and l values
-                    if (current_stepvector(k) == 0) then
-                        if (current_stepvector(l) == 0) then
-                            ! 3300
-                            pgen = calc_pgen_0022()
-
-                        else
-                            ! 2211, 2210 and permutations -> with same pgen
-                            pgen = calc_pgen_22xx()
-
-                        end if
-
-                    else
-                        ! 2211, 2210 and permutations -> with same pgen
-                        pgen = calc_pgen_22xx()
-
-                    end if
-
-                    ! e_{ki,lj}
-                    excitInfo = create_excitInfo_ki_lj(i, j, k, l)
-
-                case (0)
-                    ! free k
-                    call pickRandomOrb_vector([i, j], temp_pgen2, k)
-
-                    if (k == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    select case (currentOcc_int(k))
-                    case (0)
-                        ! pick non-zero l
-                        call pickRandomOrb_scalar(i, temp_pgen3, l, 0)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        ! e_{ki,jl}
-                        excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-
-                        if (current_stepvector(l) == 3) then
-                            ! 2002
-                            pgen = calc_pgen_0022()
-
-                        else
-                            ! 2001
-                            pgen = calc_pgen_00xx()
-                        end if
-
-                    case (2)
-                        ! pick non double l
-                        call pickRandomOrb_scalar(j, temp_pgen3, l, 2)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        ! e_{li,jk}
-                        excitInfo = create_excitInfo_li_jk(i, j, k, l)
-
-                        if (current_stepvector(l) == 0) then
-                            ! 2020
-                            pgen = calc_pgen_0022()
-
-                        else
-                            ! 2021
-                            pgen = calc_pgen_22xx()
-
-                        end if
-
-                    case (1)
-                        ! n(k) = 1, free l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{li,jk}
-                            excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            ! 2010
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{ki,jl}
-                            excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            ! 2012
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! choose randomly between:
-                            ! e_{li,jk} or e_{ki,jl}
-                            ! 2011
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            else
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            end if
-
-                        end select
-                    end select
-                case (1)
-                    ! n(j) = 1, free k
-                    call pickRandomOrb_vector([i, j], temp_pgen2, k)
-
-                    if (k == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    select case (currentOcc_int(k))
-                    case (2)
-                        ! pick non-doubly l
-                        call pickRandomOrb_scalar(j, temp_pgen3, l, 2)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        ! e_{li,jk}
-                        excitInfo = create_excitInfo_li_jk(i, j, k, l)
-
-                        ! 2120 or 2121
-                        pgen = calc_pgen_22xx()
-
-                    case (0)
-                        ! free l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{li,kj}
-                            excitInfo = create_excitInfo_li_kj(i, j, k, l)
-                            ! 2100
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{ki,jl}
-                            excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            ! 2102
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! e_{ki,jl} or e_{ki,lj}
-
-                            ! 2101
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            else
-                                ! e_{ki,lj}
-                                excitInfo = create_excitInfo_ki_lj(i, j, k, l)
-                            end if
-
-                        end select
-                    case (1)
-                        ! n(k) = 1, free l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! 2110
-                            pgen = calc_pgen_1102()
-
-                            ! e_{li,jk} or e_{li,kj}
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            else
-                                ! e_{li,kj}
-                                excitInfo = create_excitInfo_li_kj(i, j, k, l)
-                            end if
-
-                        case (2)
-                            ! e_{ki,jl}
-                            excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            ! 2112
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! e_{ki,jl} or e_{ki,lj} or e_{li,jk}
-                            ! 2111
-                            pgen = calc_pgen_1102() * 2.0_dp / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < THIRD) then
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-
-                            else if (r >= THIRD .and. r < 2.0_dp * THIRD) then
-                                ! e_{ki,lj}
-                                excitInfo = create_excitInfo_ki_lj(i, j, k, l)
-                            else
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            end if
-
-                        end select
-                    end select
-                end select
-
-            case (1)
-                ! n(i) = 1, free j and k
-                call pickRandomOrb_vector([i, j], temp_pgen2, k)
-
-                if (k == 0) then
-                    excitInfo%valid = .false.
-                    return
-                end if
-
-                select case (currentOcc_int(j))
-                case (0)
-                    select case (currentOcc_int(k))
-                    case (0)
-                        ! l restricted to non-empty
-                        call pickRandomOrb_scalar(i, temp_pgen3, l, 0)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        ! e_{ki,jl}
-                        excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                        ! 1001 or 1002 -> same pgen!
-                        pgen = calc_pgen_00xx()
-
-                    case (2)
-                        ! free l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{li,jk}
-                            excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            ! 1020
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{il,jk}
-                            excitInfo = create_excitInfo_il_jk(i, j, k, l)
-                            ! 1022
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! e_{il,jk} or e_{li,jk}
-                            ! 1021
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{il,jk}
-                                excitInfo = create_excitInfo_il_jk(i, j, k, l)
-                            else
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            end if
-
-                        end select
-                    case (1)
-                        ! free l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{li,jk}
-                            excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            ! 1010
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{ik,jl} or e_{ki,jl}
-                            ! 1012
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{ik,jl}:
-                                excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-                            else
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            end if
-
-                        case (1)
-                            ! e_{li,jk} or e_{ik,jl} or e_{ki,jl}
-                            ! 1011
-                            pgen = calc_pgen_1102() * 2.0_dp / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < THIRD) then
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            else if (r >= THIRD .and. r < 2.0_dp * THIRD) then
-                                ! e_{ik,jl}
-                                excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-                            else
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            end if
-
-                        end select
-                    end select
-                case (2)
-                    select case (currentOcc_int(k))
-                    case (0)
-                        ! free l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{ki,lj}
-                            excitInfo = create_excitInfo_ki_lj(i, j, k, l)
-                            ! 1200
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{il,kj}
-                            excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            ! 1202
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! e_{il,kj} or e_{li,kj}
-                            ! 1201
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{il,kj}
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            else
-                                ! e_{li,kj}
-                                excitInfo = create_excitInfo_li_kj(i, j, k, l)
-                            end if
-
-                        end select
-
-                    case (2)
-                        ! non-doubly l
-                        call pickRandomOrb_scalar(i, temp_pgen3, l, 2)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        ! e_{ik,lj}
-                        excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                        ! 1220 or 1221 -> same pgen
-                        pgen = calc_pgen_22xx()
-
-                    case (1)
-                        ! free l
-                        call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                        if (l == 0) then
-                            excitInfo%valid = .false.
-                            return
-                        end if
-
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{ik,lj} or e_{ki,lj}
-                            ! 1210
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{ik,lj}
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            else
-                                ! e_{ki,lj}
-                                excitInfo = create_excitInfo_ki_lj(i, j, k, l)
-                            end if
-
-                        case (2)
-                            ! e_{il,kj}
-                            excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            ! 1212
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! e_{il,kj} or e_{li,kj} or e_{ik,lj}
-                            ! 1211
-                            pgen = calc_pgen_1102() * 2.0_dp / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < THIRD) then
-                                ! e_{il,kj}
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            else if (r >= THIRD .and. r < 2.0_dp * THIRD) then
-                                ! e_{li,kj}
-                                excitInfo = create_excitInfo_li_kj(i, j, k, l)
-                            else
-                                ! e_{ik,lj}
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            end if
-
-                        end select
-                    end select
-                case (1)
-                    ! n(j) = 1
-                    ! free l
-                    call pickRandomOrb_vector([i, j, k], temp_pgen3, l)
-
-                    if (l == 0) then
-                        excitInfo%valid = .false.
-                        return
-                    end if
-
-                    select case (currentOcc_int(k))
-                    case (0)
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{ki,lj}
-                            excitInfo = create_excitInfo_ki_lj(i, j, k, l)
-                            ! 1100
-                            pgen = calc_pgen_00xx()
-
-                        case (2)
-                            ! e_{il,kj} or e_{ki,jl}
-                            ! 1102
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{il,kj}
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            else
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            end if
-
-                        case (1)
-                            ! e_{il,kj} or e_{li,kj} or e_{ki,jl}
-                            ! 1101
-                            pgen = calc_pgen_1102() * 2.0_dp / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < THIRD) then
-                                ! e_{il,kj}
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-                            else if (r >= THIRD .and. r < 2.0_dp * THIRD) then
-                                ! e_{li,kj}
-                                excitInfo = create_excitInfo_li_kj(i, j, k, l)
-                            else
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-                            end if
-                        end select
-                    case (2)
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{ik,lj} or e_{li,jk}
-                            ! 1120
-                            pgen = calc_pgen_1102()
-
-                            if (genrand_real2_dSFMT() < 0.5_dp) then
-                                ! e_{ik,lj}
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            else
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-                            end if
-
-                        case (2)
-                            ! e_{ik,jl}
-                            excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-                            ! 1122
-                            pgen = calc_pgen_22xx()
-
-                        case (1)
-                            ! e_{li,jk} or e_{ik,jl}  or e_{ik,lj}
-                            ! 1121
-                            pgen = calc_pgen_1102() * 2.0_dp / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < THIRD) then
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-
-                            else if (r >= THIRD .and. r < 2.0_dp * THIRD) then
-                                ! e_{ik,jl}
-                                excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-
-                            else
-                                ! e_{ik,lj}
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-
-                            end if
-
-                        end select
-                    case (1)
-                        select case (currentOcc_int(l))
-                        case (0)
-                            ! e_{li,jk} or e_{li,kj} or e_{ik,lj}
-                            ! 1110
-                            pgen = calc_pgen_1102() * 2.0_dp / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < THIRD) then
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-
-                            else if (r >= THIRD .and. r < 2.0_dp * THIRD) then
-                                ! e_{li,kj}
-                                excitInfo = create_excitInfo_li_kj(i, j, k, l)
-
-                            else
-                                ! e_{ik,lj}
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-
-                            end if
-
-                        case (2)
-                            ! e_{il,kj} or e_{ik,jl} or e_{ki,jl}
-                            ! 1112
-                            pgen = calc_pgen_1102() * 2.0_dp / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < THIRD) then
-                                ! e_{il,kj}
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-
-                            else if (r >= THIRD .and. r < 2.0_dp * THIRD) then
-                                ! e_{ik,jl}
-                                excitInfo = create_excitInfo_ik_jl(i, j, k, l)
-
-                            else
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-
-                            end if
-
-                        case (1)
-                            ! e_{il,jk} or e_{li,jk} or e_{il,kj} or
-                            ! e_{li,kj} or e_{ki,jl} or e_{ik,lj}
-                            ! 1111
-                            pgen = calc_pgen_1102() / 3.0_dp
-
-                            r = genrand_real2_dSFMT()
-                            if (r < THIRD / 2.0_dp) then
-                                ! e_{il,jk}
-                                excitInfo = create_excitInfo_il_jk(i, j, k, l)
-
-                            else if (r >= THIRD / 2.0_dp .and. r < THIRD) then
-                                ! e_{li,jk}
-                                excitInfo = create_excitInfo_li_jk(i, j, k, l)
-
-                            else if (r >= THIRD .and. r < 0.5_dp) then
-                                ! e_{il,kj}
-                                excitInfo = create_excitInfo_il_kj(i, j, k, l)
-
-                            else if (r >= 0.5_dp .and. r < 2.0_dp * THIRD) then
-                                ! e_{li,kj}
-                                excitInfo = create_excitInfo_li_kj(i, j, k, l)
-
-                            else if (r >= 2.0_dp * THIRD .and. r <= 5.0_dp / 6.0_dp) then
-                                ! e_{ki,jl}
-                                excitInfo = create_excitInfo_ki_jl(i, j, k, l)
-
-                            else
-                                ! e_{ik,lj}
-                                excitInfo = create_excitInfo_ik_lj(i, j, k, l)
-                            end if
-
-                        end select
-                    end select
-                end select
-            end select
-        case default
-            ! should not be here!
-            call stop_all(this_routine, "should not be here!")
-
-        end select
-
-        ! for now do the excitation cancelation here at the end although its
-        ! really inefficient
-        select case (excit_lvl)
-        case (4)
-
-            if (any([i, j, k, l] == 0)) then
-                ! one of the indices is invalid
-                excitInfo%valid = .false.
-            else
-                excitInfo%valid = .true.
-
-                ! in the excitationInformation%excitLvl variable i store
-                ! information if: (ii,jj), (ii,jk), (ij,kl) and if its a
-                ! same or mixed generator type excitation in the (ii,jj) and (ii,jk)
-                ! so its not only the excit_lvl value, see guga_data definition
-                ! of excitationInformation class for convention!
-                excitInfo%excitLvl = 4
-
-            end if
-
-        case (3)
-
-            if (any([i, j, k] == 0)) then
-
-                excitInfo%valid = .false.
-
-            else
-                excitInfo%valid = .true.
-
-                if (excit_typ == 1) then
-                    excitInfo%excitLvl = 2
-                else
-                    excitInfo%excitLvl = 3
-                end if
-
-            end if
-
-        case (2)
-
-            if (any([i, j] == 0)) then
-
-                excitInfo%valid = .false.
-
-            else
-                excitInfo%valid = .true.
-
-                if (excit_typ == 1) then
-                    excitInfo%excitLvl = 0
-                else
-                    excitInfo%excitLvl = 1
-                end if
-
-            end if
-        end select
-
-    end subroutine pickOrbitals_nosym_double
-
-    function calc_pgen_0022() result(pgen)
-        ! specific functions to calculate the orbital picking pgen
-        ! for 4 differing indices depending on the occupation numbers
-        real(dp) :: pgen
-
-        real(dp) :: nEmpty, nSingle, nDouble, nOrbs
-
-        nEmpty = real(count(currentOcc_int == 0), dp)
-        nSingle = real(count(currentOcc_int == 1), dp)
-        nDouble = real(count(currentOcc_int == 2), dp)
-        nOrbs = real(nSpatOrbs, dp)
-
-        ! UDPATE 26.01.2016:
-        ! for implementation of non-weighted guga-excitation generator
-        ! tau-search i have to change  the previous p(ijkl) = 1/nOrbs factor
-        ! to pExcit4!!
-        ! also in all other functions of this type!
-
-        ! is a bit more involved than that:
-        ! previously the quantities were:
-        ! p(ijkl) = 1 - 1/nOrb
-        ! p(i) = 1/nOrb
-        ! p(j|i) = 1/(nOrb-1)
-        ! which leads to:
-        ! p(ijkl)p(i)p(j|i) = 1/(nOrb^2)
-
-        ! with the adaptive p(ijkl) = pExcit4
-        ! i need:
-        ! p(ijkl)p(i)p(j|i) = pExcit4/(nOrb(nOrb-1))
-
-        ! this also applies in all the others below
-
-        pgen = 4.0_dp / (nOrbs * (nOrbs - 1.0_dp)) * pExcit4 * ( &
-               2.0_dp / (nOrbs - 2.0_dp) * (1.0_dp / (nSingle + nDouble - 1.0_dp) + &
-                                            1.0_dp / (nSingle + nEmpty - 1.0_dp)) + &
-               1.0_dp / ((nSingle + nDouble) * (nSingle + nDouble - 1.0_dp)) + &
-               1.0_dp / ((nSingle + nEmpty) * (nSingle + nEmpty - 1.0_dp)))
-
-    end function calc_pgen_0022
-
-!
-    function calc_pgen_00xx() result(pgen)
-        ! specific functions to calculate the orbital picking pgen
-        ! for 4 differing indices depending on the occupation numbers
-        real(dp) :: pgen
-        real(dp) :: nSingle, nDouble, nOrbs
-
-        nSingle = real(count(currentOcc_int == 1), dp)
-        nDouble = real(count(currentOcc_int == 2), dp)
-        nOrbs = real(nSpatOrbs, dp)
-
-        pgen = 4.0_dp / (nOrbs * (nOrbs - 1.0_dp)) * pExcit4 * ( &
-               1.0_dp / (nOrbs - 2.0_dp) * (2.0_dp / (nSingle + nDouble - 1.0_dp) + &
-                                            3.0_dp / (nOrbs - 3.0_dp)) + &
-               1.0_dp / ((nSingle + nDouble) * (nSingle + nDouble - 1.0_dp)))
-
-    end function calc_pgen_00xx
-
-    function calc_pgen_22xx() result(pgen)
-        ! specific functions to calculate the orbital picking pgen
-        ! for 4 differing indices depending on the occupation numbers
-        real(dp) :: pgen
-        real(dp) :: nEmpty, nSingle, nOrbs
-
-        nEmpty = real(count(currentOcc_int == 0), dp)
-        nSingle = real(count(currentOcc_int == 1), dp)
-        nOrbs = real(nSpatOrbs, dp)
-
-        pgen = 4.0_dp / (nOrbs * (nOrbs - 1.0_dp)) * pExcit4 * ( &
-               1.0_dp / (nOrbs - 2.0_dp) * (2.0_dp / (nSingle + nEmpty - 1.0_dp) + &
-                                            3.0_dp / (nOrbs - 3.0_dp)) + &
-               1.0_dp / ((nSingle + nEmpty) * (nSingle + nEmpty - 1.0_dp)))
-
-    end function calc_pgen_22xx
-
-    function calc_pgen_1102() result(pgen)
-        ! specific functions to calculate the orbital picking pgen
-        ! for 4 differing indices depending on the occupation numbers
-        real(dp) :: pgen
-
-        real(dp) :: nOrbs
-
-        nOrbs = real(nSpatOrbs, dp)
-
-        pgen = 12.0_dp / (nOrbs * (nOrbs - 1.0_dp) * (nOrbs - 2.0_dp) * (nOrbs - 3.0_dp)) &
-               * pExcit4
-
-    end function calc_pgen_1102
-
-    subroutine pickRandomOrb_restricted_index(start, ende, pgen, orb, indRes)
+    subroutine pickRandomOrb_restricted(csf_i, start, ende, pgen, orb, occRes)
         ! picks a random orbital from a restricted range start + 1, ende - 1
         ! with optional additional occupation restrictions
-        integer, intent(in) :: start, ende, indRes
-        real(dp), intent(inout) :: pgen
-        integer, intent(out) :: orb
-
-        integer :: r, nOrbs, ierr
-        logical :: mask(nSpatOrbs)
-        integer, allocatable :: resOrbs(:)
-
-        mask = .true.
-        mask = (mask .and. (orbitalIndex > start .and. orbitalIndex < ende &
-                            .and. orbitalIndex /= indRes))
-
-        nOrbs = count(mask)
-
-        if (nOrbs > 0) then
-            allocate(resOrbs(nOrbs), stat=ierr)
-
-            resOrbs = pack(orbitalIndex, mask)
-
-            r = 1 + floor(genrand_real2_dSFMT() * real(nOrbs, dp))
-
-            orb = resOrbs(r)
-
-            pgen = pgen / real(nOrbs, dp)
-
-            deallocate(resOrbs)
-        else
-            orb = 0
-
-            pgen = 0.0_dp
-        end if
-
-    end subroutine pickRandomOrb_restricted_index
-
-    subroutine pickRandomOrb_restricted(start, ende, pgen, orb, occRes)
-        ! picks a random orbital from a restricted range start + 1, ende - 1
-        ! with optional additional occupation restrictions
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: start, ende
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
@@ -26855,7 +15879,7 @@ contains
         if (present(occRes)) then
             ASSERT(occRes >= 0 .and. occRes <= 2)
 
-            mask = (currentOcc_int /= occRes)
+            mask = (csf_i%Occ_int /= occRes)
 
         end if
 
@@ -26883,9 +15907,10 @@ contains
 
     end subroutine pickRandomOrb_restricted
 
-    subroutine pickRandomOrb_vector(orbRes, pgen, orb, occRes)
+    subroutine pickRandomOrb_vector(csf_i, orbRes, pgen, orb, occRes)
         ! this picks a random orb under multiple orbital or occupation
         ! number restrictions
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: orbRes(:)
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
@@ -26906,7 +15931,7 @@ contains
 
         if (present(occRes)) then
             ASSERT(occRes >= 0 .and. occRes <= 2)
-            mask = (currentOcc_int /= occRes)
+            mask = (csf_i%Occ_int /= occRes)
         end if
 
         do i = 1, num
@@ -26933,45 +15958,12 @@ contains
 
     end subroutine pickRandomOrb_vector
 
-    subroutine pickRandomOrb_forced_negate(occRes, pgen, orb)
-        ! the version where an orbitals MUST NOT have a certain occupation.
-        integer, intent(in) :: occRes
-        real(dp), intent(inout) :: pgen
-        integer, intent(out) :: orb
-        character(*), parameter :: this_routine = "pickRandomOrb_forced_negate"
-
-        integer :: r, nOrbs, ierr
-        logical :: mask(nSpatOrbs)
-        integer, allocatable :: resOrbs(:)
-
-        ASSERT(occRes >= 0 .and. occRes <= 2)
-
-        mask = (currentOcc_int /= occRes)
-
-        nOrbs = count(mask)
-
-        if (nOrbs > 0) then
-            allocate(resOrbs(nOrbs), stat=ierr)
-            resOrbs = pack(orbitalIndex, mask)
-
-            r = 1 + floor(genrand_real2_dSFMT() * real(nOrbs, dp))
-
-            orb = resOrbs(r)
-
-            pgen = pgen / real(nOrbs, dp)
-            deallocate(resOrbs)
-        else
-            orb = 0
-            pgen = 0.0_dp
-        end if
-
-    end subroutine pickRandomOrb_forced_negate
-
-    subroutine pickRandomOrb_forced(occRes, pgen, orb, orbRes1)
+    subroutine pickRandomOrb_forced(csf_i, occRes, pgen, orb, orbRes1)
         ! the version where an orbitals has to have certain occupation.
         ! this never occurs in combination with orbital restrictions!
         ! yes it does!! for fullstart-> fullstop mixed, where i need
         ! n = 1 for both orbitals
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occRes
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
@@ -26984,7 +15976,7 @@ contains
 
         ASSERT(occRes >= 0 .and. occRes <= 2)
 
-        mask = (currentOcc_int == occRes)
+        mask = (csf_i%Occ_int == occRes)
 
         if (present(orbRes1)) then
             ASSERT(orbRes1 > 0 .and. orbRes1 <= nSpatOrbs)
@@ -27011,13 +16003,14 @@ contains
 
     end subroutine pickRandomOrb_forced
 
-    subroutine pickRandomOrb_scalar(orbRes, pgen, orb, occRes)
+    subroutine pickRandomOrb_scalar(csf_i, orbRes, pgen, orb, occRes)
         ! routine to pick a random orbital under certain orbital and/or
         ! occupation number restrictions and gives the probability to pick
         ! this orbital
         ! these orbitals for now are chosen uniformly and not with any
         ! cauchy schwarz like criteria involving the one- and two-particle
         ! integrals
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: orbRes
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
@@ -27041,13 +16034,13 @@ contains
             ASSERT(present(occRes))
             ASSERT(occRes >= 0 .and. occRes <= 2)
 
-            mask = (currentOcc_int /= occRes)
+            mask = (csf_i%Occ_int /= occRes)
 
         else
             ! check i occRes is present
             if (present(occRes)) then
                 ASSERT(occRes >= 0 .and. occRes <= 2)
-                mask = ((currentOcc_int /= occRes) .and. (orbitalIndex /= orbRes))
+                mask = ((csf_i%Occ_int /= occRes) .and. (orbitalIndex /= orbRes))
 
             else
                 ! only orbital restriction
@@ -27084,303 +16077,6 @@ contains
         end if
 
     end subroutine pickRandomOrb_scalar
-
-    subroutine pickOrbitals_nosym_single(ilut, nI, excitInfo, pgen)
-        ! funnction to pick 2 valid excitation orbitals provided a ilut for a
-        ! single excitation. todo how to combine that with integral files...
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: nI(nel)
-        type(ExcitationInformation_t), intent(out) :: excitInfo
-        real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = "pickOrbitals_nosym_single"
-
-        integer :: i, j, nOrbs, nSwitches
-        real(dp) :: factor
-        ASSERT(isProperCSF_ilut(ilut))
-
-        unused_var(nI)
-
-        excitInfo%typ = excit_type%single
-        excitInfo%excitLvl = 2
-        ! pick first spatial orbital i (1,nBasis/2) randomly.
-        ! have to implement that or use already existing functionality
-        ! -> simon
-        ! excitInfo%i = pickRandomOrb(1,nBasis)
-
-        ! pick any randcm orbitals first
-        i = 1 + floor(genrand_real2_dSFMT() * real(nSpatOrbs, dp))
-        ! which makes pgen = 1/nOrbs
-        pgen = 1.0_dp / real((nSpatOrbs), dp)
-
-        ! have to then combine that somehow with the weighted cauchy schwartz
-        ! criteria...
-        ! i am ignoring symmetry for now. but could do that with the already
-        ! implemented functionality i think.. since this only depends on the
-        ! spatial orbitals... -> ask simon how spin-orbitals enter into the
-        ! symmetry restriction, since here i dont have any spinorbitals but
-        ! only spatial ones.
-
-        ! depending on the picked orbitals i have certain restrictions on the
-        ! second picked one:
-
-        ! need a vector numbering the orbitals
-
-        ! factor if multiple generators are possible
-        factor = 1.0_dp
-
-        select case (current_stepvector(i))
-        case (0)
-            ! if d(i) = 0:
-            ! if the influence of forced switches are ignored(as they are to
-            ! complicated to account for) all d(j) != 0 are allowed then
-            ! -> so pick a random non-empty orbital != i
-            ! excitInfo%j = pickRandomOrb(nonZero(1,nBasis)
-
-            ! here i can choose between all non-empty orbitals != i,
-            ! the != i condition is already within the != 0 restriction!
-
-            ! i could do something like that: for which i need the
-            ! occupation number vector too!
-
-            ! from these orbitals i have to calculate a cumulative
-            ! probability distribution, according to the one and two-body ints
-
-            ! have to think more about that ... especially how the
-            ! two-particle integrals come into play here... for now only take
-            ! one of available orbitals uniformly!
-            ! have to calculate everything through and see when two-particle
-            ! integrals contribute to the single-excitation
-
-            call pickRandomOrb_scalar(0, pgen, j, 0)
-
-            if (j == 0) then
-                excitInfo%valid = .false.
-                return
-            end if
-
-            ! something like that ...
-
-            ! additionally modify the pgens..
-            if (current_stepvector(j) == 3) then
-
-                nOrbs = count(currentOcc_int /= 2)
-            else
-                ! else its singly occupied
-                nOrbs = nSpatOrbs - 1
-            end if
-
-            ! determine excitation type:
-            if (j > i) then
-                ! E_ij is always assumed to start with so -> raising
-                excitInfo = assign_excitInfo_values_single(gen_type%R, i, j, i, j, &
-                                                           excit_type%raising)
-
-            else
-                excitInfo = assign_excitInfo_values_single(gen_type%L, i, j, j, i, &
-                                                           excit_type%lowering)
-
-            end if
-
-        case (3)
-            ! switch to E_ji: so here every non-double != i orbital is allowed
-            ! excitInfo%j = pickRandomOrb(nonDoubly(1,!=i,nBasis)
-            ! have to pick non-double orbital
-            call pickRandomOrb_scalar(0, pgen, j, 2)
-
-            if (j == 0) then
-                excitInfo%valid = .false.
-                return
-            end if
-
-            if (current_stepvector(j) == 0) then
-                nOrbs = count(currentOcc_int /= 0)
-            else
-                nOrbs = nSpatOrbs - 1
-            end if
-
-            ! and determine excitation type
-            if (j > i) then
-                ! lowering now
-                excitInfo = assign_excitInfo_values_single(gen_type%L, j, i, i, j, &
-                                                           excit_type%lowering)
-
-            else
-                ! raising generator
-                excitInfo = assign_excitInfo_values_single(gen_type%R, j, i, j, i, &
-                                                           excit_type%raising)
-
-            end if
-
-        case (1)
-            ! in this case we have a forced +1 start or a -1 demanding end.
-            ! so there have to be switch possibilities before a valid
-            ! excitation can be obtained..
-            ! do there has to be a d(k) = 2 before an d(j) = 1 end/start can
-            ! be chosen.
-            ! if d(j) = 2 or 3, its totally k. if d(j) = 3 -> a switch to E_ji
-            ! would be k. so maybe first choose j != i and then check whats
-            ! possible
-            ! excitInfo%j = pickRandomOrb(!=i)
-            ! if its 0 i have to switch the generator type
-
-            ! for now ignore the forced switch restrictions
-            call pickRandomOrb_scalar(i, pgen, j)
-
-            if (j == 0) then
-                excitInfo%valid = .false.
-                return
-            end if
-
-            select case (current_stepvector(j))
-            case (0)
-                if (j > i) then
-                    ! lowering generator
-                    excitInfo = assign_excitInfo_values_single(gen_type%L, j, i, i, j, &
-                                                               excit_type%lowering)
-
-                else
-                    ! raising
-                    excitInfo = assign_excitInfo_values_single(gen_type%R, j, i, j, i, &
-                                                               excit_type%raising)
-
-                end if
-
-                ! also modify pgens correctly
-                nOrbs = count(currentOcc_int /= 0)
-
-            case (1)
-                ! if its a 1 without checking beforehand i have to check if
-                ! there are possible switches between the two, or otherwise
-                ! there is no excitation possible... -> not quite sure yet
-                ! how to implement that, maybe:
-                ! checkCompatibility()
-
-                nSwitches = count_alpha_orbs_ij(ilut(0:nifd), min(i, j) + 1, max(i, j) - 1)
-                if (nSwitches == 0) then
-                    excitInfo%valid = .false.
-                    return
-
-                else
-                    if (i < j) then
-                        excitInfo = assign_excitInfo_values_single(gen_type%R, i, j, i, j, &
-                                                                   excit_type%raising)
-
-                    else
-                        excitInfo = assign_excitInfo_values_single(gen_type%L, i, j, j, i, &
-                                                                   excit_type%lowering)
-                    end if
-                end if
-
-                factor = 2.0_dp
-
-                nOrbs = nSpatOrbs - 1
-
-            case (2, 3)
-                ! if its a 2 or 3 everything is fine
-                if (j > i) then
-                    ! R
-                    excitInfo = assign_excitInfo_values_single(gen_type%R, i, j, i, j, &
-                                                               excit_type%raising)
-
-                else
-                    ! L
-                    excitInfo = assign_excitInfo_values_single(gen_type%L, i, j, j, i, &
-                                                               excit_type%lowering)
-
-                end if
-                if (current_stepvector(j) == 3) then
-                    nOrbs = count(currentOcc_int /= 2)
-                else
-                    nOrbs = nSpatOrbs - 1
-                    factor = 2.0_dp
-
-                end if
-            end select
-
-        case (2)
-            ! similar behavior to d(i) = 1, except switched roles beteen 1,2
-            ! for now ignore the forced switch restrictions
-            call pickRandomOrb_scalar(i, pgen, j)
-
-            if (j == 0) then
-                excitInfo%valid = .false.
-                return
-            end if
-
-            select case (current_stepvector(j))
-            case (0)
-                if (j > i) then
-                    ! lowering generator
-                    excitInfo = assign_excitInfo_values_single(gen_type%L, j, i, i, j, &
-                                                               excit_type%lowering)
-
-                else
-                    ! raising
-                    excitInfo = assign_excitInfo_values_single(gen_type%R, j, i, j, i, &
-                                                               excit_type%raising)
-
-                end if
-
-                nOrbs = count(currentOcc_int /= 0)
-
-            case (2)
-                ! if its a 2 without checking beforehand i have to check if
-                ! there are possible switches between the two, or otherwise
-
-                ! there is no excitation possible... -> not quite sure yet
-                ! how to implement that, maybe:
-                ! checkCompatibility()
-                nSwitches = count_beta_orbs_ij(ilut(0:nifd), min(i, j) + 1, max(i, j) - 1)
-
-                if (nSwitches == 0) then
-                    excitInfo%valid = .false.
-                    return
-                else
-                    if (i < j) then
-                        excitInfo = assign_excitInfo_values_single(gen_type%R, i, j, i, j, &
-                                                                   excit_type%raising)
-                    else
-                        excitInfo = assign_excitInfo_values_single(gen_type%L, i, j, j, i, &
-                                                                   excit_type%lowering)
-                    end if
-                end if
-
-                nOrbs = nSpatOrbs - 1
-                factor = 2.0_dp
-
-            case (1, 3)
-                ! if its a 1 or 3 everything is fine
-                if (j > i) then
-                    ! R
-                    excitInfo = assign_excitInfo_values_single(gen_type%R, i, j, i, j, &
-                                                               excit_type%raising)
-
-                else
-                    ! L
-                    excitInfo = assign_excitInfo_values_single(gen_type%L, i, j, j, i, &
-                                                               excit_type%lowering)
-
-                end if
-
-                if (current_stepvector(j) == 3) then
-                    nOrbs = count(currentOcc_int /= 2)
-                else
-                    nOrbs = nSpatOrbs - 1
-                    factor = 2.0_dp
-                end if
-            end select
-        end select
-
-        pgen = (pgen + 1.0_dp / real(nSpatOrbs * nOrbs, dp)) / factor
-
-        ! check if the orbital chosen are valid
-        if (i == 0 .or. j == 0) then
-            excitInfo%valid = .false.
-        else
-            excitInfo%valid = .true.
-        end if
-
-    end subroutine pickOrbitals_nosym_single
 
     function excitationIdentifier_double(i, j, k, l) result(excitInfo)
         ! function to identify all necessary information of an excitation
@@ -27782,72 +16478,8 @@ contains
 
     end function excitationIdentifier_single
 
-    function endFx(sOrb) result(fx)
-        ! flag function used in excitation tree generation to check if spatial
-        ! orbital sOrb
-        ! is 0,1 or 3. Probably possible to implement it on an efficient
-        ! bit-rep level, todo
-        integer, intent(in) :: sOrb
-        real(dp) :: fx
 
-        ! always one except d=2 at end
-        fx = 1.0_dp
-
-        if (current_stepvector(sOrb) == 2) fx = 0.0_dp
-
-    end function endFx
-
-    function endGx(sOrb) result(gx)
-        ! flag function used in excitation tree generation to check if spatial
-        ! orbital sOrb is 0,2,3.
-        integer, intent(in) :: sOrb
-        real(dp) :: gx
-
-        ! always one except d=1 at end
-        gx = 1.0_dp
-
-        if (current_stepvector(sOrb) == 1) gx = 0.0_dp
-
-    end function endGx
-
-    subroutine calcRemainingSwitches_excitInfo_single(excitInfo, &
-                                                      posSwitches, negSwitches)
-        ! subroutine to determine the number of remaining switches for single
-        ! excitations between orbitals s, p given in type of excitationInformation.
-        ! The switches are given
-        ! as a list, to access it for each spatial orbital
-        ! stepValue = 1 -> positive delta B switch possibility
-        ! stepValue = 2 -> negative delta B switch possibility
-        ! assume exitInfo is already calculated
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-
-        integer :: iOrb
-        real(dp) :: oneCount, twoCount
-
-        ! ignore b > 0 forced switches for now. As they only change the bias
-        ! do not make the excitations calculations wrong if ignored.
-
-        oneCount = 0.0_dp
-        twoCount = 0.0_dp
-        posSwitches = 0.0_dp
-        negSwitches = 0.0_dp
-        ! have to count from the reversed ilut entries
-        do iOrb = excitInfo%fullEnd - 1, excitInfo%fullStart, -1
-            posSwitches(iOrb) = twoCount
-            negSwitches(iOrb) = oneCount
-
-            select case (current_stepvector(iOrb))
-            case (1)
-                oneCount = oneCount + 1.0_dp
-            case (2)
-                twoCount = twoCount + 1.0_dp
-            end select
-        end do
-
-    end subroutine calcRemainingSwitches_excitInfo_single
-
-    subroutine calcRemainingSwitches_single(sOrb, pOrb, &
+    subroutine calcRemainingSwitches_single(csf_i, sOrb, pOrb, &
                                             posSwitches, negSwitches)
         ! subroutine to determine the number of remaining switches for single
         ! excitations between orbitals s, p given in type of excitationInformation.
@@ -27856,6 +16488,7 @@ contains
         ! stepValue = 1 -> positive delta B switch possibility
         ! stepValue = 2 -> negative delta B switch possibility
         ! assume exitInfo is already calculated
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
@@ -27874,7 +16507,7 @@ contains
             posSwitches(iOrb) = twoCount
             negSwitches(iOrb) = oneCount
 
-            select case (current_stepvector(iOrb))
+            select case (csf_i%stepvector(iOrb))
             case (1)
                 oneCount = oneCount + 1.0_dp
             case (2)
@@ -27883,331 +16516,6 @@ contains
         end do
 
     end subroutine calcRemainingSwitches_single
-
-    subroutine calcRemainingSwitches_double(i, j, k, l, posSwitches, &
-                                            negSwitches)
-        ! wrapper function to call the corresponding subroutine, which uses
-        ! the excitationInformation
-        integer, intent(in) :: i, j, k, l
-        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-
-        character(*), parameter :: this_routine = "calcRemainingSwitches_double"
-        type(ExcitationInformation_t) :: excitInfo
-
-        ! if it gets called with k = l = 0 call the single excitation case
-        if (k == 0 .and. l == 0) then
-            call calcRemainingSwitches_single(i, j, posSwitches, negSwitches)
-
-        else
-            ASSERT(i > 0 .and. i <= nSpatOrbs)
-            ASSERT(j > 0 .and. j <= nSpatOrbs)
-            ASSERT(k > 0 .and. k <= nSpatOrbs)
-            ASSERT(l > 0 .and. l <= nSpatOrbs)
-
-            excitInfo = excitationIdentifier(i, j, k, l)
-
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
-                                                        negSwitches)
-
-        end if
-
-    end subroutine calcRemainingSwitches_double
-
-    subroutine calcRemainingSwitches_excitInfo_double(excitInfo, &
-                                                      posSwitches, negSwitches)
-        ! subroutine to determine the number of remaining switches for double
-        ! excitations between spatial orbitals (i,j,k,l). orbital indices are
-        ! given in type(excitationInformation), extra flag is needed to
-        ! indicate that this is a double excitaiton then
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-
-        integer :: iOrb, end1
-        real(dp) :: oneCount, twoCount
-
-        ! have to calc. the overlap range of the excitations to more
-        ! efficiently decide between different kind of double excitations
-        ! even better, get all possible information through excitationIdentifier
-        ! assume exitInfo already calculated in calling function
-        ! update: already given as input
-        !excitInfo = excitationIdentifier(i, j, k, l)
-
-        ! intitialize values
-        oneCount = 0.0_dp
-        twoCount = 0.0_dp
-        posSwitches = 0.0_dp
-        negSwitches = 0.0_dp
-
-        if (excitInfo%typ == excit_type%raising .or. &
-            excitInfo%typ == excit_type%lowering) then
-
-            call calcRemainingSwitches_excitInfo_single(excitInfo, &
-                                                        posSwitches, negSwitches)
-        else
-
-            select case (excitInfo%overlap)
-            case (0)
-                do iOrb = excitInfo%fullEnd - 1, excitInfo%secondStart, -1
-                    posSwitches(iOrb) = twoCount
-                    negSwitches(iOrb) = oneCount
-
-                    select case (current_stepvector(iOrb))
-                    case (1)
-                        oneCount = oneCount + 1.0_dp
-                    case (2)
-                        twoCount = twoCount + 1.0_dp
-                    end select
-                end do
-
-                ! reset count past second excitations:
-                oneCount = 0.0_dp
-                twoCount = 0.0_dp
-
-                do iOrb = excitInfo%firstEnd - 1, excitInfo%fullStart, -1
-                    posSwitches(iOrb) = twoCount
-                    negSwitches(iOrb) = oneCount
-
-                    select case (current_stepvector(iOrb))
-                    case (1)
-                        oneCount = oneCount + 1.0_dp
-                    case (2)
-                        twoCount = twoCount + 1.0_dp
-                    end select
-                end do
-
-            case (1)
-                ! not quite sure anymore why, but have to treat single overlap
-                ! excitations with alike generators different then mixed
-                ! because it is like a single excitation over the whole excitation
-                ! range
-                if (excitInfo%gen1 /= excitInfo%gen2) then
-                    end1 = 0
-                else
-                    end1 = excitInfo%firstEnd
-                end if
-
-                do iOrb = excitInfo%fullEnd - 1, excitInfo%firstEnd, -1
-                    posSwitches(iOrb) = twoCount
-                    negSwitches(iOrb) = oneCount
-
-                    select case (current_stepvector(iOrb))
-                    case (1)
-                        oneCount = oneCount + 1.0_dp
-                    case (2)
-                        twoCount = twoCount + 1.0_dp
-                    end select
-                end do
-
-                ! reset the switch number if alike generators are present.
-                ! now i am confused.. no its fine.. we actually never want to
-                ! go into single overlap with alike generators, since it is
-                ! actually a single excitation then!
-                if (excitInfo%gen1 == excitInfo%gen2) then
-                    oneCount = 0.0_dp
-                    twoCount = 0.0_dp
-                end if
-
-                do iOrb = excitInfo%firstEnd - 1, excitInfo%fullStart, -1
-                    posSwitches(iOrb) = twoCount
-                    negSwitches(iOrb) = oneCount
-
-                    select case (current_stepvector(iOrb))
-                    case (1)
-                        oneCount = oneCount + 1.0_dp
-                    case (2)
-                        twoCount = twoCount + 1.0_dp
-                    end select
-                end do
-
-            case default
-                ! proper overlap ranges:
-
-                ! do all those excitations in the same way, although this means
-                ! for some, that too much work is done.. e.g. for full-start
-                ! excitations with alike generators. where only the delta b = 0
-                ! branch has non-zero matrix elements in the overlap region
-                ! but these things can be handled in the excitations calculation
-
-                ! for certain index combinations some loops wont get executed
-                do iOrb = excitInfo%fullEnd - 1, excitInfo%firstEnd, -1
-                    posSwitches(iOrb) = twoCount
-                    negSwitches(iOrb) = oneCount
-
-                    select case (current_stepvector(iOrb))
-                    case (1)
-                        oneCount = oneCount + 1.0_dp
-                    case (2)
-                        twoCount = twoCount + 1.0_dp
-                    end select
-                end do
-
-                oneCount = 0.0_dp
-                twoCount = 0.0_dp
-
-                do iOrb = excitInfo%firstEnd - 1, excitInfo%secondStart, -1
-                    posSwitches(iOrb) = twoCount
-                    negSwitches(iOrb) = oneCount
-
-                    select case (current_stepvector(iOrb))
-                    case (1)
-                        oneCount = oneCount + 1.0_dp
-                    case (2)
-                        twoCount = twoCount + 1.0_dp
-                    end select
-                end do
-
-                oneCount = 0.0_dp
-                twoCount = 0.0_dp
-
-                do iOrb = excitInfo%secondStart - 1, excitInfo%fullStart, -1
-                    posSwitches(iOrb) = twoCount
-                    negSwitches(iOrb) = oneCount
-
-                    select case (current_stepvector(iOrb))
-                    case (1)
-                        oneCount = oneCount + 1.0_dp
-                    case (2)
-                        twoCount = twoCount + 1.0_dp
-                    end select
-                end do
-
-                oneCount = 0.0_dp
-                twoCount = 0.0_dp
-
-            end select
-
-        end if
-
-    end subroutine calcRemainingSwitches_excitInfo_double
-
-    subroutine calcOverlapRange(i, j, k, l, overlapRange, nonOverlapRange)
-        ! function to calculate the overlap and non-overlap range of a
-        ! double excitations, given by the spatial indices (i,j,k,l)
-        ! maybe this function not even needed anymore...
-        integer, intent(in) :: i, j, k, l
-        integer, intent(out), allocatable :: overlapRange(:), nonOverlapRange(:)
-        character(*), parameter :: this_routine = "calcOverlapRange"
-
-        integer :: ierr, start1, end1, start2, end2, fullStart, fullEnd, &
-                   firstEnd, secondStart, numOrbitals, iOrb, ind
-
-        ! check input:
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
-        ASSERT(k > 0 .and. k <= nSpatOrbs)
-        ASSERT(l > 0 .and. l <= nSpatOrbs)
-
-        if (i == j .or. k == l) then
-            ! single excitations or double excitations involving a weight
-            ! generator:
-
-            ! how to make empty arrays in fortran?
-            ! have to use a custom type, to also be able to indicate a
-            ! zero-sized overlap range
-            ! update: can use zero sized arrs, by allocating to size 0
-            ! the question is, do i need to use the memory logging function
-            ! LogMemAlloc for these kind of arrays? probably not because it
-            ! will be used a lot during excitation generation, but ask simon!
-            allocate(overlapRange(0), stat=ierr)
-            ! also in single excitation like case, no need for the
-            ! nonOverlapRange
-            allocate(nonOverlapRange(0), stat=ierr)
-
-        else
-            ! otherwise have to somehow efficiently determine the ranges
-            ! without having the SET functionality as in python...
-
-            start1 = min(i, j)
-            end1 = max(i, j)
-            start2 = min(k, l)
-            end2 = max(k, l)
-
-            fullStart = min(start1, start2)
-            fullEnd = max(end1, end2)
-
-            firstEnd = min(end1, end2)
-            secondStart = max(start1, start2)
-
-            if (firstEnd < secondStart) then
-                ! non-overlap case:
-
-                ! overlap is zero again
-                allocate(overlapRange(0), stat=ierr)
-
-                ! non-overlap contains all remaining orbital indices, including
-                ! both start and end
-                numOrbitals = (firstEnd - fullStart + 1) + &
-                              (fullEnd - secondStart + 1)
-
-                allocate(nonOverlapRange(numOrbitals), stat=ierr)
-                ! fill up values
-                ind = 1
-                do iOrb = fullStart, firstEnd
-                    nonOverlapRange(ind) = iOrb
-                    ind = ind + 1
-                end do
-
-                do iOrb = secondStart, fullEnd
-                    nonOverlapRange(ind) = iOrb
-                    ind = ind + 1
-                end do
-
-            else if (firstEnd == secondStart) then
-                ! single overlap case:
-
-                ! only one overlap site
-                allocate(overlapRange(1), stat=ierr)
-                overlapRange = firstEnd
-
-                ! nonOverlapRange contains every orbitals except overlap
-                numOrbitals = fullEnd - fullStart
-                allocate(overlapRange(numOrbitals), stat=ierr)
-
-                ! fill up:
-                ind = 1
-                do iOrb = fullStart, firstEnd - 1
-                    overlapRange(ind) = iOrb
-                    ind = ind + 1
-                end do
-
-                do iOrb = firstEnd + 1, fullEnd
-                    overlapRange(ind) = iOrb
-                    ind = ind + 1
-                end do
-
-            else
-                ! proper overlap case:
-
-                ! number of overlap entries:
-                numOrbitals = firstEnd - secondStart + 1
-                allocate(overlapRange(numOrbitals), stat=ierr)
-
-                ! number of non-overlap entries:
-                numOrbitals = fullEnd - fullStart + 1 - numOrbitals
-                allocate(nonOverlapRange(numOrbitals), stat=ierr)
-
-                ! fill in values: nonOverlapRange
-                ind = 1
-                do iOrb = fullStart, secondStart - 1
-                    nonOverlapRange(ind) = iOrb
-                    ind = ind + 1
-                end do
-
-                do iOrb = firstEnd + 1, fullEnd
-                    nonOverlapRange(ind) = iOrb
-                    ind = ind + 1
-                end do
-
-                ! overlap:
-                ind = 1
-                do iOrb = secondStart, firstEnd
-                    overlapRange(ind) = iOrb
-                    ind = ind + 1
-                end do
-            end if
-        end if
-
-    end subroutine calcOverlapRange
 
     function assign_excitInfo_values_double(typ, gen1, gen2, currentGen, firstGen, &
                                             lastGen, i, j, k, l, fullStart, secondStart, firstEnd, fullEnd, &
@@ -28292,1799 +16600,6 @@ contains
 
     end function assign_excitInfo_values_single
 
-    function create_excitInfo_ik_jl(i, j, k, l) result(excitInfo)
-        ! specific excitation information creator for full double exctiations
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_ik_jl"
-
-        ! e_{ik,jl]
-        if (i < j .and. j < k .and. k < l) then
-            ! _R(i) > RR_*(j) > ^RR*(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, j, l, &
-                        i, j, k, l, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! _R(i) > RR_*(j) > RR^(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, j, l, &
-                        i, j, l, k, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! _R(i) > ^R(k) > _R(j) > ^R(l)
-            ! non-overlap version, so switch to other valid:
-            ! e_{il,jk}:
-            ! _R(i) > _LR(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                        i, l, j, k, i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! _R(i) > ^R(k) > _L(l) > ^L(j)
-            ! non-overlap version, so switch to other valid gen:
-            ! e_{il,jk}:
-            ! _R(i) > _LR(k) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, &
-                        i, l, j, k, i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! _R(i) > _LR(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                        i, k, j, l, i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! _R(i) > _LR(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, &
-                        i, k, j, l, i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! _R(j) > _RR(i) > ^RR*(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                        i, k, j, l, j, i, k, l, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! _R(j) > _RR(i) > ^RR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                        i, k, j, l, j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! _R(j) > _LR(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                        i, k, j, l, j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! _R(j) > _LR(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, &
-                        i, k, j, l, j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! _R(j) > ^R(l) > _R(i) > ^R(k)
-            ! non-overlap version, so switch to other valid gen:
-            ! e_{il,jk}:
-            ! _R(j) > _LR(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                        i, l, j, k, j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! _R(j) > ^R(l) > _L(k) > ^L(i)
-            ! non-overlap version so switch to other valid gen:
-            ! e_{il,jk}:
-            ! _R(j) > _LR(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, &
-                        i, l, j, k, j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! _L(k) > ^L(i) > _R(j) > ^R(l)
-            ! non-overlap -> e_{il,jk}:
-            ! _L(k) > _RL(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, &
-                        i, l, j, k, k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! _L(k) > ^L(i) > _L(j) > ^L(l)
-            ! non-overlap -> e_{il,jk}
-            ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, l, j, k, k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! _L(k) > _RL(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, &
-                        i, k, j, l, k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! _L(k) > _RL(j) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! _L(k) > LL_(l) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! _L(k) > LL_(l) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, k, l, j, i, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! _L(l) > _RL(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, &
-                        i, k, j, l, l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! _L(l) > ^L(j) > _R(i) > ^R(k)
-            ! non-overlap -> e_{il,jk}
-            ! _L(l) > _RL(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, &
-                        i, l, j, k, l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! _L(l) > ^L(j) > _L(k) > ^L(i)
-            ! non-overlap -> e_{il,jk}
-            ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                        i, l, j, k, l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! _L(l) > _LL*(k) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, l, k, i, j, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! _L(l) > _LL*(k) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, l, k, j, i, 0, 4, -1.0_dp, -1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_ik_jl
-
-    function create_excitInfo_il_kj(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_il_kj"
-
-        ! e_{il,kj}:
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _R_(i) > _LR(j) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _R(i) > _LR(j) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, l, k, j, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! _R(i) > RR_*(k) > RR^(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        i, k, j, l, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! _R(i) > RR_*(k) > ^RR*(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        i, k, l, j, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! non-overlap one -> switch to other valid generator:
-            ! e_{ij,kl}:
-            ! _R(i) > _LR(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, j, k, l, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! non-overlap! -> e_{ij,kl}:
-            ! _R(i) > _LR(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, j, k, l, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _L(j) > _RL(i) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, l, k, j, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < i < l < k
-            ! _L(j) > _RL(i) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! non-overlap -> e_{ij,kl}
-            ! _L(j) > _RL(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, j, k, l, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < k < l < i
-            ! non-overlap -> e_{ij,kl}
-            ! _L(j) > _RL(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, j, k, l, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! _L(j) > _LL*(l) > ^LL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        j, l, i, k, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! _L(j) > _LL*(l) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        j, l, k, i, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! _R(k) > _RR(i) > RR^(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! _R(k) > _RR(i) > ^RR*(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        k, i, l, j, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! non-overlap -> e_{ij,kl}
-            ! _R(k) > _LR(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, j, k, l, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! non-overlap -> e_{ij,kl}
-            ! _R(k) > _LR(j) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, j, k, l, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _R(k) > _LR(l) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _R(k) > _LR(l) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, l, k, j, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! non-overlap -> e_{ij,kl}
-            ! _L(l) > _RL(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, j, k, l, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! non-overlap -> e_{ij,kl}
-            ! _L(l) > _RL(i) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, j, k, l, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! _L(l) > LL_(j) > ^LL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! _L(l) > LL_(j) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        l, j, k, i, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _L(l) > _RL(k) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, l, k, j, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _L(l) > _RL(k) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_il_kj
-
-    function create_excitInfo_ik_lj(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_ik_lj"
-
-        ! e_{ik,lj}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _R(i) > _LR(j) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, k, l, j, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _R(i) > _LR(j) ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! non-overlap -> e_{ij,lk}
-            ! _R(i) > _LR(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, j, l, k, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! non-overlap -> e_{ij,lk}
-            ! _R(i) > _LR(k) > ^L(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, j, l, k, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! _R(i) > RR_*(l) > RR^(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        i, l, j, k, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! _R(i) > RR_*(l) > ^RR*(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        i, l, k, j, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _L(j) > _RL(i) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _L(j) > _RL(i) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, k, l, j, &
-                        j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! _L(j) > _LL*(k) > ^LL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        j, k, i, l, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! _L(j) > _LL*(k) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        j, k, l, i, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! non-overlap -> e_{ij,lk}
-            ! _L(j) > _RL(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, j, l, k, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! non-overlap > e_{ij,lk}
-            ! _L(j) > _RL(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, j, l, k, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! non-overlap -> e_{ij,lk}
-            ! _L(k) > _RL(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, j, l, k, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! non-overlap > e_{ij,lk}
-            ! _L(k) > _RL(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, j, l, k, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! _L(k) > LL_(j) > ^LL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, j, k, l, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! _L(k) > LL_(j) > LL^*(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        k, j, l, i, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _L(k) > _RL(l) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, k, l, j, &
-                        k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _L(k) > _RL(l) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! _R(l) > _RR(i) > RR^(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! _R(l) > _RR(i) > ^RR*(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        l, i, k, j, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! non-overlap > e_{ij,lk}
-            ! _R(l) > _LR(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, j, l, k, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! non-overlap > e_{ij,lk}
-            ! _R(l) > _LR(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, j, l, k, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _R(l) > _LR(k) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _R(l) > _LR(k) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, k, l, j, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_ik_lj
-
-    function create_excitInfo_il_jk(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_il_jk"
-
-        ! e_{il,jk}:
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! R_{i} > RR_*(j) > RR^(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        i, j, k, l, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _R(i) > RR_*(j) > ^RR*(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        i, j, l, k, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! _R(i) > _LR(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! _R(i) > _LR(k) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, l, j, k, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! _R(i) > ^R(l) _R(j) > ^R(k)
-            ! non-overlap -> e_{ik,jl}
-            ! _R(i) > _LR(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, k, j, l, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! non-overlap -> e_{ik,jl}
-            ! _R(i) > _LR(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, k, j, l, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _R(j) > _RR(i) > RR^(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _R(j) > _RR(i) > ^RR*(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        j, i, l, k, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! non-overlap -> e_{ik,jl}
-            ! _R(j) > _LR(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, j, l, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! non-overlap > e_{ik,jl}
-            ! _R(j) > _LR(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, k, j, l, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! _R(j) > _LR(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! _R(j) > _LR(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, l, j, k, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! _L(k) > _RL(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, l, j, k, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! non-overlap > e_{ik,jl}
-            ! _L(k) > _RL(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, k, j, l, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! non-overlap > e_{ik,jl}
-            ! _L(k) > _RL(j) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, k, j, l, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _L(k) > _LL*(l) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        k, l, i, j, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _L(k) > _LL*(l) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        k, l, j, i, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! non-overlap > e_{ik,jl}
-            ! _L(l) > _RL(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, k, j, l, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! non-overlap > e_{ik,jl}
-            ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, j, l, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! _L(l) > _RL(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, l, j, k, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _L(l) > LL_(k) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _L(l) > LL_(k) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        l, k, j, i, 0, 4, 1.0_dp, -1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_il_jk
-
-    function create_excitInfo_ki_lj(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_ki_lj"
-
-        ! e_{ki,lj}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _L(i) > LL_(j) > ^LL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _L(i) > LL_(j) > LL^*(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        i, j, l, k, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! non-overlap > e_{li,kj}
-            ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! non-overlap > e_{li,kj}
-            ! _L(i) > ^RL(k) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, l, i, k, j, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! _L(i) > ^RL(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, k, i, l, j, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _L(j) > _LL*(i) > ^LL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        j, i, k, l, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _L(j) > _LL*(i) > LL^*(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        j, i, l, k, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! _L(j) > ^RL(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, k, i, l, j, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! non-overlap > e_{li,kj}
-            ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! non-overlap > e_{li,kj}
-            ! _L(l) > _RL(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, l, i, k, j, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! non-overlap > e_{li,kj}
-            ! _R(k) > _LR(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, l, i, k, j, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! non-overlap > e_{li,kj}
-            ! _R(k) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! _R(k) > _LR(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, k, i, l, j, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! _R(k) > _LR(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _R(k) > RR_*(l) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        k, l, i, j, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _R(k) > RR_*(l) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        k, l, j, i, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! _R(l) > _LR(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, k, i, l, j, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! _R(l) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! non-overlap > e_{li,kj}
-            ! _R(l) > _LR(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, l, i, k, j, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! non-overlap > e_{li,kj}
-            ! _R(l) > ^_LR(j) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _R(l) > _RR(k) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        l, k, i, j, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _R(l) > _RR(k) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_ki_lj
-
-    function create_excitInfo_ki_jl(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_ki_jl"
-
-        ! e_{ki,jl}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _L(i) > _RL(j) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, k, i, j, l, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _L(i) > _RL(j) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! non-overlap > e_{ji,kl}
-            ! _L(i) > _RL(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, j, i, k, l, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! non-overlap > e_{ji,kl}
-            ! _L(i) > _RL(k) > ^RL(l) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, j, i, k, l, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! _L(i) > LL_(l) > LL^*(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        i, l, j, k, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! _L(i) > LL_(l) > ^LL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _R(j) > _LR(i) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _R(j) > _LR(i) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, k, i, j, l, &
-                        j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! _R(j) > _RR(k) > ^RR*(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        j, k, i, l, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! _R(j) > _RR(k) > RR^(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! non-overlap > e_{ji,kl}
-            ! _R(j) > _LR(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, j, i, k, l, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! non-overlap > e_{ji,kl}
-            ! _R(j) > _LR(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, j, i, k, l, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! non-overlap > e_{ji,kl}
-            ! _R(k) > _LR(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, j, i, k, l, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! non-overlap > e_{ji,kl}
-            ! _R(k) > _LR(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, j, i, k, l, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! _R(k) > RR_*(j) > ^RR*(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        k, j, i, l, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! _R(k) > RR_*(j) > RR^(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        k, j, l, i, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _R(k) > _LR(l) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, k, i, j, l, &
-                        k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _R(k) > _LR(l) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! _L(l) > _LL*(i) > LL^*(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        l, i, j, k, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! _L(l) > _LL*(i) > ^LL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        l, i, k, j, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! npn-overlap > e_{ji,kl}
-            ! _L(l) > _RL(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! non-overlap > e_{ji,kl}
-            ! _L(l) > _RL(k) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, j, i, k, l, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _L(l) > _RL(k) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _L(l) > _RL(k) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, k, i, j, l, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_ki_jl
-
-    function create_excitInfo_li_jk(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_li_jk"
-
-        ! e_{li,jk}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _L(i) > _RL(j) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _L(i) > _RL(j) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, l, i, j, k, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! _L(i) > LL_(k) > LL^*(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        i, k, j, l, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! _L(i) > LL_(k) > ^LL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! non-overlap > e_{ji_lk}
-            ! _L(i) > _RL(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, j, i, l, k, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! non-overlap > e_{ji,lk}
-            ! _L(i) > _RL(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, j, i, l, k, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _R(j) > _LR(i) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, l, i, j, k, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _R(j) > _LR(i) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! non-overlap > e_{ji,lk}
-            ! _R(j) > _LR(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, j, i, l, k, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! non-overlap > e_{ji,lk}
-            ! _R(j) > _LR(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, j, i, l, k, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! _R(j) > _RR(l) > ^RR*(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        j, l, i, k, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! _R(j) > _RR(l) > RR^(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! _L(k) > _LL*(i) > LL^*(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        k, i, j, l, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! _L(k) > _LL*(i) > ^LL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        k, i, l, j, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! non-overlap > e_{ji,lk}
-            ! _L(k) > _RL(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, j, i, l, k, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! non-overlap > e_{ji,lk}
-            ! _L(k) > _RL(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, j, i, l, k, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _L(k) > _RL(l) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _L(k) > _RL(l) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, l, i, j, k, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! non-overlap > e_{ji,lk}
-            ! _R(l) > _LR(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, j, i, l, k, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! non-overlap > e_{ji,lk}
-            ! _R(l) > _LR(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, j, i, l, k, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! _R(l) > RR_*(j) > ^RR*(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        l, j, i, k, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! _R(l) > RR_*(j) > RR^(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        l, j, k, i, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _R(l) > _LR(k) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, l, i, j, k, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _R(l) > _LR(k) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_li_jk
-
-    function create_excitInfo_li_kj(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_li_kj"
-
-        ! e_{li,kj}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _L(i) > LL_(j) > LL^*(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        i, j, k, l, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _L(i) > LL_(j) > ^LL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! _L(i) > _RL(k) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, l, i, k, j, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! non-overlap > e_{ki,lj}
-            ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! non-overlap > e_{ki,lj}
-            ! _L(i) > _RL(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, k, i, l, j, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _L(j) > _LL*(i) > LL^*(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        j, i, k, l, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _L(j) > _LL*(i) > ^LL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        j, i, l, k, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! non-overlap > e_{ki,lj}
-            ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! non-overlap > e_{ki,lj}
-            ! _L(j) > _RL(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, k, i, l, j, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! _L(j) > _RL(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, l, i, k, j, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! _R(k) > _LR(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, l, i, k, j, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! _R(k) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! non-overlap > e_{ki,lj}
-            ! _R(k) > _LR(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, k, i, l, j, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! non-overlap > e_{ki,lj}
-            ! _R(k) > _LR(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _R(k) > _RR(l) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        k, l, i, j, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _R(k) > _RR(l) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! non-overlap > e_{ki,lj}
-            ! _R(l) > _LR(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, k, i, l, j, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! non-overlap > e_{ki,lj}
-            ! _R(l) > _LR(i) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! _R(l) > _LR(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, l, i, k, j, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! _R(l) > _LR(j) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _R(l) > RR_*(k) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        l, k, i, j, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _R(l) > RR_*(k) > RR^*(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        l, k, j, i, 0, 4, -1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_li_kj
-
-    function calc_pgen_yix_start_02(i) result(pgen)
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_start_02"
-
-        ASSERT(count(currentOcc_int(i + 1:nSpatOrbs) /= 0) /= 0)
-        ASSERT(count(currentOcc_int(i + 1:nSpatOrbs) /= 2) /= 0)
-
-        pgen = 1.0_dp / real(count(currentOcc_int(i + 1:nSpatOrbs) /= 0), dp) + &
-               1.0_dp / real(count(currentOcc_int(i + 1:nSpatOrbs) /= 2), dp)
-
-    end function calc_pgen_yix_start_02
-
-    function calc_pgen_yix_start_01(i) result(pgen)
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_start_01"
-
-        ASSERT(count(currentOcc_int(i + 1:nSpatOrbs) /= 0) /= 0)
-        ASSERT(nSpatOrbs - i - 1 /= 0)
-
-        pgen = 1.0_dp / real(count(currentOcc_int(i + 1:nSpatOrbs) /= 0), dp) + &
-               1.0_dp / real(nSpatOrbs - i - 1, dp)
-
-    end function calc_pgen_yix_start_01
-
-    function calc_pgen_yix_start_21(i) result(pgen)
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_start_21"
-
-        ASSERT(count(currentOcc_int(i + 1:nSpatOrbs) /= 2) /= 0)
-        ASSERT(nSpatOrbs - i - 1 /= 0)
-
-        pgen = 1.0_dp / real(count(currentOcc_int(i + 1:nSpatOrbs) /= 2), dp) + &
-               1.0_dp / real(nSpatOrbs - i - 1, dp)
-
-    end function calc_pgen_yix_start_21
-
-    function calc_pgen_yix_start_11(i) result(pgen)
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_start_11"
-
-        ASSERT(nSpatOrbs - i - 1 /= 0)
-
-        pgen = 1.0_dp / real(nSpatOrbs - i - 1, dp)
-
-    end function calc_pgen_yix_start_11
-
-    function calc_pgen_yix_end_02(i) result(pgen)
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_end_02"
-
-        ASSERT(count(currentOcc_int(1:i - 1) /= 0) /= 0)
-        ASSERT(count(currentOcc_int(1:i - 1) /= 2) /= 0)
-
-        pgen = 1.0_dp / real(count(currentOcc_int(1:i - 1) /= 0), dp) + &
-               1.0_dp / real(count(currentOcc_int(1:i - 1) /= 2), dp)
-
-    end function calc_pgen_yix_end_02
-
-    function calc_pgen_yix_end_01(i) result(pgen)
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_end_01"
-
-        ASSERT(count(currentOcc_int(1:i - 1) /= 0) /= 0)
-        ASSERT(i - 2 /= 0)
-
-        pgen = 1.0_dp / real(count(currentOcc_int(1:i - 1) /= 0), dp) + &
-               1.0_dp / real(i - 2, dp)
-
-    end function calc_pgen_yix_end_01
-
-    function calc_pgen_yix_end_21(i) result(pgen)
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_end_21"
-
-        ASSERT(count(currentOcc_int(1:i - 1) /= 2) /= 0)
-        ASSERT(i - 2 /= 0)
-
-        pgen = 1.0_dp / real(count(currentOcc_int(1:i - 1) /= 2), dp) + &
-               1.0_dp / real(i - 2, dp)
-
-    end function calc_pgen_yix_end_21
-
-    function calc_pgen_yix_end_11(i) result(pgen)
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_end_11"
-
-        ASSERT(i - 2 /= 0)
-
-        pgen = 1.0_dp / real(i - 2, dp)
-
-    end function calc_pgen_yix_end_11
-
     subroutine print_indices(excitInfo)
         type(ExcitationInformation_t), intent(in) :: excitInfo
 
@@ -30112,5 +16627,67 @@ contains
         print *, "excit-level: ", excitInfo%excitLvl
 
     end subroutine print_excitInfo
+
+    function checkCompatibility_single(csf_i, excitInfo) result(flag)
+        use guga_types, only: WeightObj_t
+
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        logical :: flag
+
+        debug_function_name("checkCompatibility_single")
+
+        real(dp) :: pw, mw, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        integer ::  st, en
+        type(WeightObj_t) :: weights
+
+        ASSERT(excitInfo%typ == excit_type%single)
+        ASSERT(excitInfo%gen1 == gen_type%R .or. excitInfo%gen1 == gen_type%L)
+
+        call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
+
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        flag = .true.
+
+        if (excitInfo%gen1 == gen_type%R) then
+            ! raising
+            if (csf_i%stepvector(st) == 3 .or. csf_i%stepvector(en) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+
+            if ((near_zero(pw) .and. near_zero(mw)) &
+                .or. (csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
+                flag = .false.
+                return
+            end if
+
+        else if (excitInfo%gen1 == gen_type%L) then
+            ! lowering
+
+            if (csf_i%stepvector(en) == 3 .or. csf_i%stepvector(st) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+
+
+            if ((csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw)) &
+                .or. (near_zero(pw + mw))) then
+                flag = .false.
+                return
+            end if
+        end if
+    end function checkCompatibility_single
 
 end module guga_excitations

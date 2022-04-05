@@ -10,6 +10,7 @@ program test_impurity_excit_gen
     integer, parameter :: nBasis_ = 6
     integer, parameter :: nel_ = 3
     integer, parameter :: ms_ = 1
+    integer :: failed_count
 
     call MPIInit(.false.)
     call init_fruit()
@@ -17,8 +18,12 @@ program test_impurity_excit_gen
     call impurity_excit_gen_test_driver
     call fruit_summary
     call fruit_finalize
-    call MPIEnd(.false.)
 
+    call get_failed_count(failed_count)
+
+    if (failed_count /= 0) call stop_all('test_impurity_excit_gen', 'failed_tests')
+
+    call MPIEnd(.false.)
 contains
 
     subroutine impurity_excit_gen_test_driver

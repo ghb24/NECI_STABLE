@@ -79,11 +79,13 @@ module semi_stoch_procs
 
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
 
-    use guga_bitrepops, only: init_csf_information
+    use guga_bitrepops, only: fill_csf_i, CSF_Info_t
 
     use util_mod, only: get_free_unit
 
     use DeterminantData, only: write_det
+
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
 
     implicit none
 
@@ -1006,22 +1008,21 @@ contains
     subroutine fill_in_diag_helements()
 
         use FciMCData, only: Hii
-        use global_det_data, only: set_det_diagH
+        use global_det_data, only: set_det_diagH, set_det_offdiagH
 
         integer :: i
         integer :: nI(nel)
         real(dp) :: tmpH
+        HElement_t(dp) :: tmpHoff
         real(dp) :: sgn(lenof_sign)
 
         do i = 1, int(TotWalkers)
             call decode_bit_det(nI, CurrentDets(:, i))
 
-            if (tHPHF) then
-                tmpH = hphf_diag_helement(nI, CurrentDets(:, i)) - Hii
-            else
-                tmpH = get_helement(nI, nI, 0) - Hii
-            end if
+            tmpH = get_diagonal_matel(nI, CurrentDets(:, i)) - Hii
+            tmpHoff = get_off_diagonal_matel(nI, CurrentDets(:, i))
             call set_det_diagh(i, tmpH)
+            call set_det_offdiagh(i, tmpHoff)
 
         end do
 
@@ -1071,7 +1072,7 @@ contains
 
         associate(rep => cs_replicas(run))
             MinInd = 1
-            nwalkers = int(TotWalkers, sizeof_int)
+            nwalkers = int(TotWalkers)
 
             do i = 1, rep%determ_sizes(iProcIndex)
 
@@ -1157,7 +1158,7 @@ contains
         real(dp), allocatable :: gdata_buf(:, :)
         type(gdata_io_t) :: reorder_handler
 
-        nwalkers = int(TotWalkers, sizeof_int)
+        nwalkers = int(TotWalkers)
 
         associate(rep => cs_replicas(run))
             ! Test that SpawnedParts is going to be big enough
@@ -1175,7 +1176,7 @@ contains
             end if
 
             call reorder_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, tAccumPopsActive, &
-                                               2 * inum_runs, 1, lenof_sign + 1)
+              2 * inum_runs, 1, lenof_sign + 1)
             ! we need to reorder the adaptive shift data, too
             ! the maximally required buffer size is the current size of the
             ! determinant list plus the size of the semi-stochastic space (in case
@@ -1228,7 +1229,7 @@ contains
             ! Next loop through CurrentDets and move all non-core states to after the last
             ! core state slot in SpawnedParts.
             i_non_core = rep%determ_sizes(iProcIndex)
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 if (.not. check_determ_flag(CurrentDets(:, i), run)) then
                     i_non_core = i_non_core + 1
 
@@ -1345,7 +1346,7 @@ contains
         if (present(norm)) norm = 0.0_dp
 
         ! Run through all walkers on process.
-        do i = 1, int(source_size, sizeof_int)
+        do i = 1, int(source_size)
             call extract_sign(loc_source(:, i), sign_curr)
 
             sign_curr_real = core_space_weight(sign_curr, run)
@@ -1425,7 +1426,7 @@ contains
 !>  Return as many states as the size of largest_walkers.
 !>  Returns the norm as well, if requested.
 !>  @param[out] largest_walkers, Array of most `n_keep` most populated states.
-    subroutine global_most_populated_states(n_keep, run, largest_walkers, norm, rank_of_largest)
+    subroutine global_most_populated_states(n_keep, run, largest_walkers, norm, rank_of_largest, hdiag_largest)
         use Parallel_neci, only: MPISumAll, MPIAllReduceDatatype, MPIBCast
         use bit_reps, only: extract_sign
 
@@ -1433,73 +1434,186 @@ contains
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
         integer, intent(out), optional :: rank_of_largest(n_keep)
+        real(dp), intent(inout), optional :: hdiag_largest(n_keep)
         character(*), parameter :: this_routine = 'global_most_populated_states'
 
         integer(n_int), allocatable :: proc_largest_walkers(:, :)
-        integer, allocatable :: rank_of_largest_(:)
+        integer :: sort_size, sort_size_delta, sort_max_delta
+        real(dp) :: proc_norm
+        integer :: bcast_size
+        integer(n_int), allocatable :: allproc_ilut_list(:,:,:)
+        real(dp), allocatable :: allproc_sign_list(:,:)
+        real(dp), allocatable :: allproc_hdiag_list(:,:)
+        integer :: allproc_nlist(0:nProcessors-1)
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: i, ilist, iproc, proc_idet, imax, nI(nel), nlist
+        real(dp) :: det_sign, curr_sign(lenof_sign), hdiag, cmax
 
+        ! Initialize output.
         largest_walkers = 0_n_int
-        allocate(proc_largest_walkers(0:NIfTot, n_keep), source=0_n_int)
-        block
-            real(dp) :: proc_norm, all_norm
-            call proc_most_populated_states( &
-                n_keep, run, proc_largest_walkers, CurrentDets, TotWalkers, proc_norm)
-            if (present(norm)) then
-                call MpiSumAll(proc_norm, all_norm)
-                norm = sqrt(all_norm)
-            end if
-        end block
+        if (present(hdiag_largest)) hdiag_largest = 0_dp
+        if (present(rank_of_largest)) rank_of_largest = 0
+        if (n_keep<1) return
 
-        allocate(rank_of_largest_(n_keep))
-        block
-            real(dp) :: high_sign, curr_sign(lenof_sign)
-            integer :: high_pos
-            integer :: i, j
+        ! Determine sensible sort size and increment.
+        sort_max_delta = 0
+        bcast_size = 1
+        if (nProcessors<2) then ! compute target sort size (fixed from here on out)
+            sort_size = n_keep
+        else
+            ! Rough estimate (typical population fluctuations, decent load balancing).
+            sort_max_delta = ceiling( 2.d0*sqrt( real(n_keep,dp) / real(nProcessors,dp) ) )
+            sort_size = ceiling( ( real(n_keep,dp) / real(nProcessors,dp) ) ) + sort_max_delta
+            bcast_size = ceiling( ( real(n_keep,dp) / real(nProcessors,dp) ) ) ! target broadcast size
+        endif
+        sort_size = int(min(TotWalkers, int(n_keep,int64), int(sort_size,int64))) ! allocation size
 
-            fill_largest_walkers: do i = 1, n_keep
-                high_sign = 0.0_dp
-                high_pos = 1
-                find_largest_sign_per_proc: do j = n_keep, 1, -1
-                    if (any(proc_largest_walkers(:, j) /= 0)) then
-                        call extract_sign(proc_largest_walkers(:, j), curr_sign)
-                        high_pos = j
+        ! Allocate initial sort vector.
+        allocate(proc_largest_walkers(0:NIfTot, sort_size), source=0_n_int)
+
+        ! Perform first partial sort, and get norm if required.
+        call proc_most_populated_states( &
+            sort_size, run, proc_largest_walkers, CurrentDets, TotWalkers, proc_norm)
+        if (present(norm)) then
+            call MpiSumAll(proc_norm, norm)
+            norm = sqrt(norm)
+        end if
+
+        ! Allocate shared det lists.
+        allocate( allproc_ilut_list(0:NIfTot, bcast_size, 0:nProcessors-1), &
+            allproc_sign_list(bcast_size, 0:nProcessors-1), &
+            allproc_hdiag_list(bcast_size, 0:nProcessors-1) )
+
+        ! Loop over determinants to put in list.
+        proc_idet = sort_size + 1 ! index of last det in this process' sorted list added to bcast list
+        allproc_nlist = 0 ! size of bcast list on all processes
+        main_det_loop: do i = 1, n_keep
+
+            need_prepare_bcast: if (allproc_nlist(iProcIndex)==0) then
+                ! Prepare list of walkers on this process to braodcast.
+
+                potential_resort_loop: do ! loop over potential sort operations
+
+                    ! Figure out this process' buffer size - but keep in "nlist" not "allproc_nlist"
+                    ! so we can use the latter in logic below.
+                    nlist = bcast_size
+                    ! Fill this process' buffer.  NB, (1:nlist) goes from smallest to largest coeff.
+                    do ilist = nlist, 1, -1
+                        ! Find next determinant on this process.
+                        do
+                            proc_idet = proc_idet - 1
+                            if (proc_idet<1) exit
+                            if (any(proc_largest_walkers(:, proc_idet) /= 0)) exit
+                        end do
+                        ! Exit loop if we ran out.
+                        if (proc_idet<1) exit
+                        ! Get the relevant determinant properties.
+                        ilut = proc_largest_walkers(:, proc_idet)
+                        call extract_sign(proc_largest_walkers(:, proc_idet), curr_sign)
 #ifdef CMPLX_
-                        high_sign = sqrt(sum(abs(curr_sign(1::2)))**2 &
-                                         + sum(abs(curr_sign(2::2)))**2)
+                        det_sign = sqrt(sum(abs(curr_sign(1::2)))**2 &
+                                      + sum(abs(curr_sign(2::2)))**2)
 #else
-                        high_sign = sum(real(abs(curr_sign), dp))
+                        det_sign = sum(real(abs(curr_sign), dp))
 #endif
-                        exit find_largest_sign_per_proc
+                        if (present(hdiag_largest)) then
+                            ! Get hdiag if requested.
+                            call decode_bit_det(nI, ilut)
+                            if (tHPHF) then
+                                hdiag = hphf_diag_helement(nI, ilut)
+                            else
+                                hdiag = get_helement(nI, nI, 0, ilut, ilut)
+                            end if
+                        end if
+                        ! Store the relevant determinant properties.
+                        allproc_ilut_list(:, ilist, iProcIndex) = ilut
+                        allproc_sign_list(ilist, iProcIndex) = det_sign
+                        if (present(hdiag_largest)) then
+                            allproc_hdiag_list(ilist, iProcIndex) = hdiag
+                        endif
+                    end do ! ilist
+
+                    if (ilist>0) then
+                        ! We have had to abort, so adjust nlist and shift arrays.
+                        nlist = nlist - ilist
+                        if (nlist>0) then
+                            allproc_ilut_list(:, 1:nlist, iProcIndex) = &
+                                allproc_ilut_list(:, ilist+1:nlist+ilist, iProcIndex)
+                            allproc_sign_list(1:nlist, iProcIndex) = &
+                                allproc_sign_list(ilist+1:nlist+ilist, iProcIndex)
+                            if (present(hdiag_largest)) then
+                                allproc_hdiag_list(1:nlist, iProcIndex) = &
+                                    allproc_hdiag_list(ilist+1:nlist+ilist, iProcIndex)
+                            end if
+                        end if
                     end if
-                end do find_largest_sign_per_proc
 
-                block
-                    real(dp) :: reduce_in(2, 1), reduce_out(2, 1)
-                    reduce_in = reshape([high_sign, real(iProcIndex, dp)], shape(reduce_in))
-                    call MPIAllReduceDatatype( &
-                        reduce_in, size(reduce_in, 2), MPI_MAXLOC, MPI_2DOUBLE_PRECISION, reduce_out)
-                    ! Now, reduce_out(2, :) has the rank of the largest weighted determinant
-                    rank_of_largest_(i) = nint(reduce_out(2, 1))
-                end block
+                    if (nlist>0) exit
 
-                block
-                    integer(n_int) :: HighestDet(0:NIfTot)
-                    if (iProcIndex == rank_of_largest_(i)) then
-                        HighestDet(0:NIfTot) = proc_largest_walkers(:, high_pos)
+                    ! We have an empty broadcast list, so attempt a sort and go again.
+                    ! FIXME - By construction of the "sort" procedure we need to re-sort the start of
+                    !         the list again!  To fix this we need to work with the full vector of
+                    !         partially sorted indices not a partial vector of partially sorted elements.
+                    ! FIXME - Re-sorts can be triggered at different times on different processes, which
+                    !         could make things really slow.
+                    sort_size_delta = sort_size + sort_max_delta
+                    sort_size_delta = int( min(int(sort_size_delta,int64), int(n_keep-sort_size,int64), TotWalkers-int(sort_size,int64) ) )
+                    if (sort_size_delta<1) exit
+                    if (allocated(proc_largest_walkers)) deallocate(proc_largest_walkers)
+                    sort_size = sort_size + sort_size_delta
+                    allocate (proc_largest_walkers(0:NIfTot, 1:sort_size), source=0_n_int)
+                    call proc_most_populated_states( &
+                        sort_size, run, proc_largest_walkers, CurrentDets, TotWalkers)
+                    proc_idet = sort_size_delta + 1 ! index of last det in this process' sorted list added to bcast list
+
+                end do potential_resort_loop
+
+            end if need_prepare_bcast
+
+            ! Perform any outstanding broadcasts.
+            do iproc = 0, nProcessors-1
+                if (allproc_nlist(iproc)==0) then
+                    if (iProcIndex==iproc) allproc_nlist(iproc) = nlist ! now we update this
+                    call MPIBCast(allproc_nlist(iproc), 1, iproc)
+                    if (allproc_nlist(iproc)==0) then
+                        allproc_nlist(iproc) = -1 ! flag that there are no more dets on process
+                    else
+                        ! Broadcast.
+                        call MPIBCast(allproc_ilut_list(0:NIfTot, 1:allproc_nlist(iproc), iproc), &
+                            (NIfTot+1)*allproc_nlist(iproc), iproc)
+                        call MPIBCast(allproc_sign_list(1:allproc_nlist(iproc), iproc), &
+                            allproc_nlist(iproc), iproc)
+                        if (present(hdiag_largest)) then
+                            call MPIBCast(allproc_hdiag_list(1:allproc_nlist(iproc), iproc), &
+                                allproc_nlist(iproc), iproc)
+                        end if
                     end if
-                    call MPIBCast(HighestDet(0:NIfTot), size(HighestDet), rank_of_largest_(i))
-                    largest_walkers(0:NIfTot, i) = HighestDet(:)
-                end block
-
-                ! Zeroing essentially deletes the element because we search
-                ! for first nonzero from the end. Also no resorting is required.
-                if (iProcIndex == rank_of_largest_(i)) then
-                    proc_largest_walkers(:, high_pos) = 0_n_int
                 end if
-            end do fill_largest_walkers
-        end block
+            end do ! iproc
 
-        if (present(rank_of_largest)) rank_of_largest = rank_of_largest_
+            ! Safety - if there is nothing left to do, exit loop.
+            if (all(allproc_nlist<0)) exit
+
+            ! Find next largest "sign" among all processes.
+            cmax = 0_dp
+            do iproc = 0, nProcessors-1
+                if (allproc_nlist(iproc)<1) cycle
+                if (allproc_sign_list(allproc_nlist(iproc), iproc)>cmax) then
+                    imax = iproc
+                    cmax = allproc_sign_list(allproc_nlist(iproc), iproc)
+                end if
+            end do ! iproc
+
+            ! Copy to output.
+            iproc = imax
+            ilist = allproc_nlist(iproc)
+            largest_walkers(0:NIfTot, i) = allproc_ilut_list(0:NIfTot, ilist, iproc)
+            if (present(hdiag_largest)) hdiag_largest(i) = allproc_hdiag_list(ilist, iproc)
+            if (present(rank_of_largest)) rank_of_largest(i) = iproc
+            ! Update counter.
+            allproc_nlist(iproc) = allproc_nlist(iproc) - 1
+
+        end do main_det_loop
 
     end subroutine
 
@@ -1741,7 +1855,7 @@ contains
 
             ! Then copy these amplitudes across to the corresponding states in CurrentDets.
             counter = 0
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 if (check_determ_flag(CurrentDets(:, i), run)) then
                     counter = counter + 1
                     pop_sign = dc%davidson_eigenvector(counter)
@@ -1804,7 +1918,7 @@ contains
             do i = 1, iProcIndex
                 counter = counter + rep%determ_sizes(i - 1)
             end do
-            do i = 1, rep%determ_space_size !int(TotWalkers, sizeof_int)
+            do i = 1, rep%determ_space_size !int(TotWalkers)
                 if (check_determ_flag(CurrentDets(:, i), run)) then
                     counter = counter + 1
                     pop_sign = e_vectors(counter, 1)
@@ -1871,7 +1985,7 @@ contains
         ! Next create the diagonal used by Davidson by copying the core one.
         if (allocated(hamil_diag)) deallocate(hamil_diag)
         allocate(hamil_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
-        call LogMemAlloc('hamil_diag', int(rep%determ_sizes(iProcIndex), sizeof_int), &
+        call LogMemAlloc('hamil_diag', int(rep%determ_sizes(iProcIndex)), &
             8, t_r, HDiagTag, ierr)
         hamil_diag = rep%core_ham_diag
 
@@ -1950,8 +2064,9 @@ contains
 
     subroutine calc_determin_hamil_full(hamil, rep)
         use guga_data, only: ExcitationInformation_t
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         type(core_space_t) :: rep
+        type(CSF_Info_t) :: csf_i, csf_j
         type(ExcitationInformation_t) :: excitInfo
 
         HElement_t(dp), allocatable, intent(out) :: hamil(:, :)
@@ -1963,7 +2078,8 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
-            if (tGUGA) call init_csf_information(rep%core_space(0:nifd, i))
+
+            if (tGUGA) csf_i = CSF_Info_t(rep%core_space(0:nifd, i))
 
             if (tHPHF) then
                 hamil(i, i) = hphf_diag_helement(nI, rep%core_space(:, i))
@@ -1977,12 +2093,15 @@ contains
 
                 call decode_bit_det(nJ, rep%core_space(:, j))
 
+                if (tGUGA) csf_j = CSF_Info_t(rep%core_space(:, j))
+
                 if (tHPHF) then
                     hamil(i, j) = hphf_off_diag_helement(nI, nJ, &
                                      rep%core_space(:, i), rep%core_space(:, j))
                 else if (tGUGA) then
-                    call calc_guga_matrix_element(rep%core_space(:, i), &
-                        rep%core_space(:, j), excitInfo, hamil(i, j), .true., 1)
+                    call calc_guga_matrix_element(&
+                        rep%core_space(:, i), csf_i, &
+                        rep%core_space(:, j), csf_j, excitInfo, hamil(i, j), .true.)
                 else
                     hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), &
                         rep%core_space(:, j))
@@ -2034,8 +2153,7 @@ contains
         use FciMCData, only: ilutHF, HFDet, Fii
         use SystemData, only: tUEG
         use SystemData, only: tGUGA
-        use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calcDiagMatEleGUGA_nI, calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -2061,10 +2179,8 @@ contains
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else if (tGUGA) then
-            ! i am not sure if the ref_stepvector thingies are set up for
-            ! the ilutHF in this case..
-            call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
-                                          .true., 2)
+            call calc_guga_matrix_element(&
+                ilut, CSF_Info_t(ilut), ilutHF, CSF_Info_t(ilutHF), excitInfo, hel, .true.)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if

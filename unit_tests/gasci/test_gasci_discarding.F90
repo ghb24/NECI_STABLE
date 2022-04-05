@@ -40,7 +40,7 @@ contains
         GAS_spec = LocalGASSpec_t(n_min=[3, 3], n_max=[3, 3], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         call exc_generator%init(GAS_spec)
@@ -87,9 +87,7 @@ program test_gasci_program
 
 
     implicit none
-    integer :: failed_count, err
-
-    integer :: n
+    integer :: failed_count
     block
 
         call MPIInit(.false.)

@@ -15,8 +15,8 @@ subroutine InitRIBasis(nBasisMax, Len)
     read(29, rec=1) nAb
     read(29, rec=2) nB
     write(stdout, *) nAb, nB
-    nAuxBasis = int(nAb, sizeof_int)
-    nBasis = int(nB, sizeof_int)
+    nAuxBasis = int(nAb)
+    nBasis = int(nB)
     write(stdout, *) "Q-Chem auxiliary basis", nAuxBasis, " basis functions:", nBasis
     nBasisMax(1:5, 1:3) = 0
     Len = 2 * nBasis
@@ -30,23 +30,6 @@ subroutine InitRIBasis(nBasisMax, Len)
     nBasisMax(5, 2) = 0
     close(29)
 END
-
-SUBROUTINE GetRI2EInt(a, b, c, d, res)
-    use constants, only: dp
-    use UMatCache
-    implicit none
-    integer a, b, c, d
-    integer i, GetDFIndex
-    integer x, y
-    real(dp) res
-    res = 0.0_dp
-    x = GetDFIndex(a, c)
-    y = GetDFIndex(b, d)
-! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)
-    do i = 1, nAuxBasis
-        res = res + DFCoeffs(i, x) * DFInts(i, y)
-    end do
-end
 
 SUBROUTINE ReadRI2EIntegrals(nBasis, nOrbUsed)
     use UMatCache

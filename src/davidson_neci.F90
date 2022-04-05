@@ -6,7 +6,7 @@ module davidson_neci
     ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
     use constants
-    use FciMCData, only: hamiltonian, DavidsonTag
+    use FciMCData, only: hamiltonian, DavidsonTag, user_input_max_davidson_iters
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
@@ -27,7 +27,7 @@ module davidson_neci
 
     implicit none
 
-    integer, parameter :: max_num_davidson_iters = 25
+    integer :: max_num_davidson_iters = 25
     real(dp), parameter :: residual_norm_target = 0.0000001_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
@@ -129,6 +129,9 @@ contains
         integer(mpiarg) :: mpi_temp
         real(dp), allocatable :: hamil_diag_temp(:)
         character(len=*), parameter :: t_r = "init_davidson"
+
+        if( allocated(user_input_max_davidson_iters) ) &
+            max_num_davidson_iters = user_input_max_davidson_iters
 
         call InitHamiltonianCalc(this%super, print_info, hamil_type, max_num_davidson_iters, .true., .false.)
 
@@ -444,7 +447,7 @@ contains
             do j = 1, davidson_classes(class_i)%num_comb
                 class_j = davidson_classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(int(HFSym_ras, sizeof_int), sym_i)
+                    sym_j = ieor(int(HFSym_ras), sym_i)
                     if (davidson_classes(class_i)%num_sym(sym_i) == 0) cycle
                     if (davidson_classes(class_j)%num_sym(sym_j) == 0) cycle
                     allocate(direct_ci_inp(class_i, class_j, sym_i)% &

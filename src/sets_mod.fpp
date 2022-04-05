@@ -9,8 +9,8 @@ module sets_mod
     implicit none
     private
     public :: subset, is_sorted, special_union_complement, disjoint, &
-              union, intersect, complement, operator(.in.), &
-              operator(.complement.)
+              operator(.cap.), operator(.complement.), operator(.U.), &
+              operator(.in.)
 
     !> Check if V is sorted.
     interface is_sorted
@@ -39,7 +39,8 @@ module sets_mod
     #:endfor
     end interface
 
-    interface union
+    !> Calculate the union A ∪ B
+    interface operator(.U.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
         module procedure union_${T}$_${kind}$
@@ -47,7 +48,8 @@ module sets_mod
     #:endfor
     end interface
 
-    interface intersect
+    !> Calculate the intersection A ∩ B
+    interface operator(.cap.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
         module procedure intersect_${T}$_${kind}$
@@ -55,14 +57,7 @@ module sets_mod
     #:endfor
     end interface
 
-    interface complement
-    #:for T, kinds in countable_types.items()
-    #:for kind in kinds
-        module procedure complement_${T}$_${kind}$
-    #:endfor
-    #:endfor
-    end interface
-
+    !> Calculate the complement A / B
     interface operator (.complement.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
@@ -71,6 +66,7 @@ module sets_mod
     #:endfor
     end interface
 
+    !> Check if element is contained in set.
     interface operator(.in.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
