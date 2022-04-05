@@ -24,7 +24,7 @@ module sdt_amplitudes
   character (len=90) :: fileCICoeffTest, filecoefTestSrt0, filecoefTestSrt1
   character (len=90) :: filecoefTestSrt2, filecoefTestSrt3, filecoefTestSrt4
   character (len=90) :: filecoefTestSrt5, filecoefTestSrt6
-  integer(n_int), allocatable  :: totex_coeff(:)
+  integer(n_int), allocatable  :: totex_coeff(:,:)
 
 contains
 
@@ -36,7 +36,7 @@ contains
     allocate(hash_table_ciCoeff(hash_table_ciCoeff_size))
     call init_hash_table(hash_table_ciCoeff)
     allocate(ciCoeff_storage(0:NIfTot,hash_table_ciCoeff_size))
-    allocate(totex_coeff(n_store_ci_level))
+    allocate(totex_coeff(n_store_ci_level,n_store_ci_level))
   end subroutine init_ciCoeff
 
 
@@ -202,7 +202,7 @@ contains
               !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
               !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      totex_coeff(:) = 0
+      totex_coeff(:,:) = 0
       do icI = 0, n_store_ci_level
          if(icI.ne.0) then
            write(fileCICoeffAv, '( "ci_coeff_",I1,"_av" )') icI
@@ -266,33 +266,51 @@ contains
                   write(stdout,"(A44,I10)") 'Total entries of CI coefficients          = ', root_first_free_entry
 !                  write(stdout,*) 'sign_tmp/(AllNoatHf*nCyc) =', sign_tmp/(AllNoatHf*nCyc)
                case(1)
-                 totex_coeff(icI) = totex_coeff(icI) + 1
+                 totex_coeff(icI,1) = totex_coeff(icI,1) + 1
                  write(31,'(G20.12,2I5)') sign_tmp/(AllNoatHf(1)*nCyc), &
                                            ex(1,1),ex(2,1)
-                 write(41,'(G20.12,2I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
+                 if(.not. near_zero(sign_tmp(1))) then
+                   totex_coeff(icI,2) = totex_coeff(icI,2) + 1
+                   write(41,'(G20.12,2I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
                                             indCoef(1,1),indCoef(2,1)
+                 endif
                case(2)
-                 totex_coeff(icI) = totex_coeff(icI) + 1
+                 totex_coeff(icI,1) = totex_coeff(icI,1) + 1
                  write(32,'(G20.12,4I5)') sign_tmp/(AllNoatHf(1)*nCyc),ex(1,1),&
                                            ex(2,1),ex(1,2),ex(2,2)
-                 write(42,'(G20.12,4I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
-                             indCoef(1,1),indCoef(2,1),indCoef(1,2),indCoef(2,2)
+                 if(.not. near_zero(sign_tmp(1))) then
+                   totex_coeff(icI,2) = totex_coeff(icI,2) + 1
+                   write(42,'(G20.12,4I5)') signCI*(sign_tmp(1)/(AllNoatHf(1)*nCyc)),&
+                               indCoef(1,1),indCoef(2,1),indCoef(1,2),indCoef(2,2)
+                 endif
                case(3)
-                 totex_coeff(icI) = totex_coeff(icI) + 1
+                 totex_coeff(icI,1) = totex_coeff(icI,1) + 1
                  write(33,'(G20.12,6I5)') sign_tmp/(AllNoatHf(1)*nCyc),ex(1,1),&
                                            ex(2,1),ex(1,2),ex(2,2),ex(1,3),ex(2,3)
-                 write(43,'(G20.12,6I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
+                 if(.not. near_zero(sign_tmp(1))) then
+                   totex_coeff(icI,2) = totex_coeff(icI,2) + 1
+                   write(43,'(G20.12,6I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
             indCoef(1,1),indCoef(2,1),indCoef(1,2),indCoef(2,2),indCoef(1,3),indCoef(2,3)
+                 endif
                end select
             end if
          enddo
          if(iCI.ne.0) close(30+icI)
          if(iCI.ne.0) close(40+icI)
       enddo
-      write(stdout,"(A44,I10)") ' total entries for singles                = ', totex_coeff(1)
-      write(stdout,"(A44,I10)") ' total entries for doubles                = ', totex_coeff(2)
+      write(stdout,"(A44,I10)") ' total entries for singles                = ', totex_coeff(1,1)
+      if(totex_coeff(1,1).ne.totex_coeff(1,2)) then
+        write(stdout,"(A44,I10)") ' -total entries for singles without zeros = ',totex_coeff(1,2)
+      endif
+      write(stdout,"(A44,I10)") ' total entries for doubles                = ', totex_coeff(2,1)
+      if(totex_coeff(2,1).ne.totex_coeff(2,2)) then
+        write(stdout,"(A44,I10)") ' -total entries for doubles without zeros = ',totex_coeff(2,2)
+      endif
       if(n_store_ci_level.eq.3) then
-         write(stdout,"(A44,I10)") ' total entries for triples                = ', totex_coeff(3)
+        write(stdout,"(A44,I10)") ' total entries for triples                = ', totex_coeff(3,1)
+        if(totex_coeff(3,1).ne.totex_coeff(3,2)) then
+          write(stdout,"(A44,I10)") ' -total entries for triples without zeros = ',totex_coeff(3,2)
+        endif
       endif
 
       write(stdout,*) ' sorting CI coefficients...'
@@ -340,9 +358,9 @@ contains
   type(t_doubles),allocatable :: doubles(:)
   type(t_triples),allocatable :: triples(:)
 
-  allocate(singles(totex_coeff(1)))
-  allocate(doubles(totex_coeff(2)))
-  if(n_store_ci_level.eq.3) allocate(triples(totex_coeff(3)))
+  allocate(singles(totex_coeff(1,2)))
+  allocate(doubles(totex_coeff(2,2)))
+  if(n_store_ci_level.eq.3) allocate(triples(totex_coeff(3,2)))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   do Nind=1,n_store_ci_level
@@ -392,7 +410,7 @@ contains
 
 
     ! writing CI coefficients
-    do hI = 1,totex_coeff(Nind)
+    do hI = 1,totex_coeff(Nind,2)
      if(Nind.eq.1) then
       write(140+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
                                      singles(hI)%a
@@ -411,8 +429,8 @@ contains
    ! sorting singles
    if(Nind.eq.1) then
     do a = 1,nbasis-nel
-      do hI = 1,totex_coeff(1)
-       if(singles(hI)%a.eq.a.and..not.near_zero(singles(hI)%x)) then
+      do hI = 1,totex_coeff(Nind,2)
+       if(singles(hI)%a.eq.a) then
         write(150+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
                                        singles(hI)%a
         endif
@@ -430,7 +448,7 @@ contains
     enddo
     close(150+Nind)
     do i = 1,nel
-      do hI = 1,totex_coeff(1)
+      do hI = 1,totex_coeff(Nind,2)
        if(singles(hI)%i.eq.i) then
         write(160+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
                                        singles(hI)%a
@@ -442,8 +460,8 @@ contains
    ! sorting doubles
    else if(Nind.eq.2) then
     do a = 1,nbasis-nel-1
-     do hI = 1,totex_coeff(2)
-       if(doubles(hI)%a.eq.a.and..not.near_zero(doubles(hI)%x)) then
+      do hI = 1,totex_coeff(Nind,2)
+       if(doubles(hI)%a.eq.a) then
         write(150+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
                          doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
         endif
@@ -461,7 +479,7 @@ contains
     enddo
     close(150+Nind)
     do b = 2,nbasis-nel
-     do hI = 1,totex_coeff(2)
+      do hI = 1,totex_coeff(Nind,2)
       if(doubles(hI)%b.eq.b) then
        write(160+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
                         doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
@@ -480,7 +498,7 @@ contains
     enddo
     close(160+Nind)
     do i = 1,nel-1
-     do hI = 1,totex_coeff(2)
+      do hI = 1,totex_coeff(Nind,2)
       if(doubles(hI)%i.eq.i) then
        write(170+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
                         doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
@@ -499,7 +517,7 @@ contains
     enddo
     close(170+Nind)
     do j = 2,nel
-     do hI = 1,totex_coeff(2)
+      do hI = 1,totex_coeff(Nind,2)
       if(doubles(hI)%j.eq.j) then
        write(180+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
                         doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
@@ -513,8 +531,8 @@ contains
    ! sorting triples
    else if(Nind.eq.3) then
     do c = 3,nbasis-nel
-     do hI = 1,totex_coeff(3)
-      if(triples(hI)%c.eq.c.and..not.near_zero(triples(hI)%x)) then
+      do hI = 1,totex_coeff(Nind,2)
+      if(triples(hI)%c.eq.c) then
        write(150+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
                         triples(hI)%a,triples(hI)%j,triples(hI)%b,&
                                       triples(hI)%k,triples(hI)%c
@@ -534,7 +552,7 @@ contains
     enddo
     close(150+Nind)
     do b = 2,nbasis-nel-1
-     do hI = 1,totex_coeff(3)
+      do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%b.eq.b) then
        write(160+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
                         triples(hI)%a,triples(hI)%j,triples(hI)%b,&
@@ -555,7 +573,7 @@ contains
     enddo
     close(160+Nind)
     do a = 1,nbasis-nel-2
-     do hI = 1,totex_coeff(3)
+      do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%a.eq.a) then
        write(170+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
                         triples(hI)%a,triples(hI)%j,triples(hI)%b,&
@@ -576,7 +594,7 @@ contains
     enddo
     close(170+Nind)
     do i = 1,nel-2
-     do hI = 1,totex_coeff(3)
+      do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%i.eq.i) then
        write(180+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
                         triples(hI)%a,triples(hI)%j,triples(hI)%b,&
@@ -597,7 +615,7 @@ contains
     enddo
     close(180+Nind)
     do j = 2,nel-1
-     do hI = 1,totex_coeff(3)
+      do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%j.eq.j) then
        write(190+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
                         triples(hI)%a,triples(hI)%j,triples(hI)%b,&
@@ -618,7 +636,7 @@ contains
     enddo
     close(190+Nind)
     do k = 3,nel
-     do hI = 1,totex_coeff(3)
+      do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%k.eq.k) then
        write(200+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
                         triples(hI)%a,triples(hI)%j,triples(hI)%b,&
