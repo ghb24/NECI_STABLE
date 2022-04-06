@@ -11,7 +11,7 @@ module guga_pchb_class
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge, &
+    use util_mod, only: near_zero, fuseIndex, swap, binary_search_first_ge, &
                         get_free_unit, stop_all, operator(.isclose.)
     use CalcData, only: t_matele_cutoff, matele_cutoff, frq_ratio_cutoff, &
                         max_frequency_bound, n_frequency_bins, &

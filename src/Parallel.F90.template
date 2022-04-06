@@ -1132,13 +1132,13 @@ contains
         nNodes = 0  !Indicate we haven't setup nodes yet
 
         call MPI_Initialized(initialised, ierr)
-        if (ierr /= MPI_SUCCESS) &
-            call stop_all (t_r, 'MPI Error. Terminating.')
+        if (ierr /= MPI_SUCCESS) call stop_all (t_r, 'MPI Error. Terminating.')
 
         if (.not. initialised) then
             call MPI_Init (ierr)
-            if (ierr /= MPI_SUCCESS) &
+            if (ierr /= MPI_SUCCESS) then
                 call stop_all (t_r, 'MPI Error. Terminating.')
+            end if
         end if
 
         ! If we are using the C bindings, this just sets it to 0

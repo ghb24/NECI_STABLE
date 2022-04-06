@@ -154,7 +154,7 @@ contains
             mpi_temp = int(space_size_this_proc, MPIArg)
             call MPIAllGather(mpi_temp, this%sizes, ierr)
             ! The total space size across all processors.
-            space_size = int(sum(this%sizes), sizeof_int)
+            space_size = int(sum(this%sizes))
 
             this%displs(0) = 0
             do i = 1, nProcessors - 1

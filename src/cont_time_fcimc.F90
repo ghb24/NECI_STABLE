@@ -66,7 +66,7 @@ contains
 
         !
         ! Loop over the main list
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             fcimc_excit_gen_store%tFilled = .false.
             call extract_bit_rep(CurrentDets(:, j), det, sgn, flags, j, &
@@ -152,7 +152,7 @@ contains
         ! Update statistics. This is done before annihilation as the output
         ! statistics normally apply to the iteration _before_ the one that has
         ! just run (as they are accumulated during the normal loop)
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
         call end_iter_stats(TotWalkersNew)
 
         ! Send walkers to the correct nodes, and annihilate

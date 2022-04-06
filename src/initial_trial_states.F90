@@ -366,7 +366,7 @@ contains
 
 #ifdef CMPLX_
             ! First to build the Hamiltonian matrix
-            ndets_int = int(ndets_all_procs, sizeof_int)
+            ndets_int = int(ndets_all_procs)
             allocate(H_tmp(ndets_all_procs, ndets_all_procs), stat=ierr)
             if (ierr /= 0) call stop_all(this_routine, "Error allocating H_tmp array")
             H_tmp = 0.0_dp
@@ -421,7 +421,7 @@ contains
             ! should we switch here, if it is not hermitian?
             if (t_non_hermitian) then
                 ASSERT(.not. tGUGA)
-                ndets_int = int(ndets_all_procs, sizeof_int)
+                ndets_int = int(ndets_all_procs)
                 allocate(H_tmp(ndets_all_procs, ndets_all_procs), stat=ierr)
                 if (ierr /= 0) call stop_all(this_routine, "Error allocating H_tmp array")
                 H_tmp = 0.0_dp
@@ -465,7 +465,7 @@ contains
                 deallocate(evecs_all)
 
             else
-                call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), &
+                call frsblk_wrapper(det_list, int(ndets_all_procs), &
                                     nexcit, evals, evecs)
             end if
 

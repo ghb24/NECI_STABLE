@@ -2,6 +2,7 @@
 #define MACROS_INCLUDEGUARD_
 
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
+#define size_per_element(arr) int(sizeof(TempSpawnedParts), kind=int64) .div. size(TempSpawnedParts, kind=int64)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
 #define IsNullDet(nI) (any((nI) .eq. 0))

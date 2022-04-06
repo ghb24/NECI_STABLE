@@ -27,7 +27,7 @@
 module gasci_pchb
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.), operator(.implies.), EnumBase_t
+    use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, operator(.div.), operator(.implies.), EnumBase_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
@@ -540,7 +540,7 @@ contains
 
         ! first, pick two random elecs
         call pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pGen)
-        if (src(1) > src(2)) call intswap(src(1), src(2))
+        if (src(1) > src(2)) call swap(src(1), src(2))
 
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
@@ -564,7 +564,7 @@ contains
                 ! adjust pgen
                 pGen = pGen * this%pExch(ij, i_sg)
                 ! the spins of the target are the opposite of the source spins
-                call intswap(spin(1), spin(2))
+                call swap(spin(1), spin(2))
             else
                 samplerIndex = OPP_SPIN_NO_EXCH
                 ! adjust pgen

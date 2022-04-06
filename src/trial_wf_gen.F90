@@ -124,7 +124,7 @@ contains
 
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
-        tot_trial_space_size = int(sum(trial_counts), sizeof_int)
+        tot_trial_space_size = int(sum(trial_counts))
         write(stdout, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
 
         ! Use SpawnedParts as temporary space:
@@ -699,7 +699,7 @@ contains
         real(dp) :: all_norm_squared, norm_squared, norm
 
         MinInd = 1
-        n_walkers = int(TotWalkers, sizeof_int)
+        n_walkers = int(TotWalkers)
 
         if (tFirstCall) then
             if (iProcIndex == root) then

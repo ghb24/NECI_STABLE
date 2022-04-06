@@ -23,7 +23,6 @@ module gasci
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
 
     implicit none
-
     private
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
