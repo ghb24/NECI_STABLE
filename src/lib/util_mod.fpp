@@ -8,7 +8,7 @@
 #:set ops = {'integer': '==', 'real': '.isclose.', 'complex': '.isclose.', 'logical': '.eqv.'}
 
 module util_mod
-    use util_mod_comparisons
+    use util_mod_comparisons, only: operator(.arrgt.), operator(.arrlt.), arr_gt, arr_lt
     use util_mod_numerical
     use util_mod_cpts
     use util_mod_epsilon_close
@@ -29,7 +29,6 @@ module util_mod
     implicit none
 
     private
-
     public :: get_nan, isnan_neci, factrl, choose_i64, NECI_icopy, operator(.implies.), &
         abs_l1, abs_sign, near_zero, operator(.isclose.), operator(.div.), &
         stochastic_round, stochastic_round_r
