@@ -232,7 +232,7 @@ contains
         s2_timer%timer_name = 'S^2'
         call set_timer(s2_timer)
 
-        max_linked = int(choose(nel, (nel + LMS) / 2))
+        max_linked = int(choose_i64(nel, (nel + LMS) / 2))
         max_per_proc = 2 * (max_linked / nProcessors) + 1
         max_spawned = max_per_proc * nProcessors
 

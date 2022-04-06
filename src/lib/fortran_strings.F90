@@ -44,7 +44,7 @@ character(*), parameter ::  &
 
 contains
 
-    function int32_to_str(i) result(str)
+    pure function int32_to_str(i) result(str)
         character(:), allocatable :: str
         integer(int32), intent(in) :: i
         character(range(i) + 2) :: tmp
@@ -53,7 +53,7 @@ contains
     end function
 
 
-    function int64_to_str(i) result(str)
+    pure function int64_to_str(i) result(str)
         character(:), allocatable :: str
         integer(int64), intent(in) :: i
         character(range(i) + 2) :: tmp
@@ -192,18 +192,18 @@ contains
         read(unit=str, fmt=*) to_realdp
     end function
 
-    logical elemental function eq_Token_t(self, other)
-        class(Token_t), intent(in) :: self, other
-        eq_Token_t = self%str == other%str
+    logical elemental function eq_Token_t(this, other)
+        class(Token_t), intent(in) :: this, other
+        eq_Token_t = this%str == other%str
     end function
 
-    logical elemental function neq_Token_t(self, other)
-        class(Token_t), intent(in) :: self, other
-        neq_Token_t = self%str /= other%str
+    logical elemental function neq_Token_t(this, other)
+        class(Token_t), intent(in) :: this, other
+        neq_Token_t = this%str /= other%str
     end function
 
-    type(Token_t) elemental function add_Token_t(self, other)
-        class(Token_t), intent(in) :: self, other
-        add_Token_t%str = self%str // other%str
+    type(Token_t) elemental function add_Token_t(this, other)
+        class(Token_t), intent(in) :: this, other
+        add_Token_t%str = this%str // other%str
     end function
 end module fortran_strings

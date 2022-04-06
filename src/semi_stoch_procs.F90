@@ -1457,7 +1457,7 @@ contains
 
         ! Determine sensible sort size and increment.
         sort_max_delta = 0
-        bcast_size = 0
+        bcast_size = 1
         if (nProcessors<2) then ! compute target sort size (fixed from here on out)
             sort_size = n_keep
         else
