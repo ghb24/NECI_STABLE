@@ -28,6 +28,9 @@ module util_mod_comparisons
     use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
                        operator(.gt.), operator(.lt.)
     implicit none
+    private
+    public :: operator(.arrgt.), operator(.arrlt.)
+    public :: arr_lt, arr_gt
 
     ! Operator and function to test if arr1 > arr2 (if the first differing
     ! element is larger)

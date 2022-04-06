@@ -450,7 +450,9 @@ conditional_enable = !defined(SX)
 #define srt_ind(i) (((i)*nskip_)+1)
 
 module sort_mod
-    use util_mod, only: operator(.arrlt.), operator(.arrgt.)
+    use util_mod, only: stop_all
+    use util_mod_comparisons, only: operator(.arrgt.), operator(.arrlt.)
+
     use constants
     use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
                           operator(.gt.), operator(.lt.), assignment(=)
