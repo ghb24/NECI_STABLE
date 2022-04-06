@@ -81,7 +81,7 @@ contains
 
         use gndts_mod, only: gndts_all_sym_this_proc
         use SystemData, only: nbasis, nel
-        use util_mod, only: choose, get_free_unit
+        use util_mod, only: choose_i64, get_free_unit
 
         integer :: ndets_this_proc, ndets_tot, expected_ndets_tot
         integer(MPIArg) :: mpi_temp
@@ -92,7 +92,7 @@ contains
         write(stdout, '(/,1x,a49,/)') "Beginning finite-temperature Lanczos calculation."
         call neci_flush(6)
 
-        expected_ndets_tot = int(choose(nbasis, nel))
+        expected_ndets_tot = int(choose_i64(nbasis, nel))
         write(stdout, *) "Expected number:", expected_ndets_tot
         call neci_flush(6)
 
@@ -122,8 +122,8 @@ contains
             disps_ftlm(i) = disps_ftlm(i - 1) + ndets_ftlm(i - 1)
         end do
 
-        ndets_tot = int(sum(ndets_ftlm), sizeof_int)
-        expected_ndets_tot = int(choose(nbasis, nel))
+        ndets_tot = int(sum(ndets_ftlm))
+        expected_ndets_tot = int(choose_i64(nbasis, nel))
         if (ndets_tot /= expected_ndets_tot) then
             write(stdout, *) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &

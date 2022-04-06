@@ -8,6 +8,7 @@ module cont_time_rates
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   get_spawn_helement
     use CalcData, only: tContTimeFull, DiagSft, cont_time_max_overspawn
+    use FciMCData, only: pSingles, pDoubles
     use Determinants, only: get_helement, write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type

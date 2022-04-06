@@ -314,7 +314,7 @@ contains
         sgn = iLut(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1)
         real_sgn = transfer(sgn, real_sgn)
 
-        flags = int(iLut(IlutBits%ind_flag), sizeof_int)
+        flags = int(iLut(IlutBits%ind_flag))
 
     end subroutine extract_bit_rep
 
@@ -323,7 +323,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: flags
 
-        flags = int(ilut(IlutBits%ind_flag), sizeof_int)
+        flags = int(ilut(IlutBits%ind_flag))
 
     end function extract_flags
 
@@ -911,7 +911,7 @@ contains
         offset = 0
         do i = 0, NIfD
             do j = 0, bits_n_int - 1, 8
-                val = int(iand(ishft(ilut(i), -j), int(255, n_int)), sizeof_int)
+                val = int(iand(ishft(ilut(i), -j), int(255, n_int)))
                 do k = 1, decode_map_arr(0, val)
                     elec = elec + 1
                     nI(elec) = offset + decode_map_arr(k, val)

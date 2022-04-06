@@ -9,7 +9,7 @@ module DetBitOps
     use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfTot, NIfD, &
                             test_flag, extract_sign
-    use constants, only: n_int, bits_n_int, end_n_int, dp, lenof_sign, sizeof_int
+    use constants, only: n_int, bits_n_int, end_n_int, dp, lenof_sign
 
     implicit none
 
@@ -93,7 +93,7 @@ contains
         tmp = a - iand(ishft(a, -1), m1)
         tmp = iand(tmp, m2) + iand(ishft(tmp, -2), m2)
         tmp = iand(tmp, m3) + iand(ishft(tmp, -4), m3)
-        nbits = int(ishft(tmp * m4, -56), sizeof_int)
+        nbits = int(ishft(tmp * m4, -56))
 #else
         integer(n_int), parameter :: m1 = 1431655765_n_int    !Z'55555555'
         integer(n_int), parameter :: m2 = 858993459_n_int     !Z'33333333'

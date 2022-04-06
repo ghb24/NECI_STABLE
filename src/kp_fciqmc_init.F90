@@ -311,7 +311,7 @@ contains
                     orthog_kp_iter = to_int(tokens%next())
                 end if
             case default
-                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in kp-fciqmc block")
             end select
         end do read_inp
 
@@ -812,13 +812,13 @@ contains
             TotPartsOld = TotPartsInit
             AllTotParts = AllTotPartsInit
             AllTotPartsOld = AllTotPartsInit
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 ! Copy across the bitstring encoding of the determinant and also the walker signs.
                 CurrentDets(0:IlutBits%ind_pop + lenof_sign_kp - 1, i) = krylov_vecs(0:IlutBits%ind_pop + lenof_sign_kp - 1, i)
                 ! Copy across the flags.
                 CurrentDets(NIfTot, i) = krylov_vecs(NIfTotKP, i)
             end do
-            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers), .true.)
         end if
 
         ! Calculate and store the diagonal element of the Hamiltonian for determinants in CurrentDets.

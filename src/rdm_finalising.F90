@@ -41,7 +41,7 @@ contains
         use rdm_data, only: rdm_definitions_t, en_pert_t
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
-        use util_mod, only: set_timer, halt_timer
+        use timing_neci, only: set_timer, halt_timer
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)

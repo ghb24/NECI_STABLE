@@ -21,9 +21,9 @@ type1=integer(kind=int64), dimension(:)
 
 module BinSearch
 
-   use constants
-   use util_mod, only: operator(.arrlt.), operator(.arrgt.)
-   implicit none
+    use constants
+    use util_mod_comparisons, only: operator(.arrgt.), operator(.arrlt.)
+    implicit none
 
 contains
 
@@ -36,8 +36,8 @@ contains
 
     SUBROUTINE BinarySearch(Value,List,MinInd,MaxInd,FoundIndex,tSuccess)
         INTEGER :: MinInd,MaxInd,FoundIndex
-        %(type1)s :: Value()
-        %(type1)s :: List(:)
+        %(type1)s, intent(in) :: Value()
+        %(type1)s, intent(in) :: List(:)
         INTEGER :: i,j,N
         LOGICAL :: CompLT,CompGT
         LOGICAL :: tSuccess

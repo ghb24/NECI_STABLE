@@ -3,7 +3,7 @@
 module hilbert_space_size
 
     use constants, only: dp, int64, n_int, bits_n_int, sizeof_int, stdout
-    use util_mod, only: choose, get_free_unit, operator(.div.)
+    use util_mod, only: get_free_unit, operator(.div.), choose_i64
     implicit none
 
 contains
@@ -46,7 +46,7 @@ contains
         ExcitBinAll(:) = 0
 
         do i = 1, NEl
-            FDetSym = IEOR(FDetSym, INT(G1(FDet(i))%Sym%S, sizeof_int))
+            FDetSym = IEOR(FDetSym, int(G1(FDet(i))%Sym%S))
             IF (tFixLz) FDetMom = FDetMom + G1(FDet(i))%Ml
         end do
         CALL EncodeBitDet(FDet, FDetiLut)
@@ -68,12 +68,12 @@ contains
 
         !Sz symmetry could be put in here to make it more efficient
         !(would be a little fiddly for OS systems though)
-        FullSpace = Choose(NEl, iExcitLevTest)    !Pick 4 holes
-        FullSpace = FullSpace * Choose(nBasis - NEl + iExcitLevTest, iExcitLevTest) !Pick total unoccupied space
+        FullSpace = choose_i64(NEl, iExcitLevTest)    !Pick 4 holes
+        FullSpace = FullSpace * choose_i64(nBasis - NEl + iExcitLevTest, iExcitLevTest) !Pick total unoccupied space
 
         !Calculate excitation level bias due to the way the determinants are constructed.
         do i = 0, iExcitLevTest
-            ExcitLevBias(i) = Choose(NEl - i, iExcitLevTest - i)
+            ExcitLevBias(i) = choose_i64(NEl - i, iExcitLevTest - i)
 !             write(stdout,*) ExcitLevBias(i)
         end do
 
@@ -91,7 +91,7 @@ contains
         ! dSFMT does not initialise itself if not already initialised.
         call dSFMT_init(5489)
 
-        do i = 1, int(CalcDetCycles, sizeof_int)
+        do i = 1, int(CalcDetCycles)
 
             !Create a random determinant up to excitation level iExcitLevTest from FDetiLut
             !Returns det (iLut) and its excitation level, ExcitLevel, and the number of attempts
@@ -103,7 +103,7 @@ contains
 !Add to correct bin for the excitation level
             ExcitBin(ExcitLev) = ExcitBin(ExcitLev) + 1
 
-            IF (mod(i, int(CalcDetPrint, sizeof_int)) == 0) THEN
+            IF (mod(i, int(CalcDetPrint)) == 0) THEN
                 !Write out statistics
                 call MPIReduce(Accept, MPI_SUM, AcceptAll)
                 call MPIReduce(TotalAttempts, MPI_SUM, TotalAttemptsAll)
@@ -182,7 +182,7 @@ contains
             IF (ExcitLev == iExcitLevTest) then
                 RETURN   !Prob of accepting = 1
             else
-                pAcc = 1.0_dp / (Choose(NEl - ExcitLev, iExcitLevTest - ExcitLev))
+                pAcc = 1.0_dp / (choose_i64(NEl - ExcitLev, iExcitLevTest - ExcitLev))
                 r = genrand_real2_dSFMT()
                 if (r <= pAcc) exit
             end if
@@ -292,7 +292,7 @@ contains
                         clr_orb(iLut, Orb)
                         tNotAllowed = .false.
                         !Deal with totting up the symmetry for the now unocc orbital
-                        TotalSym = IEOR(TotalSym, INT((G1(Orb)%Sym%S), sizeof_int))
+                        TotalSym = IEOR(TotalSym, int((G1(Orb)%Sym%S)))
                         TotalMom = TotalMom + G1(Orb)%Ml
                         TotalMs = TotalMs + G1(Orb)%Ms
                         IF (tUEG .or. tHub) THEN
@@ -319,7 +319,7 @@ contains
                         !Increase excitation level
                         if (IsNotOcc(FDetiLut, Hole)) ExcitLev = ExcitLev + 1
                         !Deal with totting up the symmetry for the now occ orbital
-                        TotalSym = IEOR(TotalSym, INT((G1(Hole)%Sym%S), sizeof_int))
+                        TotalSym = IEOR(TotalSym, int((G1(Hole)%Sym%S)))
                         TotalMom = TotalMom - G1(Hole)%Ml
                         TotalMs = TotalMs - G1(Hole)%Ms
                         if (tUEG .or. tHub) then
@@ -429,7 +429,7 @@ contains
                 Momy = Momy + G1(FDet(i))%k(2)
                 Momz = Momz + G1(FDet(i))%k(3)
             else
-                FDetSym = IEOR(FDetSym, INT(G1(FDet(i))%Sym%S, sizeof_int))
+                FDetSym = IEOR(FDetSym, int(G1(FDet(i))%Sym%S))
             end if
         end do
 
@@ -464,8 +464,8 @@ contains
 
         Accept = 0
 
-        FullSpace = Choose(SpatOrbs, nOccAlpha)
-        FullSpace = FullSpace * Choose(SpatOrbs, nOccBeta)
+        FullSpace = choose_i64(SpatOrbs, nOccAlpha)
+        FullSpace = FullSpace * choose_i64(SpatOrbs, nOccBeta)
 
         write(IUNIT, *) "Size of space neglecting all but Sz symmetry: " &
             , FullSpace
@@ -520,7 +520,7 @@ contains
                 else if (tKPntSym) then
                     KPntMom = Symprod(KPntMom, G1(alpha)%Sym)
                 else
-                    TotalSym = IEOR(TotalSym, INT((G1(alpha)%Sym%S), sizeof_int))
+                    TotalSym = IEOR(TotalSym, int((G1(alpha)%Sym%S)))
                 end if
                 IF (.not. BTEST(FDetiLut((alpha - 1) / bits_n_int), mod((alpha - 1), bits_n_int))) THEN
                     !orbital chosen is *not* in the reference determinant
@@ -554,7 +554,7 @@ contains
                 else if (tKPntSym) then
                     KPntMom = Symprod(KPntMom, G1(beta)%Sym)
                 ELSE
-                    TotalSym = IEOR(TotalSym, INT((G1(beta)%Sym%S), sizeof_int))
+                    TotalSym = IEOR(TotalSym, int((G1(beta)%Sym%S)))
                 end if
                 IF (.not. BTEST(FDetiLut((beta - 1) / bits_n_int), mod((beta - 1), bits_n_int))) THEN
                     !orbital chosen is *not* in the reference determinant
@@ -698,7 +698,7 @@ contains
         write(IUNIT, *) "Calculating exact size of symmetry-allowed determinant space..."
         FDetSym = 0
         do i = 1, NEl
-            FDetSym = IEOR(FDetSym, INT(G1(FDet(i))%Sym%S, sizeof_int))
+            FDetSym = IEOR(FDetSym, int(G1(FDet(i))%Sym%S))
         end do
         write(stdout, *) "Symmetry of HF determinant is: ", FDetSym
         CALL neci_flush(IUNIT)
@@ -706,12 +706,12 @@ contains
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
         do i = 1, nBasis, 1
             IF (G1(i)%Ms == 1) THEN
-                ClassCounts(1, INT(G1(i)%Sym%S, sizeof_int)) = &
-                    ClassCounts(1, INT(G1(i)%Sym%S, sizeof_int)) + 1
+                ClassCounts(1, int(G1(i)%Sym%S)) = &
+                    ClassCounts(1, int(G1(i)%Sym%S)) + 1
             ELSE
 
-                ClassCounts(2, INT(G1(i)%Sym%S, sizeof_int)) = &
-                    ClassCounts(2, INT(G1(i)%Sym%S, sizeof_int)) + 1
+                ClassCounts(2, int(G1(i)%Sym%S)) = &
+                    ClassCounts(2, int(G1(i)%Sym%S)) + 1
             end if
         end do
         do i = 0, 7
@@ -810,22 +810,22 @@ contains
                                             IF ((NAlph == NOccAlpha) .and. (NBet == NOccBeta)) THEN
 
                                                 SpaceGrow = 1.0_dp
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(1, 0), a0)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(2, 0), b0)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(1, 1), a1)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(2, 1), b1)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(1, 2), a2)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(2, 2), b2)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(1, 3), a3)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(2, 3), b3)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(1, 4), a4)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(2, 4), b4)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(1, 5), a5)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(2, 5), b5)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(1, 6), a6)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(2, 6), b6)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(1, 7), a7)
-                                                SpaceGrow = SpaceGrow * Choose(ClassCounts(2, 7), b7)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(1, 0), a0)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(2, 0), b0)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(1, 1), a1)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(2, 1), b1)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(1, 2), a2)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(2, 2), b2)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(1, 3), a3)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(2, 3), b3)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(1, 4), a4)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(2, 4), b4)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(1, 5), a5)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(2, 5), b5)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(1, 6), a6)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(2, 6), b6)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(1, 7), a7)
+                                                SpaceGrow = SpaceGrow * choose_i64(ClassCounts(2, 7), b7)
                                                 Space = Space + SpaceGrow
                                             end if
                                         end if
@@ -887,7 +887,7 @@ contains
             //"determinant space..."
         FDetSym = 0
         do i = 1, NEl
-            FDetSym = IEOR(FDetSym, INT(G1(FDet(i))%Sym%S, sizeof_int))
+            FDetSym = IEOR(FDetSym, int(G1(FDet(i))%Sym%S))
         end do
         write(stdout, *) "Symmetry of HF determinant is: ", FDetSym
         CALL neci_flush(IUNIT)
@@ -896,13 +896,13 @@ contains
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
 !We need to separate this into occupied and virtual.
         do i = 1, NEl, 1
-            ClassCountsOcc(INT(G1(BRR(i))%Sym%S, sizeof_int)) = &
-                ClassCountsOcc(INT(G1(BRR(i))%Sym%S, sizeof_int)) + 1
+            ClassCountsOcc(int(G1(BRR(i))%Sym%S)) = &
+                ClassCountsOcc(int(G1(BRR(i))%Sym%S)) + 1
         end do
 
         do i = NEL + 1, nBasis, 1
-            ClassCountsVirt(INT(G1(BRR(i))%Sym%S, sizeof_int)) = &
-                ClassCountsVirt(INT(G1(BRR(i))%Sym%S, sizeof_int)) + 1
+            ClassCountsVirt(int(G1(BRR(i))%Sym%S)) = &
+                ClassCountsVirt(int(G1(BRR(i))%Sym%S)) + 1
         end do
 
 !These are still in spin orbitals, so check there are multiple of 2 values in
@@ -1030,90 +1030,90 @@ contains
 
                                                 IF (nOccAlpha > nOccBeta) THEN
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(0), a0o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(0), b0o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(0), a0v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(0), b0v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(0), a0o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(0), b0o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(0), a0v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(0), b0v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(1), a1o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(1), b1o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(1), a1v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(1), b1v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(1), a1o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(1), b1o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(1), a1v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(1), b1v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(2), a2o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(2), b2o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(2), a2v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(2), b2v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(2), a2o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(2), b2o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(2), a2v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(2), b2v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(3), a3o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(3), b3o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(3), a3v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(3), b3v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(3), a3o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(3), b3o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(3), a3v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(3), b3v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(4), a4o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(4), b4o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(4), a4v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(4), b4v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(4), a4o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(4), b4o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(4), a4v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(4), b4v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(5), a5o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(5), b5o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(5), a5v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(5), b5v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(5), a5o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(5), b5o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(5), a5v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(5), b5v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(6), a6o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(6), b6o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(6), a6v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(6), b6v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(6), a6o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(6), b6o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(6), a6v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(6), b6v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(7), a7o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(7), b7o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(7), a7v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(7), b7v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(7), a7o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(7), b7o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(7), a7v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(7), b7v)
 
                                                     Space = Space + SpaceGrow
 
                                                 ELSE
 
                                                     SpaceGrow = 1.0_dp
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(0), a0o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(0), b0o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(0), a0v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(0), b0v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(0), a0o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(0), b0o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(0), a0v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(0), b0v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(1), a1o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(1), b1o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(1), a1v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(1), b1v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(1), a1o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(1), b1o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(1), a1v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(1), b1v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(2), a2o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(2), b2o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(2), a2v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(2), b2v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(2), a2o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(2), b2o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(2), a2v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(2), b2v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(3), a3o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(3), b3o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(3), a3v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(3), b3v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(3), a3o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(3), b3o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(3), a3v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(3), b3v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(4), a4o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(4), b4o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(4), a4v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(4), b4v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(4), a4o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(4), b4o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(4), a4v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(4), b4v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(5), a5o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(5), b5o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(5), a5v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(5), b5v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(5), a5o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(5), b5o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(5), a5v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(5), b5v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(6), a6o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(6), b6o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(6), a6v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(6), b6v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(6), a6o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(6), b6o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(6), a6v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(6), b6v)
 
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOcc(7), a7o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsOccMax(7), b7o)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirt(7), a7v)
-                                                    SpaceGrow = SpaceGrow * Choose(ClassCountsVirtMax(7), b7v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOcc(7), a7o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsOccMax(7), b7o)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirt(7), a7v)
+                                                    SpaceGrow = SpaceGrow * choose_i64(ClassCountsVirtMax(7), b7v)
 
                                                     Space = Space + SpaceGrow
                                                 end if

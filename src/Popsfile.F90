@@ -43,9 +43,20 @@ MODULE PopsfileMod
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                          gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
+                          gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt, gamma_trip
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
-                         t_initialized_roi
+                         t_initialized_roi, ilutref, perturbation, CurrentDets, AllSumENum, &
+                         AllSumNoatHF, tSinglePartPhase, ProjEDet, SumNoatHF, ValidSpawnedList, &
+                         SpawnVec, InitialSpawnedSlots, SpawnVec2, TotParts, iter_data_fciqmc, &
+                         AllTotParts, AllTotPartsOld, AllTotWalkers, AllTotWalkersOld, Hii, &
+                         iLutHF, MaxSpawned, PreviousCycles, ProjectionE, SpawnedParts, SpawnedParts2, &
+                         spawnvectag, spawnvec2tag, SumENum, TotWalkers, TotWalkersOld, tPopsAlreadyRead, &
+                         tReplicaReferencesDiffer, WalkVecDetsTag, tEScaleWalkers, Iter, pParallel, &
+                         TotImagTime, tSearchTau, tSearchTauOption, iBlockingIter, HashIndex, &
+                         iEndFreeSlot, InstNoatHF, iStartFreeSlot, NoatHF, nWalkerHashes, popsfile_dets, &
+                         nwalkerhashes
+    use dSFMT_interface, only: genrand_real2_dSFMT
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
                                set_det_offdiagH, store_decoding, max_ratio_size, fvals_size, &
                                apvals_size, set_supergroup_idx
@@ -311,7 +322,7 @@ contains
         if (tCalcExtraInfo) then
 
             call clear_hash_table(HashIndex)
-            call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, int(CurrWalkers, sizeof_int), .true.)
+            call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, int(CurrWalkers), .true.)
 
             ! Run through all determinants on each node, and calculate the total number of walkers, and noathf
             CurrHF = 0.0_dp
@@ -326,8 +337,8 @@ contains
                     endif
                     CurrHF = CurrHF + SignTemp
                     if (.not. tSemiStochastic) then
-                        call set_det_diagH(int(i, sizeof_int), 0.0_dp)
-                        call set_det_offdiagH(int(i, sizeof_int), h_cast(0_dp))
+                        call set_det_diagH(int(i), 0.0_dp)
+                        call set_det_offdiagH(int(i), h_cast(0_dp))
                     end if
                 else
                     if (.not. tSemiStochastic) then
@@ -335,8 +346,8 @@ contains
                         call decode_bit_det(TempnI, Dets(:, i))
                         HElemTemp = get_diagonal_matel(TempnI, Dets(:,i))
                         HElemTemp2 = get_off_diagonal_matel(TempnI, Dets(:,i))
-                        call set_det_diagH(int(i, sizeof_int), real(HElemTemp, dp) - Hii)
-                        call set_det_offdiagH(int(i, sizeof_int), HElemTemp2)
+                        call set_det_diagH(int(i), real(HElemTemp, dp) - Hii)
+                        call set_det_offdiagH(int(i), HElemTemp2)
                     endif
                 endif
             enddo
@@ -715,7 +726,7 @@ contains
             endif
 
             ! Store the sign and flag information in the determinant.
-            flg = int(flg_read, sizeof_int)
+            flg = int(flg_read)
 
             call encode_sign(WalkerTemp, new_sgn)
             call encode_flags(WalkerTemp, flg)
@@ -907,7 +918,7 @@ contains
             write (stdout, *) "Total number of walkers before perturbation: ", TotWalkers
             ! also store the original walker number in the real-time FCIQMC
 
-            TotWalkersIn = int(TotWalkers, sizeof_int)
+            TotWalkersIn = int(TotWalkers)
 
             ! also store this original value
             if (t_real_time_fciqmc) then
@@ -972,7 +983,7 @@ contains
         end if
 
         call clear_hash_table(HashIndex)
-        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
+        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers), .true.)
 
         ! If we are doing load balancing, do an initial balance now that we
         ! have read the particles in
@@ -1111,7 +1122,7 @@ contains
             tSinglePartPhase = .true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
-            WalkerListSize = int(max(int(initwalkers, int64), NINT(real(iPopAllTotWalkers, dp) / real(nNodes, dp), int64)), sizeof_int)
+            WalkerListSize = int(max(int(initwalkers, int64), NINT(real(iPopAllTotWalkers, dp) / real(nNodes, dp), int64)))
         else
             tSinglePartPhase = .false.
             WalkerListSize = NINT(real(iPopAllTotWalkers, dp) / real(nNodes, dp))
@@ -1372,7 +1383,7 @@ contains
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing, PopPTriples
         real(dp) :: PopPDoubles, PopPSing_spindiff1, PopPDoub_spindiff1, PopPDoub_spindiff2
-        real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
+        real(dp) :: PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
         logical :: PopPreviousHistTau
@@ -1389,7 +1400,7 @@ contains
             PopTau, PopiBlockingIter, PopRandomHash, &
             PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, PopPTriples, &
             PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
-            PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
+            PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
             PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
             PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
             PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
@@ -1464,6 +1475,7 @@ contains
         end if
         call MPIBcast(PopGammaSing)
         call MPIBcast(PopGammaDoub)
+        call MPIBcast(PopGammaTrip)
         if (tReltvy) then
             call MPIBcast(PopGammaSing_spindiff1)
             call MPIBcast(PopGammaDoub_spindiff1)
@@ -1565,6 +1577,7 @@ contains
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
         gamma_sing = PopGammaSing
         gamma_doub = PopGammaDoub
+        gamma_trip = PopGammaTrip
         if (tReltvy) then
             gamma_sing_spindiff1 = PopGammaSing_spindiff1
             gamma_doub_spindiff1 = PopGammaDoub_spindiff1
@@ -1760,7 +1773,7 @@ contains
 !and the number of determinants we are writing out. Since the list is not
 !necessarily contiguous any more, we have to calculate Alltotwalkers seperately.
         Writeoutdet = 0
-        do i = 1, int(nDets, sizeof_int)
+        do i = 1, int(nDets)
             call extract_sign(Dets(:, i), TempSign)
             if (sum(abs(tempsign)) > binarypops_min_weight) then
                 !Count this det in AllTotWalkers
@@ -1839,7 +1852,7 @@ contains
         write_count = 0
         write_count_sum = 0
 
-        nMaxDets = int(maxval(node_write_attempts), sizeof_int)
+        nMaxDets = int(maxval(node_write_attempts))
         gdata_size = gdata_write_handler%entry_size()
         allocate (gdata(gdata_size, nMaxDets), stat=error)
         call gdata_write_handler%write_gdata(gdata, int(ndets))
@@ -1892,7 +1905,7 @@ contains
 
             ! Write out the dets from this node (the head node, unless we
             ! are in split-pops mode.
-            do j = 1, int(ndets, sizeof_int)
+            do j = 1, int(ndets)
                 ! Count the number of written particles
                 if (write_pops_det(iunit, iunit_2, Dets(:, j), j, gdata)) then
                     write_count = write_count + 1
@@ -1918,23 +1931,23 @@ contains
                 do i = 1, nNodes - 1
 
                     ! Calculate the amount of data to receive, and get it.
-                    j = int(node_write_attempts(i), sizeof_int) * (NIfTot + 1)
+                    j = int(node_write_attempts(i)) * (NIfTot + 1)
                     call MPIRecv(Parts(:, 1:node_write_attempts(i)), j, &
                                  NodeRoots(i), Tag, error)
-                    j = int(node_write_attempts(i), sizeof_int) * gdata_size
+                    j = int(node_write_attempts(i)) * gdata_size
                     call MPIRecv(gdata(1:gdata_size, 1:node_write_attempts(i)), j, NodeRoots(i), &
                                  fTag, error)
                     ! SDS: Catherine seems to have disabled writing these out
                     !      so no need to communicate them.
                     !!!if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                     !!!    ! And now for CurrentH
-                    !!!    j = int(WalkersonNodes(i), sizeof_int) * (1+2*lenof_sign)
+                    !!!    j = int(WalkersonNodes(i)) * (1+2*lenof_sign)
                     !!!    call MPIRecv (AllCurrentH(:, 1:WalkersonNodes(i)), j, &
                     !!!                  NodeRoots(i), Tag2, error)
                     !!!endif
 
                     ! Then write it out in the same way as above.
-                    nwrite = int(node_write_attempts(i), sizeof_int)
+                    nwrite = int(node_write_attempts(i))
                     do j = 1, nwrite
                         if (write_pops_det(iunit, iunit_2, Parts(:, j), j, gdata)) then
                             !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
@@ -1958,13 +1971,13 @@ contains
             ! Send the data on this processor to the root node for outputting
             ! in a combined popsfile
             ASSERT(.not. tSplitPops)
-            j = int(nDets, sizeof_int) * (NIfTot + 1)
+            j = int(nDets) * (NIfTot + 1)
             call MPISend(Dets(0:NIfTot, 1:nDets), j, root, Tag, error)
             ! gdata have already been written
-            j = int(nDets, sizeof_int) * gdata_size
+            j = int(nDets) * gdata_size
             call MPISend(gdata(1:gdata_size, 1:nDets), j, root, fTag, error)
             !!!if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-            !!!    j = int(nDets, sizeof_int) * (1+2*lenof_sign)
+            !!!    j = int(nDets) * (1+2*lenof_sign)
             !!!    call MPISend (CurrentH(1:1+2*lenof_sign, 1:nDets), j, root, Tag2, error)
             !!!endif
 
@@ -2071,8 +2084,9 @@ contains
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.
-        write (iunit, '(5(a,g18.12))') 'PopGammaSing=', gamma_sing, &
+        write (iunit, '(6(a,g18.12))') 'PopGammaSing=', gamma_sing, &
             ',PopGammaDoub=', gamma_doub, &
+            ',PopGammaTrip=', gamma_trip, &
             ',PopGammaOpp=', gamma_opp, &
             ',PopGammaPar=', gamma_par, &
             ',PopMaxDeathCpt=', max_death_cpt
@@ -2382,7 +2396,7 @@ contains
         IF (PopsVersion == 2) THEN
             READ (iunit, '(A12,L5,A8,L5,A8,L5,A12,L5)') junk, tPop64BitDets, junk2, tPopHPHF, junk3, tPopLz, junk4, tPopInitiator
         ELSE
-            write (stdout, '(A)') "Reading in from depreciated POPSFILE - assuming that parameters " &
+            write (stdout, '(A)') "Reading in from deprecated POPSFILE - assuming that parameters " &
             & //"are the same as when POPSFILE was written"
         ENDIF
         READ (iunit, *) tmp_dp
@@ -2439,10 +2453,10 @@ contains
 
 !Divide up the walkers to receive for each node
             do i = 1, nProcessors - 1
-                WalkerstoReceive(i) = int(AvWalkers, sizeof_int)
+                WalkerstoReceive(i) = int(AvWalkers)
             enddo
 !The last processor takes the 'remainder'
-            WalkerstoReceive(nProcessors) = int(AllTotWalkers - (AvWalkers * (nProcessors - 1)), sizeof_int)
+            WalkerstoReceive(nProcessors) = int(AllTotWalkers - (AvWalkers * (nProcessors - 1)))
 
 !Quick check to ensure we have all walkers accounted for
             total = 0
@@ -2461,7 +2475,7 @@ contains
                 TSinglePartPhase = .true.
             ENDIF
             SumENum = AllSumENum / REAL(nProcessors, dp)     !Divide up the SumENum over all processors
-            AvSumNoatHF = int(AllSumNoatHF(1) / nProcessors, sizeof_int) !This is the average Sumnoathf
+            AvSumNoatHF = int(AllSumNoatHF(1) / nProcessors) !This is the average Sumnoathf
             do i = 1, nProcessors - 1
                 NodeSumNoatHF(i) = real(INT(AvSumNoatHF, int64), dp)
             enddo
@@ -2572,7 +2586,7 @@ contains
         CurrWalkers = 0
         sign_largest = 0
         ilut_largest = 0
-        do i = 1, int(AllTotWalkers, sizeof_int)
+        do i = 1, int(AllTotWalkers)
             iLutTemp(:) = 0
             IF (PopsVersion /= 1) THEN
                 IF (tBinRead) THEN
@@ -2755,7 +2769,7 @@ contains
 
         ! Calculate the stored data for the particlse that have been read in
         TotParts = 0
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
             call decode_bit_det(TempnI, currentDets(:, j))
             ! note on GUGA: here it is fine since working out excit level = 0
             ! works and thats all what is necessary here!

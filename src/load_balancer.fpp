@@ -24,7 +24,12 @@ module load_balance
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
-                         n_prone_dets
+                         n_prone_dets, fcimc_iter_data, SpawnedParts, current_trial_amps, &
+                         iHighestPop, HighestPopDet, norm_psi_squared, norm_semistoch_squared, &
+                         AvNoAtHF, HolesInList, iEndFreeSlot, iLutHF_True, &
+                         InstNoAtHf, NoBorn, NoRemoved, iStartFreeSlot, &
+                         iter, IterRDM_HF, tEScaleWalkers, TotParts, &
+                         Hii, MaxWalkersPart, tTrialHash, TotWalkers, trial_space_size
     use core_space_util, only: cs_replicas
     use gasci_supergroup_index, only: lookup_supergroup_indexer
     use SystemData, only: nel
@@ -38,6 +43,8 @@ module load_balance
     use trial_ht_procs, only: buffer_trial_ht_entries, add_trial_ht_entries
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use load_balance_calcnodes
+    use dSFMT_interface, only: genrand_real2_dSFMT
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use Parallel_neci
     use constants
     use util_mod
@@ -196,7 +203,7 @@ contains
             iStartFreeSlot = 1
             iEndFreeSlot = 0
         end if
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j))) then
@@ -320,7 +327,7 @@ contains
             !even though this code has no mpi calls, and is not doing anything with
             !a single determinant.
             !Very confusing...
-            TotWalkersTmp = int(TotWalkers, sizeof_int)
+            TotWalkersTmp = int(TotWalkers)
             call CalcHashTableStats(TotWalkersTmp, iter_data)
             TotWalkers = int(TotWalkersTmp, int64)
         end if
@@ -370,7 +377,7 @@ contains
             ! target processor. Use the SpawnedParts array as a buffer.
             nsend = 0
             nconsend = 0
-            do j = 1, int(TotWalkers, sizeof_int)
+            do j = 1, int(TotWalkers)
 
                 ! Skip unoccupied sites (non-contiguous)
                 call extract_sign(CurrentDets(:, j), sgn)
@@ -761,7 +768,7 @@ contains
             write(6, *) "HolesInList: ", HolesInList
             write(stdout, "(A,I12)") "Walker list length: ", TotWalkersNew
             write(stdout, "(A)") "TW: Walker  Det"
-            do j = 1, int(TotWalkersNew, sizeof_int)
+            do j = 1, int(TotWalkersNew)
                 CurrentSign = &
                     transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1, j), &
                              CurrentSign)

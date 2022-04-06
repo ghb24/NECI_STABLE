@@ -1072,7 +1072,7 @@ contains
 
         associate(rep => cs_replicas(run))
             MinInd = 1
-            nwalkers = int(TotWalkers, sizeof_int)
+            nwalkers = int(TotWalkers)
 
             do i = 1, rep%determ_sizes(iProcIndex)
 
@@ -1158,7 +1158,7 @@ contains
         real(dp), allocatable :: gdata_buf(:, :)
         type(gdata_io_t) :: reorder_handler
 
-        nwalkers = int(TotWalkers, sizeof_int)
+        nwalkers = int(TotWalkers)
 
         associate(rep => cs_replicas(run))
             ! Test that SpawnedParts is going to be big enough
@@ -1229,7 +1229,7 @@ contains
             ! Next loop through CurrentDets and move all non-core states to after the last
             ! core state slot in SpawnedParts.
             i_non_core = rep%determ_sizes(iProcIndex)
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 if (.not. check_determ_flag(CurrentDets(:, i), run)) then
                     i_non_core = i_non_core + 1
 
@@ -1346,7 +1346,7 @@ contains
         if (present(norm)) norm = 0.0_dp
 
         ! Run through all walkers on process.
-        do i = 1, int(source_size, sizeof_int)
+        do i = 1, int(source_size)
             call extract_sign(loc_source(:, i), sign_curr)
 
             sign_curr_real = core_space_weight(sign_curr, run)
@@ -1457,7 +1457,7 @@ contains
 
         ! Determine sensible sort size and increment.
         sort_max_delta = 0
-        bcast_size = 0
+        bcast_size = 1
         if (nProcessors<2) then ! compute target sort size (fixed from here on out)
             sort_size = n_keep
         else
@@ -1855,7 +1855,7 @@ contains
 
             ! Then copy these amplitudes across to the corresponding states in CurrentDets.
             counter = 0
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 if (check_determ_flag(CurrentDets(:, i), run)) then
                     counter = counter + 1
                     pop_sign = dc%davidson_eigenvector(counter)
@@ -1918,7 +1918,7 @@ contains
             do i = 1, iProcIndex
                 counter = counter + rep%determ_sizes(i - 1)
             end do
-            do i = 1, rep%determ_space_size !int(TotWalkers, sizeof_int)
+            do i = 1, rep%determ_space_size !int(TotWalkers)
                 if (check_determ_flag(CurrentDets(:, i), run)) then
                     counter = counter + 1
                     pop_sign = e_vectors(counter, 1)
@@ -1985,7 +1985,7 @@ contains
         ! Next create the diagonal used by Davidson by copying the core one.
         if (allocated(hamil_diag)) deallocate(hamil_diag)
         allocate(hamil_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
-        call LogMemAlloc('hamil_diag', int(rep%determ_sizes(iProcIndex), sizeof_int), &
+        call LogMemAlloc('hamil_diag', int(rep%determ_sizes(iProcIndex)), &
             8, t_r, HDiagTag, ierr)
         hamil_diag = rep%core_ham_diag
 
