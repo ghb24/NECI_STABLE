@@ -386,8 +386,8 @@ contains
 
 
    ! sorting singles
-   z=0
    if(Nind.eq.1) then
+    z=0
     do a = 1,nbasis-nel
       do hI = 1,totex_coeff(Nind,2)
        if(singles(hI)%a.eq.a) then
@@ -404,11 +404,12 @@ contains
        endif
       enddo
     enddo
+   close (140+Nind)
 
 
    ! sorting doubles
-   z=0
    else if(Nind.eq.2) then
+    z=0
     do a = 1,nbasis-nel-1
      do hI = 1,totex_coeff(Nind,2)
       if(doubles(hI)%a.eq.a) then
@@ -443,12 +444,12 @@ contains
         endif
       enddo
     enddo
-
+   close (140+Nind)
 
 
    ! sorting triples
-   z=0
    else if(Nind.eq.3) then
+    z=0
     do c = 3,nbasis-nel
       do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%c.eq.c) then
@@ -493,7 +494,6 @@ contains
       endif
      enddo
     enddo
-    z=0
     do k = 3,nel
       do hI = 1,totex_coeff(Nind,2)
       if(triples_tmp(hI)%k.eq.k) then
@@ -503,6 +503,7 @@ contains
       endif
      enddo
     enddo
+   close (140+Nind)
    endif
 
   if(Nind.eq.1) deallocate(singles)
