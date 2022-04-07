@@ -510,7 +510,7 @@ contains
             forall (i=0:nNodes - 1) PopsInitialSlots(i) = batch_size * i + 1
 
             write (stdout, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
-                " determinants at a time from POPSFILE'"
+                " determinants at a time from POPSFILE"
             call neci_flush(6)
         end if
 
