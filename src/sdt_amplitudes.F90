@@ -13,7 +13,6 @@ module sdt_amplitudes
   use SystemData, only: nel, nbasis, symmax
   use Parallel_neci, only: iProcIndex, MPIcollection
   use MPI_wrapper, only: root
-!  use sdt_util, only: sorting_singles
 
   implicit none
 
@@ -115,7 +114,6 @@ contains
     logical  :: tPar
     integer  :: h,j,k,z,p,ial(symmax),ibe(symmax),Itot(nbasis),iSym,totEl,totOrb
     integer  :: signCI,indCoef(2,n_store_ci_level),Norb(symmax),NorbTot(symmax)
-!    integer  :: totex_coeff(n_store_ci_level)
 
     if(iProcIndex.eq.root) then
       write(stdout,*) ''
@@ -133,74 +131,74 @@ contains
     call MPIcollection(NIfTot,first_free_entry,ciCoeff_storage,root_first_free_entry,root_ciCoeff_storage)
 
     if(iProcIndex.eq.root) then
-              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-              ! loop to find all the alpha/beta occ/unocc orbs !
-              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-              NorbTot(0)=0
-              do iSym = 1, symmax
-                Norb(iSym) =  OrbClassCount(ClassCountInd(1/2,iSym,0)) * 2
-                NorbTot(iSym) = Norb(iSym) + NorbTot(iSym-1)
-              enddo
-             ! loop to find all the occupied alpha spin orbitals
-              totEl = 0
-              do iSym = 1, symmax
-                ial(iSym)=0
-                do z=1,nel
-                  if(projEDet(z,1).gt.NorbTot(iSym-1) .and. projEDet(z,1).le.NorbTot(iSym)) then
-                    if (MOD(projEDet(z,1),2).eq.1) then
-                      ial(iSym)=ial(iSym)+1
-                      Itot(totEl+ial(iSym))=projEDet(z,1)
-                    endif
-                  endif
-                enddo
-                totEl = totEl + ial(iSym)
-                ibe(iSym)=0
-             ! loop to find all the occupied beta spin orbitals
-                do z=1,nel
-                  if(projEDet(z,1).gt.NorbTot(iSym-1) .and. projEDet(z,1).le.NorbTot(iSym)) then
-                    if (MOD(projEDet(z,1),2).eq.0) then
-                      ibe(iSym)=ibe(iSym)+1
-                      Itot(totEl+ibe(iSym))=projEDet(z,1)
-                    endif
-                  endif
-                enddo
-                totEl = totEl + ibe(iSym)
-              enddo
-              if(totEl.ne.nel) write(stdout,*) 'WARNING: not matching number of electrons!'
-             ! loop to find all the non-occupied alpha spin orbitals
-              totOrb=0
-              do iSym = 1, symmax
-                ial(iSym)=0
-                do k=NorbTot(iSym-1)+1,NorbTot(iSym)
-                  j=0
-                  do z=1,nel
-                    if(k.eq.projEDet(z,1)) j=2
-                  enddo
-                  if(j.eq.2) cycle
-                  if (MOD(k,2).eq.1) then
-                    ial(iSym)=ial(iSym)+1
-                    Itot(nel+totOrb+ial(iSym))=k
-                  endif
-                enddo
-                totOrb = totOrb + ial(iSym)
-                ibe(iSym)=0
-             ! loop to find all the non-occupied beta spin orbitals
-                do k=NorbTot(iSym-1)+1,NorbTot(iSym)
-                  j=0
-                  do z=1,nel
-                    if(k.eq.projEDet(z,1)) j=2
-                  enddo
-                  if(j.eq.2) cycle
-                  if (MOD(k,2).eq.0) then
-                    ibe(iSym)=ibe(iSym)+1
-                    Itot(nel+totOrb+ibe(iSym))=k
-                  endif
-                enddo
-                totOrb = totOrb + ibe(iSym)
-              enddo
-              if(nel+totOrb.ne.nbasis) write(stdout,*) 'WARNING: not matching number of orbitals!'
-              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! loop to find all the alpha/beta occ/unocc orbs !
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      NorbTot(:)=0
+      do iSym = 1, symmax
+        Norb(iSym) =  OrbClassCount(ClassCountInd(1/2,iSym,0)) * 2
+        NorbTot(iSym) = Norb(iSym) + NorbTot(iSym-1)
+      enddo
+     ! loop to find all the occupied alpha spin orbitals
+      totEl = 0
+      do iSym = 1, symmax
+        ial(iSym)=0
+        do z=1,nel
+          if(projEDet(z,1).gt.NorbTot(iSym-1) .and. projEDet(z,1).le.NorbTot(iSym)) then
+            if (MOD(projEDet(z,1),2).eq.1) then
+              ial(iSym)=ial(iSym)+1
+              Itot(totEl+ial(iSym))=projEDet(z,1)
+            endif
+          endif
+        enddo
+        totEl = totEl + ial(iSym)
+        ibe(iSym)=0
+     ! loop to find all the occupied beta spin orbitals
+        do z=1,nel
+          if(projEDet(z,1).gt.NorbTot(iSym-1) .and. projEDet(z,1).le.NorbTot(iSym)) then
+            if (MOD(projEDet(z,1),2).eq.0) then
+              ibe(iSym)=ibe(iSym)+1
+              Itot(totEl+ibe(iSym))=projEDet(z,1)
+            endif
+          endif
+        enddo
+        totEl = totEl + ibe(iSym)
+      enddo
+      if(totEl.ne.nel) write(stdout,*) 'WARNING: not matching number of electrons!'
+     ! loop to find all the non-occupied alpha spin orbitals
+      totOrb=0
+      do iSym = 1, symmax
+        ial(iSym)=0
+        do k=NorbTot(iSym-1)+1,NorbTot(iSym)
+          j=0
+          do z=1,nel
+            if(k.eq.projEDet(z,1)) j=2
+          enddo
+          if(j.eq.2) cycle
+          if (MOD(k,2).eq.1) then
+            ial(iSym)=ial(iSym)+1
+            Itot(nel+totOrb+ial(iSym))=k
+          endif
+        enddo
+        totOrb = totOrb + ial(iSym)
+        ibe(iSym)=0
+     ! loop to find all the non-occupied beta spin orbitals
+        do k=NorbTot(iSym-1)+1,NorbTot(iSym)
+          j=0
+          do z=1,nel
+            if(k.eq.projEDet(z,1)) j=2
+          enddo
+          if(j.eq.2) cycle
+          if (MOD(k,2).eq.0) then
+            ibe(iSym)=ibe(iSym)+1
+            Itot(nel+totOrb+ibe(iSym))=k
+          endif
+        enddo
+        totOrb = totOrb + ibe(iSym)
+      enddo
+      if(nel+totOrb.ne.nbasis) write(stdout,*) 'WARNING: not matching number of orbitals!'
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       totex_coeff(:,:) = 0
       do icI = 0, n_store_ci_level
@@ -315,7 +313,6 @@ contains
 
       write(stdout,*) ' sorting CI coefficients...'
       call sorting()
-!      call sorting_singles(coeffx1,totex_coeff)
 
       write(stdout,*) '-> CI coefficients written in ASCII files ci_coeff_*'
       write(stdout,*) ''
@@ -337,8 +334,6 @@ contains
   ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
   subroutine sorting
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!! sorting by reading/writing !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   type :: t_singles
     integer :: a,i
     double precision :: x
@@ -354,41 +349,22 @@ contains
 
   integer :: hI,Nind,z
   integer :: a,b,c,j,i,k
-  type(t_singles),allocatable :: singles(:)
-  type(t_doubles),allocatable :: doubles(:)
-  type(t_triples),allocatable :: triples(:)
+  type(t_singles),allocatable :: singles(:), singles_tmp(:)
+  type(t_doubles),allocatable :: doubles(:), doubles_tmp(:)
+  type(t_triples),allocatable :: triples(:), triples_tmp(:)
 
-  allocate(singles(totex_coeff(1,2)))
-  allocate(doubles(totex_coeff(2,2)))
-  if(n_store_ci_level.eq.3) allocate(triples(totex_coeff(3,2)))
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   do Nind=1,n_store_ci_level
     write(fileCICoeffTest, '( "ci_coeff_",I1,"_test" )') Nind
     open (unit=40+Nind,file=fileCICoeffTest,status='old', action='read')
-    write(filecoefTestSrt0, '("ci_coeff_",I1,"_sort0" )') Nind
+    write(filecoefTestSrt0, '("ci_coeff_",I1 )') Nind
     open (unit=140+Nind,file=filecoefTestSrt0,status='replace')
-    write(filecoefTestSrt1, '("ci_coeff_",I1,"_sort1" )') Nind
-    open (unit=150+Nind,file=filecoefTestSrt1,status='replace')
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!! sorting by reading/writing from text files !!!!!!!!!!!!!!
-    write(filecoefTestSrt2, '("ci_coeff_",I1,"_sort2" )') Nind
-    open (unit=160+Nind,file=filecoefTestSrt2,status='replace')
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   if(Nind.ge.2) then
-    write(filecoefTestSrt3, '("ci_coeff_",I1,"_sort3" )') Nind
-    open (unit=170+Nind,file=filecoefTestSrt3,status='replace')
-    write(filecoefTestSrt4, '("ci_coeff_",I1,"_sort4" )') Nind
-    open (unit=180+Nind,file=filecoefTestSrt4,status='replace')
-   endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   if(Nind.eq.3) then
-    write(filecoefTestSrt5, '("ci_coeff_",I1,"_sort5" )') Nind
-    open (unit=190+Nind,file=filecoefTestSrt5,status='replace')
-    write(filecoefTestSrt6, '("ci_coeff_",I1,"_sort6" )') Nind
-    open (unit=200+Nind,file=filecoefTestSrt6,status='replace')
-   endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    if(Nind.eq.1) allocate(singles(totex_coeff(1,2)))
+    if(Nind.eq.2) allocate(doubles(totex_coeff(2,2)))
+    if(Nind.eq.3) allocate(triples(totex_coeff(3,2)))
+    if(Nind.eq.1) allocate(singles_tmp(totex_coeff(1,2)))
+    if(Nind.eq.2) allocate(doubles_tmp(totex_coeff(2,2)))
+    if(Nind.eq.3) allocate(triples_tmp(totex_coeff(3,2)))
 
     hI=0
     do
@@ -406,522 +382,137 @@ contains
      endif
      if (z<0) exit
     enddo
-    close (40+Nind)
-
-
-    ! writing CI coefficients
-    do hI = 1,totex_coeff(Nind,2)
-     if(Nind.eq.1) then
-      write(140+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
-                                     singles(hI)%a
-     else if(Nind.eq.2) then
-      write(140+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
-                       doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
-     else if(Nind.eq.3) then
-      write(140+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                       triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                     triples(hI)%k,triples(hI)%c
-     endif
-    enddo
-    close (140+Nind)
+    close (40+Nind, status='delete')
 
 
    ! sorting singles
+   z=0
    if(Nind.eq.1) then
     do a = 1,nbasis-nel
       do hI = 1,totex_coeff(Nind,2)
        if(singles(hI)%a.eq.a) then
-        write(150+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
-                                       singles(hI)%a
-        endif
+        z = z + 1
+        singles_tmp(z) = singles(hI)
+       endif
       enddo
     enddo
-    close(150+Nind)
-
-    open (unit=150+Nind,file=filecoefTestSrt1,status='old', action='read')
-    hI=0
-    do
-      hI = hI + 1
-      read(150+Nind,*,IOSTAT=z) singles(hI)%x,singles(hI)%i,&
-                                singles(hI)%a
-      if (z<0) exit
-    enddo
-    close(150+Nind)
     do i = 1,nel
       do hI = 1,totex_coeff(Nind,2)
-       if(singles(hI)%i.eq.i) then
-        write(160+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
-                                       singles(hI)%a
+       if(singles_tmp(hI)%i.eq.i) then
+        write(140+Nind,'(G20.12,2I5)') singles_tmp(hI)%x,singles_tmp(hI)%i,&
+                                       singles_tmp(hI)%a
        endif
       enddo
     enddo
 
 
    ! sorting doubles
+   z=0
    else if(Nind.eq.2) then
     do a = 1,nbasis-nel-1
-      do hI = 1,totex_coeff(Nind,2)
-       if(doubles(hI)%a.eq.a) then
-        write(150+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
-                         doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
-        endif
-      enddo
+     do hI = 1,totex_coeff(Nind,2)
+      if(doubles(hI)%a.eq.a) then
+        z = z + 1
+        doubles_tmp(z) = doubles(hI)
+       endif
+     enddo
     enddo
-    close(150+Nind)
-
-    open (unit=150+Nind,file=filecoefTestSrt1,status='old', action='read')
-    hI=0
-    do
-      hI = hI + 1
-      read(150+Nind,*,IOSTAT=z) doubles(hI)%x,doubles(hI)%i,&
-                  doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
-      if (z<0) exit
-    enddo
-    close(150+Nind)
+    z=0
     do b = 2,nbasis-nel
       do hI = 1,totex_coeff(Nind,2)
-      if(doubles(hI)%b.eq.b) then
-       write(160+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
-                        doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
+      if(doubles_tmp(hI)%b.eq.b) then
+        z = z + 1
+        doubles(z) = doubles_tmp(hI)
         endif
       enddo
     enddo
-    close(160+Nind)
-
-    open (unit=160+Nind,file=filecoefTestSrt2,status='old', action='read')
-    hI=0
-    do
-      hI = hI + 1
-      read(160+Nind,*,IOSTAT=z) doubles(hI)%x,doubles(hI)%i,&
-                  doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
-      if (z<0) exit
-    enddo
-    close(160+Nind)
+    z=0
     do i = 1,nel-1
       do hI = 1,totex_coeff(Nind,2)
       if(doubles(hI)%i.eq.i) then
-       write(170+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
-                        doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
+        z = z + 1
+        doubles_tmp(z) = doubles(hI)
         endif
       enddo
     enddo
-    close(170+Nind)
-
-    open (unit=170+Nind,file=filecoefTestSrt3,status='old', action='read')
-    hI=0
-    do
-     hI = hI + 1
-      read(170+Nind,*,IOSTAT=z) doubles(hI)%x,doubles(hI)%i,&
-                  doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
-      if (z<0) exit
-    enddo
-    close(170+Nind)
     do j = 2,nel
       do hI = 1,totex_coeff(Nind,2)
-      if(doubles(hI)%j.eq.j) then
-       write(180+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
-                        doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
+      if(doubles_tmp(hI)%j.eq.j) then
+       write(140+Nind,'(G20.12,4I5)') doubles_tmp(hI)%x,doubles_tmp(hI)%i,&
+                    doubles_tmp(hI)%a,doubles_tmp(hI)%j,doubles_tmp(hI)%b
         endif
       enddo
     enddo
-    close(180+Nind)
 
 
 
    ! sorting triples
+   z=0
    else if(Nind.eq.3) then
     do c = 3,nbasis-nel
       do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%c.eq.c) then
-       write(150+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                        triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                      triples(hI)%k,triples(hI)%c
+       z = z + 1
+       triples_tmp(z) = triples(hI)
       endif
      enddo
     enddo
-    close(150+Nind)
-
-    open (unit=150+Nind,file=filecoefTestSrt1,status='old', action='read')
-    hI=0
-    do
-     hI = hI + 1
-     read(150+Nind,*,IOSTAT=z) triples(hI)%x,triples(hI)%i,&
-                 triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                               triples(hI)%k,triples(hI)%c
-     if (z<0) exit
-    enddo
-    close(150+Nind)
+    z=0
     do b = 2,nbasis-nel-1
       do hI = 1,totex_coeff(Nind,2)
-      if(triples(hI)%b.eq.b) then
-       write(160+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                        triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                      triples(hI)%k,triples(hI)%c
+      if(triples_tmp(hI)%b.eq.b) then
+       z=z+1
+       triples(z) = triples_tmp(hI)
       endif
      enddo
     enddo
-    close(160+Nind)
-
-    open (unit=160+Nind,file=filecoefTestSrt2,status='old', action='read')
-    hI=0
-    do
-     hI = hI + 1
-     read(160+Nind,*,IOSTAT=z) triples(hI)%x,triples(hI)%i,&
-                 triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                               triples(hI)%k,triples(hI)%c
-     if (z<0) exit
-    enddo
-    close(160+Nind)
+    z=0
     do a = 1,nbasis-nel-2
       do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%a.eq.a) then
-       write(170+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                        triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                      triples(hI)%k,triples(hI)%c
+       z=z+1
+       triples_tmp(z) = triples(hI)
       endif
      enddo
     enddo
-    close(170+Nind)
-
-    open (unit=170+Nind,file=filecoefTestSrt3,status='old', action='read')
-    hI=0
-    do
-     hI = hI + 1
-     read(170+Nind,*,IOSTAT=z) triples(hI)%x,triples(hI)%i,&
-                 triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                               triples(hI)%k,triples(hI)%c
-     if (z<0) exit
-    enddo
-    close(170+Nind)
+    z=0
     do i = 1,nel-2
       do hI = 1,totex_coeff(Nind,2)
-      if(triples(hI)%i.eq.i) then
-       write(180+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                        triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                      triples(hI)%k,triples(hI)%c
+      if(triples_tmp(hI)%i.eq.i) then
+       z=z+1
+       triples(z) = triples_tmp(hI)
        endif
       enddo
     enddo
-    close(180+Nind)
-
-    open (unit=180+Nind,file=filecoefTestSrt4,status='old', action='read')
-    hI=0
-    do
-     hI = hI + 1
-     read(180+Nind,*,IOSTAT=z) triples(hI)%x,triples(hI)%i,&
-                 triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                               triples(hI)%k,triples(hI)%c
-     if (z<0) exit
-    enddo
-    close(180+Nind)
+    z=0
     do j = 2,nel-1
       do hI = 1,totex_coeff(Nind,2)
       if(triples(hI)%j.eq.j) then
-       write(190+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                        triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                      triples(hI)%k,triples(hI)%c
+       z=z+1
+       triples_tmp(z) = triples(hI)
       endif
      enddo
     enddo
-    close(190+Nind)
-
-    open (unit=190+Nind,file=filecoefTestSrt5,status='old', action='read')
-    hI=0
-    do
-     hI = hI + 1
-     read(190+Nind,*,IOSTAT=z) triples(hI)%x,triples(hI)%i,&
-                 triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                               triples(hI)%k,triples(hI)%c
-     if (z<0) exit
-    enddo
-    close(190+Nind)
+    z=0
     do k = 3,nel
       do hI = 1,totex_coeff(Nind,2)
-      if(triples(hI)%k.eq.k) then
-       write(200+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                        triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                      triples(hI)%k,triples(hI)%c
+      if(triples_tmp(hI)%k.eq.k) then
+       write(140+Nind,'(G20.12,6I5)') triples_tmp(hI)%x,triples_tmp(hI)%i,&
+                    triples_tmp(hI)%a,triples_tmp(hI)%j,triples_tmp(hI)%b,&
+                                      triples_tmp(hI)%k,triples_tmp(hI)%c
       endif
      enddo
     enddo
-    close(200+Nind)
    endif
-  enddo
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! SOLUZIONE IN CUI USO DUE ARRAY, coeffx*(:,:) e coeffx_tmp(:,:),
-!! SU CUI SCRIVO E LEGGO VARIE VOLTE FINO A CHE NON È SORTED COME VOGLIO
-!!  -> NECI dà problemi di memoria se alloca un 2ndo array for triples
-!!
-!!    integer :: i, z, Nind, h1, h2, h3, hI
-!!    real(dp),allocatable :: coeffx1(:,:),coeffx2(:,:),coeffx3(:,:)
-!!    real(dp),allocatable :: coeffx1_tmp(:,:),coeffx2_tmp(:,:),coeffx3_tmp(:,:)
-!!    integer :: j,k,a,b,c, ii
-!!    integer :: a,b,j 
-!!    real(dp):: x,y,l,k,m
-!!
-!!    allocate(coeffx1(totex_coeff(1),3))
-!!    allocate(coeffx2(totex_coeff(2),5))
-!!    if(n_store_ci_level.eq.3) allocate(coeffx3(totex_coeff(3),7))
-!!
-!!    h1=0
-!!    h2=0
-!!    h3=0
-!!    ! loop to read all the CI coefficients from ASCII files
-!!    do Nind=1,n_store_ci_level
-!!      write(fileCICoeffTest, '( "ci_coeff_",I1,"_test" )') Nind
-!!      open (unit=40+Nind,file=fileCICoeffTest,status='old', action='read')
-!!      write(filecoefTestSrt0, '("ci_coeff_",I1,"_sort0" )') Nind
-!!      open (unit=140+Nind,file=filecoefTestSrt0,status='replace')
-!!      write(filecoefTestSrt1, '("ci_coeff_",I1,"_sort1" )') Nind
-!!      open (unit=150+Nind,file=filecoefTestSrt1,status='replace')
-!!
-!!      do
-!!        if(Nind.eq.1) then
-!!          h1 = h1 + 1
-!!          read(40+Nind,*,IOSTAT=z) (coeffx1(h1,i),i=1,3)
-!!          if (z<0) then
-!!             exit
-!!          else if(near_zero(coeffx1(h1,1))) then
-!!             cycle
-!!          endif
-!!        endif
-!!        if(Nind.eq.2) then
-!!          h2 = h2 + 1
-!!          read(40+Nind,*,IOSTAT=z) (coeffx2(h2,i),i=1,5)
-!!          if (z<0) then
-!!             exit
-!!          else if(near_zero(coeffx2(h2,1))) then
-!!             cycle
-!!          endif
-!!        endif
-!!        if(Nind.eq.3) then
-!!          h3 = h3 + 1
-!!          read(40+Nind,*,IOSTAT=z) (coeffx3(h3,i),i=1,7)
-!!          if (z<0) then
-!!             exit
-!!          else if(near_zero(coeffx3(h3,1))) then
-!!             cycle
-!!          endif
-!!        endif
-!!      enddo
-!!      close (40+Nind)
-!!    enddo
-!!
-!!    ! writing CI coefficients
-!!    do hI = 1,totex_coeff(1)
-!!       write(141,'(G20.12,2F6.0)') coeffx1(hI,1),coeffx1(hI,2),coeffx1(hI,3)
-!!    enddo
-!!    close (141)
-!!    do hI = 1,totex_coeff(2)
-!!       write(142,'(G20.12,4F6.0)') coeffx2(hI,1),coeffx2(hI,2),coeffx2(hI,3),&
-!!                                   coeffx2(hI,4),coeffx2(hI,5)
-!!    enddo
-!!    close (142)
-!!    do hI = 1,totex_coeff(3)
-!!       write(143,'(G20.12,6F6.0)') coeffx3(hI,1),coeffx3(hI,2),coeffx3(hI,3),&
-!!                     coeffx3(hI,4),coeffx3(hI,5),coeffx3(hI,6),coeffx3(hI,7)
-!!    enddo
-!!    close (143)
-!!
-!!    ! sorting singles
-!!    allocate(coeffx1_tmp(totex_coeff(1),3))
-!!    ii=0
-!!    do a = 1,nbasis-nel
-!!      do h1 = 1,totex_coeff(1)
-!!        if(coeffx1(h1,3).eq.a) then
-!!          ii = ii + 1
-!!          coeffx1_tmp(ii,:) = coeffx1(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    do i = 1,nel
-!!      do h1 = 1,totex_coeff(1)
-!!        if(coeffx1_tmp(h1,3).eq.i) then
-!!          write(151,'(G20.12,2F6.0)') coeffx1_tmp(h1,1),coeffx1_tmp(h1,2),coeffx1_tmp(h1,3)
-!!        endif
-!!      enddo
-!!    enddo
-!!    close (151)
-!!    deallocate(coeffx1_tmp)
-!!
-!!    ! sorting doubles
-!!    allocate(coeffx2_tmp(totex_coeff(2),5))
-!!    ii=0
-!!    do a = 1,nbasis-nel-1
-!!      do h2 = 1,totex_coeff(2)
-!!        if(coeffx2(h2,3).eq.a) then
-!!          ii = ii + 1
-!!          coeffx2_tmp(ii,:) = coeffx2(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    ii=0
-!!    do b = 2,nbasis-nel
-!!      do h2 = 1,totex_coeff(2)
-!!        if(coeffx2_tmp(h2,5).eq.b) then
-!!          ii = ii + 1
-!!          coeffx2(ii,:) = coeffx2_tmp(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    ii=0
-!!    do i = 1,nel-1
-!!      do h2 = 1,totex_coeff(2)
-!!        if(coeffx2(h2,2).eq.i) then
-!!          ii = ii + 1
-!!          coeffx2_tmp(ii,:) = coeffx2(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    do j = 2,nel
-!!      do h2 = 1,totex_coeff(2)
-!!        if(coeffx2_tmp(h2,4).eq.j) then
-!!          write(152,'(G20.12,4F6.0)') coeffx2_tmp(h2,1),coeffx2_tmp(h2,2),coeffx2_tmp(h2,3),&
-!!                                      coeffx2_tmp(h2,4),coeffx2_tmp(h2,5)
-!!        endif
-!!      enddo
-!!    enddo
-!!    close (152)
-!!    deallocate(coeffx2_tmp)
-!!
-!!    ! sorting triples
-!!    allocate(coeffx3_tmp(totex_coeff(3),7))
-!!    ii=0
-!!    do c = 3,nbasis-nel
-!!      do h2 = 1,totex_coeff(3)
-!!        if(coeffx3(h2,7).eq.c) then
-!!          ii = ii + 1
-!!          coeffx3_tmp(ii,:) = coeffx3(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    ii=0
-!!    do b = 2,nbasis-nel-1
-!!      do h2 = 1,totex_coeff(3)
-!!        if(coeffx3_tmp(h2,5).eq.b) then
-!!          ii = ii + 1
-!!          coeffx3(ii,:) = coeffx3_tmp(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    ii=0
-!!    do a = 1,nbasis-nel-2
-!!      do h2 = 1,totex_coeff(3)
-!!        if(coeffx3(h2,3).eq.a) then
-!!          ii = ii + 1
-!!          coeffx3_tmp(ii,:) = coeffx3(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    ii=0
-!!    do i = 1,nel-2
-!!      do h2 = 1,totex_coeff(3)
-!!        if(coeffx3(h2,2).eq.i) then
-!!          ii = ii + 1
-!!          coeffx3(ii,:) = coeffx3_tmp(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    do j = 2,nel-1
-!!      do h2 = 1,totex_coeff(3)
-!!        if(coeffx3_tmp(h2,4).eq.j) then
-!!          ii = ii + 1
-!!          coeffx3_tmp(ii,:) = coeffx3(h2,:)
-!!        endif
-!!      enddo
-!!    enddo
-!!    do k = 3,nel
-!!      do h2 = 1,totex_coeff(3)
-!!        if(coeffx3_tmp(h2,6).eq.k) then
-!!          write(153,'(G20.12,6F6.0)') coeffx3_tmp(h2,1),coeffx3_tmp(h2,2),&
-!!                    coeffx3_tmp(h2,3),coeffx3_tmp(h2,4),coeffx3_tmp(h2,5),&
-!!                                      coeffx3_tmp(h2,6),coeffx3_tmp(h2,7)
-!!        endif
-!!      enddo
-!!    enddo
-!!    close (153)
-!!    deallocate(coeffx3_tmp)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  if(Nind.eq.1) deallocate(singles)
+  if(Nind.eq.2) deallocate(doubles)
+  if(Nind.eq.3) deallocate(triples)
+  if(Nind.eq.1) deallocate(singles_tmp)
+  if(Nind.eq.2) deallocate(doubles_tmp)
+  if(Nind.eq.3) deallocate(triples_tmp)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!  SOLUZIONE PIU CONVENIENTE SE FUNZIONA
-!    ! sorting CI coefficients
-!    call sort(coeffx1(:,3))
-!    call sort(coeffx1(:,2))
-!    call sort(coeffx2(:,3))
-!    call sort(coeffx2(:,5))
-!    call sort(coeffx2(:,2))
-!    call sort(coeffx2(:,4))
-!    call sort(coeffx3(:,7))
-!    call sort(coeffx3(:,5))
-!    call sort(coeffx3(:,3))
-!    call sort(coeffx3(:,2))
-!    call sort(coeffx3(:,4))
-!    call sort(coeffx3(:,6))
-!    ! writing sorted CI coefficients
-!    do h1 = 1,totex_coeff(1)
-!       write(151,'(G20.12,2F6.0)') coeffx1(h1,1),coeffx1(h1,2),coeffx1(h1,3)
-!    enddo
-!    close (151)
-!    do h2 = 1,totex_coeff(2)
-!       write(152,'(G20.12,4F6.0)') coeffx2(h2,1),coeffx2(h2,2),coeffx2(h2,3),&
-!                                   coeffx2(h2,4),coeffx2(h2,5)
-!    enddo
-!    close (152)
-!    do h3 = 1,totex_coeff(3)
-!       write(153,'(G20.12,6F6.0)') coeffx3(h3,1),coeffx3(h3,2),coeffx3(h3,3),&
-!                     coeffx3(h3,4),coeffx3(h3,5),coeffx3(h3,6),coeffx3(h3,7)
-!    enddo
-!    close (153)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! OLD SORTING
-!   ! Writing the CI coefficients in the ASCII files
-!    do i = 1,nel
-!      do a = nel+1,nbasis
-!        if(.not. near_zero(S(i,a))) then
-!          write(101,'(G20.12,2I5)') S(i,a),i,a-nel
-!        endif
-!      enddo
-!    enddo
-!    close(101)
-!
-!    do j = 2,nel
-!      do i = 1, nel-1
-!        do b = nel+1, nbasis
-!          do a = nel,nbasis-1
-!            if(.not. near_zero(D(i,a,j,b))) then
-!              write(102,'(G20.12,4I5)') D(i,a,j,b),i,a-nel,j,b-nel
-!            endif
-!          enddo
-!        enddo
-!      enddo
-!    enddo
-!    close(102)
-!
-!    if(n_store_ci_level.eq.3) then
-!      do k = 3,nel
-!        do j = 2, nel-1
-!          do i = 1, nel-2
-!            do a = nel+1,nbasis
-!              do b = a+1, nbasis
-!                do c = b+1, nbasis
-!                  if(.not. near_zero(T(i,a,j,b,k,c))) then
-!                    write(103,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a-nel,j,b-nel,k,c-nel
-!                  endif
-!                enddo
-!              enddo
-!            enddo
-!          enddo
-!        enddo
-!      enddo
-!      close(103)
-!    endif
+  enddo ! do Nind=1,n_store_ci_level
 
   end subroutine sorting
 
