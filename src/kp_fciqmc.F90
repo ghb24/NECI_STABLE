@@ -26,13 +26,13 @@ module kp_fciqmc
                             CalcParentFlag, walker_death, decide_num_to_spawn
     use fcimc_output, only: end_iteration_print_warn
     use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
-    use global_det_data, only: det_diagH
+    use fcimc_pointed_fns, only: new_child_stats_normal
+    use global_det_data, only: det_diagH, det_offdiagH
     use LoggingData, only: tPopsFile
     use Parallel_neci, only: iProcIndex
     use MPI_wrapper, only: root
     use PopsFileMod, only: WriteToPopsFileParOneArr
-    use procedure_pointers, only: generate_excitation, attempt_create, encode_child
-    use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
+    use procedure_pointers, only: generate_excitation, attempt_create, encode_child, extract_bit_rep_avsign
     use semi_stoch_procs, only: is_core_state, check_determ_flag, determ_projection
     use soft_exit, only: ChangeVars, tSoftExitFound
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
@@ -40,7 +40,7 @@ module kp_fciqmc
     use timing_neci, only: set_timer, halt_timer
     use util_mod, only: near_zero
 
-    implicit none
+    better_implicit_none
 
 contains
 
@@ -63,7 +63,7 @@ contains
         real(dp), allocatable :: lowdin_evals(:, :)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
-        HElement_t(dp) :: HElGen
+        HElement_t(dp) :: HElGen, parent_hoffdiag
 
         ! Stores of the overlap and projected Hamiltonian matrices.
         real(dp), pointer :: overlap_matrices(:, :, :)
@@ -122,7 +122,7 @@ contains
 
                         !if (iter < 10) then
                         !    write(stdout,*) "CurrentDets before:"
-                        !    do idet = 1, int(TotWalkers, sizeof_int)
+                        !    do idet = 1, int(TotWalkers)
                         !        call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                         !                              fcimc_excit_gen_store)
                         !        if (tUseFlags) then
@@ -147,7 +147,7 @@ contains
                         !    end do
                         !end if
 
-                        do idet = 1, int(TotWalkers, sizeof_int)
+                        do idet = 1, int(TotWalkers)
 
                             ! The 'parent' determinant from which spawning is to be attempted.
                             ilut_parent => CurrentDets(:, idet)
@@ -199,11 +199,12 @@ contains
 
                             ! The current diagonal matrix element is stored persistently.
                             parent_hdiag = det_diagH(idet)
+                            parent_hoffdiag = det_offdiagH(idet)
 
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                             call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                             parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                                             parent_hdiag, parent_hoffdiag, 1.0_dp, tPairedReplicas, idet)
 
                             ! If we're on the Hartree-Fock, and all singles and
                             ! doubles are in the core space, then there will be
@@ -265,7 +266,7 @@ contains
                                         ! If any (valid) children have been spawned.
                                         if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
-                                            call new_child_stats(iter_data_fciqmc, ilut_parent, &
+                                            call new_child_stats_normal(iter_data_fciqmc, ilut_parent, &
                                                                  nI_child, ilut_child, ic, ex_level_to_ref, &
                                                                  child_sign, parent_flags, ireplica)
 
@@ -291,7 +292,7 @@ contains
 
                         if (tSemiStochastic) call determ_projection()
 
-                        TotWalkersNew = int(TotWalkers, sizeof_int)
+                        TotWalkersNew = int(TotWalkers)
                         call end_iter_stats(TotWalkersNew)
                         call end_iteration_print_warn(TotWalkersNew)
 
@@ -394,7 +395,7 @@ contains
         real(dp), allocatable :: lowdin_evals(:, :), lowdin_spin(:, :)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
-        HElement_t(dp) :: HElGen
+        HElement_t(dp) :: HElGen, parent_hoffdiag
 
         ! Stores of the overlap, projected Hamiltonian and spin matrices.
         real(dp), pointer :: overlap_matrices(:, :, :, :)
@@ -447,24 +448,24 @@ contains
                     spin_matrix(:, :) = 0.0_dp
                 end if
 
-                call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), overlap_matrix)
+                call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers), overlap_matrix)
 
                 if (tExactHamil) then
-                    call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), hamil_matrix)
+                    call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers), hamil_matrix)
                 else
                     if (tSemiStochastic) then
                         associate(rep => cs_replicas(core_run))
-                            call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                            call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers), &
                                                       hamil_matrix, rep%partial_determ_vecs, rep%full_determ_vecs)
                         end associate
                     else
-                        call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                        call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers), &
                                                   hamil_matrix)
                     end if
                 end if
 
                 !write(stdout,*) "CurrentDets before:"
-                !do idet = 1, int(TotWalkers, sizeof_int)
+                !do idet = 1, int(TotWalkers)
                 !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                 !                          fcimc_excit_gen_store)
                 !    if (tUseFlags) then
@@ -491,7 +492,7 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 if (tCalcSpin) then
                     ! Calculate the spin squared projected into the subspace.
-                    call calc_projected_spin(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), spin_matrix)
+                    call calc_projected_spin(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers), spin_matrix)
                     call communicate_kp_matrices(overlap_matrix, hamil_matrix, spin_matrix)
                 else
                     call communicate_kp_matrices(overlap_matrix, hamil_matrix)
@@ -519,7 +520,7 @@ contains
                     iter = iter + 1
                     call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
 
-                    do idet = 1, int(TotWalkers, sizeof_int)
+                    do idet = 1, int(TotWalkers)
 
                         ! The 'parent' determinant from which spawning is to be attempted.
                         ilut_parent => CurrentDets(:, idet)
@@ -571,11 +572,12 @@ contains
 
                         ! The current diagonal matrix element is stored persistently.
                         parent_hdiag = det_diagH(idet)
+                        parent_hoffdiag = det_offdiagH(idet)
 
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                         call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                         parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                                         parent_hdiag, parent_hoffdiag, 1.0_dp, tPairedReplicas, idet)
 
                         ! If we're on the Hartree-Fock, and all singles and
                         ! doubles are in the core space, then there will be no
@@ -626,7 +628,7 @@ contains
                                 ! If any (valid) children have been spawned.
                                 if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
-                                    call new_child_stats(iter_data_fciqmc, ilut_parent, &
+                                    call new_child_stats_normal(iter_data_fciqmc, ilut_parent, &
                                                          nI_child, ilut_child, ic, ex_level_to_ref, &
                                                          child_sign, parent_flags, ireplica)
 
@@ -650,7 +652,7 @@ contains
 
                     if (tSemiStochastic) call determ_projection()
 
-                    TotWalkersNew = int(TotWalkers, sizeof_int)
+                    TotWalkersNew = int(TotWalkers)
                     call end_iter_stats(TotWalkersNew)
                     call end_iteration_print_warn(TotWalkersNew)
 

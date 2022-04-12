@@ -324,49 +324,6 @@ END
 !DFInts(x,yz) is (x|u|yz)
 !DFFitInts(x,y) is (x|u|y)
 !This is slower but calculates more accurately.
-SUBROUTINE GetDF2EInt2OrderOverlap(a, b, c, d, res)
-    use constants, only: dp
-    use UMatCache
-    implicit none
-    integer a, b, c, d
-    integer i, GetDFIndex
-    integer x, y, j
-    real(dp) res, res1, res2, res3
-    res = 0.0_dp
-    x = GetDFIndex(a, c)
-    y = GetDFIndex(b, d)
-!  (ab|u|cd)=sum_PQ (ab|P)(P|u|Q)(Q|cd)
-    res1 = 0
-    res2 = 0
-    res3 = 0
-    do i = 1, nAuxBasis
-        do j = 1, nAuxBasis
-            res = res + DFCoeffs(i, x) * DFCoeffs(j, y) * DFFitInts(i, j)
-        end do
-    end do
-END
-
-SUBROUTINE GetDF2EInt2OrderCoulomb(a, b, c, d, res)
-    use constants, only: dp
-    use UMatCache
-    implicit none
-    integer a, b, c, d
-    integer i, GetDFIndex
-    integer x, y, j
-    real(dp) res, res1, res2, res3
-    res = 0.0_dp
-    x = GetDFIndex(a, c)
-    y = GetDFIndex(b, d)
-!  (ab|u|cd)=sum_PQ (ab|u|P)[(P|u|Q)^-1](Q|u|cd)
-    res1 = 0
-    res2 = 0
-    res3 = 0
-    do i = 1, nAuxBasis
-        do j = 1, nAuxBasis
-            res = res + DFInts(i, x) * DFInts(j, y) * DFInvFitInts(i, j)
-        end do
-    end do
-END
 SUBROUTINE DFCalcInvFitInts(dPower)
     use constants, only: dp, sp, stdout
     use UMatCache

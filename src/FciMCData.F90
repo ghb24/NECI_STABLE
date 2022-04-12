@@ -296,7 +296,8 @@ MODULE FciMCData
                    var_e_time, precond_e_time, proj_e_time, &
                    rescale_time, death_time, hash_test_time, &
                    hii_test_time, init_flag_time, &
-                   InitSpace_Init_Time
+                   InitSpace_Init_Time, GetDiagMatel_Time, &
+                   GetOffDiagMatel_Time
 
     ! Store the current value of S^2 between update cycles
     real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -495,6 +496,9 @@ MODULE FciMCData
 
     integer(TagIntType) :: HamTag, DavidsonTag, LanczosTag
 
+    ! Number of Davidson max iterations
+    integer, allocatable :: user_input_max_davidson_iters
+
     ! If true (as is the case by default) then semi-stochastic calculations
     ! will start from the ground state of the core space
     logical :: tStartCoreGroundState
@@ -663,6 +667,10 @@ MODULE FciMCData
     integer, parameter :: core_run = 1
 
     logical :: t_global_core_space = .true.
+
+    ! Potentially evolve some replicas with the adjoint hamiltonian (only makes
+    ! sense for non-hermitian operator)
+    logical :: t_adjoint_replicas = .false.
 
     ! Stores the reference weight of the last run
     real(dp) :: fciqmc_run_ref_weight

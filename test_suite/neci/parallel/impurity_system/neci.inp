@@ -1,12 +1,13 @@
 TITLE
- 
+
 SYSTEM READ
 ELECTRONS 9
+spin-restrict 1
 NOBRILLOUINTHEOREM
 impurity-excitgen
 spinorbs
 ENDSYS
- 
+
 CALC
 METHODS
 METHOD VERTEX FCIMC
@@ -27,7 +28,7 @@ realspawncutoff 1.
 startsinglepart 25
 AVGROWTHRATE
 ENDCALC
-  
+
 LOGGING
 POPSFILE -1
 ENDLOG

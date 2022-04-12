@@ -7,7 +7,7 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 seed -7
 nmcyc 3500
@@ -15,7 +15,7 @@ max-tau 0.02
 hist-tau-search 0.999
 truncate-spawns 3
 totalwalkers 20000
-(tau 0.001 search
+# tau 0.001 search
 startsinglepart
 truncinitiator
 addtoinitiator 3
@@ -27,7 +27,7 @@ maxwalkerbloom 3.0
 endcalc
 
 integral
-freeze 2,0
+freeze 2 0
 endint
 
 logging

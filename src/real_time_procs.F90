@@ -68,7 +68,8 @@ module real_time_procs
     use Parallel_neci
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
-    use load_balance, only: AddNewHashDet, CalcHashTableStats, get_diagonal_matel
+    use load_balance, only: AddNewHashDet, CalcHashTableStats
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use semi_stoch_gen, only: generate_space_most_populated, reset_core_space
     use semi_stoch_procs, only: GLOBAL_RUN
     use timing_neci, only: timer, set_timer, halt_timer
@@ -127,6 +128,7 @@ contains
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: SignProd
         real(dp) :: HDiag
+        HElement_t(dp) :: HOffDiag
         integer :: DetHash, nJ(nel)
         logical :: tSuccess, tDetermState
         integer :: run, err, pos
@@ -267,7 +269,8 @@ contains
                                                             min_part_type(run):max_part_type(run))))
                     end do
                     HDiag = get_diagonal_matel(nJ, DiagParts(:, i))
-                    call AddNewHashDet(TotWalkersNew, DiagParts(:, i), DetHash, nJ, HDiag, pos, err)
+                    HOffDiag = get_off_diagonal_matel(nJ, DiagParts(:, i))
+                    call AddNewHashDet(TotWalkersNew, DiagParts(:, i), DetHash, nJ, HDiag, HOffDiag, pos, err)
                     if (err /= 0) exit
 
                 end if
@@ -293,7 +296,7 @@ contains
 
         holes = 0
 
-        do idet = 1, int(TotWalkers, sizeof_int)
+        do idet = 1, int(TotWalkers)
 
             ilut_parent => CurrentDets(:, idet)
 
@@ -984,7 +987,7 @@ contains
         ! stored CurrentDets list!
         call clear_hash_table(HashIndex)
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, &
-                                int(TotWalkers, sizeof_int), .true.)
+                                int(TotWalkers), .true.)
 
         ! for correct load Balancin i also have to reset the the freeslot var.
         ! here i have to reset the freeslot values to the values after the

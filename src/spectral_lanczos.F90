@@ -69,7 +69,6 @@ contains
         use load_balance_calcnodes, only: DetermineDetNode
         use sort_mod, only: sort
         use SystemData, only: nbasis, nel, BRR, nBasisMax, G1, tSpn, LMS, tParity, SymRestrict
-        use util_mod, only: choose
 
         integer :: ndets_this_proc, ndets_tot
         integer(MPIArg) :: mpi_temp
@@ -129,7 +128,7 @@ contains
             disps_sl(i) = disps_sl(i - 1) + ndets_sl(i - 1)
         end do
 
-        ndets_tot = int(sum(ndets_sl), sizeof_int)
+        ndets_tot = int(sum(ndets_sl))
 
         write(stdout, '(1x,a44)', advance='no') "Allocating arrays to hold Lanczos vectors..."
         call neci_flush(6)
@@ -211,7 +210,7 @@ contains
         j = 0
         norm_pert = 0.0_dp
         call sort(CurrentDets(:, 1:TotWalkers), ilut_lt, ilut_gt)
-        do i = 1, int(TotWalkers, sizeof_int)
+        do i = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, i), real_sign)
             ! If the POPSFILE was generated from a calculation with the linear-scaling
             ! algorithm then it is possible to have the same determinant twice in a

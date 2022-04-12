@@ -4,14 +4,13 @@ module FciMCParMod
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, tGen_4ind_2, &
-                          tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
+                          tGen_4ind_weighted, tGUGA, &
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
                           tReal, t_mixed_excits, &
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests, &
-                          t_analyze_pchb
+                          is_init_guga, tGen_sym_guga_ueg, t_analyze_pchb
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -87,13 +86,14 @@ module FciMCParMod
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj, perform_determ_proj_approx_ham
     use cont_time, only: iterate_cont_time
-    use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
-                               reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop, &
-                               get_tot_spawns, get_acc_spawns, &
+    use global_det_data, only: det_diagH, det_offdiagH, reset_tau_int, &
+                               get_all_spawn_pops, reset_shift_int, &
+                               update_shift_int, update_tau_int, &
+                               set_spawn_pop, get_tot_spawns, get_acc_spawns, &
                                update_pops_sum_all, get_pops_iter, &
                                replica_est_len, get_max_ratio, update_max_ratio
     use DetBitOps, only: tAccumEmptyDet
+
 
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -111,14 +111,11 @@ module FciMCParMod
     use FciMCData
     use constants
 
-    use guga_data, only: tNewDet
-
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-    use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
-    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga, &
-                                global_excitInfo
-    use guga_bitrepops, only: init_csf_information
+    use guga_main, only: generate_excitation_guga
+    use guga_excitations, only: global_excitInfo
+    use guga_bitrepops, only: fill_csf_i, current_csf_i
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &
@@ -126,9 +123,9 @@ module FciMCParMod
 
     use real_time_init, only: init_overlap_buffers
 
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, writebitdet
 
-    use util_mod, only: operator(.div.), toggle_lprof
+    use util_mod, only: operator(.div.), toggle_lprof, neci_flush
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
@@ -157,9 +154,7 @@ module FciMCParMod
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
-    use guga_pchb_excitgen, only: store_pchb_analysis
-
-    implicit none
+    better_implicit_none
 
     !array for timings of the main compute loop
     real(dp), dimension(100) :: lt_arr
@@ -287,20 +282,6 @@ contains
         ! In the normal case this is run between iterations, but it is
         ! helpful to do it here.
         call population_check()
-
-        ! call guga test routine here, so everything is correctly set up,
-        ! or atleast should be. only temporarily here.
-        if (tGUGA) then
-            ! only run guga - testsuite if flag is provided
-            if (t_guga_unit_tests) call runTestsGUGA()
-
-        end if
-
-#ifndef CMPLX_
-        if ((tGen_4ind_2 .or. tGen_4ind_weighted .or. tLatticeGens) .and. t_test_excit_gen) then
-            call run_test_excit_gen_det()
-        end if
-#endif
 
         if (n_int /= int64) then
             call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')
@@ -523,7 +504,7 @@ contains
                 ! The currentdets is almost full, we should start removing
                 ! dets which have been empty long enough
                 if (iAccumPopsExpireIters > 0 .and. TotWalkers > AccumPopsExpirePercent * real(MaxWalkersPart, dp)) then
-                    do j = 1, int(TotWalkers, sizeof_int)
+                    do j = 1, int(TotWalkers)
                         ! The loop is over empty dets only
                         call extract_sign(CurrentDets(:, j), CurrentSign)
                         if (.not. IsUnoccDet(CurrentSign)) cycle
@@ -1073,7 +1054,7 @@ contains
         call getProjEOffset()
         iroot = 1
         CALL GetSym(ProjEDet(:, 1), NEl, G1, NBasisMax, RefSym)
-        isymh = int(RefSym%Sym%S, sizeof_int) + 1
+        isymh = int(RefSym%Sym%S) + 1
         write(stdout, '('' Current reference energy'',T52,F19.12)') OutputHii
         if (tNoProjEValue) then
             write(stdout, '('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1), dp)
@@ -1193,7 +1174,7 @@ contains
         real(dp) :: lstart
         real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
-        HElement_t(dp) :: HDiagTemp, HElGen
+        HElement_t(dp) :: HDiagTemp, HElGen, HOffDiagCurr
         character(*), parameter :: this_routine = 'PerformFCIMCycPar'
         HElement_t(dp), dimension(inum_runs) :: delta
         integer :: proc, pos, determ_index, irdm
@@ -1284,13 +1265,10 @@ contains
             end if
         end if
         lstart = mpi_wtime()
-        loop_over_determinants: do j = 1, int(TotWalkers, sizeof_int)
+        loop_over_determinants: do j = 1, int(TotWalkers)
 
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
-
-            ! reset this flag for each det:
-            ! W.D. remove this option for now..
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -1431,6 +1409,7 @@ contains
 
             ! The current diagonal matrix element is stored persistently.
             HDiagCurr = det_diagH(j)
+            HOffDiagCurr = det_offdiagH(j)
             EnergyCurr = det_diagH(j) + Hii
 
             if (tSeniorInitiators) then
@@ -1490,15 +1469,16 @@ contains
             ENDIFDEBUG
 
             ! in the guga simulation it is probably better to initialize
-            ! the csf_information out here, so it can be used in the
+            ! the csf_irmation out here, so it can be used in the
             ! new way to calculate the reference energy and then the flag
             ! does not have to be checked each time we loop over the walkers..
-            if (tGUGA) call init_csf_information(CurrentDets(0:nifd, j))
+            if (tGUGA) call fill_csf_i(CurrentDets(0:nifd, j), current_csf_i)
 
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), &
+                HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
                 inst_double_occ = inst_double_occ + &
@@ -1506,7 +1486,11 @@ contains
             end if
 
             if (t_measure_local_spin) then
-                call measure_local_spin(SignCurr)
+                if (tGUGA) then
+                    call measure_local_spin(SignCurr, current_csf_i)
+                else
+                    call stop_all(this_routine, "measure_local_spin works only for GUGA")
+                end if
             end if
 
             if (t_spin_measurements) then
@@ -1593,11 +1577,6 @@ contains
                 ! up by AvMCExcits if attempting multiple excitations from
                 ! each walker (default 1.0_dp).
 
-                ! GUGA addition: only recalc b vector and stuff once for each
-                ! CSF -> set tNewDet once for each determinant
-                ! which is set to false inside the guga excitaiton generator
-                tNewDet = .false.
-
                 AvMCExcitsLoc = AvMCExcits
                 ! optional: Adjust the number of spawns to the expected maximum
                 ! Hij/pgen ratio of this determinant -> prevent blooms
@@ -1614,7 +1593,7 @@ contains
                     end if
                 end if
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcitsLoc, WalkersToSpawn)
-                loop_over_particles : do p = 1, WalkersToSpawn
+                loop_over_walkers : do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
@@ -1625,39 +1604,16 @@ contains
                     ! all the interfaces to the other excitation generators,
                     ! which all just assume ex(2,2) as size.. so use a
                     ! if here..
-                    if (t_k_space_hubbard .and. t_3_body_excits) then
-                        if (t_uniform_excits) then
-                            call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                         nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                         HElGen, fcimc_excit_gen_store, part_type)
+                    ! Generate a (random) excitation
+                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                        ilutnJ, exFlag, IC, ex, tParity, prob, &
+                        HElGen, fcimc_excit_gen_store, part_type)
 
-                        else if (t_mixed_excits) then
-                            call gen_excit_mixed_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                       nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                       HElGen, fcimc_excit_gen_store, part_type)
-
-                        else
-                            call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                 HElGen, fcimc_excit_gen_store, part_type)
-                        end if
-                    else
-                        ! Generate a (random) excitation
-                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
-                            ilutnJ, exFlag, IC, ex, tParity, prob, &
-                            HElGen, fcimc_excit_gen_store, part_type)
-
-                    end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
                     if (tSkipRef(run) .and. all(nJ == projEdet(:, run))) then
                         !Set nJ to null
                         nJ(1) = 0
-                    end if
-
-                    if (t_analyze_pchb) then
-                        call store_pchb_analysis(real(HElGen,dp), prob, &
-                            global_excitInfo, IsNullDet(nJ))
                     end if
 
                     ! If a valid excitation, see if we should spawn children.
@@ -1742,7 +1698,7 @@ contains
 
                         if (tScaleBlooms) call update_max_ratio(abs(HElGen) / prob, j)
 
-                        call new_child_stats(iter_data, CurrentDets(:, j), &
+                        call new_child_stats_normal(iter_data, CurrentDets(:, j), &
                                              nJ, iLutnJ, ic, walkExcitLevel, &
                                              child_for_stats, parent_flags, part_type)
 
@@ -1758,7 +1714,7 @@ contains
                         end if
                     end if is_child_created ! (child /= 0), Child created.
 
-                end do loop_over_particles ! Cycling over mulitple particles on same determinant.
+                end do loop_over_walkers
 
             end do loop_over_type  ! Cycling over 'type' of particle on a given determinant.
 
@@ -1821,7 +1777,7 @@ contains
 
         ! With this algorithm, the determinants do not move, and therefore
         ! TotWalkersNew is simply equal to TotWalkers
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
 
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
@@ -1902,9 +1858,9 @@ contains
         if (tFillingStochRDMonFly) then
             ! if we use the initiator-only rdms as gamma_0, get them in their own entity
             if (tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
-                                                      inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false., .false.)
+                                                      inits_one_rdms, CurrentDets, int(TotWalkers), .false., .false.)
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, &
-                                       CurrentDets, int(TotWalkers, sizeof_int), .true., tApplyLC)
+                                       CurrentDets, int(TotWalkers), .true., tApplyLC)
         end if
 
         if (tTrialWavefunction .and. tTrialShift) then
@@ -1938,4 +1894,3 @@ contains
     end subroutine PerformFCIMCycPar
 
 END MODULE FciMCParMod
-

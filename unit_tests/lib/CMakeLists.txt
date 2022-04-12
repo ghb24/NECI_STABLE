@@ -1,1 +1,1 @@
-add_unit_test(fortran_strings)
+add_unit_test(neci fortran_strings)

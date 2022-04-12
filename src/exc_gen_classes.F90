@@ -84,7 +84,7 @@ contains
                     call write_GAS_info(GAS_specification, nEl, S_z, stdout)
                 end block
                 write(stdout, *)
-                end if
+            end if
         end block
 
         block

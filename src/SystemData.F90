@@ -31,7 +31,7 @@ module SystemData
     logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
     logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
     logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
-    logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
+    logical :: tShake, tRotateVirtOnly, tMaxHLGap
     logical :: tKPntSym        !Are we using KPoint symmetry?
     logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all
     !orbitals have been rotated to be real. This requires all
@@ -246,15 +246,6 @@ module SystemData
 ! input for graphical unitary group approach (GUGA) CSF implementation
     logical :: tGUGA = .false. ! flag to indicate usage of GUGA
 
-! use a flag to determine if unit tests should be performed! with an
-! additional optional input how often the the excitation generator should
-! be tested!
-    logical :: t_guga_unit_tests = .false., t_full_guga_tests = .false., &
-               t_test_most_populated = .false.
-    integer :: n_guga_excit_gen, n_most_populated
-! introduce a new flag to indicate the testsuite is running!
-    logical :: t_guga_testsuite = .false.
-
 ! use new flags for the new guga excitation generator implementations
     logical :: tGen_nosym_guga = .false., &
                tGen_sym_guga_ueg = .false., &
@@ -275,24 +266,6 @@ module SystemData
 
 ! also store the number of spatial orbitals here, to use it generally
     integer :: nSpatOrbs
-
-! try to store current_stepvector here.. if that improves stuff
-    integer, allocatable :: current_stepvector(:)
-! maybe also define currentOcc and currentB here.. if that helps..
-    integer, allocatable :: currentOcc_int(:), currentB_int(:)
-    real(dp), allocatable :: currentOcc_ilut(:), currentB_ilut(:), currentB_nI(:)
-
-! also use this kind of information for the reference determinant
-! which i should initialize in the reference determinant init
-    integer, allocatable :: ref_stepvector(:), ref_b_vector_int(:)
-    real(dp), allocatable :: ref_b_vector_real(:), ref_occ_vector(:)
-
-! also use a fake cum-list of the non-doubly occupied orbital to increase
-! preformance in the picking of orbitals (a)
-    real(dp), allocatable :: current_cum_list(:)
-
-! use a flag for only running the excitation generator test in the dets case
-    logical :: t_test_excit_gen = .false.
 
 ! put in a logical to not reorder the orbitals in the guga + hubbard case
 ! to directly compare it with the determinental implementation, even if
@@ -449,6 +422,9 @@ module SystemData
     interface operator(.lt.)
         module procedure SymLt
     end interface
+
+    ! The inputted m_s value of spin-restrict
+    integer, allocatable :: user_input_m_s
 
 contains
     ! Operations on type(symmetry)

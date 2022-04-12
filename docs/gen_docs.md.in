@@ -5,6 +5,7 @@ author: Alavi Group
 website: https://www.fkf.mpg.de/alavi
 parallel: 4
 media_dir: ../../media
+author_pic: media/neci.jpg
 dbg: false
 warn: false
 display: private

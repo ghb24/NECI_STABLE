@@ -3,7 +3,8 @@
 
 ! fpp types
 #:set DATA_TYPES = {('real', 'dp'): 'real', ('HElement_t', 'dp'): 'hel', &
-                    &('integer', ''): 'int', ('integer', 'int32'): 'int32', ('integer', 'int64'): 'int64', }
+                    &('integer', ''): 'int', ('integer', 'int32'): 'int32', ('integer', 'int64'): 'int64', &
+                    &('Token_t', ''): 'token'}
 
 #:set RANKS = [1, 2]
 
@@ -18,6 +19,7 @@ $:  ', '.join(size_along if i == int(along) else 'size({var}, {i})'.format(var=v
 
 module growing_buffers
     use constants
+    use fortran_strings, only: Token_t
     implicit none
 
     private

@@ -8,9 +8,9 @@ module rdm_filling
     use bit_rep_data, only: NIfTot, nifd, test_flag, IlutBits, IlutBitsParent
     use bit_reps, only: get_initiator_flag_by_run
     use constants
-    use SystemData, only: tGUGA, nbasis
+    use SystemData, only: tGUGA, nbasis, nel
     use guga_bitRepOps, only: extract_stochastic_rdm_info, extract_2_rdm_ind, &
-                              init_csf_information, identify_excitation
+                              fill_csf_i, identify_excitation, CSF_Info_t
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
                         tNonVariationalRDMs
@@ -125,7 +125,7 @@ contains
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use LoggingData, only: RDMEnergyIter, RDMExcitLevel
         use rdm_data, only: one_rdm_t
-        use SystemData, only: nel, tHPHF
+        use SystemData, only: tHPHF
         use CalcData, only: tNonInitsForRDMs
 
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -286,7 +286,7 @@ contains
         use FciMCData, only: iLutHF_True, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: RDMEnergyIter
         use rdm_data, only: one_rdm_t
-        use SystemData, only: nel, max_ex_level
+        use SystemData, only: max_ex_level
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -325,7 +325,6 @@ contains
 
         use FciMCData, only: HFDet_True
         use rdm_data, only: one_rdm_t
-        use SystemData, only: nel, t_3_body_excits
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -342,7 +341,6 @@ contains
 
         ! If we have a single or double, add in the connection to the HF,
         ! symmetrically.
-        ASSERT(.not. t_3_body_excits)
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, HFDet_True, AvSignJ(2::2), IterRDM*AvSignHF(1::2))
@@ -362,7 +360,6 @@ contains
 
         use FciMCData, only: HFDet_True, iLutHF_True
         use rdm_data, only: one_rdm_t
-        use SystemData, only: nel, t_3_body_excits
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -378,7 +375,6 @@ contains
         ! Now if the determinant is connected to the HF (i.e. single or double),
         ! add in the diagonal elements of this connection as well -
         ! symmetrically because no probabilities are involved.
-        ASSERT(.not. t_3_body_excits)
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
             call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
 
@@ -717,7 +713,6 @@ contains
         use LoggingData, only: RDMExcitLevel
         use rdm_data, only: one_rdm_t
         use rdm_data_utils, only: add_to_rdm_spawn_t
-        use SystemData, only: nel, t_3_body_excits
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -735,7 +730,6 @@ contains
         ! or a single excitation.
         Ex(1, 1) = 2
         tParity = .false.
-        ASSERT(.not. t_3_body_excits)
 
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
@@ -748,7 +742,7 @@ contains
             full_sign = realSignI * realSignJ
         end if
 
-        ASSERT(all(ex(:, 1) > 0) .and. all(ex(:, 1) <= nbasis))
+        if (any(ex < 0)) return
 
         if ((Ex(1, 2) == 0) .and. (Ex(2, 2) == 0)) then
 
@@ -971,10 +965,12 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
+        type(CSF_Info_t) :: csf_i, csf_j
         integer :: nI(nel), nJ(nel), IC, n
         integer :: IterRDM, connect_elem, num_j
         type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "fill_rdm_offdiag_deterministic"
+
 
         ! IterRDM will be the number of iterations that the contributions are
         ! ech weighted by.
@@ -1011,8 +1007,9 @@ contains
                 end do
 
                 call decode_bit_det(nI, iLutI)
+                if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
-                if (tGUGA) call init_csf_information(ilutI(0:nifd))
+                ! if (tGUGA) call fill_csf_i(ilutI(0:nifd))
 
                 do j = 1, num_j
                     ! Running over all non-zero off-diag matrix elements
@@ -1034,10 +1031,13 @@ contains
                     if (DetBitEq(iLutJ, iLutHF_True, nifd)) cycle
                     if (DetBitEq(iLutJ, iLutI, nifd)) cycle
 
+                    if (tGUGA) csf_j = CSF_Info_t(ilutJ)
+
 
                     if (t_full_core_rdms) then
                         if (.not. tGUGA) then
                             ic = FindBitExcitLevel(iLutI, ilutJ)
+                            ex(1, 1) = ic
                             call GetBitExcitation(ilutI, ilutJ, ex, tParity)
                         end if
 
@@ -1074,7 +1074,7 @@ contains
                     else if (tGUGA) then
 
                         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, &
-                                  ilutI, ilutJ, AvSignI * IterRDM, AvSignJ, calc_type=1)
+                                  ilutI, csf_i, ilutJ, csf_j, AvSignI * IterRDM, AvSignJ)
                     else
                         if (IC == 1) then
                             ! Single excitation - contributes to 1- and 2-RDM

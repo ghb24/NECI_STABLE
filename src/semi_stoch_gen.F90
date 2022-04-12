@@ -2,7 +2,7 @@
 
 module semi_stoch_gen
 
-    use SystemData, only: tGUGA, nel
+    use SystemData, only: tGUGA, nel, t_mol_3_body
     use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det, nifguga
     use CalcData
@@ -99,7 +99,7 @@ contains
                 if (.not. (tStartCAS .or. core_in%tPops .or. core_in%tDoubles .or. core_in%tCAS .or. core_in%tRAS .or. &
                            core_in%tOptimised .or. core_in%tLowE .or. core_in%tRead .or. core_in%tMP1 .or. &
                            core_in%tFCI .or. core_in%tHeisenbergFCI .or. core_in%tHF .or. &
-                           core_in%tPopsAuto)) then
+                           core_in%tPopsAuto .or. core_in%tPopsProportion)) then
                     call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
                 end if
                 if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
@@ -123,6 +123,12 @@ contains
                     ! tApproxSpace should be used instead...
                 end if
 
+                if (core_in%tPopsProportion) then
+                    write(stdout, '("Choosing ",F7.2,"% of initiator space as core space")') 100 * core_in%npops_proportion
+                    write(stdout, *) "Estimated size of core space: ", int(AllNoInitDets(run) * core_in%npops_proportion)
+                    core_in%npops = max(1, int(AllNoInitDets(run) * core_in%npops_proportion))
+                end if
+
                 if (core_in%tApproxSpace) write(stdout, '(" ... approximately using the factor of",1X,i5)') core_in%nApproxSpace
                 call generate_space(core_in, run)
 
@@ -131,11 +137,23 @@ contains
                 call MPIAllGather(mpi_temp, rep%determ_sizes, ierr)
 
                 rep%determ_space_size = sum(rep%determ_sizes)
-                rep%determ_space_size_int = int(rep%determ_space_size, sizeof_int)
+                rep%determ_space_size_int = int(rep%determ_space_size)
 
                 ! This is now the total size on the replica with the largest space
                 ! Typically, all replicas will have either similar or the same space size
                 write(stdout, '("Total size of deterministic space:",1X,i8)') rep%determ_space_size
+                if (rep%determ_space_size > (AllNoInitDets(run) .div. 2_int64)) then
+                    write(stdout, *)"WARNING: Total size of deterministic space is greater than&
+                        & 50% of the initiator space."
+                    write(stdout, *)"         Reducing the size of the deterministic space is&
+                        & encouraged."
+                    if (iProcIndex == 0) then
+                        write(stderr, *)"WARNING: Total size of deterministic space is greater than&
+                            & 50% of the initiator space."
+                        write(stderr, *)"         Reducing the size of the deterministic space is&
+                            & encouraged."
+                    end if
+                end if
                 write(stdout, '("Size of deterministic space on this processor:",1X,i8)') rep%determ_sizes(iProcIndex)
                 call neci_flush(6)
 
@@ -143,8 +161,8 @@ contains
 
                 ! This array will hold the positions of the deterministic states in CurrentDets.
                 allocate(rep%indices_of_determ_states(rep%determ_sizes(iProcIndex)), stat=ierr)
-                call LogMemAlloc('indices_of_determ_states', int(rep%determ_sizes(iProcIndex), &
-                                                                 sizeof_int), bytes_int, t_r, rep%IDetermTag, ierr)
+                call LogMemAlloc('indices_of_determ_states', int(rep%determ_sizes(iProcIndex)), &
+                                  sizeof_int, t_r, rep%IDetermTag, ierr)
 
                 ! Calculate the indices in the full vector at which the various processors end.
                 rep%determ_last(0) = rep%determ_sizes(0)
@@ -176,7 +194,7 @@ contains
 
                 write(stdout, '("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
                 if (tAllSymSectors .or. tReltvy .or. nOccAlpha <= 1 .or. nOccBeta <= 1 &
-                    .or. tGUGA) then
+                    .or. tGUGA .or. t_mol_3_body) then
                     ! In the above cases the faster generation is not implemented, so
                     ! use the original algorithm.
                     call set_timer(SemiStoch_Hamil_Time)
@@ -320,7 +338,6 @@ contains
                     call gndts_all_sym_this_proc(SpawnedParts, .false., space_size)
                 else
                     call generate_fci_core(SpawnedParts, space_size)
-
                 end if
             end if
 
@@ -414,7 +431,7 @@ contains
         ! to the exact guga excitation to the HF det
         call convert_ilut_toGUGA(ilutHF, ilutG)
 
-        call actHamiltonian(ilutG, excitations, nexcit)
+        call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, nexcit)
 
         do i = 1, nexcit
             ! check if matrix element is zero if we only want to keep the
@@ -982,7 +999,7 @@ contains
         ! Finally send the actual determinants to the ilut_list array.
         call MPIScatterV(ilut_store, sendcounts, disps, ilut_list(:, space_size + 1:space_size + this_proc_size), recvcount, ierr)
 
-        space_size = space_size + int(this_proc_size, sizeof_int)
+        space_size = space_size + int(this_proc_size)
 
         ! Finally, deallocate arrays.
         if (allocated(ilut_store)) then
@@ -1098,13 +1115,13 @@ contains
 
         ! Allocate necessary arrays and log the memory used.
         allocate(amps_this_proc(length_this_proc), stat=ierr)
-        call LogMemAlloc("amps_this_proc", int(length_this_proc, sizeof_int), 8, this_routine, TagA, ierr)
+        call LogMemAlloc("amps_this_proc", int(length_this_proc), 8, this_routine, TagA, ierr)
         allocate(amps_all_procs(total_length), stat=ierr)
-        call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, this_routine, TagB, ierr)
+        call LogMemAlloc("amps_all_procs", int(total_length), 8, this_routine, TagB, ierr)
         allocate(indices_to_keep(n_pops_keep), stat=ierr)
         call LogMemAlloc("indices_to_keep", n_pops_keep, sizeof_int, this_routine, TagC, ierr)
         allocate(largest_states(0:NIfTot, length_this_proc), stat=ierr)
-        call LogMemAlloc("largest_states", int(length_this_proc, sizeof_int) * (NIfTot + 1), &
+        call LogMemAlloc("largest_states", int(length_this_proc) * (NIfTot + 1), &
                          size_n_int, this_routine, TagD, ierr)
 
         disps(0) = 0_MPIArg
@@ -1113,7 +1130,7 @@ contains
         end do
 
         ! Return the most populated states in source on *this* processor.
-        call proc_most_populated_states(int(length_this_proc, sizeof_int), run, largest_states)
+        call proc_most_populated_states(int(length_this_proc), run, largest_states)
 
         do i = 1, length_this_proc
             ! Store the real amplitudes in their real form.
@@ -1145,7 +1162,7 @@ contains
             call MPIAllGatherV(amps_this_proc(1:length_this_proc), amps_all_procs(1:total_length), lengths, disps)
             ! This routine returns indices_to_keep, which will store the indices in amps_all_procs
             ! of those amplitudes which are among the n_pops_keep largest (but not sorted).
-            call return_largest_indices(n_pops_keep, int(total_length, sizeof_int), amps_all_procs, indices_to_keep)
+            call return_largest_indices(n_pops_keep, int(total_length), amps_all_procs, indices_to_keep)
 
             n_states_this_proc = 0
             do i = 1, n_pops_keep
@@ -1325,7 +1342,7 @@ contains
             ! in guga, create all excitations at once and then check for the
             ! MP1 amplitude in an additional loop
             call convert_ilut_toGUGA(ilutHF, ilutG)
-            call actHamiltonian(ilutG, excitations, ndets)
+            call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, ndets)
             do i = 1, ndets
                 call convert_ilut_toNECI(excitations(:, i), ilut)
                 call decode_bit_det(nI, ilut)
@@ -1594,6 +1611,10 @@ contains
         ! Count the total number of determinants.
         call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
         allocate(nI_list(nel, ndets))
+        if (size(ilut_list, 2) < ndets) then
+            call stop_all(t_r, 'The ilut_list argument is too small. Probably SpawnedParts was allocated too small &
+                    & Please increase memoryfacspawn and memoryfacpart')
+        end if
         ! Generate and store all the determinants in nI_list.
         call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
 
@@ -1621,7 +1642,7 @@ contains
         integer :: SpawnedPartsMax
 
         SpawnedPartsWidth = int(size(SpawnedParts, 1), MPIArg)
-        SpawnedPartsMax = int(SpawnedPartsWidth, sizeof_int) - 1
+        SpawnedPartsMax = int(SpawnedPartsWidth) - 1
 
         if (space_size > 0) then
 
@@ -1848,7 +1869,7 @@ contains
         call MPIAllGather(mpi_temp, var_sizes, ierr)
 
         var_space_size = sum(var_sizes)
-        var_space_size_int = int(var_space_size, sizeof_int)
+        var_space_size_int = int(var_space_size)
 
         var_displs(0) = 0
         do i = 1, nProcessors - 1

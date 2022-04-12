@@ -2,7 +2,7 @@ module test_time_pchb
     use fruit
     use constants, only: dp, int64, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
-    use util_mod, only: factrl, intswap, cumsum
+    use util_mod, only: factrl, swap, cumsum
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
 
@@ -44,7 +44,7 @@ contains
                              spat_GAS_orbs=[1, 1, 1, 1, 1, 2, 2, 2, 2, 2])
 
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
 !         do i_singles = 1, size(p_singles)
 !             pSingles = p_singles(i_singles)
@@ -122,7 +122,7 @@ contains
                              spat_GAS_orbs=[(1, i = 1, 16), (2, i = 1, 18)])
 
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
 !         do i_singles = 1, size(p_singles)
 !             pSingles = p_singles(i_singles)

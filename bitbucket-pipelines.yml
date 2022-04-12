@@ -21,7 +21,7 @@ pipelines:
       - make -j neci test_neci
       - echo "done building release version"
       - echo "running unit tests"
-      - ctest -R test_neci.*
+      - ctest --tests-regex 'test_neci_.*' -j
       - echo "unit tests passed"
 
  branches:
@@ -39,7 +39,7 @@ pipelines:
         - make -j
         - echo "done building release version"
         - echo "running unit tests"
-        - ctest
+        - ctest -j
         - echo "unit tests passed"
         # - echo "running limited test_suite(to save build-minutes)"
         # - useradd temp
@@ -59,7 +59,7 @@ pipelines:
         - make -j
         - echo "done building release version"
         - echo "running unit tests"
-        - ctest
+        - ctest -j
         - echo "unit tests passed"
         # - echo "running limited test_suite(to save build-minutes)"
         # - useradd temp
@@ -82,7 +82,7 @@ pipelines:
       - make -j
       - echo "done building release version"
       - echo "running unit tests"
-      - ctest
+      - ctest -j
       - echo "unit tests passed"
       - echo "running limited test_suite(to save build-minutes)"
       - useradd temp

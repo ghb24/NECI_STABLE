@@ -7,7 +7,7 @@ MODULE UMatCache
     use SystemData, only: tROHF, tStoreSpinOrbs, tComplexWalkers_RealInts, &
                           Symmetry, BasisFN, UMatEps, tROHF
 
-    use SystemData, only: tRIIntegrals, tCacheFCIDUMPInts, t_non_hermitian
+    use SystemData, only: tRIIntegrals, t_non_hermitian
 
     use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero, operator(.div.)
 
@@ -156,7 +156,6 @@ Contains
         !    nBasis: size of bais
         ! InvBRR is the inverse of BRR.  InvBRR(j)=i: the j-th lowest energy
         ! orbital corresponds to the i-th orbital in the original basis.
-        IMPLICIT NONE
         INTEGER NBASIS
         INTEGER BRR2(NBASIS), ierr, I, t
         character(*), parameter :: t_r = 'CreateInvBRR2'
@@ -188,7 +187,6 @@ Contains
         !    nBasis: size of bais
         ! InvBRR is the inverse of BRR.  InvBRR(j)=i: the j-th lowest energy
         ! orbital corresponds to the i-th orbital in the original basis.
-        IMPLICIT NONE
         INTEGER NBASIS
         INTEGER BRR(NBASIS), ierr, I, t
         character(*), parameter :: t_r = 'CreateInvBRR'
@@ -215,22 +213,22 @@ Contains
         nBI_umat = numBasisIndices(nBasis)
     end subroutine setup_UMatInd
 
-    function UMat2Ind(i, j, k, l) result(ind)
+    elemental function UMat2Ind(i, j, k, l) result(ind)
         use SystemData, only: nBasis
-        integer :: i, j, k, l
+        integer, intent(in) :: i, j, k, l
         integer(int64) :: ind
 
         ind = UMatInd_base(i, j, k, l, numBasisIndices(nBasis))
     end function UMat2Ind
 
-    function UMatInd(i, j, k, l) result(ind)
-        integer :: i, j, k, l
+    elemental function UMatInd(i, j, k, l) result(ind)
+        integer, intent(in) :: i, j, k, l
         integer(int64) :: ind
 
         ind = UMatInd_base(i, j, k, l, nBI_umat)
     end function UMatInd
 
-    FUNCTION UMatInd_base(I, J, K, L, nBI) result(UMatInd)
+    elemental FUNCTION UMatInd_base(I, J, K, L, nBI) result(UMatInd)
         ! Get the index of physical order UMAT element <IJ|KL>.
         ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L)
         ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
@@ -241,10 +239,9 @@ Contains
         !    nBasis: size of basis. If =0, use nStates instead.
         !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
         !    Should only be passed as non-zero during the freezing process.
-        IMPLICIT NONE
         INTEGER, intent(in) :: I, J, K, L, nBI
         integer(int64) :: UMatInd
-        INTEGER A, B, iss
+        integer :: A, B
 
         if(t_non_hermitian) then
             A = (I - 1) * nBi + K
@@ -283,7 +280,7 @@ Contains
 #endif
     END FUNCTION UMatInd_Base
 
-    HElement_t(dp) function UMatConj(I, J, K, L, val)
+    HElement_t(dp) elemental function UMatConj(I, J, K, L, val)
         integer, intent(in) :: I, J, K, L
         HElement_t(dp), intent(in) :: val
 #ifdef CMPLX_
@@ -367,7 +364,6 @@ Contains
         !         iSS=-1 flag for the Hubbard model.
         ! Out:
         !    iSize: size of UMAT.
-        IMPLICIT NONE
         INTEGER nBasis, iSS
         INTEGER iPairs, nBi
         INTEGER(int64), intent(out) :: iSize
@@ -393,7 +389,6 @@ Contains
     SUBROUTINE SETUPUMATCACHE(NSTATE, TSMALL)
         ! nState: # states.
         ! TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals.
-        IMPLICIT NONE
         INTEGER NSTATE
         real(dp) Memory
         LOGICAL TSMALL
@@ -417,7 +412,7 @@ Contains
             ELSE
                 IF(nMemInit /= 0) THEN
                     write(stdout, *) "Allocating ", nMemInit, "Mb for UMatCache+Labels."
-                    nSlotsInit = nint((nMemInit * 1048576 / 8) / (nPairs * (nTypes * HElement_t_size + 1.0_dp / irat)), sizeof_int)
+                    nSlotsInit = nint((nMemInit * 1048576 / 8) / (nPairs * (nTypes * HElement_t_size + 1.0_dp / irat)))
                 end if
                 NSLOTS = MIN(NPAIRS, NSLOTSINIT)
                 tSmallUMat = .FALSE.
@@ -438,9 +433,6 @@ Contains
 
             UMatCacheData = (0.0_dp)
             UMATLABELS(1:nSlots, 1:nPairs) = 0
-!If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in
-!the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
-!FillUMatCache routine. Otherwise, we need to read in all the integrals.
             if(.not. tSmallUMat .and. tReadInCache) then
                 write(stdout, *) 'reading in cache'
                 call ReadInUMatCache
@@ -456,7 +448,6 @@ Contains
         !    G1: symmetry and momentum information on the basis functions.
         ! Out:
         !    HarInt(i,j)=<i|v_har|j>, where v_har is the Hartree potential.
-        IMPLICIT NONE
         TYPE(BasisFN) G1(*)
         INTEGER ierr
         complex(dp) HarInt(nStates, nStates)
@@ -476,7 +467,6 @@ Contains
     SUBROUTINE SETUPUMAT2D_DF()
         ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for
         ! density fitting calculations.
-        IMPLICIT NONE
         INTEGER ierr
         character(len=*), parameter :: thisroutine = 'SETUPUMAT2D_DF'
         IF(NSLOTSINIT < 0) THEN
@@ -488,10 +478,7 @@ Contains
             UMat2D = 0.0_dp
 !            write(stdout,*) "nStates for UMat2D: ",nStates
             call LogMemAlloc('UMat2D', nStates**2, 8 * HElement_t_size, thisroutine, tagUMat2D, ierr)
-            IF(tRIIntegrals .or. tCacheFCIDUMPInts) THEN
-                !        CALL ReadRI2EIntegrals(nStates,UMat2D,tUMat2D)
-                !  This happens later
-            ELSE
+            IF (.not. tRIIntegrals) THEN
                 CALL ReadDalton2EIntegrals(nStates, UMat2D, tUMat2D)
             end if
         end if
@@ -503,7 +490,6 @@ Contains
         ! Currently only called in cpmdinit to re-order states by the
         ! one-particle energies (option is rarely used).
         ! Copy to UMatCache's translation table.
-        IMPLICIT NONE
         INTEGER TRANS(NSTATES), ierr
         character(*), parameter :: thisroutine = 'SetupUMatTrans'
         allocate(TransTable(nStates), STAT=ierr)
@@ -519,7 +505,6 @@ Contains
         !    nNew: # of new states.
         !    OldNew: convert index in the old (pre-freezing) indexing scheme to
         !            the new (post-freezing) indexing scheme.
-        IMPLICIT NONE
         INTEGER nNew, nOld, I
         INTEGER OldNew(*), ierr
         LOGICAL tDiff
@@ -547,7 +532,6 @@ Contains
     END SUBROUTINE SetupUMatTransTable
 
     SUBROUTINE DESTROYUMATCACHE
-        IMPLICIT NONE
         character(len=*), parameter :: thisroutine = 'DESTROYUMATCACHE'
         CALL WriteUMatCacheStats()
         IF(ASSOCIated(UMatCacheData)) THEN
@@ -572,7 +556,6 @@ Contains
     END SUBROUTINE DESTROYUMATCACHE
 
     SUBROUTINE WriteUMatCacheStats
-        IMPLICIT NONE
         IF(ASSOCIated(UMatCacheData)) THEN
             write(stdout, *) "UMAT Cache Statistics"
             write(stdout, *) NHITS, " hits"
@@ -592,7 +575,6 @@ Contains
         !  in (and only have room to do so).
         !  flag=0: Distribute integrals throughout the cache in the scheme
         !  described at the top.
-        IMPLICIT NONE
         INTEGER NEWFLAG
         SELECT CASE(UMATCACHEFLAG)
         CASE(1)
@@ -620,7 +602,6 @@ Contains
         ! The cache consists of an unordered set (in the standard UMatCache
         ! sense) of labels and elements.
         ! We must order this, and then distribute the elements throughout each set of SLOTS.
-        IMPLICIT NONE
         INTEGER I, J, K, N, nK
         DO I = 1, nPairs
 ! Find the last value in the cache
@@ -654,7 +635,6 @@ Contains
 !   If the search is successful, the location of VAL in TAB is returned in LOC
 !   (and LOC1,LOC2).
 !   If the search fails, then VAL should fit between LOC1 and LOC2 in TAB.
-        IMPLICIT NONE
         INTEGER VAL, A, B, LOC, LOC1, LOC2
         INTEGER TAB(A:B)
         INTEGER I, J, IFIRST, N, ILAST
@@ -729,7 +709,6 @@ Contains
         !    I,J (I<=J): state indices
         ! Out:
         !    Cache indexing scheme.
-        IMPLICIT NONE
         INTEGER I, J, RET
         RET = J * (J - 1) / 2 + I
     END SUBROUTINE GetCacheIndex
@@ -760,7 +739,6 @@ Contains
         ! Out:
         !   I,J (I<=J): states corresponding to cache index.
         ! Reverse of GetCacheIndex.
-        IMPLICIT NONE
         INTEGER I, J, IND
         J = int(SQRT(2.0d0 * IND))
         IF(J * (J + 1) / 2 < IND) J = J + 1
@@ -770,7 +748,6 @@ Contains
     SUBROUTINE FreezeUMatCache(OrbTrans, nOld, nNew)
         ! We're in the middle of freezing some orbitals.
         ! OrbTrans(i) will give us the new position of the old orbital i.
-        IMPLICIT NONE
         INTEGER nOld, nNew, OrbTrans(nOld)
         INTEGER onSlots, onPairs
         if(nNew / 2 /= nStates .OR. tSmallUMat) THEN
@@ -784,7 +761,6 @@ Contains
     END SUBROUTINE FreezeUMatCache
 
     SUBROUTINE FreezeUMAT2D(OldBasis, NewBasis, OrbTrans, iSS)
-        IMPLICIT NONE
         INTEGER NewBasis, OldBasis, iSS, ierr, OrbTrans(OldBasis), i, j
         HElement_t(dp), POINTER :: NUMat2D(:, :)
         integer(TagIntType) :: tagNUMat2D = 0
@@ -811,7 +787,6 @@ Contains
     END SUBROUTINE FreezeUMAT2D
 
     SUBROUTINE FreezeUMatCacheInt(OrbTrans, nOld, nNew, onSlots, onPairs)
-        IMPLICIT NONE
         INTEGER nOld, nNew, OrbTrans(nOld)
         HElement_t(dp), Pointer :: NUMat2D(:, :) !(nNew/2,nNew/2)
         integer(TagIntType) :: tagNUMat2D = 0
@@ -909,7 +884,6 @@ Contains
     END SUBROUTINE FreezeUMatCacheInt
 
     SUBROUTINE CacheFCIDUMP(I, J, K, L, Z, CacheInd, ZeroedInt, NonZeroInt)
-        IMPLICIT NONE
         INTEGER :: I, J, K, L, CacheInd(nPairs)
         INTEGER(int64) :: ZeroedInt, NonZeroInt
         INTEGER :: A, B
@@ -971,60 +945,8 @@ Contains
 !After we have filled all of the cache, this will want to be sorted.
     END SUBROUTINE CacheFCIDUMP
 
-!This is a routine to calculate the maximum size needed for nSlotsInit to hold all the needed two-electron
-!integrals in the cache.
-!We are assuming that there is no more than one integral per i,j pair and so permutational
-!symmetry is taken into account when determining islotsmax.
-    SUBROUTINE CalcNSlotsInit(I, J, K, L, Z, nPairs2, MaxSlots)
-        IMPLICIT NONE
-        INTEGER :: I, J, K, L, nPairs2, MaxSlots(1:nPairs2), A, B, C, D, X, Y
-        HElement_t(dp) :: Z
-
-!The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so
-!we do not want to include them in the consideration of the size of the cache.
-        IF((I == J) .and. (K == L)) THEN
-            RETURN
-        else if((I == K) .and. (J == L)) THEN
-            RETURN
-        else if(min(I, J, K, L) == 0) THEN
-            RETURN
-        end if
-        A = I
-        B = J
-        C = K
-        D = L
-        IF(B < A) THEN
-            CALL SWAP(B, A)
-        end if
-        IF(D < C) THEN
-            CALL SWAP(C, D)
-        end if
-        CALL GETCACHEINDEX(A, B, X)
-        CALL GETCACHEINDEX(C, D, Y)
-        IF(X > Y) THEN
-            CALL SWAP(X, Y)
-            CALL SWAP(A, B)
-            CALL SWAP(C, D)
-        end if
-
-        IF(abs(Z) > UMatEps) THEN
-            MaxSlots(X) = MaxSlots(X) + 1
-            IF(X > nPairs2) THEN
-                CALL Stop_All("CalcNSlotsInit", "Problem since X > nPairs")
-            end if
-            IF((MaxSlots(X) > nPairs2) .and. (.not. tROHF)) THEN
-                write(stdout, *) "Final Phys ordering: ", I, J, K, L
-                write(stdout, *) "Pair indices: ", X, Y
-                write(stdout, *) "nPairs,nSlots: ", nPairs2, MaxSlots(X)
-                CALL Stop_All("CalcNSlotsInit", "Problem since more integrals for a given ik pair found than possible.")
-            end if
-        end if
-
-    END SUBROUTINE CalcNSlotsInit
-
     subroutine ReadInUMatCache()
         ! Read in cache file from CacheDump.
-        implicit none
         integer i, j, k, l, iCache1, iCache2, A, B, readerr, iType, iunit
         HElement_t(dp) UMatEl(0:nTypes - 1), DummyUMatEl(0:nTypes - 1)
         logical tDummy, testfile
@@ -1066,7 +988,6 @@ Contains
         ! Print out the cache contents so they can be read back in for a future
         ! calculation.  Need to print out the full set of indices, as the number of
         ! states may change with the next calculation.
-        implicit none
         ! Variables
         integer iPair, iSlot, i, j, k, l, iCache1, iCache2, A, B, iType
         HElement_t(dp) UMatEl
@@ -1107,7 +1028,6 @@ Contains
     end subroutine DumpUMatCache
 
     logical function HasKPoints()
-        IMPLICIT NONE
         IF(NKPS > 1) THEN
             HasKPoints = .TRUE.
         ELSE
@@ -1131,7 +1051,7 @@ Contains
             id = gInd
         else
             ! Storing as spatial orbitals (RHF or explicit input option ROHF)
-            id = (gInd - 1) / 2 + 1
+            id = (gInd + 1) .div. 2
         end if
         if(tTransGTID) id = TransTable(id)
     end function
@@ -1174,7 +1094,6 @@ Contains
 ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
 
 !         use SystemData, only : nBasis,G1
-        IMPLICIT NONE
         INTEGER IDI, IDJ, IDK, IDL, ICACHE, ICACHEI
         INTEGER ICACHEI1, ICACHEI2
         HElement_t(dp) UMATEL
@@ -1363,8 +1282,7 @@ Contains
 
     !------------------------------------------------------------------------------------------!
 
-    function numBasisIndices(nBasis) result(nBI)
-        implicit none
+    elemental function numBasisIndices(nBasis) result(nBI)
         integer, intent(in) :: nBasis
         integer :: nBI
 
@@ -1379,9 +1297,8 @@ Contains
     !------------------------------------------------------------------------------------------!
 
     subroutine SetupUMat2d_dense(nBasis)
-        implicit none
         integer, intent(in) :: nBasis
-        integer :: nBI, i, j, idX, idN
+        integer :: nBI, i, j
         integer :: ierr
         character(*), parameter :: t_r = 'SetupUMat2d_dense'
 

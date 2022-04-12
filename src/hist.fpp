@@ -21,7 +21,7 @@ module hist
     use bit_rep_data, only: NIfTot, NIfD, extract_sign
     use bit_reps, only: encode_sign, extract_bit_rep, &
                         decode_bit_det, flag_initiator, test_flag, &
-                        get_initiator_flag, &
+                        get_initiator_flag, writebitdet, &
                         any_run_is_initiator
     use parallel_neci
     use searching, only: BinSearchParts2
@@ -192,7 +192,7 @@ contains
         call set_timer(s2_timer)
 
         ssq = 0
-        do i = 1, int(TotWalkers, sizeof_int)
+        do i = 1, int(TotWalkers)
             if ((test_flag(CurrentDets(:, i), get_initiator_flag(1)) .or. &
                  test_flag(CurrentDets(:, i), get_initiator_flag(lenof_sign))) &
                 .and. .not. TestClosedShellDet(CurrentDets(:, i))) then
@@ -232,7 +232,7 @@ contains
         s2_timer%timer_name = 'S^2'
         call set_timer(s2_timer)
 
-        max_linked = int(choose(nel, (nel + LMS) / 2))
+        max_linked = int(choose_i64(nel, (nel + LMS) / 2))
         max_per_proc = 2 * (max_linked / nProcessors) + 1
         max_spawned = max_per_proc * nProcessors
 
@@ -401,7 +401,7 @@ contains
         do p = 0, nProcessors - 1
 
             ! How many dets are on processor p
-            proc_dets = int(TotWalkers, sizeof_int)
+            proc_dets = int(TotWalkers)
             call MPIBcast(proc_dets, iProcIndex == p)
 
             ! Send the dets around bit by bit
@@ -412,7 +412,7 @@ contains
                     ! Loop over walkers and only add initiators to bcast list
                     nsend = 0
                     if (p == iProcIndex) then
-                        do i = start_pos, int(TotWalkers, sizeof_int)
+                        do i = start_pos, int(TotWalkers)
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 

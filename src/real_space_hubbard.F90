@@ -33,7 +33,7 @@ module real_space_hubbard
 
     use constants, only: dp, EPS, n_int, bits_n_int, pi, maxExcit
 
-    use procedure_pointers, only: get_umat_el, generate_excitation
+    use procedure_pointers, only: get_umat_el
 
     use OneEInts, only: tmat2d, GetTMatEl, spin_free_tmat
 
@@ -50,9 +50,9 @@ module real_space_hubbard
 
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
-    use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
+    use util_mod, only: binary_search_first_ge, swap, get_free_unit, &
                         binary_search, near_zero, operator(.isclose.), &
-                        operator(.div.)
+                        operator(.div.), stop_all
 
     use bit_reps, only: decode_bit_det
 
@@ -70,10 +70,12 @@ module real_space_hubbard
 
     use MPI_wrapper, only: iProcIndex
 
-    use guga_data, only: ExcitationInformation_t, ExcitationInformation_t, tNewDet
-    use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
-                                global_excitinfo
-    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, init_csf_information
+    use guga_data, only: ExcitationInformation_t, ExcitationInformation_t
+    use guga_excitations, only: global_excitinfo
+    use guga_main, only: generate_excitation_guga
+    use guga_matrixElements, only: calc_guga_matrix_element
+    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, is_compatible, &
+                              current_csf_i, CSF_Info_t
 
     implicit none
 
@@ -222,26 +224,7 @@ contains
                 call stop_all(this_routine, &
                               "twisted BC + Transcorr not yet implemented!")
             end if
-            if (t_hole_focus_excits) then
-                generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
-            else if (t_uniform_excits) then
-                generate_excitation => gen_excit_rs_hubbard_transcorr_uniform
-            else
-                generate_excitation => gen_excit_rs_hubbard_transcorr
-            end if
-        else if (t_spin_dependent_transcorr .and. .not. tHPHF) then
-            generate_excitation => gen_excit_rs_hubbard_spin_dependent_transcorr
-
-        else
-            if (.not. tHPHF) then
-                if (tGUGA .and. .not. tgen_guga_crude) then
-                    generate_excitation => generate_excitation_guga
-                else
-                    generate_excitation => gen_excit_rs_hubbard
-                end if
-            end if
         end if
-
         ! i have to calculate the optimal time-step
         ! and maybe i have to be a bit more safe here and not be too near to
         ! the optimal time-step
@@ -1994,7 +1977,9 @@ contains
     ! Generic excitaiton generator
     subroutine gen_excit_rs_hubbard(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                     ex, tParity, pGen, hel, store, run)
-
+        !! An API interfacing function for generate_excitation to the rest of NECI:
+        !!
+        !! Requires guga_bitRepOps::current_csf_i to be set according to the ilutI.
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -2072,19 +2057,8 @@ contains
                 pgen = 0.0_dp
             end if
 
-            if (tNewDet) then
-                call convert_ilut_toGUGA(ilutI, ilutGi)
-                ! use new setup function for additional CSF informtation
-                ! instead of calculating it all seperately..
-                call init_csf_information(ilutGi(0:nifd))
-
-                ! then set tNewDet to false and only set it after the walker loop
-                ! in FciMCPar
-                tNewDet = .false.
-
-            end if
-
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 1)
+            ASSERT(is_compatible(ilutI, current_csf_i))
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2488,6 +2462,7 @@ contains
 
     end function get_double_helem_rs_hub_transcorr
 
+    ! TODO(@Oskar, @Werner): This has to be probably split up into a GUGA and a non-GUGA function.
     function get_offdiag_helement_rs_hub(nI, ex, tpar) result(hel)
         integer, intent(in) :: nI(nel), ex(2)
         logical, intent(in) :: tpar
@@ -2501,8 +2476,7 @@ contains
             call EncodeBitDet(nI, ilut)
             ilutJ = make_ilutJ(ilut, ex, 1)
 
-            call calc_guga_matrix_element(ilut, ilutJ, excitInfo, hel, &
-                                          .true., 2)
+            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (tpar) hel = -hel
             return
@@ -2639,7 +2613,7 @@ contains
 
     end function get_2_body_contrib_transcorr_hop
 
-    function get_umat_el_hub(i, j, k, l) result(hel)
+    pure function get_umat_el_hub(i, j, k, l) result(hel)
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 #ifdef DEBUG_
@@ -2663,7 +2637,7 @@ contains
 
     end function get_umat_el_hub
 
-    function get_umat_rs_hub_trans(i, j, k, l) result(hel)
+    pure function get_umat_rs_hub_trans(i, j, k, l) result(hel)
         ! do i need an explicit get_umat_rs_hub_trans? or can i just reuse
         ! the one, whhich access the "normal" fcidump.. figure out!
         integer, intent(in) :: i, j, k, l
