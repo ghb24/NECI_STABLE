@@ -267,12 +267,6 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-[hdf5/mneci/guga/*/]
-program = mneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
-
 
 [hdf5/tc/*/]
 program = neci
