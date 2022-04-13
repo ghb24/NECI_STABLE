@@ -308,6 +308,7 @@ contains
         ! Default values
         opts_selected = .false.
         deleted = .false.
+        any_deleted=.false.
         tWritePopsfound = .false.
         tSingBiasChange = .false.
         ios = 0
@@ -320,15 +321,21 @@ contains
             ! all processors to reach AllReduce on each cycle, to avoid race
             ! condition between processors sharing the same disk.
             do proc = 0, nProcessors - 1
-                if (proc == iProcIndex .and. exists) then
 
-                    ! Set unit for read_line routine
+                if (proc == iProcIndex .and. exists) then
+                    ! Instantiate the file-reader object and flag whether
+                    ! there is a file-opening error by unsetting "exists".
                     file_reader = ManagingFileReader_t(file_name, err=ios)
                     if (ios /= 0) then
                         write(stdout, *) 'Problem reading CHANGEVARS file.'
                         write(stderr, *) 'Problem reading CHANGEVARS file.'
-                        cycle
+                        exists = .false.
                     endif
+                end if
+
+                ! Skip parsing if there was a file-opening error, but still
+                ! run the later MPI call so we don't get stuck.
+                if (proc == iProcIndex .and. exists) then
 
                     ! Loop over all options specified in the file.
                     do while (file_reader%nextline(tokens, skip_empty=.true.))
@@ -405,6 +412,10 @@ contains
                 call MPIAllLORLogical(deleted, any_deleted)
                 if (any_deleted) exit
             enddo ! Loop to read CHANGEVARS
+
+            ! Do not proceed further if read errors have prevented loading
+            ! the contents of the file on all processes.
+            if (.not.any_deleted) return
 
             ! Relabel 'deleted' as 'tSource' for clarity
             ! --> If we have had the file, we should be the source node
