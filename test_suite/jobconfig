@@ -261,12 +261,20 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-[hdf5/mneci/guga/*/*/]
+
+[hdf5/mneci/guga/multiple_rdms/multiple_rdms/]
 program = mneci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
-tolerance = (1e-8, None, 'sum_error_rdm_1'), (1e-8, None, 'sum_error_rdm_2')
+tolerance = (1e-8, None, 'sum_error_rdm_1'), (1e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_2'), (1e-8, None, 'max_error_rdm_2')
+
+
+[hdf5/mneci/guga/C2_aas_bloom_scale/*]
+program = mneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
 
 
 [hdf5/tc/*/]
