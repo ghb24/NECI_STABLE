@@ -5,7 +5,6 @@
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
 
-
 module gasci
     use constants, only: n_int, dp
     use SystemData, only: nBasis
