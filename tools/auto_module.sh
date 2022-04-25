@@ -20,7 +20,7 @@ elif [ "ifort18-debug" == "$@" ] || [ "ifort18" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.8.20_ifort_18
     module load ifort/18.0.1 mpi.intel/5.0.3
 elif [ "gfortran-debug" == "$@" ] || [ "gfortran" == "$@" ] || [ "gfortran-doc" == "$@" ] || [ "gfortran-debug-integer8" == "$@" ]; then
-    export HDF5_ROOT=/opt/hdf-1.8.20_gfort_19
+    export HDF5_ROOT=/opt/hdf-1.8.20_gfort_7
     module load gnu-openmpi/3.1.6
 elif [ "gfortran-self_build_hdf5" == "$@" ]; then
     module load gnu-openmpi/3.1.6
