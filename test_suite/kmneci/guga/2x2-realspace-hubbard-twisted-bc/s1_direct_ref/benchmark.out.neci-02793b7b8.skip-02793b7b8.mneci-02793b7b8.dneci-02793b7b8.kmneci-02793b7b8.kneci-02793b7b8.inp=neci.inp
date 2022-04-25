@@ -1,0 +1,276 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Apr 25 2022 at 16:42:49
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     02793b7b8bc84e35f10511ce2ea65a591a347040
+ Working directory: 
+     /home/phaupt/dev/neci/test_suite/kmneci/guga/2x2-realspace-hubbard-twisted-bc/s1_direct_ref
+ Running on: altestnew
+ Started running on 25/04/2022 at 16:57:39
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system hubbard real-space
+
+lattice square 2 2
+electrons 4
+b -1
+u 12
+twisted-bc 0.1 0.2
+guga 2
+nonuniformrandexcits ueg_guga
+endsys
+
+calc
+
+methods
+method vertex fcimc
+endmethods
+
+direct-guga-ref
+ WARNING: direct-guga-ref is the default now and not necessary as input
+
+definedet 1 4 5 7
+load-balance-interval 1000
+seed -7
+
+allrealcoeff
+tau 0.01
+
+nmcyc 5000
+
+truncinitiator
+addtoinitiator 2
+totalwalkers 100
+shiftdamp 0.1
+stepsshift 10
+
+endcalc
+
+logging
+popsfile -1
+endlog
+
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     4
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** HUBBARD MODEL ***  
+  NMAXX :     2
+  NMAXY :     2
+  NMAXZ :     1
+  NMSH :    32
+   HUBBARD T :            -1.00000
+   HUBBARD U :            12.00000
+ New Hubbard Implementation! 
+ lattice used: 
+ Lattice type is 'rectangle' 
+  number of dimensions:            2
+  max-number of neighbors:            4
+  number of sites in the lattice:            4
+  is the lattice periodic: True
+ primitive lattice vectors: (           2           0 ), (           0           2 )
+  periodic boundary conditions:  T
+ Real space basis:  T
+  Orbital Energy Cutoff:   1.0000000000000000E+020
+   VOLUME :             4.00000
+  TALPHA :  F
+   ALPHA :             0.00000
+   SCALED ALPHA :             0.00000
+  NUMBER OF SPIN ORBITALS IN BASIS :     8
+ Creating real-space basis.
+  NUMBER OF BASIS FUNCTIONS :            8
+ Turning Symmetry off for the real-space Hubbard
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0)   0        0.000000000        0.000000000
+      2      2      0      0      0      1 ( 0, 0, 0)   0        0.000000000        0.000000000
+      3      3      1      0      0     -1 ( 0, 0, 0)   0        0.000000000        0.000000000
+      4      4      1      0      0      1 ( 0, 0, 0)   0        0.000000000        0.000000000
+      5      5      0      1      0     -1 ( 0, 0, 0)   0        0.000000000        0.000000000
+      6      6      0      1      0      1 ( 0, 0, 0)   0        0.000000000        0.000000000
+      7      7      1      1      0     -1 ( 0, 0, 0)   0        0.000000000        0.000000000
+      8      8      1      1      0      1 ( 0, 0, 0)   0        0.000000000        0.000000000
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     2
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already implemented
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+ Not precomputing HUBBARD 2-e integrals
+ Defining FDet according to input
+ Fermi det (D0):(    1,    4,    5,    7)
+ Symmetry:  ( 0, 0, 0)
+ Fock operator energy:   0.0000000000000000     
+ Calculation supports multiple parallel runs
+ Complex walkers in use.
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+For GUGA calculation set up a integer list of length:      4
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     2
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already implemented
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Total momentum is           2           2           0
+ Not storing the H matrix.
+ <D0|H|D0>=   0.0000000000000000     
+ <D0|T|D0>=   0.0000000000000000     
+ <D0|U|D0>   0.0000000000000000     
+  !! NOTE: running a GUGA simulation, so following info makes no sense!
+  but is kept for now to not break remaining code!
+ FDet has     1 alpha electrons, and     3 beta electrons.
+                0  alpha-alpha occupied electron pairs
+                3  beta-beta occupied electron pairs
+                3  alpha-beta occupied electron pairs
+                3 alpha-alpha (vacant) hole pairs
+                0 beta-beta (vacant) hole pairs
+                3 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    4,    5,    7) E =      0.000000000
+Symmetry of reference determinant is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:         0.0000000000
+ No brillouin theorem assumed. Single excitations also used to calculate projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+ Since we are using a real-space hubbard model, only single excitations are connected    and will be generated.
+ using new real-space hubbard implementation: 
+ optimal time-step would be:    6.2500000000000000E-002
+ but tau specified in input!
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:            9
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:      20.000000 Mb / processor
+Spawning vectors allowing for a total of           75 particles to be spawned in any one iteration per core.
+ Memory requirement    1.7166137695312500E-003 MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:              18
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        2
+Initial reference is: (    1,    4,    5,    7)
+Initial number of particles set to          1 and shift will be held at     0.000 until particle number gets to             100
+ Initial memory (without excitgens + temp arrays) consists of :      16.004578 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ using new real-space hubbard implementation: 
+ optimal time-step would be:    6.2500000000000000E-002
+ but tau specified in input!
+## 1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Re Proj. E                            5. Im Proj. E                            6. Shift. (cyc)                          12. Tot. Proj. E                         14. Dets occ.        15. Dets spawned     17. Iter. time                          
+##               0   1.00000000000        1.00000000000        0.00000000000        0.00000000000        0.00000000000        0.00000000000                     1                0   0.00000000000     
+                10   1.00000000000        1.00000000000      -0.415626937777E-001 -0.572061402818E-001   0.00000000000      -0.415626937777E-001                1                1  0.234720006119E-004
+                20   2.00000000000        1.00000000000      -0.572061402818E-001  0.415626937777E-001   0.00000000000      -0.572061402818E-001                2                2  0.865990296006E-005
+                30   2.00000000000        1.00000000000      -0.316227766017      -0.102748629675        0.00000000000      -0.316227766017                     2                2  0.109948043246E-004
+                40   4.12372244487        2.12372244487      -0.900705091956      -0.194098949648        0.00000000000      -0.900705091956                     3                4  0.156791007612E-004
+                50   3.19500296680        2.19500296680       -1.13458431801       0.421926565077        0.00000000000       -1.13458431801                     2                2  0.948739470914E-005
+                60   4.50332869048        2.42431362323      -0.839046434414       0.115190165775        0.00000000000      -0.839046434414                     2                6  0.120200158563E-004
+                70   3.69767806496        2.58234375773      -0.493699893866      -0.260158085426        0.00000000000      -0.493699893866                     2                4  0.117102055810E-004
+                80   6.09275340119        3.01373833395      -0.692682769466       0.242194084132        0.00000000000      -0.692682769466                     4                6  0.150238862261E-004
+                90   3.05643416122        3.05643416122      -0.890678023426E-001 -0.547428470371E-001   0.00000000000      -0.890678023426E-001                1                3  0.106880033854E-004
+               100   3.05643416122        3.05643416122        0.00000000000        0.00000000000        0.00000000000        0.00000000000                     1                3  0.921480823308E-005
+               110   3.05643416122        3.05643416122        0.00000000000        0.00000000000        0.00000000000        0.00000000000                     1                2  0.896369456314E-005
+               120   7.10231828213        3.10231828213      -0.772633064920E-001 -0.343499421985        0.00000000000      -0.772633064920E-001                5                5  0.127304112539E-004
+               130   5.20856008602        3.20856008602      -0.537907278356      -0.322359387764E-002   0.00000000000      -0.537907278356                     3                6  0.118928903248E-004
+               140   7.48841586657        3.41713534463      -0.739473131753       0.113826455979        0.00000000000      -0.739473131753                     5                7  0.136995106004E-004
+               150   5.06775254538        3.96015278347      -0.887999228087      -0.428816450127E-001   0.00000000000      -0.887999228087                     2                6  0.144251040183E-004
+               160   5.21302950530        4.21302950530      -0.307046589990       0.195405187360        0.00000000000      -0.307046589990                     2                6  0.125711958390E-004
+               170   5.24934874528        4.24934874528      -0.225639580590      -0.269863157433        0.00000000000      -0.225639580590                     2                5  0.121197081171E-004
+               180   8.47228281442        4.43596357444      -0.490659133553       0.585398893361        0.00000000000      -0.490659133553                     4                8  0.155320973136E-004
+               190   6.64148346580        4.64148346580      -0.109110238330       0.575524850210        0.00000000000      -0.109110238330                     3                7  0.155392917804E-004
+               200   7.67780270578        4.64148346580      -0.136089408226       0.339040264249        0.00000000000      -0.136089408226                     4                7  0.142707023770E-004
+               210   8.78381054945        4.78381054945      -0.328730054464       0.285698614953        0.00000000000      -0.328730054464                     5                8  0.152277993038E-004
+               220   4.93410613863        4.93410613863      -0.279737764193      -0.526028124867E-001   0.00000000000      -0.279737764193                     1                5  0.128399988171E-004
+               230   8.04915938106        5.00674461859      -0.341833147761      -0.147609025896        0.00000000000      -0.341833147761                     3                5  0.134258007165E-004
+               240   9.37223973160        5.37223973160      -0.682783532311       0.339167348557        0.00000000000      -0.682783532311                     5                7  0.167545105796E-004
+               250   12.9291343428        5.92913434281      -0.885656404545       0.514926534153        0.00000000000      -0.885656404545                     7                9  0.146956939716E-004
+               260   10.2442035404        6.05440041759      -0.631152223267       0.210631872232        0.00000000000      -0.631152223267                     4                9  0.164875935297E-004
+               270   9.64908674593        6.51756798212      -0.362553989673       0.887109674479E-001   0.00000000000      -0.362553989673                     4                8  0.145022990182E-004
+               280   10.0394966218        6.88442105315      -0.537905591887       0.173009115142        0.00000000000      -0.537905591887                     4               11  0.152389926370E-004
+               290   11.2135969262        7.14231640425      -0.423057105953      -0.923062761359E-001   0.00000000000      -0.423057105953                     4               10  0.174279091880E-004
+               300   10.8719060248        7.79452998040      -0.594020053558      -0.204110030417        0.00000000000      -0.594020053558                     4                9  0.172244850546E-004
+               310   12.1144939090        7.93709102427      -0.384125716611      -0.966889462382E-002   0.00000000000      -0.384125716611                     5               10  0.154693902005E-004
+               320   11.1569557760        8.15217579656      -0.414840235427       0.111199949914        0.00000000000      -0.414840235427                     3               10  0.171581050381E-004
+               330   12.3122839446        8.31228394461      -0.392092335598       0.736523281801E-001   0.00000000000      -0.392092335598                     5               11  0.157708011102E-004
+               340   9.46257953379        8.46257953379      -0.272659685192       0.102206906498        0.00000000000      -0.272659685192                     2                8  0.161074975040E-004
+               350   11.6414598176        8.53386005573      -0.317164925997       0.952190950538E-002   0.00000000000      -0.317164925997                     3               11  0.186613062397E-004
+               360   16.0553847531        8.99786242732      -0.559217368959       0.201791707933        0.00000000000      -0.559217368959                     6               17  0.183846044820E-004
+               370   12.3569809530        9.35698095304      -0.584400630894      -0.176529807709        0.00000000000      -0.584400630894                     3               12  0.182138930541E-004
+               380   13.7763681979        9.57218047687      -0.292113562922       0.109997001851        0.00000000000      -0.292113562922                     4               13  0.177045061719E-004
+               390   14.4055752565        10.2604748756      -0.466137509461       0.168139843303        0.00000000000      -0.466137509461                     5               15  0.176397035830E-004
+               400   15.1790196947        10.8902419270      -0.494915688445       0.112776608730        0.00000000000      -0.494915688445                     4               15  0.172494968865E-004
+               410   15.4382513363        11.3361100653      -0.419584061507       0.263650758732E-001   0.00000000000      -0.419584061507                     4               12  0.194370921236E-004
+               420   13.7637931969        11.6925126750      -0.215792010940       0.904188927740E-001   0.00000000000      -0.215792010940                     3               14  0.188397068996E-004
+               430   14.0326113870        11.9140887861      -0.275487053009      -0.119237569795E-002   0.00000000000      -0.275487053009                     3               15  0.179524999112E-004
+               440   17.4057217388        12.1940774930      -0.351078364846      -0.134715435197E-001   0.00000000000      -0.351078364846                     6               17  0.214847910684E-004
+               450   20.0862861472        13.0150056253      -0.421632471414      -0.112739570904        0.00000000000      -0.421632471414                     7               18  0.217424007133E-004
+               460   19.5119648468        13.4658923928      -0.386912345084      -0.932305206686E-002   0.00000000000      -0.386912345084                     7               17  0.250356097240E-004
+               470   21.2533405451        14.0891499305      -0.407377567897      -0.518187640650E-001   0.00000000000      -0.407377567897                     7               21  0.219729030505E-004
+               480   28.1197104323        14.6129091383      -0.546468141177      -0.446194763740E-002   0.00000000000      -0.546468141177                    10               25  0.244633876719E-004
+               490   29.4066245868        15.6987100557      -0.572350966021       0.726994840119E-001   0.00000000000      -0.572350966021                    10               30  0.284452922642E-004
+               500   26.4898664938        16.5976621838      -0.536914513475      -0.130608107241E-001   0.00000000000      -0.536914513475                     8               24  0.269178941380E-004
+               510   30.6089727234        17.3414055844      -0.432932549809      -0.894249070649E-001   0.00000000000      -0.432932549809                     9               27  0.259192951489E-004
+               520   33.2855468546        18.0211306308      -0.472792806794      -0.694441097997E-001   0.00000000000      -0.472792806794                     9               33  0.288037990686E-004
+               530   37.8894107427        19.3669419685      -0.536987281878      -0.113649477704        0.00000000000      -0.536987281878                    11               33  0.304516055621E-004
+               540   39.9380283053        20.4327645993      -0.546717353033      -0.120235506703E-001   0.00000000000      -0.546717353033                    10               34  0.304249115288E-004
+               550   40.7301825925        21.1095353123      -0.469913518806       0.168492446836        0.00000000000      -0.469913518806                    10               40  0.310373143293E-004
+               560   41.6232827746        22.4714028698      -0.517743583715       0.425439700800E-001   0.00000000000      -0.517743583715                    10               37  0.296251091640E-004
+               570   45.2151790197        23.9111752145      -0.556626915037      -0.353795046544E-001   0.00000000000      -0.556626915037                    11               38  0.337409961503E-004
+               580   50.9512473331        25.3308174653      -0.537880807397      -0.519649239884E-001   0.00000000000      -0.537880807397                    11               48  0.346403161529E-004
+-----------------------------------
+Writing Backtrace
+-----------------------------------
+0: /home/phaupt/dev/neci/test_suite/../build/bin/kmneci() [0x50edb5]
+1: /home/phaupt/dev/neci/test_suite/../build/bin/kmneci() [0x6ebc9a]
+2: /home/phaupt/dev/neci/test_suite/../build/bin/kmneci() [0x6f039a]
+3: /home/phaupt/dev/neci/test_suite/../build/bin/kmneci() [0x68d46a]
+4: /home/phaupt/dev/neci/test_suite/../build/bin/kmneci() [0x407f02]
+5: /home/phaupt/dev/neci/test_suite/../build/bin/kmneci() [0x407585]
+6: /lib64/libc.so.6(__libc_start_main+0xef) [0x7fc2eee132bd]
+7: /home/phaupt/dev/neci/test_suite/../build/bin/kmneci() [0x40760a]
+-----------------------------------

@@ -1,0 +1,88 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Apr 25 2022 at 16:42:50
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     02793b7b8bc84e35f10511ce2ea65a591a347040
+ Working directory: 
+     /home/phaupt/dev/neci/test_suite/mneci/rdm/Ne_nat_orbs
+ Running on: altestnew
+ Started running on 25/04/2022 at 17:11:05
+ ================================================================
+
+ Processing argumentsneci_nat_orb.inp                                                                                                                                                                                                                                               
+ Reading from file: neci_nat_orb.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+    electrons 8
+    nonuniformrandexcits 4ind-weighted
+    FCIDUMP-name ROFCIDUMP
+endsys
+
+calc
+    methods
+    method vertex fcimc
+    endmethods
+    nmcyc 3700
+    totalwalkers 5000
+    tau 0.001 search
+    startsinglepart
+    truncinitiator
+    addtoinitiator 3
+    shiftdamp 0.03
+    stepsshift 25
+    load-balance-blocks off
+    maxwalkerbloom 3.0
+    seed 12824
+endcalc
+
+integral
+endint
+
+logging
+    popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+
+ ERROR.
+ NECI stops in subroutine: InitFromFCID
+ Reason:                   FCIDUMP file does not exist
+ Processor:                    0
+ EXITING...
+
+ ERROR.
+ NECI stops in subroutine: InitFromFCID
+ Reason:                   FCIDUMP file does not exist
+ Processor:                    0
+ EXITING...
+-----------------------------------
+Writing Backtrace
+-----------------------------------
+0: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x50c535]
+1: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x41baf5]
+2: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x48f8fd]
+3: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x4077b8]
+4: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x407d6a]
+5: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x4073f5]
+6: /lib64/libc.so.6(__libc_start_main+0xef) [0x7fd4af3472bd]
+7: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x40747a]
+-----------------------------------

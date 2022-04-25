@@ -1,0 +1,494 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Apr 25 2022 at 16:42:50
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     02793b7b8bc84e35f10511ce2ea65a591a347040
+ Working directory: 
+     /home/phaupt/dev/neci/test_suite/mneci/replica_estimates/water_simple_init
+ Running on: altestnew
+ Started running on 25/04/2022 at 17:12:36
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read noorder
+molpromimic
+symignoreenergies
+freeformat
+electrons 8
+spin-restrict 0
+sym 0 0 0 0
+nonuniformrandexcits 4ind-weighted
+nobrillouintheorem
+hphf 0
+system-replicas 2
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacpart 10.0
+memoryfacspawn 100.0
+memoryfachash 5.0
+stepsshift 1
+nmcyc 100
+seed 9087
+startsinglepart 5000
+totalwalkers 100000
+shiftdamp 0.05
+maxwalkerbloom 3
+allrealcoeff
+realspawncutoff 0.0
+averagemcexcits 10.0
+tau 0.001
+pure-initiator-space
+simple-initiator
+read-initiator
+semi-stochastic
+mp1-core 50
+en2-initiator
+en2-rigorous
+endcalc
+
+integral
+endint
+
+logging
+replica-estimates
+paired-replicas
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Seed was specified in input.
+ Please note that because of load-balancing the calculation is not fully deterministic (CPU load).
+ If a fully deterministic calculation is required use the `load-balance-interval` keyword.
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :     0
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   4
+  Generating abelian symmetry table with  2 generators
+  Number of symmetry classes: 4
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 38226
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                 20520
+ ECORE=  -52.125548765551557     
+ Setting normal get_umat_el_normal routine
+ N_alpha:4 ; N_beta:4 ; LMS:0 ; NEl:8
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    8)
+ Symmetry:  ( 0, 0, 0) 0
+NECI called from MOLPRO, so assuming orbitals ordered by occupation number.
+Calculating orbital energies...
+Reordering basis by orbital energies...
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.336447880       -1.336447880 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.336447880       -1.336447880 #
+      3      3      0      0      0     -1 ( 0, 0, 1) 1   0       -0.698951310       -0.698951310 #
+      4      4      0      0      0      1 ( 0, 0, 1) 1   0       -0.698951310       -0.698951310 #
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0       -0.566543295       -0.566543295 #
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0       -0.566543295       -0.566543295 #
+      7      7      0      0      0     -1 ( 0, 0, 2) 2   0       -0.493120718       -0.493120718 #
+      8      8      0      0      0      1 ( 0, 0, 2) 2   0       -0.493120718       -0.493120718 #
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        0.185474198        0.185474198
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        0.185474198        0.185474198
+     11     11      0      0      0     -1 ( 0, 0, 1) 1   0        0.256179449        0.256179449
+     12     12      0      0      0      1 ( 0, 0, 1) 1   0        0.256179449        0.256179449
+     13     13      0      0      0     -1 ( 0, 0, 1) 1   0        0.788824482        0.788824482
+     14     14      0      0      0      1 ( 0, 0, 1) 1   0        0.788824482        0.788824482
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0        0.853985752        0.853985752
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        0.853985752        0.853985752
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        1.163569887        1.163569887
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        1.163569887        1.163569887
+     19     19      0      0      0     -1 ( 0, 0, 2) 2   0        1.200371853        1.200371853
+     20     20      0      0      0      1 ( 0, 0, 2) 2   0        1.200371853        1.200371853
+     21     21      0      0      0     -1 ( 0, 0, 1) 1   0        1.253367115        1.253367115
+     22     22      0      0      0      1 ( 0, 0, 1) 1   0        1.253367115        1.253367115
+     23     23      0      0      0     -1 ( 0, 0, 0) 0   0        1.444376516        1.444376516
+     24     24      0      0      0      1 ( 0, 0, 0) 0   0        1.444376516        1.444376516
+     25     25      0      0      0     -1 ( 0, 0, 3) 3   0        1.476233065        1.476233065
+     26     26      0      0      0      1 ( 0, 0, 3) 3   0        1.476233065        1.476233065
+     27     27      0      0      0     -1 ( 0, 0, 2) 2   0        1.674393451        1.674393451
+     28     28      0      0      0      1 ( 0, 0, 2) 2   0        1.674393451        1.674393451
+     29     29      0      0      0     -1 ( 0, 0, 0) 0   0        1.867339027        1.867339027
+     30     30      0      0      0      1 ( 0, 0, 0) 0   0        1.867339027        1.867339027
+     31     31      0      0      0     -1 ( 0, 0, 1) 1   0        1.934528518        1.934528518
+     32     32      0      0      0      1 ( 0, 0, 1) 1   0        1.934528518        1.934528518
+     33     33      0      0      0     -1 ( 0, 0, 1) 1   0        2.451577333        2.451577333
+     34     34      0      0      0      1 ( 0, 0, 1) 1   0        2.451577333        2.451577333
+     35     35      0      0      0     -1 ( 0, 0, 0) 0   0        2.489145005        2.489145005
+     36     36      0      0      0      1 ( 0, 0, 0) 0   0        2.489145005        2.489145005
+     37     37      0      0      0     -1 ( 0, 0, 2) 2   0        3.285380174        3.285380174
+     38     38      0      0      0      1 ( 0, 0, 2) 2   0        3.285380174        3.285380174
+     39     39      0      0      0     -1 ( 0, 0, 3) 3   0        3.338281990        3.338281990
+     40     40      0      0      0      1 ( 0, 0, 3) 3   0        3.338281990        3.338281990
+     41     41      0      0      0     -1 ( 0, 0, 0) 0   0        3.510010461        3.510010461
+     42     42      0      0      0      1 ( 0, 0, 0) 0   0        3.510010461        3.510010461
+     43     43      0      0      0     -1 ( 0, 0, 0) 0   0        3.865077120        3.865077120
+     44     44      0      0      0      1 ( 0, 0, 0) 0   0        3.865077120        3.865077120
+     45     45      0      0      0     -1 ( 0, 0, 1) 1   0        4.147109746        4.147109746
+     46     46      0      0      0      1 ( 0, 0, 1) 1   0        4.147109746        4.147109746
+ Fock operator energy:  -58.315675171287396     
+ Setting normal get_umat_el_normal routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          10  Symmetry PAIRS
+           4  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -76.026772053392122     
+ <D0|T|D0>=  -41.612320169945278     
+ <D0|U|D0>  -34.414451883446844     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+              171 alpha-alpha (vacant) hole pairs
+              171 beta-beta (vacant) hole pairs
+              361 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    8) E =    -76.026772053
+(    1,    2,    3,    4,    5,    6,    7,    8) E =    -76.026772053
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:         9087
+Running FCIQMC for             100 iterations.
+Reference Energy set to:       -76.0267720534
+Highest energy determinant is (approximately):     -45.1937631715183    
+Corresponding to a correlation energy of:      30.8330088818738    
+This means tau should be no more than about         0.032432773714403
+ Highest energy determinant is:           39          40          41          42          43          44          45          46
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+   2056 double excitations, and      50 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.976258
+ pSingles set to:       0.023742
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:         2106
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:      24.000000 Mb / processor
+Spawning vectors allowing for a total of      5000000 particles to be spawned in any one iteration per core.
+ Memory requirement    152.58789062500000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:          125000
+Length of hash-table as a fraction of targetwalkers:              5.00000
+Reference processor is:        2
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    8)
+Initial number of particles set to       5000 and shift will be held at     0.000 until particle number gets to          100000
+ Initial memory (without excitgens + temp arrays) consists of :     321.175781 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       50
+ WARNING: Total size of deterministic space is greater than 50% of the initiator space.
+          Reducing the size of the deterministic space is encouraged.
+Size of deterministic space on this processor:        7
+Generating the Hamiltonian in the deterministic space...
+Time to create auxiliary arrays:    0.000
+Time to sort auxiliary arrays:    0.000
+Arrays for Hamiltonian successfully allocated...
+Time to create the Hamiltonian:    0.000
+total_time:    0.000
+Using the deterministic ground state as initial walker configuration.
+Performing Davidson calculation...
+ Space sizes and max Davidson iterations:            7          25
+ allocating array to hold subspace vectors (0 mb).
+ allocating array to hold multiplied krylov vectors (0 mb).
+ allocating temporary vector (0 mb).
+
+ calculating the initial residual vector... done.
+
+ Iteration    Residual norm            Energy       Time
+         1      0.057820488     -0.0865922135      0.000
+         2      0.007034067     -0.0878869448      0.000
+         3      0.000655239     -0.0879088762      0.000
+         4      0.000085155     -0.0879090541      0.000
+         5      0.000009089     -0.0879090573      0.000
+         6      0.000000998     -0.0879090573      0.000
+         7      0.000000098     -0.0879090573      0.000
+
+ Final calculated energy:    -0.0879090573
+Davidson calculation complete.
+Deterministic subspace correlation energy:   -0.0879090573
+Total time (seconds) taken for Davidson calculation:    0.000
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.046
+
+ Setting ref           1
+(    1,    2,    3,    4,    5,    6,    7,    8)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    4,    5,    6,    7,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -76.0267720533921    
+ Regenerating the stored diagonal HElements for all walkers.
+Recalculating diagonal elements of the core Hamiltonian.
+ Setting ref           2
+(    1,    2,    3,    4,    5,    6,    7,    8)
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    1,    2,    3,    4,    5,    6,    7,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+
+============ Initiator space initialisation ============
+Generating the initiator space...
+Total size of initiator space:    26578
+Size of initiator space on this processor:     6847
+Initialisation of initiator space complete.
+Total time (seconds) taken for initiator space initialisation:    0.077
+
+## 1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Proj. E (cyc)                         5. Shift. (cyc)                          11. Tot. Proj. E                         12. Dets occ.        13. Dets spawned     15. Iter. time                           41. EN2 Dets.       
+##               0   5000.00000000        5000.00000000        0.00000000000        0.00000000000       -76.0267720534                     1                0   0.00000000000                    0
+                 1   5108.93954524        2352.95576626      -0.879090572953E-001   0.00000000000       -76.1146811107                   263            96291  0.152402207255                    0
+                 2   5216.75666749        2353.16261239      -0.884531046280E-001   0.00000000000       -76.1152251580                   467            98487  0.152414202690                    0
+                 3   5329.79720374        2353.37181267      -0.890304708290E-001   0.00000000000       -76.1158025242                   671           100642  0.156432881951                    0
+                 4   5441.16728721        2353.57869472      -0.896739230578E-001   0.00000000000       -76.1164459764                   861           102843  0.156134128571                    0
+                 5   5554.26020770        2353.79429385      -0.902493095659E-001   0.00000000000       -76.1170213630                  1043           105123  0.155644029379                    0
+                 6   5682.46725380        2354.00449273      -0.908463917760E-001   0.00000000000       -76.1176184452                  1246           107337  0.158276513219                    0
+                 7   5794.35609960        2354.22733186      -0.915560684345E-001   0.00000000000       -76.1183281218                  1422           109894  0.160903349519                    0
+                 8   5920.45039188        2354.43725082      -0.921183581833E-001   0.00000000000       -76.1188904116                  1620           112305  0.160906538367                    0
+                 9   6037.80469153        2354.65603536      -0.926821235155E-001   0.00000000000       -76.1194541769                  1782           114683  0.163708671927                    0
+                10   6155.11203221        2354.89458623      -0.933566163102E-001   0.00000000000       -76.1201286697                  1955           117091  0.165968209505                    0
+                11   6256.29970872        2355.10581957      -0.939438218772E-001   0.00000000000       -76.1207158753                  2096           119338  0.166624516249                    0
+                12   6388.52207491        2355.32847758      -0.944681397008E-001   0.00000000000       -76.1212401931                  2284           121361  0.167931184173                    0
+                13   6519.85983837        2355.54945271      -0.950782796899E-001   0.00000000000       -76.1218503331                  2465           124039  0.171644061804                    0
+                14   6654.25694889        2355.77753655      -0.957136705202E-001   0.00000000000       -76.1224857239                  2655           126803  0.170890048146                    0
+                15   6767.19233954        2355.99163162      -0.963019193302E-001   0.00000000000       -76.1230739727                  2807           129322  0.173969939351                    0
+                16   6897.49617762        2356.21869069      -0.968337984893E-001   0.00000000000       -76.1236058519                  2996           131583  0.179697468877                    0
+                17   7024.53359475        2356.44742628      -0.974262589158E-001   0.00000000000       -76.1241983123                  3171           134239  0.176886364818                    0
+                18   7144.48409065        2356.68061105      -0.980082434621E-001   0.00000000000       -76.1247802969                  3327           136778  0.178399682045                    0
+                19   7275.56326119        2356.91711273      -0.985511755639E-001   0.00000000000       -76.1253232290                  3509           139156  0.178692907095                    0
+                20   7417.01672402        2357.14737401      -0.991227174138E-001   0.00000000000       -76.1258947708                  3717           141736  0.182507753372                    0
+                21   7553.77103187        2357.36984168      -0.996495869024E-001   0.00000000000       -76.1264216403                  3899           144511  0.183104708791                    0
+                22   7678.06670205        2357.59757376      -0.100258795268        0.00000000000       -76.1270308487                  4071           147275  0.184381529689                    0
+                23   7809.76786906        2357.83035163      -0.100767550046        0.00000000000       -76.1275396034                  4256           149775  0.188733115792                    0
+                24   7949.44348941        2358.07700726      -0.101299774053        0.00000000000       -76.1280718274                  4453           152484  0.187614187598                    0
+                25   8084.67653058        2358.31704800      -0.101809238547        0.00000000000       -76.1285812919                  4641           155224  0.189894691110                    0
+                26   8220.01123134        2358.55553298      -0.102355354360        0.00000000000       -76.1291274078                  4833           157962  0.192086204886                    0
+                27   8356.83309861        2358.80203371      -0.102869254486        0.00000000000       -76.1296413079                  5014           160687  0.194998890162                    0
+                28   8521.07171638        2359.02015504      -0.103417793056        0.00000000000       -76.1301898464                  5255           163362  0.194825455546                    0
+                29   8663.28702480        2359.25614442      -0.104007883795        0.00000000000       -76.1307799372                  5459           166627  0.198793426156                    0
+                30   8797.39924343        2359.49068904      -0.104532934295        0.00000000000       -76.1313049877                  5637           169500  0.198659330606                    0
+                31   8937.58322206        2359.74736739      -0.105077778346        0.00000000000       -76.1318498317                  5834           172246  0.200902760029                    0
+                32   9070.89839041        2359.98371065      -0.105589946678        0.00000000000       -76.1323620001                  6006           174893  0.204514965415                    0
+                33   9219.49132426        2360.21772896      -0.106130456486        0.00000000000       -76.1329025099                  6219           177727  0.203725919127                    0
+                34   9369.47190639        2360.47669588      -0.106648006209        0.00000000000       -76.1334200596                  6435           180646  0.206567302346                    0
+                35   9506.99667825        2360.72865825      -0.107147614574        0.00000000000       -76.1339196680                  6627           183622  0.208592250943                    0
+                36   9660.78611695        2360.97132943      -0.107660725419        0.00000000000       -76.1344327788                  6852           186368  0.211400792003                    0
+                37   9818.28887698        2361.21175605      -0.108154955865        0.00000000000       -76.1349270093                  7088           189417  0.215693533421                    0
+                38   9972.54726133        2361.44230290      -0.108660384221        0.00000000000       -76.1354324376                  7304           192532  0.215766876936                    0
+                39   10128.3679342        2361.69083740      -0.109180590839        0.00000000000       -76.1359526442                  7525           195769  0.216246470809                    0
+                40   10280.4479765        2361.93965371      -0.109669657267        0.00000000000       -76.1364417107                  7737           198810  0.219260245562                    0
+                41   10436.5958047        2362.21778851      -0.110174121957        0.00000000000       -76.1369461753                  7956           201808  0.220773503184                    0
+                42   10586.9906779        2362.45504730      -0.110702062950        0.00000000000       -76.1374741163                  8169           205040  0.222167253494                    0
+                43   10751.1776078        2362.73620967      -0.111203183632        0.00000000000       -76.1379752370                  8412           207950  0.225094541907                    0
+                44   10906.8527615        2362.97821286      -0.111662803049        0.00000000000       -76.1384348564                  8633           211316  0.228220745921                    0
+                45   11076.6729222        2363.24151350      -0.112165350903        0.00000000000       -76.1389374043                  8872           214298  0.230357870460                    0
+                46   11253.0146350        2363.50773883      -0.112662771493        0.00000000000       -76.1394348249                  9132           217817  0.232491090894                    0
+                47   11419.4572788        2363.76888868      -0.113160240503        0.00000000000       -76.1399322939                  9359           221230  0.241855368018                    0
+                48   11573.7167213        2364.06207024      -0.113643014043        0.00000000000       -76.1404150674                  9583           224670  0.237725079060                    0
+                49   11732.8764500        2364.32515877      -0.114126871835        0.00000000000       -76.1408989252                  9801           227706  0.238899871707                    0
+                50   11894.6974980        2364.59146872      -0.114606428098        0.00000000000       -76.1413784815                 10039           230936  0.243459954858                    0
+                51   12051.3277848        2364.85970792      -0.115065422824        0.00000000000       -76.1418374762                 10267           234192  0.244061321020                    0
+                52   12215.2658154        2365.15181456      -0.115529942813        0.00000000000       -76.1423019962                 10507           237261  0.243964686990                    0
+                53   12369.0074740        2365.41598411      -0.115984163543        0.00000000000       -76.1427562169                 10709           240620  0.247361987829                    0
+                54   12549.1924784        2365.70496575      -0.116477669674        0.00000000000       -76.1432497231                 10978           243650  0.252680927515                    0
+                55   12724.4563160        2365.95901598      -0.116930745192        0.00000000000       -76.1437027986                 11229           247132  0.253834933043                    0
+                56   12872.6623631        2366.25093755      -0.117387109665        0.00000000000       -76.1441591631                 11444           250649  0.254199624062                    0
+                57   13051.1518427        2366.53233839      -0.117861577357        0.00000000000       -76.1446336307                 11710           253686  0.254333674908                    0
+                58   13223.2188799        2366.79073185      -0.118328686884        0.00000000000       -76.1451007403                 11958           257273  0.258559346199                    0
+                59   13372.7344862        2367.09849592      -0.118788061948        0.00000000000       -76.1455601153                 12167           260772  0.261004060507                    0
+                60   13543.9995353        2367.38723286      -0.119238733077        0.00000000000       -76.1460107865                 12406           263739  0.265635937452                    0
+                61   13709.8627527        2367.69367622      -0.119695852068        0.00000000000       -76.1464679055                 12656           267012  0.267458796501                    0
+                62   13867.9749243        2367.97245669      -0.120133811748        0.00000000000       -76.1469058651                 12876           270362  0.267460793257                    0
+                63   14039.9215764        2368.27910245      -0.120603408288        0.00000000000       -76.1473754617                 13126           273553  0.274281054735                    0
+                64   14204.1519099        2368.53556784      -0.121049053689        0.00000000000       -76.1478211071                 13373           277022  0.271262347698                    0
+                65   14398.2719927        2368.82807217      -0.121497442586        0.00000000000       -76.1482694960                 13657           280307  0.272609353065                    0
+                66   14594.0264050        2369.12110025      -0.121936882782        0.00000000000       -76.1487089362                 13964           284142  0.276217699051                    0
+                67   14776.4960932        2369.41767939      -0.122371032176        0.00000000000       -76.1491430856                 14237           288017  0.279236614704                    0
+                68   14940.8164011        2369.72079743      -0.122805193902        0.00000000000       -76.1495772473                 14470           291706  0.282447278500                    0
+                69   15128.2842139        2369.99108754      -0.123258070095        0.00000000000       -76.1500301235                 14748           295071  0.283685952425                    0
+                70   15306.4893400        2370.28667053      -0.123682652795        0.00000000000       -76.1504547062                 15009           298919  0.290474921465                    0
+                71   15474.2567040        2370.57841736      -0.124110060448        0.00000000000       -76.1508821138                 15248           302174  0.292989492416                    0
+                72   15643.7830074        2370.87253381      -0.124546311565        0.00000000000       -76.1513183650                 15495           305723  0.293135523796                    0
+                73   15807.9335849        2371.20189731      -0.124974222950        0.00000000000       -76.1517462763                 15729           309094  0.294714510441                    0
+                74   15995.6283020        2371.48611794      -0.125395657956        0.00000000000       -76.1521677113                 16015           312376  0.297288179398                    0
+                75   16178.3366053        2371.77734891      -0.125815991074        0.00000000000       -76.1525880445                 16290           316030  0.297529369593                    0
+                76   16347.4261420        2372.05843030      -0.126225440679        0.00000000000       -76.1529974941                 16539           319697  0.301410466433                    0
+                77   16538.2770223        2372.36096628      -0.126651971192        0.00000000000       -76.1534240246                 16826           323118  0.304971128702                    0
+                78   16717.4515490        2372.66738890      -0.127055720168        0.00000000000       -76.1538277736                 17093           327039  0.304558813572                    0
+                79   16893.6531431        2372.95093064      -0.127452796800        0.00000000000       -76.1542248502                 17355           330497  0.308679372072                    0
+                80   17092.9278545        2373.25668824      -0.127864883187        0.00000000000       -76.1546369366                 17669           334136  0.312372058630                    0
+                81   17290.8141297        2373.52476196      -0.128276257042        0.00000000000       -76.1550483104                 17972           338103  0.315696716309                    0
+                82   17466.6935862        2373.83737145      -0.128688062393        0.00000000000       -76.1554601158                 18234           342001  0.318384796381                    0
+                83   17639.5407352        2374.15257767      -0.129084638273        0.00000000000       -76.1558566917                 18496           345523  0.320107609034                    0
+                84   17827.4201901        2374.51834341      -0.129480946483        0.00000000000       -76.1562529999                 18782           348951  0.323610395193                    0
+                85   18010.3795999        2374.81412898      -0.129880976835        0.00000000000       -76.1566530302                 19058           352765  0.326218903065                    0
+                86   18182.6839627        2375.14275003      -0.130276513627        0.00000000000       -76.1570485670                 19309           356492  0.326875865459                    0
+                87   18347.1149724        2375.42862168      -0.130665914338        0.00000000000       -76.1574379677                 19554           359886  0.331820517778                    0
+                88   18530.9383352        2375.72515139      -0.131044202508        0.00000000000       -76.1578162559                 19827           363176  0.334210366011                    0
+                89   18712.8338460        2376.06838387      -0.131427853593        0.00000000000       -76.1581999070                 20090           366797  0.334809511900                    0
+                90   18889.3421355        2376.35062962      -0.131821082344        0.00000000000       -76.1585931357                 20360           370447  0.340105593204                    0
+                91   19085.0251344        2376.69163264      -0.132199715075        0.00000000000       -76.1589717685                 20657           373968  0.343478530645                    0
+                92   19269.4765724        2376.99489293      -0.132562194882        0.00000000000       -76.1593342483                 20944           377878  0.341624885798                    0
+                93   19452.3800552        2377.30086418      -0.132934517485        0.00000000000       -76.1597065709                 21211           381689  0.346219301224                    0
+                94   19605.0205942        2377.63073005      -0.133322950350        0.00000000000       -76.1600950037                 21437           385258  0.346472650766                    0
+                95   19806.5346258        2377.95278038      -0.133693084458        0.00000000000       -76.1604651379                 21748           388347  0.351865053177                    0
+                96   19979.2869923        2378.28409849      -0.134067727775        0.00000000000       -76.1608397812                 22006           392341  0.356212884188                    0
+                97   20176.4643683        2378.60551049      -0.134435336105        0.00000000000       -76.1612073895                 22299           395694  0.355805754662                    0
+                98   20383.5934948        2378.92149931      -0.134798073923        0.00000000000       -76.1615701273                 22610           399766  0.359493672848                    0
+                99   20576.8516181        2379.26036778      -0.135167998458        0.00000000000       -76.1619400519                 22902           403897  0.361347168684                    0
+               100   20743.0803198        2379.57348232      -0.135526429069        0.00000000000       -76.1622984825                 23138           407858  0.365913212299                    0
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    24.791314467089251     
+ Time lost due to load imbalance:    9.0865185097209178     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ 
+Current reference: 
+(    1,    2,    3,    4,    5,    6,    7,    8)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-8
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1) Walkers(2)    Amplitude Init?(1) Init?(2)  <D|H|D>Proc Spin-Coup?
+1111111100000000000000000000000000000000000000    0    0    2379.935        2379.863      0.98360  Y  Y  -7.60267721E+01       2
+1111110000000000001100000000000000000000000000    2    0   -123.9322       -123.9728      0.05123  Y  Y  -7.35865580E+01       0
+1111011000000000100100000000000000000000000000    2    4   -98.43786       -98.52885      0.02878  Y  Y  -7.35448887E+01       2  *
+1111001100000000110000000000000000000000000000    2    0   -86.16150       -86.05315      0.03559  Y  Y  -7.34423638E+01       3
+1100111100001100000000000000000000000000000000    2    0   -85.14395       -85.07518      0.03518  Y  Y  -7.37914722E+01       1
+1110110100000000001001000000000000000000000000    2    4    81.10122        80.89261      0.02367  Y  Y  -7.32899159E+01       3  *
+1101111000100000000100000000000000000000000000    2    4   -74.50325       -74.56766      0.02178  Y  Y  -7.41190046E+01       0  *
+1100111100110000000000000000000000000000000000    2    0   -72.16234       -72.08224      0.02981  Y  Y  -7.44490436E+01       3
+1110011100001001000000000000000000000000000000    2    4   -70.89299       -70.92850      0.02072  Y  Y  -7.38783974E+01       2  *
+1100111100100100000000000000000000000000000000    2    2   -69.55196       -69.58464      0.02033  Y  Y  -7.41633896E+01       2  *
+1111101000000000010100000000000000000000000000    2    4    67.81076        67.89916      0.01983  Y  Y  -7.35739636E+01       1  *
+1100111100100000000001000000000000000000000000    2    2   -65.31695       -65.28815      0.01908  Y  Y  -7.37241180E+01       1  *
+0111111010000000000100000000000000000000000000    2    4   -64.54125       -64.64813      0.01888  Y  Y  -7.35617081E+01       3  *
+1100111100000011000000000000000000000000000000    2    0   -64.22490       -64.23116      0.02655  Y  Y  -7.36753515E+01       1
+1101101100100000010000000000000000000000000000    2    4   -62.46972       -62.56378      0.01827  Y  Y  -7.40511231E+01       2  *
+ * = Spin-coupled function implicitly has time-reversed determinant with same weight.
+ 
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process    5827.0000000000
+ Min number of determinants/process               5788
+ Max number of determinants/process               5886
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:   10371.5401598856
+     Min number of walkers/process:         8765.72271
+     Max number of walkers/process:        14280.29289
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Calculation has not entered variable shift phase. Error analysis therefore not performed.
+Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias.
+ Current reference energy                             -76.026772053392
+ Projected correlation energy                          -0.113849882038
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy         -76.14062194
+
+ THE FOLLOWING IS FOR TEST SUITE USE ONLY!
+
+ REPLICA ESTIMATES FOR STATE 1:
+ Variational energy from replica_estimates: -7.6192148909859E+01
+ Energy squared from replica_estimates:  5.8054630944893E+03
+ EN2 estimate from replica_estimates: -4.2387946810005E-06
+ EN2 New estimate from replica_estimates: -7.6247078311852E+01
+ Preconditioned energy from replica_estimates: -7.6242461388642E+01
+
+
+
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     421.8
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar  190.7MB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar  190.7MB
+ global_determinantinit_global_det_datclean_global_det_da  24.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   16.0MB
+ UMat              IntInit            IntCleanup          298.6KB
+ TMAT2D            SetupTMAT          DestroyTMat          16.5KB
+ UMat2D            SetupUMat2d_dense  DESTROYUMATCACHE      4.1KB
+ G1                SysInit            NECICore              2.5KB
+ LoadBalanceMappinginit_load_balance  clean_load_balance    1.6KB
+ full_determ_vecs  core_space_t%alloc_core_space_t%deallo   0.8KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                 100     21.48
+ Compress Sort interface                    100      1.03
+ PreCondEnergyTime                          100      1.00
+ Compression interface                      100      0.44
+ AnnMainTime                                100      0.39
+ NECICUBE                                     1      0.12
+ ProjEnergyTime                             100      0.10
+ AnnihilTime                                100      0.10
+ InitSpaceTime                                1      0.08
+ DeathTime                                  100      0.07
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  24.81
+
+ Global wall clock time         25.08
+ ================================================================
+ Calculation ended 25/04/2022 at 17:13:01
+ ================================================================
