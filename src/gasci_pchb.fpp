@@ -389,7 +389,7 @@ contains
 
         integer :: src_copy(maxExcit)
 
-        ASSERT(this%GAS_spec%contains_conf(nI))
+        @:ASSERT(this%GAS_spec%contains_conf(nI))
 
         call this%FCI_singles_generator%gen_exc(&
                     nI, ilutI, nJ, ilutJ, exFlag, ic, &
@@ -524,6 +524,7 @@ contains
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: part_type
+        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_gen_exc'
 
         integer :: elecs(2), src(2), sym_prod, ispn, sum_ml, ij
         integer :: orbs(2), ab
@@ -573,19 +574,23 @@ contains
         end if
         ! get a pair of orbitals using the precomputed weights
         call this%pchb_samplers%sample(ij, samplerIndex, int(i_sg), ab, pGenHoles)
-        ! split the index ab (using a table containing mapping ab -> (a,b))
-        orbs = this%tgtOrbs(:, ab)
-        ! convert orbs to spin-orbs with the same spin
-        orbs = 2 * orbs - spin
 
-        ! check if the picked orbs are a valid choice - if they are the same, match one
-        ! occupied orbital or are zero (maybe because there are no allowed picks for
-        ! the given source) abort
-        invalid = (any(orbs == 0) .or. any(orbs(1) == nI) &
-                   .or. any(orbs(2) == nI)) .or. (orbs(1) == orbs(2))
+
+        if (ab == 0) then
+            invalid = .true.
+            orbs = 0
+        else
+            ! split the index ab (using a table containing mapping ab -> (a,b))
+            orbs = this%tgtOrbs(:, ab)
+            ! convert orbs to spin-orbs with the same spin
+            orbs = 2 * orbs - spin
+            @:ASSERT(all(orbs /= 0) .implies. orbs(1) /= orbs(2))
+            invalid = any(orbs == 0) .or. any(orbs(1) == nI) .or. any(orbs(2) == nI)
+        end if
+
         ! unfortunately, there is a super-rare case when, due to floating point error,
         ! an excitation with pGen=0 is created. Those are invalid, too
-        if (near_zero(pGenHoles)) then
+        if (.not. invalid .and. near_zero(pGenHoles)) then
             invalid = .true.
             ! Yes, print. Those events are signficant enough to be always noted in the output
             print *, "WARNING: Generated excitation with probability of 0"
@@ -705,24 +710,26 @@ contains
                     do j = 1, i
                         w(:) = 0.0_dp
                         ! for samplerIndex == 1, j is alpha, else, j is beta
-                        ex(1, 2) = map_orb(j, [SAME_SPIN])
+                        ex(1, 2) = to_spin_orb(j, i_exch == SAME_SPIN)
                         ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
                         ! weights to prepare the sampler
                         do a = 1, nBI
                             ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
-                            ex(2, 2) = map_orb(a, [SAME_SPIN, OPP_SPIN_NO_EXCH])
+                            ex(2, 2) = to_spin_orb(a, any(i_exch == [SAME_SPIN, OPP_SPIN_NO_EXCH]))
                             do b = 1, a
-                                ! exception: for sampler 3, a!=b
-                                if (i_exch == OPP_SPIN_EXCH .and. a == b) cycle
                                 ab = fuseIndex(a, b)
                                 ! ex(2,:) is in ascending order
                                 ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
-                                ex(2, 1) = map_orb(b, [SAME_SPIN, OPP_SPIN_EXCH])
-                                ! use the actual matrix elements as weights
-                                if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
-                                    w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
-                                else
+                                ex(2, 1) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
+
+                                ! exception: for sampler 3, a!=b
+                                if (i_exch == OPP_SPIN_EXCH .and. a == b &
+                                        .or. ex(2, 1) == ex(2, 2) &
+                                        .or. any(ex(1, 1) == ex(2, :)) .or. any(ex(1, 2) == ex(2, :)) &
+                                        .or. .not. this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
                                     w(ab) = 0._dp
+                                else
+                                    w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
                                 end if
                             end do
                         end do
@@ -741,21 +748,16 @@ contains
             end where
         end do
     contains
-        function map_orb(orb, alphaSamplers) result(sorb)
+        elemental function to_spin_orb(orb, is_alpha) result(sorb)
             ! map spatial orbital to the spin orbital matching the current samplerIndex
             ! Input: orb - spatial orbital to be mapped
-            !        alphaSamplers - list of samplerIndex values for which the mapping shall be to alpha
             ! Output: sorb - corresponding spin orbital
             integer, intent(in) :: orb
-            integer, intent(in) :: alphaSamplers(:)
+            logical, intent(in) :: is_alpha
             integer :: sorb
 
-            if (any(i_exch == alphaSamplers)) then
-                sorb = 2 * orb
-            else
-                sorb = 2 * orb - 1
-            end if
-        end function map_orb
+            sorb = merge(2 * orb, 2 * orb - 1, is_alpha)
+        end function to_spin_orb
     end subroutine
 
 
