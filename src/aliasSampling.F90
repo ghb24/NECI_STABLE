@@ -1,7 +1,9 @@
+#include "macros.h"
 module aliasSampling
     ! This module contains the utility to use alias table lookup on lists,
     ! requiring to precompute biases but making the lookup O(1)
     use constants
+    use util_mod, only: near_zero
     use shared_memory_mpi
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -57,6 +59,8 @@ module aliasSampling
         procedure :: samplerDestructor
         ! get a random element and the generation probability
         procedure :: sample
+        ! get a random element from a given range and its normalized! generation probability
+        procedure :: constrained_sample
         ! get the probability to produce a given value
         procedure :: getProb
     end type aliasSampler_t
@@ -84,6 +88,7 @@ module aliasSampling
         procedure :: finalize => samplerArrayDestructor_3D
         ! get a random element and the generation probability from one of the samplers
         procedure :: sample => aSample_3D
+        procedure :: constrained_sample => constrained_sample_3D
         procedure :: get_prob => aGetProb_3D
     end type AliasSampler_3D_t
 
@@ -99,6 +104,7 @@ module aliasSampling
         procedure :: finalize => samplerArrayDestructor_2D
         ! get a random element and the generation probability from one of the samplers
         procedure :: sample => aSample_2D
+        procedure :: constrained_sample => constrained_sample_2D
         procedure :: get_prob => aGetProb_2D
     end type AliasSampler_2D_t
 
@@ -114,6 +120,7 @@ module aliasSampling
         procedure :: finalize => samplerArrayDestructor_1D
         ! get a random element and the generation probability from one of the samplers
         procedure :: sample => aSample_1D
+        procedure :: constrained_sample => constrained_sample_1D
         procedure :: get_prob => aGetProb_1D
     end type AliasSampler_1D_t
 
@@ -385,10 +392,38 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[out] tgt  on return, this is a random number in the sampling range of this
+    !> @param[out] prob  on return, the probability of picking tgt from constraint
+    subroutine constrained_sample(this, constraint, tgt, prob)
+        class(aliasSampler_t), intent(in) :: this
+        integer, intent(in) :: constraint(:)
+        integer, intent(out) :: tgt
+        real(dp), intent(out) :: prob
+
+        real(dp) :: renormalization
+        ASSERT(1 <= minval(constraint) .and. maxval(constraint) <= size(this%probs))
+
+        renormalization = sum(this%getProb(constraint))
+        if (near_zero(renormalization)) then
+            tgt = 0
+            prob = 1.0
+        else
+            tgt = this%table%getRand()
+            do while (all(tgt /= constraint))
+                tgt = this%table%getRand()
+            end do
+            prob = this%probs%ptr(tgt) / renormalization
+        end if
+    end subroutine constrained_sample
+
+    !------------------------------------------------------------------------------------------!
+
     !> Returns the probability to draw tgt from this sampler
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @param[out] prob  the probability of drawing tgt with the sample routine
-    pure function getProb(this, tgt) result(prob)
+    elemental function getProb(this, tgt) result(prob)
         class(aliasSampler_t), intent(in) :: this
         integer, intent(in) :: tgt
         real(dp) :: prob
@@ -474,6 +509,21 @@ contains
         call this%alias_sampler%sample(iEntry, 1, 1, tgt, prob)
     end subroutine aSample_1D
 
+    !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize and in constraint
+    !> @param[out] prob  on return, the probability of picking tgt from constraint
+    subroutine constrained_sample_1D(this, i, constraint, tgt, prob)
+        class(AliasSampler_1D_t), intent(in) :: this
+        integer, intent(in) :: i
+        integer, intent(in) :: constraint(:)
+        integer, intent(out) :: tgt
+        real(dp), intent(out) :: prob
+
+        call this%alias_sampler%constrained_sample(i, 1, 1, constraint, tgt, prob)
+    end subroutine
+
     !> Returns the probability to draw tgt from the sampler with index iEntry
     !> @param[in] iEntry  index of the sampler to use
     !> @param[in] tgt  the number for which we request the probability of sampling
@@ -532,6 +582,22 @@ contains
         real(dp), intent(out) :: prob
         call this%alias_sampler%sample(i, j, 1, tgt, prob)
     end subroutine aSample_2D
+
+    !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] j Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize and in constraint
+    !> @param[out] prob  on return, the probability of picking tgt from constraint
+    subroutine constrained_sample_2D(this, i, j, constraint, tgt, prob)
+        class(AliasSampler_2D_t), intent(in) :: this
+        integer, intent(in) :: i, j
+        integer, intent(in) :: constraint(:)
+        integer, intent(out) :: tgt
+        real(dp), intent(out) :: prob
+
+        call this%alias_sampler%constrained_sample(i, j, 1, constraint, tgt, prob)
+    end subroutine
 
     !> Returns the probability to draw tgt from the sampler with index iEntry
     !> @param[in] iEntry  index of the sampler to use
@@ -637,6 +703,24 @@ contains
         real(dp), intent(out) :: prob
 
         call this%samplerArray(i, j, k)%sample(tgt, prob)
+    end subroutine
+
+
+    !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] j Index of the sampler to use
+    !> @param[in] k Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize and in constraint
+    !> @param[out] prob  on return, the probability of picking tgt from constraint
+    subroutine constrained_sample_3D(this, i, j, k, constraint, tgt, prob)
+        class(AliasSampler_3D_t), intent(in) :: this
+        integer, intent(in) :: i, j, k
+        integer, intent(in) :: constraint(:)
+        integer, intent(out) :: tgt
+        real(dp), intent(out) :: prob
+
+        call this%samplerArray(i, j, k)%constrained_sample(constraint, tgt, prob)
     end subroutine
 
     !> Returns the probability to draw tgt from the sampler with index iEntry
