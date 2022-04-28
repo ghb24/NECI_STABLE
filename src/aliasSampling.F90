@@ -3,7 +3,7 @@ module aliasSampling
     ! This module contains the utility to use alias table lookup on lists,
     ! requiring to precompute biases but making the lookup O(1)
     use constants
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, stop_all
     use shared_memory_mpi
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -59,10 +59,12 @@ module aliasSampling
         procedure :: samplerDestructor
         ! get a random element and the generation probability
         procedure :: sample
-        ! get a random element from a given range and its normalized! generation probability
+        ! get a random element from a constrained set and its normalized! generation probability
         procedure :: constrained_sample
         ! get the probability to produce a given value
         procedure :: getProb
+        ! get the probability to draw a given value from a constrained set
+        procedure :: constrained_getProb
     end type aliasSampler_t
 
     !------------------------------------------------------------------------------------------!
@@ -90,6 +92,7 @@ module aliasSampling
         procedure :: sample => aSample_3D
         procedure :: constrained_sample => constrained_sample_3D
         procedure :: get_prob => aGetProb_3D
+        procedure :: constrained_getProb => constrained_get_prob_3D
     end type AliasSampler_3D_t
 
 
@@ -106,6 +109,7 @@ module aliasSampling
         procedure :: sample => aSample_2D
         procedure :: constrained_sample => constrained_sample_2D
         procedure :: get_prob => aGetProb_2D
+        procedure :: constrained_getProb => constrained_get_prob_2D
     end type AliasSampler_2D_t
 
 
@@ -122,6 +126,7 @@ module aliasSampling
         procedure :: sample => aSample_1D
         procedure :: constrained_sample => constrained_sample_1D
         procedure :: get_prob => aGetProb_1D
+        procedure :: constrained_getProb => constrained_get_prob_1D
     end type AliasSampler_1D_t
 
 
@@ -401,9 +406,10 @@ contains
         integer, intent(in) :: constraint(:)
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
+        character(*), parameter :: this_routine = 'constrained_sample'
 
         real(dp) :: renormalization
-        ASSERT(1 <= minval(constraint) .and. maxval(constraint) <= size(this%probs))
+        ASSERT(1 <= minval(constraint) .and. maxval(constraint) <= size(this%probs%ptr))
 
         renormalization = sum(this%getProb(constraint))
         if (near_zero(renormalization)) then
@@ -435,6 +441,33 @@ contains
             prob = this%probs%ptr(tgt)
         end if
     end function getProb
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Returns the probability to draw tgt from this sampler
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[out] prob  the probability of picking tgt from constraint
+    pure function constrained_getProb(this, constraint, tgt) result(prob)
+        class(aliasSampler_t), intent(in) :: this
+        integer, intent(in) :: constraint(:)
+        integer, intent(in) :: tgt
+        character(*), parameter :: this_routine = 'constrained_getProb'
+        real(dp) :: prob
+
+        real(dp) :: renormalization
+        ASSERT(1 <= minval(constraint) .and. maxval(constraint) <= size(this%probs%ptr))
+
+        renormalization = sum(this%getProb(constraint))
+        ! the probability of drawing anything from an empty sampler is 0
+        if (near_zero(renormalization)) then
+            prob = 0.0
+        else
+            prob = this%probs%ptr(tgt) / renormalization
+        end if
+    end function constrained_getProb
+
+    !------------------------------------------------------------------------------------------!
 
     !------------------------------------------------------------------------------------------!
     ! Public non-member function to deallocate 1d-arrays of samplers (common task)
