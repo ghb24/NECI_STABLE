@@ -734,6 +734,7 @@ contains
                             end do
                         end do
                         ij = fuseIndex(i, j)
+                        write(*, *) '>>>', i_exch, i, j, sum(w)
                         call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, w)
                         if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
                         if (i_exch == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)

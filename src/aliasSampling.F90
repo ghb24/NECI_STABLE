@@ -3,7 +3,7 @@ module aliasSampling
     ! This module contains the utility to use alias table lookup on lists,
     ! requiring to precompute biases but making the lookup O(1)
     use constants
-    use util_mod, only: near_zero, stop_all
+    use util_mod, only: near_zero, stop_all, binary_search_first_ge
     use shared_memory_mpi
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -410,14 +410,20 @@ contains
 
         real(dp) :: renormalization
         ASSERT(1 <= minval(constraint) .and. maxval(constraint) <= size(this%probs%ptr))
+        ! TODO Assert that it is unique
 
-        renormalization = sum(this%getProb(constraint))
+        if (.not. associated(this%probs%ptr)) then
+            renormalization = 0.0
+        else
+            renormalization = sum(this%probs%ptr(constraint))
+        end if
+
         if (near_zero(renormalization)) then
             tgt = 0
             prob = 1.0
         else
             tgt = this%table%getRand()
-            do while (all(tgt /= constraint))
+            do while (binary_search_first_ge(constraint, tgt) == -1)
                 tgt = this%table%getRand()
             end do
             prob = this%probs%ptr(tgt) / renormalization
@@ -569,6 +575,21 @@ contains
         prob = this%alias_sampler%get_prob(iEntry, 1, 1, tgt)
     end function aGetProb_1D
 
+    !> Returns the probability to draw tgt from the sampler with index iEntry
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @return prob  the probability of drawing tgt with the sample routine from constraint
+    pure function constrained_get_prob_1D(this, i, constraint, tgt) result(prob)
+        class(AliasSampler_1D_t), intent(in) :: this
+        integer, intent(in) :: i
+        integer, intent(in) :: constraint(:)
+        integer, intent(in) :: tgt
+        real(dp) :: prob
+
+        prob = this%alias_sampler%constrained_getProb(i, 1, 1, constraint, tgt)
+    end function
+
     !> Setup an array of samplers using a single shared resource (split into parts associated
     !! with one of them each). This only does the allocation.
     !> @param[in] nEntries  number of samplers to initialise
@@ -643,6 +664,22 @@ contains
         real(dp) :: prob
         prob = this%alias_sampler%get_prob(i, j, 1, tgt)
     end function aGetProb_2D
+
+    !> Returns the probability to draw tgt from the sampler with index iEntry
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] j Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @return prob  the probability of drawing tgt with the sample routine from constraint
+    pure function constrained_get_prob_2D(this, i, j, constraint, tgt) result(prob)
+        class(AliasSampler_2D_t), intent(in) :: this
+        integer, intent(in) :: i, j
+        integer, intent(in) :: constraint(:)
+        integer, intent(in) :: tgt
+        real(dp) :: prob
+
+        prob = this%alias_sampler%constrained_getProb(i, j, 1, constraint, tgt)
+    end function
 
 
     !> Setup an array of samplers using a single shared resource (split into parts associated
@@ -769,6 +806,24 @@ contains
         real(dp) :: prob
 
         prob = this%samplerArray(i, j, k)%getProb(tgt)
+    end function
+
+
+    !> Returns the probability to draw tgt from the sampler with index iEntry
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] j Index of the sampler to use
+    !> @param[in] k Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @return prob  the probability of drawing tgt with the sample routine from constraint
+    pure function constrained_get_prob_3D(this, i, j, k, constraint, tgt) result(prob)
+        class(AliasSampler_3D_t), intent(in) :: this
+        integer, intent(in) :: i, j, k
+        integer, intent(in) :: constraint(:)
+        integer, intent(in) :: tgt
+        real(dp) :: prob
+
+        prob = this%samplerArray(i, j, k)%constrained_getProb(constraint, tgt)
     end function
 
 end module aliasSampling
