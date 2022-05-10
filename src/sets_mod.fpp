@@ -125,7 +125,7 @@ contains
 
         integer :: i
 
-            @:def_default(ascending_, ascending, .true.)
+        @:def_default(ascending_, ascending, .true.)
 
         res = .true.
         if (ascending_) then
@@ -151,14 +151,13 @@ contains
     #:for kind in kinds
     pure function set_${T}$_${kind}$ (V) result(res)
         ${T}$ (${kind}$), intent(in) :: V(:)
-        logical :: ascending_
         integer(${kind}$), allocatable :: res(:)
         integer(${kind}$) :: sorted(size(V)), previous
         type(buffer_${kind}$_1D_t) :: buffer
         integer :: i
 
         sorted = V
-        @:sort(integer, sorted)
+        @:sort(integer, sorted, kind=${kind}$)
 
         call buffer%init()
         if (size(sorted) > 0) then
