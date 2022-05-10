@@ -3,7 +3,8 @@ module aliasSampling
     ! This module contains the utility to use alias table lookup on lists,
     ! requiring to precompute biases but making the lookup O(1)
     use constants
-    use util_mod, only: near_zero, stop_all, binary_search_first_ge
+    use util_mod, only: near_zero, stop_all, binary_search_first_ge, operator(.isclose.)
+    use sets_mod, only: is_set
     use shared_memory_mpi
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -401,29 +402,25 @@ contains
     !> @param[in] constraint pick only elements from constraint
     !> @param[out] tgt  on return, this is a random number in the sampling range of this
     !> @param[out] prob  on return, the probability of picking tgt from constraint
-    subroutine constrained_sample(this, constraint, tgt, prob)
+    subroutine constrained_sample(this, contain, renormalization, tgt, prob)
         class(aliasSampler_t), intent(in) :: this
-        integer, intent(in) :: constraint(:)
+        integer, intent(in) :: contain(:)
+        real(dp), intent(in) :: renormalization
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
         character(*), parameter :: this_routine = 'constrained_sample'
 
-        real(dp) :: renormalization
-        ASSERT(1 <= minval(constraint) .and. maxval(constraint) <= size(this%probs%ptr))
-        ! TODO Assert that it is unique
+        ASSERT(1 <= minval(contain) .and. maxval(contain) <= size(this%probs%ptr))
+        ASSERT(is_set(contain))
 
-        if (.not. associated(this%probs%ptr)) then
-            renormalization = 0.0
-        else
-            renormalization = sum(this%probs%ptr(constraint))
-        end if
+        ASSERT(renormalization .isclose. sum(this%getProb(contain)))
 
         if (near_zero(renormalization)) then
             tgt = 0
             prob = 1.0
         else
             tgt = this%table%getRand()
-            do while (binary_search_first_ge(constraint, tgt) == -1)
+            do while (binary_search_first_ge(contain, tgt) == -1)
                 tgt = this%table%getRand()
             end do
             prob = this%probs%ptr(tgt) / renormalization
@@ -553,14 +550,14 @@ contains
     !> @param[in] constraint pick only elements from constraint
     !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize and in constraint
     !> @param[out] prob  on return, the probability of picking tgt from constraint
-    subroutine constrained_sample_1D(this, i, constraint, tgt, prob)
+    subroutine constrained_sample_1D(this, i, constraint, renorm, tgt, prob)
         class(AliasSampler_1D_t), intent(in) :: this
-        integer, intent(in) :: i
-        integer, intent(in) :: constraint(:)
+        integer, intent(in) :: i, constraint(:)
+        real(dp), intent(in) :: renorm
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
 
-        call this%alias_sampler%constrained_sample(i, 1, 1, constraint, tgt, prob)
+        call this%alias_sampler%constrained_sample(i, 1, 1, constraint, renorm, tgt, prob)
     end subroutine
 
     !> Returns the probability to draw tgt from the sampler with index iEntry
@@ -643,14 +640,14 @@ contains
     !> @param[in] constraint pick only elements from constraint
     !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize and in constraint
     !> @param[out] prob  on return, the probability of picking tgt from constraint
-    subroutine constrained_sample_2D(this, i, j, constraint, tgt, prob)
+    subroutine constrained_sample_2D(this, i, j, constraint, renorm, tgt, prob)
         class(AliasSampler_2D_t), intent(in) :: this
-        integer, intent(in) :: i, j
-        integer, intent(in) :: constraint(:)
+        integer, intent(in) :: i, j, constraint(:)
+        real(dp), intent(in) :: renorm
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
 
-        call this%alias_sampler%constrained_sample(i, j, 1, constraint, tgt, prob)
+        call this%alias_sampler%constrained_sample(i, j, 1, constraint, renorm, tgt, prob)
     end subroutine
 
     !> Returns the probability to draw tgt from the sampler with index iEntry
@@ -783,14 +780,14 @@ contains
     !> @param[in] constraint pick only elements from constraint
     !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize and in constraint
     !> @param[out] prob  on return, the probability of picking tgt from constraint
-    subroutine constrained_sample_3D(this, i, j, k, constraint, tgt, prob)
+    subroutine constrained_sample_3D(this, i, j, k, constraint, renorm, tgt, prob)
         class(AliasSampler_3D_t), intent(in) :: this
-        integer, intent(in) :: i, j, k
-        integer, intent(in) :: constraint(:)
+        integer, intent(in) :: i, j, k, constraint(:)
+        real(dp), intent(in) :: renorm
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
 
-        call this%samplerArray(i, j, k)%constrained_sample(constraint, tgt, prob)
+        call this%samplerArray(i, j, k)%constrained_sample(constraint, renorm, tgt, prob)
     end subroutine
 
     !> Returns the probability to draw tgt from the sampler with index iEntry

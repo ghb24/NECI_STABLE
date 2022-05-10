@@ -1,11 +1,10 @@
 module test_cases
     use fruit
     use sets_mod, only: is_sorted, disjoint, subset, operator(.U.), operator(.cap.), &
-        operator(.complement.), suc => special_union_complement
+        operator(.complement.), suc => special_union_complement, set, is_set
     implicit none
     private
-    public :: test_is_sorted, test_disjoint, test_union, test_intersect, &
-        test_complement, test_subset, test_special_union_complement
+    public :: test_sets_mod_driver
 
 
 contains
@@ -16,6 +15,19 @@ contains
         call assert_true(is_sorted([integer::]))
         call assert_false(is_sorted([1., 4., 3.]))
         call assert_false(is_sorted([1., 4., 3.]))
+    end subroutine
+
+
+    subroutine test_create_set()
+        call assert_true(all([1, 2, 3] == set([3, 3, 1, 2, 2])))
+        call assert_true(all([integer::] == set([integer::])))
+        call assert_true(all([1] == set([1, 1, 1])))
+        call assert_true(all([1, 2] == set([2, 1, 1, 1])))
+
+        call assert_true(is_set([1, 2, 3]))
+        call assert_true(is_set([integer::]))
+        call assert_false(is_set([1, 2, 3, 4, 4]))
+        call assert_false(is_set([3, 2, 2]))
     end subroutine
 
 
@@ -103,15 +115,25 @@ contains
         end associate
     end subroutine
 
+    subroutine test_sets_mod_driver()
+        call run_test_case(test_is_sorted, "test_is_sorted")
+        call run_test_case(test_create_set, "test_create_set")
+        call run_test_case(test_disjoint, "test_disjoint")
+        call run_test_case(test_subset, "test_subset")
+        call run_test_case(test_union, "test_union")
+        call run_test_case(test_intersect, "test_intersect")
+        call run_test_case(test_complement, "test_complement")
+        call run_test_case(test_special_union_complement, "test_special_union_complement")
+    end subroutine
+
 end module test_cases
 
 program test_sets_mod
 
     use mpi
     use fruit
-    use test_cases, only: test_is_sorted, test_disjoint, test_union, &
-        test_intersect, test_complement, test_subset, &
-        test_special_union_complement
+    use test_cases, only: test_sets_mod_driver
+
     implicit none
     integer :: failed_count, err
 
@@ -130,14 +152,4 @@ program test_sets_mod
     call mpi_finalize(err)
 
 contains
-
-    subroutine test_sets_mod_driver()
-        call run_test_case(test_is_sorted, "test_is_sorted")
-        call run_test_case(test_disjoint, "test_disjoint")
-        call run_test_case(test_subset, "test_subset")
-        call run_test_case(test_union, "test_union")
-        call run_test_case(test_intersect, "test_intersect")
-        call run_test_case(test_complement, "test_complement")
-        call run_test_case(test_special_union_complement, "test_special_union_complement")
-    end subroutine
 end program test_sets_mod

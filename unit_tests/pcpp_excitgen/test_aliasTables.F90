@@ -155,11 +155,12 @@ contains
 
 
         integer, parameter :: huge_number = 1000000
-        integer, parameter :: tSize = 320
+        integer, parameter :: tSize = 1000
         type(timer) :: CDF_sample_timer, const_sample_timer, CDF_sample_timer_build, &
-            CDF_sample_hand_tailored
+            CDF_sample_hand_tailored, fast_const_sample_timer
         type(timer) :: sum_timer
         real(dp), parameter :: diff_tol = 3e-2_dp
+        real(dp) :: renorm
         integer, allocatable :: constraint(:)
         real(dp) :: w(tSize), p, probs(tSize)
         integer :: hist(tSize)
@@ -168,7 +169,7 @@ contains
         real(dp) :: diff
 
         call create_rand_probs(w)
-        constraint = [(i, i = 1, 100)]
+        constraint = [(i, i = 1, tSize)]
 
         CDF_sampler = CDF_Sampler_t(w(constraint))
 
@@ -249,13 +250,43 @@ contains
         hist = 0
         call set_timer(const_sample_timer)
         do i = 1, huge_number
-            call alias_sampler%constrained_sample(constraint, r, p)
+            renorm = sum(w(constraint))
+            call alias_sampler%constrained_sample(constraint, renorm, r, p)
             ! call alias_sampler%sample(r, p)
             hist(r) = hist(r) + 1
             probs(r) = p
         end do
         call halt_timer(const_sample_timer)
         write(*, *) 'constrained Alias sample', get_total_time(const_sample_timer)
+
+        diff = get_diff(hist(constraint), w(constraint) / sum(w(constraint)))
+        ! is the sampling reasonable?
+        call assert_true(diff < diff_tol)
+        ! are the probabilities claimed by the sampler the ones we put in?
+
+
+
+        call alias_sampler%setupSampler(w)
+        call assert_true(all(w .isclose. alias_sampler%getProb([(i, i = 1, tSize)])))
+
+        renorm = sum(w(constraint))
+
+        hist = 0
+        call set_timer(fast_const_sample_timer)
+        do i = 1, huge_number
+            call alias_sampler%constrained_sample(constraint, renorm, r, p)
+            ! call alias_sampler%sample(r, p)
+            hist(r) = hist(r) + 1
+            probs(r) = p
+        end do
+        call halt_timer(fast_const_sample_timer)
+        write(*, *) 'faster constrained Alias sample', get_total_time(fast_const_sample_timer)
+
+        diff = get_diff(hist(constraint), w(constraint) / sum(w(constraint)))
+        ! is the sampling reasonable?
+        call assert_true(diff < diff_tol)
+        ! are the probabilities claimed by the sampler the ones we put in?
+
     end subroutine
 
     !------------------------------------------------------------------------------------------!
