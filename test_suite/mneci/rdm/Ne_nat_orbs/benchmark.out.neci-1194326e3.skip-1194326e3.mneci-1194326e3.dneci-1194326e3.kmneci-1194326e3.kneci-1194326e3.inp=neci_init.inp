@@ -1,0 +1,381 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on May  2 2022 at 10:30:09
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     1194326e310e17c97a6674ab22658c8f0b218439
+ Working directory: 
+     /home/phaupt/dev/neci/test_suite/mneci/rdm/Ne_nat_orbs
+ Running on: alamdlogin2
+ Started running on 02/05/2022 at 12:01:30
+ ================================================================
+
+ Processing argumentsneci_init.inp                                                                                                                                                                                                                                                  
+ Reading from file: neci_init.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+    electrons 10
+    nonuniformrandexcits 4ind-weighted
+    FCIDUMP-name ROFCIDUMP
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+    nmcyc 3700
+    totalwalkers 5000
+    tau 0.001 search
+    startsinglepart
+    truncinitiator
+    addtoinitiator 3
+    shiftdamp 0.03
+    stepsshift 25
+    load-balance-blocks off
+    maxwalkerbloom 3.0
+    seed 12823
+endcalc
+
+integral
+    freeze 2 0
+endint
+
+logging
+    popsfile -1
+    calcrdmonfly 3 200 200
+    printonerdm
+    diagflyonerdm
+    printrodump
+endlog
+end
+
+****************************************************************
+
+ RDM on fly
+ unspecified
+ Filling RDMs without explicitly specifying the number of replica simplations
+ Defaulting to using 2 replicas
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+ *** WARNING: NEL in FCIDUMP differs from input file ***
+  NUMBER OF ELECTRONS :           10
+  NUMBER OF SPIN ORBITALS IN BASIS :    44
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940369924       -1.940369924
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.940369924       -1.940369924
+      3     15      0      0      0     -1 ( 0, 0, 1) 1   0       -0.852918387       -0.852918387
+      4     16      0      0      0      1 ( 0, 0, 1) 1   0       -0.852918387       -0.852918387
+      5     21      0      0      0     -1 ( 0, 0, 2) 2   0       -0.852926392       -0.852926392
+      6     22      0      0      0      1 ( 0, 0, 2) 2   0       -0.852926392       -0.852926392
+      7     31      0      0      0     -1 ( 0, 0, 4) 4   0       -0.852955822       -0.852955822
+      8     32      0      0      0      1 ( 0, 0, 4) 4   0       -0.852955822       -0.852955822
+      9     19      0      0      0     -1 ( 0, 0, 1) 1   0        0.730036687        0.730036687
+     10     20      0      0      0      1 ( 0, 0, 1) 1   0        0.730036687        0.730036687
+     11     35      0      0      0     -1 ( 0, 0, 4) 4   0        0.732633077        0.732633077
+     12     36      0      0      0      1 ( 0, 0, 4) 4   0        0.732633077        0.732633077
+     13     25      0      0      0     -1 ( 0, 0, 2) 2   0        0.753441840        0.753441840
+     14     26      0      0      0      1 ( 0, 0, 2) 2   0        0.753441840        0.753441840
+     15     13      0      0      0     -1 ( 0, 0, 0) 0   0        1.409817348        1.409817348
+     16     14      0      0      0      1 ( 0, 0, 0) 0   0        1.409817348        1.409817348
+     17     23      0      0      0     -1 ( 0, 0, 2) 2   0        1.500806409        1.500806409
+     18     24      0      0      0      1 ( 0, 0, 2) 2   0        1.500806409        1.500806409
+     19     33      0      0      0     -1 ( 0, 0, 4) 4   0        1.521644601        1.521644601
+     20     34      0      0      0      1 ( 0, 0, 4) 4   0        1.521644601        1.521644601
+     21     17      0      0      0     -1 ( 0, 0, 1) 1   0        1.524203555        1.524203555
+     22     18      0      0      0      1 ( 0, 0, 1) 1   0        1.524203555        1.524203555
+     23      3      0      0      0     -1 ( 0, 0, 0) 0   0        1.913573585        1.913573585
+     24      4      0      0      0      1 ( 0, 0, 0) 0   0        1.913573585        1.913573585
+     25      5      0      0      0     -1 ( 0, 0, 0) 0   0        3.224730476        3.224730476
+     26      6      0      0      0      1 ( 0, 0, 0) 0   0        3.224730476        3.224730476
+     27      7      0      0      0     -1 ( 0, 0, 0) 0   0        3.341485537        3.341485537
+     28      8      0      0      0      1 ( 0, 0, 0) 0   0        3.341485537        3.341485537
+     29     37      0      0      0     -1 ( 0, 0, 5) 5   0        3.409030483        3.409030483
+     30     38      0      0      0      1 ( 0, 0, 5) 5   0        3.409030483        3.409030483
+     31     27      0      0      0     -1 ( 0, 0, 3) 3   0        3.443539577        3.443539577
+     32     28      0      0      0      1 ( 0, 0, 3) 3   0        3.443539577        3.443539577
+     33     41      0      0      0     -1 ( 0, 0, 6) 6   0        3.448991786        3.448991786
+     34     42      0      0      0      1 ( 0, 0, 6) 6   0        3.448991786        3.448991786
+     35      9      0      0      0     -1 ( 0, 0, 0) 0   0        4.656088837        4.656088837
+     36     10      0      0      0      1 ( 0, 0, 0) 0   0        4.656088837        4.656088837
+     37     43      0      0      0     -1 ( 0, 0, 6) 6   0        4.681173163        4.681173163
+     38     44      0      0      0      1 ( 0, 0, 6) 6   0        4.681173163        4.681173163
+     39     29      0      0      0     -1 ( 0, 0, 3) 3   0        4.686625372        4.686625372
+     40     30      0      0      0      1 ( 0, 0, 3) 3   0        4.686625372        4.686625372
+     41     39      0      0      0     -1 ( 0, 0, 5) 5   0        4.721134466        4.721134466
+     42     40      0      0      0      1 ( 0, 0, 5) 5   0        4.721134466        4.721134466
+     43     11      0      0      0     -1 ( 0, 0, 0) 0   0        4.743904044        4.743904044
+     44     12      0      0      0      1 ( 0, 0, 0) 0   0        4.743904044        4.743904044
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 32131
+Memory required for integral storage:     0.2451400757     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                  8803
+ ECORE=  -93.848901545480004     
+ Setting normal get_umat_el_normal routine
+ N_alpha: 5 ; N_beta: 5 ; LMS: 0 ; NEl:10
+ Fermi det (D0):(    1,    2,   15,   16,   19,   20,   21,   22,   31,   32)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -101.38716922013398     
+======== FREEZING ORBITALS ==========
+ Freezing            2  core orbitals.
+ Freezing            0  virtual orbitals.
+ Post-Freeze Fermi det (D0):(   13,   14,   17,   18,   19,   20,   29,   30)
+ Symmetry:  ( 0, 0, 0) 0
+ ECORE now  -109.41868298283801     
+ Number of orbitals remaining:           42
+ Number of active electrons:           8
+      1     13      0      0      0     -1 ( 0, 0, 1) 1   0       -0.852918387       -0.852918387 #
+      2     14      0      0      0      1 ( 0, 0, 1) 1   0       -0.852918387       -0.852918387 #
+      3     19      0      0      0     -1 ( 0, 0, 2) 2   0       -0.852926392       -0.852926392 #
+      4     20      0      0      0      1 ( 0, 0, 2) 2   0       -0.852926392       -0.852926392 #
+      5     29      0      0      0     -1 ( 0, 0, 4) 4   0       -0.852955822       -0.852955822 #
+      6     30      0      0      0      1 ( 0, 0, 4) 4   0       -0.852955822       -0.852955822 #
+      7     17      0      0      0     -1 ( 0, 0, 1) 1   0        0.730036687        0.730036687 #
+      8     18      0      0      0      1 ( 0, 0, 1) 1   0        0.730036687        0.730036687 #
+      9     33      0      0      0     -1 ( 0, 0, 4) 4   0        0.732633077        0.732633077
+     10     34      0      0      0      1 ( 0, 0, 4) 4   0        0.732633077        0.732633077
+     11     23      0      0      0     -1 ( 0, 0, 2) 2   0        0.753441840        0.753441840
+     12     24      0      0      0      1 ( 0, 0, 2) 2   0        0.753441840        0.753441840
+     13     11      0      0      0     -1 ( 0, 0, 0) 0   0        1.409817348        1.409817348
+     14     12      0      0      0      1 ( 0, 0, 0) 0   0        1.409817348        1.409817348
+     15     21      0      0      0     -1 ( 0, 0, 2) 2   0        1.500806409        1.500806409
+     16     22      0      0      0      1 ( 0, 0, 2) 2   0        1.500806409        1.500806409
+     17     31      0      0      0     -1 ( 0, 0, 4) 4   0        1.521644601        1.521644601
+     18     32      0      0      0      1 ( 0, 0, 4) 4   0        1.521644601        1.521644601
+     19     15      0      0      0     -1 ( 0, 0, 1) 1   0        1.524203555        1.524203555
+     20     16      0      0      0      1 ( 0, 0, 1) 1   0        1.524203555        1.524203555
+     21      1      0      0      0     -1 ( 0, 0, 0) 0   0        1.913573585        1.913573585
+     22      2      0      0      0      1 ( 0, 0, 0) 0   0        1.913573585        1.913573585
+     23      3      0      0      0     -1 ( 0, 0, 0) 0   0        3.224730476        3.224730476
+     24      4      0      0      0      1 ( 0, 0, 0) 0   0        3.224730476        3.224730476
+     25      5      0      0      0     -1 ( 0, 0, 0) 0   0        3.341485537        3.341485537
+     26      6      0      0      0      1 ( 0, 0, 0) 0   0        3.341485537        3.341485537
+     27     35      0      0      0     -1 ( 0, 0, 5) 5   0        3.409030483        3.409030483
+     28     36      0      0      0      1 ( 0, 0, 5) 5   0        3.409030483        3.409030483
+     29     25      0      0      0     -1 ( 0, 0, 3) 3   0        3.443539577        3.443539577
+     30     26      0      0      0      1 ( 0, 0, 3) 3   0        3.443539577        3.443539577
+     31     39      0      0      0     -1 ( 0, 0, 6) 6   0        3.448991786        3.448991786
+     32     40      0      0      0      1 ( 0, 0, 6) 6   0        3.448991786        3.448991786
+     33      7      0      0      0     -1 ( 0, 0, 0) 0   0        4.656088837        4.656088837
+     34      8      0      0      0      1 ( 0, 0, 0) 0   0        4.656088837        4.656088837
+     35     41      0      0      0     -1 ( 0, 0, 6) 6   0        4.681173163        4.681173163
+     36     42      0      0      0      1 ( 0, 0, 6) 6   0        4.681173163        4.681173163
+     37     27      0      0      0     -1 ( 0, 0, 3) 3   0        4.686625372        4.686625372
+     38     28      0      0      0      1 ( 0, 0, 3) 3   0        4.686625372        4.686625372
+     39     37      0      0      0     -1 ( 0, 0, 5) 5   0        4.721134466        4.721134466
+     40     38      0      0      0      1 ( 0, 0, 5) 5   0        4.721134466        4.721134466
+     41      9      0      0      0     -1 ( 0, 0, 0) 0   0        4.743904044        4.743904044
+     42     10      0      0      0      1 ( 0, 0, 0) 0   0        4.743904044        4.743904044
+ Setting normal get_umat_el_normal routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          28  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -126.76570696806601     
+ <D0|T|D0>=  -35.419068917974002     
+ <D0|U|D0>  -91.346638050092011     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+              136 alpha-alpha (vacant) hole pairs
+              136 beta-beta (vacant) hole pairs
+              289 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(   13,   14,   17,   18,   19,   20,   29,   30) E =   -126.765706968
+(   13,   14,   17,   18,   19,   20,   29,   30) E =   -126.765706968
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:        12823
+Reference Energy set to:      -126.7657069681
+Highest energy determinant is (approximately):     -88.8244074277170    
+Corresponding to a correlation energy of:      37.9412995403490    
+This means tau should be no more than about         0.026356503654719
+ Highest energy determinant is:            9          10          27          28          37          38          41          42
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    934 double excitations, and      12 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.987315
+ pSingles set to:       0.012685
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:          946
+Memory allocated for a maximum particle number per node of:         524288
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      40.000000 Mb / processor
+Spawning vectors allowing for a total of         7500 particles to be spawned in any one iteration per core.
+ Memory requirement   0.17166137695312500      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             875
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        2
+Initial reference is: (   13,   14,   17,   18,   19,   20,   29,   30)
+Initial number of particles set to          1 and shift will be held at     0.000 until particle number gets to            5000
+ Initial memory (without excitgens + temp arrays) consists of :      16.457764 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ Using initial time-step:    1.0000000000000000E-003
+Will dynamically update timestep to limit spawning probability to   3.00000
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(   13,   14,   17,   18,   19,   20,   29,   30)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      0.530228
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):      3.534882
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):      2.120926
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:       6.589943 MB per MPI process.
+ RDM memory allocation complete.
+
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+## 1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Proj. E (cyc)                         5. Shift. (cyc)                          11. Tot. Proj. E                         12. Dets occ.        13. Dets spawned     15. Iter. time                          
+##               0   1.00000000000        1.00000000000        0.00000000000        0.00000000000       -126.765706968                     1                0   0.00000000000     
+                25   1.00000000000        1.00000000000        0.00000000000        0.00000000000       -126.765706968                     1                0  0.165596809238E-003
+                50   1.00000000000        1.00000000000        0.00000000000        0.00000000000       -126.765706968                     1                0  0.203336030245E-004
+                75   1.50000000000        1.00000000000      -0.215479263168E-002   0.00000000000       -126.767861761                     2                0  0.218086130917E-004
+               100   1.50000000000        1.00000000000      -0.134674539480E-001   0.00000000000       -126.779174422                     2                0  0.193226523697E-004
+               125   2.50000000000        1.00000000000      -0.213467686984E-001   0.00000000000       -126.787053737                     4                0  0.237942673266E-004
+               150   3.50000000000        1.00000000000      -0.100906152203        0.00000000000       -126.866613120                     6                0  0.233049131930E-004
+               175   3.00000000000        1.00000000000      -0.142013966886        0.00000000000       -126.907720935                     5                0  0.254850089550E-004
+               200   3.50000000000        1.00000000000      -0.133282635505        0.00000000000       -126.898989604                     6                0  0.227150321007E-004
+               225   3.50000000000        1.00000000000      -0.197974318707        0.00000000000       -126.963681287                     6                0  0.229659117758E-004
+               250   3.00000000000        1.00000000000      -0.192707804295        0.00000000000       -126.958414772                     5                0  0.230524502695E-004
+               275   3.00000000000        1.00000000000      -0.179165338663        0.00000000000       -126.944872307                     5                0  0.229951180518E-004
+               300   3.00000000000        1.00000000000      -0.172740619280        0.00000000000       -126.938447587                     5                0  0.230830349028E-004
+               325   3.50000000000        1.00000000000      -0.185545905312        0.00000000000       -126.951252873                     6                0  0.228056684136E-004
+               350   3.00000000000        1.00000000000      -0.173276052881        0.00000000000       -126.938983021                     5                1  0.225331448019E-004
+               375   3.50000000000        1.00000000000      -0.121718340891        0.00000000000       -126.887425309                     6                0  0.232009589672E-004
+               400   4.00000000000        1.00000000000      -0.203102842445        0.00000000000       -126.968809811                     7                0  0.251271016896E-004
+               425   4.50000000000        1.00000000000      -0.213610360176        0.00000000000       -126.979317328                     8                0  0.249237567186E-004
+               450   4.00000000000        1.00000000000      -0.148660889457        0.00000000000       -126.914367858                     7                0  0.246155448258E-004
+               475   5.00000000000        1.00000000000      -0.120935634596        0.00000000000       -126.886642603                     9                0  0.248325988650E-004
+               500   4.00000000000        1.00000000000      -0.132388399337        0.00000000000       -126.898095367                     7                0  0.244073756039E-004
+               525   4.50000000000        1.00000000000      -0.133103224771        0.00000000000       -126.898810193                     8                0  0.251587107778E-004
+               550   3.00000000000        1.00000000000      -0.109951622927        0.00000000000       -126.875658591                     5                0  0.240252353251E-004
+               575   3.50000000000        1.00000000000      -0.835911625757E-001   0.00000000000       -126.849298131                     6                0  0.226067379117E-004
+               600   3.50000000000        1.00000000000      -0.140204003779        0.00000000000       -126.905910972                     5                0  0.242358446121E-004
+               625   4.50000000000        1.50000000000      -0.123142918784        0.00000000000       -126.888849887                     7                0  0.247425027192E-004
+               650   5.00000000000        1.50000000000      -0.105169262868        0.00000000000       -126.870876231                     8                0  0.246077589691E-004
+               675   5.00000000000        1.50000000000      -0.113853964631        0.00000000000       -126.879560933                     8                0  0.256328284740E-004
+               700   6.50000000000        1.50000000000      -0.171324408040        0.00000000000       -126.937031376                    11                1  0.278095342219E-004
+               725   7.00000000000        1.50000000000      -0.209057606837        0.00000000000       -126.974764575                    12                0  0.289270840585E-004
+               750   7.50000000000        1.50000000000      -0.297341131740        0.00000000000       -127.063048100                    13                0  0.314410403371E-004
+               775   8.50000000000        1.50000000000      -0.302275885802        0.00000000000       -127.067982854                    15                0  0.342972576618E-004
+               800   9.00000000000        1.50000000000      -0.335963593118        0.00000000000       -127.101670561                    16                0  0.351909361780E-004
+               825   9.50000000000        1.50000000000      -0.329024932883        0.00000000000       -127.094731901                    16                0  0.329047441483E-004
+               850   11.0000000000        1.50000000000      -0.394470184124        0.00000000000       -127.160177152                    18                0  0.370063073933E-004
+               875   11.5000000000        1.50000000000      -0.439476723523        0.00000000000       -127.205183692                    19                1  0.367906503379E-004
+               900   11.0000000000        1.50000000000      -0.426172058039        0.00000000000       -127.191879026                    18                1  0.374314375222E-004
+               925   10.5000000000        1.50000000000      -0.393230598003        0.00000000000       -127.158937566                    17                0  0.344915501773E-004
+               950   10.5000000000        1.50000000000      -0.384510534476        0.00000000000       -127.150217503                    17                0  0.379941426218E-004
+               975   9.00000000000        1.50000000000      -0.324640878515        0.00000000000       -127.090347847                    14                0  0.336280465126E-004
+              1000   12.0000000000        1.50000000000      -0.297034698809        0.00000000000       -127.062741667                    19                1  0.345725938678E-004
+ Updating parallel-spin bias; new pParallel =   0.11401455896306183     
+ Updating time-step. New time-step =    1.2928799969758379E-002 in: update_tau
+ Updating singles/doubles bias. pSingles =   0.11549174044253045     
+  pDoubles =   0.88450825955746959     
+              1025   11.5000000000        1.50000000000      -0.251845051412        0.00000000000       -127.017552019                    17                0  0.363959185779E-004
+              1050   20.5000000000        2.00000000000      -0.333786340023        0.00000000000       -127.099493308                    26               10  0.540616177022E-004
+ Updating time-step. New time-step =    1.2813048857576323E-002 in: update_tau
+ Updating singles/doubles bias. pSingles =   0.12341071320237472     
+  pDoubles =   0.87658928679762527     
+              1075   35.0000000000        3.50000000000      -0.163946822100        0.00000000000       -126.929653790                    51               21  0.779891014099E-004
+              1100   47.5000000000        5.00000000000      -0.173477645039        0.00000000000       -126.939184613                    67               26  0.948144495487E-004
+ Updating time-step. New time-step =    1.2705069566124551E-002 in: update_tau
+ Updating singles/doubles bias. pSingles =   0.13079798621871480     
+  pDoubles =   0.86920201378128525     
+              1125   71.0000000000        6.00000000000      -0.149219006772        0.00000000000       -126.914925975                    99               41  0.127786640078E-003
+ Updating time-step. New time-step =    1.2690656903994976E-002 in: update_tau
+ Updating singles/doubles bias. pSingles =   0.13178401111860039     
+  pDoubles =   0.86821598888139961     
+              1150   88.5000000000        9.00000000000      -0.205924182845        0.00000000000       -126.971631151                   123               42  0.166699327528E-003
+              1175   112.500000000        11.5000000000      -0.153309502877        0.00000000000       -126.919016471                   153               45  0.192275233567E-003
+              1200   140.000000000        13.5000000000      -0.171385985009        0.00000000000       -126.937092953                   180               57  0.219288691878E-003
+ Updating time-step. New time-step =    1.2628828553828053E-002 in: update_tau
+ Updating singles/doubles bias. pSingles =   0.13601392313869307     
+  pDoubles =   0.86398607686130691     
+              1225   202.000000000        20.5000000000      -0.118525030972        0.00000000000       -126.884231999                   241               97  0.289487838745E-003
+              1250   329.000000000        30.0000000000      -0.165769911611        0.00000000000       -126.931476880                   383              162  0.422163270414E-003
+              1275   486.000000000        36.5000000000      -0.165002866947        0.00000000000       -126.930709835                   548              219  0.611114054918E-003
+              1300   666.000000000        51.0000000000      -0.174147996291        0.00000000000       -126.939854964                   750              329  0.165258854628E-002
+              1325   960.500000000        67.5000000000      -0.159256489613        0.00000000000       -126.924963458                  1064              464  0.180055335164E-002
+              1350   1611.00000000        91.5000000000      -0.165584977692        0.00000000000       -126.931291946                  1742              774  0.246446728706E-002
+ Updating parallel-spin bias; new pParallel =   0.12903662185181014     
+ Updating time-step. New time-step =    1.2076452934089682E-002 in: update_tau
+ Updating singles/doubles bias. pSingles =   0.13006477474646083     
+  pDoubles =   0.86993522525353917     
+              1375   2311.50000000        127.500000000      -0.162044898727        0.00000000000       -126.927751867                  2403             1131  0.274742424488E-002
+Exiting the single particle growth phase on iteration:          1400 - Shift can now change for population1
+              1400   3228.50000000        171.500000000      -0.154705283655      -0.811110047507E-001  -126.920412252                  3251             1491  0.661973953247E-002
+              1425   4490.50000000        230.000000000      -0.155771771375      -0.988349656507E-001  -126.921478739                  4457             2077  0.800408363342E-002
+              1450   5985.50000000        299.000000000      -0.164067964206      -0.113424853251       -126.929774932                  5710             2811  0.116712188721E-001
+              1475   7921.00000000        380.500000000      -0.160090617954      -0.127554600121       -126.925797586                  7342             3701  0.183640527725E-001
+              1500   10340.5000000        490.000000000      -0.157470612478      -0.140661803319       -126.923177581                  9320             4858  0.189106452465E-001
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.008057 Mb/Processor
+              1525   13680.0000000        625.500000000      -0.152632645950      -0.154651973599       -126.918339614                 12005             6347  0.202151823044E-001
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.010117 Mb/Processor
+              1550   18193.0000000        782.500000000      -0.158807871561      -0.168892247683       -126.924514840                 15558             8588  0.238019061089E-001
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.012177 Mb/Processor
+              1575   23090.5000000        976.000000000      -0.163711063461      -0.181510410093       -126.929418032                 19136            10680  0.305321455002E-001
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.014519 Mb/Processor
+              1600   28830.0000000        1182.50000000      -0.163227138561      -0.192535196231       -126.928934107                 23083            13416  0.377859878540E-001
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.017586 Mb/Processor
+              1625   35606.5000000        1454.50000000      -0.164292315185      -0.202969801015       -126.929999283                 27601            16536  0.459644126892E-001
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.022026 Mb/Processor
+              1650   44360.5000000        1773.50000000      -0.163926970442      -0.213617415865       -126.929633939                 33233            20523  0.637746667862E-001
+-----------------------------------
+Writing Backtrace
+-----------------------------------
+0: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x5060b5]
+1: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x6e946c]
+2: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x6ed09c]
+3: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x691d4a]
+4: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x407c7e]
+5: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x4072f5]
+6: /lib64/libc.so.6(__libc_start_main+0xea) [0x7f2744d533ea]
+7: /home/phaupt/dev/neci/test_suite/../build/bin/mneci() [0x40737a]
+-----------------------------------

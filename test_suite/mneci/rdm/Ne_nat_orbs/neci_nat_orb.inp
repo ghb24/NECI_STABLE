@@ -21,6 +21,7 @@ calc
     load-balance-blocks off
     maxwalkerbloom 3.0
     seed 12824
+    memoryFacSpawn 500
 endcalc
 
 integral

@@ -26,6 +26,8 @@ calc
     load-balance-interval 1000
     allrealcoeff
 
+    memoryFacSpawn 10
+
 endcalc
 
 logging

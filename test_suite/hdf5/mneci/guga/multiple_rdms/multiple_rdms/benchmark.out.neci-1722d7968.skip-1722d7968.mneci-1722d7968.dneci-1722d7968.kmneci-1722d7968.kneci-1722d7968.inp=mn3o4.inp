@@ -1,0 +1,638 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on May  2 2022 at 10:30:09
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     1194326e310e17c97a6674ab22658c8f0b218439
+ Working directory: 
+     /home/phaupt/dev/neci/test_suite/hdf5/mneci/guga/multiple_rdms/multiple_rdms
+ Running on: alamdlogin2
+ Started running on 02/05/2022 at 13:44:29
+ ================================================================
+
+ Processing argumentsmn3o4.inp                                                                                                                                                                                                                                                      
+ Reading from file: mn3o4.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+  system read
+    electrons                          9
+    system-replicas                    4
+    guga                               1
+    nonUniformRandExcits       guga-pchb
+    freeformat
+    nobrillouintheorem
+  endsys
+
+  calc
+    seed                   7
+    load-balance-blocks  OFF
+    methods
+      method vertex fcimc
+    endmethods
+
+    # general
+    semi-stochastic        5
+    pops-core            1e3
+    readPops
+    # store-dets
+
+    # walkers
+    allRealCoeff             # required for semi-stochastic initialisation
+    truncinitiator
+    addtoinitiator         3
+    totalWalkers       2.5e4
+    realspawncutoff      .30
+    maxwalkerbloom         1
+    memoryfacspawn      10.0
+    memoryfacpart        5.0
+    startsinglepart       10
+
+    # shift
+    diagshift            .00
+    stepsshift            10
+    target-shiftdamp     0.5 # default xi = zeta^2/4
+
+    # timestep
+    tau                 0.06
+    hist-tau-search     0.999999 100000 2000
+    max-tau                1
+    # min-tau             0.05
+
+    definedet   1 3 5    8 9 11   14 16 18
+    # root 1 uuu duu ddd
+    # root 2 uuu ddu ddu
+    multiple-initial-states
+        1 3 5   8  9 11   14 16 18
+        1 3 5   8  9 11   14 16 18
+        1 3 5   8 10 11   14 16 17
+        1 3 5   8 10 11   14 16 17
+    orthogonalise-replicas
+    replica-single-det-start
+    global-core-space
+  endcalc
+
+  logging
+    RDMlinspace                 10 2 50
+    hdf5-pops-read
+    popsfile                         -1
+    full-core-rdms
+    print-molcas-rdms
+  endlog
+
+end
+
+****************************************************************
+
+ RDM on fly
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     9
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+ Only one irrep found. Turning off symmetry for rest of calculation.
+ *** WARNING: LMS in FCIDUMP differs from input file ***
+  BASIS MS :            9
+  NUMBER OF SPIN ORBITALS IN BASIS :    18
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   1
+ Turning Symmetry off
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      7      7      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     11     11      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     13     13      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     14     14      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+ Turning Symmetry off
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     1
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already implemented
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  1035
+Memory required for integral storage:     0.7896423340E-02 Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   1   0|   0   0):    0.0000000000000000     
+Ignoring integral (chem. notation) (   2   0|   0   0):    0.0000000000000000     
+Ignoring integral (chem. notation) (   3   0|   0   0):    0.0000000000000000     
+Ignoring integral (chem. notation) (   4   0|   0   0):    0.0000000000000000     
+Ignoring integral (chem. notation) (   5   0|   0   0):    0.0000000000000000     
+Ignoring integral (chem. notation) (   6   0|   0   0):    0.0000000000000000     
+Ignoring integral (chem. notation) (   7   0|   0   0):    0.0000000000000000     
+Ignoring integral (chem. notation) (   8   0|   0   0):    0.0000000000000000     
+Ignoring integral (chem. notation) (   9   0|   0   0):    0.0000000000000000     
+ Number of removed two-index integrals:                     9
+ Number of non-zero integrals:                  1035
+ ECORE=  -4953.6038011999999     
+ Setting normal get_umat_el_normal routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    3,    5,    8,    9,   11,   14,   16,   18)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -4953.6038011999999     
+ Setting normal get_umat_el_normal routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            4
+ Number of sign components in bit representation of determinant:            4
+Setting integer length of determinants as bit-strings to:      6
+Setting integer bit-length of determinants as bit-strings to:     64
+For GUGA calculation set up a integer list of length:      7
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     1
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already implemented
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -4975.3515812340547     
+ <D0|T|D0>=  -35.037260438399997     
+ <D0|U|D0>  -4940.3143207956546     
+  !! NOTE: running a GUGA simulation, so following info makes no sense!
+  but is kept for now to not break remaining code!
+ FDet has     4 alpha electrons, and     5 beta electrons.
+                6  alpha-alpha occupied electron pairs
+               10  beta-beta occupied electron pairs
+               20  alpha-beta occupied electron pairs
+               10 alpha-alpha (vacant) hole pairs
+                6 beta-beta (vacant) hole pairs
+               20 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    3,    5,    8,    9,   11,   14,   16,   18) E =  -4975.351581234
+(    1,    3,    5,    8,    9,   11,   14,   16,   18) E =  -4975.351581234
+(    1,    3,    5,    8,   10,   11,   14,   16,   17) E =  -4975.308579394
+(    1,    3,    5,    8,   10,   11,   14,   16,   17) E =  -4975.308579394
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:     -4975.3515812341
+ No brillouin theorem assumed. Single excitations also used to calculate projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    520 double excitations, and      40 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.928571
+ pSingles set to:       0.071429
+ Connectivity of HF determinant is:          560
+Memory allocated for a maximum particle number per node of:         262144
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      32.000000 Mb / processor
+Spawning vectors allowing for a total of       250000 particles to be spawned in any one iteration per core.
+ Memory requirement    15.258789062500000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            4375
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        3
+Initial reference is: (    1,    3,    5,    8,    9,   11,   14,   16,   18)
+ Setting reasonable defaults for GUGA-PCHB:
+ max-tau zero or > 1e-3. setting it to: 1e-3
+ setting  max_frequency_bound to 1e5
+ 'truncate-spawns' not activated! consider turning it on if too many blooms happen!
+ Allocating GUGA PCHB excitation generator objects
+ Excitation generator requires   9.0524554252624512E-005 GB of memory
+ Generating samplers for PCHB excitation generator
+ Finished GUGA PCHB excitation generator initialization
+
+ ========== Reading in from HDF5 popsfile ==========
+ File name: popsfile.h5
+ Previous calculation
+ Date: 2022-01-29 20:08:01
+ Sequence no.:           1
+ VCS ver: a66d1ea28190ddd46517cd166eacca10d2150098
+ Build config: cmake-Intel--RELEASE
+ Build date: Jan 26 2022
+ Build time: 15:05:47
+
+ Reading in                  8820  determinants
+ Reading in                  2205  determinants on this process ...
+ ... done
+
+ Completed iterations:       126010
+ Resuming calculation after    126.01000598515384       a.u.
+ Initial shift:   -1.3695272657687383       -1.3704572318665669       -1.3639985113341027       -1.3700456795222635     
+ time-step specified in input, which takes precedence!
+ read-in tau optimization data: 
+ time-step:    5.9999999999999998E-002
+ pSingles:   0.18438761776581428     
+ pDoubles:   0.81561238223418575     
+ pTriples:    0.0000000000000000     
+ pParallel:   0.50000000000000000     
+ continuing tau-search!
+ Initial memory (without excitgens + temp arrays) consists of :      52.332275 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+WARNING: NO spawn truncation chosen with keyword: truncate-spawns [float] in input. this might cause bloom problems with histogramming tau-search! BE CAUTIOUS!
+ Setup of the Histogramming tau-search: 
+   Integration cut-off:   0.99999899999999997     
+   Number of bins:       100000
+   Max. ratio:    100000.00000000000     
+   Bin-width:    1.0000000000000000     
+ Using time-step from POPSFILE!
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(    1,    2,    3,    4,    5,    6,    7,    8,    9)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      0.025108
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):      0.167427
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):      0.100456
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:      23.182411 MB per MPI process.
+ RDM memory allocation complete.
+
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+ Highest weighted determinant on run           4 not reference det:           44          45          50          55   8.0879998505512807E-003
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    5,    7,    8,    9,   10,   13,   14,   17,   18)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+## 1. Iter.             2. Proj. E (cyc)                         3. Shift. (cyc)                          9. Tot. Proj. E                          10. Dets occ.        11. Dets spawned     13. Iter. time                          
+##          126010   0.00000000000       -1.36850717212       -4975.35158123                  8820                0   0.00000000000     
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+ Total core population   55142.624749725510     
+Total size of deterministic space:     1000
+ WARNING: Total size of deterministic space is greater than 50% of the initiator space.
+          Reducing the size of the deterministic space is encouraged.
+Size of deterministic space on this processor:      222
+Generating the Hamiltonian in the deterministic space...
+Total time (seconds) taken for Hamiltonian generation:    0.367
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.195
+
+ Updating singles/doubles bias. pSingles =   0.16006884681583475     
+  pDoubles =   0.83993115318416522     
+ Updating time-step. New time-step =    1.0000000474974513E-003  in: update_tau_hist
+ Highest weighted determinant on run           1 not reference det:           62          69          70          94   33.552322908798047     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    3,    6,    7,    9,   12,   14,   16,   17)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -4975.33664039787    
+ Regenerating the stored diagonal HElements for all walkers.
+Recalculating diagonal elements of the core Hamiltonian.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           2 not reference det:           62          69          70          94   7.8701764426961667     
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    7,    8,    9,   10,   11,   13,   14,   17,   18)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           3 not reference det:           62          69          70          94   9.3847382182882093     
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    1,    2,    3,    6,    7,   14,   15,   17,   18)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           4 not reference det:           62          69          70          94   57.362907483853554     
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    1,    3,    5,    6,    8,    9,   12,   13,   16)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+            126020  -1.25935643043       -29.3250919142       -4976.59599683                  8816           104353  0.221301913261     
+ Memory requirement for spawned arrays increased from    34.3323 to    45.7764 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration        11
+ Reset fdv av at iteration           11
+            126030  -1.14511633464       -45.9824976289       -4976.48175673                  8814             7887  0.149799346924     
+            126040  -1.24885237776       -30.3443009620       -4976.58549278                  8808             4917  0.104932689667     
+            126050  -1.18431034904       -10.7140889290       -4976.52095075                  8793             3706  0.891922414303E-001
+            126060  -1.24066906311        1.03143319550       -4976.57730946                  8784             3109  0.719740152359E-001
+WARNING: There is not enough space in the current RDM array to receive all of the communicated RDM elements. We will now try and reallocate this array to be large enough. If there is not sufficient memory then the program may crash.
+Old RDM array had the following size (MB):      0.066971
+Required new RDM array must have the following size (MB):      0.144470
+WARNING: There is not enough space in the current RDM array to add the received RDM elements to the main RDM array. We will now try and reallocate this array to be 1.5 times larger. If there is not sufficient memory then the program may crash.
+Old RDM array had the following size (MB):      0.025108
+Required new RDM array must have the following size (MB):      0.037651
+WARNING: There is not enough space in the current RDM array to add the received RDM elements to the main RDM array. We will now try and reallocate this array to be 1.5 times larger. If there is not sufficient memory then the program may crash.
+Old RDM array had the following size (MB):      0.037651
+Required new RDM array must have the following size (MB):      0.056465
+            126070  -1.29440620906        4.70522523365       -4976.63104661                  8790             3274  0.127240300179     
+ Writing RDMs to file at iteration           60
+ Reset fdv av at iteration           61
+            126080  -1.26535801899        4.07887826710       -4976.60199842                  8795             3502  0.719227790833E-001
+            126090  -1.23737327359        2.21545502665       -4976.57401367                  8799             3771  0.720815598965E-001
+            126100  -1.21534099675       0.660610651731       -4976.55198139                  8799             3723  0.758940398693E-001
+            126110  -1.19055618090      -0.197860673961       -4976.52719658                  8802             3797  0.863848805428E-001
+            126120  -1.08015427127      -0.506978630596       -4976.41679467                  8805             3961  0.133429241180     
+ Writing RDMs to file at iteration          110
+RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    12.076898133382201     
+ Time lost due to load imbalance:   0.56666499213315547     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ writing singles frequency histogram...
+ Done!
+ Number of zero-valued singles excitations:                     0
+ Number of valid singles excitations:    1781870.0000000000     
+ ratio of zero-valued singles excitations:    0.0000000000000000     
+ Number of singles excitations above threshold:            0
+ ratio of singles excitations above threshold:    0.0000000000000000     
+ Number of singles excitations below threshold:          465
+ ratio of singles excitations below threshold:    2.6096179855993984E-004
+ integrated singles H_ij/pgen ratio:    132.00000000000000     
+ for   0.99999899999999997       percent coverage!
+ maximum singles H_ij/pgen ratio:    136.37626617925946     
+ singles maximum/integrated ratio:    1.0331535316610565     
+ minimum singles H_ij/pgen ratio:    7.7482701988151634E-008
+ writing doubles frequency histogram...
+ Done!
+ Number of zero-valued double excitations:                     0
+ Number of valid double excitations:    5254666.0000000000     
+ ratio of zero-valued double excitations:    0.0000000000000000     
+ Number of excitations above threshold:            0
+ ratio of excitations above threshold:    0.0000000000000000     
+ Number of excitations below threshold:           42
+ ratio of excitations below threshold:    7.9928962183324306E-006
+ integrated doubles H_ij/pgen ratio:    688.00000000000000     
+ for   0.99999899999999997       percent coverage!
+ maximum doubles H_ij/pgen ratio:    687.38711885642556     
+ maximum/integrated doubles ratio:   0.99910918438433949     
+ minimum doubles H_ij/pgen ratio:    5.9582751238099630E-004
+
+****RDMs CALCULATED STOCHASTICALLY ****
+
+ == INFORMATION FOR FINAL 1-RDMs =========================================================
+
+ INFORMATION FOR 1-RDM 1:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      4.3962647748028
+
+ INFORMATION FOR 1-RDM 2:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      4.4972199517337
+
+ =========================================================================================
+
+ Writing RDMs to file at iteration          110
+ == INFORMATION FOR FINAL 2-RDMS =========================================================
+
+ 2-RDM ESTIMATES FOR STATE 1:
+ Trace of 2-el-RDM before normalisation: -5.5294122044E+08
+ Trace of 2-el-RDM after normalisation:  3.6000000000E+01
+ Energy contribution from the 1-RDM: -3.5044671787E+01
+ Energy contribution from the 2-RDM:  1.2049499180E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -4.9765989738072E+03
+
+ Hermiticty error estimates:
+          126120       -5.01587048848300831594     (Iteration, MAX ABS ERROR IN HERMITICITY)
+          126120    -1335.34210476438465775573     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR STATE 2:
+ Trace of 2-el-RDM before normalisation: -5.3967811449E+08
+ Trace of 2-el-RDM after normalisation:  3.6000000000E+01
+ Energy contribution from the 1-RDM: -3.5050736823E+01
+ Energy contribution from the 2-RDM:  1.1838865326E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -4.9768156726972E+03
+
+ Hermiticty error estimates:
+          126120       -9.42862424248794184223     (Iteration, MAX ABS ERROR IN HERMITICITY)
+          126120    -1578.78088638945382626844     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ =========================================================================================
+ =============================================================
+ Reference and leading determinants for replica           1
+ =============================================================
+ 
+Current references: 
+(    1,    3,    6,    7,    9,   12,   14,   16,   17)
+101001101001010110
+
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   3     6-7  9  12  14   16-17
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+101001101001010110    0    9   -21.91948      0.06086  Y  -4.97533664E+03       2
+100110100101101001    2    9   -20.96966      0.05822  Y  -4.97525603E+03       0
+110000110011110010    9    1   -18.91745      0.05252  Y  -4.97478804E+03       0
+100000011001101111    2    5    21.42787      0.05949  Y  -4.97528184E+03       2
+001001101111110000    9    3   -19.67459      0.05463  Y  -4.97526300E+03       2
+000011001100111110    9    1    19.65595      0.05458  Y  -4.97468104E+03       2
+000000001111111110    9    1   -18.22200      0.05059  Y  -4.97516507E+03       2
+100110010000101111    9    5   -20.30020      0.05636  Y  -4.97517561E+03       3
+000010011111101100    9    3    20.26828      0.05628  Y  -4.97522775E+03       3
+101100011011010010    2    5   -18.14555      0.05038  Y  -4.97525204E+03       3
+001010101101001101    9    5    15.90887      0.04417  Y  -4.97516572E+03       3
+101010010110100101    2    9   -17.07032      0.04740  Y  -4.97500979E+03       2
+001000111010010111    2    5   -16.89340      0.04690  Y  -4.97503397E+03       2
+001001101100110011    9    3    16.67876      0.04631  Y  -4.97530469E+03       2
+000010111100011011    9    3    16.47515      0.04574  Y  -4.97535435E+03       2
+ 
+ =============================================================
+ Reference and leading determinants for replica           2
+ =============================================================
+ 
+Current references: 
+(    7,    8,    9,   10,   11,   13,   14,   17,   18)
+000000111110110011
+
+Input DEFINEDET line (includes frozen orbs):
+definedet    7-11  13-14  17-18
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+101001011010010110    2    9   -23.78853      0.06389  Y  -4.97552516E+03       2
+000000111110110011    9    1    29.38527      0.07892  Y  -4.97510735E+03       3
+000000101110110111    9    3   -26.72167      0.07177  Y  -4.97507310E+03       3
+001001101100110011    9    3   -19.71336      0.05294  Y  -4.97530469E+03       2
+101001101001010110    0    9    19.48152      0.05232  Y  -4.97533664E+03       2
+001001101111110000    9    3    19.15967      0.05146  Y  -4.97526300E+03       2
+101101100011110000    9    3    19.95328      0.05359  Y  -4.97528119E+03       0
+000000111111110010    9    1   -19.90234      0.05345  Y  -4.97512575E+03       0
+001011011100100110    9    5   -19.52629      0.05244  Y  -4.97483299E+03       1
+001011101110010100    2    5    19.13148      0.05138  Y  -4.97480388E+03       3
+001011101100010110    2    5   -18.55512      0.04983  Y  -4.97476900E+03       3
+100110101001100101    2    9    17.88552      0.04803  Y  -4.97499534E+03       3
+001011011001101100    2    5    17.54102      0.04711  Y  -4.97517903E+03       3
+110010011000011011    2    5    18.82555      0.05056  Y  -4.97533697E+03       2
+001000011011011110    2    5    18.68572      0.05018  Y  -4.97515498E+03       2
+ 
+ =============================================================
+ Reference and leading determinants for replica           3
+ =============================================================
+ 
+Current references: 
+(    1,    2,    3,    6,    7,   14,   15,   17,   18)
+111001100000011011
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-3    6-7  14-15  17-18
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+101000011001100111    1    7   -23.93719      0.06722  Y  -4.97525497E+03       3
+000010111100110011    9    1   -23.40537      0.06573  Y  -4.97521810E+03       3
+111001100000011011    2    5   -24.90489      0.06994  Y  -4.97513511E+03       2
+100000111001110011    9    3   -20.06231      0.05634  Y  -4.97512230E+03       2
+000010011100111011    9    3    21.50871      0.06040  Y  -4.97527015E+03       3
+110010011000001111    9    3   -17.24144      0.04842  Y  -4.97522517E+03       2
+100010011011011100    2    5    20.69586      0.05812  Y  -4.97536324E+03       1
+111110110000000011    9    1   -20.46325      0.05747  Y  -4.97490829E+03       0
+100011111001110000    9    3    20.45327      0.05744  Y  -4.97535112E+03       0
+110010110000110011    9    1   -18.77444      0.05272  Y  -4.97504114E+03       0
+001010011100100111    2    5    18.37036      0.05159  Y  -4.97520863E+03       0
+101001011000001111    9    5    16.95908      0.04763  Y  -4.97525269E+03       0
+111110010011001000    9    3    18.00476      0.05056  Y  -4.97507014E+03       1
+101011010100101001    9    7   -17.17751      0.04824  Y  -4.97509783E+03       2
+001010011111100100    2    5   -17.17021      0.04822  Y  -4.97516145E+03       2
+ 
+ =============================================================
+ Reference and leading determinants for replica           4
+ =============================================================
+ 
+Current references: 
+(    1,    3,    5,    6,    8,    9,   12,   13,   16)
+101011011001100100
+
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   3     5-6    8-9  12-13 16 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+101011011001100100    1    7    34.59889      0.09232  Y  -4.97522959E+03       1
+000010111100110011    9    1    23.17600      0.06184  Y  -4.97521810E+03       3
+101100111011000001    9    3   -23.02069      0.06143  Y  -4.97507646E+03       3
+000010111111110000    9    1   -20.96422      0.05594  Y  -4.97521113E+03       3
+111001100001101001    2    7    20.82536      0.05557  Y  -4.97540997E+03       3
+101110011000010011    2    5    20.27939      0.05411  Y  -4.97540808E+03       3
+100010011000011111    2    5   -20.02844      0.05344  Y  -4.97537749E+03       3
+100010111000010111    2    5   -19.70520      0.05258  Y  -4.97541622E+03       3
+001110011000110011    9    3    20.38060      0.05438  Y  -4.97536797E+03       2
+100000111001110011    9    3    20.14003      0.05374  Y  -4.97512230E+03       2
+101111011000001001    9    5   -19.76782      0.05275  Y  -4.97522290E+03       2
+110011001000101101    9    3    19.67734      0.05250  Y  -4.97484834E+03       2
+101001011011110000    9    5   -23.08621      0.06160  Y  -4.97535878E+03       1
+111010110001100001    9    5    21.67115      0.05782  Y  -4.97501195E+03       1
+100010111011010100    2    5    21.21478      0.05661  Y  -4.97543024E+03       1
+ 
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process    2205.0000000000
+ Min number of determinants/process               2083
+ Max number of determinants/process               2272
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:   23340.9257439575
+     Min number of walkers/process:        21802.48378
+     Max number of walkers/process:        24232.20967
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:       126020
+ No FCIMCStats file found for error analysis
+ Current reference energy                           -4975.336640397872
+ Projected correlation energy                          -0.750153827718
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy       -4976.08679423
+
+
+ Final energy estimate for state 1:     -4976.0867942256    
+ Final energy estimate for state 2:     -4976.4151711060    
+ Final energy estimate for state 3:     -4976.2259466157    
+ Final energy estimate for state 4:     -4975.9567341549    
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     110.4
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datclean_global_det_da  32.0MB
+ SpawnVec          realloc_SpawnedPartDeallocFciMCMemPar   22.9MB
+ SpawnVec2         realloc_SpawnedPartDeallocFciMCMemPar   22.9MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   18.0MB
+ SpawnVec          InitFCIMCPar       realloc_SpawnedPart  17.2MB
+ SpawnVec2         InitFCIMCPar       realloc_SpawnedPart  17.2MB
+ Spawned_Parents   init_rdms          dealloc_global_rdm_  11.4MB
+ Spawned_Parents_Ininit_rdms          dealloc_global_rdm_   1.9MB
+ frequency_bins    init_hist_tau_searcdeallocate_histogra 781.2KB
+ temp_store        calc_determ_hamil_scalc_determ_hamil_s  70.3KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                 110      9.03
+ NECICUBE                                     1      0.83
+ SyncTime                                   225      0.38
+ CommsTime                                  110      0.38
+ SemiStochHamilTime                           1      0.37
+ AnnMainTime                                110      0.35
+ AnnihilTime                                110      0.31
+ SemiStochInitTime                            1      0.20
+ FinaliseRDMsTime                             1      0.17
+ DeathTime                                  110      0.17
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  12.18
+
+ Global wall clock time         12.66
+ ================================================================
+ Calculation ended 02/05/2022 at 13:44:42
+ ================================================================
