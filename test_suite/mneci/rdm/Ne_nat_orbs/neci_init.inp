@@ -10,10 +10,10 @@ calc
     methods
         method vertex fcimc
     endmethods
-    nmcyc 3700
-    totalwalkers 10000
-    tau 0.0001 search
-    startsinglepart
+    nmcyc 5000
+    totalwalkers 5000
+    tau 0.0001
+    startsinglepart 10
     truncinitiator
     addtoinitiator 3
     shiftdamp 0.03
@@ -21,7 +21,7 @@ calc
     load-balance-blocks off
     maxwalkerbloom 3.0
     seed 12823
-    memoryFacSpawn 150
+    memoryFacSpawn 1000
 endcalc
 
 integral
