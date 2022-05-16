@@ -17,7 +17,7 @@ inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [user]
-benchmark = neci-7869696f5.skip-7869696f5.mneci-7869696f5.dneci-7869696f5.kmneci-7869696f5.kneci-7869696f5 neci-a0991f641.skip-a0991f641.mneci-a0991f641.dneci-a0991f641.kmneci-a0991f641.kneci-a0991f641 neci-80be50fc7.skip-80be50fc7.mneci-80be50fc7.dneci-80be50fc7.kmneci-80be50fc7.kneci-80be50fc7 neci-92a28b020.skip-92a28b020.mneci-92a28b020.dneci-92a28b020.kmneci-92a28b020.kneci-92a28b020 neci-b8bccb330.skip-b8bccb330.mneci-b8bccb330.dneci-b8bccb330.kmneci-b8bccb330.kneci-b8bccb330 neci-ba4feb6f3.skip-ba4feb6f3.mneci-ba4feb6f3.dneci-ba4feb6f3.kmneci-ba4feb6f3.kneci-ba4feb6f3 neci-c586d7025.skip-c586d7025.mneci-c586d7025.dneci-c586d7025.kmneci-c586d7025.kneci-c586d7025
+benchmark = neci-60a0bea3a.skip-60a0bea3a.mneci-60a0bea3a.dneci-60a0bea3a.kmneci-60a0bea3a.kneci-60a0bea3a
 default_program = neci
 diff = vimdiff
 
