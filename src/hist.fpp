@@ -342,7 +342,7 @@ contains
                 call extract_sign(recv_dets(:, i), sgn1)
 
                 ! And the generated, connected particle
-                pos = binary_search(CurrentDets(:, 1:TotWalkers), &
+                pos = binary_search_ilut(CurrentDets(:, 1:TotWalkers), &
                                     recv_dets(:, i), NIfD + 1)
                 if (pos > 0) then
                     call extract_sign(CurrentDets(:, pos), sgn2)
@@ -583,7 +583,7 @@ contains
                         end if
 
                         ! --> sminus is an allowed result of applying S-S+
-                        pos = binary_search(ilut_list(:, 1:n_states), &
+                        pos = binary_search_ilut(ilut_list(:, 1:n_states), &
                                             ilut_srch, NIfD + 1)
                         if (pos > 0) then
 

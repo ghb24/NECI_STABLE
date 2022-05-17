@@ -55,7 +55,10 @@ module gasci_pchb
     use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_pc_select_particles, only: PC_WeightedParticles_t
     use exc_gen_class_wrappers, only: UniformSingles_t
+
+    use display_matrices, only: write_matrix
 
     use excitation_generators, only: &
             ExcitationGenerator_t, SingleExcitationGenerator_t, &
@@ -142,6 +145,7 @@ module gasci_pchb
 
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(PC_WeightedParticles_t) :: particle_selector
         class(GASSpec_t), allocatable :: GAS_spec
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
@@ -488,6 +492,7 @@ contains
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
 
         call this%pchb_samplers%finalize()
+        call this%particle_selector%finalize()
         deallocate(this%tgtOrbs)
         deallocate(this%pExch)
 
@@ -526,7 +531,7 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_gen_exc'
 
-        integer :: elecs(2), src(2), sym_prod, ispn, sum_ml, ij
+        integer :: elecs(2), src(2), ij
         integer :: orbs(2), ab
         real(dp) :: pGenHoles
         logical :: invalid
@@ -540,7 +545,7 @@ contains
 #endif
 
         ! first, pick two random elecs
-        call pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pGen)
+        call this%particle_selector%draw(nI, elecs, src, pGen)
         if (src(1) > src(2)) call swap(src(1), src(2))
 
         if (this%use_lookup) then
@@ -671,7 +676,7 @@ contains
         integer :: a, b, ab, abMax
         integer :: ex(2, 2)
         integer(int64) :: memCost
-        real(dp), allocatable :: w(:), pNoExch(:)
+        real(dp), allocatable :: w(:), pNoExch(:), IJ_weights(:, :, :)
         integer, allocatable :: supergroups(:, :)
         integer :: i_sg, i_exch
         ! possible supergroups
@@ -697,6 +702,7 @@ contains
         call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax, 'PCHB')
         ! weights per pair
         allocate(w(abMax))
+        allocate(IJ_weights(nBI * 2, nBI * 2, size(supergroups, 2)), source=0._dp)
         ! initialize the three samplers
         do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
@@ -705,7 +711,7 @@ contains
                 ! allocate: all samplers have the same size
                 do i = 1, nBI
                     ! map i to alpha spin (arbitrary choice)
-                    ex(1, 1) = 2 * i
+                    ex(1, 1) = to_spin_orb(i, is_alpha=.true.)
                     ! as we order a,b, we can assume j <= i
                     do j = 1, i
                         w(:) = 0.0_dp
@@ -724,7 +730,6 @@ contains
 
                                 ! exception: for sampler 3, a!=b
                                 if (i_exch == OPP_SPIN_EXCH .and. a == b &
-                                        .or. ex(2, 1) == ex(2, 2) &
                                         .or. any(ex(1, 1) == ex(2, :)) .or. any(ex(1, 2) == ex(2, :)) &
                                         .or. .not. this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
                                     w(ab) = 0._dp
@@ -734,10 +739,29 @@ contains
                             end do
                         end do
                         ij = fuseIndex(i, j)
-                        write(*, *) '>>>', i_exch, i, j, sum(w)
+
                         call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, w)
                         if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
                         if (i_exch == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
+
+                        associate(I => ex(1, 1), J => ex(1, 2))
+                            IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
+                            IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                        end associate
+                        if (i /= j) then
+                            if (i_exch == SAME_SPIN) then
+                                associate(I => ex(1, 1) - 1, J => ex(1, 2) - 1)
+                                    IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
+                                    IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                                end associate
+                            else
+                                associate(I => ex(1, 1) - 1, J => ex(1, 2) + 1)
+                                    IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
+                                    IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                                end associate
+                            end if
+                        end if
+
                     end do
                 end do
             end do
@@ -747,6 +771,7 @@ contains
             else where
                 this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
             end where
+            call this%particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
         end do
     contains
         elemental function to_spin_orb(orb, is_alpha) result(sorb)

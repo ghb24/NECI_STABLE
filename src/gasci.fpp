@@ -83,9 +83,7 @@ module gasci
         procedure :: max_GAS_size => get_max_GAS_size
         procedure :: recoupling
 
-        generic :: GAS_size => get_GAS_size_i
-        generic :: GAS_size => get_GAS_size_idx
-        generic :: GAS_size => get_GAS_size_all
+        generic :: GAS_size => get_GAS_size_i, get_GAS_size_idx, get_GAS_size_all
         procedure, private :: get_GAS_size_i
         procedure, private :: get_GAS_size_idx
         procedure, private :: get_GAS_size_all
@@ -93,8 +91,7 @@ module gasci
         procedure :: get_iGAS
         procedure :: get_orb_idx
         procedure :: count_per_GAS
-        generic :: is_allowed => is_allowed_single
-        generic :: is_allowed => is_allowed_double
+        generic :: is_allowed => is_allowed_single, is_allowed_double
         procedure, private :: is_allowed_single
         procedure, private :: is_allowed_double
     end type
@@ -158,14 +155,10 @@ module gasci
         procedure :: write_to => Local_write_to
         procedure :: get_possible_spaces => Local_get_possible_spaces
 
-        generic :: get_min => get_min_i
-        generic :: get_min => get_min_all
-        procedure, private :: get_min_i
-        procedure, private :: get_min_all
-        generic :: get_max => get_max_i
-        generic :: get_max => get_max_all
-        procedure, private :: get_max_i
-        procedure, private :: get_max_all
+        generic :: get_min => get_min_i, get_min_all
+        procedure, private :: get_min_i, get_min_all
+        generic :: get_max => get_max_i, get_max_all
+        procedure, private :: get_max_i, get_max_all
     end type
 
     interface LocalGASSpec_t
@@ -185,12 +178,10 @@ module gasci
         procedure :: write_to => Cumul_write_to
         procedure :: get_possible_spaces => Cumul_get_possible_spaces
 
-        generic :: get_cmin => get_cmin_i
-        generic :: get_cmin => get_cmin_all
+        generic :: get_cmin => get_cmin_i, get_cmin_all
         procedure, private :: get_cmin_i
         procedure, private :: get_cmin_all
-        generic :: get_cmax => get_cmax_i
-        generic :: get_cmax => get_cmax_all
+        generic :: get_cmax => get_cmax_i, get_cmax_all
         procedure, private :: get_cmax_i
         procedure, private :: get_cmax_all
     end type

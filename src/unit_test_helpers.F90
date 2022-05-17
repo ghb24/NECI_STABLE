@@ -17,7 +17,7 @@ module unit_test_helpers
 
     use fcimcdata, only: excit_gen_store_type, pSingles, pDoubles
 
-    use util_mod, only: binary_search, choose_i64, operator(.div.), operator(.isclose.), near_zero
+    use util_mod, only: binary_search_ilut, choose_i64, operator(.div.), operator(.isclose.), near_zero
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 
@@ -363,7 +363,7 @@ contains
             call sort(ilut_list, ilut_lt, ilut_gt)
         end if
 
-        pos = binary_search(ilut_list, tgt_ilut, nifd + 1)
+        pos = binary_search_ilut(ilut_list, tgt_ilut, nifd + 1)
 
         if (pos > 0) then
             is_in_list_ilut = .true.
@@ -542,7 +542,7 @@ contains
 
                 if (nJ(1) == 0) cycle
                 call EncodeBitDet(nJ, tgt_ilut)
-                pos = binary_search(det_list, tgt_ilut, nifd + 1)
+                pos = binary_search_ilut(det_list, tgt_ilut, nifd + 1)
                 if (pos < 0) then
                     write(i_unit_, *) "nJ: ", nJ
                     write(i_unit_, *) "ilutJ:", tgt_ilut
@@ -852,7 +852,7 @@ contains
                 ! now i have to check if those states are already in the list
                 do j = 1, n_excits
 
-                    pos = binary_search(temp_list_ilut(:, 1:(tmp_n_states + cnt)), &
+                    pos = binary_search_ilut(temp_list_ilut(:, 1:(tmp_n_states + cnt)), &
                                         excit_list(:, j), nifd + 1)
 
                     ! if not yet found:

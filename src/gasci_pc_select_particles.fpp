@@ -24,53 +24,25 @@
 !
 ! The details of calculating i_sg can be found in gasci_supergroup_index.f90
 
-module gasci_pchb
-    use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, operator(.div.), operator(.implies.), EnumBase_t
-    use dSFMT_interface, only: genrand_real2_dSFMT
-    use get_excit, only: make_double, exciteIlut
-    use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
-    use sltcnd_mod, only: sltcnd_excit
-    use procedure_pointers, only: generate_single_excit_t
-    use aliasSampling, only: AliasSampler_2D_t
-    use UMatCache, only: gtID, numBasisIndices
-    use FciMCData, only: pSingles, excit_gen_store_type, pParallel, projEDet
-    use excit_gens_int_weighted, only: pick_biased_elecs
-    use shared_ragged_array, only: shared_ragged_array_int32_t
-    use growing_buffers, only: buffer_int32_1D_t
-    use parallel_neci, only: iProcIndex_intra
-    use get_excit, only: make_single
-    use growing_buffers, only: buffer_int_2D_t
-    use timing_neci, only: timer, set_timer, halt_timer
-
-    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
-    use bit_rep_data, only: NIfTot, nIfD
-    use bit_reps, only: decode_bit_det
-    use sort_mod, only: sort
-    use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
-
+module gasci_pc_select_particles
+    use constants, only: dp, int64, stdout
+    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
+    use SystemData, only: nEl
+    use sets_mod, only: is_set, operator(.in.)
+    use util_mod, only: stop_all
+    use UMatCache, only: numBasisIndices
     use gasci, only: GASSpec_t
-    use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
-    use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use exc_gen_class_wrappers, only: UniformSingles_t
-
-    use excitation_generators, only: &
-            ExcitationGenerator_t, SingleExcitationGenerator_t, &
-            DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, gen_all_excits_sd
-    implicit none
-
-    private
-    public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_doubles_PCHB_ExcGenerator_t, &
-        possible_GAS_singles, GAS_PCHB_singles_generator
+    use sets_mod, only: empty_int
+    better_implicit_none
+    public :: PC_WeightedParticles_t
 
     !> The precomputed GAS uniform excitation generator
     type :: PC_WeightedParticles_t
         private
+        type(AliasSampler_1D_t) :: I_sampler
         !> The shape is (number_of_spin_orbs, n_supergroup)
-        type(AliasSampler_2D_t) :: samplers
+        type(AliasSampler_2D_t) :: J_sampler
 
         class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
@@ -90,12 +62,13 @@ module gasci_pchb
     end type
 contains
 
-    subroutine init(this, GAS_spec)
-        class(PC_weighted_ExcGenerator_t), intent(in) :: this
+    subroutine init(this, GAS_spec, weights, use_lookup, create_lookup)
+        class(PC_WeightedParticles_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
+        real(dp), intent(in) :: weights(:, :, :)
+        logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = 'init'
 
-        integer(int64) :: memCost
         real(dp), allocatable :: w(:)
         integer, allocatable :: supergroups(:, :)
         integer :: nBI
@@ -110,61 +83,88 @@ contains
             if (associated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
-                write(stdout, *) 'PC weighted singles is creating and managing the supergroup lookup'
+                write(stdout, *) 'PC particles is creating and managing the supergroup lookup'
                 lookup_supergroup_indexer => this%indexer
             end if
         end if
-        if (this%use_lookup) write(stdout, *) 'PC weighted singles is using the supergroup lookup'
+        if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
 
-        ASSERT(this%GAS_spec%n_spin_orbs() == numBasisIndices(this%GAS_spec%n_spin_orbs()))
         nBI = this%GAS_spec%n_spin_orbs()
+        @:ASSERT(nBI == size(weights, 1) .and. nBI == size(weights, 2))
 
         supergroups = this%indexer%get_supergroups()
-        !> n_supergroup * number_of_spin_orbs * (bytes_per_sampler)
-        memCost = size(supergroups, 2, kind=int64) &
-                    * nBI
-                    * (int(abMax, int64) * 3_int64 * 8_int64)
+        @:ASSERT(size(supergroups, 2) == size(weights, 3))
 
-
-        write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
-        write(stdout, *) "Generating samplers for weighted singles"
-        write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
-        call this%pchb_samplers%shared_alloc([nBI, size(supergroups, 2)], nBI, 'PC_singles')
+        call this%I_sampler%shared_alloc(size(supergroups, 2), nBI, 'PC_particles_i')
+        call this%J_sampler%shared_alloc([nBI, size(supergroups, 2)], nBI, 'PC_particles_j')
         allocate(w(nBI))
 
-        do i_sg = 1, size(supergroups, 2)
-            do i = 1, nBI
-                ex(1, 1) = i
-                w(:) = 0.0_dp
-                do j = 1, nBI
-                    ex(1, 2) = j
-                    if (i == j) cycle
-                    do a = 1, nBI
-                        ex(2, 2) = a
-                        do b = 1, nBI
-                            ! ex(2, :) is in ascending order
-                            ex(2, 1) = b
-                            if (a /= b &
-                                    .and. all(a /= ex(1, :)) &
-                                    .and. all(b /= ex(1, :)) &
-                                    .and. this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
-                                w(j) = w(j) + abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
-                            end if
-                        end do
-                    end do
+        block
+            integer :: I
+            do i_sg = 1, size(supergroups, 2)
+                do I = 1, nBI
+                    call this%J_sampler%setup_entry(I, i_sg, weights(:, I, i_sg))
                 end do
-                call this%pchb_samplers%setup_entry(i, i_sg, w)
+                call this%I_sampler%setup_entry(i_sg, sum(weights(:, :, i_sg), dim=1))
             end do
-        end do
-
+        end block
     end subroutine
+
+    subroutine draw(this, nI, elecs, srcs, p)
+        class(PC_WeightedParticles_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(out) :: srcs(2), elecs(2)
+        real(dp), intent(out) :: p
+        character(*), parameter :: this_routine = 'draw'
+
+        integer :: i_sg
+        real(dp) :: renorm_I, p_I, renorm_J, p_J
+
+        ! TODO(@Oskar): Optimize
+        i_sg = this%indexer%idx_nI(nI)
+
+        ! TODO(@Oskar): Optimize
+        renorm_I = sum(this%i_sampler%get_prob(i_sg, nI))
+        call this%i_sampler%constrained_sample(i_sg, nI, renorm_I, elecs(1), srcs(1), p_I)
+        @:ASSERT(srcs(1) .in. nI)
+
+        ! TODO(@Oskar): Optimize
+        renorm_J = sum(abs(this%J_sampler%get_prob(srcs(1), i_sg, nI)))
+
+        ! Note that p(I | I) is automatically zero and cannot be drawn
+        call this%j_sampler%constrained_sample(srcs(1), i_sg, nI, renorm_J, elecs(2), srcs(2), p_J)
+        @:ASSERT(srcs(2) .in. nI)
+        @:ASSERT(srcs(1) /= srcs(2))
+        @:ASSERT(elecs(1) /= elecs(2))
+        @:ASSERT(all(nI(elecs) == srcs))
+
+        p = p_I * p_J
+    end subroutine
+
+    pure function get_pgen(this, nI, I, J) result(p)
+        class(PC_WeightedParticles_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(in) :: I, J
+        real(dp) :: p
+
+        integer :: i_sg
+        real(dp) :: renorm_I, p_I, renorm_J, p_J
+
+        renorm_I = sum(this%I_sampler%get_prob(i_sg, nI))
+        p_I = this%i_sampler%constrained_getProb(i_sg, nI, renorm_I, I)
+
+        ! TODO(@Oskar): Optimize
+        renorm_J = sum(this%J_sampler%get_prob(I, i_sg, nI))
+        p_J = this%j_sampler%constrained_getProb(I, i_sg, nI, renorm_J, J)
+
+        p = p_I * p_J
+    end function
 
 
     subroutine finalize(this)
-        class(PC_weighted_ExcGenerator_t), intent(inout) :: this
+        class(PC_WeightedParticles_t), intent(inout) :: this
 
-        call this%pchb_samplers%finalize()
+        call this%I_sampler%finalize()
         deallocate(this%indexer)
         if (this%create_lookup) then
             nullify(lookup_supergroup_indexer)

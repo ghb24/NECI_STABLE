@@ -1173,7 +1173,7 @@ contains
             Tot_No_Unique_Dets = 0
             do i=1,Det
 
-                posn=binary_search(CurrentDets(:,1:TotWalkers), FCIDETS(:,i), NifD+1)
+                posn=binary_search_ilut(CurrentDets(:,1:TotWalkers), FCIDETS(:,i), NifD+1)
 
                 if (posn.lt.0) then
                     FinalPop = 0

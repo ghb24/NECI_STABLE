@@ -110,7 +110,7 @@ module soft_exit
 
     use SystemData, only: nel, nBasis, tHPHF
     use bit_reps, only: NIfTot
-    use util_mod, only: binary_search, get_free_unit
+    use util_mod, only: binary_search_ilut, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
                          SumENum, SumNoatHF, tTimeExit, &
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
@@ -717,7 +717,7 @@ contains
 
                 SumNoatHF = nint(real(SumNoatHF,dp) * hfScaleFactor,int64)
                 if (iNodeIndex == DetermineDetNode(nel,HFDet,0).and. bNodeRoot) then
-                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                    pos = binary_search_ilut (CurrentDets(:,1:TotWalkers), &
                                          iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign

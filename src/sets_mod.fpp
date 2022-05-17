@@ -6,14 +6,16 @@
 
 module sets_mod
     use constants, only: int32, int64, sp, dp
-    use util_mod, only: binary_search_first_ge, stop_all
+    use util_mod, only: binary_search_int, stop_all
     use sort_mod, only: sort
     use growing_buffers, only: buffer_int32_1D_t, buffer_int64_1D_t
     implicit none
     private
     public :: subset, set, is_set, is_sorted, special_union_complement, disjoint, &
               operator(.cap.), operator(.complement.), operator(.U.), &
-              operator(.in.)
+              operator(.in.), empty_int
+
+    integer :: empty_int(0) = [integer::]
 
     !> Check if V is sorted.
     interface is_sorted
@@ -503,7 +505,7 @@ contains
         character(*), parameter :: this_routine = 'test_in_${T}$_${kind}$'
         logical :: res
         @:pure_ASSERT(is_sorted(set))
-        res = binary_search_first_ge(set, element) /= -1
+        res = binary_search_int(set, element) /= -1
     end function
     #:endfor
     #:endfor
