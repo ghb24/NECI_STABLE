@@ -269,7 +269,7 @@ contains
         bValid = .true.
         if (present(err_msg)) err_msg = ''
 
-        if (nI(1)==0 .or. nJ(1)==0) then
+        if (nI(1) == 0 .or. nJ(1) == 0) then
             bValid = .false.
             if (present(err_msg)) err_msg = 'nI or nJ is zero.'
             return
