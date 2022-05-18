@@ -147,6 +147,11 @@ tolerance = (2e-9, None, 'final_energy_1')
 program = mneci
 tolerance = (2e-8, None, 'overlap_sum')
 
+
+[mneci/kpfciqmc/hub_10_ft/]
+program = mneci
+tolerance = (2e-8, None, 'overlap_sum')
+
 [mneci/ftlm/hub_6/]
 program = mneci
 tolerance = (2e-9, None, 'hamil_sum')
@@ -267,7 +272,7 @@ program = mneci
 nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
-tolerance = (1e-8, None, 'sum_error_rdm_1'), (1e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_1'), (1e-8, None, 'max_error_rdm_2')
+tolerance = (2e-8, None, 'sum_error_rdm_1'), (2e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_1'), (1e-8, None, 'max_error_rdm_2')
 
 
 [hdf5/mneci/guga/C2_aas_bloom_scale/*/]
