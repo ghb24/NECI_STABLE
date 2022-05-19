@@ -29,6 +29,7 @@ module gasci
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         user_input_GAS_exc_gen, get_name, LocalGASSpec_t, CumulGASSpec_t
 
+
     type, extends(EnumBase_t) :: GAS_exc_gen_t
     end type
 
