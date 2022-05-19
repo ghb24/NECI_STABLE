@@ -75,15 +75,19 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-
 [neci/general-lattice-model/guga/]
 program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-
 [neci/parallel/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[neci/uhf/*/]
 program = neci
 nprocs = 2
 min_nprocs = 2
