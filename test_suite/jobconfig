@@ -75,15 +75,19 @@ nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
 
-
 [neci/general-lattice-model/guga/]
 program = neci
 nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
 
-
 [neci/parallel/*/]
+program = neci
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
+
+[neci/uhf/*/]
 program = neci
 nprocs = 4
 min_nprocs = 4

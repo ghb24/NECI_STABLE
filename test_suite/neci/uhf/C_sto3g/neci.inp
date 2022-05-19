@@ -1,0 +1,45 @@
+title
+
+    system read
+        electrons 4
+        # at the moment, only the uniform excitgen works with UHF
+        uhf
+        molpromimic
+    endsys
+
+    calc
+        # since this is a test, need it to be reproducible:
+        load-balance-blocks off
+        seed 9
+
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 1.e3
+        # eq-cyc 15000
+        nmcyc 15000
+        definedet 1-2 3 5
+
+        startsinglepart 100
+        tau 0.01 search
+
+        shiftdamp 0.1
+        stepsshift 10
+
+        truncinitiator
+        addtoinitiator 3
+
+        semi-stochastic 2
+        allrealcoeff
+        pops-core 2
+
+        MEMORYFACSPAWN 50
+    endcalc
+
+  logging
+    binarypops
+    highlypopwrite 10000
+    printorboccs
+  endlog
+
+end
