@@ -266,7 +266,6 @@ nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
 
-
 [hdf5/mneci/guga/multiple_rdms/multiple_rdms/]
 program = mneci
 nprocs = 4
