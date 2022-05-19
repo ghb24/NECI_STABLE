@@ -6,10 +6,10 @@
 #include <stdbool.h>
 
 void toggle_lprof() {
-    static bool profiling = false;
-    if (getenv("LPROF_UG_ON") != NULL) {
-        kill(getppid(), SIGTSTP);
-        printf("MAQAO profiling switched %s\n", profiling ? "OFF" : "ON");
-        profiling = ! profiling;
-    }
+    /* static bool profiling = false; */
+    /* if (getenv("LPROF_UG_ON") != NULL) { */
+    /*     kill(getppid(), SIGTSTP); */
+    /*     printf("MAQAO profiling switched %s\n", profiling ? "OFF" : "ON"); */
+    /*     profiling = ! profiling; */
+    /* } */
 }
