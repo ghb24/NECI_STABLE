@@ -89,9 +89,9 @@ max_nprocs = 4
 
 [neci/uhf/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/gasci/*/]
 program = neci
