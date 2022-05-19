@@ -23,12 +23,17 @@ module util_mod
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
-#ifdef IFORT_
+#if defined(IFORT_) || defined(INTELLLVM_)
     use ifport, only: etime
 #endif
     implicit none
 
+#if defined(IFORT_) || defined(INTELLLVM_)
+    public
+#else
     private
+#endif
+
     public :: get_nan, isnan_neci, factrl, choose_i64, NECI_icopy, operator(.implies.), &
         abs_l1, abs_sign, near_zero, operator(.isclose.), operator(.div.), &
         stochastic_round, stochastic_round_r
@@ -580,14 +585,14 @@ contains
                         if (signal_overflow) then
                             res = -1
                         else
-#ifdef IFORT_
+#if defined(IFORT_) || defined(INTELLLVM_)
                             error stop 'Binomial coefficient exceeds range of int64.'
 #else
                             call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
 #endif
                         end if
                     else
-#ifdef IFORT_
+#if defined(IFORT_) || defined(INTELLLVM_)
                             error stop 'Binomial coefficient exceeds range of int64.'
 #else
                             call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
@@ -640,14 +645,14 @@ contains
                         if (signal_overflow) then
                             res = -1
                         else
-#ifdef IFORT_
+#if defined(IFORT_) || defined(INTELLLVM_)
                             error stop 'Binomial coefficient exceeds range of int128.'
 #else
                             call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
 #endif
                         end if
                     else
-#ifdef IFORT_
+#if defined(IFORT_) || defined(INTELLLVM_)
                             error stop 'Binomial coefficient exceeds range of int128.'
 #else
                             call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
@@ -1216,7 +1221,7 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-#ifndef IFORT_
+#if !defined(IFORT_) && !defined(INTELLLVM_)
         use mpi
 #endif
         ! Return elapsed time for timing and calculation ending purposes.
@@ -1224,9 +1229,9 @@ contains
         real(dp), intent(out) :: time(2)
         real(dp) :: ret
 
-#ifdef IFORT_
+#if defined(IFORT_) || defined(INTELLLVM_)
         ! intels etime takes a real(4)
-        real(4) :: ioTime(2)
+        real(real32) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules.
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
         ret = real(etime(ioTime), dp)
