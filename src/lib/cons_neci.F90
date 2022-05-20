@@ -36,7 +36,7 @@ module constants
     integer, parameter :: sizeof_int32 = sizeof(0_int32)
     integer, parameter :: sizeof_int64 = sizeof(0_int64)
     integer, parameter :: sizeof_dp = sizeof(0._dp)
-#ifdef IFORT_
+#if defined(IFORT_) || defined(INTELLLVM_)
     integer, parameter :: sizeof_complexdp = 2 * sizeof_dp
 #else
     integer, parameter :: sizeof_complexdp = sizeof(complex(0._dp, 0._dp))
