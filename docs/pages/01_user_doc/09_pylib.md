@@ -41,10 +41,6 @@ with `import neci_guga` and provides the following functionality:
     Returns the matrix element between `D_i` and `D_j`, passed as an array
     of the size of the number of electrons in the DefineDet format.
 
--   `neci_guga.diag_matel(D)`
-    Returns the diagonal matrix element of a CSF `D`, passed as an array
-    of the size of the number of electrons in the DefineDet format.
-
 -   `neci_guga.run_neci(perm)`
     Reads a neci input file `neci.inp` and an FCIDUMP file in the current
     directory, using an orbital permutation `perm` to re-order the orbitals

@@ -18,19 +18,6 @@ subroutine clear_guga(err)
     err = 0
 end subroutine clear_guga
 
-!> Python interface for getting a guga matrix element (diagonal)
-subroutine diag_matel(nel, nI, matel)
-    use guga_plugin, only: guga_matel
-    integer, intent(in) :: nel, nI(nel)
-    double precision, intent(out) :: matel
-    !f2py intent(in) :: nI
-    !f2py intent(hide), depend(nI) :: nel = shape(nI, dim = 0)
-    !f2py intent(out) :: matel
-
-    matel = guga_matel(nI,nI)
-end subroutine diag_matel
-
-
 !> Python interface for getting a guga matrix element
 subroutine csf_matel(nel, nI, nJ, matel)
     use guga_plugin, only: guga_matel
