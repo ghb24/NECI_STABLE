@@ -36,7 +36,7 @@ subroutine csf_matel(nel, nI, nJ, matel)
     use guga_plugin, only: guga_matel
     integer, intent(in) :: nel, nI(nel), nJ(size(nI))
     double precision, intent(out) :: matel
-    !f2py intent(in) :: nI
+    !f2py intent(in) :: nI, nJ
     !f2py intent(hide), depend(nI) :: nel = shape(nI, dim = 0)
     !f2py intent(out) :: matel
 
