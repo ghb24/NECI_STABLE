@@ -32,7 +32,6 @@ module gasci
     type, extends(EnumBase_t) :: GAS_exc_gen_t
     end type
 
-
     type :: possible_GAS_exc_gen_t
         type(GAS_exc_gen_t) :: &
             DISCONNECTED = GAS_exc_gen_t(1), &
