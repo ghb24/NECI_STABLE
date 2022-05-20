@@ -1231,7 +1231,7 @@ contains
 
 #if defined(IFORT_) || defined(INTELLLVM_)
         ! intels etime takes a real(4)
-        real(real32) :: ioTime(2)
+        real(sp) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules.
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
         ret = real(etime(ioTime), dp)
