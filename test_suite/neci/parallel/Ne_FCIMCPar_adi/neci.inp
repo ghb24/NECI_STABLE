@@ -11,9 +11,10 @@ method vertex fcimc
 endmethods
 seed -7
 nmcyc 4000
-totalwalkers 20000
-tau 0.005
-startsinglepart
+totalwalkers 5000
+diagShift 0.0
+tau 0.005 search
+startsinglepart 10
 truncinitiator
 addtoinitiator 3
 superinitiators
@@ -25,6 +26,8 @@ stepsshift 25
 jump-shift
 load-balance-blocks off
 maxwalkerbloom 3.0
+
+memoryfacspawn 50
 endcalc
 
 integral

@@ -711,7 +711,9 @@ contains
             call reorder_orb_label(L)
 
             ! Remove integrals that are too small
-            if (abs(Z) < UMatEps) then
+            ! NOTE we need I > 0 in case we have a UHF-type FCIDUMP, as the spin
+            ! delimiter has Z == 0
+            if (abs(Z) < UMatEps .and. I > 0) then
                 if (ZeroedInt < 100) then
                     write(stdout, '(a,2i4,a,2i4,a)', advance='no') &
                         'Ignoring integral (chem. notation) (', i, j, '|', k, &

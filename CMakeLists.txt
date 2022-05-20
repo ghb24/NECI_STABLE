@@ -128,6 +128,7 @@ list(APPEND NECI_GLOBAL_DEFINES
 
     # Identify the compiler to the code
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},Intel>:IFORT_>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},IntelLLVM>:INTELLLVM_>
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},GNU>:GFORTRAN_>
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},PGI>:PGI_>
 )
