@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import sys
 
 #
@@ -86,7 +87,7 @@ if __name__ == "__main__":
 		pops = sys.argv[1]
 	else:
 		pops = 'POPSFILE'
-	print 'Using POPS file: %s' % pops
+	print('Using POPS file: %s' % pops)
 
 	# Parameters
 	nfind = 20
@@ -149,15 +150,15 @@ if __name__ == "__main__":
 
 		# Output the gathered information
 		# (These should all be defined by now...)
-		print 'nel: %d' % nel
-		print 'bits', bits
-		print 'nwalkers: %d' % nw
-		print 'NIfD: %d' % nifd
-		print 'NIfY: %d' % nify
-		print 'NIfSgn: %d' % nifsgn
-		print 'NIfFlag: %d' % nifflg
-		print 'NIfTot: %d' % niftot
-		print '----------------'
+		print('nel: %d' % nel)
+		print('bits', bits)
+		print('nwalkers: %d' % nw)
+		print('NIfD: %d' % nifd)
+		print('NIfY: %d' % nify)
+		print('NIfSgn: %d' % nifsgn)
+		print('NIfFlag: %d' % nifflg)
+		print('NIfTot: %d' % niftot)
+		print('----------------')
 
 		# unsigned value of -1:
 		minus1 = 0xFFFFFFFF if bits == 32 else 0xFFFFFFFFFFFFFFFF
@@ -167,7 +168,7 @@ if __name__ == "__main__":
 			nline += 1
 
 			if nw_found % update_iters == 0:
-				print '%d/%d: %d' % (nw_found, nw, nlargest)
+				print('%d/%d: %d' % (nw_found, nw, nlargest))
 
 			# Is there an incomplete line at the end of the POPSFILE
 			try:
@@ -183,24 +184,24 @@ if __name__ == "__main__":
 					wtmp = map(lambda x: x if x >= 0 else minus1+x+1, 
 					           tsplit[0:nifd+1])
 					nel = count_bits(wtmp)
-					print 'UPDATED'
-					print 'nel: %d' % nel
-					print 'bits', bits
-					print 'nwalkers: %d' % nw
-					print 'NIfD: %d' % nifd
-					print 'NIfY: %d' % nify
-					print 'NIfSgn: %d' % nifsgn
-					print 'NIfFlag: %d' % nifflg
-					print 'NIfTot: %d' % niftot
-					print '----------------'
+					print('UPDATED')
+					print('nel: %d' % nel)
+					print('bits', bits)
+					print('nwalkers: %d' % nw)
+					print('NIfD: %d' % nifd)
+					print('NIfY: %d' % nify)
+					print('NIfSgn: %d' % nifsgn)
+					print('NIfFlag: %d' % nifflg)
+					print('NIfTot: %d' % niftot)
+					print('----------------')
 
 			except:
-				print 'Invalid walker found in popsfile, line %d' % nline
+				print('Invalid walker found in popsfile, line %d' % nline)
 				sys.exit('bad')
 				continue
 
 			if len(tsplit) < niftot + 1:
-				print 'Incomplete walker found in popsfile, line %d' % nline
+				print('Incomplete walker found in popsfile, line %d' % nline)
 				continue
 
 			# Ensure we use unsigned integers for these.
@@ -216,14 +217,14 @@ if __name__ == "__main__":
 			if nop >= nopen_req:
 				largest.insert(w, abs(sgn))
 
-		print '----------------'
-		print 'nlargest', nlargest
-		print 'Largest items'
+		print('----------------')
+		print('nlargest', nlargest)
+		print('Largest items')
 		for pair in largest.sorted_list():
-			print pair[0],
-			print '%d - ' % pair[1],
-			print ilut_to_ni(pair[0], bits)
+			print(pair[0], end=' ')
+			print('%d - ' % pair[1], end=' ')
+			print(ilut_to_ni(pair[0], bits))
 
-		print 'Cleaning up'
+		print('Cleaning up')
 		f.close()
 

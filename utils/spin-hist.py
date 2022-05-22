@@ -14,6 +14,7 @@ Options:
 	--csf-base, -C      Base filename for csf plots. default: csf-hist-
 '''
 
+from __future__ import print_function
 import pylab
 import getopt
 import os, re, sys
@@ -24,7 +25,7 @@ from math import *
 
 def usage ():
 	'''Print the usage statement'''
-	print __doc__
+	print(__doc__)
 
 
 if __name__ == '__main__':
@@ -39,7 +40,7 @@ if __name__ == '__main__':
 	try:
 		opts, unused = getopt.getopt(sys.argv[1:], "b:i:cC:", ["hist-base=", "iter-inc=", "plot-csfs", "csf-base="])
 	except getopt.GetopetError, err:
-		print str(err)
+		print(str(err))
 		usage()
 		sys.exit(2)
 
@@ -56,7 +57,7 @@ if __name__ == '__main__':
 		elif o in ("-C", "--csf-base"):
 			csf_base = a
 		else:
-			print 'Unhandled option: %s' % o
+			print('Unhandled option: %s' % o)
 			usage()
 			sys.exit(2)
 
@@ -73,7 +74,7 @@ if __name__ == '__main__':
 		# Get the maximum count that we need
 		max_val = Popen(command, stdout=PIPE).communicate()[0].strip()
 		max_val = int(ceil(float(max_val)))
-		print 'Absolute max value: %d' % max_val
+		print('Absolute max value: %d' % max_val)
 
 
 	mult = 1
@@ -86,7 +87,7 @@ if __name__ == '__main__':
 		if not os.path.isfile(fn):
 			break
 
-		print 'Iter: %d (max: %f)' % (mult * fn_inc, cum_max)
+		print('Iter: %d (max: %f)' % (mult * fn_inc, cum_max))
 		with open(fn, 'r') as f:
 
 			# Extract histogram data

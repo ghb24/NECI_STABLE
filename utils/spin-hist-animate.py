@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import sys, os
 from subprocess import *
 
@@ -22,7 +23,7 @@ if __name__ == '__main__':
 		iter_no += fn_inc
 		fn = "%s%d.png" % (fn_base, iter_no)
 
-	print "Collating %d png files" % len(file_list)
+	print("Collating %d png files" % len(file_list))
 
 	Popen (["convert"] + file_list + [out_file]).communicate()
 	

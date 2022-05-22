@@ -6,6 +6,7 @@ Count the number of determinants actually found in a POPSFILEBIN
 --> Requires the POPSFILEHEAD to process things correctly
 '''
 
+from __future__ import print_function
 import struct
 import sys
 import re
@@ -13,7 +14,7 @@ import re
 
 def usage():
     '''Print the usage statement'''
-    print __doc__
+    print(__doc__)
 
 
 
@@ -185,7 +186,7 @@ def process_header ():
 
                     # We are only really interested in popsfile version 4.
                     if txt != "# POPSFILE VERSION 4":
-                        print "Invalid popsfile header"
+                        print("Invalid popsfile header")
 
                 else:
 
@@ -195,33 +196,33 @@ def process_header ():
                         if split[pos] == 'Pop64Bit':
                             pos += 1
                             bits = 64 if split[pos] == "T" else 32
-                            print "Using %d-bit POPSFILE" % bits
+                            print("Using %d-bit POPSFILE" % bits)
 
                         elif split[pos] == "PopNIfTot":
                             pos += 1
                             niftot = int(split[pos])
-                            print "%d integers per determinant" % (niftot + 1)
+                            print("%d integers per determinant" % (niftot + 1))
 
                         elif split[pos] == "PopNIfD":
                             pos += 1
                             nifd = int(split[pos])
-                            print "%d integers in spin-orb representation" % \
-                                                (nifd + 1)
+                            print("%d integers in spin-orb representation" %
+                                                (nifd + 1))
 
                         elif split[pos] == "PopNIfFlag":
                             pos += 1
                             nifflag = int(split[pos])
-                            print "%d integers in flags" % nifflag
+                            print("%d integers in flags" % nifflag)
 
                         elif split[pos] == "PopNIfY":
                             pos += 1
                             nify = int(split[pos])
-                            print "%d integers in Yamanouchi symbol" % nify
+                            print("%d integers in Yamanouchi symbol" % nify)
 
                         elif split[pos] == "PopNIfSgn":
                             pos += 1
                             nifsgn = int(split[pos])
-                            print "%d integers in sign representation" % nifsgn
+                            print("%d integers in sign representation" % nifsgn)
 
                         elif split[pos] == "PopRandomHash":
                             pos += 1
@@ -231,7 +232,7 @@ def process_header ():
 
 
                         elif split[pos] == "END":
-                            print "End of header"
+                            print("End of header")
                             break
 
                         # Move on to the next entry
@@ -239,13 +240,13 @@ def process_header ():
 
     # If the popsfile header is not found, then there isn't much we can do.
     except IOError:
-        print "POPSFILEHEAD not found"
-        print ""
+        print("POPSFILEHEAD not found")
+        print("")
         usage ()
         sys.exit(-1)
 
     if niftot != nifd + nify + nifsgn + nifflag:
-        print "Sizes in header file don't match"
+        print("Sizes in header file don't match")
         sys.exit(-1)
 
     return (bits, niftot, nifd, nify, nifsgn, nifflag, random_hash)
@@ -266,14 +267,14 @@ def count_pops ():
 
     # Where is the sign information kept?
     noffsgn = nifd + nify + 1
-    print "Sign offset: %d" % noffsgn
+    print("Sign offset: %d" % noffsgn)
 
     # Loop through, reading 
     try:
         with fort_readwrite(open("POPSFILEBIN", 'rb')) as f:
 
-            print "Opened POPSFILEBIN"
-            print "Read length: %d" % readlen
+            print("Opened POPSFILEBIN")
+            print("Read length: %d" % readlen)
 
             unpack_str = (
                 "@" + 
@@ -283,7 +284,7 @@ def count_pops ():
                 (nifflag * "Q" if bits == 64 else "L")
             )
 
-            print "Unpack str |%s|" % unpack_str
+            print("Unpack str |%s|" % unpack_str)
 
             # Use a nifty sentinel value for iter, to read until there
             # is no more data!
@@ -293,7 +294,7 @@ def count_pops ():
 
                 # Check that we have the right data length
                 if len(data) != readlen:
-                    print "Mismatch in data lengths"
+                    print("Mismatch in data lengths")
                     sys.exit(-1)
 
                 # Decode the determinant
@@ -307,17 +308,17 @@ def count_pops ():
                     occ_sites += 1
 
                 if totwalkers % 10000 == 0:
-                    print totwalkers
+                    print(totwalkers)
 
-            print "Total number of determinants: %d" % totwalkers
-            print "Total number of occupied determinants: %d" % occ_sites
+            print("Total number of determinants: %d" % totwalkers)
+            print("Total number of occupied determinants: %d" % occ_sites)
 
 
             
 
 
     except IOError:
-        print "Unable to open POPSFILEBIN"
+        print("Unable to open POPSFILEBIN")
 
 
 if __name__ == '__main__':

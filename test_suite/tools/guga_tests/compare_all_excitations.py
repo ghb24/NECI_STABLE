@@ -2,6 +2,7 @@
 
 # script to compare matrix elements created by a NECI-GUGA run and Sandeeps Block code
 
+from __future__ import print_function
 import subprocess
 import os
 from numpy.testing import assert_allclose
@@ -27,12 +28,12 @@ elif machine == 'altest':
     csfoh_exe = '/home/dobrautz/bin/CSFOH'
 
 else:
-    print 'incorrect hostname! check setup!'
+    print('incorrect hostname! check setup!')
     raise SystemExit()
 
 # check if exe exists
 if not os.path.isfile(csfoh_exe): 
-    print 'CSFOH exe not found!'
+    print('CSFOH exe not found!')
     raise SystemExit()
 
 
@@ -54,15 +55,15 @@ else:
 if len(fileList) == 0:
     quit("no contribs_guga.* files found! Aborting!")
 
-print "*******************************"
-print " Comparing matrix elements for output files:"
-print fileList
+print("*******************************")
+print(" Comparing matrix elements for output files:")
+print(fileList)
 
 # then loop over all the found or provided files
 for filename in fileList: 
 
-    print 
-    print " Processing: ", filename
+    print()
+    print(" Processing: ", filename)
     file = open(filename, 'r')
 
     # skip the firt line
@@ -77,8 +78,8 @@ for filename in fileList:
     csf = [int(x) for x in csf]
 
     # some output
-    print " Comparing GUGA and DMRG matrix elements for CSF: "
-    print csf
+    print(" Comparing GUGA and DMRG matrix elements for CSF: ")
+    print(csf)
 
     # skip one more line to get to the excitations
     file.readline()
@@ -97,12 +98,12 @@ for filename in fileList:
     # close the file
     file.close()
 
-    print " GUGA Excitations: "
+    print(" GUGA Excitations: ")
     for i, item in enumerate(excitations):
-        print item, mat_eles[i]
+        print(item, mat_eles[i])
 
 
-    print " Writing DMRG config and determinants file"
+    print(" Writing DMRG config and determinants file")
     # and then write the DMRG config and determinants file to run CSFOH
     writeDMRGconfig(csf)
 
@@ -138,33 +139,33 @@ for filename in fileList:
 #         print "iteration: ", cnt
         
 
-    print 
-    print " Comparing matrix elements:"
-    print " DMRG | GUGA "
+    print()
+    print(" Comparing matrix elements:")
+    print(" DMRG | GUGA ")
     # compare the matrix elements 
     cnt = 0
     for i, item in enumerate(ref_mat_eles):
-        print item, mat_eles[i]
+        print(item, mat_eles[i])
         if abs((abs(item) - abs(mat_eles[i]))/abs(mat_eles[i])) > 0.001:
-            print " Incorrect matrix element for excitation:"
-            print excitations[i]
-            print " DMRG: ", item, " GUGA: ", mat_eles[i]
+            print(" Incorrect matrix element for excitation:")
+            print(excitations[i])
+            print(" DMRG: ", item, " GUGA: ", mat_eles[i])
             cnt += 1
 
     if cnt == 0: 
-        print "======================================"
-        print " All matrix elements correct for CSF: "
-        print csf
-        print "======================================"
+        print("======================================")
+        print(" All matrix elements correct for CSF: ")
+        print(csf)
+        print("======================================")
 
     else:
-        print "======================================"
-        print " NOT all matrix elements correct!"
-        print "======================================"
+        print("======================================")
+        print(" NOT all matrix elements correct!")
+        print("======================================")
 
 
         # cleaning up
-        print "cleaning up"
+        print("cleaning up")
         os.remove('determinants')
         os.remove('dmrg.conf')
 
@@ -172,7 +173,7 @@ for filename in fileList:
         sys.exit(1)
 
 # cleaning up
-print "cleaning up"
+print("cleaning up")
 os.remove('determinants')
 os.remove('dmrg.conf')
 sys.exit(0)

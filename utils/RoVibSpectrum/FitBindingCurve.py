@@ -9,6 +9,7 @@
 #This script is then run (it calls CalcVibSpectrum.x).
 #The method followed can be found in Bytautas et al. J.Chem.Phys 127 (2007)
 
+from __future__ import print_function
 import sys,os
 from pylab import *
 from scipy import *
@@ -23,9 +24,9 @@ dirname = "PlotsofFittings"
 if not os.path.isdir("./" + dirname + "/"):
     os.mkdir("./" + dirname + "/")
 
-print "\n** FITTING THE BINDING CURVE TO A GAUSSIAN EXPANSION POTENTIAL **"
-print "These have the form g(R) = sum_k a_k exp (-alpha beta^k R^2)"
-print "Data is read in from the RESULTS file with the R in bohr, and g(R) = E_tot(dimer) - 2E_tot(atom) in hartrees."
+print("\n** FITTING THE BINDING CURVE TO A GAUSSIAN EXPANSION POTENTIAL **")
+print("These have the form g(R) = sum_k a_k exp (-alpha beta^k R^2)")
+print("Data is read in from the RESULTS file with the R in bohr, and g(R) = E_tot(dimer) - 2E_tot(atom) in hartrees.")
 
 def residuals(a, y, x, alpha, beta):
     err = y-peval(x,a,alpha,beta)
@@ -81,41 +82,41 @@ a_0 = array([a0_0 , a1_0, a2_0, a3_0, a4_0])
 alpha_0=alpha
 beta_0=beta
 
-print "First optimising the a_k values..."
-print "Initial parameters"
+print("First optimising the a_k values...")
+print("Initial parameters")
 for i in range(len(aname)):
-    print "%s = %.4f " % (aname[i], a[i])
+    print("%s = %.4f " % (aname[i], a[i]))
 
 (fit, ierr) = leastsq(residuals, a, args=(y, x, alpha, beta), maxfev=2000)
 
-print "Success (1-4): "
-print ierr
+print("Success (1-4): ")
+print(ierr)
 
-print "Final parameters"
+print("Final parameters")
 for i in range(len(aname)):
-    print "%s = %.4f " % (aname[i], fit[i])
+    print("%s = %.4f " % (aname[i], fit[i]))
 
 #print "Value of function at R=1000:"
 #print peval(1000,fit,alpha,beta)
 
-print "Now optimising alpha and beta..."
+print("Now optimising alpha and beta...")
 
 exponents = array([alpha,beta])
 
-print "Initial parameters"
+print("Initial parameters")
 #print "%s = %.4f " % ('E_0', exponents[0])
-print "%s = %.4f " % ('alpha', exponents[0])
-print "%s = %.4f " % ('beta', exponents[1])
+print("%s = %.4f " % ('alpha', exponents[0]))
+print("%s = %.4f " % ('beta', exponents[1]))
 
 (fit2, ierr) = leastsq(residualsexp, exponents, args=(y, x, fit), maxfev=2000)
 
-print "Success (1-4): "
-print ierr
+print("Success (1-4): ")
+print(ierr)
 
-print "Final parameters"
+print("Final parameters")
 #print "%s = %.4f " % ('E_0', fit2[0])
-print "%s = %.4f " % ('alpha', fit2[0])
-print "%s = %.4f " % ('beta', fit2[1])
+print("%s = %.4f " % ('alpha', fit2[0]))
+print("%s = %.4f " % ('beta', fit2[1]))
 
 #a[0]=fit2[0]
 alpha=fit2[0]
@@ -126,9 +127,9 @@ initerrors = residuals(a_0, y, x, alpha_0, beta_0)
 #av = mean(errors)
 #RMS = sqrt(mean((errors-av)**2))
 
-print 'Initial RMS (mEh)',std(initerrors)*1000
-print 'Final RMS (mEh)', std(errors)*1000
-#print errors,av,RMS,std(errors),errors-av
+print('Initial RMS (mEh)',std(initerrors)*1000)
+print('Final RMS (mEh)', std(errors)*1000)
+#print(errors,av,RMS,std(errors),errors-av)
 
 figure()
 clf()
@@ -139,11 +140,11 @@ plot(arange(Minx,Maxx,0.0001),peval(arange(Minx,Maxx,0.0001),a_0,alpha_0,beta_0)
 ax.legend(loc=1, markerscale=0.1)
 savefig('PlotsofFittings/PotentialFit.eps')
 #show()
-print 'Saved plot of potential to PotentialFit.eps in the PlotsofFittings folder'
+print('Saved plot of potential to PotentialFit.eps in the PlotsofFittings folder')
 
 Requil=nanargmin(peval(arange(Minx,Maxx,0.000001),fit,alpha,beta))
 Requil=Requil*0.000001+Minx
-print "Equilibrium bond length = ", Requil
+print("Equilibrium bond length = ", Requil)
 
 
 f = open('PotData', 'w')
@@ -156,20 +157,20 @@ for i in range(len(aname)):
     f.write ("%.10f      %s \n" % (fit[i], aname[i]))
 f.close()
 
-print "\nCalling CalcVibSpectrum program..."
-print "This calculates the pure vibrational spectrum, which is printed in the PUREVIB file."
-print "A plot of the vibrational energy levels and wavefunction solutions can be viewed by loading GnuplotVib.gpi"
-print "A ROTVIBSPECTRUM file is also printed which includes the rotational as well as vibrational energy levels."
-print "A plot of the full Ro-Vibrational spectrum can be viewed by loading GnuplotRotVib.gpi"
+print("\nCalling CalcVibSpectrum program...")
+print("This calculates the pure vibrational spectrum, which is printed in the PUREVIB file.")
+print("A plot of the vibrational energy levels and wavefunction solutions can be viewed by loading GnuplotVib.gpi")
+print("A ROTVIBSPECTRUM file is also printed which includes the rotational as well as vibrational energy levels.")
+print("A plot of the full Ro-Vibrational spectrum can be viewed by loading GnuplotRotVib.gpi")
 os.system("./CalcVibSpectrum.x") 
 
 #============== Calculating spectral information ===============================================================
 #Out of the above program, we get data so that we can fit various things to find the rotational parameters etc.
 
-print "\n** CALCULATING SPECTRAL INFORMATION **\n"
-print "Step 1/2: Values for Bv and Dv are first found using the following equation:"
-print "Fv(J)/J(J+1) = Bv - Dv[J(J+1)]"
-print "(the required values have been printed to ROTDATA in the above program)"
+print("\n** CALCULATING SPECTRAL INFORMATION **\n")
+print("Step 1/2: Values for Bv and Dv are first found using the following equation:")
+print("Fv(J)/J(J+1) = Bv - Dv[J(J+1)]")
+print("(the required values have been printed to ROTDATA in the above program)")
 dirname = "BvDvPlots"
 if not os.path.isdir("./" + dirname + "/"):
     os.mkdir("./" + dirname + "/")
@@ -198,14 +199,14 @@ for v in range(0,Maxv):
         fit3=BvDv[0]-(BvDv[1]*(J*(J+1)))
         return fit3
 
-    print "Fitting Fv vs J curve for v value: ",v
+    print("Fitting Fv vs J curve for v value: ",v)
 
     Fv = data[:,(v+1)]      #these are the Fv (y values)
     J = data[:,0]           #these are the J values
 #    for jiter in range(len(J)):
 #        Fv[jiter]=Fv[jiter]/(jiter*(jiter+1))
 
-    #print x, y
+    #print(x, y)
 
     #All parameters are given some initial guesses. 
     Bv=0.8833/219474.63
@@ -214,18 +215,18 @@ for v in range(0,Maxv):
     BvDv=array([Bv,Dv])
     BvDv_0=array([Bv,Dv])
 
-    print "Initial parameters"
-    print "%s = %.15f " % ('Bv',Bv )
-    print "%s = %.15f " % ('Dv',Dv )
+    print("Initial parameters")
+    print("%s = %.15f " % ('Bv',Bv ))
+    print("%s = %.15f " % ('Dv',Dv ))
 
     (fit3, ierr) = leastsq(residualsBvDv, BvDv, args=(Fv, J), maxfev=2000)
 
-    print "Success Bv / Dv: "
-    print ierr
+    print("Success Bv / Dv: ")
+    print(ierr)
 
-    print "Final parameters"
-    print "%s = %.15f " % ('Bv', fit3[0])
-    print "%s = %.15f " % ('Dv', fit3[1])
+    print("Final parameters")
+    print("%s = %.15f " % ('Bv', fit3[0]))
+    print("%s = %.15f " % ('Dv', fit3[1]))
 
     Bv=fit3[0]
     Dv=fit3[1]
@@ -235,9 +236,9 @@ for v in range(0,Maxv):
     #av = mean(errors)
     #RMS = sqrt(mean((errors-av)**2))
 
-    print 'Initial RMS (mEh)',std(initerrors)*1000
-    print 'Final RMS (mEh)', std(errors)*1000
-    #print errors,av,RMS,std(errors),errors-av
+    print('Initial RMS (mEh)',std(initerrors)*1000)
+    print('Final RMS (mEh)', std(errors)*1000)
+    #print(errors,av,RMS,std(errors),errors-av)
 
     plotname="BvDvPlots/F_"
     plotname=plotname+str(v)
@@ -256,12 +257,12 @@ for v in range(0,Maxv):
     BvDvFile.write (" %i      %.15f      %.15f      %.10f         %.10f\n" % (v,fit3[0],fit3[1],(fit3[0]*219474.63),((fit3[1]*219474.63)*(10**6))))
 
 BvDvFile.close()
-print "Plots of these Fv vs J fits for each value of v are saved in the folder named BvDvPlots"    
-print "Bv and Dv values for each v are printed in the file BvDvValues\n"
+print("Plots of these Fv vs J fits for each value of v are saved in the folder named BvDvPlots")
+print("Bv and Dv values for each v are printed in the file BvDvValues\n")
 
 
-print "Step 2/2: Using G_v to find the Dunham coefficients of the form Y_k0, and omega_e (w_e)."
-print "The equation is of the form G_v = Sum_k Y_k0 ( v + 1/2)^k = Y_00 + omega_e(v + 1/2) - ..."
+print("Step 2/2: Using G_v to find the Dunham coefficients of the form Y_k0, and omega_e (w_e).")
+print("The equation is of the form G_v = Sum_k Y_k0 ( v + 1/2)^k = Y_00 + omega_e(v + 1/2) - ...")
 
 filename='PUREVIB'
 data = scipy.io.array_import.read_array(filename)
@@ -295,33 +296,33 @@ Yk0name = (['Y_00','Y_10','Y_20','Y_30','Y_40','Y_50','Y_60'])
 Yk_0 = array([Y0_0 , Y1_0, Y2_0, Y3_0, Y4_0, Y5_0, Y6_0])
 Yk_0init = array([Y0_0 , Y1_0, Y2_0, Y3_0, Y4_0, Y5_0, Y6_0])
 
-print "Fitting Gv vs v curve for k up to: ",len(Yk_0)-1
-print "The range of v's considered is 0 to ",len(v)
+print("Fitting Gv vs v curve for k up to: ",len(Yk_0)-1)
+print("The range of v's considered is 0 to ",len(v))
 
-print "Initial parameters"
+print("Initial parameters")
 for i in range(len(Yk0name)):
-    print "%s = %.10f " % (Yk0name[i], Yk_0[i])
+    print("%s = %.10f " % (Yk0name[i], Yk_0[i]))
 
 (fit4, ierr) = leastsq(residuals, Yk_0, args=(Gv, v), maxfev=2000)
 
-print "Success Yk_0: "
-print ierr
+print("Success Yk_0: ")
+print(ierr)
 
 for i in range(len(Yk0name)):
     Yk_0[i]=fit4[i]
 
-print "Final parameters"
+print("Final parameters")
 for i in range(len(Yk0name)):
-    print "%s = %.10f " % (Yk0name[i], Yk_0[i])
+    print("%s = %.10f " % (Yk0name[i], Yk_0[i]))
 
 errors = residuals(fit4, Gv, v)
 initerrors = residuals(Yk_0init, Gv, v)
 #av = mean(errors)
 #RMS = sqrt(mean((errors-av)**2))
 
-print 'Initial RMS (mEh)',std(initerrors)*1000
-print 'Final RMS (mEh)', std(errors)*1000
-#print errors,av,RMS,std(errors),errors-av
+print('Initial RMS (mEh)',std(initerrors)*1000)
+print('Final RMS (mEh)', std(errors)*1000)
+#print(errors,av,RMS,std(errors),errors-av)
 
 figure()
 clf()
@@ -338,11 +339,11 @@ YkmFile.write ("%s     %s             %s                     %s                 
 
 YkmFile.write (" %i      %.15f      %.15f      %.10f         %.10f\n" % (0,(fit4[0]*219474.63),(fit4[1]*219474.63),(fit4[2]*219474.63),(fit4[3]*219474.63)))
 
-print "This fit gives an omega_e value of: ",(fit4[1]*219474.63)
-print "This fit gives an omega_e.x_e value of: ",(fit4[2]*(-1.0)*219474.63)
-print "The fit is saved to Gv_vs_v.eps in the PlotsofFittings folder, and the coefficients and calculated constants printed in YkmDunhamCoeffs"
+print("This fit gives an omega_e value of: ",(fit4[1]*219474.63))
+print("This fit gives an omega_e.x_e value of: ",(fit4[2]*(-1.0)*219474.63))
+print("The fit is saved to Gv_vs_v.eps in the PlotsofFittings folder, and the coefficients and calculated constants printed in YkmDunhamCoeffs")
 
-print "The final, main spectroscopic constants are printed in the SPEC_CONSTS file."
+print("The final, main spectroscopic constants are printed in the SPEC_CONSTS file.")
 
 FinalFile = open('SPEC_CONSTS','a')
 FinalFile.write ("%s        %.1f      %s     \n" % ('omega_e (in cm-1)',(fit4[1]*219474.63),'The harmonic frequency.'))

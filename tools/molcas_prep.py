@@ -15,6 +15,7 @@ running it. This protects against accidental overwriting of files.
     up.
 """
 
+from __future__ import print_function
 import os
 import sys
 import shutil
@@ -27,14 +28,14 @@ def usage():
     """
     Prints the usage description for the program
     """
-    print __doc__
+    print(__doc__)
 
 
 def file_error():
     """
     Give a nice looking error if something happens...
     """
-    print "A file-handling error occurred"
+    print("A file-handling error occurred")
     sys.exit(-1)
 
 
@@ -83,7 +84,7 @@ def process_f90(dir, fn, tgt_dir, tmp_dir):
         else:
             # We wish to move all modules other than the _last_ module into other
             # files.
-            print "Rejecting F90 file {0} with {1} modules".format(src_file, len(found_mods))
+            print("Rejecting F90 file {0} with {1} modules".format(src_file, len(found_mods)))
             return
 
 
@@ -197,9 +198,9 @@ if __name__ == '__main__':
     src_dir = os.path.join(sys.argv[1], 'src')
     tgt_dir = sys.argv[2]
     tmp_dir = os.path.join(tgt_dir, 'tmpfiles')
-    print "Source directory: ", src_dir
-    print "Target directory: ", tgt_dir
-    print "Temporary directory: ", tmp_dir
+    print("Source directory: ", src_dir)
+    print("Target directory: ", tgt_dir)
+    print("Temporary directory: ", tmp_dir)
 
     # And kick off the calculation
     process_files(src_dir, tgt_dir, tmp_dir)

@@ -155,7 +155,7 @@ def read_config(fin, silent):
         sprev = s
 
     if not silent:
-        print
+        print()
 
     return config
 
