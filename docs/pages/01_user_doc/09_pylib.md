@@ -37,9 +37,9 @@ with `import neci_guga` and provides the following functionality:
     Clears all memory and deletes all objects initialized by `init_guga`,
     returns 0 on success, 1 else.
 
--   `neci_guga.diag_matel(D)`
-    Returns the diagonal matrix element of a CSF `D`, passed as an array
-    of the size of the number of electrons.
+-   `neci_guga.csf_matel(D_i, D_j)`
+    Returns the matrix element between `D_i` and `D_j`, passed as an array
+    of the size of the number of electrons in the DefineDet format.
 
 -   `neci_guga.run_neci(perm)`
     Reads a neci input file `neci.inp` and an FCIDUMP file in the current
