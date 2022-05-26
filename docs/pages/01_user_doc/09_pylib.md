@@ -29,9 +29,9 @@ to the calling python module or script.
 The `neci_guga` python module can then be loaded in calling python code
 with `import neci_guga` and provides the following functionality:
 
--   `neci_guga.init_guga(S)`
+-   `neci_guga.init_guga(fcidump_path, S)`
     Takes the desired total spin `S` and initializes the GUGA functionality
-    of neci by reading in an existing FCIDUMP file.
+    of neci by reading in an existing FCIDUMP (`fcidump_path`) file.
 
 -   `neci_guga.clear_guga()`
     Clears all memory and deletes all objects initialized by `init_guga`,
