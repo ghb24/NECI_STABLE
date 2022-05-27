@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import sys
 
 def extract_data(data_file):
@@ -40,7 +41,7 @@ def write_fcidump(nsites, J, Ms, nbonds, bonds):
     print(' &FCI NORB=%d,NELEC= %d,MS2=  %d' % (2*nsites, 2*n_up, Ms))
     # Use sys.stdout.write instead of print, as we don't want a space after this.
     sys.stdout.write('  ORBSYM=')
-    print '0,' * 2*nsites
+    print('0,' * 2*nsites)
     print('  ISYM=1 UHF=.TRUE.')
     print(' &END')
     for i in range(1, nbonds+1):
