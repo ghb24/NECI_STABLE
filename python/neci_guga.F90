@@ -13,7 +13,6 @@ subroutine clear_guga(err)
     use guga_plugin, only: finalize_guga_plugin
     integer, intent(out) :: err
     !f2py intent(out) :: err
-
     call finalize_guga_plugin()
     err = 0
 end subroutine clear_guga
