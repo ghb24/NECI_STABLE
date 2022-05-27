@@ -5,7 +5,7 @@ module guga_plugin
     use DetBitOps
     use SystemData
     use guga_excitations
-    use guga_matrixElements
+    use guga_matrixElements, only: calcDiagMatEleGuga_nI, calc_guga_matrix_element
     use guga_data
     use guga_init
     use guga_bitRepOps, only: CSF_Info_t
@@ -35,8 +35,9 @@ module guga_plugin
 
 contains
 
-    subroutine init_guga_plugin(stot_, t_testmode_, nel_, nbasis_, &
+    subroutine init_guga_plugin(fcidump_path, stot_, t_testmode_, nel_, nbasis_, &
         nSpatOrbs_)
+        character(*), intent(in) :: fcidump_path
         integer, intent(in), optional :: stot_
         logical, intent(in), optional :: t_testmode_
         integer, intent(in), optional :: nel_
@@ -45,7 +46,7 @@ contains
         logical :: t_testmode
         integer(int64) :: umatsize
         def_default(t_testmode, t_testmode_, .false.)
-        def_default(nel, nel_, 0)
+        def_default(nel, nel_, -1)
         def_default(nbasis, nbasis_, 0)
         def_default(nSpatOrbs, nSpatOrbs_, 0)
         def_default(stot, stot_, 0)
@@ -65,9 +66,7 @@ contains
         ! set this to false before the init to setup all the ilut variables
         tExplicitAllRDM = .false.
 
-        call init_guga()
-
-        fcidump_name = "FCIDUMP"
+        fcidump_name = fcidump_path
         UMatEps = 1.0e-8
         tStoreSpinOrbs = .false.
         tTransGTID = .false.
@@ -89,7 +88,7 @@ contains
 
         call GetUMatSize(nBasis, umatsize)
 
-        allocate(TMat2d(nBasis,nBasis))
+        allocate(TMat2d(nBasis, nBasis))
 
         call shared_allocate_mpi(umat_win, umat, (/umatsize/))
         UMat = 0.0_dp
@@ -104,6 +103,8 @@ contains
         call DetPreFreezeInit()
 
         call CalcInit()
+
+        call init_guga()
 
     end subroutine init_guga_plugin
 
