@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 #To calculate the rotational/vibrational from a binding curve of a diatomic the following inputs are needed:
 #RESULTS file:

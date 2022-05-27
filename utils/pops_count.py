@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
 Count the number of determinants actually found in a POPSFILEBIN
 
