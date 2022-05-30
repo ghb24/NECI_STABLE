@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
 Analyse Fortran source code and output (in the dot language) the dependencies on modules in the source code.
 

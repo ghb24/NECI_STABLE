@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Produce a makefile for compiling the neci source code for a specified target/configuration.
 
 Usage:

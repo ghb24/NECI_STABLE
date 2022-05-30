@@ -1,4 +1,4 @@
-#!/usr/bin/python -tt
+#!/usr/bin/env python
 """
 Produce a directory of output files suitable for incorporation into molcas
 from the NECI source code
