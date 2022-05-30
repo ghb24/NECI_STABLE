@@ -1,4 +1,4 @@
-#!/usr/bin/env/python3 -tt
+#!/usr/bin/env python3
 """
 Produce a .f90 file from the given .F90.template file to simulate the
 effects of using templates/generic functions in a language such as c++

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Plot data from and FCIMCStats file, using OUTPUT file as needed
 
 See "plot.py -h" for more details

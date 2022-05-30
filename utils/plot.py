@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Plot data from an FCIMCStats file (or similar, e.g. NodeFile)
 
 Usage:

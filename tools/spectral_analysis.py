@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''spectral_analysis.py [options] file
 
 Calculate and output a spectral function from a given set of eigenvalues and

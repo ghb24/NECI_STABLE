@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 '''Plot a histogram from a spin-hist-* file. This currently assumes that the system is only using real walkers.
 

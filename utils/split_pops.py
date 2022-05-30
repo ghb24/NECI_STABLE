@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Split and combine binary popsfiles for use with SPLIT-POPS
 
 --> NEED the POPSFILEHEAD to be present for splitting the popsfiles up, as
