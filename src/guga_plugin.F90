@@ -13,7 +13,7 @@ module guga_plugin
     use FciMCData
     use OneEInts, only: TMat2d
     use UMatCache, only: tTransGTID, GetUMatSize, tumat2d, umat2d, tdeferred_umat2d
-    use Calc, only: SetCalcDefaults, CalcInit
+    use Calc, only: SetCalcDefaults, CalcInit, CalcCleanup
     use System, only: SetSysDefaults, SysInit, SysCleanup
     use OneEInts, only: TMat2d
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
@@ -111,6 +111,7 @@ contains
     subroutine finalize_guga_plugin()
         call shared_deallocate_mpi(umat_win, umat)
         if(associated(TMat2d)) deallocate(TMat2d)
+        call CalcCleanup()
         call DetCleanup()
         call SysCleanup()
         call clean_parallel()
