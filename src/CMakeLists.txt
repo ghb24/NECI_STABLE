@@ -17,7 +17,7 @@ set( SRC_FILES
     compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
-	core_space_util.F90
+    core_space_util.F90
     CPMDData.F90
     cpmdinit.F
     cpmdstub.F
@@ -49,7 +49,7 @@ set( SRC_FILES
     fcoul.F
     frsblk.F
     ftlm_neci.F90
-	gdata_io.F90
+    gdata_io.F90
     gen_coul.F
     gen_coul_ueg.F90
     global_utilities.F90
@@ -68,8 +68,8 @@ set( SRC_FILES
     hist_data.F90
     HPHFRandExcit.F90
     hubbard.F
-	impurity_models.F90
-	index_rhash.F90
+    impurity_models.F90
+    index_rhash.F90
     init_coul2D.F
     init_coul.F
     initial_trial_states.F90
@@ -87,8 +87,8 @@ set( SRC_FILES
     legacy_data.F90
     lineup.F
     LMat_calc.F90
-	LMat_class.F90
-	LMat_freeze.F90
+    LMat_class.F90
+    LMat_freeze.F90
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
@@ -141,7 +141,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-	shared_rhash.F90
+    shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
@@ -187,7 +187,7 @@ set( SRC_FILES
     guga_matrixElements.F90
     guga_procedure_pointers.F90
     guga_types.F90
-	guga_plugin.F90
+    guga_plugin.F90
     guga_pchb_class.F90
     guga_crude_approx.F90
     lattice_mod.F90
@@ -244,7 +244,7 @@ set( RELAX_WARNINGS_SRCS
     compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
-	core_space_util.F90
+    core_space_util.F90
     CPMDData.F90
     cpmdinit.F
     cpmdstub.F
@@ -276,7 +276,7 @@ set( RELAX_WARNINGS_SRCS
     fcoul.F
     frsblk.F
     ftlm_neci.F90
-	gdata_io.F90
+    gdata_io.F90
     gen_coul.F
     gen_coul_ueg.F90
     global_utilities.F90
@@ -295,8 +295,8 @@ set( RELAX_WARNINGS_SRCS
     hist_data.F90
     HPHFRandExcit.F90
     hubbard.F
-	impurity_models.F90
-	index_rhash.F90
+    impurity_models.F90
+    index_rhash.F90
     init_coul2D.F
     init_coul.F
     initial_trial_states.F90
@@ -312,8 +312,8 @@ set( RELAX_WARNINGS_SRCS
     legacy_data.F90
     lineup.F
     LMat_calc.F90
-	LMat_class.F90
-	LMat_freeze.F90
+    LMat_class.F90
+    LMat_freeze.F90
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
@@ -362,7 +362,7 @@ set( RELAX_WARNINGS_SRCS
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-	shared_rhash.F90
+    shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
@@ -434,7 +434,7 @@ set( FYPP_SRC_FILES
     gasci_util.fpp
     orb_idx.fpp
     excitation_types.fpp
-	shared_array.fpp
+    shared_array.fpp
     load_balancer.fpp
     global_det_data.fpp
     rdm_general.fpp
@@ -442,7 +442,7 @@ set( FYPP_SRC_FILES
     lib/util_mod.fpp
     lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
-	shared_ragged_array.fpp
+    shared_ragged_array.fpp
     SD_spin_purification.fpp
 )
 
@@ -517,7 +517,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${HDF5_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
-	    WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
+        WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
     )
 
     message(DEBUG "Adding executable for configuration ${_config}")
