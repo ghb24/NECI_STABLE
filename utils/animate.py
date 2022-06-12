@@ -1,3 +1,4 @@
+from __future__ import print_function
 import matplotlib
 matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
@@ -282,7 +283,7 @@ def init():
 #Update figure:
 #--------------
 def update(itr):
-    print "Iteration: "+str(itr)
+    print("Iteration: "+str(itr))
     excits_ax.set_title("Iteration: "+str(itr))
 
     #Get wavefuntions of this iteration
