@@ -875,7 +875,7 @@ contains
 
         ! TODO: Refactor these chunks into their own little subroutines.
         ! We fix the format of the binary file. Thus if we are on a 32-bit
-        ! build, we need to convert the data into 64-bit compatibile chunks.
+        ! build, we need to convert the data into 64-bit compatible chunks.
         if (build_64bit) then
             bit_rep_width = NIfD + 1
         else
@@ -883,7 +883,7 @@ contains
             call stop_all(t_r, "Needs manual, careful, testing")
         end if
 
-        ! How many occuiped determinants are there on each of the processors
+        ! How many occupied determinants are there on each of the processors
         call MPIAllGather(printed_count, counts, ierr)
         all_count = sum(counts)
         write_offset = [0_hsize_t, sum(counts(0:iProcIndex - 1))]
