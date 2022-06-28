@@ -15,7 +15,7 @@ module rdm_finalising
     use CalcData, only: tAdaptiveShift
     use RotateOrbsMod, only: FourIndInts
     use SystemData, only: tGUGA, nSpatorbs
-    use LoggingData, only: tWriteSpinFreeRDM, t_print_molcas_rdms
+    use LoggingData, only: tWriteSpinFreeRDM, t_print_molcas_rdms, t_print_hdf5_rdms
     use matrix_util, only: print_matrix
     use guga_bitRepOps, only: extract_2_rdm_ind
     use guga_rdm, only: output_molcas_rdms
@@ -946,6 +946,7 @@ contains
         ! which is then printed to a file.
 
         use hash, only: clear_hash_table
+        use rdm_hdf5, only: write_rdms_hdf5
         use rdm_data, only: rdm_definitions_t
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
@@ -958,7 +959,11 @@ contains
         call clear_hash_table(spawn%rdm_send%hash_table)
 
         call create_spinfree_2rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
-        call print_spinfree_2rdm(rdm_defs, rdm_recv, rdm_trace)
+        if (t_print_hdf5_rdms) then
+            call write_rdms_hdf5(rdm_defs, rdm_recv, rdm_trace)
+        else
+            call print_spinfree_2rdm(rdm_defs, rdm_recv, rdm_trace)
+        end if
 
     end subroutine print_spinfree_2rdm_wrapper
 
