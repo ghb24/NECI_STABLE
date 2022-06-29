@@ -2,28 +2,6 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-! The main idea of the precomputed Heat bath sampling (PCHB) is taken from
-!    J. Li, M. Otten, A. A. Holmes, S. Sharma, and C. J. Umrigar, J. Comput. Phys. 149, 214110 (2018).
-! and described there.
-! The main "ingredient" are precomputed probability distributions p(ab | ij) to draw a, b holes
-! when i, j electrons were chosen.
-! This requires #{i, j | i < j} probability distributions.
-!
-! The improved version to use spatial orbital indices to save memory is described in
-!    Guther K. et al., J. Chem. Phys. 153, 034107 (2020).
-! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx) to draw a, b holes
-! when i, j electrons were chosen for three distinc spin cases given by s_idx.
-! This gives #{i, j | i < j} * 3 probability distributions.
-!
-! The generalization to GAS spaces is available in a preprint (should be available in JCTC soon as well)
-!    https://chemrxiv.org/engage/chemrxiv/article-details/61447e60b1d4a605d589af2e
-! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx, i_sg) to draw a, b holes
-! when i, j electrons were chosen for three distinc spin cases given by s_idx and a supergroup index i_sg
-! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
-! Depending on the supergroup and GAS constraints certain excitations can be forbidden by setting p to zero.
-!
-! The details of calculating i_sg can be found in gasci_supergroup_index.f90
-
 module gasci_pc_select_particles
     use constants, only: dp, int64, stdout
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
@@ -41,17 +19,18 @@ module gasci_pc_select_particles
     type :: PC_WeightedParticles_t
         private
         type(AliasSampler_1D_t) :: I_sampler
-        !> The shape is (number_of_spin_orbs, n_supergroup)
+            !! The shape is (n_supergroup) -> number_of_spin_orbs
         type(AliasSampler_2D_t) :: J_sampler
+            !! The shape is (number_of_spin_orbs, n_supergroup) -> number_of_spin_orbs
 
         class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
         type(SuperGroupIndexer_t), pointer :: indexer => null()
-        !> Use a lookup for the supergroup index in global_det_data.
         logical, public :: use_lookup = .false.
-        !> Create **and** manage! the supergroup index lookup in global_det_data.
+            !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
+            !! Create **and** manage! the supergroup index lookup in global_det_data.
     contains
         private
         procedure, public :: init
@@ -110,18 +89,15 @@ contains
         end block
     end subroutine
 
-    subroutine draw(this, nI, elecs, srcs, p)
+    subroutine draw(this, nI, i_sg, elecs, srcs, p)
         class(PC_WeightedParticles_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-        integer, intent(out) :: srcs(2), elecs(2)
+        integer, intent(in) :: nI(nEl), i_sg
+            !! The determinant in nI-format and the supergroup index
+        integer, intent(out) :: elecs(2), srcs(2)
         real(dp), intent(out) :: p
         character(*), parameter :: this_routine = 'draw'
 
-        integer :: i_sg
         real(dp) :: renorm_I, p_I, renorm_J, p_J
-
-        ! TODO(@Oskar): Optimize
-        i_sg = this%indexer%idx_nI(nI)
 
         ! TODO(@Oskar): Optimize
         renorm_I = sum(this%i_sampler%get_prob(i_sg, nI))

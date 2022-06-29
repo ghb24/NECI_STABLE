@@ -544,15 +544,16 @@ contains
         hel = h_cast(0.0_dp)
 #endif
 
-        ! first, pick two random elecs
-        call this%particle_selector%draw(nI, elecs, src, pGen)
-        if (src(1) > src(2)) call swap(src(1), src(2))
-
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
+
+
+        ! first, pick two random elecs
+        call this%particle_selector%draw(nI, i_sg, elecs, src, pGen)
+        if (src(1) > src(2)) call swap(src(1), src(2))
 
         invalid = .false.
         ! use the sampler for this electron pair -> order of src electrons does not matter
