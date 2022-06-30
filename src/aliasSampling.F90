@@ -403,6 +403,7 @@ contains
     !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
     !> @param[in] constraint pick only elements from constraint
     !> @param[out] tgt  on return, this is a random number in the sampling range of this
+    !> @param[out] pos  the position of tgt in `contain`
     !> @param[out] prob  on return, the probability of picking tgt from constraint
     subroutine constrained_sample(this, contain, renormalization, pos, tgt, prob)
         class(aliasSampler_t), intent(in) :: this
@@ -454,6 +455,7 @@ contains
     !> Returns the probability to draw tgt from this sampler
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @param[in] constraint pick only elements from constraint
+    !>      (has to be a set, i.e. unique and ordered)
     !> @param[out] prob  the probability of picking tgt from constraint
     pure function constrained_getProb(this, contain, renorm, tgt) result(prob)
         class(aliasSampler_t), intent(in) :: this

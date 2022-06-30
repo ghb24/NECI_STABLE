@@ -197,7 +197,11 @@ contains
         call set_timer(const_sample_timer)
         do i = 1, huge_number
             renorm = sum(w(contain))
-            call alias_sampler%constrained_sample(contain, exclude, renorm, r, p)
+            block
+                integer :: pos
+                call alias_sampler%constrained_sample(contain, renorm, pos, r, p)
+                call assert_true(contain(pos) == r)
+            end block
             hist(r) = hist(r) + 1
             probs(r) = p
         end do
@@ -216,70 +220,6 @@ contains
         call assert_true(all(w .isclose. alias_sampler%getProb([(i, i = 1, tSize)])))
 
 
-        hist = 0
-        renorm = sum(w(contain))
-        call set_timer(fast_const_sample_timer)
-        do i = 1, huge_number
-            call alias_sampler%constrained_sample(contain, exclude, renorm, r, p)
-            ! call alias_sampler%sample(r, p)
-            hist(r) = hist(r) + 1
-            probs(r) = p
-        end do
-        call halt_timer(fast_const_sample_timer)
-        write(*, *) 'faster constrained Alias sample', get_total_time(fast_const_sample_timer)
-
-        diff = get_diff(hist(contain), w(contain) / sum(w(contain)))
-        ! is the sampling reasonable?
-        call assert_true(diff < diff_tol)
-        ! are the probabilities claimed by the sampler the ones we put in?
-
-        block
-            integer, allocatable :: new_contain(:)
-            integer :: L
-            type(timer) :: small_contain_timer, exclude_timer
-
-            L = size(contain) / 2
-            write(*, *) 'L =', L
-            new_contain = contain(: L)
-
-
-            renorm = sum(w(new_contain))
-
-            hist = 0
-            call set_timer(small_contain_timer)
-            do i = 1, huge_number
-                call alias_sampler%constrained_sample(new_contain, exclude, renorm, r, p)
-                hist(r) = hist(r) + 1
-                probs(r) = p
-            end do
-            call halt_timer(small_contain_timer)
-            write(*, *) 'small contain timer', get_total_time(small_contain_timer)
-
-            diff = get_diff(hist(new_contain), w(new_contain) / sum(w(new_contain)))
-            ! is the sampling reasonable?
-            call assert_true(diff < diff_tol)
-            ! are the probabilities claimed by the sampler the ones we put in?
-
-
-            exclude = contain(L + 1 :)
-
-            write(*, *) exclude
-            hist = 0
-            call set_timer(exclude_timer)
-            do i = 1, huge_number
-                call alias_sampler%constrained_sample(contain, exclude, renorm, r, p)
-                hist(r) = hist(r) + 1
-                probs(r) = p
-            end do
-            call halt_timer(exclude_timer)
-            write(*, *) 'exclude_timer ', get_total_time(exclude_timer)
-
-            diff = get_diff(hist(new_contain), w(new_contain) / sum(w(new_contain)))
-            ! is the sampling reasonable?
-            call assert_true(diff < diff_tol)
-            ! are the probabilities claimed by the sampler the ones we put in?
-
-        end block
     end subroutine
 
     !------------------------------------------------------------------------------------------!

@@ -27,7 +27,9 @@
 module gasci_pchb
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, operator(.div.), operator(.implies.), EnumBase_t
+    use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
+        operator(.div.), operator(.implies.), EnumBase_t, &
+        operator(.isclose.), swap
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
@@ -553,7 +555,7 @@ contains
 
         ! first, pick two random elecs
         call this%particle_selector%draw(nI, i_sg, elecs, src, pGen)
-        if (src(1) > src(2)) call swap(src(1), src(2))
+        @:ASSERT(pGen .isclose. this%particle_selector%get_pgen(nI, i_sg, src(1), src(2)))
 
         invalid = .false.
         ! use the sampler for this electron pair -> order of src electrons does not matter
@@ -580,6 +582,7 @@ contains
         end if
         ! get a pair of orbitals using the precomputed weights
         call this%pchb_samplers%sample(ij, samplerIndex, int(i_sg), ab, pGenHoles)
+        @:ASSERT(pGenHoles .isclose. this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab))
 
 
         if (ab == 0) then
@@ -602,14 +605,13 @@ contains
             print *, "WARNING: Generated excitation with probability of 0"
         end if
 
-        pGen = pGen * pGenHoles
         if (invalid) then
             ! if 0 is returned, there are no excitations for the chosen elecs
             ! -> return nulldet
             nJ = 0
             ilutJ = 0_n_int
-            ex(2, 1 : 2) = orbs
             ex(1, 1 : 2) = src
+            ex(2, 1 : 2) = orbs
         else
             ! else, construct the det from the chosen orbs/elecs
 
@@ -617,6 +619,32 @@ contains
 
             ilutJ = exciteIlut(ilutI, src, orbs)
         end if
+
+        pGen = pGen * pGenHoles
+
+        block
+            integer :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+            ! @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
+            ! if ((pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))) then
+            !     write(*, *) '===', ex(1, 1), ex(2, 1), ex(1, 2), ex(2, 2)
+            !     ! write(*, *) pgen, this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            !     ! write(*, *) pgen / this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            !     ! write(*, *) '======'
+            ! else
+            !     write(*, *) '>>>', ex(1, 1), ex(2, 1), ex(1, 2), ex(2, 2)
+            !     write(*, *) pgen, this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            !     write(*, *) pgen / this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            !     write(*, *) '>>>'
+            ! end if
+
+            ! if (all(pack(ex, .true.) == [1, 5, 3, 7])) then
+            !     write(*, *) '>>>', ex(1, 1), ex(2, 1), ex(1, 2), ex(2, 2)
+            !     write(*, *) samplerIndex
+            !     write(*, *) pgen, this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            !     write(*, *) pgen / this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            !     write(*, *) '>>>'
+            ! end if
+        end block
     end subroutine
 
 
@@ -640,32 +668,31 @@ contains
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         @:ASSERT(ic == 2)
 
-        i_sg = this%indexer%idx_nI(nI)
-        ! spatial orbitals of the excitation
-        nex = gtID(ex(:, : 2))
+        nex = gtID(ex(:, : ic))
         ij = fuseIndex(nex(1, 1), nex(1, 2))
+        ab = fuseIndex(nex(2, 1), nex(2, 2))
+        i_sg = this%indexer%idx_nI(nI)
+
+        pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
+
         ! the probability of picking the two electrons: they are chosen uniformly
         ! check which sampler was used
         if (is_beta(ex(1, 1)) .eqv. is_beta(ex(1, 2))) then
-            pgen = pParallel / par_elec_pairs
             ! same-spin case
             samplerIndex = SAME_SPIN
         else
-            pgen = (1.0_dp - pParallel) / AB_elec_pairs
             ! excitations without spin-exchange OR to the same spatial orb
             if ((is_beta(ex(1, 1)) .eqv. is_beta(ex(2, 1))) .or. (nex(2, 1) == nex(2, 2))) then
                 ! opp spin case without exchange
                 samplerIndex = OPP_SPIN_NO_EXCH
-                pgen = pgen * (1 - this%pExch(ij, i_sg))
+                pGen = pGen * (1.0_dp - this%pExch(ij, i_sg))
             else
                 ! opp spin case with exchange
                 samplerIndex = OPP_SPIN_EXCH
-                pgen = pgen * this%pExch(ij, i_sg)
+                pGen = pGen * this%pExch(ij, i_sg)
             end if
         end if
 
-        ! look up the probability for this excitation in the sampler
-        ab = fuseIndex(nex(2, 1), nex(2, 2))
         pgen = pgen * this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab)
     end function
 

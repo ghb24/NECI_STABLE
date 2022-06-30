@@ -7,7 +7,7 @@ module gasci_pc_select_particles
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
     use SystemData, only: nEl
     use sets_mod, only: is_set, operator(.in.)
-    use util_mod, only: stop_all
+    use util_mod, only: stop_all, operator(.isclose.), swap
     use UMatCache, only: numBasisIndices
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -109,23 +109,36 @@ contains
 
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%j_sampler%constrained_sample(srcs(1), i_sg, nI, renorm_J, elecs(2), srcs(2), p_J)
+        ! if (srcs(1) > srcs(2)) then
+        !     call swap(srcs(1), srcs(2))
+        !     call swap(elecs(1), elecs(2))
+        ! end if
         @:ASSERT(srcs(2) .in. nI)
         @:ASSERT(srcs(1) /= srcs(2))
         @:ASSERT(elecs(1) /= elecs(2))
         @:ASSERT(all(nI(elecs) == srcs))
 
-        p = p_I * p_J
+        ! We could have picked them the other way round.
+        ! Multiply by two
+        p = p_I * p_J * 2._dp
+
+        if (all(srcs == [1, 3]) .or. all(srcs == [3, 1])) then
+            write(*, *) srcs
+            write(*, *) p_I, p_J, p
+        end if
+
+        @:ASSERT(p .isclose. this%get_pgen(nI, i_sg, srcs(1), srcs(2)))
     end subroutine
 
-    pure function get_pgen(this, nI, I, J) result(p)
+    pure function get_pgen(this, nI, i_sg, I, J) result(p)
         class(PC_WeightedParticles_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
+        integer, intent(in) :: nI(nEl), i_sg
         integer, intent(in) :: I, J
         real(dp) :: p
 
-        integer :: i_sg
         real(dp) :: renorm_I, p_I, renorm_J, p_J
 
+        ! TODO(@Oskar): Optimize
         renorm_I = sum(this%I_sampler%get_prob(i_sg, nI))
         p_I = this%i_sampler%constrained_getProb(i_sg, nI, renorm_I, I)
 
@@ -133,7 +146,9 @@ contains
         renorm_J = sum(this%J_sampler%get_prob(I, i_sg, nI))
         p_J = this%j_sampler%constrained_getProb(I, i_sg, nI, renorm_J, J)
 
-        p = p_I * p_J
+        ! We could have picked them the other way round.
+        ! Multiply by two
+        p = p_I * p_J * 2._dp
     end function
 
 
