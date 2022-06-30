@@ -120,7 +120,7 @@ contains
 
         ! We could have picked them the other way round.
         ! Multiply by two
-        p = p_I * p_J * 2._dp
+        p = p_I * p_J
 
         if (all(srcs == [1, 3]) .or. all(srcs == [3, 1])) then
             write(*, *) srcs
@@ -148,7 +148,7 @@ contains
 
         ! We could have picked them the other way round.
         ! Multiply by two
-        p = p_I * p_J * 2._dp
+        p = p_I * p_J
     end function
 
 

@@ -136,7 +136,6 @@ module gasci_pchb
 
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
-        private
         !> Use a lookup for the supergroup index in global_det_data
         logical, public :: use_lookup = .false.
         !> Create **and** manage! the supergroup index lookup in global_det_data.

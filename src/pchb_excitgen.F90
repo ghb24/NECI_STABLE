@@ -19,7 +19,6 @@ module pchb_excitgen
     public :: PCHB_FCI_excit_generator_t
 
     type, extends(ExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
-        private
         type(GAS_doubles_PCHB_ExcGenerator_t) :: doubles_generator
         class(SingleExcitationGenerator_t), allocatable :: singles_generator
     contains

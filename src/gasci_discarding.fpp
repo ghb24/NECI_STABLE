@@ -20,7 +20,6 @@ module gasci_discarding
     public :: GAS_DiscardingGenerator_t
 
     type, extends(ExcitationGenerator_t) :: GAS_DiscardingGenerator_t
-        private
         type(PCHB_FCI_excit_generator_t) :: FCI_generator
         class(GASSpec_t), allocatable :: GAS_spec
     contains
