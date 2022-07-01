@@ -197,6 +197,7 @@ contains
             end if
         else
             if (tWriteSpinFreeRDM) &
+                write(stdout,*) "reached the wrapper"
                 call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
 
             if (tWrite_Normalised_RDMs) &
@@ -959,11 +960,8 @@ contains
         call clear_hash_table(spawn%rdm_send%hash_table)
 
         call create_spinfree_2rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
-        if (t_print_hdf5_rdms) then
-            call write_rdms_hdf5(rdm_defs, rdm_recv, rdm_trace)
-        else
-            call print_spinfree_2rdm(rdm_defs, rdm_recv, rdm_trace)
-        end if
+        call print_spinfree_2rdm(rdm_defs, rdm_recv, rdm_trace)
+        if (t_print_hdf5_rdms) call write_rdms_hdf5(rdm_defs, rdm_recv, rdm_trace)
 
     end subroutine print_spinfree_2rdm_wrapper
 

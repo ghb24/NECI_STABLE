@@ -44,6 +44,11 @@ module hdf5_util
         module procedure write_int64_1d_dataset_8
     end interface
 
+    interface write_int64_2d_dataset
+        module procedure write_int64_2d_dataset_4
+        module procedure write_int64_2d_dataset_8
+    end interface
+
     interface read_int64_1d_dataset
         module procedure read_int64_1d_dataset_4
         module procedure read_int64_1d_dataset_8
@@ -487,6 +492,31 @@ contains
 
     end subroutine
 
+    subroutine write_int64_2d_dataset_8(parent, nm, val)
+        integer(hid_t) :: parent
+        character(*), intent(in) :: nm
+        integer(int64), intent(in), target :: val(:,:)
+
+        integer(hid_t) :: dataspace, dataset
+        integer(hdf_err) :: err
+        integer(hsize_t) :: dims(2)
+        integer(int32), pointer :: ptr(:,:)
+
+        ! Create the appropriate dataspace
+        dims = [size(val, dim=1), size(val, dim=2)]
+        call h5screate_simple_f(2, dims, dataspace, err)
+        ! Create the dataset with the correct type
+        call h5dcreate_f(parent, nm, h5kind_to_type(int64,H5_INTEGER_KIND), dataspace, &
+                         dataset, err)
+        ! write the data
+        call ptr_abuse_2d(val, ptr)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, h5kind_to_type(int64,H5_INTEGER_KIND), &
+                                            ptr, dims, err)
+        ! Close the residual handles
+        call h5dclose_f(dataset, err)
+        call h5sclose_f(dataspace, err)
+    end subroutine
+
     subroutine write_int64_1d_dataset_8(parent, nm, val)
 
         ! Write out a 64-bit array
@@ -518,6 +548,15 @@ contains
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
+    end subroutine
+
+    subroutine write_int64_2d_dataset_4(parent, nm, val)
+        ! Write out a 64-bit array
+        integer(hid_t) :: parent
+        character(*), intent(in) :: nm
+        integer(int32), intent(in), target :: val(:,:)
+
+        call write_int64_2d_dataset_8(parent, nm, int(val, int64))
     end subroutine
 
     subroutine write_int64_1d_dataset_4(parent, nm, val)

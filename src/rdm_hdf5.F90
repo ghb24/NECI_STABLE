@@ -8,6 +8,7 @@ module rdm_hdf5
     use Parallel_neci
     use constants
     use hdf5_util
+    use hdf5_popsfile, only: write_metadata
     use util_mod
 #ifdef USE_HDF_
     use hdf5
@@ -15,6 +16,7 @@ module rdm_hdf5
     use fortran_strings
     use rdm_data, only: rdm_definitions_t, rdm_list_t
     use guga_bitRepOps, only: extract_2_rdm_ind
+    use guga_rdm, only: contract_molcas_2_rdm_index
     use rdm_data_utils, only: extract_sign_rdm, calc_separate_rdm_labels
     implicit none
     private
@@ -30,7 +32,7 @@ contains
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         character(*), parameter :: t_r = 'write_hdf5_rdms'
 #ifdef USE_HDF_
-        integer(hid_t) :: plist_id, file_id
+        integer(hid_t) :: plist_id, file_id, root_id, rdm_id
         integer(hdf_err) :: err
         integer :: mpi_err
         character(255) :: filename
@@ -48,12 +50,12 @@ contains
             call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
             call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, access_prp=plist_id)
             call h5pclose_f(plist_id, err)
+            ! call write_metadata(file_id)
+            call h5gcreate_f(file_id, 'archive', root_id, err)
+            call h5gcreate_f(root_id, 'rdms', rdm_id, err)
+            call MPIBarrier(mpi_err)
 
-            ! TODO: write metadata to file
-            ! write(stdout, *) "writing metadata"
-            ! call write_rdm_metadata(file_id)
-
-            call write_2rdm_hdf5(file_id, rdm_defs, rdm, rdm_trace, iroot)
+            call write_2rdm_hdf5(rdm_id, rdm_defs, rdm, rdm_trace, iroot)
             ! later
             ! call write_onerdm_hdf5(file_id)
             ! call write_threerdm_hdf5(file_id)
@@ -61,17 +63,17 @@ contains
 
             call MPIBarrier(mpi_err)
 
-            write(stdout, *) "closing RDM file"
+            write(stdout, *) "closing RDM file."
             call h5fclose_f(file_id, err)
             call h5close_f(err)
 
             call h5garbage_collect_f(err)
 
             call MPIBarrier(mpi_err)
-            write(stdout, *) "RDM file write successful"
+            write(stdout, *) "RDM file write successful."
         end do
 #else
-        call stop_all(t_r, 'HDF5 support not enabled at compile time')
+        call stop_all(t_r, 'HDF5 support not enabled at compile time.')
 #endif
     end subroutine write_rdms_hdf5
 
@@ -86,26 +88,30 @@ contains
         integer(hid_t) :: twordm_grp_id
         integer(hdf_err) :: err
         integer(hsize_t) :: arr_nelements(0:nProcessors - 1), totlength, &
-                            write_offset(2), n_rdm_el
+                            write_offset(2), n_rdm_el, downfolded_number
         real(dp) :: rdm_sign(rdm%sign_length)
         integer :: ierr
         integer(n_int), allocatable :: indices(:,:)
         real(dp), allocatable :: values(:)
         integer :: iproc, p, q, r, s, pq, rs, ielem
         integer(n_int) :: pq_, rs_
-        integer(int_rdm) :: pqrs
+        integer(int_rdm) :: pqrs, cindex
 
-        call h5gcreate_f(parent, nm_2rdm, twordm_grp_id, err)
-        ! rdm_nelements is a local copy of type hsize_t
+        call h5gcreate_f(parent, '2200', twordm_grp_id, err)
         n_rdm_el = int(rdm%nelements, kind(hsize_t))
         call MPIAllGather(n_rdm_el, arr_nelements, ierr)
         totlength = sum(arr_nelements)
         write_offset = [0_hsize_t, sum(arr_nelements(0:iProcIndex - 1))]
 
-        ! write these intermediate arrays to disk later
-        ! TODO: lengths are wrong
-        allocate(indices(4, rdm%nelements), source=0_n_int)
-        allocate(values(rdm%nelements), source=0.0_dp)
+        ! for printout the 2RDM indices p,q,r,s are folded twice, first to
+        ! pq, rs, then to pqrs. rdm%nelements above is equal to p^4, i.e.
+        ! number of all elements without symmetry. To get the length of the
+        ! compressed vector, one takes the fourth root and inserts that into
+        ! (m^4 + 2m^3 + 3m^2 + 2m)/8. For instance, a (9,9,9,9) 2RDM becomes a
+        ! vector of length 1035
+        downfolded_number = int((n_rdm_el + 2*n_rdm_el**0.75_dp + 3*n_rdm_el**0.5_dp + 2*n_rdm_el**0.25_dp)/8)
+        allocate(indices(4, downfolded_number), source=0_n_int)
+        allocate(values(downfolded_number), source=0.0_dp)
 
         ! create the intermediate "indices" and "value" arrays
         do iproc = 0, (nProcessors - 1)
@@ -124,10 +130,19 @@ contains
                     end if
 
                     if (abs(rdm_sign(iroot)) > 1.e-12_dp) then
-                        if (p >= q .and. pq_ >= rs_ .and. p >= r .and. p >= s) then
-                            indices(1, ielem) = p; indices(2, ielem) = q
-                            indices(3, ielem) = r; indices(4, ielem) = s
-                            values(ielem) = rdm_sign(iroot)
+                        if (pq >= rs) then
+                            if (p >= q) then
+                                if (p >= r) then
+                                    if (p >= s) then
+                                        ! only the non-redundant elements should
+                                        ! be saved in "values" and "indices"
+                                        cindex = contract_molcas_2_rdm_index(p, q, r, s)
+                                        indices(1, cindex) = p; indices(2, cindex) = q
+                                        indices(3, cindex) = r; indices(4, cindex) = s
+                                        values(cindex) = rdm_sign(iroot)
+                                    end if
+                                end if
+                            end if
                         end if
                     end if
                 end do
@@ -135,20 +150,18 @@ contains
         end do
 
         ! write index arrays
-        call write_2d_multi_arr_chunk_buff( &
-            twordm_grp_id, &
-            'indices', &
-            h5kind_to_type(int64, H5_INTEGER_KIND), &
-            indices, &  ! array to write to file
-            [4_hsize_t, int(rdm%nelements, hsize_t)], &  ! 4 indices wide
-            [0_hsize_t, 0_hsize_t], & ! offset
-            [4_hsize_t, totlength], & ! all dims
-            [0_hsize_t, sum(arr_nelements(0:iProcIndex - 1))] & ! output offset
-        )
-        ! write value arrays
-        ! the function accepts only integer arrays
-        call write_dp_1d_attribute(twordm_grp_id, 'values', values)
-
+        call write_int64_2d_dataset(twordm_grp_id, 'indices', indices)
+        call write_dp_1d_dataset(twordm_grp_id, 'values', values)
+        ! call write_2d_multi_arr_chunk_buff( &
+        !     twordm_grp_id, &
+        !     'indices', &
+        !     h5kind_to_type(int64, H5_INTEGER_KIND), &
+        !     indices, &  ! array to write to file
+        !     [4_hsize_t, int(downfolded_number, hsize_t)], &  ! 4 indices wide
+        !     [0_hsize_t, 0_hsize_t], & ! offset
+        !     [4_hsize_t, downfolded_number], & ! all dims
+        !     [0_hsize_t, sum(arr_nelements(0:iProcIndex - 1))] & ! output offset
+        ! )
         call h5gclose_f(twordm_grp_id, err)
     end subroutine write_2rdm_hdf5
 
