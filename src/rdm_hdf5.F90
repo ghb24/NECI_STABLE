@@ -1,7 +1,5 @@
 #include "macros.h"
 
-! Enable printing spinfree-2RDMs in HDF5 format.
-
 module rdm_hdf5
 
     use MPI_wrapper
