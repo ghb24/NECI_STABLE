@@ -10,9 +10,10 @@ very powerful parallelization and scales efficiently to more than 24 000 central
 Contributors to the NECI codebase, in alphabetical order
 
 Ali Alavi, Robert Anderson, Nick Blunt, George Booth, Deirdre Cleland, Werner Dobrautz,
-Khaldoon Ghanem, Kai Guther, Peter Jeszenski, Niklas Liebermann, Florian Merz,
-Jennifer Mohr, Catherine Overy, Simon Smart, James Shepherd, James Spencer, Anthony Stone,
-Pradipta Samanta, Lauretta Schwarz, Alex Thom, Robert Thomas, David Thompson, Oskar Weser.
+Khaldoon Ghanem, Kai Guther, Philip Haupt, Giovanni Li Manni, Peter Jeszenski,
+Niklas Liebermann, Florian Merz, Jennifer Mohr, Catherine Overy, Arta Safari, Pradipta Samanta,
+Simon Smart, James Shepherd, James Spencer, Anthony Stone, Lauretta Schwarz, Alex Thom,
+Robert Thomas, David Thompson, Eugenio Vitale, Oskar Weser.
 
 ## Documentation
 
