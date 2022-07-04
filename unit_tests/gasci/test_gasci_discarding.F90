@@ -52,12 +52,12 @@ contains
 
 
 
-        ! call run_excit_gen_tester( &
-        !     exc_generator, 'discarding GASCI implementation, random fcidump', &
-        !     opt_nI=det_I, opt_n_dets=n_iters, &
-        !     problem_filter=is_problematic,&
-        !     successful=successful)
-        ! call assert_true(successful)
+        call run_excit_gen_tester( &
+            exc_generator, 'discarding GASCI implementation, random fcidump', &
+            opt_nI=det_I, opt_n_dets=n_iters, &
+            problem_filter=is_problematic,&
+            successful=successful)
+        call assert_true(successful)
         call exc_generator%finalize()
         call finalize_excitgen_test()
 

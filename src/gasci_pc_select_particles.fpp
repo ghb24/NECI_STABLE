@@ -97,34 +97,33 @@ contains
         real(dp), intent(out) :: p
         character(*), parameter :: this_routine = 'draw'
 
-        real(dp) :: renorm_I, p_I, renorm_J, p_J
+        real(dp) :: renorm_I, p_I(2), renorm_J(2), p_J(2)
 
-        ! TODO(@Oskar): Optimize
         renorm_I = sum(this%i_sampler%get_prob(i_sg, nI))
-        call this%i_sampler%constrained_sample(i_sg, nI, renorm_I, elecs(1), srcs(1), p_I)
+        call this%i_sampler%constrained_sample(i_sg, nI, renorm_I, elecs(1), srcs(1), p_I(1))
         @:ASSERT(srcs(1) .in. nI)
 
-        ! TODO(@Oskar): Optimize
-        renorm_J = sum(abs(this%J_sampler%get_prob(srcs(1), i_sg, nI)))
+        renorm_J(1) = sum(this%J_sampler%get_prob(srcs(1), i_sg, nI))
 
         ! Note that p(I | I) is automatically zero and cannot be drawn
-        call this%j_sampler%constrained_sample(srcs(1), i_sg, nI, renorm_J, elecs(2), srcs(2), p_J)
-        ! if (srcs(1) > srcs(2)) then
-        !     call swap(srcs(1), srcs(2))
-        !     call swap(elecs(1), elecs(2))
-        ! end if
+        call this%j_sampler%constrained_sample(&
+            srcs(1), i_sg, nI, renorm_J(1), elecs(2), srcs(2), p_J(1))
         @:ASSERT(srcs(2) .in. nI)
         @:ASSERT(srcs(1) /= srcs(2))
         @:ASSERT(elecs(1) /= elecs(2))
         @:ASSERT(all(nI(elecs) == srcs))
 
         ! We could have picked them the other way round.
-        ! Multiply by two
-        p = p_I * p_J
+        ! The renormalization for the first electron is the same
+        p_I(2) = this%i_sampler%get_prob(i_sg, srcs(2)) / renorm_I
+        renorm_J(2) = sum(this%J_sampler%get_prob(srcs(2), i_sg, nI))
+        p_J(2) = this%J_sampler%get_prob(srcs(2), i_sg, srcs(1)) / renorm_J(2)
 
-        if (all(srcs == [1, 3]) .or. all(srcs == [3, 1])) then
-            write(*, *) srcs
-            write(*, *) p_I, p_J, p
+        p = sum(p_I * p_J)
+
+        if (srcs(1) > srcs(2)) then
+            call swap(srcs(1), srcs(2))
+            call swap(elecs(1), elecs(2))
         end if
 
         @:ASSERT(p .isclose. this%get_pgen(nI, i_sg, srcs(1), srcs(2)))
@@ -136,19 +135,23 @@ contains
         integer, intent(in) :: I, J
         real(dp) :: p
 
-        real(dp) :: renorm_I, p_I, renorm_J, p_J
+        real(dp) :: renorm_first, p_first(2), renorm_second(2), p_second(2)
 
-        ! TODO(@Oskar): Optimize
-        renorm_I = sum(this%I_sampler%get_prob(i_sg, nI))
-        p_I = this%i_sampler%constrained_getProb(i_sg, nI, renorm_I, I)
+        renorm_first = sum(this%I_sampler%get_prob(i_sg, nI))
 
-        ! TODO(@Oskar): Optimize
-        renorm_J = sum(this%J_sampler%get_prob(I, i_sg, nI))
-        p_J = this%j_sampler%constrained_getProb(I, i_sg, nI, renorm_J, J)
+        p_first(1) = this%i_sampler%constrained_getProb(i_sg, nI, renorm_first, I)
+        p_first(2) = this%i_sampler%constrained_getProb(i_sg, nI, renorm_first, J)
 
-        ! We could have picked them the other way round.
-        ! Multiply by two
-        p = p_I * p_J
+
+        renorm_second(1) = sum(this%J_sampler%get_prob(I, i_sg, nI))
+        p_second(1) = this%j_sampler%constrained_getProb(&
+            I, i_sg, nI, renorm_second(1), J)
+
+        renorm_second(2) = sum(this%J_sampler%get_prob(J, i_sg, nI))
+        p_second(2) = this%j_sampler%constrained_getProb(&
+            J, i_sg, nI, renorm_second(2), I)
+
+        p = sum(p_first * p_second)
     end function
 
 
