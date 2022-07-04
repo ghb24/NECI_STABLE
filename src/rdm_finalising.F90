@@ -41,6 +41,7 @@ contains
         use rdm_data, only: rdm_definitions_t, en_pert_t
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
+        use rdm_hdf5, only: write_rdms_hdf5
         use timing_neci, only: set_timer, halt_timer
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
@@ -97,6 +98,7 @@ contains
                 ! The 1-RDM will have been constructed to be normalised already.
                 norm_1rdm = 1.0_dp
             end if
+
         end if
 
         ! Stuff using the 1-RDMs:
@@ -136,6 +138,11 @@ contains
             end do
             ! Output banner for the end of the 1-RDM section.
             write(stdout, '(/,1x,89("="),/)')
+        end if
+
+        if (t_print_hdf5_rdms) then
+            call create_spinfree_2rdm(two_rdms, rdm_defs%nrdms_standard, spawn, rdm_recv)
+            call write_rdms_hdf5(rdm_defs, rdm_recv, rdm_estimates%norm, one_rdms)
         end if
 
         ! Write the final instantaneous 2-RDM estimates, and also the final
@@ -197,7 +204,6 @@ contains
             end if
         else
             if (tWriteSpinFreeRDM) &
-                write(stdout,*) "reached the wrapper"
                 call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
 
             if (tWrite_Normalised_RDMs) &
@@ -947,7 +953,6 @@ contains
         ! which is then printed to a file.
 
         use hash, only: clear_hash_table
-        use rdm_hdf5, only: write_rdms_hdf5
         use rdm_data, only: rdm_definitions_t
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
@@ -961,7 +966,6 @@ contains
 
         call create_spinfree_2rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
         call print_spinfree_2rdm(rdm_defs, rdm_recv, rdm_trace)
-        if (t_print_hdf5_rdms) call write_rdms_hdf5(rdm_defs, rdm_recv, rdm_trace)
 
     end subroutine print_spinfree_2rdm_wrapper
 
@@ -1256,7 +1260,7 @@ contains
         use LoggingData, only: twrite_RDMs_to_read, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: rdm_definitions_t
+        use rdm_data, only: rdm_definitions_t, one_rdm_t
         use RotateOrbsData, only: NoOrbs
 
         type(rdm_definitions_t), intent(in) :: rdm_defs

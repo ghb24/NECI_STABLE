@@ -12,22 +12,22 @@ module rdm_hdf5
     use hdf5
 #endif
     use fortran_strings
-    use rdm_data, only: rdm_definitions_t, rdm_list_t
-    use guga_bitRepOps, only: extract_2_rdm_ind
-    use guga_rdm, only: contract_molcas_2_rdm_index
-    use rdm_data_utils, only: extract_sign_rdm, calc_separate_rdm_labels
+
     implicit none
     private
     public :: write_rdms_hdf5
 
-    character(*), parameter :: nm_2rdm = '/archive/rdms/2200/'
 
 contains
 
-    subroutine write_rdms_hdf5(rdm_defs, rdm, rdm_trace)
+
+    subroutine write_rdms_hdf5(rdm_defs, rdm, rdm_trace, one_rdms)
+        use rdm_data, only: rdm_definitions_t, rdm_list_t, one_rdm_t
+        use LoggingData, only: tWriteSpinFreeRDM, tPrint1RDM
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        type(one_rdm_t), intent(inout), optional :: one_rdms(:)
         character(*), parameter :: t_r = 'write_hdf5_rdms'
 #ifdef USE_HDF_
         integer(hid_t) :: plist_id, file_id, root_id, rdm_id
@@ -37,27 +37,34 @@ contains
         integer :: iroot
 
         do iroot = 1, rdm_defs%nrdms
-            ! TODO: make filename unique and increment if necessary
             filename = 'fciqmc.rdms.' // str(iroot) // '.h5'
 
-            write(stdout, *) "============== Writing HDF5 RDMs =============="
-            write(stdout, *) "File name: ", filename
+            write(stdout, '(a)') "============== Writing HDF5 RDMs =============="
+            write(stdout, '(a)') "File name: ", filename
+            write(stdout,'(a)') "Transition RDM support pending."
+            write(stdout,'(a)') "Regular RDMs saved in /archive/rdms/AA00/ where &
+                                 &A denotes the number of fermionic operators."
 
             call h5open_f(err)
             call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
             call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
             call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, access_prp=plist_id)
             call h5pclose_f(plist_id, err)
-            ! call write_metadata(file_id)
+            call write_metadata(file_id)
             call h5gcreate_f(file_id, 'archive', root_id, err)
             call h5gcreate_f(root_id, 'rdms', rdm_id, err)
             call MPIBarrier(mpi_err)
 
-            call write_2rdm_hdf5(rdm_id, rdm_defs, rdm, rdm_trace, iroot)
-            ! later
-            ! call write_onerdm_hdf5(file_id)
-            ! call write_threerdm_hdf5(file_id)
-            ! call write_contracted_fock_hdf5(file_id)
+            if (tPrint1RDM) then
+                call write_1rdm_hdf5(rdm_id, rdm_defs, one_rdms(iroot)%matrix)
+                write(stdout, '(a)') "1RDM written to file."
+            end if
+            if (tWriteSpinFreeRDM) then
+                call write_2rdm_hdf5(rdm_id, rdm_defs, rdm, rdm_trace, iroot)
+                write(stdout, '(a)') "2RDM written to file."
+            end if
+            ! if (tWrite3RDM) then call write_3rdm_hdf5(file_id)
+            ! if (tWriteF4RDM) then call write_contracted_fock_hdf5(file_id)
 
             call MPIBarrier(mpi_err)
 
@@ -76,8 +83,48 @@ contains
     end subroutine write_rdms_hdf5
 
 
+    subroutine write_1rdm_hdf5(parent, rdm_defs, one_rdm)
+        use rdm_data, only: rdm_definitions_t
+        use RotateOrbsData, only: ind => SymLabelListInv_rot
+        integer(hid_t), intent(in) :: parent
+        type(rdm_definitions_t), intent(in) :: rdm_defs
+        real(dp), intent(inout) :: one_rdm(:, :)
+        integer(n_int), allocatable :: indices(:,:)
+        real(dp), allocatable :: values(:)
+        integer :: p, q, pq, dim_1rdm_vec
+        integer(hid_t) :: onerdm_grp_id
+        integer(hdf_err) :: err
+
+        dim_1rdm_vec = size(one_rdm, dim=1) * (size(one_rdm, dim=1) + 1) / 2
+        allocate(indices(2, dim_1rdm_vec), source=0_n_int)
+        allocate(values(dim_1rdm_vec), source=0.0_dp)
+
+        do p = 1, size(one_rdm, dim=1)
+            do q = 1, size(one_rdm, dim=1)
+                if (p >= q) then
+                    pq = int(p * (p - 1)/2 + q)  ! Molcas style folding
+                    indices(1, pq) = p; indices(2, pq) = q
+                    if (abs(one_rdm(ind(p), ind(q))) > 1e-12_dp) then
+                        values(pq) = 0.0_dp
+                    else
+                        values(pq) = one_rdm(ind(p), ind(q))  ! assumed to be normalised
+                    end if
+                end if
+            end do
+        end do
+
+        call h5gcreate_f(parent, '1100', onerdm_grp_id, err)
+        call write_int64_2d_dataset(onerdm_grp_id, 'indices', indices)
+        call write_dp_1d_dataset(onerdm_grp_id, 'values', values)
+        call h5gclose_f(onerdm_grp_id, err)
+    end subroutine write_1rdm_hdf5
+
+
     subroutine write_2rdm_hdf5(parent, rdm_defs, rdm, rdm_trace, iroot)
-        use SystemData, only: tGUGA
+        use rdm_data, only: rdm_definitions_t, rdm_list_t
+        use guga_rdm, only: contract_molcas_2_rdm_index, extract_molcas_2_rdm_index
+        use rdm_data_utils, only: calc_separate_rdm_labels
+        use rdm_data_utils, only: extract_sign_rdm
         integer(hid_t), intent(in) :: parent
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(in) :: rdm
@@ -85,82 +132,43 @@ contains
         integer, intent(in) :: iroot
         integer(hid_t) :: twordm_grp_id
         integer(hdf_err) :: err
-        integer(hsize_t) :: arr_nelements(0:nProcessors - 1), totlength, &
-                            write_offset(2), n_rdm_el, downfolded_number
         real(dp) :: rdm_sign(rdm%sign_length)
-        integer :: ierr
-        integer(n_int), allocatable :: indices(:,:)
+        integer(int_rdm) :: pqrs
+        integer :: iproc, ielem, &
+                   p, q, r, s, pq, rs
+        integer, allocatable :: index(:), indices(:,:)
         real(dp), allocatable :: values(:)
-        integer :: iproc, p, q, r, s, pq, rs, ielem
-        integer(n_int) :: pq_, rs_
-        integer(int_rdm) :: pqrs, cindex
 
-        call h5gcreate_f(parent, '2200', twordm_grp_id, err)
-        n_rdm_el = int(rdm%nelements, kind(hsize_t))
-        call MPIAllGather(n_rdm_el, arr_nelements, ierr)
-        totlength = sum(arr_nelements)
-        write_offset = [0_hsize_t, sum(arr_nelements(0:iProcIndex - 1))]
-
-        ! for printout the 2RDM indices p,q,r,s are folded twice, first to
-        ! pq, rs, then to pqrs. rdm%nelements above is equal to p^4, i.e.
-        ! number of all elements without symmetry. To get the length of the
-        ! compressed vector, one takes the fourth root and inserts that into
-        ! (m^4 + 2m^3 + 3m^2 + 2m)/8. For instance, a (9,9,9,9) 2RDM becomes a
-        ! vector of length 1035
-        downfolded_number = int((n_rdm_el + 2*n_rdm_el**0.75_dp + 3*n_rdm_el**0.5_dp + 2*n_rdm_el**0.25_dp)/8)
-        allocate(indices(4, downfolded_number), source=0_n_int)
-        allocate(values(downfolded_number), source=0.0_dp)
-
-        ! create the intermediate "indices" and "value" arrays
+        ! create dynamic "indices" and "value" arrays to append to
+        values = [real(dp) ::]
+        index = [integer ::]
         do iproc = 0, (nProcessors - 1)
-            if (iproc == iProcIndex) then  ! what does this mean?
+            if (iproc == iProcIndex) then
                 do ielem = 1, rdm%nelements
                     pqrs = rdm%elements(0, ielem)
-
                     call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
-                    ! Normalise.
                     rdm_sign = rdm_sign / rdm_trace
-                    if (tGUGA) then
-                        call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
-                        pq = int(pq_); rs = int(rs_)
-                    else
-                        call calc_separate_rdm_labels(pqrs, pq, rs, p, s, q, r)
-                    end if
-
+                    call calc_separate_rdm_labels(pqrs, pq, rs, p, s, q, r)
+                    write(stdout,*) 'p, s, q, r', p, s, q, r
                     if (abs(rdm_sign(iroot)) > 1.e-12_dp) then
-                        if (pq >= rs) then
-                            if (p >= q) then
-                                if (p >= r) then
-                                    if (p >= s) then
-                                        ! only the non-redundant elements should
-                                        ! be saved in "values" and "indices"
-                                        cindex = contract_molcas_2_rdm_index(p, q, r, s)
-                                        indices(1, cindex) = p; indices(2, cindex) = q
-                                        indices(3, cindex) = r; indices(4, cindex) = s
-                                        values(cindex) = rdm_sign(iroot)
-                                    end if
-                                end if
-                            end if
+                        if (p >= q .and. pq >= rs .and. p >= r .and. p >= s) then
+                            index = [index, p]; index = [index, q]
+                            index = [index, r]; index = [index, s]
+                            values = [values, rdm_sign(iroot)]
                         end if
                     end if
                 end do
             end if
         end do
+        indices = reshape(index, [4,size(values, dim=1)])
 
         ! write index arrays
-        call write_int64_2d_dataset(twordm_grp_id, 'indices', indices)
+        call h5gcreate_f(parent, '2200', twordm_grp_id, err)
+        call write_int64_2d_dataset(twordm_grp_id, 'indices', int(indices, n_int))
         call write_dp_1d_dataset(twordm_grp_id, 'values', values)
-        ! call write_2d_multi_arr_chunk_buff( &
-        !     twordm_grp_id, &
-        !     'indices', &
-        !     h5kind_to_type(int64, H5_INTEGER_KIND), &
-        !     indices, &  ! array to write to file
-        !     [4_hsize_t, int(downfolded_number, hsize_t)], &  ! 4 indices wide
-        !     [0_hsize_t, 0_hsize_t], & ! offset
-        !     [4_hsize_t, downfolded_number], & ! all dims
-        !     [0_hsize_t, sum(arr_nelements(0:iProcIndex - 1))] & ! output offset
-        ! )
         call h5gclose_f(twordm_grp_id, err)
+
     end subroutine write_2rdm_hdf5
+
 
 end module rdm_hdf5
