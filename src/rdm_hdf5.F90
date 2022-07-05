@@ -28,13 +28,17 @@ contains
         type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         type(one_rdm_t), intent(inout), optional :: one_rdms(:)
-        character(*), parameter :: t_r = 'write_hdf5_rdms'
+        character(*), parameter :: this_routine = 'write_hdf5_rdms'
 #ifdef USE_HDF_
-        integer(hid_t) :: plist_id, file_id, root_id, rdm_id
+        integer(hid_t) :: file_id, root_id, rdm_id  ! plist_id,
         integer(hdf_err) :: err
-        integer :: mpi_err
+        ! integer :: mpi_err
         character(255) :: filename
         integer :: iroot
+
+        if (rdm_defs%nrdms_transition > 0) then
+            call stop_all(this_routine, "Transition RDM support pending.")
+        end if
 
         if (iProcIndex == 0) then
             do iroot = 1, rdm_defs%nrdms
@@ -42,7 +46,6 @@ contains
 
                 write(stdout, *) "============== Writing HDF5 RDMs =============="
                 write(stdout, *) "File name: ", trim(filename)
-                write(stdout, *) "Transition RDM support pending."
                 write(stdout, *) "Regular RDMs saved in /archive/rdms/AA00/ where &
                                      &A denotes the number of fermion operators."
 
@@ -58,11 +61,11 @@ contains
                 ! call MPIBarrier(mpi_err)
 
                 if (tPrint1RDM) then
-                    call write_1rdm_hdf5(rdm_id, rdm_defs, one_rdms(iroot)%matrix)
+                    call write_1rdm_hdf5(rdm_id, one_rdms(iroot)%matrix)
                     write(stdout, *) "1RDM written to file."
                 end if
                 if (tWriteSpinFreeRDM) then
-                    call write_2rdm_hdf5(rdm_id, rdm_defs, rdm, rdm_trace, iroot)
+                    call write_2rdm_hdf5(rdm_id, rdm, rdm_trace, iroot)
                     write(stdout, *) "2RDM written to file."
                 end if
                 ! if (tWrite3RDM) then call write_3rdm_hdf5(file_id)
@@ -83,16 +86,14 @@ contains
             end do
         end if
 #else
-        call stop_all(t_r, 'HDF5 support not enabled at compile time.')
+        call stop_all(this_routine, 'HDF5 support not enabled at compile time.')
 #endif
     end subroutine write_rdms_hdf5
 
 
-    subroutine write_1rdm_hdf5(parent, rdm_defs, one_rdm)
-        use rdm_data, only: rdm_definitions_t
+    subroutine write_1rdm_hdf5(parent, one_rdm)
         use RotateOrbsData, only: ind => SymLabelListInv_rot
         integer(hid_t), intent(in) :: parent
-        type(rdm_definitions_t), intent(in) :: rdm_defs
         real(dp), intent(inout) :: one_rdm(:, :)
         integer(n_int), allocatable :: indices(:,:)
         real(dp), allocatable :: values(:)
@@ -125,13 +126,10 @@ contains
     end subroutine write_1rdm_hdf5
 
 
-    subroutine write_2rdm_hdf5(parent, rdm_defs, rdm, rdm_trace, iroot)
-        use rdm_data, only: rdm_definitions_t, rdm_list_t
-        use guga_rdm, only: contract_molcas_2_rdm_index, extract_molcas_2_rdm_index
-        use rdm_data_utils, only: calc_separate_rdm_labels
-        use rdm_data_utils, only: extract_sign_rdm
+    subroutine write_2rdm_hdf5(parent, rdm, rdm_trace, iroot)
+        use rdm_data, only: rdm_list_t
+        use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
         integer(hid_t), intent(in) :: parent
-        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         integer, intent(in) :: iroot
