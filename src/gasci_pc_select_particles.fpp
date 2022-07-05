@@ -22,6 +22,7 @@ module gasci_pc_select_particles
             !! The shape is (n_supergroup) -> number_of_spin_orbs
         type(AliasSampler_2D_t) :: J_sampler
             !! The shape is (number_of_spin_orbs, n_supergroup) -> number_of_spin_orbs
+        real(dp), allocatable :: weights(:, :, :)
 
         class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
@@ -57,6 +58,8 @@ contains
         allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
+
+        this%weights = weights
 
         if (this%create_lookup) then
             if (associated(lookup_supergroup_indexer)) then
@@ -135,23 +138,28 @@ contains
         integer, intent(in) :: I, J
         real(dp) :: p
 
-        real(dp) :: renorm_first, p_first(2), renorm_second(2), p_second(2)
+        real(dp) :: renorm_I, p_I, renorm_J, p_J
 
-        renorm_first = sum(this%I_sampler%get_prob(i_sg, nI))
+        renorm_I = sum(this%I_sampler%get_prob(i_sg, nI))
 
-        p_first(1) = this%i_sampler%constrained_getProb(i_sg, nI, renorm_first, I)
-        p_first(2) = this%i_sampler%constrained_getProb(i_sg, nI, renorm_first, J)
+        p_I = this%i_sampler%constrained_getProb(i_sg, nI, renorm_I, I)
 
 
-        renorm_second(1) = sum(this%J_sampler%get_prob(I, i_sg, nI))
-        p_second(1) = this%j_sampler%constrained_getProb(&
-            I, i_sg, nI, renorm_second(1), J)
+        renorm_J = sum(this%J_sampler%get_prob(I, i_sg, nI))
+        p_J = this%j_sampler%constrained_getProb(&
+            I, i_sg, nI, renorm_J, J)
 
-        renorm_second(2) = sum(this%J_sampler%get_prob(J, i_sg, nI))
-        p_second(2) = this%j_sampler%constrained_getProb(&
-            J, i_sg, nI, renorm_second(2), I)
+        p = p_I * p_J + p_I * p_J / get_swap_factor(I, J)
 
-        p = sum(p_first * p_second)
+    contains
+
+        pure function get_swap_factor(I, J) result(res)
+            integer, intent(in) :: I, J
+            real(dp) :: res
+            res = &
+                this%I_sampler%get_prob(i_sg, I) / this%I_sampler%get_prob(i_sg, J) &
+                * sum(this%weights(nI, J, i_sg)) / sum(this%weights(nI, I, i_sg))
+        end function
     end function
 
 
@@ -159,7 +167,9 @@ contains
         class(PC_WeightedParticles_t), intent(inout) :: this
 
         call this%I_sampler%finalize()
+        call this%J_sampler%finalize()
         deallocate(this%indexer)
+        deallocate(this%weights)
         if (this%create_lookup) then
             nullify(lookup_supergroup_indexer)
         end if
