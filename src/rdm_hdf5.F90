@@ -36,47 +36,52 @@ contains
         character(255) :: filename
         integer :: iroot
 
-        do iroot = 1, rdm_defs%nrdms
-            filename = 'fciqmc.rdms.' // str(iroot) // '.h5'
+        if (iProcIndex == 0) then
+            do iroot = 1, rdm_defs%nrdms
+                filename = 'fciqmc.rdms.' // str(iroot) // '.h5'
 
-            write(stdout, '(a)') "============== Writing HDF5 RDMs =============="
-            write(stdout, '(a)') "File name: ", filename
-            write(stdout,'(a)') "Transition RDM support pending."
-            write(stdout,'(a)') "Regular RDMs saved in /archive/rdms/AA00/ where &
-                                 &A denotes the number of fermionic operators."
+                write(stdout, *) "============== Writing HDF5 RDMs =============="
+                write(stdout, *) "File name: ", trim(filename)
+                write(stdout, *) "Transition RDM support pending."
+                write(stdout, *) "Regular RDMs saved in /archive/rdms/AA00/ where &
+                                     &A denotes the number of fermion operators."
 
-            call h5open_f(err)
-            call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
-            call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
-            call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, access_prp=plist_id)
-            call h5pclose_f(plist_id, err)
-            call write_metadata(file_id)
-            call h5gcreate_f(file_id, 'archive', root_id, err)
-            call h5gcreate_f(root_id, 'rdms', rdm_id, err)
-            call MPIBarrier(mpi_err)
+                ! I failed at parallel HDF I/O, therefore some code below is commented
+                call h5open_f(err)
+                ! call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
+                ! call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
+                call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err) !, access_prp=plist_id)
+                ! call h5pclose_f(plist_id, err)
+                ! call write_metadata(file_id)
+                call h5gcreate_f(file_id, 'archive', root_id, err)
+                call h5gcreate_f(root_id, 'rdms', rdm_id, err)
+                ! call MPIBarrier(mpi_err)
 
-            if (tPrint1RDM) then
-                call write_1rdm_hdf5(rdm_id, rdm_defs, one_rdms(iroot)%matrix)
-                write(stdout, '(a)') "1RDM written to file."
-            end if
-            if (tWriteSpinFreeRDM) then
-                call write_2rdm_hdf5(rdm_id, rdm_defs, rdm, rdm_trace, iroot)
-                write(stdout, '(a)') "2RDM written to file."
-            end if
-            ! if (tWrite3RDM) then call write_3rdm_hdf5(file_id)
-            ! if (tWriteF4RDM) then call write_contracted_fock_hdf5(file_id)
+                if (tPrint1RDM) then
+                    call write_1rdm_hdf5(rdm_id, rdm_defs, one_rdms(iroot)%matrix)
+                    write(stdout, *) "1RDM written to file."
+                end if
+                if (tWriteSpinFreeRDM) then
+                    call write_2rdm_hdf5(rdm_id, rdm_defs, rdm, rdm_trace, iroot)
+                    write(stdout, *) "2RDM written to file."
+                end if
+                ! if (tWrite3RDM) then call write_3rdm_hdf5(file_id)
+                ! if (tWriteF4RDM) then call write_contracted_fock_hdf5(file_id)
 
-            call MPIBarrier(mpi_err)
+                ! call MPIBarrier(mpi_err)
 
-            write(stdout, *) "closing RDM file."
-            call h5fclose_f(file_id, err)
-            call h5close_f(err)
+                write(stdout, *) "closing RDM file."
+                call h5gclose_f(rdm_id, err)
+                call h5gclose_f(root_id, err)
+                call h5fclose_f(file_id, err)
+                call h5close_f(err)
 
-            call h5garbage_collect_f(err)
+                call h5garbage_collect_f(err)
 
-            call MPIBarrier(mpi_err)
-            write(stdout, *) "RDM file write successful."
-        end do
+                ! call MPIBarrier(mpi_err)
+                write(stdout, *) "RDM file write successful."
+            end do
+        end if
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time.')
 #endif
@@ -105,9 +110,9 @@ contains
                     pq = int(p * (p - 1)/2 + q)  ! Molcas style folding
                     indices(1, pq) = p; indices(2, pq) = q
                     if (abs(one_rdm(ind(p), ind(q))) > 1e-12_dp) then
-                        values(pq) = 0.0_dp
-                    else
                         values(pq) = one_rdm(ind(p), ind(q))  ! assumed to be normalised
+                    else
+                        values(pq) = 0.0_dp
                     end if
                 end if
             end do
@@ -149,7 +154,6 @@ contains
                     call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
                     rdm_sign = rdm_sign / rdm_trace
                     call calc_separate_rdm_labels(pqrs, pq, rs, p, s, q, r)
-                    write(stdout,*) 'p, s, q, r', p, s, q, r
                     if (abs(rdm_sign(iroot)) > 1.e-12_dp) then
                         if (p >= q .and. pq >= rs .and. p >= r .and. p >= s) then
                             index = [index, p]; index = [index, q]
@@ -160,7 +164,7 @@ contains
                 end do
             end if
         end do
-        indices = reshape(index, [4,size(values, dim=1)])
+        indices = reshape(index, [4, size(values, dim=1)])
 
         ! write index arrays
         call h5gcreate_f(parent, '2200', twordm_grp_id, err)

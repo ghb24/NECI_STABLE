@@ -142,6 +142,7 @@ contains
 
         if (t_print_hdf5_rdms) then
             call create_spinfree_2rdm(two_rdms, rdm_defs%nrdms_standard, spawn, rdm_recv)
+            call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
             call write_rdms_hdf5(rdm_defs, rdm_recv, rdm_estimates%norm, one_rdms)
         end if
 
