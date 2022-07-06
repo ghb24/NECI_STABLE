@@ -64,8 +64,6 @@ module aliasSampling
         procedure :: constrained_sample
         ! get the probability to produce a given value
         procedure :: getProb
-        ! procedure, private :: getProb_scalar
-        ! procedure, private :: getProb_1D
         ! get the probability to draw a given value from a constrained set
         procedure :: constrained_getProb
     end type aliasSampler_t

@@ -45,13 +45,6 @@ contains
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         call exc_generator%init(GAS_spec)
 
-
-        write(*, *) my_get_pgen([1, 2, 3, 7, 8, 10], 1, 3), my_get_pgen([1, 2, 3, 7, 8, 10], 3, 1), my_get_pgen([1, 2, 3, 7, 8, 10], 1, 3) / my_get_pgen([1, 2, 3, 7, 8, 10], 3, 1)
-        write(*, *) my_get_pgen([1, 2, 3, 9, 10, 11], 1, 3), my_get_pgen([1, 2, 3, 9, 10, 11], 3, 1), my_get_pgen([1, 2, 3, 9, 10, 11], 1, 3) / my_get_pgen([1, 2, 3, 9, 10, 11], 3, 1)
-
-
-
-
         call run_excit_gen_tester( &
             exc_generator, 'discarding GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_dets=n_iters, &
@@ -62,14 +55,6 @@ contains
         call finalize_excitgen_test()
 
     contains
-
-        pure function my_get_pgen(nI, i, j) result(p_gen)
-            integer, intent(in) :: nI(:), i, j
-            real(dp) :: p_gen
-            integer :: i_sg
-            i_sg = exc_generator%FCI_generator%doubles_generator%indexer%idx_supergroup(nI)
-            p_gen = exc_generator%FCI_generator%doubles_generator%particle_selector%get_pgen(nI, i_sg, i, j)
-        end function
 
         subroutine random_fcidump(iunit)
             integer, intent(in) :: iunit
