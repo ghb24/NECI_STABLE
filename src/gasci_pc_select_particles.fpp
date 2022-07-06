@@ -39,8 +39,6 @@ module gasci_pc_select_particles
 
         procedure, public :: draw
         procedure, public :: get_pgen
-
-        procedure :: get_swap_factor
     end type
 contains
 
@@ -102,24 +100,29 @@ contains
         real(dp), intent(out) :: p
         character(*), parameter :: this_routine = 'draw'
 
-        real(dp) :: renorm_I, p_I, renorm_J_I, p_J_I
+        real(dp) :: renorm_I, p_I(2), renorm_J(2), p_J(2)
 
         renorm_I = sum(this%i_sampler%get_prob(i_sg, nI))
-        call this%i_sampler%constrained_sample(i_sg, nI, renorm_I, elecs(1), srcs(1), p_I)
+        call this%i_sampler%constrained_sample(i_sg, nI, renorm_I, elecs(1), srcs(1), p_I(1))
         @:ASSERT(srcs(1) .in. nI)
 
-        renorm_J_I = sum(this%J_sampler%get_prob(srcs(1), i_sg, nI))
+        renorm_J(1) = sum(this%J_sampler%get_prob(srcs(1), i_sg, nI))
 
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%j_sampler%constrained_sample(&
-            srcs(1), i_sg, nI, renorm_J_I, elecs(2), srcs(2), p_J_I)
+            srcs(1), i_sg, nI, renorm_J(1), elecs(2), srcs(2), p_J(1))
         @:ASSERT(srcs(2) .in. nI)
         @:ASSERT(srcs(1) /= srcs(2))
         @:ASSERT(elecs(1) /= elecs(2))
         @:ASSERT(all(nI(elecs) == srcs))
 
         ! We could have picked them the other way round.
-        p = p_I * p_J_I * (1 + this%get_swap_factor(nI, i_sg, srcs(1), srcs(2)))
+        ! The renormalization for the first electron is the same
+        p_I(2) = this%i_sampler%get_prob(i_sg, srcs(2)) / renorm_I
+        renorm_J(2) = sum(this%J_sampler%get_prob(srcs(2), i_sg, nI))
+        p_J(2) = this%J_sampler%get_prob(srcs(2), i_sg, srcs(1)) / renorm_J(2)
+
+        p = sum(p_I * p_J)
 
         if (srcs(1) > srcs(2)) then
             call swap(srcs(1), srcs(2))
@@ -130,62 +133,33 @@ contains
     end subroutine
 
     pure function get_pgen(this, nI, i_sg, I, J) result(p)
-        !! Calculate the probability of \( p(\{I, J\} | D_i) \).
-        !!
-        !! We are interested into the probability of drawing
-        !! particles \( \{I, J\} \) regardless of order.
-        !!
-        !! We know that:
-        !! $$ p(\{I, J\} | D_i) = p((I, J) | D_i) + p((J, I) | D_i) $$
-        !! and
-        !! $$ K(I, J, D_i) := \frac{p((J, I) | D_i)}{p((I, J) | D_i)}
-        !!  =
-        !!      \frac{p(I)}{p(J)}
-        !!      \frac{\sum\limits_{z \in D_i}
-        !!          \tilde{H}_{JZ}}{\sum\limits_{z \in D_i} \tilde{H}_{IZ}} \quad . $$
-        !! It follows that:
-        !! $$ p(\{I, J\} | D_i) = p((I, J) | D_i) \cdot (1 + K(I, J, D_i)) \quad.$$
         class(PC_WeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
         integer, intent(in) :: I, J
         real(dp) :: p
 
-        real(dp) :: p_I
-        real(dp) :: p_J_I
-        real(dp) :: p_I_J
+        real(dp) :: renorm_I, p_I, renorm_J, p_J
 
-        block
-            real(dp) :: renorm_I
-            renorm_I = sum(this%I_sampler%get_prob(i_sg, nI))
-            p_I = this%i_sampler%constrained_getProb(i_sg, nI, renorm_I, I)
-        end block
+        renorm_I = sum(this%I_sampler%get_prob(i_sg, nI))
 
-        block
-            real(dp) :: renorm_J_I
-            renorm_J_I = sum(this%J_sampler%get_prob(I, i_sg, nI))
-            p_J_I = this%j_sampler%constrained_getProb(I, i_sg, nI, renorm_J_I, J)
-        end block
+        p_I = this%i_sampler%constrained_getProb(i_sg, nI, renorm_I, I)
 
-        block
-            real(dp) :: renorm_I_J
-            renorm_I_J = sum(this%J_sampler%get_prob(J, i_sg, nI))
-            p_I_J = this%j_sampler%constrained_getProb(J, i_sg, nI, renorm_I_J, I)
-        end block
 
-        p = p_I * p_J_I &
-            * (1._dp &
-                + this%i_sampler%get_prob(i_sg, J) / this%i_sampler%get_prob(i_sg, I) &
-                    * (p_I_J  / p_J_I))
-    end function
+        renorm_J = sum(this%J_sampler%get_prob(I, i_sg, nI))
+        p_J = this%j_sampler%constrained_getProb(&
+            I, i_sg, nI, renorm_J, J)
 
-    pure function get_swap_factor(this, nI, i_sg, I, J) result(res)
-        !! Calculate the probability of \( p((J, I) | D_i) / p((I, J) | D_i) \)
-        class(PC_WeightedParticles_t), intent(in) :: this
-        integer, intent(in) :: nI(:), i_sg, I, J
-        real(dp) :: res
-        res = &
-            this%I_sampler%get_prob(i_sg, J) / this%I_sampler%get_prob(i_sg, I) &
-            * sum(this%weights(nI, I, i_sg)) / sum(this%weights(nI, J, i_sg))
+        p = p_I * p_J + p_I * p_J / get_swap_factor(I, J)
+
+    contains
+
+        pure function get_swap_factor(I, J) result(res)
+            integer, intent(in) :: I, J
+            real(dp) :: res
+            res = &
+                this%I_sampler%get_prob(i_sg, I) / this%I_sampler%get_prob(i_sg, J) &
+                * sum(this%weights(nI, J, i_sg)) / sum(this%weights(nI, I, i_sg))
+        end function
     end function
 
 
