@@ -93,33 +93,43 @@ contains
         class(PC_WeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
             !! The determinant in nI-format and the supergroup index
-        integer, intent(out) :: elecs(2), srcs(2)
+        integer, intent(out) :: srcs(2), elecs(2)
+            !! The chosen particles \(I, J\) and their index in `nI`.
+            !! It is guaranteed that `scrs(1) < srcs(2)`.
         real(dp), intent(out) :: p
+            !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
+            !! This is the probability of drawing two particles from
+            !! a given determinant \(D_i\) regardless of order.
         character(*), parameter :: this_routine = 'draw'
 
-        real(dp) :: renorm_I, p_I(2), renorm_J(2), p_J(2)
+        real(dp) :: renorm_first, p_first(2)
+        real(dp) :: renorm_second(2), p_second(2)
 
-        renorm_I = sum(this%i_sampler%get_prob(i_sg, nI))
-        call this%i_sampler%constrained_sample(i_sg, nI, renorm_I, elecs(1), srcs(1), p_I(1))
+        renorm_first = sum(this%i_sampler%get_prob(i_sg, nI))
+        call this%i_sampler%constrained_sample(&
+            i_sg, nI, renorm_first, elecs(1), srcs(1), p_first(1))
         @:ASSERT(srcs(1) .in. nI)
 
-        renorm_J(1) = sum(this%J_sampler%get_prob(srcs(1), i_sg, nI))
+        renorm_second(1) = sum(this%J_sampler%get_prob(srcs(1), i_sg, nI))
 
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%j_sampler%constrained_sample(&
-            srcs(1), i_sg, nI, renorm_J(1), elecs(2), srcs(2), p_J(1))
+            srcs(1), i_sg, nI, renorm_second(1), elecs(2), srcs(2), p_second(1))
         @:ASSERT(srcs(2) .in. nI)
         @:ASSERT(srcs(1) /= srcs(2))
         @:ASSERT(elecs(1) /= elecs(2))
         @:ASSERT(all(nI(elecs) == srcs))
 
         ! We could have picked them the other way round.
+        ! Account for that.
         ! The renormalization for the first electron is the same
-        p_I(2) = this%i_sampler%get_prob(i_sg, srcs(2)) / renorm_I
-        renorm_J(2) = sum(this%J_sampler%get_prob(srcs(2), i_sg, nI))
-        p_J(2) = this%J_sampler%get_prob(srcs(2), i_sg, srcs(1)) / renorm_J(2)
+        p_first(2) = this%i_sampler%constrained_getProb(&
+            i_sg, nI, renorm_first, srcs(2))
+        renorm_second(2) = sum(this%J_sampler%get_prob(srcs(2), i_sg, nI))
+        p_second(2) = this%J_sampler%constrained_getProb(&
+            srcs(2), i_sg, nI, renorm_second(2), srcs(1))
 
-        p = sum(p_I * p_J)
+        p = sum(p_first * p_second)
 
         if (srcs(1) > srcs(2)) then
             call swap(srcs(1), srcs(2))
@@ -130,18 +140,34 @@ contains
     end subroutine
 
     pure function get_pgen(this, nI, i_sg, I, J) result(p)
+        !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
+        !!
+        !! This is the probability of drawing two particles from
+        !! a given determinant \(D_i\) regardless of order.
+        !!
+        !! Note that the unordered probability is given by the ordered
+        !! probability as:
+        !! $$ p(\{I, J\}) \Big |_{D_i} = p((I, J)) \Big |_{D_i}
+        !!              + p((J, I)) \Big |_{D_i} \quad.$$
+        !! In addition we have
+        !! $$ p((I, J)) \Big |_{D_i} \neq p((J, I)) \Big |_{D_i} $$
+        !! so we have to actually calculate the probability of drawing
+        !! two given particles in different order.
         class(PC_WeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
+            !! The determinant in nI-format and the supergroup index
         integer, intent(in) :: I, J
+            !! The particles.
         real(dp) :: p
 
         real(dp) :: renorm_first, p_first(2), renorm_second(2), p_second(2)
 
+        ! The renormalization for the first electron is the same,
+        ! regardless of order.
         renorm_first = sum(this%I_sampler%get_prob(i_sg, nI))
 
         p_first(1) = this%i_sampler%constrained_getProb(i_sg, nI, renorm_first, I)
         p_first(2) = this%i_sampler%constrained_getProb(i_sg, nI, renorm_first, J)
-
 
         renorm_second(1) = sum(this%J_sampler%get_prob(I, i_sg, nI))
         p_second(1) = this%j_sampler%constrained_getProb(&
