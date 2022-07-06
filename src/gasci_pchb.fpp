@@ -623,26 +623,7 @@ contains
 
         block
             integer :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-            ! @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
-            ! if ((pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))) then
-            !     write(*, *) '===', ex(1, 1), ex(2, 1), ex(1, 2), ex(2, 2)
-            !     ! write(*, *) pgen, this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-            !     ! write(*, *) pgen / this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-            !     ! write(*, *) '======'
-            ! else
-            !     write(*, *) '>>>', ex(1, 1), ex(2, 1), ex(1, 2), ex(2, 2)
-            !     write(*, *) pgen, this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-            !     write(*, *) pgen / this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-            !     write(*, *) '>>>'
-            ! end if
-
-            ! if (all(pack(ex, .true.) == [1, 5, 3, 7])) then
-            !     write(*, *) '>>>', ex(1, 1), ex(2, 1), ex(1, 2), ex(2, 2)
-            !     write(*, *) samplerIndex
-            !     write(*, *) pgen, this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-            !     write(*, *) pgen / this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-            !     write(*, *) '>>>'
-            ! end if
+            @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
         end block
     end subroutine
 
@@ -798,8 +779,8 @@ contains
             else where
                 this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
             end where
-            call this%particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
         end do
+        call this%particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
     contains
         elemental function to_spin_orb(orb, is_alpha) result(sorb)
             ! map spatial orbital to the spin orbital matching the current samplerIndex

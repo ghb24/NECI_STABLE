@@ -185,6 +185,7 @@ contains
         class(PC_WeightedParticles_t), intent(inout) :: this
 
         call this%I_sampler%finalize()
+        call this%J_sampler%finalize()
         deallocate(this%indexer)
         if (this%create_lookup) then
             nullify(lookup_supergroup_indexer)
