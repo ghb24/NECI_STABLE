@@ -6,7 +6,6 @@ module rdm_hdf5
     use Parallel_neci
     use constants
     use hdf5_util
-    use hdf5_popsfile, only: write_metadata
     use util_mod
 #ifdef USE_HDF_
     use hdf5
