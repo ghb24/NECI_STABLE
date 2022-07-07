@@ -152,7 +152,7 @@ module hdf5_popsfile
     integer(n_int), dimension(:, :), allocatable :: receivebuff
     integer:: receivebuff_tag
 
-    public :: write_popsfile_hdf5, read_popsfile_hdf5, write_metadata
+    public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
 
 contains
