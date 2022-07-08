@@ -11,7 +11,7 @@ module pchb_excitgen
     use gasci, only: GASSpec_t, LocalGASSpec_t
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, get_pgen_sd, gen_exc_sd, gen_all_excits_sd
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t
+    use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t, PCHB_ParticleSelection_t
     implicit none
 
     private
@@ -33,14 +33,16 @@ module pchb_excitgen
 
 contains
 
-    subroutine init(this)
+    subroutine init(this, PCHB_particle_selection)
         class(PCHB_FCI_excit_generator_t), intent(inout) :: this
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         ! CAS is implemented as a special case of GAS with only one GAS space.
         ! Since a GAS specification with one GAS space is trivially disconnected, there
         ! is no point to use the lookup.
         call this%doubles_generator%init(&
                 CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
-                use_lookup=.false., create_lookup=.false.)
+                use_lookup=.false., create_lookup=.false., &
+                PCHB_particle_selection=PCHB_particle_selection)
 
         ! luckily the singles generators don't require initialization.
         if (t_pchb_weighted_singles) then

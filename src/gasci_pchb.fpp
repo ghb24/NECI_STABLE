@@ -70,8 +70,11 @@ module gasci_pchb
     implicit none
 
     private
-    public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_doubles_PCHB_ExcGenerator_t, &
-        possible_GAS_singles, GAS_PCHB_singles_generator, PCHB_particle_selection, possible_PCHB_particle_selection
+    public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
+        GAS_doubles_PCHB_ExcGenerator_t, &
+        possible_GAS_singles, GAS_PCHB_singles_generator, &
+        PCHB_particle_selection, possible_PCHB_particle_selection, &
+        PCHB_ParticleSelection_t
 
     logical, parameter :: use_supergroup_lookup = .true.
 
@@ -458,10 +461,12 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine GAS_doubles_PCHB_init(this, GAS_spec, use_lookup, create_lookup)
+    subroutine GAS_doubles_PCHB_init(this, GAS_spec, &
+            use_lookup, create_lookup, PCHB_particle_selection)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
         integer :: ab, a, b, abMax
@@ -497,7 +502,7 @@ contains
         end do
 
         ! setup the alias table
-        call this%compute_samplers(nBI)
+        call this%compute_samplers(nBI, PCHB_particle_selection)
 
         write(stdout, *) "Finished excitation generator initialization"
 
@@ -710,9 +715,10 @@ contains
     end function
 
 
-    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI)
+    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI, PCHB_particle_selection)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: i, j, ij, ijMax
         integer :: a, b, ab, abMax
         integer :: ex(2, 2)
@@ -866,11 +872,13 @@ contains
     !>  @param[in] use_lookup Use a lookup for the supergroup indexing.
     !>  @param[in] singles_generator A **fully** initialized singles_generator
     !>                  whose cleanup happens outside. Has to be a target.
-    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, used_singles_generator)
+    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, &
+            used_singles_generator, PCHB_particle_selection)
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
 
         if (used_singles_generator == possible_GAS_singles%DISCARDING_UNIFORM) then
             write(stdout, *) 'GAS discarding singles activated'
@@ -889,7 +897,8 @@ contains
             allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
         end if
 
-        call this%doubles_generator%init(GAS_spec, use_lookup, create_lookup)
+        call this%doubles_generator%init(&
+            GAS_spec, use_lookup, create_lookup, PCHB_particle_selection)
     end subroutine
 
 

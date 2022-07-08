@@ -9,7 +9,7 @@ module test_gasci_general_pchb
 
     use gasci, only: LocalGASSpec_t
     use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
-        possible_PCHB_particle_selection, PCHB_particle_selection
+        possible_PCHB_particle_selection
     use excitation_generators, only: ExcitationGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
@@ -40,7 +40,6 @@ contains
         pDoubles = 1.0_dp - pSingles
 
 
-        PCHB_particle_selection = possible_PCHB_particle_selection%UNIFORM
         do n_interspace_exc = 0, 1
             GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
@@ -49,7 +48,8 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
-                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM)
+                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
+                                    PCHB_particle_selection=possible_PCHB_particle_selection%UNIFORM)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -62,7 +62,6 @@ contains
         end do
 
 
-        PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_OCC
         do n_interspace_exc = 0, 1
             GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
@@ -71,7 +70,8 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
-                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM)
+                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
+                                    PCHB_particle_selection=possible_PCHB_particle_selection%PC_WEIGHTED_OCC)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -83,7 +83,6 @@ contains
             call finalize_excitgen_test()
         end do
 
-        PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_FAST
         do n_interspace_exc = 0, 1
             GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
@@ -92,7 +91,8 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
-                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM)
+                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
+                                    PCHB_particle_selection=possible_PCHB_particle_selection%PC_WEIGHTED_FAST)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
