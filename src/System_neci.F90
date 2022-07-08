@@ -39,7 +39,8 @@ MODULE System
         SD_spin_purification, spin_pure_J
 
 
-    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
+    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
+        possible_PCHB_particle_selection, PCHB_particle_selection
 
     use MPI_wrapper, only: iprocindex, root
 
@@ -1847,7 +1848,7 @@ contains
                 case ('GENERAL_PCHB', 'GENERAL-PCHB')
                     user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
 
-                    if (tokens%remaining_items() > 0) then
+                    do while (tokens%remaining_items() > 0)
                         w = to_upper(tokens%next())
                         if (w == 'SINGLES') then
                             w = to_upper(tokens%next())
@@ -1859,11 +1860,26 @@ contains
                             case('ON-FLY-HEAT-BATH')
                                 GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
                             case default
-                                call Stop_All(t_r, trim(w)//" not a valid keyword")
+                                call Stop_All(t_r, trim(w)//" not a valid GAS singles generator")
+                            end select
+                        else if (w == 'PARTICLE_SELECTION') then
+                            w = to_upper(tokens%next())
+                            select case (w)
+                            case('PC_WEIGHTED_FAST')
+                                PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_FAST
+                            case('PC_WEIGHTED_OCC')
+                                PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_OCC
+                            case('UNIFORM')
+                                PCHB_particle_selection = possible_PCHB_particle_selection%UNIFORM
+                            case default
+                                call Stop_All(t_r, trim(w)//" not a valid GAS particle selector")
                             end select
                         else
-                            call Stop_All(t_r, "Only SINGLES allowed as optional next keyword after GENERAL-PCHB")
+                            call Stop_All(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after GENERAL-PCHB")
                         end if
+                    end do
+
+                    if (tokens%remaining_items() > 0) then
                     end if
                 case default
                     call Stop_All(t_r, trim(w)//" not a valid keyword")

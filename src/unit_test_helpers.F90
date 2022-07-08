@@ -525,7 +525,7 @@ contains
 
         block
             integer(int64) :: L
-            type(timer), save :: loop_timer
+            type(timer) :: loop_timer
             loop_timer%timer_name = 'loop '//excit_gen_name
 
             L = n_dets_target .div. 100

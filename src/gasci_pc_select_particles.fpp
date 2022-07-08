@@ -5,18 +5,68 @@
 module gasci_pc_select_particles
     use constants, only: dp, int64, stdout
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
-    use SystemData, only: nEl
+    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
+    use dSFMT_interface, only: genrand_real2_dSFMT
+    use FciMCData, only: pParallel
     use sets_mod, only: is_set, operator(.in.)
-    use util_mod, only: stop_all, operator(.isclose.), swap
+    use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
+    use util_mod, only: stop_all, operator(.isclose.), swap, binary_search_int
     use UMatCache, only: numBasisIndices
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use sets_mod, only: empty_int
     better_implicit_none
-    public :: PC_WeightedParticles_t
+    public :: ParticleSelector_t, PC_WeightedParticlesOcc_t, &
+        UniformParticles_t, PC_FastWeightedParticles_t
 
-    !> The precomputed GAS uniform excitation generator
-    type :: PC_WeightedParticles_t
+    type, abstract :: ParticleSelector_t
+    contains
+        procedure(Draw_t), public, deferred :: draw
+        procedure(GetPgen_t), public, deferred :: get_pgen
+        procedure(Finalize_t), public, deferred :: finalize
+    end type
+
+    abstract interface
+        subroutine Finalize_t(this)
+            import :: ParticleSelector_t
+            implicit none
+            class(ParticleSelector_t), intent(inout) :: this
+        end subroutine
+
+        real(dp) pure function GetPgen_t(this, nI, i_sg, I, J)
+            import :: dp, ParticleSelector_t, nEl
+            implicit none
+            class(ParticleSelector_t), intent(in) :: this
+            integer, intent(in) :: nI(nEl), i_sg
+                !! The determinant in nI-format and the supergroup index
+            integer, intent(in) :: I, J
+                !! The particles.
+        end function
+
+        subroutine Draw_t(this, nI, i_sg, elecs, srcs, p)
+            import :: dp, ParticleSelector_t, nEl
+            class(ParticleSelector_t), intent(in) :: this
+            integer, intent(in) :: nI(nEl), i_sg
+                !! The determinant in nI-format and the supergroup index
+            integer, intent(out) :: srcs(2), elecs(2)
+                !! The chosen particles \(I, J\) and their index in `nI`.
+                !! It is guaranteed that `scrs(1) < srcs(2)`.
+            real(dp), intent(out) :: p
+                !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
+                !! This is the probability of drawing two particles from
+                !! a given determinant \(D_i\) regardless of order.
+        end subroutine
+    end interface
+
+    type, extends(ParticleSelector_t) :: UniformParticles_t
+    contains
+        private
+        procedure, public :: draw => draw_UniformParticles_t
+        procedure, public :: get_pgen => get_pgen_UniformParticles_t
+        procedure, public :: finalize => finalize_UniformParticles_t
+    end type
+
+    type, extends(ParticleSelector_t), abstract :: PC_WeightedParticles_t
         private
         type(AliasSampler_1D_t) :: I_sampler
             !! The shape is (n_supergroup) -> number_of_spin_orbs
@@ -33,15 +83,76 @@ module gasci_pc_select_particles
             !! Create **and** manage! the supergroup index lookup in global_det_data.
     contains
         private
-        procedure, public :: init
-        procedure, public :: finalize
+        procedure, public :: init => init_PC_WeightedParticles_t
+        procedure, public :: finalize => finalize_PC_WeightedParticles_t
+    end type
 
-        procedure, public :: draw
-        procedure, public :: get_pgen
+    type, extends(PC_WeightedParticles_t) :: PC_WeightedParticlesOcc_t
+    contains
+        private
+        procedure, public :: draw => draw_PC_WeightedParticlesOcc_t
+        procedure, public :: get_pgen => get_pgen_PC_WeightedParticlesOcc_t
+    end type
+
+    type, extends(PC_WeightedParticles_t) :: PC_FastWeightedParticles_t
+    contains
+        private
+        procedure, public :: draw => draw_PC_FastWeightedParticles_t
+        procedure, public :: get_pgen => get_pgen_PC_FastWeightedParticles_t
     end type
 contains
 
-    subroutine init(this, GAS_spec, weights, use_lookup, create_lookup)
+    subroutine draw_UniformParticles_t(this, nI, i_sg, elecs, srcs, p)
+        class(UniformParticles_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl), i_sg
+            !! The determinant in nI-format and the supergroup index
+        integer, intent(out) :: srcs(2), elecs(2)
+            !! The chosen particles \(I, J\) and their index in `nI`.
+            !! It is guaranteed that `scrs(1) < srcs(2)`.
+        real(dp), intent(out) :: p
+            !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
+            !! This is the probability of drawing two particles from
+            !! a given determinant \(D_i\) regardless of order.
+        integer :: sym_prod, ispn, sum_ml
+        @:unused_var(i_sg)
+
+        call pick_biased_elecs(nI, elecs, srcs, sym_prod, ispn, sum_ml, p)
+    end subroutine
+
+    pure function get_pgen_UniformParticles_t(this, nI, i_sg, I, J) result(p)
+        !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
+        !!
+        !! This is the probability of drawing two particles from
+        !! a given determinant \(D_i\) regardless of order.
+        !!
+        !! Note that the unordered probability is given by the ordered
+        !! probability as:
+        !! $$ p(\{I, J\}) \Big |_{D_i} = p((I, J)) \Big |_{D_i}
+        !!              + p((J, I)) \Big |_{D_i} \quad.$$
+        !! In addition we have
+        !! $$ p((I, J)) \Big |_{D_i} \neq p((J, I)) \Big |_{D_i} $$
+        !! so we have to actually calculate the probability of drawing
+        !! two given particles in different order.
+        class(UniformParticles_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl), i_sg
+            !! The determinant in nI-format and the supergroup index
+        integer, intent(in) :: I, J
+            !! The particles.
+        real(dp) :: p
+        @:unused_var(this)
+
+        p = get_pgen_pick_biased_elecs(&
+            is_beta(I) .eqv. is_beta(J), pParallel, &
+            par_elec_pairs, AB_elec_pairs)
+    end function
+
+    subroutine finalize_UniformParticles_t(this)
+        class(UniformParticles_t), intent(inout) :: this
+        ! Nothing to do
+    end subroutine
+
+
+    subroutine init_PC_WeightedParticles_t(this, GAS_spec, weights, use_lookup, create_lookup)
         class(PC_WeightedParticles_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         real(dp), intent(in) :: weights(:, :, :)
@@ -89,8 +200,8 @@ contains
         end block
     end subroutine
 
-    subroutine draw(this, nI, i_sg, elecs, srcs, p)
-        class(PC_WeightedParticles_t), intent(in) :: this
+    subroutine draw_PC_WeightedParticlesOcc_t(this, nI, i_sg, elecs, srcs, p)
+        class(PC_WeightedParticlesOcc_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
             !! The determinant in nI-format and the supergroup index
         integer, intent(out) :: srcs(2), elecs(2)
@@ -115,6 +226,10 @@ contains
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%j_sampler%constrained_sample(&
             srcs(1), i_sg, nI, renorm_second(1), elecs(2), srcs(2), p_second(1))
+        if (srcs(2) == 0) then
+            elecs(:) = 0; srcs(:) = 0; p = 1._dp
+            return
+        end if
         @:ASSERT(srcs(2) .in. nI)
         @:ASSERT(srcs(1) /= srcs(2))
         @:ASSERT(elecs(1) /= elecs(2))
@@ -139,7 +254,7 @@ contains
         @:ASSERT(p .isclose. this%get_pgen(nI, i_sg, srcs(1), srcs(2)))
     end subroutine
 
-    pure function get_pgen(this, nI, i_sg, I, J) result(p)
+    pure function get_pgen_PC_WeightedParticlesOcc_t(this, nI, i_sg, I, J) result(p)
         !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
         !!
         !! This is the probability of drawing two particles from
@@ -153,7 +268,7 @@ contains
         !! $$ p((I, J)) \Big |_{D_i} \neq p((J, I)) \Big |_{D_i} $$
         !! so we have to actually calculate the probability of drawing
         !! two given particles in different order.
-        class(PC_WeightedParticles_t), intent(in) :: this
+        class(PC_WeightedParticlesOcc_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
             !! The determinant in nI-format and the supergroup index
         integer, intent(in) :: I, J
@@ -181,7 +296,74 @@ contains
     end function
 
 
-    subroutine finalize(this)
+    subroutine draw_PC_FastWeightedParticles_t(this, nI, i_sg, elecs, srcs, p)
+        class(PC_FastWeightedParticles_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl), i_sg
+            !! The determinant in nI-format and the supergroup index
+        integer, intent(out) :: srcs(2), elecs(2)
+            !! The chosen particles \(I, J\) and their index in `nI`.
+            !! It is guaranteed that `scrs(1) < srcs(2)`.
+        real(dp), intent(out) :: p
+            !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
+            !! This is the probability of drawing two particles from
+            !! a given determinant \(D_i\) regardless of order.
+        character(*), parameter :: this_routine = 'draw'
+        real(dp) :: p_J_I, p_I_J
+
+        elecs(1) = int(genrand_real2_dSFMT() * nEl) + 1
+        srcs(1) = nI(elecs(1))
+
+        call this%j_sampler%sample(srcs(1), i_sg, srcs(2), p_J_I)
+
+        elecs(2) = int(binary_search_int(nI, srcs(2)))
+        if (elecs(2) == -1) then
+            elecs(:) = 0; srcs(:) = 0; p = 1._dp
+            return
+        end if
+        @:ASSERT((srcs(1) .in. nI) .and. (srcs(2) .in. nI))
+        @:ASSERT(srcs(1) /= srcs(2))
+        @:ASSERT(elecs(1) /= elecs(2))
+        @:ASSERT(all(nI(elecs) == srcs))
+
+
+        p_I_J = this%J_sampler%get_prob(srcs(2), i_sg, srcs(1))
+        p = (p_J_I + p_I_J) / nEl
+
+        if (srcs(1) > srcs(2)) then
+            call swap(srcs(1), srcs(2))
+            call swap(elecs(1), elecs(2))
+        end if
+
+        @:ASSERT(p .isclose. this%get_pgen(nI, i_sg, srcs(1), srcs(2)))
+    end subroutine
+
+    pure function get_pgen_PC_FastWeightedParticles_t(this, nI, i_sg, I, J) result(p)
+        !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
+        !!
+        !! This is the probability of drawing two particles from
+        !! a given determinant \(D_i\) regardless of order.
+        !!
+        !! Note that the unordered probability is given by the ordered
+        !! probability as:
+        !! $$ p(\{I, J\}) \Big |_{D_i} = p((I, J)) \Big |_{D_i}
+        !!              + p((J, I)) \Big |_{D_i} \quad.$$
+        !! In addition we have
+        !! $$ p((I, J)) \Big |_{D_i} \neq p((J, I)) \Big |_{D_i} $$
+        !! so we have to actually calculate the probability of drawing
+        !! two given particles in different order.
+        class(PC_FastWeightedParticles_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl), i_sg
+            !! The determinant in nI-format and the supergroup index
+        integer, intent(in) :: I, J
+            !! The particles.
+        real(dp) :: p
+
+        p = (this%J_sampler%get_prob(I, i_sg, J) &
+              + this%J_sampler%get_prob(J, i_sg, I)) / nEl
+    end function
+
+
+    subroutine finalize_PC_WeightedParticles_t(this)
         class(PC_WeightedParticles_t), intent(inout) :: this
 
         call this%I_sampler%finalize()

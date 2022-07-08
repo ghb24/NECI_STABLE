@@ -39,7 +39,7 @@ module gasci_pchb
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: pSingles, excit_gen_store_type, pParallel, projEDet
-    use excit_gens_int_weighted, only: pick_biased_elecs
+    use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use shared_ragged_array, only: shared_ragged_array_int32_t
     use growing_buffers, only: buffer_int32_1D_t
     use parallel_neci, only: iProcIndex_intra
@@ -57,7 +57,9 @@ module gasci_pchb
     use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use gasci_pc_select_particles, only: PC_WeightedParticles_t
+    use gasci_pc_select_particles, only: &
+        ParticleSelector_t, PC_WeightedParticlesOcc_t, &
+        PC_FastWeightedParticles_t, UniformParticles_t
     use exc_gen_class_wrappers, only: UniformSingles_t
 
     use display_matrices, only: write_matrix
@@ -69,7 +71,7 @@ module gasci_pchb
 
     private
     public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_doubles_PCHB_ExcGenerator_t, &
-        possible_GAS_singles, GAS_PCHB_singles_generator
+        possible_GAS_singles, GAS_PCHB_singles_generator, PCHB_particle_selection, possible_PCHB_particle_selection
 
     logical, parameter :: use_supergroup_lookup = .true.
 
@@ -134,6 +136,22 @@ module gasci_pchb
 
     type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
 
+
+    type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
+    end type
+
+    type :: possible_PCHB_ParticleSelection_t
+        type(PCHB_ParticleSelection_t) :: &
+            UNIFORM = PCHB_ParticleSelection_t(1), &
+            PC_WEIGHTED_OCC = PCHB_ParticleSelection_t(2), &
+            PC_WEIGHTED_FAST = PCHB_ParticleSelection_t(3)
+    end type
+
+    type(possible_PCHB_ParticleSelection_t), parameter :: &
+        possible_PCHB_particle_selection = possible_PCHB_ParticleSelection_t()
+
+    type(PCHB_ParticleSelection_t) :: PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_OCC
+
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
         private
@@ -147,7 +165,7 @@ module gasci_pchb
 
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
-        type(PC_WeightedParticles_t) :: particle_selector
+        class(ParticleSelector_t), allocatable :: particle_selector
         class(GASSpec_t), allocatable :: GAS_spec
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
@@ -495,6 +513,7 @@ contains
 
         call this%pchb_samplers%finalize()
         call this%particle_selector%finalize()
+        deallocate(this%particle_selector)
         deallocate(this%tgtOrbs)
         deallocate(this%pExch)
 
@@ -555,6 +574,12 @@ contains
 
         ! first, pick two random elecs
         call this%particle_selector%draw(nI, i_sg, elecs, src, pGen)
+        if (src(1) == 0) then
+            call invalidate()
+            return
+        end if
+
+
         @:ASSERT(pGen .isclose. this%particle_selector%get_pgen(nI, i_sg, src(1), src(2)))
 
         invalid = .false.
@@ -608,24 +633,31 @@ contains
         if (invalid) then
             ! if 0 is returned, there are no excitations for the chosen elecs
             ! -> return nulldet
-            nJ = 0
-            ilutJ = 0_n_int
-            ex(1, 1 : 2) = src
-            ex(2, 1 : 2) = orbs
+            call invalidate()
         else
             ! else, construct the det from the chosen orbs/elecs
 
             call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
 
             ilutJ = exciteIlut(ilutI, src, orbs)
+
+            pGen = pGen * pGenHoles
+
+            block
+                integer :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+                @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
+            end block
+
         end if
 
-        pGen = pGen * pGenHoles
+        contains
 
-        block
-            integer :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-            @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
-        end block
+        subroutine invalidate()
+            nJ = 0
+            ilutJ = 0_n_int
+            ex(1, 1 : 2) = src
+            ex(2, 1 : 2) = orbs
+        end subroutine
     end subroutine
 
 
@@ -688,6 +720,7 @@ contains
         real(dp), allocatable :: w(:), pNoExch(:), IJ_weights(:, :, :)
         integer, allocatable :: supergroups(:, :)
         integer :: i_sg, i_exch
+        character(*), parameter :: this_routine = "GAS_doubles_PCHB_compute_samplers"
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
 
@@ -781,7 +814,26 @@ contains
                 this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
             end where
         end do
-        call this%particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
+
+
+        if (PCHB_particle_selection == possible_PCHB_particle_selection%PC_WEIGHTED_OCC) then
+            allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
+            select type(particle_selector => this%particle_selector)
+            type is(PC_WeightedParticlesOcc_t)
+                call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == possible_PCHB_particle_selection%PC_WEIGHTED_FAST) then
+            allocate(PC_FastWeightedParticles_t :: this%particle_selector)
+            select type(particle_selector => this%particle_selector)
+            type is(PC_FastWeightedParticles_t)
+                call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == possible_PCHB_particle_selection%UNIFORM) then
+            allocate(UniformParticles_t :: this%particle_selector)
+        else
+            call stop_all(this_routine, 'not yet implemented')
+        end if
+
     contains
         elemental function to_spin_orb(orb, is_alpha) result(sorb)
             ! map spatial orbital to the spin orbital matching the current samplerIndex
