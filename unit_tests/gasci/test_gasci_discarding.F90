@@ -9,6 +9,7 @@ module test_gasci_discarding_mod
     use gasci, only: LocalGASSpec_t
     use gasci_discarding, only: GAS_DiscardingGenerator_t
     use gasci_util, only: gen_all_excits
+    use gasci_pchb, only: possible_PCHB_particle_selection
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: test_excitation_generator, &
@@ -43,7 +44,7 @@ contains
         call assert_true(GAS_spec%contains_conf(det_I))
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call exc_generator%init(GAS_spec)
+        call exc_generator%init(GAS_spec, possible_PCHB_particle_selection%UNIFORM)
 
         call run_excit_gen_tester( &
             exc_generator, 'discarding GASCI implementation, random fcidump', &

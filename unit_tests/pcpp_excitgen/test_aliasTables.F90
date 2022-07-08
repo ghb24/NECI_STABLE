@@ -1,7 +1,7 @@
 ! Do unit tests for the aliasSampling module
 #include "macros.h"
 program test_aliasTables
-    use constants, only: dp
+    use constants, only: dp, stdout
     use fruit
     use aliasSampling, only: aliasTable_t, aliasSampler_t
     use Parallel_neci, only: MPIInit, MPIEnd
@@ -110,7 +110,6 @@ contains
         ! right probabilities
         use timing_neci, only: timer, set_timer, halt_timer, get_total_time
 
-
         type(aliasSampler_t) :: sampler
         integer, parameter :: huge_number = 100000000
         integer, parameter :: tSize = 400
@@ -125,7 +124,7 @@ contains
         call create_rand_probs(w)
         call sampler%setupSampler(w)
 
-        call assert_true(all(w .isclose. sampler%getProb([(i, i = 1, tSize)])))
+        call assert_true(all(w.isclose.sampler%getProb([(i, i=1, tSize)])))
 
         hist = 0
         call set_timer(const_sample_timer)
@@ -135,7 +134,7 @@ contains
             probs(r) = p
         end do
         call halt_timer(const_sample_timer)
-        write(*, *) 'Full Alias sample', get_total_time(const_sample_timer)
+        write(stdout, *) 'Full Alias sample', get_total_time(const_sample_timer)
 
         diff = get_diff(hist, w)
         ! is the sampling reasonable?
@@ -143,7 +142,6 @@ contains
         call assert_true(diff < diff_tol)
         ! are the probabilities claimed by the sampler the ones we put in?
         call assert_true(near_zero(sum(abs(probs - w))))
-
 
     end subroutine test_aliasSampler
 
@@ -154,11 +152,10 @@ contains
         type(CDF_Sampler_t) :: CDF_sampler
         type(aliasSampler_t) :: alias_sampler
 
-
         integer, parameter :: huge_number = 10000000
         integer, parameter :: tSize = 10
         type(timer) :: full_sampler, const_sample_timer, CDF_sample_timer_build, &
-            CDF_sample_hand_tailored, fast_const_sample_timer
+                       CDF_sample_hand_tailored, fast_const_sample_timer
         type(timer) :: sum_timer
         real(dp), parameter :: diff_tol = 3e-3_dp
         real(dp) :: renorm
@@ -170,11 +167,11 @@ contains
         real(dp) :: diff
 
         call create_rand_probs(w)
-        contain = [(i, i = 1, tSize / 2)]
+        contain = [(i, i=1, tSize / 2)]
         exclude = [integer::]
 
         call alias_sampler%setupSampler(w)
-        call assert_true(all(w .isclose. alias_sampler%getProb([(i, i = 1, tSize)])))
+        call assert_true(all(w.isclose.alias_sampler%getProb([(i, i=1, tSize)])))
 
         hist = 0
         call set_timer(full_sampler)
@@ -184,14 +181,13 @@ contains
             probs(r) = p
         end do
         call halt_timer(full_sampler)
-        write(*, *) 'Full Alias sample', get_total_time(full_sampler)
+        write(stdout, *) 'Full Alias sample', get_total_time(full_sampler)
 
         diff = get_diff(hist(contain), w(contain) / sum(w(contain)))
 
         ! is the sampling reasonable?
         call assert_true(diff < diff_tol)
         ! are the probabilities claimed by the sampler the ones we put in?
-
 
         hist = 0
         call set_timer(const_sample_timer)
@@ -206,7 +202,7 @@ contains
             probs(r) = p
         end do
         call halt_timer(const_sample_timer)
-        write(*, *) 'constrained Alias sample', get_total_time(const_sample_timer)
+        write(stdout, *) 'constrained Alias sample', get_total_time(const_sample_timer)
 
         diff = get_diff(hist(contain), w(contain) / sum(w(contain)))
 
@@ -214,11 +210,8 @@ contains
         call assert_true(diff < diff_tol)
         ! are the probabilities claimed by the sampler the ones we put in?
 
-
-
         call alias_sampler%setupSampler(w)
-        call assert_true(all(w .isclose. alias_sampler%getProb([(i, i = 1, tSize)])))
-
+        call assert_true(all(w.isclose.alias_sampler%getProb([(i, i=1, tSize)])))
 
     end subroutine
 

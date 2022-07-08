@@ -114,8 +114,7 @@ contains
             !! This is the probability of drawing two particles from
             !! a given determinant \(D_i\) regardless of order.
         integer :: sym_prod, ispn, sum_ml
-        @:unused_var(i_sg)
-
+        @:unused_var(this, i_sg)
         call pick_biased_elecs(nI, elecs, srcs, sym_prod, ispn, sum_ml, p)
     end subroutine
 
@@ -139,7 +138,7 @@ contains
         integer, intent(in) :: I, J
             !! The particles.
         real(dp) :: p
-        @:unused_var(this)
+        @:unused_var(this, nI, i_sg)
 
         p = get_pgen_pick_biased_elecs(&
             is_beta(I) .eqv. is_beta(J), pParallel, &
@@ -148,6 +147,7 @@ contains
 
     subroutine finalize_UniformParticles_t(this)
         class(UniformParticles_t), intent(inout) :: this
+        @:unused_var(this)
         ! Nothing to do
     end subroutine
 
@@ -358,6 +358,7 @@ contains
             !! The particles.
         real(dp) :: p
 
+        @:unused_var(nI)
         p = (this%J_sampler%get_prob(I, i_sg, J) &
               + this%J_sampler%get_prob(J, i_sg, I)) / nEl
     end function
