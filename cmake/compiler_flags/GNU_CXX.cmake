@@ -1,7 +1,7 @@
 # Special defines for gnu C++ compiler
 
-set( ${PROJECT_NAME}_C_FLAGS "-fPIC" )
-set( ${PROJECT_NAME}_C_FLAGS_CLUSTER "-flto" )
+set( ${PROJECT_NAME}_CXX_FLAGS "-fPIC" )
+set( ${PROJECT_NAME}_CXX_FLAGS_CLUSTER "-flto" )
 
 # Warning flags ...
 set( ${PROJECT_NAME}_CXX_WARNING_FLAGS "-Wall -Wextra" )

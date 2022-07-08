@@ -311,7 +311,7 @@ contains
                     orthog_kp_iter = to_int(tokens%next())
                 end if
             case default
-                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in kp-fciqmc block")
             end select
         end do read_inp
 

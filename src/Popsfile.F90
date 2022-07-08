@@ -43,7 +43,7 @@ MODULE PopsfileMod
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                          gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
+                          gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt, gamma_trip
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
                          t_initialized_roi, ilutref, perturbation, CurrentDets, AllSumENum, &
                          AllSumNoatHF, tSinglePartPhase, ProjEDet, SumNoatHF, ValidSpawnedList, &
@@ -510,7 +510,7 @@ contains
             forall (i=0:nNodes - 1) PopsInitialSlots(i) = batch_size * i + 1
 
             write (stdout, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
-                " determinants at a time from POPSFILE'"
+                " determinants at a time from POPSFILE"
             call neci_flush(6)
         end if
 
@@ -1383,7 +1383,7 @@ contains
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing, PopPTriples
         real(dp) :: PopPDoubles, PopPSing_spindiff1, PopPDoub_spindiff1, PopPDoub_spindiff2
-        real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
+        real(dp) :: PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
         logical :: PopPreviousHistTau
@@ -1400,7 +1400,7 @@ contains
             PopTau, PopiBlockingIter, PopRandomHash, &
             PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, PopPTriples, &
             PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
-            PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
+            PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
             PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
             PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
             PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
@@ -1475,6 +1475,7 @@ contains
         end if
         call MPIBcast(PopGammaSing)
         call MPIBcast(PopGammaDoub)
+        call MPIBcast(PopGammaTrip)
         if (tReltvy) then
             call MPIBcast(PopGammaSing_spindiff1)
             call MPIBcast(PopGammaDoub_spindiff1)
@@ -1576,6 +1577,7 @@ contains
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
         gamma_sing = PopGammaSing
         gamma_doub = PopGammaDoub
+        gamma_trip = PopGammaTrip
         if (tReltvy) then
             gamma_sing_spindiff1 = PopGammaSing_spindiff1
             gamma_doub_spindiff1 = PopGammaDoub_spindiff1
@@ -2082,8 +2084,9 @@ contains
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.
-        write (iunit, '(5(a,g18.12))') 'PopGammaSing=', gamma_sing, &
+        write (iunit, '(6(a,g18.12))') 'PopGammaSing=', gamma_sing, &
             ',PopGammaDoub=', gamma_doub, &
+            ',PopGammaTrip=', gamma_trip, &
             ',PopGammaOpp=', gamma_opp, &
             ',PopGammaPar=', gamma_par, &
             ',PopMaxDeathCpt=', max_death_cpt
@@ -2393,7 +2396,7 @@ contains
         IF (PopsVersion == 2) THEN
             READ (iunit, '(A12,L5,A8,L5,A8,L5,A12,L5)') junk, tPop64BitDets, junk2, tPopHPHF, junk3, tPopLz, junk4, tPopInitiator
         ELSE
-            write (stdout, '(A)') "Reading in from depreciated POPSFILE - assuming that parameters " &
+            write (stdout, '(A)') "Reading in from deprecated POPSFILE - assuming that parameters " &
             & //"are the same as when POPSFILE was written"
         ENDIF
         READ (iunit, *) tmp_dp
