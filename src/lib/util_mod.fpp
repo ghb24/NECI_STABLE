@@ -8,7 +8,7 @@
 #:set ops = {'integer': '==', 'real': '.isclose.', 'complex': '.isclose.', 'logical': '.eqv.'}
 
 module util_mod
-    use util_mod_comparisons
+    use util_mod_comparisons, only: operator(.arrgt.), operator(.arrlt.), arr_gt, arr_lt
     use util_mod_numerical
     use util_mod_cpts
     use util_mod_epsilon_close
@@ -28,7 +28,11 @@ module util_mod
 #endif
     implicit none
 
+#if defined(IFORT_) || defined(INTELLLVM_)
+    public
+#else
     private
+#endif
 
     public :: get_nan, isnan_neci, factrl, choose_i64, NECI_icopy, operator(.implies.), &
         abs_l1, abs_sign, near_zero, operator(.isclose.), operator(.div.), &
@@ -1227,7 +1231,7 @@ contains
 
 #if defined(IFORT_) || defined(INTELLLVM_)
         ! intels etime takes a real(4)
-        real(4) :: ioTime(2)
+        real(sp) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules.
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
         ret = real(etime(ioTime), dp)

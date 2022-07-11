@@ -1,0 +1,648 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on May 16 2022 at 14:04:29
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     60a0bea3abd0364cc488853e61711744b6ba29e2
+ Working directory: 
+     /home/weser/code/neci/test_suite/mneci/kpfciqmc/hub_10_ft
+ Running on: altest
+ Started running on 16/05/2022 at 14:51:42
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+system hubbard
+cell 12 1 1
+b -1
+u 1
+spin-restrict 0
+sym 0 0 0 0
+kpoints
+nonuniformrandexcits nosymgen
+lattice-excitgen
+electrons 12
+endsys
+
+calc
+memoryfacspawn 30.0
+memoryfacpart 300.0
+totalwalkers 750
+tau 0.01
+startsinglepart 1000
+shiftdamp 0.5
+stepsshift 1
+diagshift 0.0
+allrealcoeff
+realspawncutoff 0.01
+seed 101
+semi-stochastic
+doubles-core
+core-inits
+truncinitiator
+addtoinitiator 2
+stochastic-hf-spawning
+jump-shift off
+# Add the following line so that the reference does not change after this option was made default)
+proje-changeref 10000.0
+load-balance-blocks off
+endcalc
+
+kp-fciqmc
+finite-temperature
+num-init-configs 2
+num-krylov-vecs 20
+num-iters-between-vecs-vary 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38
+num-repeats-per-init-config 2
+num-walkers-per-site-init 1.0
+init-correct-walker-pop
+averagemcexcits-hamil 20.0
+all-sym-sectors
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Using KPFCIQMC without explicitly specifying the number of replica simulations
+ Defaulting to using 2 replicas
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    12
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :     0
+  GLOBAL MS :            0
+  *** HUBBARD MODEL ***  
+  MOMENTUM :            0           0           0
+  NMAXX :    12
+  NMAXY :     1
+  NMAXZ :     1
+  NMSH :    32
+   HUBBARD T :            -1.00000
+   HUBBARD U :             1.00000
+  X-LENGTH OF HUBBARD CHAIN:          12
+  Y-LENGTH OF HUBBARD CHAIN:           1
+  Z-LENGTH OF HUBBARD CHAIN:           1
+  Periodic Boundary Conditions: T
+  Real space basis: F
+  Orbital Energy Cutoff:   1.0000000000000000E+020
+   VOLUME :            12.00000
+  TALPHA :  F
+   ALPHA :             0.00000
+   SCALED ALPHA :             0.00000
+  NUMBER OF SPIN ORBITALS IN BASIS :    24
+ Creating plane wave basis.
+  NUMBER OF BASIS FUNCTIONS :           24
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1     11      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     12      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      9     -1      0      0     -1    1   0       -1.732050808       -1.732050808
+      4     10     -1      0      0      1    1   0       -1.732050808       -1.732050808
+      5     13      1      0      0     -1    1   0       -1.732050808       -1.732050808
+      6     14      1      0      0      1    1   0       -1.732050808       -1.732050808
+      7      7     -2      0      0     -1    1   0       -1.000000000       -1.000000000
+      8      8     -2      0      0      1    1   0       -1.000000000       -1.000000000
+      9     15      2      0      0     -1    1   0       -1.000000000       -1.000000000
+     10     16      2      0      0      1    1   0       -1.000000000       -1.000000000
+     11      5     -3      0      0     -1    1   0       -0.000000000       -0.000000000
+     12      6     -3      0      0      1    1   0       -0.000000000       -0.000000000
+     13     17      3      0      0     -1    1   0       -0.000000000       -0.000000000
+     14     18      3      0      0      1    1   0       -0.000000000       -0.000000000
+     15      3     -4      0      0     -1    1   0        1.000000000        1.000000000
+     16      4     -4      0      0      1    1   0        1.000000000        1.000000000
+     17     19      4      0      0     -1    1   0        1.000000000        1.000000000
+     18     20      4      0      0      1    1   0        1.000000000        1.000000000
+     19      1     -5      0      0     -1    1   0        1.732050808        1.732050808
+     20      2     -5      0      0      1    1   0        1.732050808        1.732050808
+     21     21      5      0      0     -1    1   0        1.732050808        1.732050808
+     22     22      5      0      0      1    1   0        1.732050808        1.732050808
+     23     23      6      0      0     -1    1   0        2.000000000        2.000000000
+     24     24      6      0      0      1    1   0        2.000000000        2.000000000
+Generating abelian symmetry table with 12 generators for Hubbard momentum
+ SIZES           0          24 F F F F
+ Symmetry, Symmetry Conjugate
+                    1           1
+                    2          11
+                    3          10
+                    4           9
+                    5           8
+                    6           7
+                    7           6
+                    8           5
+                    9           4
+                   10           3
+                   11           2
+                   12          12
+HF determinant not yet defined.
+      1     11      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     12      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      9     -1      0      0     -1   20   0       -1.732050808       -1.732050808
+      4     10     -1      0      0      1   20   0       -1.732050808       -1.732050808
+      5     13      1      0      0     -1   40   0       -1.732050808       -1.732050808
+      6     14      1      0      0      1   40   0       -1.732050808       -1.732050808
+      7      7     -2      0      0     -1   10   0       -1.000000000       -1.000000000
+      8      8     -2      0      0      1   10   0       -1.000000000       -1.000000000
+      9     15      2      0      0     -1   80   0       -1.000000000       -1.000000000
+     10     16      2      0      0      1   80   0       -1.000000000       -1.000000000
+     11      5     -3      0      0     -1    8   0       -0.000000000       -0.000000000
+     12      6     -3      0      0      1    8   0       -0.000000000       -0.000000000
+     13     17      3      0      0     -1  100   0       -0.000000000       -0.000000000
+     14     18      3      0      0      1  100   0       -0.000000000       -0.000000000
+     15      3     -4      0      0     -1    4   0        1.000000000        1.000000000
+     16      4     -4      0      0      1    4   0        1.000000000        1.000000000
+     17     19      4      0      0     -1  200   0        1.000000000        1.000000000
+     18     20      4      0      0      1  200   0        1.000000000        1.000000000
+     19      1     -5      0      0     -1    2   0        1.732050808        1.732050808
+     20      2     -5      0      0      1    2   0        1.732050808        1.732050808
+     21     21      5      0      0     -1  400   0        1.732050808        1.732050808
+     22     22      5      0      0      1  400   0        1.732050808        1.732050808
+     23     23      6      0      0     -1  800   0        2.000000000        2.000000000
+     24     24      6      0      0      1  800   0        2.000000000        2.000000000
+ Not precomputing HUBBARD 2-e integrals
+setting get_umat_el
+ N_alpha: 6 ; N_beta: 6 ; LMS: 0 ; NEl:12
+ Fermi det (D0):(    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   18)
+ Symmetry:     1
+ Fock operator energy:  -14.928203230275511     
+setting get_umat_el
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+    1    2    4    8   10   20   40   80  100  200  400  800
+    2   80  100  200  400  800    4    8   10   20    1   40
+    4  100  200  400  800    2    8   10   20    1   40   80
+    8  200  400  800    2    4   10   20    1   40   80  100
+   10  400  800    2    4    8   20    1   40   80  100  200
+   20  800    2    4    8   10    1   40   80  100  200  400
+   40    4    8   10   20    1   80  100  200  400  800    2
+   80    8   10   20    1   40  100  200  400  800    2    4
+  100   10   20    1   40   80  200  400  800    2    4    8
+  200   20    1   40   80  100  400  800    2    4    8   10
+  400    1   40   80  100  200  800    2    4    8   10   20
+  800   40   80  100  200  400    2    4    8   10   20    1
+ Fast Abelian excitation generators specified,but abelian symmetry not in use.  Using slow generators.
+          78  STATE PAIRS
+          12  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Total momentum is           0           0           0
+ Not storing the H matrix.
+ BETAP=   1.0000000000000000E-004
+ RESETTING P 
+ *** WARNING I_P=    10000000
+ BETA, P :   1000.0000000000000         10000000
+ <D0|H|D0>=  -11.928203230275514     
+ <D0|T|D0>=  -14.928203230275511     
+ <D0|U|D0>   2.9999999999999964     
+ FDet has     6 alpha electrons, and     6 beta electrons.
+               15  alpha-alpha occupied electron pairs
+               15  beta-beta occupied electron pairs
+               36  alpha-beta occupied electron pairs
+               15 alpha-alpha (vacant) hole pairs
+               15 beta-beta (vacant) hole pairs
+               36 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   18) E =    -11.928203230
+(    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   18) E =    -11.928203230
+Symmetry of reference determinant is:          1
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:          101
+Reference Energy set to:       -11.9282032303
+Highest energy determinant is (approximately):      17.9282032302755    
+Corresponding to a correlation energy of:      29.8564064605510    
+This means tau should be no more than about         0.033493649053890
+ Highest energy determinant is:            1           2           3           4          17          18          19          20          21          22          23          24
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+ Since we are using a momentum-space hubbard model/UEG, only double excitaitons                           are connected and will be generated.
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:          204
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:      24.000000 Mb / processor
+Spawning vectors allowing for a total of        11280 particles to be spawned in any one iteration per core.
+ Memory requirement   0.25817871093750000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             132
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        2
+Initial reference is: (    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   18)
+Initial number of particles set to       1000 and shift will be held at     0.000 until particle number gets to             752
+ Initial memory (without excitgens + temp arrays) consists of :      16.688477 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:      205
+ WARNING: Total size of deterministic space is greater than 50% of the initiator space.
+          Reducing the size of the deterministic space is encouraged.
+Size of deterministic space on this processor:       54
+Generating the Hamiltonian in the deterministic space...
+Total time (seconds) taken for Hamiltonian generation:    0.012
+Using the deterministic ground state as initial walker configuration.
+Performing Davidson calculation...
+ Space sizes and max Davidson iterations:           54          25
+ allocating array to hold subspace vectors (0 mb).
+ allocating array to hold multiplied krylov vectors (0 mb).
+ allocating temporary vector (0 mb).
+
+ calculating the initial residual vector... done.
+
+ Iteration    Residual norm            Energy       Time
+         1      0.707975985     -0.0836345878      0.000
+         2      0.163800041     -0.2164019641      0.000
+         3      0.035717387     -0.2271272884      0.000
+         4      0.006498243     -0.2274759656      0.000
+         5      0.000593796     -0.2274848125      0.000
+         6      0.000041480     -0.2274848834      0.000
+         7      0.000002394     -0.2274848837      0.000
+         8      0.000000216     -0.2274848837      0.000
+         9      0.000000018     -0.2274848837      0.000
+
+ Final calculated energy:    -0.2274848837
+Davidson calculation complete.
+Deterministic subspace correlation energy:   -0.2274848837
+Total time (seconds) taken for Davidson calculation:    0.001
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.001
+
+ Setting ref           1
+(    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   18)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   18)
+ Symmetry:     1
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -11.9282032302755    
+ Regenerating the stored diagonal HElements for all walkers.
+Recalculating diagonal elements of the core Hamiltonian.
+ Setting ref           2
+(    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   18)
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   18)
+ Symmetry:     1
+ Ensuring that Brillouin's theorem is no longer used.
+
+============ KP-FCIQMC ============
+About to allocate array to hold all Krylov vectors. Memory required (MB): 1
+Allocating... Done.
+About to allocate array to hold diagonal Hamiltonian elements for Krylov vectors. Memory required (MB): 0
+Allocating... Done.
+About to allocate hash table to the Krylov vector array. Memory required (MB): 0
+Allocating... Done.
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+     About to allocate hash table to the spawning array. Memory required (MB): 0
+Allocating... Done.
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+About to allocate various subspace matrices. Memory required (MB): 0
+Allocating... Done.
+## 1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Proj. E (cyc)                         5. Shift. (cyc)                          11. Tot. Proj. E                         12. Dets occ.        13. Dets spawned     15. Iter. time                          
+ Starting repeat number 1
+# Generating initial walker configuration... Complete. Time taken (seconds):    0.001
+##               0   1000.00000000        1000.00000000        0.00000000000        0.00000000000       -11.9282032303                  1205                0   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.3245E-03
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population2
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.7447E-03
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 8.2846E-03
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.1031E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 337 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.3763E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 400 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.6496E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 492 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.9315E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 585 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.2074E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 677 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.4774E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 765 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.7480E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 859 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.0206E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 969 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.3025E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1068 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.5691E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1169 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.8344E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1284 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.0991E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1368 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.3551E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1479 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.6257E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1583 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.8969E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1673 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.1463E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1764 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.3943E-02
+ Starting repeat number 2
+                 0   1000.00000000        65.9350411334        0.00000000000        0.00000000000       -11.9282032303                  1205              971   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.3245E-03
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population2
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.7979E-03
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 8.0851E-03
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 307 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.0273E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 334 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.2274E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 407 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.4309E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 505 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.6556E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 605 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.9122E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 701 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.1649E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 800 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.4202E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 905 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.6742E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1013 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.9422E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1117 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.2181E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1198 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.4767E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1293 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.7374E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1384 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.0040E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1470 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.2726E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1565 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.5366E-02
+ Highest weighted determinant on run           1 not reference det:           51          51   0.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    5,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   17)
+ Symmetry:     1
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -12.0115365636088    
+ Regenerating the stored diagonal HElements for all walkers.
+Recalculating diagonal elements of the core Hamiltonian.
+ Zeroing all energy estimators.
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1651 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.8019E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1718 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.0399E-02
+ Starting repeat number 1
+# Generating initial walker configuration... Complete. Time taken (seconds):    0.000
+                 0   1000.00000000        48.7362615075        0.00000000000        0.00000000000       -12.0115365636                  1205             1077   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.3245E-03
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population2
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.7314E-03
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 7.9654E-03
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.0226E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 338 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.2666E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 416 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.5206E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 509 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.7886E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 622 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.0652E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 725 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.3351E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 837 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.6456E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 948 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.9481E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1061 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.2473E-02
+ Highest weighted determinant on run           1 not reference det:           51          51   0.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    5,    6,    7,    8,    9,   10,   11,   12,   13,   14,   15,   18)
+ Symmetry:     2
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -10.9282032302755    
+ Regenerating the stored diagonal HElements for all walkers.
+Recalculating diagonal elements of the core Hamiltonian.
+ Zeroing all energy estimators.
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1171 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.5366E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1263 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.8258E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1361 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.0984E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1462 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.3843E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1548 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.6642E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1621 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.9415E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1683 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.2041E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1742 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.4688E-02
+ Starting repeat number 2
+                 0   1000.00000000        95.9668597402        0.00000000000        0.00000000000       -10.9282032303                  1205             1038   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.3245E-03
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population2
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.8045E-03
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 304 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 8.1184E-03
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 305 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.0306E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 337 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.2440E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 414 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.4594E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 506 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.7181E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 608 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 1.9827E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 726 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.2899E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 832 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.5924E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 958 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 2.9049E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1050 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.2081E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1146 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.5080E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1256 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 3.7965E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1348 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.0891E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1443 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.3896E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1525 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.6762E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1603 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 4.9701E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1678 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.2613E-02
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1754 out of a possible 3760
+# Fraction of the amplitude elements used in the Krylov vector array: 5.5379E-02
+
+ ================================================================
+ KP-FCIQMC testsuite data:
+ Sum of overlap matrix elements:             4.6392691713290E+05
+ Sum of H elements:                         -4.1005410181707E+06
+ ================================================================
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      40.7
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datnot deallocated      24.0MB
+ WalkVecDets       InitFCIMCPar       not deallocated      16.0MB
+ SpawnVec          InitFCIMCPar       not deallocated     352.5KB
+ SpawnVec2         InitFCIMCPar       not deallocated     352.5KB
+ SymPairProds      GenSymStatePairs   EndSym                6.8KB
+ temp_store        calc_determ_hamil_scalc_determ_hamil_s   6.4KB
+ TMAT2D            SetupTMAT          DestroyTMat           4.5KB
+ full_determ_vecs  core_space_t%alloc_not deallocated       3.2KB
+ full_determ_vecs_acore_space_t%alloc_not deallocated       3.2KB
+ core_space        store_whole_core_spnot deallocated       1.7KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                1520      0.79
+ SubspaceHamilTime                            4      0.39
+ SyncTime                                  3075      0.21
+ NECICUBE                                     1      0.13
+ GetDiagMatelTime                         16000      0.11
+ AnnMainTime                               1520      0.07
+ SortTime                                  1520      0.05
+ Compress Sort interface                   1520      0.03
+ Compression interface                     1520      0.02
+ CommsTime                                 1544      0.02
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   1.84
+
+ Global wall clock time          1.93
+ ================================================================
+ Calculation ended 16/05/2022 at 14:51:44
+ ================================================================

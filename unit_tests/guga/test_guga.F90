@@ -734,7 +734,7 @@ contains
     end subroutine compare_rdm_all_excits_and_mat_eles
 
     subroutine init_guga_testsuite
-        call init_guga_plugin(t_testmode_=.true., nel_=4, nbasis_=8, &
+        call init_guga_plugin('FCIDUMP', t_testmode_=.true., nel_=4, nbasis_=8, &
                               nSpatOrbs_=4)
     end subroutine init_guga_testsuite
 

@@ -1,35 +1,37 @@
 title
 
-system hubbard 
-nonuniformrandexcits nosymgen
-lattice-excitgen
-kpoints
-electrons 4 
-cell 2 2 1
-b -1
-u 1
+system hubbard
+    nonuniformrandexcits nosymgen
+    lattice-excitgen
+    kpoints
+    electrons 4
+    cell 2 2 1
+    b -1
+    u 1
 endsys
 
 calc
 
-methods
-method vertex fcimc
-endmethods
-seed -7
-nmcyc 5000
-max-tau 0.01
-truncinitiator
-addtoinitiator 3
-totalwalkers 1000
-shiftdamp 0.1
-stepsshift 10
-load-balance-interval 1000
-allrealcoeff
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    nmcyc 5000
+    max-tau 0.01
+    truncinitiator
+    addtoinitiator 3
+    totalwalkers 1000
+    shiftdamp 0.1
+    stepsshift 10
+    load-balance-interval 1000
+    allrealcoeff
+
+    memoryFacSpawn 10
 
 endcalc
 
 logging
-popsfile -1
+    popsfile -1
 endlog
 
-end 
+end

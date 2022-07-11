@@ -32,7 +32,11 @@ gram_schmidt.*
 RDMEstimates*
 TwoRDM*
 OneRDM*
+spinfree-1-RDM*
 spinfree_TwoRDM*
+PSMAT* 
+PAMAT*
+DMAT*
 Inits_TwoRDM_*
 InitsOneRDM.*
 InitsRDMEstimates
@@ -74,7 +78,6 @@ replica_estimates
 replica_estimates.*
 !replica_estimates/
 spatial-tmat
-spinfree-1-RDM
 local_spin_stats
 local_spin_stats.*
 
@@ -86,4 +89,3 @@ neci_dev.pdf
 doc/*
 *pdf
 
-spinfree-1-RDM

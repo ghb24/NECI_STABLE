@@ -13,9 +13,9 @@ foreach( _config mneci)
         PRIVATE_INCLUDES
             "${MPI_Fortran_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
-	    DEFINITIONS
+        DEFINITIONS
             "${NECI_GLOBAL_DEFINES}"
-	    	"${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+            "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
         WARNERR
             ${${PROJECT_NAME}_${_config}_WARNERR}
     )
