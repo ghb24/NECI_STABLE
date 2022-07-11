@@ -164,7 +164,7 @@ contains
             case ("END")
                 exit
             case default
-                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized")
             end select
         end do
         write(stdout, '(/,64("*"),/)')
@@ -309,43 +309,42 @@ contains
         if (tNoSameExcit .and. .not. tInitStar) then
             call stop_all(this_routine, "If we are using TNoSameExcit, then we have to start&
                          & with the star. The other random graph algorithm &
-                         &cannot remove same excitation links yet.", .true.)
+                         &cannot remove same excitation links yet.")
         end if
 
         ! The MoveDets and Biasing algorithms cannot both be used in the
         ! GraphMorph Algorithm.
         if (tBiasing .and. tMoveDets) then
             call stop_all(this_routine, "Biasing algorithm and MoveDets algorithm cannot both&
-                        & be used", .true.)
+                        & be used")
         end if
 
         ! ..RmRootExcitStarsRootChange must be used with DiagStarStars, and not
         ! with ExcitStarsRootChange
         if (tRmRootExcitStarsRootChange .and. .not. tDiagStarStars) then
             call stop_all(this_routine, "RmRootExcitStarsRootChange can only with used with &
-                        &DiagStarStars currently", .true.)
+                        &DiagStarStars currently")
         end if
 
         if (TRmRootExcitStarsRootChange .and. TExcitStarsRootChange) then
             call stop_all(this_routine, "RmRootExcitStarsRootChange and ExcitStarsRootChange &
                         &cannot both be used as they are both different &
-                        &options with diagstarstars", .true.)
+                        &options with diagstarstars")
         end if
 
         !..ExcitStarsRootChange must be used with TDiagStarStars
         if (tExcitStarsRootChange .and. .not. tDiagStarStars) then
             call stop_all(this_routine, "ExcitStarsRootChange can only with used with &
-                        &DiagStarStars currently", .true.)
+                        &DiagStarStars currently")
         end if
 
         ! ..TDiagStarStars must be used with TStarStars, and cannot be used
         ! with TCalcExcitStar
         if (tDiagStarStars .and. .not. tStarStars) then
-            call stop_all(this_routine, "DiagStarStars must be used with StarStars", .true.)
+            call stop_all(this_routine, "DiagStarStars must be used with StarStars")
         end if
         if (tDiagStarStars .and. tCalcExcitStar) then
-            call stop_all(this_routine, "DiagStarStars is incompatable with CalcExcitStar", &
-                        .true.)
+            call stop_all(this_routine, "DiagStarStars is incompatable with CalcExcitStar")
         end if
         if (tDiagStarStars .and. (tNoDoubs .or. tJustQuads)) then
             call stop_all(this_routine, "NoDoubs/JustQuads cannot be used with DiagStarStars &
@@ -356,57 +355,54 @@ contains
         ! cannot occurs with TJustQuads.
         if (tNoDoubs .and. .not. tCalcExcitStar) then
             call stop_all(this_routine, "STARNODOUBS is only an option which applied to &
-                        &TCalcExcitStar", .true.)
+                        &TCalcExcitStar")
         end if
 
         if (tNoDoubs .and. tJustQuads) then
             call stop_all(this_routine, "STARNODOUBS and STARQUADEXCITS cannot be applied &
-                        &together!", .true.)
+                        &together!")
         end if
 
         ! .. TJustQuads is only an option which applies to TCalcExcitStar
         if (tJustQuads .and. .not. tCalcExcitStar) then
             call stop_all(this_routine, "STARQUADEXCITS is only an option which applies to &
-                        &tCalcExcitStar", .true.)
+                        &tCalcExcitStar")
         end if
 
         !.. tCalcExcitStar can only be used with tStarStars
         if (tCalcExcitStar .and. .not. tStarStars) then
-            call stop_all(this_routine, "CalcExcitStar can only be used with StarStars set", &
-                        .true.)
+            call stop_all(this_routine, "CalcExcitStar can only be used with StarStars set")
         end if
 
         !.. Brillouin Theorem must be applied when using TStarStars
         if (tStarStars .and. .not. tUseBrillouin) then
             call stop_all(this_routine, "Brillouin Theorem must be used when using &
-                        &CalcExcitStar", .true.)
+                        &CalcExcitStar")
         end if
 
         !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
         if ((tQuadValMax .or. tQuadVecMax) .and. .not. tStarStars) then
             call stop_all(this_routine, "TQuadValMax or TQuadVecMax can only be specified if &
-                        &STARSTARS specified in method line", .true.)
+                        &STARSTARS specified in method line")
         end if
 
         !.. TQuadValMax and TQuadVecMax cannot both be set
         if (tQuadValMax .and. tQuadVecMax) then
-            call stop_all(this_routine, "TQuadValMax and TQuadVecMax cannot both be set", &
-                        .true.)
+            call stop_all(this_routine, "TQuadValMax and TQuadVecMax cannot both be set")
         end if
 
         !.. TDISCONODES can only be set if NODAL is set in the star methods
         ! section
         if (tDiscoNodes .and. .not. tDiagNodes) then
             call stop_all(this_routine, "DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
-                        &METHOD", .true.)
+                        &METHOD")
         end if
 
         if (tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
             tPreCond) then
             if (tHistSpawn .or. &
                 (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
-                call stop_all(this_routine, "HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references" &
-                            , .true.)
+                call stop_all(this_routine, "HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references")
             end if
         end if
 
@@ -426,12 +422,12 @@ contains
         !     ILOGGING = 0771
         if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
             call stop_all(this_routine, 'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
-                         &set', .true.)
+                         &set')
         end if
 
         !Ensure beta is set.
         if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
-            call stop_all(this_routine, "No beta value provided.", .true.)
+            call stop_all(this_routine, "No beta value provided.")
         end if
 
         do vv = 2, I_VMAX

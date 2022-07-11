@@ -1,39 +1,40 @@
 title
 
 system hubbard
-nonuniformrandexcits ueg_guga
-real
-electrons 4
-cell 2 2 1
-b -1
-u 16
-system-replicas 2
-guga 0
+    nonuniformrandexcits ueg_guga
+    real
+    electrons 4
+    cell 2 2 1
+    b -1
+    u 16
+    system-replicas 2
+    guga 0
 endsys
 
 calc
 
-methods
-method vertex fcimc
-endmethods
-load-balance-interval 1000
-definedet 1 4 5 8
-seed -7
-allrealcoeff
+    methods
+        method vertex fcimc
+    endmethods
+    load-balance-interval 1000
+    definedet 1 4 5 8
+    seed -7
+    allrealcoeff
 
-tau 0.001
-truncinitiator
-addtoinitiator 3
-totalwalkers 100
-shiftdamp 0.1
-stepsshift 10
+    tau 0.001
+    truncinitiator
+    addtoinitiator 3
+    totalwalkers 100
+    shiftdamp 0.1
+    stepsshift 10
 
-nmcyc 5000
+    nmcyc 5000
+    memoryFacSpawn 10
 endcalc
 
 logging
-double-occupancy
-popsfile -1
+    double-occupancy
+    popsfile -1
 endlog
 
 end

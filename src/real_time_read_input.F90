@@ -502,7 +502,7 @@ module real_time_read_input_module
                 exit real_time
 
             case default
-                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in REALTIME block", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in REALTIME block")
 
             end select
         end do real_time

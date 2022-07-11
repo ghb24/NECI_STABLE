@@ -1526,14 +1526,15 @@ contains
             end if
 
             MaxWalkersPart = NINT(MemoryFacPart * MaxWalkersUncorrected)
-            ExpectedMemWalk = real((NIfTot + 1) * MaxWalkersPart * size_n_int + 8 * MaxWalkersPart, dp) / 1048576.0_dp
+            ExpectedMemWalk = real( (NIfTot + 1) * size_n_int + 8, dp ) * &
+                real(MaxWalkersPart, dp) / 2._dp**20
             if (ExpectedMemWalk < 20.0) then
                 !Increase memory allowance for small runs to a min of 20mb
-                MaxWalkersPart = int(20.0 * 1048576.0 / real((NIfTot + 1) * size_n_int + 8, dp))
+                MaxWalkersPart = ceiling( 20._dp * 2._dp**20 / &
+                    real((NIfTot + 1) * size_n_int + 8, dp) )
                 block
                     character(*), parameter :: mem_warning = "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
-                    write(stdout, "(A)") mem_warning
-                    write(stderr, "(A)") mem_warning
+                    if (iProcIndex == root) write(stderr, "(A)") mem_warning
                 end block
             end if
             write(stdout, "(A,I14)") "Memory allocated for a maximum particle number per node of: ", MaxWalkersPart

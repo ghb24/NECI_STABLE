@@ -1906,7 +1906,7 @@ contains
                 write(stdout,*) "Number of zero-valued "//trim(histname)//" excitations: ", tmp_int_64
                 ! maybe also check the number of valid excitations
                 write(stdout,*) "Number of valid "//trim(histname)//" excitations: ", sum_all
-                write(stdout,*) "ratio of zero-valued "//trim(histname)//" excitations: ", &
+                if (abs(sum_all)>0._dp) write(stdout,*) "ratio of zero-valued "//trim(histname)//" excitations: ", &
                     real(tmp_int_64,dp) / sum_all
 
             end if
@@ -1916,7 +1916,7 @@ contains
 
             if (iProcIndex == root) then
                 write(stdout,*) "Number of "//trim(histname)//" excitations above threshold: ", tmp_int
-                write(stdout,*) "ratio of "//trim(histname)//" excitations above threshold: ", &
+                if (abs(sum_all)>0._dp) write(stdout,*) "ratio of "//trim(histname)//" excitations above threshold: ", &
                     real(tmp_int, dp) / sum_all
 
             end if
@@ -1926,7 +1926,7 @@ contains
 
             if (iProcIndex == root) then
                write(stdout,*) "Number of "//trim(histname)//" excitations below threshold: ", tmp_int
-               write(stdout,*) "ratio of "//trim(histname)//" excitations below threshold: ", &
+               if (abs(sum_all)>0._dp) write(stdout,*) "ratio of "//trim(histname)//" excitations below threshold: ", &
                     real(tmp_int, dp) / sum_all
 
                write(stdout,*) "integrated "//trim(histname)//" H_ij/pgen ratio: ", j * frq_step_size
