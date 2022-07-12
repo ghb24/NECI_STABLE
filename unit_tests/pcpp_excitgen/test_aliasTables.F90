@@ -149,14 +149,11 @@ contains
         use timing_neci, only: timer, set_timer, halt_timer, get_total_time
         use CDF_sampling_mod, only: CDF_Sampler_t
 
-        type(CDF_Sampler_t) :: CDF_sampler
         type(aliasSampler_t) :: alias_sampler
 
         integer, parameter :: huge_number = 10000000
         integer, parameter :: tSize = 10
-        type(timer) :: full_sampler, const_sample_timer, CDF_sample_timer_build, &
-                       CDF_sample_hand_tailored, fast_const_sample_timer
-        type(timer) :: sum_timer
+        type(timer) :: full_sampler, const_sample_timer
         real(dp), parameter :: diff_tol = 3e-3_dp
         real(dp) :: renorm
         integer, allocatable :: contain(:), exclude(:)
