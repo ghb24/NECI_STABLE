@@ -1,6 +1,5 @@
 #include "macros.h"
 #:include "macros.fpph"
-#:include "algorithms.fpph"
 #:set countable_types = {'integer': {'int32', 'int64'}}
 #:set primitive_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}}
 
@@ -159,7 +158,7 @@ contains
         integer :: i
 
         sorted = V
-        @:sort(integer, sorted, kind=${kind}$)
+        call sort(sorted)
 
         call buffer%init()
         if (size(sorted) > 0) then

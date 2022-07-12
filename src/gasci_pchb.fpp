@@ -612,7 +612,7 @@ contains
         end if
         ! get a pair of orbitals using the precomputed weights
         call this%pchb_samplers%sample(ij, samplerIndex, int(i_sg), ab, pGenHoles)
-        @:ASSERT(pGenHoles .isclose. this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab))
+        @:ASSERT(ab /= 0 .implies. (pGenHoles .isclose.  this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab)))
 
 
         if (ab == 0) then
