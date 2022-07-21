@@ -423,7 +423,8 @@ contains
 
         use tau_search, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
+        use CalcData, only: tau
+        use tau_search, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
                             enough_sing, enough_doub, enough_trip, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
         use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau

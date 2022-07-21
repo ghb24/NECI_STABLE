@@ -535,27 +535,6 @@ module CalcData
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
     integer :: occ_virt_level = 0
 
-! make variables for automated tau determination, globally available
-! 4ind-weighted variables:
-    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt, &
-                max_permitted_spawn
-    real(dp) :: gamma_trip
-    logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
-    logical :: enough_trip
-    real(dp) :: gamma_sum
-
-    real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
-    integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par, cnt_trip
-! guga-specific:
-    integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
-    integer :: n_opp, n_par
-    integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
-
-! guga non-weighted excitation generator tau-update variables
-    real(dp) :: gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
-                gamma_four
-    logical :: enough_two, enough_two_same, enough_two_mixed, enough_three, &
-               enough_three_same, enough_three_mixed, enough_four
 
 ! introducing an new way to adapt the time-step through H_ij/pgen frequency
 ! analysis: for this we need to store a histogram of the H_ij/pgens

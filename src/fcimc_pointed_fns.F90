@@ -32,8 +32,7 @@ module fcimc_pointed_fns
 
     use bit_rep_data, only: NIfTot, test_flag
 
-    use tau_search, only: log_death_magnitude, fill_frequency_histogram_nosym_diff, &
-                          fill_frequency_histogram_nosym_nodiff, log_spawn_magnitude
+    use tau_search, only: log_death_magnitude, log_spawn_magnitude
 
     use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run, writebitdet
 

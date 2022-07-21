@@ -18,7 +18,7 @@ module tau_search_hist
                         frq_ratio_cutoff, t_hist_tau_search,  &
                         t_fill_frequency_hists, t_hist_tau_search_option, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
-                        t_test_hist_tau, t_consider_par_bias, max_death_cpt
+                        t_test_hist_tau, t_consider_par_bias
 
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
@@ -30,7 +30,8 @@ module tau_search_hist
 
     use constants, only: dp, EPS, stdout, maxExcit, int64
 
-    use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec
+    use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec, &
+        max_death_cpt
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -44,6 +45,12 @@ module tau_search_hist
     use tc_three_body_data, only: pTriples, lMatEps
 
     implicit none
+    private
+    public :: deallocate_histograms, fill_frequency_histogram_4ind, &
+        fill_frequency_histogram_sd, &
+        fill_frequency_histogram, init_hist_tau_search, update_tau_hist, &
+        print_frequency_histograms
+
     ! variables which i might have to define differently:
     logical :: consider_par_bias
     real(dp) :: max_permitted_spawn

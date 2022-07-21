@@ -63,8 +63,6 @@ module fcimc_output
 
     use util_mod
 
-    use tau_search, only: comm_frequency_histogram, comm_frequency_histogram_spec
-
     use real_time_data, only:  gf_count, &
                               normsize, snapShotOrbs, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &

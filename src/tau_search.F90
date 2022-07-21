@@ -61,6 +61,38 @@ module tau_search
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
     implicit none
+    private
+    public :: FindMaxTauDoubs, log_spawn_magnitude, init_tau_search, &
+        max_death_cpt, log_death_magnitude
+    public :: integrate_frequency_histogram_spec
+
+    public :: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
+        cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
+        enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
+        update_tau, gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
+
+
+! make variables for automated tau determination, globally available
+! 4ind-weighted variables:
+    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt, &
+                max_permitted_spawn
+    real(dp) :: gamma_trip
+    logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
+    logical :: enough_trip
+    real(dp) :: gamma_sum
+
+    real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
+    integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par, cnt_trip
+! guga-specific:
+    integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
+    integer :: n_opp, n_par
+    integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
+
+! guga non-weighted excitation generator tau-update variables
+    real(dp) :: gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
+                gamma_four
+    logical :: enough_two, enough_two_same, enough_two_mixed, enough_three, &
+               enough_three_same, enough_three_mixed, enough_four
 
     ! this is to keep probabilities of generating excitations of allowed classes above zero
     real(dp) :: prob_min_thresh
@@ -1080,40 +1112,6 @@ contains
         end if
 
     end subroutine fill_frequency_histogram_nosym_nodiff
-
-    ! write a general histogram communication routine, which takes
-    ! specific histogram as input
-    subroutine comm_frequency_histogram_spec(spec_size, spec_frequency_bins, &
-                                             all_spec_frq_bins)
-        integer, intent(in) :: spec_size
-        integer, intent(in) :: spec_frequency_bins(spec_size)
-!         integer, allocatable, intent(out) :: all_spec_frq_bins(:)
-        integer, intent(out) :: all_spec_frq_bins(n_frequency_bins)
-        character(*), parameter :: this_routine = "comm_frequency_histogram_spec"
-
-        integer :: max_size
-!         integer, allocatable :: temp_bins(:)
-
-        ! with the new scheme i do not need to adjust the lengths since they
-        ! are all the same all the time
-        all_spec_frq_bins = 0
-
-        call MPIAllReduce(spec_frequency_bins, MPI_SUM, all_spec_frq_bins)
-!
-    end subroutine comm_frequency_histogram_spec
-
-    subroutine comm_frequency_histogram(all_frequency_bins)
-        ! routine to communicate the frequency histogram data across all
-        ! processors
-        integer, intent(out) :: all_frequency_bins(n_frequency_bins)
-        character(*), parameter :: this_routine = "comm_frequency_histogram"
-
-        ! do the new implementation! with fixed sizes of the frequency bins
-        all_frequency_bins = 0
-
-        call MPIAllReduce(frequency_bins, MPI_SUM, all_frequency_bins)
-
-    end subroutine comm_frequency_histogram
 
     subroutine integrate_frequency_histogram_spec(spec_frequency_bins, ratio)
         ! specific histogram integration routine which sums up the inputted
