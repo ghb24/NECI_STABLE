@@ -37,8 +37,9 @@ module real_space_hubbard
 
     use OneEInts, only: tmat2d, GetTMatEl, spin_free_tmat
 
-    use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption, &
-                         excit_gen_store_type
+    use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
+
+    use tau_search, only: tSearchTau
 
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, &
                         t_fill_frequency_hists, matele_cutoff, pSinglesIn, pDoublesIn

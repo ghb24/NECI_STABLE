@@ -115,7 +115,7 @@ module soft_exit
                          SumENum, SumNoatHF, tTimeExit, &
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
-                         TotWalkers,tPrintHighPop, tSearchTau, MaxTimeExit, &
+                         TotWalkers,tPrintHighPop, MaxTimeExit, &
                          proje_iter
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
@@ -126,6 +126,7 @@ module soft_exit
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift, &
                         frq_ratio_cutoff, t_hist_tau_search
+    use tau_search, only: tSearchTau
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt

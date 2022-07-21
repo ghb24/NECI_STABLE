@@ -7,7 +7,8 @@ module guga_pchb_class
     use SystemData, only: nel, G1, t_pchb_weighted_singles, &
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
+    use tau_search, only: MaxTau
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
