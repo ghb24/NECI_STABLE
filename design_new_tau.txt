@@ -1,0 +1,15 @@
+tau-values
+    (
+        ['start', {x, 'from_popsfile'}],
+        ['min', x],
+        ['max', x]
+    )
+
+tau-search
+    {
+        'conventional'
+            (['stop_if_no_change', n], ['stop_if_var_shift']),
+        'histogramming',
+            (['stop_if_no_change', n], ['stop_if_var_shift'], ['bin_sizes', x x x]),
+        'off'
+    }
