@@ -20,8 +20,8 @@ module fcimc_pointed_fns
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
                         tPrecond, AAS_Const, ShiftOffset, tAS_Offset
-    use tau_search_conventional, only: tSearchTau, tSearchTauOption, t_fill_frequency_hists
-    use tau_search_hist, only: t_hist_tau_search_option
+    use tau_search_conventional, only: tSearchTau, tSearchTauOption
+    use tau_search_hist, only: t_hist_tau_search_option, t_fill_frequency_hists
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn

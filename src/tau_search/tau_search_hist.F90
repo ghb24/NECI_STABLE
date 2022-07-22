@@ -29,8 +29,7 @@ module tau_search_hist
 
     use tau_search_conventional, only: FindMaxTauDoubs, &
         max_death_cpt, max_tau, min_tau, min_tau_global, &
-        tSearchTau, tSearchTauOption, tSearchTauDeath, t_hist_tau_search, &
-        t_test_hist_tau, t_fill_frequency_hists
+        tSearchTau, tSearchTauOption, tSearchTauDeath, t_hist_tau_search
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -52,6 +51,8 @@ module tau_search_hist
 
     public :: t_hist_tau_search_option, t_previous_hist_tau, t_restart_hist_tau, &
         hist_search_delay
+
+    public :: t_fill_frequency_hists, t_test_hist_tau
 
     ! variables which i might have to define differently:
     logical :: consider_par_bias
@@ -99,6 +100,12 @@ module tau_search_hist
 ! off the tau-search independent of the input and uses the time-step
 ! pSingles and pDoubles values from the previous calculation.
     logical :: t_previous_hist_tau = .false.
+
+
+    logical :: t_fill_frequency_hists = .false.
+
+    logical :: t_test_hist_tau = .false.
+
 
 ! it can be forced to do a tau-search again, if one provides an additional
 ! input restart-hist-tau-search in addition to the the hist-tau-search
@@ -361,16 +368,10 @@ contains
             min_opp = huge(0.0_dp)
             min_par = huge(0.0_dp)
 
-            ! i always use the singles histogram dont I? i think so..
-            ! Log the memory here! TODO
-            allocate(frequency_bins_singles(n_frequency_bins), stat = ierr)
-            frequency_bins_singles = 0
-
-            allocate(frequency_bins_para(n_frequency_bins), stat = ierr)
-            frequency_bins_para = 0
-
-            allocate(frequency_bins_anti(n_frequency_bins), stat = ierr)
-            frequency_bins_anti = 0
+            allocate(frequency_bins_anti(n_frequency_bins), &
+                frequency_bins_para(n_frequency_bins), &
+                frequency_bins_singles(n_frequency_bins), &
+                stat=ierr, source=0)
 
             call LogMemAlloc('frequency_bins', n_frequency_bins * 3, 4, &
                 this_routine, mem_tag_histograms, ierr)

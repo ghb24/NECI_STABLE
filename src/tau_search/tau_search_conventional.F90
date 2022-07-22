@@ -46,7 +46,6 @@ module tau_search_conventional
 
     public :: FindMaxTauDoubs, log_spawn_magnitude, init_tau_search, &
         max_death_cpt, log_death_magnitude
-    public :: t_test_hist_tau, t_fill_frequency_hists
 
     public :: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
         cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
@@ -63,39 +62,37 @@ module tau_search_conventional
     !     is enabled.
     logical :: tSearchTau, tSearchTauOption
     logical :: tSearchTauDeath
-    real(dp) :: max_tau
 
+    real(dp) :: max_tau
 ! introduce a min_tau value to set a minimum of tau for the automated tau
 ! search
     logical :: min_tau = .false.
     real(dp) :: min_tau_global = 1.0e-7_dp
-
 ! alis suggestion: have an option after restarting to keep the time-step
 ! fixed to the values obtained from the POPSFILE
     logical :: t_keep_tau_fixed = .false.
 
-    logical :: t_test_hist_tau = .false.
 
     logical :: t_hist_tau_search = .false.
-    logical :: t_fill_frequency_hists = .false.
 
 
 ! make variables for automated tau determination, globally available
 ! 4ind-weighted variables:
-    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt, &
-                max_permitted_spawn
-    real(dp) :: gamma_trip
-    logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
-    logical :: enough_trip
-    real(dp) :: gamma_sum
+    real(dp) :: gamma_sing = 0._dp, gamma_doub = 0._dp, gamma_trip = 0._dp, &
+        gamma_opp = 0._dp, gamma_par = 0._dp, max_death_cpt = 0._dp, &
+        gamma_sing_spindiff1 = 0._dp, gamma_doub_spindiff1 = 0._dp, &
+        gamma_doub_spindiff2 = 0._dp
+    integer :: cnt_sing = 0, cnt_doub = 0, cnt_opp = 0, cnt_par = 0, cnt_trip = 0
+    logical :: enough_sing = .false., enough_doub = .false., &
+        enough_trip = .false., enough_opp = .false., &
+        enough_par = .false., consider_par_bias = .false.
+    real(dp) :: gamma_sum, max_permitted_spawn
 
-    real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
-    integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par, cnt_trip
 ! guga-specific:
     integer :: n_opp, n_par
 
     ! this is to keep probabilities of generating excitations of allowed classes above zero
-    real(dp) :: prob_min_thresh
+    real(dp), parameter :: prob_min_thresh = 1e-8_dp
 
     interface
         ! This is implemented in a submodule
@@ -216,8 +213,6 @@ contains
         if (t_mixed_hubbard .or. t_olle_hubbard) then
             pParallel = 0.0_dp
         end if
-
-        prob_min_thresh = 1e-8_dp
 
         t_consider_par_bias = consider_par_bias
 

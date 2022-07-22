@@ -1812,7 +1812,8 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
                               nbasis
         use OneEInts, only: tmat2d
-        use FciMCData, only: tsearchtau, tsearchtauoption, ilutref
+        use FciMCData, only: ilutref
+        use tau_search_conventional, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
@@ -1877,7 +1878,7 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
                               ecore
         use OneEInts, only: tmat2d
-        use FciMCData, only: tsearchtau, tsearchtauoption
+        use tau_search_conventional, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor

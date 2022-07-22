@@ -17,10 +17,10 @@ MODULE PopsfileMod
                         pParallelIn
 
     use tau_search_conventional, only: t_keep_tau_fixed, tSearchTau, tSearchTauOption, &
-        t_fill_frequency_hists, t_hist_tau_search
+        t_hist_tau_search
 
     use tau_search_hist, only: t_hist_tau_search_option, t_previous_hist_tau, &
-        t_hist_tau_search_option, t_restart_hist_tau
+        t_hist_tau_search_option, t_restart_hist_tau, t_fill_frequency_hists
 
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat

@@ -63,9 +63,9 @@ module fcimc_initialisation
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
 
-    use tau_search_conventional, only: tSearchTau, t_fill_frequency_hists, t_hist_tau_search
+    use tau_search_conventional, only: tSearchTau, t_hist_tau_search
 
-    use tau_search_hist, only: t_previous_hist_tau
+    use tau_search_hist, only: t_previous_hist_tau, t_fill_frequency_hists
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval

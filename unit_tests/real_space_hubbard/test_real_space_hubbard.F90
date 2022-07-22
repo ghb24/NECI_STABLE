@@ -1920,7 +1920,8 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
                               bhub, ecore
         use OneEInts, only: tmat2d
-        use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
+        use fcimcdata, only: pSingles, pDoubles
+        use tau_search_conventional, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use lattice_mod, only: lattice_deconstructor

@@ -86,14 +86,17 @@ module hdf5_popsfile
         SpawnedParts
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use CalcData, only: tau
-    use tau_search_hist, only: t_previous_hist_tau, &
-                        t_hist_tau_search_option, t_restart_hist_tau
-    use tau_search_conventional, only: t_hist_tau_search, t_fill_frequency_hists
 #ifdef USE_HDF_
     use hdf5
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
 #endif
-    use tau_search_conventional, only: tSearchTau, tSearchTauOption
+    use tau_search_hist, only: t_previous_hist_tau, t_fill_frequency_hists, &
+                        t_hist_tau_search_option, t_restart_hist_tau, deallocate_histograms
+    use tau_search_conventional, only: t_hist_tau_search, tSearchTau, &
+        tSearchTauOption, cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
+        gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
+        enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
+        max_death_cpt, update_tau
     implicit none
     private
 
@@ -428,13 +431,8 @@ contains
 
         use FciMCData, only: pSingles, pDoubles, pParallel
         use CalcData, only: tau
-        use tau_search_conventional, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
-        use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-                            enough_sing, enough_doub, enough_trip, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
         use CalcData, only: tau
-        use tau_search_hist, only: t_hist_tau_search_option, t_previous_hist_tau
-
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp
@@ -639,14 +637,9 @@ contains
 
     subroutine read_tau_opt(parent)
 
-        use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-                              enough_sing, enough_doub, enough_trip, enough_opp, &
-                              enough_par, cnt_sing, cnt_doub, cnt_trip, cnt_opp, &
-                              cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel
         use tc_three_body_data, only: pTriples, tReadPTriples
         use LoggingData, only: t_print_frq_histograms
-        use tau_search_hist, only: deallocate_histograms
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...

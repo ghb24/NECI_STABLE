@@ -33,11 +33,11 @@ MODULE Calc
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
                          user_input_max_davidson_iters
     use tau_search_conventional, only: tSearchTau, tSearchTauOption, tSearchTauDeath, max_tau, &
-        min_tau_global, min_tau, t_keep_tau_fixed, t_fill_frequency_hists, &
-        t_hist_tau_search, t_test_hist_tau
+        min_tau_global, min_tau, t_keep_tau_fixed, &
+        t_hist_tau_search
 
     use tau_search_hist, only: hist_search_delay, t_hist_tau_search_option, &
-        t_restart_hist_tau
+        t_restart_hist_tau, t_fill_frequency_hists, t_test_hist_tau
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
