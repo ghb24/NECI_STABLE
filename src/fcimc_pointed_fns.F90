@@ -14,13 +14,14 @@ module fcimc_pointed_fns
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
-                        t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, &
+                        t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        t_hist_tau_search_option, &
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
                         tPrecond, AAS_Const, ShiftOffset, tAS_Offset
+    use tau_search, only: tSearchTau, tSearchTauOption, t_fill_frequency_hists
+    use tau_search_hist, only: t_hist_tau_search_option
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn

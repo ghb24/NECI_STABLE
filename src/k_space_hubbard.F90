@@ -35,11 +35,14 @@ module k_space_hubbard
 
     use real_space_hubbard, only: lat_tau_factor
 
-    use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
-                         excit_gen_store_type, pSingles
+    use fcimcdata, only: pDoubles, pParallel, excit_gen_store_type, pSingles
 
-    use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, &
-                        t_fill_frequency_hists, pParallelIn, pSinglesIn, pDoublesIn
+    use CalcData, only: tau, pParallelIn, pSinglesIn, pDoublesIn
+
+    use tau_search, only: tSearchTau, tSearchTauOption, t_hist_tau_search, &
+        t_fill_frequency_hists
+
+    use tau_search_hist, only: t_hist_tau_search_option
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 

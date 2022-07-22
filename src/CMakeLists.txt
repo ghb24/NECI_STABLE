@@ -162,9 +162,9 @@ set( SRC_FILES
     symrandexcit_ueg.F90
     SystemData.F90
     System_neci.F90
-    tau_search.F90
-    tau_search_impls.F90
-    tau_search_hist.F90
+    tau_search/tau_search.F90
+    tau_search/tau_search_impls.F90
+    tau_search/tau_search_hist.F90
     tc_three_body_data.F90
     tc_three_body_excitgen.F90
     trial_wf_gen.F90
@@ -386,7 +386,6 @@ set( RELAX_WARNINGS_SRCS
     symrandexcit_ueg.F90
     SystemData.F90
     System_neci.F90
-    tau_search.F90
     tc_three_body_data.F90
     tc_three_body_excitgen.F90
     trial_wf_gen.F90
@@ -398,7 +397,6 @@ set( RELAX_WARNINGS_SRCS
     vasp_interface.F90
     vasp_neci_interface_stub.F90
     double_occ.F90
-    tau_search_hist.F90
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90

@@ -13,9 +13,11 @@ module guga_init
                           t_tJ_model, t_guga_pchb, t_pchb_weighted_singles
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                        t_hist_tau_search, tSpinProject, &
+                        tSpinProject, &
                         tReplicaEstimates, tPreCond, ss_space_in, trial_space_in, &
                         t_fast_pops_core, t_core_inits
+
+    use tau_search, only: t_hist_tau_search
 
     use hist_data, only: tHistSpawn
 
@@ -40,7 +42,9 @@ module guga_init
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
 
-    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
+    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
+
+    use tau_search, only: tSearchTau
 
     use constants, only: dp, int_rdm, n_int, stdout, inum_runs
 

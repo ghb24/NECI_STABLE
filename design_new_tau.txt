@@ -1,6 +1,6 @@
 tau-values
     (
-        ['start', {x, 'from_popsfile'}],
+        ['start', {x, 'from_popsfile', ('tau_factor', x), 'diagonal_deterministic'}],
         ['min', x],
         ['max', x]
     )
@@ -8,8 +8,9 @@ tau-values
 tau-search
     {
         'conventional'
-            (['stop_if_no_change', n], ['stop_if_var_shift']),
         'histogramming',
-            (['stop_if_no_change', n], ['stop_if_var_shift'], ['bin_sizes', x x x]),
+            [(1 - x), x, x],
         'off'
+
+        (['stop_if_no_change', n], ['stop_if_var_shift'], ['stop_after_iter', n]),
     }

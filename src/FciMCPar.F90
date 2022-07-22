@@ -21,7 +21,7 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
+                        t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &

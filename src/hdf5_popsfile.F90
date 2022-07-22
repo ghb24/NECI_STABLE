@@ -85,10 +85,15 @@ module hdf5_popsfile
     use FcimcData, only: SpawnedParts2, AllTotParts, MaxSpawned, PreviousCycles, tSinglePartPhase, &
         SpawnedParts
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
+    use CalcData, only: tau
+    use tau_search_hist, only: t_previous_hist_tau, &
+                        t_hist_tau_search_option, t_restart_hist_tau
+    use tau_search, only: t_hist_tau_search, t_fill_frequency_hists
 #ifdef USE_HDF_
     use hdf5
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
 #endif
+    use tau_search, only: tSearchTau, tSearchTauOption
     implicit none
     private
 
@@ -421,13 +426,15 @@ contains
 
     subroutine write_tau_opt(parent)
 
-        use tau_search, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
         use CalcData, only: tau
+        use tau_search, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
         use tau_search, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
                             enough_sing, enough_doub, enough_trip, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
-        use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
+        use CalcData, only: tau
+        use tau_search_hist, only: t_hist_tau_search_option, t_previous_hist_tau
+
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp
@@ -553,10 +560,9 @@ contains
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption, &
-                             tSearchTau, pSingles, pDoubles, pParallel
-        use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search, &
-                            hdf5_diagsft
+        use FciMCData, only: PreviousCycles, Hii, TotImagTime, &
+                             pSingles, pDoubles, pParallel
+        use CalcData, only: DiagSft, tWalkContGrow, tau, hdf5_diagsft
         use tc_three_body_data, only: pTriples, tReadPTriples
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
@@ -637,12 +643,8 @@ contains
                               enough_sing, enough_doub, enough_trip, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_trip, cnt_opp, &
                               cnt_par, max_death_cpt, update_tau
-        use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
-                             tSearchTauOption
+        use FciMCData, only: pSingles, pDoubles, pParallel
         use tc_three_body_data, only: pTriples, tReadPTriples
-        use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
-                            t_hist_tau_search, t_hist_tau_search_option, &
-                            t_fill_frequency_hists
         use LoggingData, only: t_print_frq_histograms
         use tau_search_hist, only: deallocate_histograms
 

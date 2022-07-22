@@ -83,6 +83,10 @@ module tau_search
 ! fixed to the values obtained from the POPSFILE
     logical :: t_keep_tau_fixed = .false.
 
+    logical :: t_test_hist_tau = .false.
+
+    logical :: t_hist_tau_search = .false.
+    logical :: t_fill_frequency_hists = .false.
 
 
 ! make variables for automated tau determination, globally available
@@ -242,9 +246,6 @@ contains
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "log_spawn_magnitude"
-#endif
 
         select case (getExcitationType(ex, ic))
         case (1)
@@ -388,14 +389,10 @@ contains
 
     subroutine update_tau()
 
-        use FcimCData, only: iter
-
         real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new, pTriples_new
         real(dp) :: pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
-
-        integer :: itmp, itmp2
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -671,8 +668,7 @@ contains
         character(*), parameter :: this_routine = "fill_frequency_histogram_nosym_diff"
 
         real(dp) :: ratio
-        integer :: ind, new_n_bins, i, old_n_bins
-        integer, allocatable :: save_bins(:)
+        integer :: ind
         integer, parameter :: cnt_threshold = 50
 
         real(dp) :: pBranch2, pBranch3
@@ -805,8 +801,7 @@ contains
         character(*), parameter :: this_routine = "fill_frequency_histogram_nosym_nodiff"
 
         real(dp) :: ratio
-        integer :: ind, new_n_bins, i, old_n_bins
-        integer, allocatable :: save_bins(:)
+        integer :: ind
         integer, parameter :: cnt_threshold = 50
 
         ASSERT(pgen > EPS)
@@ -970,6 +965,7 @@ contains
             ! it at this moment.. or maybe still at the end of the
             ! calculation.. but yes, maybe i want to, by default, always
             ! print them to be able to continue from a certain setting
+            call stop_all(this_routine, "Overflow reached")
             ratio = -1.0_dp
             t_fill_frequency_hists = .false.
             return

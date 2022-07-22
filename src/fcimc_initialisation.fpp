@@ -49,8 +49,8 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
-                        tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
+                        tMultipleInitialStates, initial_states, &
+                        t_back_spawn, &
                         t_trunc_nopen_diff, t_guga_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
@@ -62,6 +62,10 @@ module fcimc_initialisation
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
+
+    use tau_search, only: tSearchTau, t_fill_frequency_hists, t_hist_tau_search
+
+    use tau_search_hist, only: t_previous_hist_tau
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval

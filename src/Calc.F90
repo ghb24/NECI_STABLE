@@ -24,14 +24,20 @@ MODULE Calc
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use rdm_data, only: tApplyLC
-    use FciMCData, only: tTimeExit, MaxTimeExit, InputDiagSft, tSearchTau, &
-                         nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
+    use FciMCData, only: tTimeExit, MaxTimeExit, InputDiagSft, &
+                         nWalkerHashes, HashLengthFrac, &
+                         tTrialHash, tIncCancelledInitEnergy, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
+                         alloc_popsfile_dets, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
                          user_input_max_davidson_iters
+    use tau_search, only: tSearchTau, tSearchTauOption, tSearchTauDeath, MaxTau, &
+        min_tau_global, t_min_tau, t_keep_tau_fixed, t_fill_frequency_hists, &
+        t_hist_tau_search, t_test_hist_tau
+
+    use tau_search_hist, only: hist_search_delay, t_hist_tau_search_option, &
+        t_restart_hist_tau
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &

@@ -125,8 +125,8 @@ module soft_exit
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift, &
-                        frq_ratio_cutoff, t_hist_tau_search
-    use tau_search, only: tSearchTau
+                        frq_ratio_cutoff
+    use tau_search, only: tSearchTau, t_hist_tau_search
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt

@@ -1,12 +1,15 @@
 #include "macros.h"
 submodule (tau_search) tau_search_impls
-    use HPHF_integrals, only: hphf_off_diag_helement_norm
+    use util_mod, only: stop_all
 
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet, CalcPGenHPHF, &
                                 CalcNonUniPGen
+    use HPHF_integrals, only: hphf_off_diag_helement_norm
 
+    use k_space_hubbard, only: calc_pgen_k_space_hubbard_uniform_transcorr, &
+        calc_pgen_k_space_hubbard_transcorr, calc_pgen_k_space_hubbard
 
-    better_implicit_none
+    implicit none
 
 contains
 

@@ -11,11 +11,14 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, SftDamp2, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option, tSkipRef, N0_Target, &
-                        tSpinProject, &
+                        qmc_trial_wf, nEquilSteps, &
+                        tSkipRef, N0_Target, tSpinProject, &
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
+
+    use tau_search, only: tSearchTauDeath, tSearchTau, tSearchTauOption
+
+    use tau_search_hist, only: t_hist_tau_search_option
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements

@@ -6,16 +6,21 @@ MODULE PopsfileMod
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy, &
                           t_lattice_model, t_non_hermitian, t_3_body_excits
     use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, tSpecifiedTau, &
-                        ScaleWalkers, tReadPopsRestart, tPopsJumpShift, t_hist_tau_search_option, &
+                        ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, tPopsAlias, &
                         MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
-                        t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
+                        pops_norm, tWritePopsNorm, &
                         t_read_probs, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn, &
-                        t_hist_tau_search_option, hdf5_diagsft, tAutoAdaptiveShift, &
+                        hdf5_diagsft, tAutoAdaptiveShift, &
                         pParallelIn
+
+    use tau_search, only: t_keep_tau_fixed, tSearchTau, tSearchTauOption, &
+        t_fill_frequency_hists, t_hist_tau_search
+
+    use tau_search_hist, only: t_hist_tau_search_option, t_previous_hist_tau, &
+        t_hist_tau_search_option, t_restart_hist_tau
 
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
@@ -52,7 +57,7 @@ MODULE PopsfileMod
                          iLutHF, MaxSpawned, PreviousCycles, ProjectionE, SpawnedParts, SpawnedParts2, &
                          spawnvectag, spawnvec2tag, SumENum, TotWalkers, TotWalkersOld, tPopsAlreadyRead, &
                          tReplicaReferencesDiffer, WalkVecDetsTag, tEScaleWalkers, Iter, pParallel, &
-                         TotImagTime, tSearchTau, tSearchTauOption, iBlockingIter, HashIndex, &
+                         TotImagTime, iBlockingIter, HashIndex, &
                          iEndFreeSlot, InstNoatHF, iStartFreeSlot, NoatHF, nWalkerHashes, popsfile_dets, &
                          nwalkerhashes
     use dSFMT_interface, only: genrand_real2_dSFMT

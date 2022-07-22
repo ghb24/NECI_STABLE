@@ -39,10 +39,12 @@ module real_space_hubbard
 
     use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
 
-    use tau_search, only: tSearchTau
+    use tau_search, only: tSearchTau, tSearchTauOption, t_hist_tau_search, &
+         t_fill_frequency_hists
 
-    use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, &
-                        t_fill_frequency_hists, matele_cutoff, pSinglesIn, pDoublesIn
+    use tau_search_hist, only: t_hist_tau_search_option
+
+    use CalcData, only: tau, matele_cutoff, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 

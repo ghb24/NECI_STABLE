@@ -43,12 +43,13 @@ module real_time_init
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
                         StepsSft, tSemiStochastic, tTruncInitiator, tAddToInitiator
-    use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
+    use FciMCData, only: alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
-                         MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
+                         MaxSpawned, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets, &
                          SpawnedParts, core_run
+    use tau_search, only: tSearchTau
     use core_space_util, only: cs_replicas
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, &
          nBasis, tReal, t_k_space_hubbard, t_complex_ints

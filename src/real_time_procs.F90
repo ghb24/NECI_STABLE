@@ -38,11 +38,12 @@ module real_time_procs
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
                          iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &
                          InitialSpawnedSlots, iLutRef, inum_runs, max_cyc_spawn, core_run, &
-                         tSearchTau, tFillingStochRDMonFly, fcimc_iter_data, &
+                         tFillingStochRDMonFly, fcimc_iter_data, &
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
                          tSinglePartPhase, perturbation, alloc_popsfile_dets
+    use tau_search, only: tSearchTau
     use core_space_util, only: cs_replicas
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
                              init_perturbation_annihilation, apply_perturbation_array

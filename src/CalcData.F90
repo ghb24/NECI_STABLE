@@ -445,29 +445,12 @@ module CalcData
 
     logical :: tPopsAlias = .false.
     character(255) :: aliasStem
-! new tau-search using HISTOGRAMS:
-    logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
-    logical :: t_fill_frequency_hists = .false.
-
-! also use a logical, read-in in the case of a continued run, which turns
-! off the tau-search independent of the input and uses the time-step
-! pSingles and pDoubles values from the previous calculation.
-    logical :: t_previous_hist_tau = .false.
-
-! it can be forced to do a tau-search again, if one provides an additional
-! input restart-hist-tau-search in addition to the the hist-tau-search
-! keyword in case the tau-search is not converged enough
-    logical :: t_restart_hist_tau = .false.
 
     logical :: t_consider_par_bias = .false.
 
 ! quickly implement a control parameter to test the order of matrix element
 ! calculation in the transcorrelated approach
     logical :: t_test_order = .false.
-! also introduce an integer, to delay the actual changing of the time-step
-! for a set amount of iterations
-! (in the restart case for now!)
-    integer :: hist_search_delay = 0
 
 ! maybe also introduce a mixing between the old and new quantities in the
 ! histogramming tau-search, since it is a stochastic process now
@@ -478,18 +461,6 @@ module CalcData
 ! inputted, without an additional argument default it to 0.7_dp
     real(dp) :: mix_ratio = 1.0_dp
 
-    logical :: t_test_hist_tau = .false.
-! real(dp) :: frq_step_size = 0.1_dp
-!
-!
-! ! i need bin arrays for all types of possible spawns:
-! integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
-!                         frequency_bins_anti(:), frequency_bins_doubles(:), &
-!                         frequency_bins(:)
-!
-! ! for the rest of the tau-search, reuse the quantities from the "standard"
-! ! tau search, like enough_sing, etc. although they are not global yet..
-! ! so maybe define new ones to not get confused
 
 ! and i also need to truncate the spawns maybe:
     logical :: t_truncate_spawns = .false.

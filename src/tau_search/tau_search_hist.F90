@@ -13,15 +13,12 @@ module tau_search_hist
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &
-                        t_min_tau, min_tau_global, &
                         max_frequency_bound, n_frequency_bins, &
-                        frq_ratio_cutoff, t_hist_tau_search,  &
-                        t_fill_frequency_hists, t_hist_tau_search_option, &
+                        frq_ratio_cutoff,  &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
-                        t_test_hist_tau, t_consider_par_bias
+                        t_consider_par_bias
 
-    use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
-                         MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
+    use FciMCData, only: tRestart, pSingles, pDoubles, pParallel
 
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
                             MPISumAll, MPISUM, mpireduce, MPI_MIN
@@ -31,7 +28,9 @@ module tau_search_hist
     use constants, only: dp, EPS, stdout, maxExcit, int64
 
     use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec, &
-        max_death_cpt
+        max_death_cpt, MaxTau, t_min_tau, min_tau_global, &
+        tSearchTau, tSearchTauOption, tSearchTauDeath, t_hist_tau_search, &
+        t_test_hist_tau, t_fill_frequency_hists
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -50,6 +49,9 @@ module tau_search_hist
         fill_frequency_histogram_sd, &
         fill_frequency_histogram, init_hist_tau_search, update_tau_hist, &
         print_frequency_histograms
+
+    public :: t_hist_tau_search_option, t_previous_hist_tau, t_restart_hist_tau, &
+        hist_search_delay
 
     ! variables which i might have to define differently:
     logical :: consider_par_bias
@@ -88,13 +90,31 @@ module tau_search_hist
     real(dp) :: min_sing, min_doub, min_opp, min_par, min_trip
 
     real(dp), parameter :: thresh = 1.0e-6_dp
+
+
+! new tau-search using HISTOGRAMS:
+    logical :: t_hist_tau_search_option = .false.
+
+! also use a logical, read-in in the case of a continued run, which turns
+! off the tau-search independent of the input and uses the time-step
+! pSingles and pDoubles values from the previous calculation.
+    logical :: t_previous_hist_tau = .false.
+
+! it can be forced to do a tau-search again, if one provides an additional
+! input restart-hist-tau-search in addition to the the hist-tau-search
+! keyword in case the tau-search is not converged enough
+    logical :: t_restart_hist_tau = .false.
+
+! also introduce an integer, to delay the actual changing of the time-step
+! for a set amount of iterations
+! (in the restart case for now!)
+    integer :: hist_search_delay = 0
 contains
 
     subroutine optimize_hubbard_time_step()
         ! routine to set the optimal time-step for the hubbard model,
         ! where the pgens and matrix elements are set
         use SystemData, only: uhub, bhub, nel, omega, treal
-        character(*), parameter :: this_routine = "optimize_hubbard_time_step"
 
         real(dp) :: p_elec, p_hole, time_step, mat_ele, death_prob
 
@@ -1348,12 +1368,10 @@ contains
         use util_mod, only: get_free_unit, get_unique_filename
         use MPI_wrapper, only: root
 
-        character(*), parameter :: this_routine = "print_frequency_histograms"
         character(255) :: filename, exname
         integer :: all_frequency_bins_spec(n_frequency_bins)
         integer :: all_frequency_bins(n_frequency_bins)
-        integer :: iunit, i, max_size
-        real(dp) :: step_size, norm
+        integer :: iunit, i
         ! sashas tip: why do i not just use a real as summation?
         real(dp) :: sum_all
         integer :: tmp_int, j, k
@@ -1967,14 +1985,5 @@ contains
         if (allocated(frequency_bins_triples)) deallocate(frequency_bins_triples)
 
     end subroutine deallocate_histograms
-
-    subroutine read_frequency_histograms
-        ! also write a routine, which in case of a restart reads in
-        ! saved frequency histograms and calculates time-step and
-        ! psingles etc. from it! although i am not sure if this is
-        ! possible without prior knowledge of the psingles etc..
-        character(*), parameter :: this_routine = "read_frequency_histograms"
-
-    end subroutine read_frequency_histograms
 
 end module

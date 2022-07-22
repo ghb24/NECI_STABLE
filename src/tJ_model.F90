@@ -18,10 +18,13 @@ module tJ_model
 
     use procedure_pointers, only: get_umat_el
 
-    use FciMCData, only: tsearchtau, tsearchtauoption, excit_gen_store_type, &
-                         pSingles, pDoubles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
 
-    use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
+    use CalcData, only: tau
+
+    use tau_search, only: tSearchTau, tSearchTauOption, t_hist_tau_search
+
+    use tau_search_hist, only: t_hist_tau_search_option
 
     use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits
 
