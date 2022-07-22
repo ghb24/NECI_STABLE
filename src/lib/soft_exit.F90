@@ -126,7 +126,7 @@ module soft_exit
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift, &
                         frq_ratio_cutoff
-    use tau_search, only: tSearchTau, t_hist_tau_search
+    use tau_search_conventional, only: tSearchTau, t_hist_tau_search
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt

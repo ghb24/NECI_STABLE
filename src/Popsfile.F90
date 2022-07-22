@@ -16,7 +16,7 @@ MODULE PopsfileMod
                         hdf5_diagsft, tAutoAdaptiveShift, &
                         pParallelIn
 
-    use tau_search, only: t_keep_tau_fixed, tSearchTau, tSearchTauOption, &
+    use tau_search_conventional, only: t_keep_tau_fixed, tSearchTau, tSearchTauOption, &
         t_fill_frequency_hists, t_hist_tau_search
 
     use tau_search_hist, only: t_hist_tau_search_option, t_previous_hist_tau, &
@@ -47,7 +47,7 @@ MODULE PopsfileMod
                            tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod
-    use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+    use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                           gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt, gamma_trip
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
                          t_initialized_roi, ilutref, perturbation, CurrentDets, AllSumENum, &

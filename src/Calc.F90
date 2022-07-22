@@ -32,8 +32,8 @@ MODULE Calc
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
                          user_input_max_davidson_iters
-    use tau_search, only: tSearchTau, tSearchTauOption, tSearchTauDeath, MaxTau, &
-        min_tau_global, t_min_tau, t_keep_tau_fixed, t_fill_frequency_hists, &
+    use tau_search_conventional, only: tSearchTau, tSearchTauOption, tSearchTauDeath, max_tau, &
+        min_tau_global, min_tau, t_keep_tau_fixed, t_fill_frequency_hists, &
         t_hist_tau_search, t_test_hist_tau
 
     use tau_search_hist, only: hist_search_delay, t_hist_tau_search_option, &
@@ -399,7 +399,7 @@ contains
             pParallel = 0.5_dp
         end if
 
-        MaxTau = 1.0_dp
+        max_tau = 1.0_dp
         pop_change_min = 50
         tOrthogonaliseReplicas = .false.
         tOrthogonaliseSymmetric = .false.
@@ -1294,7 +1294,7 @@ contains
                 ! use a minimum tau value or the automated tau-search
                 ! to avoid that a single, worst case excitation kills your
                 ! time-step
-                t_min_tau = .true.
+                min_tau = .true.
 
                 if(tokens%remaining_items() > 0) then
                     min_tau_global = to_realdp(tokens%next())
@@ -1308,7 +1308,7 @@ contains
             case("MAX-TAU")
                 ! For tau searching, set a maximum value of tau. This places
                 ! a limit to prevent craziness at the start of a calculation
-                MaxTau = to_realdp(tokens%next())
+                max_tau = to_realdp(tokens%next())
 
             case("READ-PROBABILITIES")
                 ! introduce a new flag to read pSingles/pParallel etc. from

@@ -47,7 +47,7 @@ module CAS_distribution_init
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
     use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
 
-    use tau_search, only: init_tau_search, max_death_cpt
+    use tau_search_conventional, only: init_tau_search, max_death_cpt
 
     use fcimc_helper, only: CalcParentFlag, update_run_reference
 

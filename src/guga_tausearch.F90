@@ -25,7 +25,7 @@ module guga_tausearch
 
     use constants, only: dp, EPS
 
-    use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec
+    use tau_search_conventional, only: FindMaxTauDoubs, integrate_frequency_histogram_spec
 
     use Parallel_neci
 

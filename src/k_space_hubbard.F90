@@ -39,7 +39,7 @@ module k_space_hubbard
 
     use CalcData, only: tau, pParallelIn, pSinglesIn, pDoublesIn
 
-    use tau_search, only: tSearchTau, tSearchTauOption, t_hist_tau_search, &
+    use tau_search_conventional, only: tSearchTau, tSearchTauOption, t_hist_tau_search, &
         t_fill_frequency_hists
 
     use tau_search_hist, only: t_hist_tau_search_option

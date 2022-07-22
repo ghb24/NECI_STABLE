@@ -1,6 +1,6 @@
 tau-values
     (
-        ['start', {x, 'from_popsfile', ('tau_factor', x), 'diagonal_deterministic'}],
+        'start', {x, 'from_popsfile', ('tau_factor', x), 'diagonal_deterministic'},
         ['min', x],
         ['max', x]
     )

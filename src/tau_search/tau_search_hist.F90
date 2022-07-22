@@ -27,8 +27,8 @@ module tau_search_hist
 
     use constants, only: dp, EPS, stdout, maxExcit, int64
 
-    use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec, &
-        max_death_cpt, MaxTau, t_min_tau, min_tau_global, &
+    use tau_search_conventional, only: FindMaxTauDoubs, &
+        max_death_cpt, max_tau, min_tau, min_tau_global, &
         tSearchTau, tSearchTauOption, tSearchTauDeath, t_hist_tau_search, &
         t_test_hist_tau, t_fill_frequency_hists
 
@@ -435,11 +435,11 @@ contains
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
             if (tGUGA) then
-                if (near_zero(MaxTau)) then
+                if (near_zero(max_tau)) then
                     call stop_all(this_routine, &
                         "please specify a sensible 'max-tau' in input for GUGA calculations!")
                 else
-                    tau = MaxTau
+                    tau = max_tau
                 end if
             else
                 call FindMaxTauDoubs()
@@ -812,7 +812,7 @@ contains
            tau_death = 1.0_dp / max_death_cpt
 
            if (tau_death < tau_new) then
-              if (t_min_tau) then
+              if (min_tau) then
                  root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
                  min_tau_global = tau_death
               end if
@@ -821,7 +821,7 @@ contains
         end if
 
         ! And a last sanity check/hard limit
-        tau_new = min(tau_new, MaxTau)
+        tau_new = min(tau_new, max_tau)
 
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
@@ -846,7 +846,7 @@ contains
             ! also does the restriction on the output make sense? since i am
             ! always changing it anyway... atleast make it smaller..
             if (abs(tau - tau_new) / tau > 0.0001_dp) then
-                if (t_min_tau) then
+                if (min_tau) then
                     if (tau_new < min_tau_global) then
                         root_print "new time-step less then min_tau! set to min_tau!", min_tau_global
 
@@ -1985,5 +1985,109 @@ contains
         if (allocated(frequency_bins_triples)) deallocate(frequency_bins_triples)
 
     end subroutine deallocate_histograms
+
+    subroutine integrate_frequency_histogram_spec(spec_frequency_bins, ratio)
+        ! specific histogram integration routine which sums up the inputted
+        ! frequency_bins
+        integer, intent(in) :: spec_frequency_bins(n_frequency_bins)
+        real(dp), intent(out) :: ratio
+        character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
+
+        integer :: all_frequency_bins(n_frequency_bins)
+        integer :: i, threshold
+        integer :: n_elements, cnt
+        real(dp) :: test_ratio, all_test_ratio
+        logical :: mpi_ltmp
+
+        ! test a change to the tau-search by now integrating on each
+        ! processor seperately and communicate the maximas
+        if (t_test_hist_tau) then
+            test_ratio = 0.0_dp
+            n_elements = sum(spec_frequency_bins)
+            if (n_elements == 0) then
+                test_ratio = 0.0_dp
+
+            else if (n_elements < 0) then
+                test_ratio = -1.0_dp
+                ! if any of the frequency_ratios is full i guess i should
+                ! also end the histogramming tau-search or?
+                ! yes i have to communicate that.. or else it gets
+                ! fucked up..
+
+                t_fill_frequency_hists = .false.
+
+            else
+
+                threshold = int(frq_ratio_cutoff * real(n_elements, dp))
+                cnt = 0
+                i = 0
+                do while (cnt < threshold)
+                    i = i + 1
+                    cnt = cnt + spec_frequency_bins(i)
+                end do
+
+                test_ratio = i * frq_step_size
+
+            end if
+
+            ! how do i best deal with the mpi communication.
+            ! i could use a mpialllor on (.not. t_fill_frequency_hists) to
+            ! check if one of them is false on any processor..
+            call MPIAllLORLogical(.not. t_fill_frequency_hists, mpi_ltmp)
+            if (mpi_ltmp) then
+                ! then i know one of the frequency histograms is full.. so
+                ! stop on all nodes!
+                t_fill_frequency_hists = .false.
+                ratio = -1.0_dp
+                return
+            else
+                all_test_ratio = 0.0_dp
+                call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
+
+                ratio = all_test_ratio
+            end if
+
+            return
+        end if
+
+        ! MPI communicate
+        all_frequency_bins = 0
+        call MPIAllReduce(spec_frequency_bins, MPI_SUM, all_frequency_bins)
+
+        n_elements = sum(all_frequency_bins)
+
+        ! have to check if no elements are yet stored into the histogram!
+        if (n_elements == 0) then
+            ratio = 0.0_dp
+            return
+
+        else if (n_elements < 0) then
+            ! i reached an integer overflow.. and should stop histogramming
+            ! this also means i should make an additional flag for only
+            ! the histogramming option without the tau-search to it
+            ! so i can also stop just the histogramming after an int
+            ! overflow in the histograms
+            ! TODO: in this case i also have to decide if i want to print
+            ! it at this moment.. or maybe still at the end of the
+            ! calculation.. but yes, maybe i want to, by default, always
+            ! print them to be able to continue from a certain setting
+            call stop_all(this_routine, "Overflow reached")
+            ratio = -1.0_dp
+            t_fill_frequency_hists = .false.
+            return
+        end if
+
+        threshold = int(frq_ratio_cutoff * real(n_elements, dp))
+
+        cnt = 0
+        i = 0
+        do while (cnt < threshold)
+            i = i + 1
+            cnt = cnt + all_frequency_bins(i)
+        end do
+
+        ratio = i * frq_step_size
+
+    end subroutine integrate_frequency_histogram_spec
 
 end module

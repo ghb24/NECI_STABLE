@@ -20,7 +20,7 @@ module fcimc_pointed_fns
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
                         tPrecond, AAS_Const, ShiftOffset, tAS_Offset
-    use tau_search, only: tSearchTau, tSearchTauOption, t_fill_frequency_hists
+    use tau_search_conventional, only: tSearchTau, tSearchTauOption, t_fill_frequency_hists
     use tau_search_hist, only: t_hist_tau_search_option
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
@@ -33,7 +33,7 @@ module fcimc_pointed_fns
 
     use bit_rep_data, only: NIfTot, test_flag
 
-    use tau_search, only: log_death_magnitude, log_spawn_magnitude
+    use tau_search_conventional, only: log_death_magnitude, log_spawn_magnitude
 
     use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run, writebitdet
 

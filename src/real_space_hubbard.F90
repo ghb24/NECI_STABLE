@@ -39,7 +39,7 @@ module real_space_hubbard
 
     use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
 
-    use tau_search, only: tSearchTau, tSearchTauOption, t_hist_tau_search, &
+    use tau_search_conventional, only: tSearchTau, tSearchTauOption, t_hist_tau_search, &
          t_fill_frequency_hists
 
     use tau_search_hist, only: t_hist_tau_search_option

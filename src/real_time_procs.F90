@@ -43,7 +43,7 @@ module real_time_procs
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
                          tSinglePartPhase, perturbation, alloc_popsfile_dets
-    use tau_search, only: tSearchTau
+    use tau_search_conventional, only: tSearchTau
     use core_space_util, only: cs_replicas
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
                              init_perturbation_annihilation, apply_perturbation_array
@@ -55,7 +55,7 @@ module real_time_procs
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
-    use tau_search, only: log_spawn_magnitude
+    use tau_search_conventional, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use global_det_data, only: global_determinant_data
 ! RT_M_Merge: Disabled rdms

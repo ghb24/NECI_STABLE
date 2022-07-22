@@ -88,12 +88,12 @@ module hdf5_popsfile
     use CalcData, only: tau
     use tau_search_hist, only: t_previous_hist_tau, &
                         t_hist_tau_search_option, t_restart_hist_tau
-    use tau_search, only: t_hist_tau_search, t_fill_frequency_hists
+    use tau_search_conventional, only: t_hist_tau_search, t_fill_frequency_hists
 #ifdef USE_HDF_
     use hdf5
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
 #endif
-    use tau_search, only: tSearchTau, tSearchTauOption
+    use tau_search_conventional, only: tSearchTau, tSearchTauOption
     implicit none
     private
 
@@ -428,8 +428,8 @@ contains
 
         use FciMCData, only: pSingles, pDoubles, pParallel
         use CalcData, only: tau
-        use tau_search, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
-        use tau_search, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
+        use tau_search_conventional, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
+        use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
                             enough_sing, enough_doub, enough_trip, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
         use CalcData, only: tau
@@ -639,7 +639,7 @@ contains
 
     subroutine read_tau_opt(parent)
 
-        use tau_search, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
+        use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
                               enough_sing, enough_doub, enough_trip, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_trip, cnt_opp, &
                               cnt_par, max_death_cpt, update_tau

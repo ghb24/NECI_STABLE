@@ -17,7 +17,7 @@ module guga_init
                         tReplicaEstimates, tPreCond, ss_space_in, trial_space_in, &
                         t_fast_pops_core, t_core_inits
 
-    use tau_search, only: t_hist_tau_search
+    use tau_search_conventional, only: t_hist_tau_search
 
     use hist_data, only: tHistSpawn
 
@@ -44,7 +44,7 @@ module guga_init
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
 
-    use tau_search, only: tSearchTau
+    use tau_search_conventional, only: tSearchTau
 
     use constants, only: dp, int_rdm, n_int, stdout, inum_runs
 

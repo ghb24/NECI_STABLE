@@ -8,7 +8,7 @@ module guga_pchb_class
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
-    use tau_search, only: MaxTau, t_hist_tau_search
+    use tau_search_conventional, only: max_tau, t_hist_tau_search
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -120,9 +120,9 @@ contains
 
         ! also set some more strict defaults for the PCHB implo:
         root_print "Setting reasonable defaults for GUGA-PCHB:"
-        if (near_zero(MaxTau) .or. MaxTau > 1e-3) then
+        if (near_zero(max_tau) .or. max_tau > 1e-3) then
             root_print "max-tau zero or > 1e-3. setting it to: 1e-3"
-            MaxTau = 1e-3
+            max_tau = 1e-3
         end if
 
         if (t_hist_tau_search) then

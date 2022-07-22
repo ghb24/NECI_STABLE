@@ -16,7 +16,7 @@ module fcimc_iter_utils
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
 
-    use tau_search, only: tSearchTauDeath, tSearchTau, tSearchTauOption
+    use tau_search_conventional, only: tSearchTauDeath, tSearchTau, tSearchTauOption
 
     use tau_search_hist, only: t_hist_tau_search_option
 
@@ -29,7 +29,7 @@ module fcimc_iter_utils
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
                            AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput, &
                            t_measure_local_spin
-    use tau_search, only: update_tau
+    use tau_search_conventional, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
     use fcimc_initialisation

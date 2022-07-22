@@ -49,7 +49,7 @@ module real_time_init
                          MaxSpawned, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets, &
                          SpawnedParts, core_run
-    use tau_search, only: tSearchTau
+    use tau_search_conventional, only: tSearchTau
     use core_space_util, only: cs_replicas
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, &
          nBasis, tReal, t_k_space_hubbard, t_complex_ints

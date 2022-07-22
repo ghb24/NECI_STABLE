@@ -1,6 +1,8 @@
 #include "macros.h"
-submodule (tau_search) tau_search_impls
+submodule (tau_search_conventional) tau_search_conventional_impls
     use util_mod, only: stop_all
+
+    use SystemData, only: nEl, tHPHF, nBasis, max_ex_level, G1, tKPntSym, t_uniform_excits
 
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet, CalcPGenHPHF, &
                                 CalcNonUniPGen
@@ -8,6 +10,25 @@ submodule (tau_search) tau_search_impls
 
     use k_space_hubbard, only: calc_pgen_k_space_hubbard_uniform_transcorr, &
         calc_pgen_k_space_hubbard_transcorr, calc_pgen_k_space_hubbard
+
+    use GenRandSymExcitNUMod, only: &
+        construct_class_counts, init_excit_gen_store, clean_excit_gen_store
+
+    use SymExcitDataMod, only: excit_gen_store_type
+
+    use SymExcit3, only: GenExcitations3
+
+    use sym_general_mod, only: SymAllowedExcit
+
+    use Determinants, only: get_helement
+
+    use bit_reps, only: decode_bit_det
+
+    use bit_rep_data, only: NIfTot
+
+    use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
+                         EncodeBitDet, GetBitExcitation
+
 
     implicit none
 
