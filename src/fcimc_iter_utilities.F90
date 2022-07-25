@@ -16,9 +16,9 @@ module fcimc_iter_utils
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
 
-    use tau_search_conventional, only: tSearchTauDeath, tSearchTau, tSearchTauOption
-
-    use tau_search_hist, only: t_hist_tau_search_option
+    use tau_search, only: scale_tau_to_death, tSearchTauDeath, &
+        tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        end_of_search_reached
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
@@ -796,22 +796,27 @@ contains
         ! We should update tau searching if it is enabled, or if it has been
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
-        if (.not. tSearchTau) then
+        if (scale_tau_to_death .and. tau_search_method == possible_tau_search_methods%OFF) then
             call MPIAllLORLogical(tSearchTauDeath, ltmp)
             tSearchTauDeath = ltmp
         end if
 
         ! for now with the new tau-search also update tau in variable shift
         ! mode..
-        if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) &
-            .and. (.not. tFillingStochRDMOnFly))) then
-
-            call update_tau()
-
-            ! [Werner Dobrautz 4.4.2017:]
-        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) &
-            .and. (.not. tFillingStochRDMonFly))) then
-            call update_tau_hist()
+        if (.not. tFillingStochRDMOnFly) then
+            if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
+                call update_tau()
+            else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                call update_tau_hist()
+            else if (tau_search_method == possible_tau_search_methods%OFF &
+                        .and. scale_tau_to_death &
+                        .and. tSearchTauDeath) then
+                if (input_tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
+                    call update_tau()
+                else if (input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                    call update_tau_hist()
+                end if
+            end if
         end if
 
         ! quick fix for the double occupancy:
@@ -1245,13 +1250,12 @@ contains
         do run = 1, inum_runs
             if (.not. tSinglePartPhase(run)) then
                 TargetGrowRate(run) = 0.0_dp
-                if (tPreCond) then
-                    if (iter > 80) tSearchTau = .false.
-                else
-                    tSearchTau = .false.
-                end if
             end if
         end do
+
+        if (end_of_search_reached(tau_search_method)) then
+            tau_search_method = possible_tau_search_methods%OFF
+        end if
     end subroutine update_shift
 
     subroutine rezero_output_stats()

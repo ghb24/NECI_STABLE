@@ -1,5 +1,5 @@
 #include "macros.h"
-submodule (tau_search_conventional) tau_search_conventional_impls
+submodule(tau_search_conventional) tau_search_conventional_impls
     use util_mod, only: stop_all
 
     use SystemData, only: nEl, tHPHF, nBasis, max_ex_level, G1, tKPntSym, t_uniform_excits
@@ -9,7 +9,7 @@ submodule (tau_search_conventional) tau_search_conventional_impls
     use HPHF_integrals, only: hphf_off_diag_helement_norm
 
     use k_space_hubbard, only: calc_pgen_k_space_hubbard_uniform_transcorr, &
-        calc_pgen_k_space_hubbard_transcorr, calc_pgen_k_space_hubbard
+                               calc_pgen_k_space_hubbard_transcorr, calc_pgen_k_space_hubbard
 
     use GenRandSymExcitNUMod, only: &
         construct_class_counts, init_excit_gen_store, clean_excit_gen_store
@@ -28,7 +28,6 @@ submodule (tau_search_conventional) tau_search_conventional_impls
 
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet, GetBitExcitation
-
 
     implicit none
 
@@ -67,7 +66,7 @@ contains
             print *, "Still need a specific implememtation for that"
         end if
 
-        if(MaxWalkerBloom .isclose. -1._dp) then
+        if (MaxWalkerBloom.isclose.-1._dp) then
             !No MaxWalkerBloom specified
             !Therefore, assume that we do not want blooms larger than n_add if initiator,
             !or 5 if non-initiator calculation.
@@ -155,7 +154,7 @@ contains
         store%tFilled = .false.
         store2%tFilled = .false.
         CALL construct_class_counts(ProjEDet(:, 1), store%ClassCountOcc, &
-            store%ClassCountUnocc)
+                                    store%ClassCountUnocc)
         store%tFilled = .true.
         if (tKPntSym) then
             !TODO: It REALLY needs to be fixed so that we don't need to do this!!
@@ -280,7 +279,5 @@ contains
         end if
 
     end subroutine FindMaxTauDoubs
-
-
 
 end submodule

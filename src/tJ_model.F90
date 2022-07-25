@@ -22,9 +22,7 @@ module tJ_model
 
     use CalcData, only: tau
 
-    use tau_search_conventional, only: tSearchTau, tSearchTauOption, t_hist_tau_search
-
-    use tau_search_hist, only: t_hist_tau_search_option
+    use tau_search, only: tau_search_method, possible_tau_search_methods
 
     use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits
 
@@ -237,13 +235,9 @@ contains
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
         if (t_start_neel_state) then
             root_print "starting from the Neel state: "
@@ -329,13 +323,9 @@ contains
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
     end subroutine init_guga_heisenberg_model
 
@@ -411,21 +401,16 @@ contains
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
         if (t_start_neel_state) then
-!             neel_state_ni = create_neel_state(ilut_neel)
-
             root_print "starting from the Neel state: "
             if (nel > nbasis / 2) then
-                call stop_all(this_routine, &
-                              "more than half-filling! does neel state make sense?")
+                call stop_all(&
+                    this_routine, &
+                    "more than half-filling! does neel state make sense?")
             end if
 
         end if

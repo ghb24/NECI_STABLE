@@ -63,9 +63,10 @@ module fcimc_initialisation
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
 
-    use tau_search_conventional, only: tSearchTau, t_hist_tau_search
+    use tau_search, only: tau_search_method, input_tau_search_method, &
+        possible_tau_search_methods, tau_start_val, possible_tau_start
 
-    use tau_search_hist, only: t_previous_hist_tau, t_fill_frequency_hists
+    use tau_search_hist, only: t_fill_frequency_hists, init_hist_tau_search
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
@@ -223,8 +224,6 @@ module fcimc_initialisation
     use real_time_procs, only: attempt_create_realtime
 
     use adi_references, only: setup_reference_space, clean_adi
-
-    use tau_search_hist, only: init_hist_tau_search
 
     use double_occ_mod, only: init_spin_measurements
 
@@ -1759,33 +1758,10 @@ contains
                               "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! if this is a continued run from a histogramming tau-search
-        ! and a restart of the tau-search is not forced by input, turn
-        ! both the new and the old tau-search off!
-        ! i cannot do it here, since this is called before the popsfile read-in
-        if (t_previous_hist_tau) then
-            ! i have to check for tau-search option and stuff also, so that
-            ! the death tau adaption is still used atleast! todo!
-            tSearchTau = .false.
-            t_hist_tau_search = .false.
-            t_fill_frequency_hists = .false.
-            write(stdout, *) "Turning OFF the tau-search, since continued run!"
-        end if
-
-        if (tSearchTau) then
+        if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
             call init_tau_search()
-            if (t_hist_tau_search) then
-                call Stop_All(t_r, &
-                      "Input error! both standard AND Histogram tau-search chosen!")
-            end if
-
-        else if (t_hist_tau_search) then
+        else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             call init_hist_tau_search()
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
         else
             ! Add a couple of checks for sanity
             if (nOccAlpha == 0 .or. nOccBeta == 0) then

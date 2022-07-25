@@ -77,7 +77,7 @@ module hdf5_popsfile
     use constants
     use hdf5_util
     use util_mod
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn, pTriplesIn
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
@@ -90,10 +90,12 @@ module hdf5_popsfile
     use hdf5
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
 #endif
-    use tau_search_hist, only: t_previous_hist_tau, t_fill_frequency_hists, &
-                        t_hist_tau_search_option, t_restart_hist_tau, deallocate_histograms
-    use tau_search_conventional, only: t_hist_tau_search, tSearchTau, &
-        tSearchTauOption, cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
+    use tau_search, only: tau_search_method, input_tau_search_method, &
+        possible_tau_search_methods, tau_start_val, possible_tau_start
+    use tau_search_hist, only: t_fill_frequency_hists, &
+        deallocate_histograms
+    use tau_search_conventional, only: &
+        cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
         gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
         enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
         max_death_cpt, update_tau
@@ -519,7 +521,7 @@ contains
         ! [W.D.]:
         ! for the new hist-tau search i essentially only need to indicat
         ! that a histogramming tau-search was used:
-        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
+        if (input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             call write_log_scalar(tau_grp, nm_hist_tau, .true.)
         end if
 
@@ -567,6 +569,7 @@ contains
         integer(hdf_err) :: err
         integer :: tmp_inum_runs
         logical :: exists, t_resize
+        debug_function_name("read_calc_data")
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
 
@@ -619,9 +622,13 @@ contains
         write(stdout, *) "pDoubles: ", pDoubles
         if (tReadPTriples) write(stdout, *) "pTriples: ", pTriples
         write(stdout, *) "pParallel: ", pParallel
-        if (tSearchTau .or. t_hist_tau_search) then
-            write(stdout, *) "continuing tau-search!"
+
+        if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
+            write(stdout, *) "continuing conventional tau-search!"
+        else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+            write(stdout, *) "continuing histogramming tau-search!"
         else
+            ASSERT(tau_search_method == possible_tau_search_methods%OFF)
             write(stdout, *) "Do not continue tau-search!"
         end if
 
@@ -648,6 +655,7 @@ contains
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         logical :: ppar_set, tau_set, hist_tau, temp_previous
+        debug_function_name("read_tau_opt")
 
         real(dp) :: temp_tau
 
@@ -686,61 +694,17 @@ contains
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
         ! here i want to make the distinction if we want to tau-search
         ! or not
+        call read_log_scalar(grp_id, nm_hist_tau, temp_previous, exists=hist_tau)
         call read_dp_scalar(grp_id, nm_tau, temp_tau, exists=tau_set)
-
-        call read_log_scalar(grp_id, nm_hist_tau, temp_previous, &
-                             exists=hist_tau)
 
         call h5gclose_f(grp_id, err)
 
-        ! Disable tau search in variable-shift mode (like in Popsfile.F90).
-        if (.not.tSinglePartPhase(1) .or. .not.tSinglePartPhase(inum_runs)) &
-            tSearchTau = .false.
-
-        if (tSpecifiedTau) then
-            write(stdout, *) "time-step specified in input, which takes precedence!"
-        else
-            if (tSearchTauOption .and. tau_set) then
+        if (tau_start_val == possible_tau_start%from_popsfile) then
+            if (tau_set) then
                 tau = temp_tau
+            else
+                call stop_all(this_routine, 'Time-step does not exist in Popsfile')
             end if
-
-            ! also set if previous hist-tau
-            if (hist_tau .and. tau_set) then
-                tau = temp_tau
-                ! and turn off if i dont want to force restart!
-                if (.not. t_restart_hist_tau) then
-                    t_previous_hist_tau = temp_previous
-
-                    if (t_previous_hist_tau) then
-                        tSearchTau = .false.
-                        tSearchTauOption = .false.
-
-                        if (t_hist_tau_search) then
-                            call deallocate_histograms()
-                            t_hist_tau_search = .false.
-                            t_fill_frequency_hists = .false.
-
-                            t_hist_tau_search_option = .true.
-                            t_print_frq_histograms = .false.
-                        end if
-                    end if
-                end if
-            end if
-        end if
-
-        ! if tau is 0, because no input provided, use the one here too
-        if (near_zero(tau) .and. (.not. near_zero(temp_tau))) then
-            tau = temp_tau
-        end if
-
-        ! Deal with a previous bug, that leads to popsfiles existing with all
-        ! the optimising parameters excluding tau, such that the first
-        ! iteration results in chaos
-        ! [W.D]: this if should suffice or?
-        if (.not. hist_tau) then
-            t_previous_hist_tau = .false.
-            if (ppar_set .and. .not. tau_set) &
-                call update_tau()
         end if
 
     end subroutine

@@ -143,7 +143,6 @@ module CalcData
     logical :: tRPA_QBA     !RPA calculation with QB approximation
     logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
     logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
-    logical :: tSpecifiedTau
     logical :: tInitializeCSF
     real(dp) :: S2Init
     logical :: tFixedN0 !Fix the reference population by using projected energy as shift.

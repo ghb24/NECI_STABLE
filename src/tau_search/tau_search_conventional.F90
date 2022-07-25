@@ -12,11 +12,16 @@ module tau_search_conventional
                           t_exclude_3_body_excits, t_ueg_3_body, &
                           t_pchb_excitgen, tGAS
 
-
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, pExcit2, pExcit4, &
                          pExcit2_same, pExcit3_same, &
                          pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
+
+    use util_mod, only: clamp
+
+    use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
+                          input_tau_search_method, tau_search_method, &
+                          tSearchTauDeath
 
     use tc_three_body_data, only: pTriples
 
@@ -27,8 +32,8 @@ module tau_search_conventional
     use constants, only: dp, EPS, stdout, n_int, maxExcit
 
     use CalcData, only: tau, &
-        InitiatorWalkNo, MaxWalkerBloom, t_consider_par_bias, tReadPops, &
-        tTruncInitiator, tWalkContGrow
+                        InitiatorWalkNo, MaxWalkerBloom, t_consider_par_bias, tReadPops, &
+                        tTruncInitiator, tWalkContGrow
 
     use CalcData, only: n_frequency_bins, frq_ratio_cutoff, frq_step_size
 
@@ -41,51 +46,24 @@ module tau_search_conventional
     implicit none
     private
 
-    public :: tSearchTau, tSearchTauOption, max_tau, min_tau, min_tau_global, &
-        tSearchTauDeath, t_keep_tau_fixed
-
     public :: FindMaxTauDoubs, log_spawn_magnitude, init_tau_search, &
-        max_death_cpt, log_death_magnitude
+              max_death_cpt, log_death_magnitude
 
     public :: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-        cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
-        enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
-        update_tau, gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
-
-    public :: t_hist_tau_search
-
-    ! Tau searching variables
-    ! tSearchTau specifies if we are searching tau
-    ! tSearchTauOption specifies if we have ever searched for tau
-    ! tSearchTauDeath is an override - if we need to adjust tau due to
-    !     particle death, when tSearchTau is disabled, but tSearchTauOption
-    !     is enabled.
-    logical :: tSearchTau, tSearchTauOption
-    logical :: tSearchTauDeath
-
-    real(dp) :: max_tau
-! introduce a min_tau value to set a minimum of tau for the automated tau
-! search
-    logical :: min_tau = .false.
-    real(dp) :: min_tau_global = 1.0e-7_dp
-! alis suggestion: have an option after restarting to keep the time-step
-! fixed to the values obtained from the POPSFILE
-    logical :: t_keep_tau_fixed = .false.
-
-
-    logical :: t_hist_tau_search = .false.
-
+              cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
+              enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
+              update_tau, gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
 
 ! make variables for automated tau determination, globally available
 ! 4ind-weighted variables:
     real(dp) :: gamma_sing = 0._dp, gamma_doub = 0._dp, gamma_trip = 0._dp, &
-        gamma_opp = 0._dp, gamma_par = 0._dp, max_death_cpt = 0._dp, &
-        gamma_sing_spindiff1 = 0._dp, gamma_doub_spindiff1 = 0._dp, &
-        gamma_doub_spindiff2 = 0._dp
+                gamma_opp = 0._dp, gamma_par = 0._dp, max_death_cpt = 0._dp, &
+                gamma_sing_spindiff1 = 0._dp, gamma_doub_spindiff1 = 0._dp, &
+                gamma_doub_spindiff2 = 0._dp
     integer :: cnt_sing = 0, cnt_doub = 0, cnt_opp = 0, cnt_par = 0, cnt_trip = 0
     logical :: enough_sing = .false., enough_doub = .false., &
-        enough_trip = .false., enough_opp = .false., &
-        enough_par = .false., consider_par_bias = .false.
+               enough_trip = .false., enough_opp = .false., &
+               enough_par = .false., consider_par_bias = .false.
     real(dp) :: gamma_sum, max_permitted_spawn
 
 ! guga-specific:
@@ -141,7 +119,7 @@ contains
             if (tGUGA) then
                 if (near_zero(max_tau)) then
                     call stop_all(this_routine, &
-                        "please specify a sensible 'max-tau' in input for GUGA calculations!")
+                                  "please specify a sensible 'max-tau' in input for GUGA calculations!")
                 else
                     tau = max_tau
                 end if
@@ -166,7 +144,7 @@ contains
             max_permitted_spawn = real(MaxWalkerBloom, dp)
         end if
 
-        if (.not. (tReadPops .and. .not. tWalkContGrow)) then
+        if (.not.(tReadPops .and. .not. tWalkContGrow)) then
             write(stdout, "(a,f10.5)") "Will dynamically update timestep to &
                          &limit spawning probability to", max_permitted_spawn
         end if
@@ -188,7 +166,7 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
-        else if(t_pchb_excitgen .and.  .not. tGUGA) then
+        else if (t_pchb_excitgen .and. .not. tGUGA) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else if (tGAS) then
@@ -374,10 +352,10 @@ contains
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
-        if (.not. tSearchTau) then
+        if (tau_search_method == possible_tau_search_methods%OFF) then
 
+            ASSERT(input_tau_search_method == possible_tau_search_methods%CONVENTIONAL)
             ! Check that the override has actually occurred.
-            ASSERT(tSearchTauOption)
             ASSERT(tSearchTauDeath)
 
             ! The range of tau is restricted by particle death. It MUST be <=
@@ -402,10 +380,6 @@ contains
 
             ! Condition met --> no need to do this again next iteration
             tSearchTauDeath = .false.
-
-            if (.not. t_hist_tau_search) then
-                return
-            end if
 
         end if
 
@@ -497,7 +471,7 @@ contains
             if ((tUEG .or. enough_sing) .and. enough_doub) then
                 psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
                 if (enough_trip) pTriples_new = max(gamma_trip / &
-                    (gamma_sum + gamma_trip), prob_min_thresh)
+                                                    (gamma_sum + gamma_trip), prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1 / gamma_sum
                     pDoub_spindiff1_new = gamma_doub_spindiff1 / gamma_sum
@@ -548,16 +522,11 @@ contains
         if (abs(max_death_cpt) > EPS) then
             tau_death = 1.0_dp / max_death_cpt
             if (tau_death < tau_new) then
-                if (min_tau) then
-                    root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
-                    min_tau_global = tau_death
-                end if
-                tau_new = tau_death
+                min_tau = min(tau_death, min_tau)
+                tau_new = clamp(tau_death, min_tau, max_tau)
+                root_print "time-step reduced, due to death events! reset min_tau to:", tau_new
             end if
         end if
-
-        ! And a last sanity check/hard limit
-        tau_new = min(tau_new, max_tau)
 
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
@@ -575,24 +544,12 @@ contains
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
             ! initiator threshold, but slightly below it instead.
-            tau_new = tau_new * 0.99999_dp
+            tau_new = clamp(tau_new, min_tau, max_tau) * 0.99999_dp
 
             if (abs(tau - tau_new) / tau > 0.001_dp) then
-                if (min_tau) then
-                    if (tau_new < min_tau_global) then
-                        root_print "new time-step less than min_tau! set to min_tau:", min_tau_global
-
-                        tau_new = min_tau_global
-
-                    else
-                        root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
-                    end if
-                else
-                    root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
-
-                end if
+                tau = tau_new
+                root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
             end if
-            tau = tau_new
         end if
 
         ! Make sure that we have at least some of both singles and doubles
@@ -609,7 +566,7 @@ contains
                         ", pDoubles(st->s't') = ", pDoub_spindiff2_new
                 else
                     root_print "Updating singles/doubles bias. pSingles = ", psingles_new
-                    root_print " pDoubles = ", (1.0_dp - pSingles_new) * (1.0 - pTriples_new)
+                    root_print " pDoubles = ",(1.0_dp - pSingles_new) * (1.0 - pTriples_new)
                 end if
             end if
 

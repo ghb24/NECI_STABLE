@@ -5,7 +5,7 @@ MODULE PopsfileMod
     use SystemData, only: nel, tHPHF, tFixLz, nBasis, tNoBrillouin, tReal, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy, &
                           t_lattice_model, t_non_hermitian, t_3_body_excits
-    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, tSpecifiedTau, &
+    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, &
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, tPopsAlias, &
@@ -16,11 +16,16 @@ MODULE PopsfileMod
                         hdf5_diagsft, tAutoAdaptiveShift, &
                         pParallelIn
 
-    use tau_search_conventional, only: t_keep_tau_fixed, tSearchTau, tSearchTauOption, &
-        t_hist_tau_search
-
-    use tau_search_hist, only: t_hist_tau_search_option, t_previous_hist_tau, &
-        t_hist_tau_search_option, t_restart_hist_tau, t_fill_frequency_hists
+    use tau_search, only: tau_search_method, input_tau_search_method, &
+        possible_tau_search_methods, tau_start_val, possible_tau_start
+    use tau_search_hist, only: t_fill_frequency_hists, deallocate_histograms
+    use tau_search_conventional, only: &
+        cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
+        gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
+        enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
+        max_death_cpt, gamma_doub_spindiff1, gamma_doub_spindiff2, &
+        gamma_sing_spindiff1, &
+        update_tau
 
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
@@ -47,8 +52,6 @@ MODULE PopsfileMod
                            tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod
-    use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                          gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt, gamma_trip
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
                          t_initialized_roi, ilutref, perturbation, CurrentDets, AllSumENum, &
                          AllSumNoatHF, tSinglePartPhase, ProjEDet, SumNoatHF, ValidSpawnedList, &
@@ -76,7 +79,6 @@ MODULE PopsfileMod
                              add_pops_norm_contrib
     use gdata_io, only: gdata_io_t
     use util_mod
-    use tau_search_hist, only: deallocate_histograms
 
     use lattice_mod, only: get_helement_lattice
 
@@ -1150,8 +1152,8 @@ contains
         if (abs(read_tau) < 1.0e-12_dp) then
             !Using popsfile v.3, where tau is not written out.
             !Exit if trying to dynamically search for timestep
-            if (tSearchTau) then
-                call stop_all(this_routine, "Cannot dynamically search for timestep if reading &
+            if (tau_start_val == possible_tau_start%from_popsfile) then
+                call stop_all(this_routine, "Cannot dynamically read tau &
                     &in POPSFILE v.3. Manually specify timestep.")
             endif
             write (stdout, *) "Old popsfile detected."
@@ -1162,9 +1164,10 @@ contains
             if (t_real_time_fciqmc) then
                 ! if reading from a real-time popsfile, also read in tau
                 ! this works because the real-time popsfile is read last
-                if (.not. tSpecifiedTau) then
+                if (tau_start_val == possible_tau_start%from_popsfile) then
                     tau = read_tau
-                endif
+                    write (stdout, "(A)") "Using imaginary timestep specified in POPSFILE!"
+                end if
 
                 ! also use the adjusted pSingle etc. if provided
                 if (.not. near_zero(read_psingles)) then
@@ -1190,95 +1193,36 @@ contains
 
                 !Using popsfile v.4, where tau is written out and read in
 
-                ! [Werner Dobrautz 4.4.2017:]
-                ! Are we sure we want to stop searching if we are in the
-                ! variable shift mode? TODO
-                if ((tSearchTau .or. t_hist_tau_search) .or. t_previous_hist_tau &
-                    .or. t_read_probs) then
-                    if ((.not. tSinglePartPhase(1)) .or. (.not. tSinglePartPhase(inum_runs))) then
-                        tSearchTau = .false.
-                    endif
-                    if (tSpecifiedTau) then
-                        write (stdout, *) "time-step specified in input file!"
-                    else
-                        Tau = read_tau
-                        write (stdout, "(A)") "Using timestep specified in POPSFILE!"
-                    end if
-                    if (tSearchTau .or. t_hist_tau_search) then
-                        write (stdout, "(A)") "But continuing to dynamically adjust to optimise this"
-                    end if
-                    write (stdout, "(A,F12.8)") " used time-step: ", tau
+                if (tau_start_val == possible_tau_start%from_popsfile) then
+                    tau = read_tau
+                    write (stdout, "(A)") "Using timestep specified in POPSFILE!"
+                end if
+                write (stdout, "(A,F12.8)") " used time-step: ", tau
 
-                    ! If we have been searching for tau, we may have been searching
-                    ! for psingles (it is done at the same time).
-                    if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
-                        write (stdout, *) "using pSingles/pDoubles specified in input file!"
-                    else
-                        if (.not. near_zero(read_psingles)) then
-                            pSingles = read_psingles
-                            if (.not. tReltvy) then
-                                pDoubles = 1.0_dp - pSingles
-                            end if
-
-                            write (stdout, "(A)") "Using pSingles and pDoubles from POPSFILE: "
-                            write (stdout, "(A,F12.8)") " pSingles: ", pSingles
-                            write (stdout, "(A,F12.8)") " pDoubles: ", pDoubles
-
-                        end if
-                    end if
-
-                    if (allocated(pParallelIn)) then
-                        write (stdout, "(A)") "Using pParallel specified in input file!"
-                    else
-                        if (.not. near_zero(read_pparallel)) then
-                            pParallel = read_pparallel
-                            write (stdout, "(A)") "Using pParallel from POPSFILE: "
-                            write (stdout, "(A,F12.8)") " pParallel: ", pParallel
-                        end if
-                    end if
-
-                else if (t_keep_tau_fixed) then
-                    if (tSpecifiedTau) then
-                        write (stdout, *) "time-step specified in input file!"
-                    else
-                        write (stdout, "(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
-                        write (stdout, *) "Timestep is tau=", tau
-                        tau = read_tau
-                    end if
-                    if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
-                        write (stdout, *) "using pSingles/pDoubles specified in input file!"
-                    else
-                        if (abs(read_psingles) > 1.0e-12_dp) then
-                            pSingles = read_psingles
-                            if (.not. tReltvy) then
-                                pDoubles = 1.0_dp - pSingles
-                            end if
-                            write (stdout, "(A)") "Using pSingles and pDoubles from POPSFILE: "
-                            write (stdout, "(A,F12.8)") " pSingles: ", pSingles
-                            write (stdout, "(A,F12.8)") " pDoubles: ", pDoubles
-
-                        end if
-                    end if
-
-                    if (allocated(pParallelIn)) then
-                        write (stdout, "(A)") "Using pParallel specified in input file!"
-                    else
-                        if (.not. near_zero(read_pparallel)) then
-                            pParallel = read_pparallel
-                            write (stdout, "(A)") "Using pParallel from POPSFILE: "
-                            write (stdout, "(A,F12.8)") " pParallel: ", pParallel
-                        end if
-                    end if
+                if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+                    write (stdout, *) "using pSingles/pDoubles specified in input file!"
                 else
-                    !Tau specified. if it is different, write this here.
-                    if (abs(read_tau - Tau) > 1.0e-5_dp) then
-                        call warning_neci(this_routine, "Timestep specified in input file is different to that in the popsfile.")
+                    write (stdout, "(A)") "Using pSingles and pDoubles from POPSFILE: "
+                    if (.not. near_zero(read_psingles)) then
+                        pSingles = read_psingles
+                        if (.not. tReltvy) then
+                            pDoubles = 1.0_dp - pSingles
+                        end if
+                    end if
+                end if
+                write (stdout, "(A,F12.8)") " pSingles: ", pSingles
+                write (stdout, "(A,F12.8)") " pDoubles: ", pDoubles
 
-                        write (stdout, "(A,F12.8)") "Old timestep: ", read_tau
-                        write (stdout, "(A,F12.8)") "New timestep: ", tau
+                if (allocated(pParallelIn)) then
+                    write (stdout, "(A)") "Using pParallel specified in input file!"
+                else
+                    if (.not. near_zero(read_pparallel)) then
+                        pParallel = read_pparallel
+                        write (stdout, "(A)") "Using pParallel from POPSFILE: "
+                        write (stdout, "(A,F12.8)") " pParallel: ", pParallel
+                    end if
+                end if
 
-                    endif
-                endif
                 if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
                     write (stdout, *) "using pSingles/pDoubles specified in input file!"
                 else
@@ -1391,7 +1335,6 @@ contains
         real(dp) :: PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
-        logical :: PopPreviousHistTau
         integer :: PopAccumPopsCounter
         character(*), parameter :: this_routine = 'ReadPopsHeadv4'
         ! need dummy read-in variable, since we start from a converged real
@@ -1409,7 +1352,7 @@ contains
             PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
             PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
             PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
-            PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms, &
+            tPopAutoAdaptiveShift, tPopScaleBlooms, &
             tPopAccumPops, PopAccumPopsCounter
 
 
@@ -1427,7 +1370,6 @@ contains
 
         PopBalanceBlocks = -1
         PopNNodes = 0
-        PopPreviousHistTau = .false.
         tPopAutoAdaptiveShift = .false.
         tPopScaleBlooms = .false.
         tPopAccumPops = .false.
@@ -1470,9 +1412,10 @@ contains
         if (PopNNodes == nProcessors) then
             ! What is the maximum number of nodes currently supported. We might
             ! need to update this...
-            if (PopNNodes > max_nodes) &
-                call stop_all(this_routine, "Too many processors in POPSFILE. Update &
-                                   &max_nodes")
+            if (PopNNodes > max_nodes) then
+                call stop_all(this_routine, &
+                              "Too many processors in POPSFILE. Update max_nodes")
+            end if
 
             call MPIBCast(PopWalkersOnNodes(1:PopNNodes))
             read_walkers_on_nodes(0:PopNNodes - 1) = &
@@ -1491,7 +1434,6 @@ contains
         call MPIBcast(PopMaxDeathCpt)
         call MPIBcast(PopRandomHash)
         call MPIBcast(PopBalanceBlocks)
-        call MPIBCast(PopPreviousHistTau)
         call MPIBCast(tPopAutoAdaptiveShift)
         call MPIBCast(tPopScaleBlooms)
         call MPIBCast(tPopAccumPops)
@@ -1514,38 +1456,6 @@ contains
         read_pParallel = PopPParallel
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
-
-        ! this is written if multiple replicas are used -> read it also in these cases
-        ! [Werner Dobrautz 5.5.2017:]
-        ! turn off the histogramming and the default old tau-search if
-        ! the run is continued from a run, where the histogramming tau-search
-        ! was already performed!
-        if (.not. t_restart_hist_tau) then
-            t_previous_hist_tau = PopPreviousHistTau
-
-            if (t_previous_hist_tau) then
-                Write (stdout, *) "Turning OFF the tau-search, since continued run!"
-                ! can i turn off the tau-seach here?
-                ! try it:
-                tSearchTau = .false.
-                tSearchTauOption = .false.
-
-                ! if histogramming tau-search was used, also deallocate the
-                ! histograms!
-                if (t_hist_tau_search) then
-                    call deallocate_histograms()
-                    t_hist_tau_search = .false.
-                    t_fill_frequency_hists = .false.
-
-                    ! i still want to do the death tau search.. so enable
-                    ! this:
-                    t_hist_tau_search_option = .true.
-                    ! but i do not want to print the frq_hists, since there
-                    ! is nothing to print..
-                    t_print_frq_histograms = .false.
-                end if
-            end if
-        end if
 
         ! in output generation, these fields are used when tMultiReplicas is set, so this should be
         ! used here, too (not tReplicaReferencesDiffer), given that the number of runs did not
@@ -2112,21 +2022,6 @@ contains
             write (iunit, *)
         end if
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! in case of a histogramming tau-search and if the
-        ! histograms have been filled already, indicate that in the
-        ! POPSFILEHeader so that in a continued run neither of the
-        ! old or new tau-search is performed, except forced in the input
-        ! with the restart-hist-tau-search keyword:
-        ! intermediate: always print that to test if the restart works!
-!         if (t_hist_tau_search .and. (.not. t_fill_frequency_hists)) then
-        ! i also have to continue the writing of this flag, if i continue
-        ! runs more than once!
-        ! i have to use the keyword _option or?
-        ! since the other gets turned off if the histograms are full?
-        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
-            write (iunit, *) "PopPreviousHistTau=", .true.
-        end if
         ! add information about the global data stored in the popsfile:
         ! is auto-adaptive shift data available?
         write (iunit, *) "tPopAutoAdaptiveShift=", tAutoAdaptiveShift

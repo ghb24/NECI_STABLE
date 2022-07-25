@@ -126,7 +126,7 @@ module soft_exit
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift, &
                         frq_ratio_cutoff
-    use tau_search_conventional, only: tSearchTau, t_hist_tau_search
+    use tau_search, only: tau_search_method, possible_tau_search_methods
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -529,19 +529,8 @@ contains
             if (opts_selected(tau)) then
                 call MPIBCast (tau_value, tSource)
                 write(stdout,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
-                if (tSearchTau) then
-                    write(stdout,*) "Ceasing the searching for tau."
-                    tSearchTau = .false.
-                endif
-                ! also use that CHANGEVARS option to stop the new tau-search
-                if (t_hist_tau_search) then
-                    write(stdout,*) "Ceasing new tau-search!"
-                    t_hist_tau_search = .false.
-                    ! i could also use that option to stop the histogramming
-                    ! of the H_ij/pgen ratios.. since i do not need it anymore
-                    ! then .. but i probably should atleast print it out
-                    ! then.. think about that, or if i should use a new option..
-                end if
+                write(stdout, *) "Ceasing the search for tau."
+                tau_search_method = possible_tau_search_methods%OFF
             endif
 
             if(opts_selected(targetgrowrate)) then

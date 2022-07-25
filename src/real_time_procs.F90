@@ -43,7 +43,6 @@ module real_time_procs
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
                          tSinglePartPhase, perturbation, alloc_popsfile_dets
-    use tau_search_conventional, only: tSearchTau
     use core_space_util, only: cs_replicas
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
                              init_perturbation_annihilation, apply_perturbation_array
@@ -55,6 +54,7 @@ module real_time_procs
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
+    use tau_search, only: tau_search_method, possible_tau_search_methods, scale_tau_to_death
     use tau_search_conventional, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use global_det_data, only: global_determinant_data
@@ -401,7 +401,7 @@ contains
         if (abs(real_time_info%damping) < EPS .and. .not. t_rotated_time) then
             if (any(fac > 1.0_dp)) then
                 if (any(fac > 2.0_dp)) then
-                    if (tSearchTau) then
+                    if ((tau_search_method /= possible_tau_search_methods%OFF) .or. scale_tau_to_death) then
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
@@ -478,7 +478,7 @@ contains
             ! and also about the fac restrictions.. for now but it here anyway..
             if (any(fac > 1.0_dp)) then
                 if (any(fac > 2.0_dp)) then
-                    if (tSearchTau) then
+                    if ((tau_search_method /= possible_tau_search_methods%OFF) .or. scale_tau_to_death) then
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
@@ -765,8 +765,9 @@ contains
 
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+            if ((tau_search_method == possible_tau_search_methods%CONVENTIONAL) .and. (.not. tFillingStochRDMonFly)) then
                 call log_spawn_magnitude(ic, ex, matel, prob)
+            end if
 
             ! Keep track of the biggest spawn this cycle
             max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)
@@ -839,8 +840,9 @@ contains
 
                 ! n.b. if we ever end up with |walkerweight| /= 1, then this
                 !      will need to ffed further through.
-                if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+                if ((tau_search_method == possible_tau_search_methods%CONVENTIONAL) .and. (.not. tFillingStochRDMonFly)) then
                     call log_spawn_magnitude(ic, ex, matel, prob)
+                end if
 
                 ! Keep track of the biggest spawn this cycle
                 max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)

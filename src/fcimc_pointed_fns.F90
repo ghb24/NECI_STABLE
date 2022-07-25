@@ -20,8 +20,6 @@ module fcimc_pointed_fns
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
                         tPrecond, AAS_Const, ShiftOffset, tAS_Offset
-    use tau_search_conventional, only: tSearchTau, tSearchTauOption
-    use tau_search_hist, only: t_hist_tau_search_option, t_fill_frequency_hists
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -33,6 +31,8 @@ module fcimc_pointed_fns
 
     use bit_rep_data, only: NIfTot, test_flag
 
+    use tau_search, only: tau_search_method, possible_tau_search_methods, scale_tau_to_death
+    use tau_search_hist, only: t_fill_frequency_hists
     use tau_search_conventional, only: log_death_magnitude, log_spawn_magnitude
 
     use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run, writebitdet
@@ -426,7 +426,7 @@ contains
 
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+            if (tau_search_method /= possible_tau_search_methods%OFF .or. tFillingStochRDMonFly) then
                 ! in the back-spawning i have to adapt the probabilites
                 ! back, to be sure the time-step covers the changed
                 ! non-initiators spawns!
@@ -651,7 +651,7 @@ contains
 
         if (any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then
-                if (tSearchTauOption .or. t_hist_tau_search_option) then
+                if ((tau_search_method /= possible_tau_search_methods%OFF) .or. scale_tau_to_death) then
                     ! If we are early in the calculation, and are using tau
                     ! searching, then this is not a big deal. Just let the
                     ! searching deal with it

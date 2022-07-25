@@ -8,7 +8,7 @@ module guga_pchb_class
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
-    use tau_search_conventional, only: max_tau, t_hist_tau_search
+    use tau_search, only: max_tau, tau_search_method, possible_tau_search_methods
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -125,7 +125,7 @@ contains
             max_tau = 1e-3
         end if
 
-        if (t_hist_tau_search) then
+        if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             if (frq_ratio_cutoff < 0.999999) then
                 root_print "setting frequency cutoff to 0.999999"
                 frq_ratio_cutoff = 0.999999

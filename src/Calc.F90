@@ -32,12 +32,12 @@ MODULE Calc
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
                          user_input_max_davidson_iters
-    use tau_search_conventional, only: tSearchTau, tSearchTauOption, tSearchTauDeath, max_tau, &
-        min_tau_global, min_tau, t_keep_tau_fixed, &
-        t_hist_tau_search
+    use tau_search, only:  &
+        tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        tau_stop_method, possible_tau_stop_methods, &
+        min_tau, max_tau, tau_start_val, possible_tau_start
 
-    use tau_search_hist, only: hist_search_delay, t_hist_tau_search_option, &
-        t_restart_hist_tau, t_fill_frequency_hists, t_test_hist_tau
+    use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
@@ -123,12 +123,6 @@ contains
         iReadWalkersRoot = 0
         tShiftonHFPop = .false.
         MaxWalkerBloom = 2
-        tSearchTau = .true.
-        tSearchTauOption = .true.
-        tSearchTauDeath = .false.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
 
         t_lanczos_init = .false.
         t_lanczos_store_vecs = .true.
@@ -1261,54 +1255,84 @@ contains
                     end do
                 end if
 
-            case("TAUFACTOR")
-!For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
-                tSearchTau = .false.  !Tau is set, so don't search for it.
-                tSearchTauOption = .false.
-                TauFactor = to_realdp(tokens%next())
             case("TAU")
-                ! For FCIMC, this can be considered the timestep of the
-                ! simulation. It is a constant which will increase/decrease
-                ! the rate of spawning/death for a given iteration.
-                Tau = to_realdp(tokens%next())
-                tSpecifiedTau = .true.
-
-                ! If SEARCH is provided, use this value as the starting value
-                ! for tau searching
-                if(tokens%remaining_items() > 0) then
-                    w = to_upper(tokens%next())
-                    select case(w)
-                    case("SEARCH")
-                        tSearchTau = .true.
-                        tSearchTauOption = .true.
-                    case default
-                        tSearchTau = .false.
-                        tSearchTauOption = .false.
-                    end select
-                else
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
-                end if
+                call stop_all(this_routine, "Deprecated")
 
             case("MIN-TAU")
-                ! use a minimum tau value or the automated tau-search
-                ! to avoid that a single, worst case excitation kills your
-                ! time-step
-                min_tau = .true.
-
-                if(tokens%remaining_items() > 0) then
-                    min_tau_global = to_realdp(tokens%next())
-                end if
-
-                ! assume thats only for the tau-search so enable all the
-                ! other quantities
-                tSearchTau = .true.
-                tSearchTauOption = .true.
+                call stop_all(this_routine, "Deprecated")
 
             case("MAX-TAU")
-                ! For tau searching, set a maximum value of tau. This places
-                ! a limit to prevent craziness at the start of a calculation
-                max_tau = to_realdp(tokens%next())
+                call stop_all(this_routine, "Deprecated")
+
+            case("TAU-VALUES")
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
+                    select case(w)
+                    case("START")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("USER-INPUT")
+                            tau_start_val = possible_tau_start%user_given
+                            tau = to_realdp(tokens%next())
+                        case("FROM-POPSFILE")
+                            tau_start_val = possible_tau_start%from_popsfile
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("MIN")
+                        min_tau = to_realdp(tokens%next())
+                    case("MAX")
+                        max_tau = to_realdp(tokens%next())
+                    case default
+                        call stop_all(this_routine, "Invalid sub-keyword "//w)
+                    end select
+                end do
+
+            case("TAU-SEARCH")
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
+                    select case(w)
+                    case("ALGORITHM")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("CONVENTIONAL")
+                            input_tau_search_method = possible_tau_search_methods%CONVENTIONAL
+                        case("HISTOGRAMMING")
+                            input_tau_search_method = possible_tau_search_methods%HISTOGRAMMING
+                            ! TODO(@Oskar): Add reading of bins
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("STOP-CONDITION")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("VAR-SHIFT")
+                            tau_stop_method = possible_tau_stop_methods%var_shift
+                        case("NO-CHANGE")
+                            call stop_all(this_routine, "Has to be implemented.")
+                        case("AFTER-ITER")
+                            call stop_all(this_routine, "Has to be implemented.")
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("OFF")
+                        input_tau_search_method = possible_tau_search_methods%OFF
+                    case default
+                        call stop_all(this_routine, "Invalid sub-keyword "//w)
+                    end select
+                    tau_search_method = input_tau_search_method
+                end do
+
+
+            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
+                call stop_all(this_routine, 'RESTART-HIST-TAU-SEARCH is deprecated.')
+
+            case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
+                ! test a change to the tau search to avoid those nasty
+                ! MPI communications each iteration
+                t_test_hist_tau = .true.
+
+
 
             case("READ-PROBABILITIES")
                 ! introduce a new flag to read pSingles/pParallel etc. from
@@ -1381,81 +1405,9 @@ contains
                     end select
                 end if
 
-            case("KEEPTAUFIXED")
-                ! option for a restarted run to keep the tau, read in from the
-                ! POPSFILE and other parameters, as pSingles, pParallel
-                ! fixed for the remainder of the run, even if we keep
-                ! growing the walkers
-                t_keep_tau_fixed = .true.
-
-                ! here i need to turn off the tau-search option
-                tSearchTau = .false.
-                tSearchTauOption = .false.
-
             case("TEST-ORDER")
                 ! test order of transcorrelated matrix elements
                 t_test_order = .true.
-            case("HIST-TAU-SEARCH", "NEW-TAU-SEARCH")
-                ! [Werner Dobrautz, 4.4.2017:]
-                ! the new tau search method using histograms of the
-                ! H_ij / pgen ratio and integrating the histograms up to
-                ! a certain value, to obtain the time-step and not using
-                ! only the worst case H_ij / pgen ration
-
-                ! this option has 3 possible input parameters:
-                ! 1) the integration cutoff in percentage [0.999 default]
-                ! 2) the number of bins used [100000 default]
-                ! 3) the upper bound of the bins [10000.0 default]
-                t_hist_tau_search = .true.
-                t_hist_tau_search_option = .true.
-                t_fill_frequency_hists = .true.
-
-                ! turn off the other tau-search, if by mistake both were
-                ! chosen!
-                if(tSearchTau .or. tSearchTauOption) then
-                    write(stdout, &
-                        '("(WARNING: both the histogramming and standard tau&
-                        &-search option were chosen! TURNING STANDARD VERSION OFF!")')
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    frq_ratio_cutoff = to_realdp(tokens%next())
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    n_frequency_bins = to_int(tokens%next())
-
-                    ! check that not too many bins are used which may crash
-                    ! the MPI communication of the histograms!
-                    if(n_frequency_bins > 1000000) then
-                        write(stdout, &
-                            '("WARNING: maybe too many bins used for the &
-                            &histograms! This might cause MPI problems!")')
-                    end if
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    max_frequency_bound = to_realdp(tokens%next())
-                end if
-
-            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
-                ! [Werner Dobrautz 5.5.2017:]
-                ! a keyword, which in case of a continued run from a
-                ! previous hist-tau-search run restarts the histogramming
-                ! tau-search anyway, in case the tau-search is not yet
-                ! converged enough
-                t_restart_hist_tau = .true.
-
-                if(tokens%remaining_items() > 0) then
-                    hist_search_delay = to_int(tokens%next())
-                end if
-
-            case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
-                ! test a change to the tau search to avoid those nasty
-                ! MPI communications each iteration
-                t_test_hist_tau = .true.
 
             case("TRUNCATE-SPAWNS")
                 ! [Werner Dobrautz, 4.4.2017:]

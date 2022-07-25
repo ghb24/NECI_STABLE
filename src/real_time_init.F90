@@ -49,7 +49,6 @@ module real_time_init
                          MaxSpawned, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets, &
                          SpawnedParts, core_run
-    use tau_search_conventional, only: tSearchTau
     use core_space_util, only: cs_replicas
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, &
          nBasis, tReal, t_k_space_hubbard, t_complex_ints
@@ -387,9 +386,6 @@ contains
 
         ! energy offset
         benchmarkEnergy = 0.0_dp
-
-        ! for the start definetly not change tau
-        ! tSearchTau = .true.
 
         ! also set readpops to get the <y(0)| reference from the "normal"
         ! neci init routines

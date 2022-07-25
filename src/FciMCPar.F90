@@ -135,6 +135,7 @@ module FciMCParMod
                               measure_double_occ_and_spin_diff, rezero_spin_diff, &
                               write_spin_diff_stats, write_spat_doub_occ_stats, &
                               all_sum_double_occ, calc_double_occ_from_rdm
+    use tau_search, only: tau_search_method, input_tau_search_method, possible_tau_search_methods
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
@@ -849,7 +850,7 @@ contains
         ! for now always print out the frequency histograms for the
         ! tau-search.. maybe change that later to be an option
         ! to be turned off
-        if (t_print_frq_histograms .and. t_hist_tau_search_option) then
+        if (t_print_frq_histograms .and. input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             call print_frequency_histograms()
 
             ! also deallocate here after no use of the histograms anymore
@@ -1583,9 +1584,12 @@ contains
                 ! Only done while not updating tau (to prevent interdependencies)
                 ! or, for hist-tau-search, in vairable shift mode
                 ! Usually, this means: done in variable shift mode
-                if (tScaleBlooms .and. .not. tSearchTau &
-                    .and. .not. (t_hist_tau_search .and. tSinglePartPhase( &
-                                 part_type_to_run(part_type)))) then
+                if (tScaleBlooms &
+                        .and. .not. (tau_search_method == possible_tau_search_methods%CONVENTIONAL &
+                                     .or. (tau_search_method == possible_tau_search_methods%HISTOGRAMMING &
+                                            .and. tSinglePartPhase(part_type_to_run(part_type))) &
+                                     ) &
+                        ) then
                     max_spawn = tau * get_max_ratio(j)
                     if (max_spawn > max_allowed_spawn) then
                         scale = max_spawn / max_allowed_spawn

@@ -17,8 +17,6 @@ module guga_init
                         tReplicaEstimates, tPreCond, ss_space_in, trial_space_in, &
                         t_fast_pops_core, t_core_inits
 
-    use tau_search_conventional, only: t_hist_tau_search
-
     use hist_data, only: tHistSpawn
 
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc, tRDMonfly, tExplicitAllRDM
@@ -43,8 +41,6 @@ module guga_init
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
-
-    use tau_search_conventional, only: tSearchTau
 
     use constants, only: dp, int_rdm, n_int, stdout, inum_runs
 
@@ -339,12 +335,6 @@ contains
                 call stop_all(this_routine, &
                               "can only determine up to excit level 2 in GUGA for now!")
             end if
-        end if
-
-        ! avoid using both the old and the new tau search functionality
-        if (tSearchTau .and. t_hist_tau_search) then
-            call stop_all(this_routine, &
-                          "can't use both the old and the new tau search option at the same time!")
         end if
 
         if (tReplicaEstimates) then

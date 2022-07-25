@@ -7,10 +7,11 @@ tau-values
 
 tau-search
     {
-        'conventional'
-        'histogramming',
-            [(1 - x), x, x],
         'off'
-
-        (['stop_if_no_change', n], ['stop_if_var_shift'], ['stop_after_iter', n]),
+        'algorithm'
+            'conventional'
+            'histogramming',
+                [(1 - x), x, x],
+        'stop'
+            (['if_no_change', n], ['if_var_shift'], ['after_iter', n]),
     }

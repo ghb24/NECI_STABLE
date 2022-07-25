@@ -39,9 +39,7 @@ module k_space_hubbard
 
     use CalcData, only: tau, pParallelIn, pSinglesIn, pDoublesIn
 
-    use tau_search_conventional, only: tSearchTau, tSearchTauOption, t_hist_tau_search
-
-    use tau_search_hist, only: t_hist_tau_search_option, t_fill_frequency_hists
+    use tau_search, only: tau_search_method, possible_tau_search_methods
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -406,15 +404,9 @@ contains
         ! in the transcorrelated case or if i messed it up due to the
         ! non-hermitian character of the hamiltonian
         if (.not. (t_trans_corr_2body .or. t_trans_corr .or. tGUGA)) then
-            ! but in the "normal" hubbard model, still turn it off as it is
-            ! unnecessary!
-            tsearchtau = .false.
-            tsearchtauoption = .true.
-
-            t_hist_tau_search = .false.
-            t_hist_tau_search_option = .false.
-
-            t_fill_frequency_hists = .false.
+            if (tau_search_method /= possible_tau_search_methods%OFF) then
+                call stop_all(this_routine, "tau-search should be switched off")
+            end if
         end if
 
         if (associated(lat)) then

@@ -39,9 +39,10 @@ module real_space_hubbard
 
     use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
 
-    use tau_search_conventional, only: tSearchTau, tSearchTauOption, t_hist_tau_search
+    use tau_search, only: tau_search_method, input_tau_search_method, &
+        possible_tau_search_methods, scale_tau_to_death
 
-    use tau_search_hist, only: t_hist_tau_search_option, t_fill_frequency_hists
+    use tau_search_hist, only: t_fill_frequency_hists
 
     use CalcData, only: tau, matele_cutoff, pSinglesIn, pDoublesIn
 
@@ -244,15 +245,11 @@ contains
         ! re-enable tau-search if we have transcorrelation
         if (.not. (t_trans_corr_2body .or. t_trans_corr .or. t_trans_corr_hop &
                    .or. t_spin_dependent_transcorr)) then
-            ! and i have to turn off the time-step search for the hubbard
-            tsearchtau = .false.
-            ! set tsearchtauoption to true to use the death-tau search option
-            tsearchtauoption = .true.
 
-            t_hist_tau_search = .false.
-            t_hist_tau_search_option = .false.
-
-            t_fill_frequency_hists = .false.
+            if (tau_search_method /= possible_tau_search_methods%OFF) then
+                call stop_all(this_routine, "tau-search should be switched off")
+            end if
+            scale_tau_to_death = .true.
         end if
 
         if (t_start_neel_state) then
