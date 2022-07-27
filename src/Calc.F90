@@ -35,7 +35,8 @@ MODULE Calc
     use tau_search, only:  &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         tau_stop_method, possible_tau_stop_methods, &
-        min_tau, max_tau, tau_start_val, possible_tau_start
+        min_tau, max_tau, tau_start_val, possible_tau_start, &
+        input_scale_tau_to_death
 
     use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau
 
@@ -1327,6 +1328,9 @@ contains
                     end select
                     tau_search_method = input_tau_search_method
                 end do
+
+            case("SCALE-TAU-TO-DEATH")
+                input_scale_tau_to_death = .true.
 
 
             case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")

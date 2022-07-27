@@ -21,7 +21,7 @@ module tau_search_conventional
 
     use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
                           input_tau_search_method, tau_search_method, &
-                          tSearchTauDeath
+                          scale_tau_to_death_triggered, max_death_cpt
 
     use tc_three_body_data, only: pTriples
 
@@ -47,7 +47,7 @@ module tau_search_conventional
     private
 
     public :: FindMaxTauDoubs, log_spawn_magnitude, init_tau_search, &
-              max_death_cpt, log_death_magnitude
+              log_death_magnitude
 
     public :: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
               cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
@@ -57,7 +57,7 @@ module tau_search_conventional
 ! make variables for automated tau determination, globally available
 ! 4ind-weighted variables:
     real(dp) :: gamma_sing = 0._dp, gamma_doub = 0._dp, gamma_trip = 0._dp, &
-                gamma_opp = 0._dp, gamma_par = 0._dp, max_death_cpt = 0._dp, &
+                gamma_opp = 0._dp, gamma_par = 0._dp, &
                 gamma_sing_spindiff1 = 0._dp, gamma_doub_spindiff1 = 0._dp, &
                 gamma_doub_spindiff2 = 0._dp
     integer :: cnt_sing = 0, cnt_doub = 0, cnt_opp = 0, cnt_par = 0, cnt_trip = 0
@@ -337,7 +337,7 @@ contains
         real(dp) :: mult
 
         if (mult > max_death_cpt) then
-            tSearchTauDeath = .true.
+            scale_tau_to_death_triggered = .true.
             max_death_cpt = mult
         end if
 
@@ -350,38 +350,9 @@ contains
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
 
-        ! This is an override. In case we need to adjust tau due to particle
-        ! death rates, when it otherwise wouldn't be adjusted
-        if (tau_search_method == possible_tau_search_methods%OFF) then
 
-            ASSERT(input_tau_search_method == possible_tau_search_methods%CONVENTIONAL)
-            ! Check that the override has actually occurred.
-            ASSERT(tSearchTauDeath)
-
-            ! The range of tau is restricted by particle death. It MUST be <=
-            ! the value obtained to restrict the maximum death-factor to 1.0.
-            call MPIAllReduce(max_death_cpt, MPI_MAX, mpi_tmp)
-            max_death_cpt = mpi_tmp
-            if (abs(max_death_cpt) > EPS) then
-                tau_death = 1.0_dp / max_death_cpt
-
-                ! If this actually constrains tau, then adjust it!
-                if (tau_death < tau) then
-                    tau = tau_death
-
-                    root_print "******"
-                    root_print "WARNING: Updating time step due to particle death &
-                         &magnitude"
-                    root_print "This occurs despite variable shift mode"
-                    root_print "Updating time-step. New time-step = ", tau
-                    root_print "******"
-                end if
-            end if
-
-            ! Condition met --> no need to do this again next iteration
-            tSearchTauDeath = .false.
-
-        end if
+        ASSERT(tau_search_method == possible_tau_search_methods%CONVENTIONAL)
+        ASSERT(.not. scale_tau_to_death_triggered)
 
         ! default value for pTriples_new
         pTriples_new = pTriples

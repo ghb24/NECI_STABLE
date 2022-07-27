@@ -40,7 +40,7 @@ module real_space_hubbard
     use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
 
     use tau_search, only: tau_search_method, input_tau_search_method, &
-        possible_tau_search_methods, scale_tau_to_death
+        possible_tau_search_methods, input_scale_tau_to_death
 
     use tau_search_hist, only: t_fill_frequency_hists
 
@@ -249,7 +249,7 @@ contains
             if (tau_search_method /= possible_tau_search_methods%OFF) then
                 call stop_all(this_routine, "tau-search should be switched off")
             end if
-            scale_tau_to_death = .true.
+            input_scale_tau_to_death = .true.
         end if
 
         if (t_start_neel_state) then

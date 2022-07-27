@@ -64,9 +64,12 @@ module fcimc_initialisation
                         tSpinProject
 
     use tau_search, only: tau_search_method, input_tau_search_method, &
-        possible_tau_search_methods, tau_start_val, possible_tau_start
+        possible_tau_search_methods, tau_start_val, possible_tau_start, &
+        max_death_cpt
 
     use tau_search_hist, only: t_fill_frequency_hists, init_hist_tau_search
+
+    use tau_search_conventional, only: init_tau_search
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
@@ -178,8 +181,6 @@ module fcimc_initialisation
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
     use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
-
-    use tau_search_conventional, only: init_tau_search, max_death_cpt
 
     use fcimc_helper, only: CalcParentFlag, update_run_reference
 

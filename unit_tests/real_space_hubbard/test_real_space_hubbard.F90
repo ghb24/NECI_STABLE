@@ -55,7 +55,7 @@ program test_real_space_hubbard
     use SymExcitDataMod, only: excit_gen_store_type, ScratchSize, &
                                Scratchsize1, Scratchsize2
 
-    use tau_search, only: tau_search_method, possible_tau_search_methods, scale_tau_to_death
+    use tau_search, only: tau_search_method, possible_tau_search_methods, input_scale_tau_to_death
 
     implicit none
 
@@ -1967,7 +1967,7 @@ contains
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
         call assert_true(tau_search_method == possible_tau_search_methods%OFF)
-        call assert_true(scale_tau_to_death)
+        call assert_true(input_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
@@ -2004,7 +2004,7 @@ contains
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
         call assert_true(tau_search_method == possible_tau_search_methods%OFF)
-        call assert_true(scale_tau_to_death)
+        call assert_true(input_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(1.0/8.0_dp * lat_tau_factor, tau)
 
@@ -2042,7 +2042,7 @@ contains
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
         call assert_true(tau_search_method == possible_tau_search_methods%OFF)
-        call assert_true(scale_tau_to_death)
+        call assert_true(input_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(1.0/12.0_dp * lat_tau_factor, tau)
 
@@ -2758,4 +2758,3 @@ contains
 
     end subroutine determine_optimal_time_step_test
 end program test_real_space_hubbard
-

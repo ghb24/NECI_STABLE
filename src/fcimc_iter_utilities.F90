@@ -16,9 +16,9 @@ module fcimc_iter_utils
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
 
-    use tau_search, only: scale_tau_to_death, tSearchTauDeath, &
+    use tau_search, only: input_scale_tau_to_death, scale_tau_to_death_triggered, &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
-        end_of_search_reached
+        end_of_search_reached, scale_tau_to_death
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
@@ -796,9 +796,9 @@ contains
         ! We should update tau searching if it is enabled, or if it has been
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
-        if (scale_tau_to_death .and. tau_search_method == possible_tau_search_methods%OFF) then
-            call MPIAllLORLogical(tSearchTauDeath, ltmp)
-            tSearchTauDeath = ltmp
+        if (input_scale_tau_to_death .and. tau_search_method == possible_tau_search_methods%OFF) then
+            call MPIAllLORLogical(scale_tau_to_death_triggered, ltmp)
+            scale_tau_to_death_triggered = ltmp
         end if
 
         ! for now with the new tau-search also update tau in variable shift
@@ -808,14 +808,10 @@ contains
                 call update_tau()
             else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
                 call update_tau_hist()
-            else if (tau_search_method == possible_tau_search_methods%OFF &
-                        .and. scale_tau_to_death &
-                        .and. tSearchTauDeath) then
-                if (input_tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
-                    call update_tau()
-                else if (input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
-                    call update_tau_hist()
-                end if
+            else if (scale_tau_to_death_triggered) then
+                ASSERT(tau_search_method == possible_tau_search_methods%OFF)
+                ASSERT(input_scale_tau_to_death)
+                call scale_tau_to_death()
             end if
         end if
 

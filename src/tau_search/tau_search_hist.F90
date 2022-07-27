@@ -27,10 +27,11 @@ module tau_search_hist
 
     use constants, only: dp, EPS, stdout, maxExcit, int64
 
-    use tau_search_conventional, only: max_death_cpt, FindMaxTauDoubs
+    use tau_search_conventional, only: FindMaxTauDoubs
 
     use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
-                          tau_search_method, input_tau_search_method, tSearchTauDeath
+                          tau_search_method, input_tau_search_method, scale_tau_to_death_triggered, &
+                          max_death_cpt
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -474,42 +475,8 @@ contains
         real(dp) :: ratio_singles, ratio_anti, ratio_para, ratio_doubles, ratio_triples, ratio
         logical :: mpi_ltmp
 
-        if (tau_search_method == possible_tau_search_methods%OFF) then
-
-            ! this means the option was turned on but got turned off due to
-            ! entering var. shift mode, or because the histogramms are full
-            ! but the death events should still be considered
-
-            ! Check that the override has actually occurred.
-            ASSERT(input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING)
-            ASSERT(tSearchTauDeath)
-
-            ! The range of tau is restricted by particle death. It MUST be <=
-            ! the value obtained to restrict the maximum death-factor to 1.0.
-            call MPIAllReduce(max_death_cpt, MPI_MAX, mpi_tmp)
-            max_death_cpt = mpi_tmp
-            ! again, this only makes sense if there has been some death
-            if (max_death_cpt > EPS) then
-                tau_death = 1.0_dp / max_death_cpt
-
-                ! If this actually constrains tau, then adjust it!
-                if (tau_death < tau) then
-                    tau = tau_death
-
-                    root_print "******"
-                    root_print "WARNING: Updating time step due to particle death &
-                         &magnitude"
-                    root_print "This occurs despite variable shift mode"
-                    root_print "Updating time-step. New time-step = ", tau
-                    root_print "******"
-                end if
-            end if
-
-            ! Condition met --> no need to do this again next iteration
-            tSearchTauDeath = .false.
-
-            return
-        end if
+        ASSERT(tau_search_method == possible_tau_search_methods%HISTOGRAMMING)
+        ASSERT(.not. scale_tau_to_death_triggered)
 
         ! What needs doing depends on the number of parametrs that are being
         ! updated.

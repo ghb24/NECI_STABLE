@@ -17,13 +17,14 @@ MODULE PopsfileMod
                         pParallelIn
 
     use tau_search, only: tau_search_method, input_tau_search_method, &
-        possible_tau_search_methods, tau_start_val, possible_tau_start
+        possible_tau_search_methods, tau_start_val, possible_tau_start, &
+        max_death_cpt
     use tau_search_hist, only: t_fill_frequency_hists, deallocate_histograms
     use tau_search_conventional, only: &
         cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
         gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
         enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
-        max_death_cpt, gamma_doub_spindiff1, gamma_doub_spindiff2, &
+        gamma_doub_spindiff1, gamma_doub_spindiff2, &
         gamma_sing_spindiff1, &
         update_tau
 
