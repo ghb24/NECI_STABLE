@@ -393,7 +393,6 @@ contains
             pParallel = 0.5_dp
         end if
 
-        max_tau = 1.0_dp
         pop_change_min = 50
         tOrthogonaliseReplicas = .false.
         tOrthogonaliseSymmetric = .false.
@@ -1248,21 +1247,18 @@ contains
                     InputDiagSftSingle = to_realdp(tokens%next())
                     InputDiagSft = InputDiagSftSingle
                 else
-                    if(inum_runs /= tokens%remaining_items()) call stop_all(t_r, "The number of initial shifts input is not equal to &
+                    if (inum_runs /= tokens%remaining_items()) then
+                        call stop_all(t_r, "The number of initial shifts input is not equal to &
                                            &the number of replicas being used.")
+                    end if
                     do i = 1, inum_runs
                         InputDiagSft(i) = to_realdp(tokens%next())
                     end do
                 end if
 
-            case("TAU")
-                call stop_all(this_routine, "Deprecated")
+            case("TAU", "MIN-TAU", "MAX-TAU", "TAU-FACTOR", "TAU-CNT-THRESHOLD")
+                call stop_all(this_routine, w//" option is deprecated.")
 
-            case("MIN-TAU")
-                call stop_all(this_routine, "Deprecated")
-
-            case("MAX-TAU")
-                call stop_all(this_routine, "Deprecated")
 
             case("TAU-VALUES")
                 do while (tokens%remaining_items() > 0)
@@ -1271,11 +1267,18 @@ contains
                     case("START")
                         w = to_upper(tokens%next())
                         select case(w)
-                        case("USER-INPUT")
+                        case("USER-DEFINED")
                             tau_start_val = possible_tau_start%user_given
                             tau = to_realdp(tokens%next())
                         case("FROM-POPSFILE")
                             tau_start_val = possible_tau_start%from_popsfile
+                        case("TAU-FACTOR")
+                            tau_start_val = possible_tau_start%tau_factor
+                            TauFactor = to_realdp(tokens%next())
+                        case("DETERMINISTIC")
+                            ! TODO(@Oskar)
+                            tau_start_val = possible_tau_start%deterministic
+                            call stop_all(this_routine, "To be implemented.")
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select
@@ -1309,8 +1312,10 @@ contains
                         case("VAR-SHIFT")
                             tau_stop_method = possible_tau_stop_methods%var_shift
                         case("NO-CHANGE")
+                            ! TODO(@Oskar)
                             call stop_all(this_routine, "Has to be implemented.")
                         case("AFTER-ITER")
+                            ! TODO(@Oskar)
                             call stop_all(this_routine, "Has to be implemented.")
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
@@ -1325,7 +1330,7 @@ contains
 
 
             case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
-                call stop_all(this_routine, 'RESTART-HIST-TAU-SEARCH is deprecated.')
+                call stop_all(this_routine, w//" option deprecated")
 
             case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
                 ! test a change to the tau search to avoid those nasty
@@ -1334,21 +1339,12 @@ contains
 
 
 
-            case("READ-PROBABILITIES")
-                ! introduce a new flag to read pSingles/pParallel etc. from
-                ! a popsfile even if the tau-search is not turned on, since
-                ! this scenario often shows up in my restarted calculations
-                t_read_probs = .true.
-
-            case("NO-READ-PROBABILITIES")
-                ! change the default behavior to always read in the
-                ! pSingles etc. quantities! and only turn that off with this
-                ! keyword
-                t_read_probs = .false.
+            case("READ-PROBABILITIES", "NO-READ-PROBABILITIES")
+                call stop_all(this_routine, w//" option deprecated")
 
             case ("DIRECT-GUGA-REF")
                 ! obsolet since standard now!
-                write(stdout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
+                call stop_all(this_routine, w//" option deprecated, since it is standard now")
 
             case ("LIST-GUGA-REF")
                 ! option to calculate the reference energy via a pre-computed list
@@ -2955,9 +2951,6 @@ contains
                         call stop_all(t_r, 'Unexpected end of file reached.')
                     end if
                 end do
-
-            case("TAU-CNT-THRESHOLD")
-                write(stdout, *) 'WARNING: This option is unused in this branch'
 
             case("INITIATOR-SURVIVAL-CRITERION")
                 ! If a site survives for at least a certain number of

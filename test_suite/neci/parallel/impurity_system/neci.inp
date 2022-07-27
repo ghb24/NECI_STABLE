@@ -1,35 +1,36 @@
-TITLE
+title
 
-SYSTEM READ
-ELECTRONS 9
-spin-restrict 1
-NOBRILLOUINTHEOREM
-impurity-excitgen
-spinorbs
-ENDSYS
+system read
+    electrons 9
+    spin-restrict 1
+    nobrillouintheorem
+    impurity-excitgen
+    spinorbs
+endsys
 
-CALC
-METHODS
-METHOD VERTEX FCIMC
-ENDMETHODS
-nmcyc 1000
-SEED        -2
-TOTALWALKERS        100000
-DIAGSHIFT       1.5000000000
-SHIFTDAMP       0.5000000000
-STEPSSHIFT      1
-tau 0.001
-MEMORYFACPART         5.
-MEMORYFACSPAWN         100.
-TRUNCINITIATOR
-ADDTOINITIATOR        3
-allrealcoeff
-realspawncutoff 1.
-startsinglepart 25
-AVGROWTHRATE
-ENDCALC
+calc
+    methods
+        method vertex fcimc
+    endmethods
+    nmcyc 1000
+    seed        -2
+    totalwalkers        100000
+    diagshift       1.5000000000
+    shiftdamp       0.5000000000
+    stepsshift      1
+    tau-values \
+        max 0.001
+    memoryfacpart         5.
+    memoryfacspawn         100.
+    truncinitiator
+    addtoinitiator        3
+    allrealcoeff
+    realspawncutoff 1.
+    startsinglepart 25
+    avgrowthrate
+endcalc
 
-LOGGING
-POPSFILE -1
-ENDLOG
-END
+logging
+    popsfile -1
+endlog
+end

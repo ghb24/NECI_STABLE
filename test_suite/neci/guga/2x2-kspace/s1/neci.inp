@@ -24,7 +24,8 @@ totalwalkers 110
 shiftdamp 0.03
 stepsshift 1
 startsinglepart 100
-tau 0.01
+tau-values \
+    start user-defined 0.01
 max-tau 0.001
 truncinitiator
 addtoinitiator 4

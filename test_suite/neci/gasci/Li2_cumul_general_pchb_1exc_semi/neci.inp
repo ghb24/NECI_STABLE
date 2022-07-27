@@ -41,11 +41,13 @@ calc
     realspawncutoff .30
     jump-shift
     tau-values  \
-        start user-input 0.01 \
+        start user-defined 0.01 \
         max 0.02
     tau-search \
         algorithm conventional \
         stop-condition var-shift
+
+
     maxwalkerbloom 1
     memoryfacspawn 10.00
     memoryfacpart 5.00

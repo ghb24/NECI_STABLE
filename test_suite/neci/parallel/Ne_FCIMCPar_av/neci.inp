@@ -6,7 +6,7 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 seed -7
 nmcyc 2250
@@ -19,7 +19,6 @@ stepsshift 10
 averagemcexcits 3.0
 truncinitiator
 addtoinitiator 3
-tau-cnt-threshold 50
 load-balance-blocks off
 maxwalkerbloom 3.0
 endcalc

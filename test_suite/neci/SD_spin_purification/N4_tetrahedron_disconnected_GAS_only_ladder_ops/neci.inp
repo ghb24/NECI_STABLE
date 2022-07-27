@@ -41,8 +41,12 @@ calc
     allrealcoeff
     realspawncutoff .30
     jump-shift
-    tau 0.01 search
-    max-tau .02
+    tau-values \
+        start user-defined 0.01 \
+        max 0.02
+    tau-search \
+        algorithm conventional \
+        stop-condition var-shift
     maxwalkerbloom 1
     memoryfacspawn 100.00
     memoryfacpart 50.00

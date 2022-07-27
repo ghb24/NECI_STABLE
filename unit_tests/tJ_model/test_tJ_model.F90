@@ -20,6 +20,7 @@ program test_tJ_model
     use bit_rep_data, only: GugaBits
     use dsfmt_interface, only: dsfmt_init, genrand_real2_dSFMT
     use guga_excitations, only: csf_to_sds_ilut, csf_vector_to_sds
+    use tau_search, only: tau_search_method, possible_tau_search_methods
 
 
     implicit none
@@ -1813,7 +1814,6 @@ contains
                               nbasis
         use OneEInts, only: tmat2d
         use FciMCData, only: ilutref
-        use tau_search_conventional, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
@@ -1859,8 +1859,7 @@ contains
         call assert_true(associated(tmat2d))
         call assert_true(associated(g1))
         call assert_equals(0.0_dp, ecore)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
         call assert_true(associated(get_umat_el))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
@@ -1878,7 +1877,6 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
                               ecore
         use OneEInts, only: tmat2d
-        use tau_search_conventional, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
@@ -1919,8 +1917,7 @@ contains
         call assert_true(associated(tmat2d))
         call assert_true(associated(g1))
         call assert_equals(0.0_dp, ecore)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
         call assert_true(associated(get_umat_el))
         call assert_equals(0.25 * lat_tau_factor, tau)
 

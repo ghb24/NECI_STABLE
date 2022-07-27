@@ -552,14 +552,6 @@ module CalcData
 ! determine what we should do with the spawning events above that ..
     real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
 
-! introduce a flag to read the pSingles/pDoubles quantity even though the
-! tau-search may be turned off
-! do i want to change this to the default behavior? and indicate it
-! with "no-read_probs?" to do otherwise? i think so, because why wouldn't
-! i always use that, since we are always using tau-search, and even if
-! we dont use it, the pSingles etc. are stored anyway, and if the are not
-! stored they are 0, and in this case they are not read in anyway!
-    logical :: t_read_probs = .false.
 ! also need multiple new specific excitation type probabilites, but they are
 ! defined in FciMCdata module!
 ! move tSpinProject here to avoid circular dependencies

@@ -10,9 +10,10 @@ methods
 method vertex fcimc
 endmethods
 seed -7
-nmcyc 40000 
+nmcyc 40000
 initwalkers 100
-tau 0.002
+tau-values \
+    start user-defined 0.001
 startsinglepart
 shiftdamp 0.01
 stepsshift 75

@@ -12,7 +12,7 @@ MODULE PopsfileMod
                         MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm, &
-                        t_read_probs, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn, &
+                        tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn, &
                         hdf5_diagsft, tAutoAdaptiveShift, &
                         pParallelIn
 

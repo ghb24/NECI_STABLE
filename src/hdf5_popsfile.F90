@@ -655,7 +655,7 @@ contains
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         logical :: ppar_set, tau_set, hist_tau, temp_previous
-        debug_function_name("read_tau_opt")
+        character(*), parameter :: this_routine = "read_tau_opt"
 
         real(dp) :: temp_tau
 

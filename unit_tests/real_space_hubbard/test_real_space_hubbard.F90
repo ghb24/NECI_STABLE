@@ -55,6 +55,7 @@ program test_real_space_hubbard
     use SymExcitDataMod, only: excit_gen_store_type, ScratchSize, &
                                Scratchsize1, Scratchsize2
 
+    use tau_search, only: tau_search_method, possible_tau_search_methods, scale_tau_to_death
 
     implicit none
 
@@ -1921,7 +1922,6 @@ contains
                               bhub, ecore
         use OneEInts, only: tmat2d
         use fcimcdata, only: pSingles, pDoubles
-        use tau_search_conventional, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use lattice_mod, only: lattice_deconstructor
@@ -1966,8 +1966,8 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
@@ -2003,8 +2003,8 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(1.0/8.0_dp * lat_tau_factor, tau)
 
@@ -2041,8 +2041,8 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(1.0/12.0_dp * lat_tau_factor, tau)
 

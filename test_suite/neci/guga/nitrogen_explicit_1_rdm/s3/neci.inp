@@ -12,7 +12,8 @@ methods
 method vertex fcimc
 endmethods
 
-tau 0.01
+tau-values \
+    start user-defined 0.01
 totalwalkers   1000
 load-balance-blocks off
 

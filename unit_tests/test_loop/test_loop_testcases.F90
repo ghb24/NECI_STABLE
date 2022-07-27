@@ -57,7 +57,7 @@ contains
         write(unit_id, '(A)') '    allrealcoeff'
         write(unit_id, '(A)') '    realspawncutoff .30'
         write(unit_id, '(A)') '    jump-shift'
-        write(unit_id, '(A)') '    taufactor 0.05'
+        write(unit_id, '(A)') '    tau-values start tau-factor 0.05'
         write(unit_id, '(A)') '    maxwalkerbloom 1'
         write(unit_id, '(A)') '    memoryfacspawn 10.00'
         write(unit_id, '(A)') '    memoryfacpart 5.00'

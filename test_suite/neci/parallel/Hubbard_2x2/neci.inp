@@ -17,7 +17,8 @@ calc
     endmethods
     seed -7
     nmcyc 5000
-    max-tau 0.01
+    tau-values \
+        max 0.01
     truncinitiator
     addtoinitiator 3
     totalwalkers 1000

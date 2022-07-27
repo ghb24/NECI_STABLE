@@ -21,7 +21,6 @@ truncinitiator
 addtoinitiator 2
 stepsshift 10
 startsinglepart
-tau-cnt-threshold 50
 load-balance-blocks off
 endcalc
 

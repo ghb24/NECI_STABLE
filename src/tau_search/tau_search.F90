@@ -29,8 +29,9 @@ module tau_search
         possible_tau_search_methods = PossibleTauSearchMethods_t()
 
     type(TauSearchMethod_t) :: &
-        tau_search_method = possible_tau_search_methods%OFF, &
-        input_tau_search_method = possible_tau_search_methods%OFF
+        tau_search_method = possible_tau_search_methods%OFF
+
+    type(TauSearchMethod_t), allocatable :: input_tau_search_method
 
     type, extends(EnumBase_t) :: StopMethod_t
     end type
