@@ -1,10 +1,10 @@
 module test_fortran_strings_mod
     use fruit
     use constants, only: dp
-    use fortran_strings, only: split, Token_t
+    use fortran_strings, only: split, Token_t, can_be_real, can_be_int
     implicit none
     private
-    public :: test_split
+    public :: test_driver
 
 
 
@@ -47,13 +47,31 @@ contains
         end block
     end subroutine
 
+    subroutine test_if_numbers()
+
+        call assert_true(can_be_real("5"))
+        call assert_true(can_be_int("5"))
+
+        call assert_true(can_be_real("5."))
+        call assert_false(can_be_int("5."))
+
+        call assert_false(can_be_real("asdf"))
+        call assert_false(can_be_int("asdf"))
+
+    end subroutine
+
+    subroutine test_driver()
+        call run_test_case(test_split, "test_split")
+        call run_test_case(test_if_numbers, "test_if_numbers")
+    end subroutine
+
 end module test_fortran_strings_mod
 
 program test_fortran_strings_program
 
     use mpi
     use fruit
-    use test_fortran_strings_mod, only: test_split
+    use test_fortran_strings_mod, only: test_driver
 
     implicit none
     integer :: failed_count
@@ -74,7 +92,4 @@ program test_fortran_strings_program
 
 contains
 
-    subroutine test_driver()
-        call run_test_case(test_split, "test_split")
-    end subroutine
 end program

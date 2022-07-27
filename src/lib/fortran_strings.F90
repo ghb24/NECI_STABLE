@@ -6,7 +6,8 @@ module fortran_strings
     save
     private
     public :: str, to_lower, to_upper, operator(.in.), split, Token_t, &
-        count_char, join, to_int, to_int32, to_int64, to_realsp, to_realdp
+        count_char, join, to_int, to_int32, to_int64, to_realsp, to_realdp, &
+        can_be_real, can_be_int
 
 !>  @brief
 !>    Convert to Fortran string
@@ -190,6 +191,21 @@ contains
     real(dp) elemental function to_realdp(str)
         character(*), intent(in) :: str
         read(unit=str, fmt=*) to_realdp
+    end function
+
+    logical elemental function can_be_real(str)
+        character(*), intent(in) :: str
+        integer :: err
+        real(dp) :: rtmp
+        read(unit=str, iostat=err, fmt=*) rtmp
+        can_be_real = err == 0
+    end function
+
+    logical elemental function can_be_int(str)
+        character(*), intent(in) :: str
+        integer :: itmp, err
+        read(unit=str, iostat=err, fmt=*) itmp
+        can_be_int = err == 0
     end function
 
     logical elemental function eq_Token_t(this, other)
