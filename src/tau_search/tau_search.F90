@@ -14,7 +14,7 @@ module tau_search
               tau_search_method, input_tau_search_method, &
               tau_start_val, possible_tau_start, end_of_search_reached, &
               tau_stop_method, possible_tau_stop_methods, &
-              scale_tau_to_death
+              scale_tau_to_death, log_death_magnitude
 
 
 
@@ -43,7 +43,8 @@ module tau_search
         type(StopMethod_t) :: &
             var_shift = StopMethod_t(1), &
             after_iter = StopMethod_t(2), &
-            no_change = StopMethod_t(3)
+            no_change = StopMethod_t(3), &
+            off = StopMethod_t(4)
     end type
 
     type(PossibleStopMethods_t), parameter :: possible_tau_stop_methods = PossibleStopMethods_t()
@@ -67,7 +68,7 @@ module tau_search
 
     real(dp) :: min_tau = 0._dp, max_tau = huge(max_tau)
 
-    logical :: scale_tau_to_death_triggered = .false., input_scale_tau_to_death = .false.
+    logical :: scale_tau_to_death_triggered = .false., t_scale_tau_to_death = .false.
     real(dp) :: max_death_cpt = 0._dp
 
 
@@ -89,7 +90,9 @@ contains
         if (curr_tau_search_method == possible_tau_search_methods%OFF) then
             res = .true.
         else
-            if (tau_stop_method == possible_tau_stop_methods%var_shift) then
+            if (tau_stop_method == possible_tau_stop_methods%off) then
+                res = .false.
+            else if (tau_stop_method == possible_tau_stop_methods%var_shift) then
                 res = .false.
                 do run = 1, inum_runs
                     res = .not. (tSinglePartPhase(run) .or. (tPrecond .and. iter <= 80))
@@ -104,6 +107,7 @@ contains
 
     subroutine scale_tau_to_death()
         real(dp) :: mpi_tmp, tau_death
+        debug_function_name("scale_tau_to_death")
         ! Check that the override has actually occurred.
         ASSERT(scale_tau_to_death_triggered)
         ASSERT(tau_search_method == possible_tau_search_methods%OFF)
@@ -132,6 +136,22 @@ contains
         ! Condition met --> no need to do this again next iteration
         scale_tau_to_death_triggered = .false.
     end subroutine
+
+    subroutine log_death_magnitude(mult)
+
+        ! The same as above, but for particle death
+
+        real(dp), intent(in) :: mult
+
+        if (mult > max_death_cpt) then
+            max_death_cpt = mult
+            if (t_scale_tau_to_death .and. tau_search_method == possible_tau_search_methods%OFF) then
+                scale_tau_to_death_triggered = .true.
+            end if
+        end if
+
+    end subroutine
+
 
 
 end module

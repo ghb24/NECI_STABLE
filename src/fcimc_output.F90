@@ -20,12 +20,7 @@ module fcimc_output
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, &
-                        frq_step_size, tEN2, &
-                        frequency_bins_singles, frequency_bins_para, &
-                        frequency_bins_anti, frequency_bins_doubles, &
-                        frequency_bins_type2, frequency_bins_type3, &
-                        frequency_bins_type4, frequency_bins_type2_diff, &
-                        frequency_bins_type3_diff, n_frequency_bins, &
+                        tEN2, &
                         tSemiStochastic, t_truncate_spawns, tLogGreensfunction
 
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &

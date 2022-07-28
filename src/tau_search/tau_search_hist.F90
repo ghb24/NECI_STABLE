@@ -13,8 +13,6 @@ module tau_search_hist
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &
-                        max_frequency_bound, n_frequency_bins, &
-                        frq_ratio_cutoff, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
                         t_consider_par_bias
 
@@ -53,6 +51,9 @@ module tau_search_hist
 
     public :: t_fill_frequency_hists, t_test_hist_tau
 
+    public :: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
+
+
     ! variables which i might have to define differently:
     logical :: consider_par_bias
     real(dp) :: max_permitted_spawn
@@ -67,6 +68,12 @@ module tau_search_hist
     logical :: enough_trip_hist
     ! store the necessary quantities here and not in CalcData!
     real(dp) :: frq_step_size = 0.1_dp
+    real(dp) :: max_frequency_bound = 10000.0_dp
+    integer :: n_frequency_bins = 100000 ! optional input to adjust the number of bins
+
+
+! use also an input dependent ratio cutoff for the time-step adaptation
+    real(dp) :: frq_ratio_cutoff = 0.999_dp
 
     ! i need bin arrays for all types of possible spawns:
     integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
@@ -357,12 +364,8 @@ contains
                   (t_new_real_space_hubbard .or. t_k_space_hubbard))) then
 
             ! i always use the singles histogram dont I? i think so..
-            allocate(frequency_bins_singles(n_frequency_bins))
-            frequency_bins_singles = 0
-
-            ! for now use only pSingles and pDoubles for GUGA implo
-            allocate(frequency_bins_doubles(n_frequency_bins))
-            frequency_bins_doubles = 0
+            allocate(frequency_bins_singles(n_frequency_bins), &
+                     frequency_bins_doubles(n_frequency_bins), source=0)
 
         else
             ! just to be save also use my new flags..
@@ -379,13 +382,8 @@ contains
             else
 
                 ! i always use the singles histogram dont I? i think so..
-                allocate(frequency_bins_singles(n_frequency_bins), stat=ierr)
-                frequency_bins_singles = 0
-
-                ! for now use only pSingles and pDoubles for GUGA implo
-                allocate(frequency_bins_doubles(n_frequency_bins), stat=ierr)
-                frequency_bins_doubles = 0
-
+                allocate(frequency_bins_singles(n_frequency_bins), &
+                         frequency_bins_doubles(n_frequency_bins), source=0, stat=ierr)
                 call LogMemAlloc('frequency_bins', n_frequency_bins * 2, 4, &
                                  this_routine, mem_tag_histograms, ierr)
             end if
@@ -393,8 +391,7 @@ contains
 
         if (t_mol_3_body) then
             ! when doing integral-based triples, we are here
-            allocate(frequency_bins_triples(n_frequency_bins), stat=ierr)
-            frequency_bins_triples = 0
+            allocate(frequency_bins_triples(n_frequency_bins), source=0)
         end if
 
         ! also need to setup all the other quantities necessary for the

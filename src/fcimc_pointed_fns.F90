@@ -31,9 +31,9 @@ module fcimc_pointed_fns
 
     use bit_rep_data, only: NIfTot, test_flag
 
-    use tau_search, only: tau_search_method, possible_tau_search_methods, input_scale_tau_to_death, &
-        input_scale_tau_to_death
-    use tau_search_conventional, only: log_death_magnitude, log_spawn_magnitude
+    use tau_search, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
+        log_death_magnitude
+    use tau_search_conventional, only: log_spawn_magnitude
     use tau_search_hist, only: t_fill_frequency_hists, fill_frequency_histogram_4ind, &
         fill_frequency_histogram_sd, fill_frequency_histogram
 
@@ -650,7 +650,7 @@ contains
 
         if (any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then
-                if ((tau_search_method /= possible_tau_search_methods%OFF) .or. input_scale_tau_to_death) then
+                if ((tau_search_method /= possible_tau_search_methods%OFF) .or. t_scale_tau_to_death) then
                     ! If we are early in the calculation, and are using tau
                     ! searching, then this is not a big deal. Just let the
                     ! searching deal with it

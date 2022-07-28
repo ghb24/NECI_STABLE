@@ -497,61 +497,6 @@ module CalcData
     integer :: occ_virt_level = 0
 
 
-! introducing an new way to adapt the time-step through H_ij/pgen frequency
-! analysis: for this we need to store a histogram of the H_ij/pgens
-! across all processors which are accumulated during a FCIQMC run
-! the bins and boundaries need to be able to be adjusted during run-time
-! to store the number of elements
-    integer, allocatable :: frequency_bins(:)!, all_frequency_bins(:)
-! to store the boundaries of bins
-    real(dp), allocatable :: frequency_bounds(:)!, all_frequency_bounds(:)
-    logical :: t_frequency_analysis = .false. ! flag to initiate the new analysis
-! change how this is approached to avoid MPI communication issues
-! fix the size of the bins to 10M and the bound to 1M and the step-size to
-! 0.1 and ignore all the frequency ratios above that.. and assume these
-! happen really seldomly and would be cut-off anyway with the integration
-! technique..
-    integer :: n_frequency_bins = 100000 ! optional input to adjust the number of bins
-    real(dp) :: max_frequency_bound = 10000.0_dp
-! and also store data for the MPI communication
-    real(dp) :: all_max_bound = 0.0_dp
-    integer :: all_n_bins = 0
-! use a global step-size, so no numericall error creeps in ..
-    real(dp) :: frq_step_size = 0.1_dp
-
-! for automated tau-search i need more histograms to distinguish between
-! the different types of excitations..
-    integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
-                            frequency_bins_anti(:), frequency_bins_doubles(:)
-    real(dp), allocatable :: frequency_bounds_singles(:), frequency_bounds_para(:), &
-                             frequency_bounds_anti(:), frequency_bounds_doubles(:)
-
-! for the nosym guga implementation also use different bins for the mixed
-! and alike types of excitations
-    integer, allocatable :: frequency_bins_type2(:), frequency_bins_type2_diff(:), &
-                            frequency_bins_type3(:), frequency_bins_type3_diff(:), &
-                            frequency_bins_type4(:)
-    real(dp), allocatable :: frequency_bounds_type2(:), frequency_bounds_type2_diff(:), &
-                             frequency_bounds_type3(:), frequency_bounds_type3_diff(:), &
-                             frequency_bounds_type4(:)
-
-! use also an input dependent ratio cutoff for the time-step adaptation
-    real(dp) :: frq_ratio_cutoff = 0.999_dp
-
-! also use an additional flag to turn the new tau-search off but keep some
-! of its functionality anyway..
-
-! do that for the nosym guga now too deliberately! because there seems to be
-! some matrix element or dynamics problem..
-    integer :: cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
-               cnt_type4
-! and also logicals if i have enough of the excitations
-    logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
-
-! keep also track of the H_ij/pgen value at the integration threshold to
-! determine what we should do with the spawning events above that ..
-    real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
-
 ! also need multiple new specific excitation type probabilites, but they are
 ! defined in FciMCdata module!
 ! move tSpinProject here to avoid circular dependencies

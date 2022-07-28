@@ -93,8 +93,7 @@ module hdf5_popsfile
     use tau_search, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
         max_death_cpt
-    use tau_search_hist, only: t_fill_frequency_hists, &
-        deallocate_histograms
+    use tau_search_hist, only: deallocate_histograms
     use tau_search_conventional, only: &
         cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
         gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &

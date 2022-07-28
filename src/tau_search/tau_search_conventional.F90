@@ -21,7 +21,7 @@ module tau_search_conventional
 
     use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
                           input_tau_search_method, tau_search_method, &
-                          scale_tau_to_death_triggered, max_death_cpt
+                          t_scale_tau_to_death, scale_tau_to_death_triggered, max_death_cpt
 
     use tc_three_body_data, only: pTriples
 
@@ -35,8 +35,6 @@ module tau_search_conventional
                         InitiatorWalkNo, MaxWalkerBloom, t_consider_par_bias, tReadPops, &
                         tTruncInitiator, tWalkContGrow
 
-    use CalcData, only: n_frequency_bins, frq_ratio_cutoff, frq_step_size
-
     use util_mod, only: near_zero, operator(.isclose.)
 
     use lattice_mod, only: get_helement_lattice
@@ -46,8 +44,7 @@ module tau_search_conventional
     implicit none
     private
 
-    public :: FindMaxTauDoubs, log_spawn_magnitude, init_tau_search, &
-              log_death_magnitude
+    public :: FindMaxTauDoubs, log_spawn_magnitude, init_tau_search
 
     public :: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
               cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
@@ -328,19 +325,6 @@ contains
             end if
 
         end select
-    end subroutine
-
-    subroutine log_death_magnitude(mult)
-
-        ! The same as above, but for particle death
-
-        real(dp) :: mult
-
-        if (mult > max_death_cpt) then
-            scale_tau_to_death_triggered = .true.
-            max_death_cpt = mult
-        end if
-
     end subroutine
 
     subroutine update_tau()

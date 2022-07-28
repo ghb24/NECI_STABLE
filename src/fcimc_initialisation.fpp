@@ -67,7 +67,7 @@ module fcimc_initialisation
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
         max_death_cpt
 
-    use tau_search_hist, only: t_fill_frequency_hists, init_hist_tau_search
+    use tau_search_hist, only: init_hist_tau_search
 
     use tau_search_conventional, only: init_tau_search
 

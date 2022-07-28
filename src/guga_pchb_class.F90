@@ -9,14 +9,13 @@ module guga_pchb_class
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use tau_search, only: max_tau, tau_search_method, possible_tau_search_methods
+    use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, swap, binary_search_first_ge, &
                         get_free_unit, stop_all, operator(.isclose.)
-    use CalcData, only: t_matele_cutoff, matele_cutoff, frq_ratio_cutoff, &
-                        max_frequency_bound, n_frequency_bins, &
-                        t_truncate_spawns
+    use CalcData, only: t_matele_cutoff, matele_cutoff, t_truncate_spawns
     use sym_general_mod, only: ClassCountInd
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
                                sym_label_list_spat, SpinOrbSymLabel

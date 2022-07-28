@@ -36,9 +36,10 @@ MODULE Calc
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         tau_stop_method, possible_tau_stop_methods, &
         min_tau, max_tau, tau_start_val, possible_tau_start, &
-        input_scale_tau_to_death
+        t_scale_tau_to_death
 
-    use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau
+    use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
+        max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
@@ -80,7 +81,7 @@ MODULE Calc
 
     use sets_mod, only: disjoint, operator(.U.)
 
-    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
+    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -1258,7 +1259,7 @@ contains
                 end if
 
             case("TAU", "MIN-TAU", "MAX-TAU", "TAU-FACTOR", "TAU-CNT-THRESHOLD")
-                call stop_all(this_routine, w//" option is deprecated.")
+                call stop_all(this_routine, trim(w)//" option is deprecated.")
 
 
             case("TAU-VALUES")
@@ -1303,7 +1304,22 @@ contains
                             input_tau_search_method = possible_tau_search_methods%CONVENTIONAL
                         case("HISTOGRAMMING")
                             input_tau_search_method = possible_tau_search_methods%HISTOGRAMMING
-                            ! TODO(@Oskar): Add reading of bins
+                            t_fill_frequency_hists = .true.
+                            if (can_be_real(tokens%glimpse(''))) then
+                                frq_ratio_cutoff = 1._dp - to_realdp(tokens%next())
+                            end if
+                            if (can_be_real(tokens%glimpse(''))) then
+                                n_frequency_bins = nint(to_realdp(tokens%next()))
+                                if (n_frequency_bins > 10**6) then
+                                    write(stdout, "(A)") &
+                                        '("WARNING: maybe too many bins used for the &
+                                        &histograms! This might cause MPI problems!")'
+                                end if
+                            end if
+                            if (can_be_real(tokens%glimpse(''))) then
+                                max_frequency_bound = to_realdp(tokens%next())
+                            end if
+
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select
@@ -1318,6 +1334,8 @@ contains
                         case("AFTER-ITER")
                             ! TODO(@Oskar)
                             call stop_all(this_routine, "Has to be implemented.")
+                        case("OFF")
+                            tau_stop_method = possible_tau_stop_methods%off
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select
@@ -1330,7 +1348,7 @@ contains
                 end do
 
             case("SCALE-TAU-TO-DEATH")
-                input_scale_tau_to_death = .true.
+                t_scale_tau_to_death = .true.
 
 
             case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")

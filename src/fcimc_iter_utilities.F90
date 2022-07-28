@@ -16,9 +16,10 @@ module fcimc_iter_utils
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
 
-    use tau_search, only: input_scale_tau_to_death, scale_tau_to_death_triggered, &
+    use tau_search, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         end_of_search_reached, scale_tau_to_death
+    use tau_search_hist, only: t_fill_frequency_hists
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
@@ -796,7 +797,7 @@ contains
         ! We should update tau searching if it is enabled, or if it has been
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
-        if (input_scale_tau_to_death .and. tau_search_method == possible_tau_search_methods%OFF) then
+        if (t_scale_tau_to_death .and. tau_search_method == possible_tau_search_methods%OFF) then
             call MPIAllLORLogical(scale_tau_to_death_triggered, ltmp)
             scale_tau_to_death_triggered = ltmp
         end if
@@ -810,7 +811,7 @@ contains
                 call update_tau_hist()
             else if (scale_tau_to_death_triggered) then
                 ASSERT(tau_search_method == possible_tau_search_methods%OFF)
-                ASSERT(input_scale_tau_to_death)
+                ASSERT(t_scale_tau_to_death)
                 call scale_tau_to_death()
             end if
         end if
@@ -1250,6 +1251,9 @@ contains
         end do
 
         if (end_of_search_reached(tau_search_method)) then
+            if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                t_fill_frequency_hists = .false.
+            end if
             tau_search_method = possible_tau_search_methods%OFF
         end if
     end subroutine update_shift

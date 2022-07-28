@@ -124,9 +124,9 @@ module soft_exit
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
-                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift, &
-                        frq_ratio_cutoff
+                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift
     use tau_search, only: tau_search_method, possible_tau_search_methods
+    use tau_search_hist, only: frq_ratio_cutoff
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
