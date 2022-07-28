@@ -71,6 +71,7 @@ module input_parser_mod
         procedure, public :: size => size_TokenIterator_t
         procedure, public :: remaining_items
         procedure, public :: next
+        procedure, public :: glimpse
         procedure, public :: reset
     end type
 
@@ -302,6 +303,25 @@ contains
         class(TokenIterator_t), intent(inout) :: this
         character(*), intent(in), optional :: if_exhausted
         character(:), allocatable :: res
+
+        if (this%remaining_items() == 0) then
+            res = this%glimpse(if_exhausted)
+        else
+            res = this%glimpse(if_exhausted)
+            this%i_curr_token = this%i_curr_token + 1
+        end if
+
+    end function
+
+    function glimpse(this, if_exhausted) result(res)
+        !! Return the next Token.
+        !!
+        !! If the iterator is exhausted, this function throws an error
+        !! unless the argument `if_exhausted` is present, which is then
+        !! returned instead.
+        class(TokenIterator_t), intent(inout) :: this
+        character(*), intent(in), optional :: if_exhausted
+        character(:), allocatable :: res
         character(*), parameter :: this_routine = 'next'
         integer :: i
         if (this%remaining_items() == 0) then
@@ -321,7 +341,6 @@ contains
             end if
         else
             res = this%tokens(this%i_curr_token)%str
-            this%i_curr_token = this%i_curr_token + 1
         end if
     end function
 

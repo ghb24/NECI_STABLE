@@ -57,6 +57,10 @@ contains
 
         call assert_false(can_be_real("asdf"))
         call assert_false(can_be_int("asdf"))
+        call assert_false(can_be_real(""))
+        call assert_false(can_be_int(""))
+        call assert_false(can_be_real("5..3"))
+        call assert_false(can_be_int("5..3"))
 
     end subroutine
 
