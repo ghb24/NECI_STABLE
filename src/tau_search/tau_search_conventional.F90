@@ -21,7 +21,8 @@ module tau_search_conventional
 
     use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
                           input_tau_search_method, tau_search_method, &
-                          t_scale_tau_to_death, scale_tau_to_death_triggered, max_death_cpt
+                          t_scale_tau_to_death, scale_tau_to_death_triggered, max_death_cpt, &
+                          tau_start_val, possible_tau_start
 
     use tc_three_body_data, only: pTriples
 
@@ -80,7 +81,6 @@ contains
     subroutine init_tau_search()
         ! N.B. This must be called BEFORE a popsfile is read in, otherwise
         !      we screw up the gamma values that have been carefully read in.
-        character(*), parameter :: this_routine = "init_tau_search"
 
         ! We want to start off with zero-values
         gamma_sing = 0.0_dp
@@ -110,20 +110,6 @@ contains
         enough_opp = .false.
         enough_par = .false.
         enough_trip = .false.
-
-        ! Unless it is already specified, set an initial value for tau
-        if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
-            if (tGUGA) then
-                if (near_zero(max_tau)) then
-                    call stop_all(this_routine, &
-                                  "please specify a sensible 'max-tau' in input for GUGA calculations!")
-                else
-                    tau = max_tau
-                end if
-            else
-                call FindMaxTauDoubs()
-            end if
-        end if
 
         write(stdout, *) 'Using initial time-step: ', tau
 
@@ -476,9 +462,9 @@ contains
         ! If there is no death logged, dont do anything
         if (abs(max_death_cpt) > EPS) then
             tau_death = 1.0_dp / max_death_cpt
-            if (tau_death < tau_new) then
-                min_tau = min(tau_death, min_tau)
-                tau_new = clamp(tau_death, min_tau, max_tau)
+            if (tau_death < tau_new .and. tau_death < min_tau) then
+                min_tau = tau_death
+                tau_new = tau_death
                 root_print "time-step reduced, due to death events! reset min_tau to:", tau_new
             end if
         end if

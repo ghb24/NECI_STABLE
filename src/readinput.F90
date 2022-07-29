@@ -9,6 +9,10 @@ MODULE ReadInput_neci
     use SystemData, only: lms, user_input_m_s
     use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+    use CalcData, only: tau
+    use tau_search, only: tau_start_val, possible_tau_start, &
+        min_tau, max_tau
+
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -692,6 +696,29 @@ contains
                 end if
             end if
         end block
+
+
+        block
+            if (.not. allocated(tau_start_val)) then
+                call stop_all(t_r, 'Start value for tau is required.')
+            end if
+
+            if (tau_start_val == possible_tau_start%user_given) then
+                if (.not. (min_tau <= tau .and. tau <= max_tau)) then
+                    call stop_all(t_r, 'User given tau has to be contained in min_tau and max_tau.')
+                end if
+            end if
+
+            if (.not. (tau_start_val == possible_tau_start%from_popsfile .implies. tReadPops)) then
+                call stop_all(t_r, 'Tau from popsfile requires readpops.')
+            end if
+
+            if (tau_start_val == possible_tau_start%refdet_connections .and. tGUGA) then
+                call stop_all(this_routine, &
+                              "please specify a sensible start tau in input for GUGA calculations!")
+            end if
+        end block
+
 
     end subroutine checkinput
 

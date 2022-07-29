@@ -25,11 +25,9 @@ module tau_search_hist
 
     use constants, only: dp, EPS, stdout, maxExcit, int64
 
-    use tau_search_conventional, only: FindMaxTauDoubs
-
     use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
                           tau_search_method, input_tau_search_method, scale_tau_to_death_triggered, &
-                          max_death_cpt
+                          max_death_cpt, tau_start_val, possible_tau_start
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -405,25 +403,7 @@ contains
         ! early
         ! should we use the same variables in both tau-searches??
 
-        ! Unless it is already specified, set an initial value for tau
-        if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
-            if (tGUGA) then
-                if (near_zero(max_tau)) then
-                    call stop_all(this_routine, &
-                                  "please specify a sensible 'max-tau' in input for GUGA calculations!")
-                else
-                    tau = max_tau
-                end if
-            else
-                call FindMaxTauDoubs()
-            end if
-        end if
-
-        if (tReadPops) then
-            write(stdout, *) "Using time-step from POPSFILE!"
-        else
-            write(stdout, *) 'Using initial time-step: ', tau
-        end if
+        write(stdout, *) 'Using initial time-step: ', tau
 
         ! Set the maximum spawn size
         if (MaxWalkerBloom.isclose.-1._dp) then

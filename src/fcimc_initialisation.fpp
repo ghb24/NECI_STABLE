@@ -69,7 +69,7 @@ module fcimc_initialisation
 
     use tau_search_hist, only: init_hist_tau_search
 
-    use tau_search_conventional, only: init_tau_search
+    use tau_search_conventional, only: init_tau_search, FindMaxTauDoubs
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
@@ -1759,6 +1759,10 @@ contains
                               "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
+        if (tau_start_val == possible_tau_start%refdet_connections) then
+            call FindMaxTauDoubs()
+        end if
+
         if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
             call init_tau_search()
         else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
@@ -1772,6 +1776,7 @@ contains
                 pParallel = 0.0_dp
             end if
         end if
+
 
         IF ((NMCyc /= 0) .and. (tRotateOrbs .and. (.not. tFindCINatOrbs))) then
             CALL Stop_All(this_routine, "Currently not set up to rotate and then go straight into a spawning &

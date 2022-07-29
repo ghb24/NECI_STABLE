@@ -1277,6 +1277,8 @@ contains
                         case("TAU-FACTOR")
                             tau_start_val = possible_tau_start%tau_factor
                             TauFactor = to_realdp(tokens%next())
+                        case("REFDET-CONNECTIONS")
+                            tau_start_val = possible_tau_start%refdet_connections
                         case("DETERMINISTIC")
                             ! TODO(@Oskar)
                             tau_start_val = possible_tau_start%deterministic
@@ -1294,6 +1296,9 @@ contains
                 end do
 
             case("TAU-SEARCH")
+                if (tokens%remaining_items() == 0) then
+                    call stop_all(this_routine, "TAU-SEARCH requires more information")
+                end if
                 do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
                     select case(w)

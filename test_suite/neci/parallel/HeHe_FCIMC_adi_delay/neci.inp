@@ -13,7 +13,7 @@ seed -7
 nmcyc 40000
 initwalkers 100
 tau-values \
-    start user-defined 0.001
+    start user-defined 0.002
 startsinglepart
 shiftdamp 0.01
 stepsshift 75

@@ -18,7 +18,11 @@ calc
     seed -7
     nmcyc 5000
     tau-values \
+        start refdet-connections \
         max 0.01
+    tau-search \
+        algorithm conventional \
+        stop-condition OFF
     truncinitiator
     addtoinitiator 3
     totalwalkers 1000
