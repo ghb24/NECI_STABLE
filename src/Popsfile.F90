@@ -16,18 +16,6 @@ MODULE PopsfileMod
                         hdf5_diagsft, tAutoAdaptiveShift, &
                         pParallelIn
 
-    use tau_search, only: tau_search_method, input_tau_search_method, &
-        possible_tau_search_methods, tau_start_val, possible_tau_start, &
-        max_death_cpt
-    use tau_search_hist, only: deallocate_histograms
-    use tau_search_conventional, only: &
-        cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
-        gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-        enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
-        gamma_doub_spindiff1, gamma_doub_spindiff2, &
-        gamma_sing_spindiff1, &
-        update_tau
-
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
 
@@ -53,6 +41,12 @@ MODULE PopsfileMod
                            tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod
+    use tau_search, only: input_tau_search_method, tau_search_method, &
+        possible_tau_search_methods, max_death_cpt, tau_start_val, possible_tau_start, &
+        t_scale_tau_to_death
+    use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+                          gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, gamma_trip
+    use tau_search_hist, only: deallocate_histograms, t_fill_frequency_hists
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
                          t_initialized_roi, ilutref, perturbation, CurrentDets, AllSumENum, &
                          AllSumNoatHF, tSinglePartPhase, ProjEDet, SumNoatHF, ValidSpawnedList, &
@@ -103,6 +97,10 @@ MODULE PopsfileMod
             integer :: det(nel)
         end subroutine
     end interface
+
+
+    ! TODO(@Oskar): Remove
+    logical :: t_previous_hist_tau = .false.
 
 contains
 
@@ -1154,8 +1152,7 @@ contains
             !Using popsfile v.3, where tau is not written out.
             !Exit if trying to dynamically search for timestep
             if (tau_start_val == possible_tau_start%from_popsfile) then
-                call stop_all(this_routine, "Cannot dynamically read tau &
-                    &in POPSFILE v.3. Manually specify timestep.")
+                call stop_all(this_routine, "Cannot read tau from popsfile version <= 3.x")
             endif
             write (stdout, *) "Old popsfile detected."
             write (stdout, *) "Therefore automatic blocking will only start from current run"
@@ -1167,8 +1164,7 @@ contains
                 ! this works because the real-time popsfile is read last
                 if (tau_start_val == possible_tau_start%from_popsfile) then
                     tau = read_tau
-                    write (stdout, "(A)") "Using imaginary timestep specified in POPSFILE!"
-                end if
+                endif
 
                 ! also use the adjusted pSingle etc. if provided
                 if (.not. near_zero(read_psingles)) then
@@ -1193,36 +1189,60 @@ contains
             else
 
                 !Using popsfile v.4, where tau is written out and read in
+                which_tau_to_use: if ((tau_search_method /= possible_tau_search_methods%off) .or. t_previous_hist_tau) then
+                    if ((.not. tSinglePartPhase(1)) .or. (.not. tSinglePartPhase(inum_runs))) then
+                        tau_search_method = possible_tau_search_methods%off
+                    endif
+                    if (tau_start_val == possible_tau_start%from_popsfile) then
+                        Tau = read_tau
+                        write (stdout, "(A)") "Using timestep specified in POPSFILE!"
+                    else
+                        write (stdout, *) "time-step specified in input file!"
+                    end if
+                    if (tau_search_method /= possible_tau_search_methods%off) then
+                        write (stdout, "(A)") "But continuing to dynamically adjust to optimise this"
+                    end if
+                    write (stdout, "(A,F12.8)") " used time-step: ", tau
 
-                if (tau_start_val == possible_tau_start%from_popsfile) then
-                    tau = read_tau
-                    write (stdout, "(A)") "Using timestep specified in POPSFILE!"
-                end if
-                write (stdout, "(A,F12.8)") " used time-step: ", tau
+                    ! If we have been searching for tau, we may have been searching
+                    ! for psingles (it is done at the same time).
+                    if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+                        write (stdout, *) "using pSingles/pDoubles specified in input file!"
+                    else
+                        if (.not. near_zero(read_psingles)) then
+                            pSingles = read_psingles
+                            if (.not. tReltvy) then
+                                pDoubles = 1.0_dp - pSingles
+                            end if
 
-                if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
-                    write (stdout, *) "using pSingles/pDoubles specified in input file!"
-                else
-                    write (stdout, "(A)") "Using pSingles and pDoubles from POPSFILE: "
-                    if (.not. near_zero(read_psingles)) then
-                        pSingles = read_psingles
-                        if (.not. tReltvy) then
-                            pDoubles = 1.0_dp - pSingles
+                            write (stdout, "(A)") "Using pSingles and pDoubles from POPSFILE: "
+                            write (stdout, "(A,F12.8)") " pSingles: ", pSingles
+                            write (stdout, "(A,F12.8)") " pDoubles: ", pDoubles
+
                         end if
                     end if
-                end if
-                write (stdout, "(A,F12.8)") " pSingles: ", pSingles
-                write (stdout, "(A,F12.8)") " pDoubles: ", pDoubles
 
-                if (allocated(pParallelIn)) then
-                    write (stdout, "(A)") "Using pParallel specified in input file!"
-                else
-                    if (.not. near_zero(read_pparallel)) then
-                        pParallel = read_pparallel
-                        write (stdout, "(A)") "Using pParallel from POPSFILE: "
-                        write (stdout, "(A,F12.8)") " pParallel: ", pParallel
+                    if (allocated(pParallelIn)) then
+                        write (stdout, "(A)") "Using pParallel specified in input file!"
+                    else
+                        if (.not. near_zero(read_pparallel)) then
+                            pParallel = read_pparallel
+                            write (stdout, "(A)") "Using pParallel from POPSFILE: "
+                            write (stdout, "(A,F12.8)") " pParallel: ", pParallel
+                        end if
                     end if
-                end if
+
+                else
+                    !Tau specified. if it is different, write this here.
+                    if (abs(read_tau - Tau) > 1.0e-5_dp) then
+                        call warning_neci(this_routine, "Timestep specified in input file is different to that in the popsfile.")
+
+                        write (stdout, "(A,F12.8)") "Old timestep: ", read_tau
+                        write (stdout, "(A,F12.8)") "New timestep: ", tau
+
+                    endif
+                end if which_tau_to_use
+
 
                 if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
                     write (stdout, *) "using pSingles/pDoubles specified in input file!"
@@ -1236,6 +1256,7 @@ contains
                         write (stdout, *) "Using read-in pDoubles=", pDoubles
                     end if
                 end if
+
                 tReadPTriples = .false.
                 if (allocated(pTriplesIn)) then
                     write (stdout, "(A)") "Using pTriples specified in input file!"
@@ -1336,6 +1357,7 @@ contains
         real(dp) :: PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
+        logical :: PopPreviousHistTau
         integer :: PopAccumPopsCounter
         character(*), parameter :: this_routine = 'ReadPopsHeadv4'
         ! need dummy read-in variable, since we start from a converged real
@@ -1353,7 +1375,7 @@ contains
             PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
             PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
             PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
-            tPopAutoAdaptiveShift, tPopScaleBlooms, &
+            PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms, &
             tPopAccumPops, PopAccumPopsCounter
 
 
@@ -1371,6 +1393,7 @@ contains
 
         PopBalanceBlocks = -1
         PopNNodes = 0
+        PopPreviousHistTau = .false.
         tPopAutoAdaptiveShift = .false.
         tPopScaleBlooms = .false.
         tPopAccumPops = .false.
@@ -1413,10 +1436,9 @@ contains
         if (PopNNodes == nProcessors) then
             ! What is the maximum number of nodes currently supported. We might
             ! need to update this...
-            if (PopNNodes > max_nodes) then
-                call stop_all(this_routine, &
-                              "Too many processors in POPSFILE. Update max_nodes")
-            end if
+            if (PopNNodes > max_nodes) &
+                call stop_all(this_routine, "Too many processors in POPSFILE. Update &
+                                   &max_nodes")
 
             call MPIBCast(PopWalkersOnNodes(1:PopNNodes))
             read_walkers_on_nodes(0:PopNNodes - 1) = &
@@ -1435,6 +1457,7 @@ contains
         call MPIBcast(PopMaxDeathCpt)
         call MPIBcast(PopRandomHash)
         call MPIBcast(PopBalanceBlocks)
+        call MPIBCast(PopPreviousHistTau)
         call MPIBCast(tPopAutoAdaptiveShift)
         call MPIBCast(tPopScaleBlooms)
         call MPIBCast(tPopAccumPops)
@@ -1457,6 +1480,7 @@ contains
         read_pParallel = PopPParallel
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
+
 
         ! in output generation, these fields are used when tMultiReplicas is set, so this should be
         ! used here, too (not tReplicaReferencesDiffer), given that the number of runs did not
@@ -2023,6 +2047,9 @@ contains
             write (iunit, *)
         end if
 
+        if (t_previous_hist_tau) then
+            write (iunit, *) "PopPreviousHistTau=", .true.
+        end if
         ! add information about the global data stored in the popsfile:
         ! is auto-adaptive shift data available?
         write (iunit, *) "tPopAutoAdaptiveShift=", tAutoAdaptiveShift
