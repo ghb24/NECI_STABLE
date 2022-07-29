@@ -12,7 +12,6 @@ endmethods
 seed -7
 nmcyc 15000
 totalwalkers 20000
-tau 0.005
 tau-values \
     start user-defined 0.005
 back-spawn-flex 1 -1

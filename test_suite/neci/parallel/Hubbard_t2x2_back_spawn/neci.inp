@@ -22,7 +22,11 @@ calc
     back-spawn
     nmcyc 12000
     tau-values \
+        start refdet-connections \
         max 0.01
+    tau-search \
+        algorithm conventional \
+        stop-condition OFF
     truncinitiator
     addtoinitiator 3
     totalwalkers 5000

@@ -17,7 +17,9 @@ calc
         start user-defined 0.005
     tau-search \
         algorithm conventional \
-        stop-condition var-shift
+        stop-condition var-shift \
+        scale-tau-to-death
+
     startsinglepart 10
     truncinitiator
     addtoinitiator 3

@@ -713,8 +713,7 @@ contains
                         tExitNow = .true.
 
                     case default
-                        write(stdout, *) 'REPORT'//trim(w)
-                        !call report ("Keyword "//trim(w)//" not recognized",.true.)
+                        call stop_all(this_routine, "Keyword "//trim(w)//" not recognized")
                     end select
 
                 end do
@@ -1346,14 +1345,14 @@ contains
                         end select
                     case("OFF")
                         input_tau_search_method = possible_tau_search_methods%OFF
+                    case("SCALE-TAU-TO-DEATH")
+                        t_scale_tau_to_death = .true.
                     case default
                         call stop_all(this_routine, "Invalid sub-keyword "//w)
                     end select
                     tau_search_method = input_tau_search_method
                 end do
 
-            case("SCALE-TAU-TO-DEATH")
-                t_scale_tau_to_death = .true.
 
 
             case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")

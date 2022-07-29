@@ -758,6 +758,8 @@ contains
                 if (tau_new < min_tau) then
                     root_print "new time-step less then min_tau! set to min_tau!", min_tau
                     tau_new = min_tau
+                else if (tau_new > max_tau) then
+                    tau_new = max_tau
                 else
                     root_print "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
                 end if
