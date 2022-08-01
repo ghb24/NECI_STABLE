@@ -1,42 +1,46 @@
 title
 
 system read
-electrons 10
-nonuniformrandexcits mol_guga_weighted
-guga 2
+    electrons 10
+    nonuniformrandexcits mol_guga_weighted
+    guga 2
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-nmcyc 1000
-totalwalkers 1000
-# tau 0.001 search
-new-tau-search 0.9999
-max-tau 0.02
-definedet 1 2 3 4 5 17 18 23 24 33
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    nmcyc 1000
+    totalwalkers 1000
+    tau-values \
+        start from-popsfile \
+        max 0.02
+    tau-search \
+        algorithm histogramming 1e-4 \
+        stop-condition off
 
-restart-hist-tau-search
-readpops
-startsinglepart
-truncinitiator
-addtoinitiator 3
-shiftdamp 0.03
-stepsshift 25
-jump-shift
-load-balance-blocks off
-maxwalkerbloom 3.0
+
+    definedet 1 2 3 4 5 17 18 23 24 33
+
+    readpops
+    startsinglepart
+    truncinitiator
+    addtoinitiator 3
+    shiftdamp 0.03
+    stepsshift 25
+    jump-shift
+    load-balance-blocks off
+    maxwalkerbloom 3.0
 endcalc
 
 integral
-freeze 2 0
+    freeze 2 0
 endint
 
 logging
-popsfile -1
-hdf5-pops-read
-no-append-stats
+    popsfile -1
+    hdf5-pops-read
+    no-append-stats
 endlog
 end
