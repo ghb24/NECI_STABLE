@@ -11,7 +11,7 @@ methods
 method vertex fcimc
 endmethods
 seed -7
-nmcyc 5000
+nmcyc 13500
 totalwalkers 50000
 shiftdamp 0.1
 tau-values \

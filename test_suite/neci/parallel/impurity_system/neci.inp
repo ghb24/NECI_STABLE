@@ -19,7 +19,7 @@ calc
     shiftdamp       0.5000000000
     stepsshift      1
     tau-values \
-        max 0.001
+        start user-defined 0.001
     memoryfacpart         5.
     memoryfacspawn         100.
     truncinitiator

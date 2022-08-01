@@ -60,7 +60,8 @@ module tau_search
             tau_factor = TauStartVal_t(2), &
             from_popsfile = TauStartVal_t(3), &
             refdet_connections = TauStartVal_t(4), &
-            deterministic = TauStartVal_t(5)
+            deterministic = TauStartVal_t(5), &
+            not_needed = TauStartVal_t(6)
     end type
 
     type(PossibleStartValTau_t), parameter :: possible_tau_start = PossibleStartValTau_t()

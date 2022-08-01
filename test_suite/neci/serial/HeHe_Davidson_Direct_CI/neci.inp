@@ -6,9 +6,9 @@ endsys
 
 calc
     methods
-    davidson 2 0 8 0 4
+        davidson 2 0 8 0 4
     endmethods
-    seed -7
+    tau-values start not-needed
 endcalc
 
 integral

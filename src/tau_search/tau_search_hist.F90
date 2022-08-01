@@ -732,6 +732,9 @@ contains
             end if
         end if
 
+        ! And a last sanity check/hard limit
+        tau_new = min(tau_new, max_tau)
+
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.

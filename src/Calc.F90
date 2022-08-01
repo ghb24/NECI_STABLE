@@ -1282,6 +1282,10 @@ contains
                             ! TODO(@Oskar)
                             tau_start_val = possible_tau_start%deterministic
                             call stop_all(this_routine, "To be implemented.")
+                        case("NOT-NEEDED")
+                            ! The user explicitly says, that tau is not required.
+                            tau_start_val = possible_tau_start%not_needed
+                            tau = -100._dp
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select
@@ -1311,6 +1315,15 @@ contains
                             t_fill_frequency_hists = .true.
                             if (can_be_real(tokens%glimpse(''))) then
                                 frq_ratio_cutoff = 1._dp - to_realdp(tokens%next())
+                                if (frq_ratio_cutoff < 0.9_dp) then
+                                    write(stderr, *) 'The frequency ratio cutoff `c` of histogramming is below 0.9.'
+                                    write(stderr, *) 'Note that the input is the first argument to `histogramming` as `1 - c`.'
+                                    write(stderr, *) 'If you want c = 0.999 just write:'
+                                    write(stderr, *) '  tau-search \'
+                                    write(stderr, *) '      algorithm histogramming 1e-3'
+                                    write(stderr, *) 'If you really want c < 0.9 contact the developers.'
+                                    call stop_all(this_routine, 'Invalid `frq_ratio_cutoff`.')
+                                end if
                             end if
                             if (can_be_real(tokens%glimpse(''))) then
                                 n_frequency_bins = nint(to_realdp(tokens%next()))

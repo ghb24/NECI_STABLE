@@ -1189,19 +1189,9 @@ contains
             else
 
                 !Using popsfile v.4, where tau is written out and read in
-                which_tau_to_use: if ((tau_search_method /= possible_tau_search_methods%off) .or. t_previous_hist_tau) then
-                    if ((.not. tSinglePartPhase(1)) .or. (.not. tSinglePartPhase(inum_runs))) then
-                        tau_search_method = possible_tau_search_methods%off
-                    endif
-                    if (tau_start_val == possible_tau_start%from_popsfile) then
-                        Tau = read_tau
-                        write (stdout, "(A)") "Using timestep specified in POPSFILE!"
-                    else
-                        write (stdout, *) "time-step specified in input file!"
-                    end if
-                    if (tau_search_method /= possible_tau_search_methods%off) then
-                        write (stdout, "(A)") "But continuing to dynamically adjust to optimise this"
-                    end if
+                which_tau_to_use: if (tau_start_val == possible_tau_start%from_popsfile) then
+                    Tau = read_tau
+                    write (stdout, "(A)") "Using timestep specified in POPSFILE!"
                     write (stdout, "(A,F12.8)") " used time-step: ", tau
 
                     ! If we have been searching for tau, we may have been searching
@@ -1231,16 +1221,6 @@ contains
                             write (stdout, "(A,F12.8)") " pParallel: ", pParallel
                         end if
                     end if
-
-                else
-                    !Tau specified. if it is different, write this here.
-                    if (abs(read_tau - Tau) > 1.0e-5_dp) then
-                        call warning_neci(this_routine, "Timestep specified in input file is different to that in the popsfile.")
-
-                        write (stdout, "(A,F12.8)") "Old timestep: ", read_tau
-                        write (stdout, "(A,F12.8)") "New timestep: ", tau
-
-                    endif
                 end if which_tau_to_use
 
 
