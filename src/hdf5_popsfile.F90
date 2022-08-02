@@ -91,7 +91,7 @@ module hdf5_popsfile
 #endif
     use tau_search, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
-        max_death_cpt, min_tau, max_tau, tau
+        max_death_cpt, min_tau, max_tau, tau, assign_value_to_tau
     use tau_search_hist, only: deallocate_histograms
     use tau_search_conventional, only: &
         cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
@@ -701,7 +701,7 @@ contains
 
         if (tau_start_val == possible_tau_start%from_popsfile) then
             if (tau_set) then
-                tau = temp_tau
+                call assign_value_to_tau(temp_tau)
                 if (tau < min_tau .or. tau > max_tau) then
                     call stop_all(this_routine, "The read tau "//str(tau, after_comma=5)//" is smaller than min_tau or larger than max_tau")
                 end if

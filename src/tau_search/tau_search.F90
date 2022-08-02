@@ -17,7 +17,9 @@ module tau_search
               scale_tau_to_death, log_death_magnitude, last_change_of_tau, &
               last_iter_tau_search, tau, taufactor, min_tau, max_tau, &
               scale_tau_to_death_triggered, t_scale_tau_to_death, &
-              max_death_cpt
+              max_death_cpt, assign_value_to_tau
+
+    protected :: tau
 
 
     real(dp) :: tau = 0._dp
@@ -55,7 +57,7 @@ module tau_search
             off = StopMethod_t(5, 'Off')
     end type
 
-    integer :: last_iter_tau_search, last_change_of_tau = 0
+    integer :: last_iter_tau_search = 0, last_change_of_tau = 0
 
     type(PossibleStopMethods_t), parameter :: possible_tau_stop_methods = PossibleStopMethods_t()
 
@@ -129,11 +131,11 @@ contains
 
             ! If this actually constrains tau, then adjust it!
             if (tau_death < tau) then
-                tau = tau_death
+                call assign_value_to_tau(tau_death)
 
                 root_print "******"
-                root_print "WARNING: Updating time step due to particle death &
-                     &magnitude"
+                root_print &
+                    "WARNING: Updating time step due to particle death magnitude"
                 root_print "This occurs despite variable shift mode"
                 root_print "Updating time-step. New time-step = ", tau
                 root_print "******"
@@ -159,6 +161,10 @@ contains
 
     end subroutine
 
-
+    subroutine assign_value_to_tau(new_tau)
+        real(dp), intent(in) :: new_tau
+        tau = new_tau
+        last_change_of_tau = iter
+    end subroutine
 
 end module

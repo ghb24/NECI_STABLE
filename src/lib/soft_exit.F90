@@ -126,7 +126,7 @@ module soft_exit
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift
     use tau_search, only: tau_search_method, possible_tau_search_methods, &
-        tau_value => tau
+        tau_value => tau, assign_value_to_tau
     use tau_search_hist, only: frq_ratio_cutoff
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
@@ -353,7 +353,7 @@ contains
 
                         ! Do we have any other items to read in?
                         if (i == tau) then
-                            tau_value = to_realdp(tokens%next())
+                            call assign_value_to_tau(to_realdp(tokens%next()))
                         elseif (i == TargetGrowRate) then
                             target_grow_rate(1) = to_realdp(tokens%next())
                             if(inum_runs == 2) target_grow_rate(inum_runs)=target_grow_rate(1)
@@ -528,7 +528,12 @@ contains
 
             ! Change Tau
             if (opts_selected(tau)) then
-                call MPIBCast (tau_value, tSource)
+                block
+                    real(dp) :: local_tau
+                    local_tau = tau_value
+                    call MPIBCast (local_tau, tSource)
+                    call assign_value_to_tau(local_tau)
+                end block
                 write(stdout,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
                 write(stdout, *) "Ceasing the search for tau."
                 tau_search_method = possible_tau_search_methods%OFF
@@ -685,7 +690,7 @@ contains
             ! Enable initiator truncation scheme
             if (opts_selected(truncinitiator)) then
                 tTruncInitiator = .true.
-                tau_value = tau_value / 10 ! Done by all. No need to BCast...
+                call assign_value_to_tau(tau_value / 10)
                 root_print 'Beginning to allow spawning into inactive space &
                            &for a truncated initiator calculation.'
                 root_print 'Reducing tau by an order of magnitude. The new &

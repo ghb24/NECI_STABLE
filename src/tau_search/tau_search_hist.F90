@@ -27,7 +27,7 @@ module tau_search_hist
 
     use tau_search, only: tau, min_tau, max_tau, possible_tau_search_methods, &
                           tau_search_method, input_tau_search_method, scale_tau_to_death_triggered, &
-                          max_death_cpt, tau_start_val, possible_tau_start
+                          max_death_cpt, tau_start_val, possible_tau_start, assign_value_to_tau
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -190,7 +190,7 @@ contains
         else
             print *, "initial guessed or input-provided time-step too small!"
         end if
-        tau = 0.1_dp * time_step
+        call assign_value_to_tau(0.1_dp * time_step)
         print *, "setting time-step to 0.1 * optimal: ", tau
         print *, "and turning tau-search OFF!"
 
@@ -767,7 +767,7 @@ contains
                     root_print "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
                 end if
             end if
-            tau = tau_new
+            call assign_value_to_tau(tau_new)
         end if
 
     end subroutine update_tau_hist

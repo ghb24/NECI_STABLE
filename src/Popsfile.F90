@@ -43,7 +43,7 @@ MODULE PopsfileMod
     use sort_mod
     use tau_search, only: input_tau_search_method, tau_search_method, &
         possible_tau_search_methods, max_death_cpt, tau_start_val, possible_tau_start, &
-        t_scale_tau_to_death, min_tau, max_tau, tau
+        t_scale_tau_to_death, min_tau, max_tau, tau, assign_value_to_tau
     use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                           gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, gamma_trip
     use tau_search_hist, only: deallocate_histograms, t_fill_frequency_hists
@@ -1165,7 +1165,7 @@ contains
                 ! if reading from a real-time popsfile, also read in tau
                 ! this works because the real-time popsfile is read last
                 if (tau_start_val == possible_tau_start%from_popsfile) then
-                    tau = read_tau
+                    call assign_value_to_tau(read_tau)
                     if (tau < min_tau .or. tau > max_tau) then
                         call stop_all(this_routine, "The read tau "//str(tau, 4)//" is smaller than min_tau or larger than max_tau")
                     end if
@@ -1195,7 +1195,7 @@ contains
 
                 !Using popsfile v.4, where tau is written out and read in
                 which_tau_to_use: if (tau_start_val == possible_tau_start%from_popsfile) then
-                    Tau = read_tau
+                    call assign_value_to_tau(read_tau)
                     write (stdout, "(A)") "Using timestep specified in POPSFILE!"
                     write (stdout, "(A,F12.8)") " used time-step: ", tau
                     if (tau < min_tau .or. tau > max_tau) then

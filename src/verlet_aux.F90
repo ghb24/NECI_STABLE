@@ -51,7 +51,7 @@ module verlet_aux
 
     use MPI_wrapper, only: iProcIndex
 
-    use tau_search, only: tau
+    use tau_search, only: tau, assign_value_to_tau
 
     implicit none
 
@@ -65,7 +65,7 @@ contains
         write(stdout, *) "Prepared initial delta_psi, starting verlet calculation"
         call build_initial_delta_psi()
         ! rescale the timestep
-        tau = iterInit * tau
+        call assign_value_to_tau(iterInit * tau)
         tau_imag = iterInit * tau_imag
         tau_real = iterInit * tau_real
         ! There is only one step now (we might log the second spawns as quasi-second
@@ -94,7 +94,7 @@ contains
         ! switch back to runge-kutta after adjusting alpha to get a new delta_psi
         write(stdout, *) "Switching to runge-kutta for update of alpha"
         tVerletSweep = .false.
-        tau = tau / iterInit
+        call assign_value_to_tau(tau / iterInit)
     end subroutine end_verlet_sweep
 
 !-----------------------------------------------------------------------------------------------!

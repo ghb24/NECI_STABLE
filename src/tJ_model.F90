@@ -20,7 +20,8 @@ module tJ_model
 
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
 
-    use tau_search, only: tau_search_method, possible_tau_search_methods, tau
+    use tau_search, only: tau_search_method, possible_tau_search_methods, tau, &
+        assign_value_to_tau
 
     use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits
 
@@ -150,8 +151,7 @@ contains
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
             root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(lat_tau_factor * tau_opt)
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
@@ -226,8 +226,7 @@ contains
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
             root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(lat_tau_factor * tau_opt)
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
@@ -314,7 +313,7 @@ contains
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
             root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
+            call assign_value_to_tau(lat_tau_factor * tau_opt)
 
         else
             root_print "optimal time-step would be: ", tau_opt
@@ -392,7 +391,7 @@ contains
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
             root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
+            call assign_value_to_tau(lat_tau_factor * tau_opt)
 
         else
             root_print "optimal time-step would be: ", tau_opt

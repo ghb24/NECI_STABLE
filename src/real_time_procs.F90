@@ -55,7 +55,7 @@ module real_time_procs
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
     use tau_search, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
-        tau
+        tau, assign_value_to_tau
     use tau_search_conventional, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use global_det_data, only: global_determinant_data
@@ -1754,7 +1754,7 @@ contains
 
         ! the logging and reading are done before iter is updated
         real_time_info%time_angle = alphaCache(iter + 1)
-        tau = tauCache(iter + 1)
+        call assign_value_to_tau(tauCache(iter + 1))
     end subroutine get_current_alpha_from_cache
 
 !------------------------------------------------------------------------------------------!

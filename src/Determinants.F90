@@ -8,6 +8,7 @@ MODULE Determinants
                           t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
                           nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
+    ! use System, only: writeBasis
 
     use IntegralsData, only: UMat, FCK, NMAX
 

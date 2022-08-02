@@ -39,7 +39,8 @@ module k_space_hubbard
 
     use CalcData, only: pParallelIn, pSinglesIn, pDoublesIn
 
-    use tau_search, only: tau, tau_search_method, possible_tau_search_methods
+    use tau_search, only: tau, tau_search_method, possible_tau_search_methods, &
+        assign_value_to_tau
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -384,8 +385,7 @@ contains
                 print *, "setting time-step to optimally determined time-step: ", tau_opt
                 print *, "times: ", lat_tau_factor
             end if
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(lat_tau_factor * tau_opt)
         else
             if (iProcIndex == root) then
                 print *, "optimal time-step would be: ", tau_opt

@@ -36,7 +36,7 @@ MODULE Calc
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         tau_stop_method, possible_tau_stop_methods, &
         min_tau, max_tau, tau_start_val, possible_tau_start, &
-        t_scale_tau_to_death, tau, taufactor
+        t_scale_tau_to_death, tau, taufactor, assign_value_to_tau
 
     use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
         max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
@@ -213,7 +213,7 @@ contains
         tWalkContGrow = .false.
         StepsSft = 10
         SftDamp = 0.1_dp
-        Tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp)
         InitWalkers = 3000.0_dp
         NMCyc = -1
         eq_cyc = -1
@@ -1270,7 +1270,7 @@ contains
                         select case(w)
                         case("USER-DEFINED")
                             tau_start_val = possible_tau_start%user_given
-                            tau = to_realdp(tokens%next())
+                            call assign_value_to_tau(to_realdp(tokens%next()))
                         case("FROM-POPSFILE")
                             tau_start_val = possible_tau_start%from_popsfile
                         case("TAU-FACTOR")
@@ -1283,7 +1283,7 @@ contains
                         case("NOT-NEEDED")
                             ! The user explicitly says, that tau is not required.
                             tau_start_val = possible_tau_start%not_needed
-                            tau = -100._dp
+                            call assign_value_to_tau(-100._dp)
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select

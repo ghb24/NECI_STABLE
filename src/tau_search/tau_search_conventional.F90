@@ -22,7 +22,7 @@ module tau_search_conventional
     use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
                           input_tau_search_method, tau_search_method, &
                           t_scale_tau_to_death, scale_tau_to_death_triggered, max_death_cpt, &
-                          tau_start_val, possible_tau_start, tau
+                          tau_start_val, possible_tau_start, tau, assign_value_to_tau
 
     use tc_three_body_data, only: pTriples
 
@@ -490,7 +490,7 @@ contains
             tau_new = clamp(tau_new, min_tau, max_tau) * 0.99999_dp
 
             if (abs(tau - tau_new) / tau > 0.001_dp) then
-                tau = tau_new
+                call assign_value_to_tau(tau_new)
                 root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
             end if
         end if

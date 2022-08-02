@@ -65,7 +65,8 @@ module fcimc_initialisation
 
     use tau_search, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
-        max_death_cpt, min_tau, max_tau, tau, taufactor
+        max_death_cpt, min_tau, max_tau, tau, taufactor, &
+        assign_value_to_tau
 
     use tau_search_hist, only: init_hist_tau_search
 
@@ -915,7 +916,7 @@ contains
         end if
 
         if (tau_start_val == possible_tau_start%deterministic) then
-            Tau = UpperTau
+            call assign_value_to_tau(UpperTau)
             write(stdout, *) "Setting time-step to the deterministically &
                 &approximated value 1 / (E_max - E_0) = ", UpperTau
             if (tau < min_tau .or. tau > max_tau) then
@@ -1241,7 +1242,7 @@ contains
                               "finding the number of excits from HF breaks for too large lattice")
             end if
             write(stdout, *) "TauFactor detected. Resetting Tau based on connectivity of: ", HFConn
-            Tau = TauFactor / REAL(HFConn, dp)
+            call assign_value_to_tau(TauFactor / REAL(HFConn, dp))
             write(stdout, *) "Timestep set to: ", Tau
             if (tau < min_tau .or. tau > max_tau) then
                 call stop_all(this_routine, "The determined tau "//str(tau, 4)&

@@ -81,7 +81,7 @@ module real_time
     use adi_references, only: setup_reference_space
     use adi_data, only: allDoubsInitsDelay, nRefs, tDelayGetRefs
     use core_space_util, only: cs_replicas
-    use tau_search, only: tau
+    use tau_search, only: tau, assign_value_to_tau
     implicit none
 
 ! main module file for the real-time implementation of the FCIQMC algorithm
@@ -428,7 +428,7 @@ contains
             ! generated popsfile, it is estimated using the number of cycles, the current
             ! angle of rotation and the total elapsed real time
             TotImagTime = elapsedImagTime
-            tau = elapsedRealTime
+            call assign_value_to_tau(elapsedRealTime)
             ! THIS IS A HACK: We dont want to alter the POPSFILE functions themselves
             ! so we sneak in the shift_damping into some slot unimportant to rneci
             AllSumNoatHF(1:inum_runs) = shift_damping

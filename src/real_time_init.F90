@@ -65,7 +65,7 @@ module real_time_init
     use bit_rep_data, only: IlutBits, niftot, extract_sign, nifd
     use bit_reps, only: decode_bit_det
     use adi_references, only: setup_reference_space
-    use tau_search, only: tau
+    use tau_search, only: tau, assign_value_to_tau
 
     implicit none
 
@@ -272,7 +272,7 @@ contains
         if (tVerletScheme) then
             call setup_delta_psi()
             call backup_initial_state()
-            tau = tau / iterInit
+            call assign_value_to_tau(tau / iterInit)
         end if
 
         if (tStaticShift) DiagSft = asymptoticShift
