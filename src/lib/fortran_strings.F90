@@ -221,7 +221,8 @@ contains
         character(*), intent(in) :: str
         integer :: itmp, err
         read(unit=str, iostat=err, fmt=*) itmp
-        can_be_int = err == 0
+        ! Some compilers parse 5.2 -> 5
+        can_be_int = err == 0 .and. .not. ('.' .in. str)
     end function
 
     logical elemental function eq_Token_t(this, other)
