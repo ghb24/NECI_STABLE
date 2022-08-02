@@ -19,7 +19,7 @@ module fortran_strings
 !>
 !>  @param[in] An int32 or int64.
     interface str
-        module procedure int32_to_str, int64_to_str
+        module procedure int32_to_str, int64_to_str, realsp_to_str, realdp_to_str
     end interface
 
     interface operator(.in.)
@@ -60,6 +60,22 @@ contains
         character(range(i) + 2) :: tmp
         write(tmp, '(I0)') I
         str = trim(tmp)
+    end function
+
+    pure function realdp_to_str(x, after_comma) result(res)
+        real(dp), intent(in) :: x
+        integer, intent(in) :: after_comma
+        character(100) :: tmp
+        character(:), allocatable :: res
+        write(tmp, '(e100.'//str(after_comma)//')') x
+        res = trim(adjustl(tmp))
+    end function
+
+    pure function realsp_to_str(x, after_comma) result(res)
+        real(sp), intent(in) :: x
+        integer, intent(in) :: after_comma
+        character(:), allocatable :: res
+        res = str(real(x, dp), after_comma)
     end function
 
 

@@ -1,7 +1,8 @@
 module test_fortran_strings_mod
     use fruit
     use constants, only: dp
-    use fortran_strings, only: split, Token_t, can_be_real, can_be_int
+    use fortran_strings, only: split, Token_t, can_be_real, can_be_int, str, &
+        to_upper, to_lower
     implicit none
     private
     public :: test_driver
@@ -64,9 +65,23 @@ contains
 
     end subroutine
 
+
+    subroutine test_conversion()
+
+        call assert_true(str(5) == ("5"))
+
+        call assert_true(str(5., 1) == "0.5E+01")
+
+        call assert_true(str(5.312e8, 1) == "0.5E+09")
+        call assert_true(str(5.312e8, 2) == "0.53E+09")
+        call assert_true(str(5.312e8, 3) == "0.531E+09")
+
+    end subroutine
+
     subroutine test_driver()
         call run_test_case(test_split, "test_split")
         call run_test_case(test_if_numbers, "test_if_numbers")
+        call run_test_case(test_conversion, "test_conversion")
     end subroutine
 
 end module test_fortran_strings_mod
