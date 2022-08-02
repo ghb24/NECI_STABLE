@@ -22,6 +22,8 @@ calc
     auto-adaptive-shift
     scale-spawns
     readpops
+    tau-values \
+        start from-popsfile
 endcalc
 
 logging

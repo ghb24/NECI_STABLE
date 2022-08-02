@@ -19,7 +19,7 @@ calc
     shiftdamp       0.1000000000
     stepsshift      10
     tau-values \
-        start user-defined 0.001
+        start user-defined 0.001 \
         max 1e-3
     tau-search \
         algorithm histogramming 1e-5 20000 20000 \

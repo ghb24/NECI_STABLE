@@ -1279,9 +1279,7 @@ contains
                         case("REFDET-CONNECTIONS")
                             tau_start_val = possible_tau_start%refdet_connections
                         case("DETERMINISTIC")
-                            ! TODO(@Oskar)
                             tau_start_val = possible_tau_start%deterministic
-                            call stop_all(this_routine, "To be implemented.")
                         case("NOT-NEEDED")
                             ! The user explicitly says, that tau is not required.
                             tau_start_val = possible_tau_start%not_needed

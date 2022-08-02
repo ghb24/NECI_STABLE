@@ -40,6 +40,9 @@ calc
     stepsshift 10
     maxwalkerbloom 3
     load-balance-blocks off
+
+    tau-values \
+        start not-required
 endcalc
 
 integral

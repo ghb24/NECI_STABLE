@@ -913,6 +913,11 @@ contains
         else
             UpperTau = 0.0_dp
         end if
+        if (tau_start_val == possible_tau_start%deterministic) then
+            Tau = UpperTau
+            write(stdout, *) "Setting time-step to the deterministically &
+                &approximated value 1 / (E_max - E_0) = ", UpperTau
+        end if
 
         ! Initialise DiagSft according to the input parameters. If we have
         ! multiple projected-energy references, then the shift on each of the

@@ -521,8 +521,10 @@ contains
         ! [W.D.]:
         ! for the new hist-tau search i essentially only need to indicat
         ! that a histogramming tau-search was used:
-        if (input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
-            call write_log_scalar(tau_grp, nm_hist_tau, .true.)
+        if (allocated(input_tau_search_method)) then
+            if (input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                call write_log_scalar(tau_grp, nm_hist_tau, .true.)
+            end if
         end if
 
         ! Clear up

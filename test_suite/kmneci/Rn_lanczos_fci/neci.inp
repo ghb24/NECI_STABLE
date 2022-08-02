@@ -1,57 +1,60 @@
 title
 
 system read noorder
-symignoreenergies
-freeformat
-electrons 8
+    symignoreenergies
+    freeformat
+    electrons 8
 
-nosymmetry
-sym 0 0 0 0
-nonuniformrandexcits pick-virt-uniform-mag
-nobrillouintheorem
-system-replicas 2
+    nosymmetry
+    sym 0 0 0 0
+    nonuniformrandexcits pick-virt-uniform-mag
+    nobrillouintheorem
+    system-replicas 2
 endsys
 
 calc
 
-lanczos-store-vectors
+    lanczos-store-vectors
 
-fci-init
-orthogonalise-replicas
+    fci-init
+    orthogonalise-replicas
 
-methods
-method vertex fcimc
-endmethods
-seed -7
-memoryfacpart 20.0
-memoryfacspawn 20.0
-totalwalkers 100000
-nmcyc 0
-seed 14
-startsinglepart 100
-diagshift 0.0
-shiftdamp 0.05
-truncinitiator
-addtoinitiator 3
-allrealcoeff
-realspawncutoff 0.4
+    methods
+    method vertex fcimc
+    endmethods
+    seed -7
+    memoryfacpart 20.0
+    memoryfacspawn 20.0
+    totalwalkers 100000
+    nmcyc 0
+    seed 14
+    startsinglepart 100
+    diagshift 0.0
+    shiftdamp 0.05
+    truncinitiator
+    addtoinitiator 3
+    allrealcoeff
+    realspawncutoff 0.4
 
-jump-shift
-proje-changeref 1000000
-stepsshift 10
-maxwalkerbloom 3
-load-balance-blocks off
+    jump-shift
+    proje-changeref 1000000
+    stepsshift 10
+    maxwalkerbloom 3
+    load-balance-blocks off
+
+    tau-values \
+        start not-required
 endcalc
 
 integral
-freeze 0 0
+    freeze 0 0
 endint
 
 logging
 # fcimcdebug 6
-popsfile
-popsfiletimer 60.0
-binarypops
-write-core
+    popsfile
+    popsfiletimer 60.0
+    binarypops
+    write-core
 endlog
 end

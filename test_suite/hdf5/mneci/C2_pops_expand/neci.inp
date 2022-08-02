@@ -22,7 +22,10 @@ calc
     readpops
     load-balance-interval 1000
     tau-values \
-        start refdet-connections
+        start from-popsfile
+    tau-search \
+        algorithm conventional \
+        stop-condition off
 endcalc
 
 logging
