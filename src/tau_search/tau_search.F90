@@ -78,13 +78,6 @@ module tau_search
     real(dp) :: max_death_cpt = 0._dp
 
 
-    interface
-        elemental module function end_of_search_reached(curr_tau_search_method) result(res)
-            type(TauSearchMethod_t), intent(in) :: curr_tau_search_method
-            logical :: res
-        end function
-    end interface
-
 contains
 
     elemental function end_of_search_reached(curr_tau_search_method, stop_method) result(res)

@@ -65,7 +65,7 @@ module fcimc_initialisation
 
     use tau_search, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
-        max_death_cpt
+        max_death_cpt, min_tau, max_tau
 
     use tau_search_hist, only: init_hist_tau_search
 
@@ -913,12 +913,14 @@ contains
         else
             UpperTau = 0.0_dp
         end if
+
         if (tau_start_val == possible_tau_start%deterministic) then
             Tau = UpperTau
             write(stdout, *) "Setting time-step to the deterministically &
                 &approximated value 1 / (E_max - E_0) = ", UpperTau
             if (tau < min_tau .or. tau > max_tau) then
-                call stop_all(this_routine, "The determined tau "str(tau)" is smaller than min_tau or larger than max_tau")
+                call stop_all(this_routine, "The determined tau "//str(tau, 4)&
+                    //" is smaller than min_tau or larger than max_tau.")
             end if
         end if
 
@@ -1241,6 +1243,10 @@ contains
             write(stdout, *) "TauFactor detected. Resetting Tau based on connectivity of: ", HFConn
             Tau = TauFactor / REAL(HFConn, dp)
             write(stdout, *) "Timestep set to: ", Tau
+            if (tau < min_tau .or. tau > max_tau) then
+                call stop_all(this_routine, "The determined tau "//str(tau, 4)&
+                    //" is smaller than min_tau or larger than max_tau.")
+            end if
         end if
 
         ! [W.D.] I guess I want to initialize that before the tau-search,

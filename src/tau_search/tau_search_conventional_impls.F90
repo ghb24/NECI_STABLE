@@ -26,6 +26,8 @@ submodule(tau_search_conventional) tau_search_conventional_impls
 
     use bit_rep_data, only: NIfTot
 
+    use fortran_strings, only: str
+
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet, GetBitExcitation
 
@@ -279,7 +281,7 @@ contains
         end if
 
         if (tau < min_tau .or. tau > max_tau) then
-            call stop_all(this_routine, "The determined tau "str(tau)" is smaller than min_tau or larger than max_tau")
+            call stop_all(this_routine, "The determined tau "//str(tau, 4)//" is smaller than min_tau or larger than max_tau")
         end if
 
     end subroutine FindMaxTauDoubs

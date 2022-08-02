@@ -92,13 +92,14 @@ module hdf5_popsfile
 #endif
     use tau_search, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
-        max_death_cpt
+        max_death_cpt, min_tau, max_tau
     use tau_search_hist, only: deallocate_histograms
     use tau_search_conventional, only: &
         cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
         gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
         enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
         update_tau
+    use fortran_strings, only: str
     implicit none
     private
 
@@ -705,7 +706,7 @@ contains
             if (tau_set) then
                 tau = temp_tau
                 if (tau < min_tau .or. tau > max_tau) then
-                    call stop_all(this_routine, "The read tau "str(tau)" is smaller than min_tau or larger than max_tau")
+                    call stop_all(this_routine, "The read tau "//str(tau, after_comma=5)//" is smaller than min_tau or larger than max_tau")
                 end if
             else
                 call stop_all(this_routine, 'Time-step does not exist in Popsfile')
