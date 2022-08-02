@@ -27,7 +27,6 @@ calc
     memoryfacspawn 20.0
     totalwalkers 100000
     nmcyc 0
-    seed 14
     startsinglepart 100
     diagshift 0.0
     shiftdamp 0.05
@@ -43,7 +42,7 @@ calc
     load-balance-blocks off
 
     tau-values \
-        start not-required
+        start not-needed
 endcalc
 
 integral

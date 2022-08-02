@@ -20,7 +20,9 @@ calc
     semi-stochastic 10
     pops-core 10
     core-inits
-    tau 0.001
+
+    tau-values \
+        start user-defined 0.001
 
     seed 1
 
