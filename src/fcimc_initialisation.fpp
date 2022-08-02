@@ -917,6 +917,9 @@ contains
             Tau = UpperTau
             write(stdout, *) "Setting time-step to the deterministically &
                 &approximated value 1 / (E_max - E_0) = ", UpperTau
+            if (tau < min_tau .or. tau > max_tau) then
+                call stop_all(this_routine, "The determined tau "str(tau)" is smaller than min_tau or larger than max_tau")
+            end if
         end if
 
         ! Initialise DiagSft according to the input parameters. If we have

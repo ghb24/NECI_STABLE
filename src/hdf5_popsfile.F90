@@ -704,6 +704,9 @@ contains
         if (tau_start_val == possible_tau_start%from_popsfile) then
             if (tau_set) then
                 tau = temp_tau
+                if (tau < min_tau .or. tau > max_tau) then
+                    call stop_all(this_routine, "The read tau "str(tau)" is smaller than min_tau or larger than max_tau")
+                end if
             else
                 call stop_all(this_routine, 'Time-step does not exist in Popsfile')
             end if

@@ -1164,6 +1164,9 @@ contains
                 ! this works because the real-time popsfile is read last
                 if (tau_start_val == possible_tau_start%from_popsfile) then
                     tau = read_tau
+                    if (tau < min_tau .or. tau > max_tau) then
+                        call stop_all(this_routine, "The read tau "str(tau)" is smaller than min_tau or larger than max_tau")
+                    end if
                 endif
 
                 ! also use the adjusted pSingle etc. if provided
@@ -1193,6 +1196,9 @@ contains
                     Tau = read_tau
                     write (stdout, "(A)") "Using timestep specified in POPSFILE!"
                     write (stdout, "(A,F12.8)") " used time-step: ", tau
+                    if (tau < min_tau .or. tau > max_tau) then
+                        call stop_all(this_routine, "The read tau "str(tau)" is smaller than min_tau or larger than max_tau")
+                    end if
 
                     ! If we have been searching for tau, we may have been searching
                     ! for psingles (it is done at the same time).
