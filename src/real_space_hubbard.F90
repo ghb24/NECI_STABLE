@@ -40,9 +40,9 @@ module real_space_hubbard
     use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
 
     use tau_search, only: tau_search_method, input_tau_search_method, &
-        possible_tau_search_methods, t_scale_tau_to_death
+        possible_tau_search_methods, t_scale_tau_to_death, tau
 
-    use CalcData, only: tau, matele_cutoff, pSinglesIn, pDoublesIn
+    use CalcData, only: matele_cutoff, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 

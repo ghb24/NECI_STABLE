@@ -231,10 +231,10 @@ module CalcData
     real(dp) :: G_VMC_EXCITWEIGHT(10), G_VMC_EXCITWEIGHTS(6, 10)
     real(dp) :: BETAP, RHOEPSILON, DBETA, STARCONV, GraphBias
     real(dp), allocatable :: user_input_SftDamp
-    real(dp) :: GrowGraphsExpo, Tau, SftDamp, SftDamp2, ScaleWalkers
+    real(dp) :: GrowGraphsExpo, SftDamp, SftDamp2, ScaleWalkers
     real(dp) :: PRet, FracLargerDet, pop_change_min
     real(dp) :: MemoryFacPart
-    real(dp) :: MemoryFacSpawn, SinglesBias, TauFactor, StepsSftImag
+    real(dp) :: MemoryFacSpawn, SinglesBias, StepsSftImag
 
     real(dp) :: MemoryFacInit
 

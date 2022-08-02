@@ -85,14 +85,13 @@ module hdf5_popsfile
     use FcimcData, only: SpawnedParts2, AllTotParts, MaxSpawned, PreviousCycles, tSinglePartPhase, &
         SpawnedParts
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
-    use CalcData, only: tau
 #ifdef USE_HDF_
     use hdf5
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
 #endif
     use tau_search, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
-        max_death_cpt, min_tau, max_tau
+        max_death_cpt, min_tau, max_tau, tau
     use tau_search_hist, only: deallocate_histograms
     use tau_search_conventional, only: &
         cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
@@ -433,9 +432,7 @@ contains
     subroutine write_tau_opt(parent)
 
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau
         use tc_three_body_data, only: pTriples
-        use CalcData, only: tau
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp
@@ -565,7 +562,7 @@ contains
         use load_balance_calcnodes, only: RandomOrbIndex
         use FciMCData, only: PreviousCycles, Hii, TotImagTime, &
                              pSingles, pDoubles, pParallel
-        use CalcData, only: DiagSft, tWalkContGrow, tau, hdf5_diagsft
+        use CalcData, only: DiagSft, tWalkContGrow, hdf5_diagsft
         use tc_three_body_data, only: pTriples, tReadPTriples
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id

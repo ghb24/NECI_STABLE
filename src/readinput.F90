@@ -9,9 +9,8 @@ MODULE ReadInput_neci
     use SystemData, only: lms, user_input_m_s
     use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
-    use CalcData, only: tau
     use tau_search, only: tau_start_val, possible_tau_start, &
-        min_tau, max_tau
+        min_tau, max_tau, tau
 
     Implicit none
 !   Used to specify which default set of inputs to use

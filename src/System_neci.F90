@@ -4,7 +4,7 @@ MODULE System
 
     use SystemData
 
-    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tPairedReplicas, &
                         S2Init, tDynamicAvMcEx
 
@@ -50,6 +50,8 @@ MODULE System
     use guga_data, only: tGUGACore
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
+
+    use tau_search, only: tau
 
     IMPLICIT NONE
 

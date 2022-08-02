@@ -5,18 +5,23 @@ module tau_search
     use constants, only: dp, inum_runs, EPS
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, iProcIndex
     use FciMCData, only: iter, tSinglePartPhase
-    use CalcData, only: tau, tPrecond
+    use CalcData, only: tPrecond
 
     better_implicit_none
 
-    ! private
+    private
     public :: TauSearchMethod_t, possible_tau_search_methods, &
               tau_search_method, input_tau_search_method, &
               tau_start_val, possible_tau_start, end_of_search_reached, &
               tau_stop_method, possible_tau_stop_methods, &
-              scale_tau_to_death, log_death_magnitude
+              scale_tau_to_death, log_death_magnitude, last_change_of_tau, &
+              last_iter_tau_search, tau, taufactor, min_tau, max_tau, &
+              scale_tau_to_death_triggered, t_scale_tau_to_death, &
+              max_death_cpt
 
 
+    real(dp) :: tau = 0._dp
+        !! The time-step itself
 
     type, extends(EnumBase_t) :: TauSearchMethod_t
         character(20) :: str
@@ -50,6 +55,8 @@ module tau_search
             off = StopMethod_t(5, 'Off')
     end type
 
+    integer :: last_iter_tau_search, last_change_of_tau = 0
+
     type(PossibleStopMethods_t), parameter :: possible_tau_stop_methods = PossibleStopMethods_t()
 
     type(StopMethod_t) :: tau_stop_method = possible_tau_stop_methods%var_shift
@@ -72,7 +79,7 @@ module tau_search
 
     type(TauStartVal_t), allocatable :: tau_start_val
 
-    real(dp) :: min_tau = 0._dp, max_tau = huge(max_tau)
+    real(dp) :: min_tau = 0._dp, max_tau = huge(max_tau), taufactor = 0._dp
 
     logical :: scale_tau_to_death_triggered = .false., t_scale_tau_to_death = .false.
     real(dp) :: max_death_cpt = 0._dp

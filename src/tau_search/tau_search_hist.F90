@@ -11,7 +11,7 @@ module tau_search_hist
                           t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits, &
                           tGAS, t_pchb_excitgen
 
-    use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
+    use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, &
                         InitiatorWalkNo, tWalkContGrow, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
                         t_consider_par_bias
@@ -25,7 +25,7 @@ module tau_search_hist
 
     use constants, only: dp, EPS, stdout, maxExcit, int64
 
-    use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
+    use tau_search, only: tau, min_tau, max_tau, possible_tau_search_methods, &
                           tau_search_method, input_tau_search_method, scale_tau_to_death_triggered, &
                           max_death_cpt, tau_start_val, possible_tau_start
 

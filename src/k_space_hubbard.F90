@@ -37,9 +37,9 @@ module k_space_hubbard
 
     use fcimcdata, only: pDoubles, pParallel, excit_gen_store_type, pSingles
 
-    use CalcData, only: tau, pParallelIn, pSinglesIn, pDoublesIn
+    use CalcData, only: pParallelIn, pSinglesIn, pDoublesIn
 
-    use tau_search, only: tau_search_method, possible_tau_search_methods
+    use tau_search, only: tau, tau_search_method, possible_tau_search_methods
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 

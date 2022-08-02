@@ -121,11 +121,12 @@ module soft_exit
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
                         tChangeProjEDet, tCheckHighestPopOnce, FracLargerDet,&
-                        SinglesBias_value => SinglesBias, tau_value => tau, &
+                        SinglesBias_value => SinglesBias, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift
-    use tau_search, only: tau_search_method, possible_tau_search_methods
+    use tau_search, only: tau_search_method, possible_tau_search_methods, &
+        tau_value => tau
     use tau_search_hist, only: frq_ratio_cutoff
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &

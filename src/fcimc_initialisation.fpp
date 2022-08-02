@@ -29,8 +29,8 @@ module fcimc_initialisation
     use core_space_util, only: cs_replicas
     use dSFMT_interface, only: dSFMT_init
 
-    use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
-                        tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
+    use CalcData, only: G_VMC_Seed, MemoryFacPart, StepsSftImag, &
+                        tCheckHighestPop, tSpatialOnlyHash, tStartCAS, &
                         MaxWalkerBloom, InitialPart, tStartMP1, tReadPops, &
                         InitialPartVec, iReadWalkersRoot, SinglesBias, NMCYC, &
                         tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
@@ -65,7 +65,7 @@ module fcimc_initialisation
 
     use tau_search, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
-        max_death_cpt, min_tau, max_tau
+        max_death_cpt, min_tau, max_tau, tau, taufactor
 
     use tau_search_hist, only: init_hist_tau_search
 

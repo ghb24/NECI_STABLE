@@ -40,7 +40,7 @@ module real_time_init
     use kp_fciqmc_data_mod, only: tMultiplePopStart, tScalePopulation, &
                                   tOverlapPert, overlap_pert, scaling_factor
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, tJumpShift, &
-                        tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
+                        tStartSinglePart, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
                         StepsSft, tSemiStochastic, tTruncInitiator, tAddToInitiator
     use FciMCData, only: alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
@@ -65,6 +65,7 @@ module real_time_init
     use bit_rep_data, only: IlutBits, niftot, extract_sign, nifd
     use bit_reps, only: decode_bit_det
     use adi_references, only: setup_reference_space
+    use tau_search, only: tau
 
     implicit none
 

@@ -4,7 +4,7 @@ module fcimc_iter_utils
 
     use SystemData, only: nel, tHPHF, tNoBrillouin, tRef_Not_HF
     use CalcData, only: tSemiStochastic, tChangeProjEDet, tTrialWavefunction, &
-                        tCheckHighestPopOnce, tRestartHighPop, StepsSft, tau, &
+                        tCheckHighestPopOnce, tRestartHighPop, StepsSft, &
                         tTruncInitiator, tJumpShift, TargetGrowRate, &
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
@@ -18,7 +18,7 @@ module fcimc_iter_utils
 
     use tau_search, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
-        tau_stop_method, end_of_search_reached, scale_tau_to_death
+        tau_stop_method, end_of_search_reached, scale_tau_to_death, tau
     use tau_search_hist, only: t_fill_frequency_hists
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts

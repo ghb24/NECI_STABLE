@@ -22,7 +22,7 @@ module tau_search_conventional
     use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
                           input_tau_search_method, tau_search_method, &
                           t_scale_tau_to_death, scale_tau_to_death_triggered, max_death_cpt, &
-                          tau_start_val, possible_tau_start
+                          tau_start_val, possible_tau_start, tau
 
     use tc_three_body_data, only: pTriples
 
@@ -32,8 +32,7 @@ module tau_search_conventional
 
     use constants, only: dp, EPS, stdout, n_int, maxExcit
 
-    use CalcData, only: tau, &
-                        InitiatorWalkNo, MaxWalkerBloom, t_consider_par_bias, tReadPops, &
+    use CalcData, only: InitiatorWalkNo, MaxWalkerBloom, t_consider_par_bias, tReadPops, &
                         tTruncInitiator, tWalkContGrow
 
     use util_mod, only: near_zero, operator(.isclose.)

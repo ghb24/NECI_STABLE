@@ -48,13 +48,14 @@ module real_time_procs
                              init_perturbation_annihilation, apply_perturbation_array
     use util_mod, only: int_fmt
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
-                        tRealSpawnCutoff, RealSpawnCutoff, tau, RealCoeffExcitThresh, &
+                        tRealSpawnCutoff, RealSpawnCutoff, RealCoeffExcitThresh, &
                         DiagSft, tTruncInitiator, OccupiedThresh, tReadPops, InitiatorWalkNo, &
                         tSpinProject
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
-    use tau_search, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death
+    use tau_search, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
+        tau
     use tau_search_conventional, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use global_det_data, only: global_determinant_data

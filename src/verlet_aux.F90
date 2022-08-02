@@ -30,7 +30,7 @@ module verlet_aux
                          popsfile_dets, WalkVecDets, exFlag, max_calc_ex_level, ilutRef, Hii, &
                          fcimc_iter_data, core_run
     use core_space_util, only: cs_replicas
-    use CalcData, only: tTruncInitiator, tau, AvMCExcits, tPairedReplicas, &
+    use CalcData, only: tTruncInitiator, AvMCExcits, tPairedReplicas, &
                         tSemiStochastic, tInitCoherentRule
 
     use procedure_pointers, only: attempt_create, attempt_die, generate_excitation, &
@@ -50,6 +50,8 @@ module verlet_aux
     use load_balance_calcnodes, only: DetermineDetNode
 
     use MPI_wrapper, only: iProcIndex
+
+    use tau_search, only: tau
 
     implicit none
 
