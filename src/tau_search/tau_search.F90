@@ -19,13 +19,14 @@ module tau_search
 
 
     type, extends(EnumBase_t) :: TauSearchMethod_t
+        character(20) :: str
     end type
 
     type :: PossibleTauSearchMethods_t
         type(TauSearchMethod_t) :: &
-            OFF = TauSearchMethod_t(1), &
-            CONVENTIONAL = TauSearchMethod_t(2), &
-            HISTOGRAMMING = TauSearchMethod_t(3)
+            OFF = TauSearchMethod_t(1, 'Off'), &
+            CONVENTIONAL = TauSearchMethod_t(2, 'Conventional'), &
+            HISTOGRAMMING = TauSearchMethod_t(3, 'Histogramming')
     end type
 
     type(PossibleTauSearchMethods_t), parameter :: &
@@ -37,14 +38,16 @@ module tau_search
     type(TauSearchMethod_t), allocatable :: input_tau_search_method
 
     type, extends(EnumBase_t) :: StopMethod_t
+        character(40) :: str
     end type
 
     type :: PossibleStopMethods_t
         type(StopMethod_t) :: &
-            var_shift = StopMethod_t(1), &
-            after_iter = StopMethod_t(2), &
-            no_change = StopMethod_t(3), &
-            off = StopMethod_t(4)
+            var_shift = StopMethod_t(1, 'Variable Shift reached'), &
+            after_iter = StopMethod_t(2, 'n-th iteration reached'), &
+            no_change = StopMethod_t(3, 'n iterations without change of tau'), &
+            n_opts = StopMethod_t(4, 'n optimizations of tau'), &
+            off = StopMethod_t(5, 'Off')
     end type
 
     type(PossibleStopMethods_t), parameter :: possible_tau_stop_methods = PossibleStopMethods_t()
@@ -52,16 +55,17 @@ module tau_search
     type(StopMethod_t) :: tau_stop_method = possible_tau_stop_methods%var_shift
 
     type, extends(EnumBase_t) :: TauStartVal_t
+        character(40) :: str
     end type
 
     type :: PossibleStartValTau_t
         type(TauStartVal_t) :: &
-            user_given = TauStartVal_t(1), &
-            tau_factor = TauStartVal_t(2), &
-            from_popsfile = TauStartVal_t(3), &
-            refdet_connections = TauStartVal_t(4), &
-            deterministic = TauStartVal_t(5), &
-            not_needed = TauStartVal_t(6)
+            user_given = TauStartVal_t(1, 'User defined'), &
+            tau_factor = TauStartVal_t(2, 'Tau factor'), &
+            from_popsfile = TauStartVal_t(3, 'From Popsfile'), &
+            refdet_connections = TauStartVal_t(4, 'Reference determinant connections'), &
+            deterministic = TauStartVal_t(5, 'Deterministic'), &
+            not_needed = TauStartVal_t(6, 'Not required')
     end type
 
     type(PossibleStartValTau_t), parameter :: possible_tau_start = PossibleStartValTau_t()
@@ -83,8 +87,9 @@ module tau_search
 
 contains
 
-    elemental function end_of_search_reached(curr_tau_search_method) result(res)
+    elemental function end_of_search_reached(curr_tau_search_method, stop_method) result(res)
         type(TauSearchMethod_t), intent(in) :: curr_tau_search_method
+        type(StopMethod_t), intent(in) :: stop_method
         logical :: res
         integer :: run
         character(*), parameter :: this_routine = 'end_of_search_reached'
@@ -92,9 +97,9 @@ contains
         if (curr_tau_search_method == possible_tau_search_methods%OFF) then
             res = .true.
         else
-            if (tau_stop_method == possible_tau_stop_methods%off) then
+            if (stop_method == possible_tau_stop_methods%off) then
                 res = .false.
-            else if (tau_stop_method == possible_tau_stop_methods%var_shift) then
+            else if (stop_method == possible_tau_stop_methods%var_shift) then
                 res = .false.
                 do run = 1, inum_runs
                     res = .not. (tSinglePartPhase(run) .or. (tPrecond .and. iter <= 80))

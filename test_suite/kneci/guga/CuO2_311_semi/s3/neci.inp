@@ -31,7 +31,8 @@ calc
         start user-defined 0.005 \
         max 0.02
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        stop-condition var-shift
     maxwalkerbloom 1
     memoryfacspawn 25.0
     memoryfacpart 5.0
