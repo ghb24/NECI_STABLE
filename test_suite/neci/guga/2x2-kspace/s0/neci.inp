@@ -12,7 +12,7 @@ endsys
 
 calc
     methods
-    method vertex fcimc
+        method vertex fcimc
     endmethods
     seed -7
     load-balance-interval 1000
@@ -24,8 +24,7 @@ calc
     stepsshift 1
     startsinglepart 100
     tau-values \
-        start user-defined 0.01 \
-        max 0.001
+        start user-defined 0.01
     truncinitiator
     addtoinitiator 4
     allrealcoeff

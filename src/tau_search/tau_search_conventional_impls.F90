@@ -278,9 +278,9 @@ contains
                                      &an upper bound for the timestep is: ", Tau
         end if
 
-        if (tau < min_tau .or. tau > max_tau) then
-            call stop_all(this_routine, "The determined tau "//str(tau, 4)//" is smaller than min_tau or larger than max_tau")
-        end if
+        ! if (tau < min_tau .or. tau > max_tau) then
+        !     call stop_all(this_routine, "The determined tau "//str(tau, 4)//" is smaller than min_tau or larger than max_tau")
+        ! end if
 
     end subroutine find_tau_from_refdet_conn
 

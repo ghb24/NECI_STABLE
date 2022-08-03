@@ -25,8 +25,7 @@ calc
     stepsshift 1
     startsinglepart 100
     tau-values \
-        start user-defined 0.01 \
-        max 0.001
+        start user-defined 0.01
     truncinitiator
     addtoinitiator 4
     allrealcoeff
