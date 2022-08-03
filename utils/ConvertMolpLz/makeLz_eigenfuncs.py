@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy
 import scipy
 import pdb
@@ -42,7 +43,7 @@ lindex = 0
 for Li in Larray:
    m = mLz[lindex]
    if type(Li[0]) == type(1):
-       print "transforming orbs with L = 0"
+       print("transforming orbs with L = 0")
        for i in Li:
            coeffs[index, i] = 1.0
            index =index+1
@@ -51,8 +52,8 @@ for Li in Larray:
            scale = 1.0
            if (Li[1][j] in negatives):
               scale = -1.0
-              print "index with negatives ", index, Li[0][j], "+j", Li[1][j]
-              print "index with negatives ", index+1, Li[0][j], "-j", Li[1][j]
+              print("index with negatives ", index, Li[0][j], "+j", Li[1][j])
+              print("index with negatives ", index+1, Li[0][j], "-j", Li[1][j])
            coeffs[index, Li[0][j] ] = 1.0/(2.0**0.5)
            #coeffs[index, Li[1][j] ] = -1.0/(2.0**0.5)
            coeffs[index, Li[1][j] ] = scale*-1.0j/(2.0**0.5)
@@ -66,7 +67,7 @@ for Li in Larray:
 
 
 
-print "reading one ints"
+print("reading one ints")
 f = open("qcdmrg.int1","r")
 lines = f.readlines()
 n = int(lines[0].split()[0])
@@ -77,7 +78,7 @@ for line in lines[1:]:
     int1[int(tokens[0]),int(tokens[1])] = float(tokens[2])
     int1[int(tokens[1]),int(tokens[0])] = float(tokens[2])
 
-print "one int transform"
+print("one int transform")
 #newint1 = numpy.dot(numpy.dot(coeffs,int1),coeffs.conj().transpose())
 newintt = numpy.tensordot(coeffs.conj(), int1, axes=([1],[0]))
 newint1 = numpy.tensordot(newintt, coeffs, axes=([1],[1]))
@@ -89,21 +90,21 @@ for i in range(norbs):
   for j in range(norbs):
      if (abs(newint1[i,j]) >=screen_error):
         if (newint1[i,j].imag >= screen_error):
-           print 'problem in ', i, j, newint1[i,j]
+           print('problem in ', i, j, newint1[i,j])
         s = str(i)+'  '+str( j)+"  "+str( newint1[i,j].real)+'\n'
         f.write(s)
 f.close()
 
 
 
-print "read two ints"
+print("read two ints")
 #print numpy.dot(coeffs, coeffs.conj().transpose())
 #now read integrals
 f = open("qcdmrg.int2","r")
 lines = f.readlines()
 n = int(lines[0].split()[0])
 if (n != norbs) :
-    print "number of orbitals don't match", n, norbs
+    print("number of orbitals don't match", n, norbs)
     exit(-1)
 for line in lines[1:]:
     tokens = line.split()
@@ -121,21 +122,21 @@ f.close()
 
 
 newintt = numpy.zeros(shape=(norbs, norbs, norbs, norbs));
-print "step1"
+print("step1")
 
 #numpy.einsum('ij,jklm->iklm', coeffs.conj(), int2, newintt)
 newintt = numpy.tensordot(coeffs.conj(), int2, axes=([1],[1]))
-print "step2"
+print("step2")
 #numpy.einsum('ij,kjlm->kilm', coeffs.conj(), newintt, int2)
 newint2 = numpy.tensordot(coeffs.conj(), newintt, axes=([1],[1]))
-print "step3"
+print("step3")
 #numpy.einsum('ij,kljm->klim', coeffs, int2, newintt)
 newintt = numpy.tensordot(newint2, coeffs, axes=([2],[1]))
-print "step4"
+print("step4")
 #numpy.einsum('ij,klmj->klmi', coeffs, newintt, int2)
 newint2 = numpy.tensordot(newintt, coeffs, axes=([2],[1]))
 
-print "writing ints"
+print("writing ints")
 
 f = open("new.int2","w")
 f.write(str(norbs)+'\n')
@@ -145,7 +146,7 @@ for i in range(norbs):
           for l in range(norbs):
              if (abs(newint2[i,j,k,l]) >=screen_error ):
                 if (newint2[i,j,k,l].imag >= screen_error):
-                   print 'problem in ', i, j, k,l,newint2[i,j,k,l]
+                   print('problem in ', i, j, k,l,newint2[i,j,k,l])
 
                 s = str(i)+'  '+str( j)+"  "+str( k)+"  "+str( l)+"  "+str( newint2[i,j, k, l].real)+'\n'
                 f.write(s)
@@ -166,7 +167,7 @@ for i in range(norbs):
                  or abs(newint2[i,j,k,l] - newint2[l,k,j,i]) >err
                  or abs(newint2[i,j,k,l] - newint2[j,i,l,k]) >err
                  or abs(newint2[i,j,k,l] - newint2[j,k,l,i]) >err) :
-                print i, j, k, l, newint2[i,j,k,l]
+                print(i, j, k, l, newint2[i,j,k,l])
 '''
 
 

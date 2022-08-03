@@ -1,44 +1,45 @@
 title
 
 system hubbard real-space
-lattice chain 4 1
-electrons 4
-b -1
-u 8
-twisted-bc 0.5
-nonuniformrandexcits ueg_guga
-guga 2
+    lattice chain 4 1
+    electrons 4
+    b -1
+    u 8
+    twisted-bc 0.5
+    nonuniformrandexcits ueg_guga
+    guga 2
 endsys
 
 calc
 
-load-balance-blocks off
+    load-balance-blocks off
 
-methods
-method vertex fcimc
-endmethods
+    methods
+        method vertex fcimc
+    endmethods
 
-definedet 1 4 5 7
+    definedet 1 4 5 7
 
-allrealcoeff
+    allrealcoeff
 
-tau 0.001
+    tau 0.001
 
-seed 1
+    seed 1
 
-nmcyc 7000
+    nmcyc 7000
 
-truncinitiator
-addtoinitiator 2
-totalwalkers 100
-shiftdamp 0.1
-stepsshift 10
+    truncinitiator
+    addtoinitiator 2
+    totalwalkers 100
+    shiftdamp 0.1
+    stepsshift 10
 
+    memoryFacSpawn 10
 endcalc
 
 
 logging
-popsfile -1
+    popsfile -1
 endlog
 
 end

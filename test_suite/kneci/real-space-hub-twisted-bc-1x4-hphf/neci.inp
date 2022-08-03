@@ -1,44 +1,45 @@
 title
 
 system hubbard real-space
-lattice chain 4 1
-electrons 4
-b -1
-u 8
-twisted-bc 0.5
-hphf 0
+    lattice chain 4 1
+    electrons 4
+    b -1
+    u 8
+    twisted-bc 0.5
+    hphf 0
 endsys
 
 calc
 
-methods
-method vertex fcimc
-endmethods
+    methods
+        method vertex fcimc
+    endmethods
 
-start-neel-state
+    start-neel-state
 
-seed 1
+    seed 1
 
-load-balance-blocks off
-allrealcoeff
-semi-stochastic 10
-pops-core 10
+    load-balance-blocks off
+    allrealcoeff
+    semi-stochastic 10
+    pops-core 10
 
-tau 0.001
+    tau 0.001
 
-nmcyc 10000
+    nmcyc 10000
 
-truncinitiator
-addtoinitiator 2
-totalwalkers 100
-shiftdamp 0.1
-stepsshift 10
+    truncinitiator
+    addtoinitiator 2
+    totalwalkers 100
+    shiftdamp 0.1
+    stepsshift 10
 
+    memoryFacSpawn 10
 endcalc
 
 
 logging
-popsfile -1
+    popsfile -1
 endlog
 
 end

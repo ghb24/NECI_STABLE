@@ -1,0 +1,185 @@
+ Number of processors:            1
+ Processor            1 /           1  as head node.
+ Sum:            1
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on May 16 2022 at 14:04:29
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     60a0bea3abd0364cc488853e61711744b6ba29e2
+ Working directory: 
+     /home/weser/code/neci/test_suite/neci/serial/HeHe_Davidson_Direct_CI
+ Running on: altest
+ Started running on 16/05/2022 at 15:24:44
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 4
+endsys
+
+calc
+methods
+davidson 2 0 8 0 4
+endmethods
+seed -7
+endcalc
+
+integral
+endint
+
+logging
+endlog
+end
+
+****************************************************************
+
+ Seed was specified in input.
+ Please note that because of load-balancing the calculation is not fully deterministic (CPU load).
+ If a fully deterministic calculation is required use the `load-balance-interval` keyword.
+ Processor      Node hostname
+         0         0 altest                        
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     4
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      3      3      0      0      0     -1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      4      4      0      0      0      1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      7      7      0      0      0     -1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      8      8      0      0      0      1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     11     11      0      0      0     -1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     12     12      0      0      0      1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     13     13      0      0      0     -1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     14     14      0      0      0      1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     15     15      0      0      0     -1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     16     16      0      0      0      1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     17     17      0      0      0     -1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     18     18      0      0      0      1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     19     19      0      0      0     -1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+     20     20      0      0      0      1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  1540
+Memory required for integral storage:     0.1174926758E-01 Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                   898
+ ECORE=   1.3333333306333000     
+ Setting normal get_umat_el_normal routine
+ N_alpha:2 ; N_beta:2 ; LMS:0 ; NEl:4
+ Fermi det (D0):(    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -2.3168617878413200     
+ Setting normal get_umat_el_normal routine
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          21  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ BETAP=   1.0000000000000000E-004
+ RESETTING P 
+ *** WARNING I_P=    10000000
+ BETA, P :   1000.0000000000000         10000000
+ <D0|H|D0>=  -5.6970831223579710     
+ <D0|T|D0>=  -10.410636993357000     
+ <D0|U|D0>   4.7135538709990294     
+ FDet has     2 alpha electrons, and     2 beta electrons.
+                1  alpha-alpha occupied electron pairs
+                1  beta-beta occupied electron pairs
+                4  alpha-beta occupied electron pairs
+               28 alpha-alpha (vacant) hole pairs
+               28 beta-beta (vacant) hole pairs
+               64 alpha-beta (vacant) hole pairs
+
+ Beginning Direct CI Davidson calculation.
+
+ number of determinants in total: 309
+ allocating array to hold subspace vectors (0 mb).
+ Hamiltonian calculation setup complete.
+
+ allocating array to hold multiplied krylov vectors (0 mb).
+ allocating array to hold the residual vector (0 mb).
+
+ calculating the initial residual vector... done.
+
+ Iteration    Residual norm            Energy       Time
+         1      0.065752435     -5.7616855149      0.001
+         2      0.003229034     -5.7621742624      0.003
+         3      0.000555759     -5.7621759220      0.002
+         4      0.000062273     -5.7621759729      0.002
+         5      0.000007325     -5.7621759735      0.002
+         6      0.000001183     -5.7621759735      0.002
+         7      0.000000156     -5.7621759735      0.002
+         8      0.000000024     -5.7621759735      0.002
+
+ Final calculated energy:    -5.7621759735
+
+ Direct CI Davidson calculation complete.
+
+ GROUND E =   -5.7621759735
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :       0.0
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ UMat              IntInit            IntCleanup           12.0KB
+ TMAT2D            SetupTMAT          DestroyTMat           3.1KB
+ SymPairProds      GenSymStatePairs   EndSym                3.0KB
+ hamil_diag        InitHamiltonianCalcdavidson_direct_ci_   2.4KB
+ davidson_eigenvectinit_davidson      davidson_direct_ci_   2.4KB
+ G1                SysInit            NECICore              1.1KB
+ Arr               SysInit            NECICore              0.3KB
+ SymStatePairs     GenSymStatePairs   EndSym                0.2KB
+ SymReps           GENMOLPSYMREPS     EndSym                0.2KB
+ Brr               SysInit            NECICore              0.1KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ NECICUBE                                     1      0.02
+ SysInit                                      1      0.00
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   0.03
+
+ Global wall clock time          0.05
+ ================================================================
+ Calculation ended 16/05/2022 at 15:24:45
+ ================================================================

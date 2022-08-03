@@ -5,12 +5,11 @@
 # behaviour based on that
 
 if ( CMAKE_SIZEOF_VOID_P EQUAL 8 )
-    message(STATUS "Creating a 64-bit build")
     set( _bits 64 )
 else()
-    message(STATUS "Creating a 64-bit build")
     set( _bits 32 )
 endif()
+message(STATUS "Creating a ${_bits}-bit build")
 
 # Create globally available macros for accessing status
 

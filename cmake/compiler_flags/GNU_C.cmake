@@ -1,5 +1,6 @@
 # Special defines for gnu C compiler
 
+set( ${PROJECT_NAME}_C_FLAGS "-fPIC" )
 set( ${PROJECT_NAME}_C_FLAGS_CLUSTER "-flto" )
 
 # Warning flags ...

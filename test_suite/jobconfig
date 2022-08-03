@@ -2,128 +2,128 @@
 
 [kneci/C*/]
 program = kneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 
 [kneci/real-space*/]
 program = kneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 
 [kneci/Se_2_mag_semi_trial_pops/]
 program = kneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [kneci/guga/*/*/]
 program = kneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 
 [kmneci/guga/*/*/]
 program = kmneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [kmneci/hubb*/]
 program = kmneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [kmneci/Se2_*/]
 program = kmneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 
 
 [mneci/*/*/]
 program = mneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [dneci/*/*/]
 program = dneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/serial/*/]
 program = neci
-max_nprocs = 1
+max_nprocs = 4
 
 [neci/tc/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/guga/*/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/general-lattice-model/guga/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/parallel/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/uhf/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/gasci/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/SD_spin_purification/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [neci/rdm_singlerun/serial/*]
 program = neci
-max_nprocs = 1
+max_nprocs = 4
 tolerance = (1e-9, None, 'final_energy_1')
 
 [neci/rdm_singlerun/parallel/*]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 tolerance = (1e-9, None, 'final_energy_1')
 
 # Jobs to test the various spaces in use for semi-stochastic and trial
 # wavefunctions.
 # Specify non-default tolerances.
 [neci/determ_and_trial_spaces/*/]
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 program = neci
 tolerance = (1e-9, None, 'final_energy_1')
 
@@ -137,17 +137,22 @@ tolerance = (5e-10, None, 'energy_summed')
 
 [dneci/rdm/BeH_open_shell_dyn_core/]
 program = dneci
-nprocs = 2
+nprocs = 4
 tolerance = (2e-9, None, '1_rdm_diag_sum'),(5e-10, None, 'energy_rdm_1'),(1e-5,None,'sum_error_rdm_1')
 
 [kneci/Se2_mag_semi_pops/]
 program = kneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 tolerance = (2e-9, None, 'final_energy_1')
 
 [mneci/kpfciqmc/fci_all_sym/]
+program = mneci
+tolerance = (2e-8, None, 'overlap_sum')
+
+
+[mneci/kpfciqmc/hub_10_ft/]
 program = mneci
 tolerance = (2e-8, None, 'overlap_sum')
 
@@ -217,75 +222,74 @@ tolerance = (1e-9, None, 'final_energy_1')
 
 [hdf5/dneci/*/*/]
 program = dneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 
 [hdf5/dneci/guga/s1/]
 program = dneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 tolerance = (1e-9, None, 'final_energy_1'), (2e-9, None, 'final_energy_2')
 
 [hdf5/neci/C2_*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [hdf5/neci/FeM*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [hdf5/neci/Ne_*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [hdf5/neci/determ*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [hdf5/neci/guga/*/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [hdf5/mneci/C2_*/]
 program = mneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
-
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [hdf5/mneci/guga/multiple_rdms/multiple_rdms/]
 program = mneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
-tolerance = (1e-8, None, 'sum_error_rdm_1'), (1e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_1'), (1e-8, None, 'max_error_rdm_2')
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
+tolerance = (2e-8, None, 'sum_error_rdm_1'), (2e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_1'), (1e-8, None, 'max_error_rdm_2')
 
 
 [hdf5/mneci/guga/C2_aas_bloom_scale/*/]
 program = mneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 
 [hdf5/tc/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 _default_ = neci kneci mneci kmneci
 
