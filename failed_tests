@@ -1,9 +1,7 @@
-	hdf5/mneci/C2_aas_bloom_scale/
 	hdf5/mneci/C2_pops_expand/
 	hdf5/mneci/C2_pops_shrink/
 	hdf5/tc/Ne_H5TC/
 	hdf5/tc/Ne_HPHF/
-	hdf5/tc/Ne_SparseTC/
 	hdf5/tc/Ne_freeze/
 	kmneci/Se2_multiref_orthog/
 	kmneci/guga/2x2-k-space-hubbard/s0/
@@ -11,26 +9,4 @@
 	kmneci/guga/2x2-realspace-hubbard-twisted-bc/s1_direct_ref/
 	kmneci/hubbard_damped_real_time/
 	kmneci/hubbard_real_time/
-	kneci/CuO2_311_semi/
 	kneci/CuO2_311_trial/
-	kneci/Se2_mag_semi_pops/
-	kneci/guga/CuO2_311_semi/s1_direct_ref/
-	kneci/guga/CuO2_311_semi/s1_list_ref/
-	kneci/guga/CuO2_311_semi/s3/
-	mneci/en2_with_rdm/Ne_avdz_cas/
-	mneci/en2_with_rdm/water_avdz/
-	mneci/guga/Ne_2_states/
-	mneci/rdm/Ne/
-	mneci/rdm/Ne_hphf/
-	mneci/replica_estimates/Ne_avdz/
-	mneci/replica_estimates/formamide_old_init/
-	mneci/replica_estimates/water_sci_iqmc/
-	neci/SD_spin_purification/N4_tetrahedron_disconnected_GAS/
-	neci/SD_spin_purification/N4_tetrahedron_disconnected_GAS_only_ladder_ops/
-	neci/SD_spin_purification/N4_tetrahedron_disconnected_GAS_truncate_ladder_ops/
-	neci/parallel/Cr2_FCIMCPar_LinAlgo/
-	neci/parallel/Ne_FCIMCPar_weighted/
-	neci/parallel/Ne_FciMCPar_pchb_weighted_singles/
-	neci/tc/Ne_Sym/
-	neci/tc/Ne_TC/
-	neci/tc/Ne_weighted/
