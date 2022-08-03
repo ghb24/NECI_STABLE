@@ -492,9 +492,10 @@ contains
             tau_new = clamp(tau_new, min_tau, max_tau) * 0.99999_dp
 
             if (abs(tau - tau_new) / tau > 0.001_dp) then
-                call assign_value_to_tau(tau_new)
                 root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
             end if
+            ! TODO(@Oskar): Move back into if
+            call assign_value_to_tau(tau_new)
         end if
 
         ! Make sure that we have at least some of both singles and doubles
