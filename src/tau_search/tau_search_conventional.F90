@@ -44,7 +44,7 @@ module tau_search_conventional
     implicit none
     private
 
-    public :: FindMaxTauDoubs, log_spawn_magnitude, init_tau_search
+    public :: find_tau_from_refdet_conn, log_spawn_magnitude, init_tau_search_conventional
 
     public :: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
               cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
@@ -71,13 +71,13 @@ module tau_search_conventional
 
     interface
         ! This is implemented in a submodule
-        module subroutine FindMaxTauDoubs()
+        module subroutine find_tau_from_refdet_conn()
         end subroutine
     end interface
 
 contains
 
-    subroutine init_tau_search()
+    subroutine init_tau_search_conventional()
         ! N.B. This must be called BEFORE a popsfile is read in, otherwise
         !      we screw up the gamma values that have been carefully read in.
 
@@ -176,7 +176,7 @@ contains
 
         t_consider_par_bias = consider_par_bias
 
-    end subroutine init_tau_search
+    end subroutine init_tau_search_conventional
 
     subroutine log_spawn_magnitude(ic, ex, matel, prob)
 

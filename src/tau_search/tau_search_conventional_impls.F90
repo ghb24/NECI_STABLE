@@ -35,7 +35,7 @@ submodule(tau_search_conventional) tau_search_conventional_impls
 
 contains
 
-    module subroutine FindMaxTauDoubs()
+    module subroutine find_tau_from_refdet_conn()
 
         ! Routine to find an upper bound to tau, by consideration of the
         ! singles and doubles connected to the reference determinant
@@ -48,8 +48,8 @@ contains
         use SymExcit4, only: GenExcitations4, ExcitGenSessionType
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound, tParity, tSameFunc, tSwapped, tSign
-        character(len=*), parameter :: t_r = "FindMaxTauDoubs"
-        character(len=*), parameter :: this_routine = "FindMaxTauDoubs"
+        character(len=*), parameter :: t_r = "find_tau_from_refdet_conn"
+        character(len=*), parameter :: this_routine = "find_tau_from_refdet_conn"
         integer :: ex(2, maxExcit), ex2(2, maxExcit), exflag, iMaxExcit, nStore(6), nExcitMemLen(1)
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac, MagHel, pGen, pGenFac
@@ -63,9 +63,7 @@ contains
         integer :: n_excits, i, ex_3(2, 3)
 
         if (tGUGA) then
-            ! in the case of GUGA i need a specialised max-tau-doubs routine
-            print *, "Warning: FindMaxTauDoubs misused for GUGA! "
-            print *, "Still need a specific implememtation for that"
+            call stop_all(this_routine, "Not implemented for GUGA")
         end if
 
         if (MaxWalkerBloom.isclose.-1._dp) then
@@ -284,6 +282,6 @@ contains
             call stop_all(this_routine, "The determined tau "//str(tau, 4)//" is smaller than min_tau or larger than max_tau")
         end if
 
-    end subroutine FindMaxTauDoubs
+    end subroutine find_tau_from_refdet_conn
 
 end submodule

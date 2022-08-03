@@ -4,7 +4,7 @@ module tau_search
     use util_mod, only: EnumBase_t, stop_all
     use constants, only: dp, inum_runs, EPS
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, iProcIndex
-    use FciMCData, only: iter, tSinglePartPhase
+    use FciMCData, only: iter, tSinglePartPhase, VaryShiftIter
     use CalcData, only: tPrecond
 
     better_implicit_none
@@ -14,10 +14,11 @@ module tau_search
               tau_search_method, input_tau_search_method, &
               tau_start_val, possible_tau_start, end_of_search_reached, &
               tau_stop_method, possible_tau_stop_methods, &
-              scale_tau_to_death, log_death_magnitude, last_change_of_tau, &
-              last_iter_tau_search, tau, taufactor, min_tau, max_tau, &
+              scale_tau_to_death, log_death_magnitude, &
+              tau, taufactor, min_tau, max_tau, &
               scale_tau_to_death_triggered, t_scale_tau_to_death, &
-              max_death_cpt, assign_value_to_tau
+              max_death_cpt, assign_value_to_tau, &
+              stop_options
 
     protected :: tau
 
@@ -51,17 +52,40 @@ module tau_search
     type :: PossibleStopMethods_t
         type(StopMethod_t) :: &
             var_shift = StopMethod_t(1, 'Variable Shift reached'), &
-            after_iter = StopMethod_t(2, 'n-th iteration reached'), &
-            no_change = StopMethod_t(3, 'n iterations without change of tau'), &
-            n_opts = StopMethod_t(4, 'n optimizations of tau'), &
-            off = StopMethod_t(5, 'Off')
+            max_iter = StopMethod_t(2, 'n-th iteration reached'), &
+            max_eq_iter = StopMethod_t(3, 'n-th iteration after variable shift reached'), &
+            no_change = StopMethod_t(4, 'n iterations without change of tau'), &
+            n_opts = StopMethod_t(5, 'n optimizations of tau'), &
+            off = StopMethod_t(6, 'Off')
     end type
-
-    integer :: last_iter_tau_search = 0, last_change_of_tau = 0
 
     type(PossibleStopMethods_t), parameter :: possible_tau_stop_methods = PossibleStopMethods_t()
 
     type(StopMethod_t) :: tau_stop_method = possible_tau_stop_methods%var_shift
+
+    type :: TauSearchData_t
+        integer :: last_change_of_tau = 0
+            !! At which iteration was tau changed last?
+        integer :: n_opts = 0
+            !! How often was tau changed?
+    end type
+
+    type(TauSearchData_t) :: search_data
+
+    type :: StopOptions_t
+        integer :: max_iter = huge(0)
+            !! Number of iterations, after which we stop searching.
+        integer :: max_eq_iter = huge(0)
+            !! Number of iterations **after** reaching variable shift mode,
+            !!      after which we stop searching.
+        integer :: max_iter_without_change = huge(0)
+            !! Number of iterations without a change of tau,
+            !!      after which we stop searching.
+        integer :: max_n_opts = huge(0)
+            !! Number of optimizations of tau, after which we stop searching
+    end type
+
+    type(StopOptions_t) :: stop_options
 
     type, extends(EnumBase_t) :: TauStartVal_t
         character(40) :: str
@@ -89,6 +113,8 @@ module tau_search
 
 contains
 
+    ! TODO(@Oskar): implement reinit as well
+
     elemental function end_of_search_reached(curr_tau_search_method, stop_method) result(res)
         type(TauSearchMethod_t), intent(in) :: curr_tau_search_method
         type(StopMethod_t), intent(in) :: stop_method
@@ -107,6 +133,14 @@ contains
                     res = .not. (tSinglePartPhase(run) .or. (tPrecond .and. iter <= 80))
                     if (res) exit
                 end do
+            else if (stop_method == possible_tau_stop_methods%max_iter) then
+                res = iter >= stop_options%max_iter
+            else if (stop_method == possible_tau_stop_methods%max_eq_iter) then
+                res = (iter - maxval(VaryShiftIter)) >= stop_options%max_eq_iter
+            else if (stop_method == possible_tau_stop_methods%no_change) then
+                res = (iter - search_data%last_change_of_tau) >= stop_options%max_iter_without_change
+            else if (stop_method == possible_tau_stop_methods%n_opts) then
+                res = search_data%n_opts >= stop_options%max_n_opts
             else
                 call stop_all(this_routine, "has to be implemented")
             end if
@@ -147,9 +181,6 @@ contains
     end subroutine
 
     subroutine log_death_magnitude(mult)
-
-        ! The same as above, but for particle death
-
         real(dp), intent(in) :: mult
 
         if (mult > max_death_cpt) then
@@ -158,13 +189,13 @@ contains
                 scale_tau_to_death_triggered = .true.
             end if
         end if
-
     end subroutine
 
     subroutine assign_value_to_tau(new_tau)
         real(dp), intent(in) :: new_tau
         tau = new_tau
-        last_change_of_tau = iter
+        search_data%last_change_of_tau = iter
+        search_data%n_opts = search_data%n_opts + 1
     end subroutine
 
 end module

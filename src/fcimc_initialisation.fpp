@@ -70,7 +70,7 @@ module fcimc_initialisation
 
     use tau_search_hist, only: init_hist_tau_search
 
-    use tau_search_conventional, only: init_tau_search, FindMaxTauDoubs
+    use tau_search_conventional, only: init_tau_search_conventional, find_tau_from_refdet_conn
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
@@ -1775,11 +1775,11 @@ contains
         end if
 
         if (tau_start_val == possible_tau_start%refdet_connections) then
-            call FindMaxTauDoubs()
+            call find_tau_from_refdet_conn()
         end if
 
         if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
-            call init_tau_search()
+            call init_tau_search_conventional()
         else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             call init_hist_tau_search()
         else

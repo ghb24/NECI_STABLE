@@ -36,7 +36,8 @@ MODULE Calc
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         tau_stop_method, possible_tau_stop_methods, &
         min_tau, max_tau, tau_start_val, possible_tau_start, &
-        t_scale_tau_to_death, tau, taufactor, assign_value_to_tau
+        t_scale_tau_to_death, tau, taufactor, assign_value_to_tau, &
+        stop_options
 
     use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
         max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
@@ -1343,12 +1344,18 @@ contains
                         select case(w)
                         case("VAR-SHIFT")
                             tau_stop_method = possible_tau_stop_methods%var_shift
+                        case("MAX-ITER")
+                            tau_stop_method = possible_tau_stop_methods%max_iter
+                            stop_options%max_iter = nint(to_realdp(tokens%next()))
+                        case("MAX-EQ-ITER")
+                            tau_stop_method = possible_tau_stop_methods%max_eq_iter
+                            stop_options%max_eq_iter = nint(to_realdp(tokens%next()))
                         case("NO-CHANGE")
-                            ! TODO(@Oskar)
-                            call stop_all(this_routine, "Has to be implemented.")
-                        case("AFTER-ITER")
-                            ! TODO(@Oskar)
-                            call stop_all(this_routine, "Has to be implemented.")
+                            tau_stop_method = possible_tau_stop_methods%no_change
+                            stop_options%max_iter_without_change = nint(to_realdp(tokens%next()))
+                        case("N-OPTS")
+                            tau_stop_method = possible_tau_stop_methods%n_opts
+                            stop_options%max_n_opts = nint(to_realdp(tokens%next()))
                         case("OFF")
                             tau_stop_method = possible_tau_stop_methods%off
                         case default
