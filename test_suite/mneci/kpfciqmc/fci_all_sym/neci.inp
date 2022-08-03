@@ -1,51 +1,51 @@
 system hubbard
-cell 6 1 1
-b -1
-u 1
-spin-restrict 0
-sym 0 0 0 0
-kpoints
-nonuniformrandexcits nosymgen
-lattice-excitgen
-electrons 6
+    cell 6 1 1
+    b -1
+    u 1
+    spin-restrict 0
+    sym 0 0 0 0
+    kpoints
+    nonuniformrandexcits nosymgen
+    lattice-excitgen
+    electrons 6
 endsys
 
 calc
-memoryfacspawn 10.0
-memoryfacpart 10.0
-totalwalkers 100
-tau 0.01
-startsinglepart 500
-shiftdamp 0.1
-stepsshift 1
-diagshift 0.0
-allrealcoeff
-realspawncutoff 0.01
-semi-stochastic
-fci-core
-seed 10
-jump-shift off
+    memoryfacspawn 10.0
+    memoryfacpart 10.0
+    totalwalkers 100
+    tau-values start user-defined 0.01
+    startsinglepart 500
+    shiftdamp 0.1
+    stepsshift 1
+    diagshift 0.0
+    allrealcoeff
+    realspawncutoff 0.01
+    semi-stochastic
+    fci-core
+    seed 10
+    jump-shift off
 # Add the following line so that the reference does not change after this option was made default)
-proje-changeref 3.0
-load-balance-blocks off
+    proje-changeref 3.0
+    load-balance-blocks off
 endcalc
 
 kp-fciqmc
-finite-temperature
-num-init-configs 30
-num-krylov-vecs 20
-num-iters-between-vecs-vary 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21
-num-repeats-per-init-config 1
-averagemcexcits-hamil 0.001
-init-correct-walker-pop
-all-sym-sectors
-memory-factor 10
+    finite-temperature
+    num-init-configs 30
+    num-krylov-vecs 20
+    num-iters-between-vecs-vary 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21
+    num-repeats-per-init-config 1
+    averagemcexcits-hamil 0.001
+    init-correct-walker-pop
+    all-sym-sectors
+    memory-factor 10
 end-kp-fciqmc
 
 integral
 endint
 
 logging
-popsfile -1
+    popsfile -1
 endlog
 end

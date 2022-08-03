@@ -461,10 +461,12 @@ contains
         ! If there is no death logged, dont do anything
         if (abs(max_death_cpt) > EPS) then
             tau_death = 1.0_dp / max_death_cpt
-            if (tau_death < tau_new .and. tau_death < min_tau) then
-                min_tau = tau_death
+            if (tau_death < tau_new) then
+                if (tau_death < min_tau) then
+                    root_print "min-tau reduced, due to death events! reset min_tau to:", tau_death
+                    min_tau = tau_death
+                end if
                 tau_new = tau_death
-                root_print "time-step reduced, due to death events! reset min_tau to:", tau_new
             end if
         end if
 
