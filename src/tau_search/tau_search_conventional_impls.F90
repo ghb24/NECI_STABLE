@@ -81,7 +81,7 @@ contains
             nAddFac = real(MaxWalkerBloom, dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
         end if
 
-        Tau = 1000.0_dp
+        call assign_value_to_tau(1000.0_dp)
 
         ! NOTE: test if the new real-space implementation works with this
         ! function! maybe i also have to use a specific routine for this !
@@ -130,13 +130,13 @@ contains
                     pGenFac = pgen * nAddFac / MagHel
 
                     if (tau > pGenFac .and. pGenFac > EPS) then
-                        tau = pGenFac
+                        call assign_value_to_tau(pGenFac)
                     end if
                 end if
             end do
 
             if (tau > 0.075_dp) then
-                tau = 0.075_dp
+                call assign_value_to_tau(0.075_dp)
                 write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                                 &may be inappropriate. Care needed"
             else
@@ -234,7 +234,7 @@ contains
             if (MagHel > 0.0_dp) then
                 pGenFac = pGen * nAddFac / MagHel
                 if (Tau > pGenFac .and. pGenFac > EPS) then
-                    Tau = pGenFac
+                    call assign_value_to_tau(pGenFac)
                 end if
             end if
 
@@ -261,7 +261,7 @@ contains
             if (MagHel > 0.0_dp) then
                 pGenFac = pGen * nAddFac / MagHel
                 if (Tau > pGenFac .and. pGenFac > EPS) then
-                    Tau = pGenFac
+                    call assign_value_to_tau(pGenFac)
                 end if
             end if
 
@@ -272,7 +272,7 @@ contains
         if (tKPntSym) deallocate(EXCITGEN)
 
         if (tau > 0.075_dp) then
-            tau = 0.075_dp
+            call assign_value_to_tau(0.075_dp)
             write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                             &may be inappropriate. Care needed"
         else

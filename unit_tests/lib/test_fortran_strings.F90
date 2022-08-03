@@ -81,7 +81,7 @@ contains
     subroutine test_driver()
         call run_test_case(test_split, "test_split")
         call run_test_case(test_if_numbers, "test_if_numbers")
-        ! call run_test_case(test_conversion, "test_conversion")
+        call run_test_case(test_conversion, "test_conversion")
     end subroutine
 
 end module test_fortran_strings_mod

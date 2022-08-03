@@ -20,7 +20,7 @@ program test_tJ_model
     use bit_rep_data, only: GugaBits
     use dsfmt_interface, only: dsfmt_init, genrand_real2_dSFMT
     use guga_excitations, only: csf_to_sds_ilut, csf_vector_to_sds
-    use tau_search, only: tau_search_method, possible_tau_search_methods
+    use tau_search, only: tau_search_method, possible_tau_search_methods, assign_value_to_tau
 
 
     implicit none
@@ -1814,7 +1814,6 @@ contains
                               nbasis
         use OneEInts, only: tmat2d
         use FciMCData, only: ilutref
-        use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
@@ -1829,7 +1828,7 @@ contains
         exchange_j = 1
         nbasis = 200
         bhub = -1.0
-        tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp)
         call init_bit_rep()
         allocate(ilutref(0:NIfTot,1))
         ilutref = 9
@@ -1877,7 +1876,6 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
                               ecore
         use OneEInts, only: tmat2d
-        use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
