@@ -42,7 +42,9 @@ calc
     load-balance-blocks off
 
     tau-values \
-        start not-required
+        start refdet-connections
+    tau-search \
+        algorithm conventional
 endcalc
 
 integral

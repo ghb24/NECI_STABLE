@@ -1,12 +1,1 @@
-	hdf5/mneci/C2_pops_expand/
-	hdf5/mneci/C2_pops_shrink/
-	hdf5/tc/Ne_H5TC/
 	hdf5/tc/Ne_HPHF/
-	hdf5/tc/Ne_freeze/
-	kmneci/Se2_multiref_orthog/
-	kmneci/guga/2x2-k-space-hubbard/s0/
-	kmneci/guga/2x2-k-space-hubbard/s1/
-	kmneci/guga/2x2-realspace-hubbard-twisted-bc/s1_direct_ref/
-	kmneci/hubbard_damped_real_time/
-	kmneci/hubbard_real_time/
-	kneci/CuO2_311_trial/

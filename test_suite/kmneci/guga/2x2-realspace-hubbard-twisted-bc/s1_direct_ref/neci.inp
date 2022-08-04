@@ -17,8 +17,6 @@ calc
         method vertex fcimc
     endmethods
 
-    direct-guga-ref
-
     definedet 1 4 5 7
     load-balance-interval 1000
     seed -7

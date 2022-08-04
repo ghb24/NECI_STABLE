@@ -22,7 +22,7 @@ calc
         min 1e-6
     tau-search \
         algorithm conventional \
-        stop-condition off
+        stop-condition var-shift
 
     memoryfacpart         1.500000000000000
     memoryfacspawn         5.
