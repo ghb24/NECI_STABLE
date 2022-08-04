@@ -100,10 +100,6 @@ MODULE PopsfileMod
         end subroutine
     end interface
 
-
-    ! TODO(@Oskar): Remove
-    logical :: t_previous_hist_tau = .false.
-
 contains
 
     !   V.3/4 POPSFILE ROUTINES   !
@@ -1345,7 +1341,6 @@ contains
         real(dp) :: PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
-        logical :: PopPreviousHistTau
         integer :: PopAccumPopsCounter
         character(*), parameter :: this_routine = 'ReadPopsHeadv4'
         ! need dummy read-in variable, since we start from a converged real
@@ -1363,7 +1358,7 @@ contains
             PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
             PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
             PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
-            PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms, &
+            tPopAutoAdaptiveShift, tPopScaleBlooms, &
             tPopAccumPops, PopAccumPopsCounter
 
 
@@ -1381,7 +1376,6 @@ contains
 
         PopBalanceBlocks = -1
         PopNNodes = 0
-        PopPreviousHistTau = .false.
         tPopAutoAdaptiveShift = .false.
         tPopScaleBlooms = .false.
         tPopAccumPops = .false.
@@ -1445,7 +1439,6 @@ contains
         call MPIBcast(PopMaxDeathCpt)
         call MPIBcast(PopRandomHash)
         call MPIBcast(PopBalanceBlocks)
-        call MPIBCast(PopPreviousHistTau)
         call MPIBCast(tPopAutoAdaptiveShift)
         call MPIBCast(tPopScaleBlooms)
         call MPIBCast(tPopAccumPops)
@@ -2035,9 +2028,6 @@ contains
             write (iunit, *)
         end if
 
-        if (t_previous_hist_tau) then
-            write (iunit, *) "PopPreviousHistTau=", .true.
-        end if
         ! add information about the global data stored in the popsfile:
         ! is auto-adaptive shift data available?
         write (iunit, *) "tPopAutoAdaptiveShift=", tAutoAdaptiveShift
