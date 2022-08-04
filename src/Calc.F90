@@ -1371,24 +1371,20 @@ contains
                     tau_search_method = input_tau_search_method
                 end do
 
-
-
             case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
-                call stop_all(this_routine, w//" option deprecated")
+                call stop_all(this_routine, trim(w)//" option deprecated")
 
             case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
                 ! test a change to the tau search to avoid those nasty
                 ! MPI communications each iteration
                 t_test_hist_tau = .true.
 
-
-
             case("READ-PROBABILITIES", "NO-READ-PROBABILITIES")
-                call stop_all(this_routine, w//" option deprecated")
+                call stop_all(this_routine, trim(w)//" option deprecated")
 
             case ("DIRECT-GUGA-REF")
                 ! obsolet since standard now!
-                call stop_all(this_routine, w//" option deprecated, since it is standard now")
+                call stop_all(this_routine, trim(w)//" option deprecated, since it is standard now")
 
             case ("LIST-GUGA-REF")
                 ! option to calculate the reference energy via a pre-computed list
