@@ -1991,7 +1991,6 @@ contains
         end do
 
         ratio = i * frq_step_size
-        ratio = i * 0.1_dp
 
     end subroutine integrate_frequency_histogram_spec
 
