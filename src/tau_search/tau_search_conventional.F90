@@ -19,7 +19,7 @@ module tau_search_conventional
 
     use util_mod, only: clamp
 
-    use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
+    use tau_search, only: min_tau, possible_tau_search_methods, &
                           input_tau_search_method, tau_search_method, &
                           t_scale_tau_to_death, scale_tau_to_death_triggered, max_death_cpt, &
                           tau_start_val, possible_tau_start, tau, assign_value_to_tau
@@ -109,8 +109,6 @@ contains
         enough_opp = .false.
         enough_par = .false.
         enough_trip = .false.
-
-        write(stdout, *) 'Using initial time-step: ', tau
 
         ! Set the maximum spawn size
         if (MaxWalkerBloom.isclose.-1._dp) then
@@ -470,9 +468,6 @@ contains
             end if
         end if
 
-        ! And a last sanity check/hard limit
-        tau_new = min(tau_new, max_tau)
-
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
@@ -486,16 +481,7 @@ contains
              (t_trans_corr_2body .or. t_trans_corr)) .or. &
             (t_new_real_space_hubbard .and. t_trans_corr_hop .and. enough_doub)) then
 
-            ! Make the final tau smaller than tau_new by a small amount
-            ! so that we don't get spawns exactly equal to the
-            ! initiator threshold, but slightly below it instead.
-            tau_new = clamp(tau_new, min_tau, max_tau) * 0.99999_dp
-
-            if (abs(tau - tau_new) / tau > 0.001_dp) then
-                root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
-            end if
-            ! TODO(@Oskar): Move back into if
-            call assign_value_to_tau(tau_new)
+            call assign_value_to_tau(tau_new, 'Conventional tau search')
         end if
 
         ! Make sure that we have at least some of both singles and doubles

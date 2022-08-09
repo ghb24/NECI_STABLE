@@ -272,7 +272,7 @@ contains
         if (tVerletScheme) then
             call setup_delta_psi()
             call backup_initial_state()
-            call assign_value_to_tau(tau / iterInit)
+            call assign_value_to_tau(tau / iterInit, this_routine)
         end if
 
         if (tStaticShift) DiagSft = asymptoticShift

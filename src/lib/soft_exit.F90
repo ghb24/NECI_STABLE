@@ -127,7 +127,7 @@ module soft_exit
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift
     use tau_search, only: tau_search_method, possible_tau_search_methods, &
         tau_value => tau, assign_value_to_tau
-    use tau_search_hist, only: frq_ratio_cutoff
+    use tau_search_hist, only: frq_ratio_cutoff, t_fill_frequency_hists
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -353,7 +353,7 @@ contains
 
                         ! Do we have any other items to read in?
                         if (i == tau) then
-                            call assign_value_to_tau(to_realdp(tokens%next()))
+                            call assign_value_to_tau(to_realdp(tokens%next()), 'Manual change via `CHANGEVARS` file.')
                         elseif (i == TargetGrowRate) then
                             target_grow_rate(1) = to_realdp(tokens%next())
                             if(inum_runs == 2) target_grow_rate(inum_runs)=target_grow_rate(1)
@@ -532,11 +532,18 @@ contains
                     real(dp) :: local_tau
                     local_tau = tau_value
                     call MPIBCast (local_tau, tSource)
-                    call assign_value_to_tau(local_tau)
+                    call assign_value_to_tau(local_tau, 'Manual change via `CHANGEVARS` file.')
                 end block
-                write(stdout,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
-                write(stdout, *) "Ceasing the search for tau."
-                tau_search_method = possible_tau_search_methods%OFF
+                if (tau_search_method /= possible_tau_search_methods%off) then
+                    if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                        t_fill_frequency_hists = .false.
+                    end if
+                    write(stdout, *)
+                    write(stdout, *) 'The current tau search method is: ', trim(tau_search_method%str)
+                    write(stdout, *) 'It is switched off now.'
+                    write(stdout, *)
+                    tau_search_method = possible_tau_search_methods%OFF
+                end if
             endif
 
             if(opts_selected(targetgrowrate)) then
@@ -690,11 +697,11 @@ contains
             ! Enable initiator truncation scheme
             if (opts_selected(truncinitiator)) then
                 tTruncInitiator = .true.
-                call assign_value_to_tau(tau_value / 10)
-                root_print 'Beginning to allow spawning into inactive space &
-                           &for a truncated initiator calculation.'
-                root_print 'Reducing tau by an order of magnitude. The new &
-                           &tau is ', tau_value
+                call assign_value_to_tau( &
+                    tau_value / 10, &
+                    'Beginning to allow spawning into inactive space &
+                     &for a truncated initiator calculation. &
+                    &Reducing tau by an order of magnitude.')
             endif
 
             ! Change the initiator cutoff parameter

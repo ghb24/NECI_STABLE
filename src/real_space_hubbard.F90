@@ -233,7 +233,9 @@ contains
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
             root_print "times: ", lat_tau_factor
-            call assign_value_to_tau(lat_tau_factor * tau_opt)
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal real-space Hubbard value')
 
         else
             root_print "optimal time-step would be: ", tau_opt

@@ -701,10 +701,10 @@ contains
 
         if (tau_start_val == possible_tau_start%from_popsfile) then
             if (tau_set) then
-                call assign_value_to_tau(temp_tau)
-                if (tau < min_tau .or. tau > max_tau) then
-                    call stop_all(this_routine, "The read tau "//str(tau, after_comma=5)//" is smaller than min_tau or larger than max_tau")
+                if (temp_tau < min_tau .or. temp_tau > max_tau) then
+                    call stop_all(this_routine, "The read tau "//str(temp_tau, after_comma=5)//" is smaller than min_tau or larger than max_tau")
                 end if
+                call assign_value_to_tau(temp_tau, 'Initialization from HDF5 file.')
             else
                 call stop_all(this_routine, 'Time-step does not exist in Popsfile')
             end if

@@ -190,7 +190,7 @@ contains
         else
             print *, "initial guessed or input-provided time-step too small!"
         end if
-        call assign_value_to_tau(0.1_dp * time_step)
+        call assign_value_to_tau(0.1_dp * time_step, 'Initial guess hubbard')
         print *, "setting time-step to 0.1 * optimal: ", tau
         print *, "and turning tau-search OFF!"
 
@@ -403,10 +403,8 @@ contains
         ! early
         ! should we use the same variables in both tau-searches??
 
-        write(stdout, *) 'Using initial time-step: ', tau
-
         ! Set the maximum spawn size
-        if (MaxWalkerBloom.isclose.-1._dp) then
+        if (MaxWalkerBloom .isclose. -1._dp) then
             ! No maximum manually specified, so we set the limit of spawn
             ! size to either the initiator criterion, or to 5 otherwise
             if (tTruncInitiator) then
@@ -734,9 +732,6 @@ contains
            end if
         end if
 
-        ! And a last sanity check/hard limit
-        tau_new = min(tau_new, max_tau)
-
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
@@ -757,19 +752,7 @@ contains
             ! does this make sense in the new implmentation? this way
             ! i will always decrease the time-step even if its not necessary..
 
-            ! also does the restriction on the output make sense? since i am
-            ! always changing it anyway... atleast make it smaller..
-            if (abs(tau - tau_new) / tau > 0.0001_dp) then
-                if (tau_new < min_tau) then
-                    root_print "new time-step less then min_tau! set to min_tau!", min_tau
-                    tau_new = min_tau
-                else if (tau_new > max_tau) then
-                    tau_new = max_tau
-                else
-                    root_print "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
-                end if
-            end if
-            call assign_value_to_tau(tau_new)
+            call assign_value_to_tau(tau_new, 'Histogramming tau search')
         end if
 
     end subroutine update_tau_hist

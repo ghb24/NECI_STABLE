@@ -428,7 +428,7 @@ contains
             ! generated popsfile, it is estimated using the number of cycles, the current
             ! angle of rotation and the total elapsed real time
             TotImagTime = elapsedImagTime
-            call assign_value_to_tau(elapsedRealTime)
+            call assign_value_to_tau(elapsedRealTime, this_routine)
             ! THIS IS A HACK: We dont want to alter the POPSFILE functions themselves
             ! so we sneak in the shift_damping into some slot unimportant to rneci
             AllSumNoatHF(1:inum_runs) = shift_damping

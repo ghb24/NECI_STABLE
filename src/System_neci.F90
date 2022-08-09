@@ -3321,13 +3321,16 @@ contains
 
         if (dimen == 3) then ! 3D
             ! Hij_min**-1
-            call assign_value_to_tau((k_lattice_constant**2 * OMEGA) / (4.0_dp * PI))
-            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo)
-            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp))
-            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL))
+            call assign_value_to_tau((k_lattice_constant**2 * OMEGA) / (4.0_dp * PI), &
+                'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, 'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), 'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                'Initialization in System_neci.')
             if (TAU > k_lattice_constant**(-2) / OrbEcutoff) then
                 ! using Hii
-                call assign_value_to_tau(1.0_dp / (k_lattice_constant**(2) * OrbEcutoff))
+                call assign_value_to_tau(1.0_dp / (k_lattice_constant**(2) * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
                 !write(stdout,*) 1.0_dp/((2.0_dp*PI/Omega**third)**2*orbEcutoff)
             else
@@ -3336,27 +3339,36 @@ contains
 
         else if (dimen == 2) then !2D
             ! Hij_min**-1
-            call assign_value_to_tau((k_lattice_constant * OMEGA) / (2.0_dp * PI))
-            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo)
-            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp))
-            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL))
+            call assign_value_to_tau((k_lattice_constant * OMEGA) / (2.0_dp * PI), &
+                    'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, &
+                    'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), 'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                    'Initialization in System_neci.')
             if (TAU > k_lattice_constant**(-2) / OrbEcutoff) then
             !!!!!!!! NOT WORKING YET!!!!!!!
                 !using Hii
-                call assign_value_to_tau(1.0_dp / (k_lattice_constant**(2) * OrbEcutoff))
+                call assign_value_to_tau(1.0_dp / (k_lattice_constant**(2) * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
             else
                 write(stdout, *) 'Tau set by using Hji'
             end if
 
         else if (dimen == 1) then !1D
-            call assign_value_to_tau(OMEGA / (-2.0_dp * log(1.0_dp / (2.0_dp * sqrt(orbEcutoff)))))
-            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo)
-            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp))
-            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL))
+            call assign_value_to_tau(OMEGA / (-2.0_dp * log(1.0_dp / (2.0_dp * sqrt(orbEcutoff)))), &
+                    'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, &
+                    'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), &
+                    'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                    'Initialization in System_neci.')
             if (TAU > 0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff)) then
                 ! using Hii
-                call assign_value_to_tau(0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff))
+                call assign_value_to_tau(0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
             else
                 write(stdout, *) 'Tau set by using Hji'

@@ -381,11 +381,9 @@ contains
         tau_opt = determine_optimal_time_step()
 
         if (tau < EPS) then
-            if (iProcIndex == root) then
-                print *, "setting time-step to optimally determined time-step: ", tau_opt
-                print *, "times: ", lat_tau_factor
-            end if
-            call assign_value_to_tau(lat_tau_factor * tau_opt)
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
         else
             if (iProcIndex == root) then
                 print *, "optimal time-step would be: ", tau_opt

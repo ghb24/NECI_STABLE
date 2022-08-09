@@ -21,7 +21,7 @@ module tJ_model
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
 
     use tau_search, only: tau_search_method, possible_tau_search_methods, tau, &
-        assign_value_to_tau
+        assign_value_to_tau, min_tau, max_tau
 
     use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits
 
@@ -149,9 +149,9 @@ contains
 
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            call assign_value_to_tau(lat_tau_factor * tau_opt)
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
@@ -224,9 +224,9 @@ contains
         ! where i need the connectivity of the lattice i guess?
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            call assign_value_to_tau(lat_tau_factor * tau_opt)
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value asdf.')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
@@ -311,9 +311,9 @@ contains
         ! TODO: maybe I need the tau-search for the GUGA..
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            call assign_value_to_tau(lat_tau_factor * tau_opt)
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
 
         else
             root_print "optimal time-step would be: ", tau_opt
@@ -389,10 +389,9 @@ contains
         ! where i need the connectivity of the lattice i guess?
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            call assign_value_to_tau(lat_tau_factor * tau_opt)
-
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"

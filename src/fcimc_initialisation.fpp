@@ -916,13 +916,7 @@ contains
         end if
 
         if (tau_start_val == possible_tau_start%deterministic) then
-            call assign_value_to_tau(UpperTau)
-            write(stdout, *) "Setting time-step to the deterministically &
-                &approximated value 1 / (E_max - E_0) = ", UpperTau
-            if (tau < min_tau .or. tau > max_tau) then
-                call stop_all(this_routine, "The determined tau "//str(tau, 4)&
-                    //" is smaller than min_tau or larger than max_tau.")
-            end if
+            call assign_value_to_tau(UpperTau, 'Deterministically approximated value 1 / (E_max - E_0)')
         end if
 
         ! Initialise DiagSft according to the input parameters. If we have
@@ -1242,12 +1236,7 @@ contains
                               "finding the number of excits from HF breaks for too large lattice")
             end if
             write(stdout, *) "TauFactor detected. Resetting Tau based on connectivity of: ", HFConn
-            call assign_value_to_tau(TauFactor / REAL(HFConn, dp))
-            write(stdout, *) "Timestep set to: ", Tau
-            if (tau < min_tau .or. tau > max_tau) then
-                call stop_all(this_routine, "The determined tau "//str(tau, 4)&
-                    //" is smaller than min_tau or larger than max_tau.")
-            end if
+            call assign_value_to_tau(TauFactor / REAL(HFConn, dp), 'Initialization from Tau-Factor.')
         end if
 
         ! [W.D.] I guess I want to initialize that before the tau-search,

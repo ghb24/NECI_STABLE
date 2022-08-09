@@ -1754,7 +1754,7 @@ contains
 
         ! the logging and reading are done before iter is updated
         real_time_info%time_angle = alphaCache(iter + 1)
-        call assign_value_to_tau(tauCache(iter + 1))
+        call assign_value_to_tau(tauCache(iter + 1), 'Update from cache.')
     end subroutine get_current_alpha_from_cache
 
 !------------------------------------------------------------------------------------------!

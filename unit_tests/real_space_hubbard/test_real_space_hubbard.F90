@@ -1935,7 +1935,7 @@ contains
         length_y = 1
         nel = 2
         bhub = 1
-        call assign_value_to_tau(0.0_dp)
+        call assign_value_to_tau(0.0_dp, 'Initialization in init_real_space_hubbard_test')
 
         call init_real_space_hubbard()
 
@@ -1979,7 +1979,7 @@ contains
         nel = -1
         bhub = 0
         nbasis = -1
-        call assign_value_to_tau(0.0_dp)
+        call assign_value_to_tau(0.0_dp, 'Initialization in real-space Hubbard test.')
         deallocate(tmat2d)
         nullify(get_umat_el)
 
@@ -2017,7 +2017,7 @@ contains
         nel = -1
         bhub = 0
         nbasis = -1
-        call assign_value_to_tau(0.0_dp)
+        call assign_value_to_tau(0.0_dp, 'Initialization in real-space Hubbard test.')
         deallocate(tmat2d)
         nullify(get_umat_el)
 

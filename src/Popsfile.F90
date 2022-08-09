@@ -1161,10 +1161,10 @@ contains
                 ! if reading from a real-time popsfile, also read in tau
                 ! this works because the real-time popsfile is read last
                 if (tau_start_val == possible_tau_start%from_popsfile) then
-                    call assign_value_to_tau(read_tau)
-                    if (tau < min_tau .or. tau > max_tau) then
+                    if (read_tau < min_tau .or. read_tau > max_tau) then
                         call stop_all(this_routine, "The read tau "//str(tau, 4)//" is smaller than min_tau or larger than max_tau")
                     end if
+                    call assign_value_to_tau(read_tau, 'Initialization from popsfile.')
                 endif
 
                 ! also use the adjusted pSingle etc. if provided
@@ -1191,12 +1191,10 @@ contains
 
                 !Using popsfile v.4, where tau is written out and read in
                 which_tau_to_use: if (tau_start_val == possible_tau_start%from_popsfile) then
-                    call assign_value_to_tau(read_tau)
-                    write (stdout, "(A)") "Using timestep specified in POPSFILE!"
-                    write (stdout, "(A,F12.8)") " used time-step: ", tau
-                    if (tau < min_tau .or. tau > max_tau) then
+                    if (read_tau < min_tau .or. read_tau > max_tau) then
                         call stop_all(this_routine, "The read tau "//str(tau, 4)//" is smaller than min_tau or larger than max_tau")
                     end if
+                    call assign_value_to_tau(read_tau, 'Initialization from popsfile.')
 
                     ! If we have been searching for tau, we may have been searching
                     ! for psingles (it is done at the same time).

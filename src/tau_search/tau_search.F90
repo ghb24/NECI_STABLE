@@ -1,11 +1,12 @@
 #include "macros.h"
 
 module tau_search
-    use util_mod, only: EnumBase_t, stop_all
-    use constants, only: dp, inum_runs, EPS
-    use Parallel_neci, only: MPIAllReduce, MPI_MAX, iProcIndex
+    use util_mod, only: EnumBase_t, stop_all, near_zero
+    use constants, only: dp, inum_runs, EPS, stdout
+    use Parallel_neci, only: MPIAllReduce, MPI_MAX, iProcIndex, root
     use FciMCData, only: iter, tSinglePartPhase, VaryShiftIter
     use CalcData, only: tPrecond
+    use util_mod, only: clamp
 
     better_implicit_none
 
@@ -147,7 +148,6 @@ contains
         end if
     end function
 
-
     subroutine scale_tau_to_death()
         real(dp) :: mpi_tmp, tau_death
         debug_function_name("scale_tau_to_death")
@@ -165,14 +165,7 @@ contains
 
             ! If this actually constrains tau, then adjust it!
             if (tau_death < tau) then
-                call assign_value_to_tau(tau_death)
-
-                root_print "******"
-                root_print &
-                    "WARNING: Updating time step due to particle death magnitude"
-                root_print "This occurs despite variable shift mode"
-                root_print "Updating time-step. New time-step = ", tau
-                root_print "******"
+                call assign_value_to_tau(tau_death, 'Update due to particle death magnitude.')
             end if
         end if
 
@@ -191,11 +184,27 @@ contains
         end if
     end subroutine
 
-    subroutine assign_value_to_tau(new_tau)
-        real(dp), intent(in) :: new_tau
-        tau = new_tau
-        search_data%last_change_of_tau = iter
-        search_data%n_opts = search_data%n_opts + 1
+    subroutine assign_value_to_tau(in_tau, reason)
+        real(dp), intent(in) :: in_tau
+        character(len=*), intent(in) :: reason
+            !! Message that gets printed when change was sufficiently large.
+        real(kind(in_tau)), parameter :: threshhold = 0.001_dp
+        real(kind(in_tau)) :: tau_new
+        ! Make the final tau smaller than tau_new by a small amount
+        ! so that we don't get spawns exactly equal to the
+        ! initiator threshold, but slightly below it instead.
+        associate(old_tau => tau)
+            tau_new = clamp(in_tau, min_tau, max_tau)
+            if (near_zero(tau) .or. abs(tau - tau_new) / tau > threshhold) then
+                if (iProcIndex == root) then
+                    write(stdout, '(A, E11.4, 1x, A, E11.4)') '>>> Changing tau:', tau, '->', tau_new
+                    write(stdout, '(A, A)') '>>> Reason: ', reason
+                end if
+                search_data%last_change_of_tau = iter
+                search_data%n_opts = search_data%n_opts + 1
+            end if
+            tau = tau_new
+        end associate
     end subroutine
 
 end module

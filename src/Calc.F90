@@ -214,7 +214,7 @@ contains
         tWalkContGrow = .false.
         StepsSft = 10
         SftDamp = 0.1_dp
-        call assign_value_to_tau(0.0_dp)
+        call assign_value_to_tau(0.0_dp, 'Default value initialization.')
         InitWalkers = 3000.0_dp
         NMCyc = -1
         eq_cyc = -1
@@ -1271,7 +1271,7 @@ contains
                         select case(w)
                         case("USER-DEFINED")
                             tau_start_val = possible_tau_start%user_given
-                            call assign_value_to_tau(to_realdp(tokens%next()))
+                            call assign_value_to_tau(to_realdp(tokens%next()), 'Initialization from user-defined value.')
                         case("FROM-POPSFILE")
                             tau_start_val = possible_tau_start%from_popsfile
                         case("TAU-FACTOR")
@@ -1284,7 +1284,7 @@ contains
                         case("NOT-NEEDED")
                             ! The user explicitly says, that tau is not required.
                             tau_start_val = possible_tau_start%not_needed
-                            call assign_value_to_tau(-100._dp)
+                            call assign_value_to_tau(-100._dp, 'No tau needed. Nonsensical initialization.')
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select

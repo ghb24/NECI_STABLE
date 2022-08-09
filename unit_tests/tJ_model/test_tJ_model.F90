@@ -1828,7 +1828,7 @@ contains
         exchange_j = 1
         nbasis = 200
         bhub = -1.0
-        call assign_value_to_tau(0.0_dp)
+        call assign_value_to_tau(0.0_dp, 'Initialization in tJ model.')
         call init_bit_rep()
         allocate(ilutref(0:NIfTot,1))
         ilutref = 9
