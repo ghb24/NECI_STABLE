@@ -468,6 +468,7 @@ contains
         ! make the right if-statements here!
         ! remember enough_sing is (mis)used for triples in the
         ! 2-body transcorrelated k-space hubbard
+        tau_new = clamp(tau_new, min_tau, max_tau)
         if (tau_new < tau .or. (enough_sing .and. enough_doub) .or. &
             ((tUEG .and. .not. t_ueg_3_body) .or. tHub .or. enough_sing .or. &
              (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. &
@@ -480,7 +481,7 @@ contains
             ! initiator threshold, but slightly below it instead.
             ! does this make sense in the new implmentation? this way
             ! i will always decrease the time-step even if its not necessary..
-            call assign_value_to_tau(clamp(tau_new, min_tau, max_tau) * 0.99999_dp, 'Conventional tau search')
+            call assign_value_to_tau(tau_new * 0.99999_dp, 'Conventional tau search')
         end if
 
         ! Make sure that we have at least some of both singles and doubles

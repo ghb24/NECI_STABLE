@@ -1284,7 +1284,6 @@ contains
                         case("NOT-NEEDED")
                             ! The user explicitly says, that tau is not required.
                             tau_start_val = possible_tau_start%not_needed
-                            call assign_value_to_tau(-100._dp, 'No tau needed. Nonsensical initialization.')
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select

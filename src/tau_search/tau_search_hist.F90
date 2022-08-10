@@ -738,6 +738,7 @@ contains
 
         ! make the right if-statements here.. and remember enough_doub_hist is
         ! used for singles in the case of the real-space transcorrelated hubbard!
+        tau_new = clamp(tau_new, min_tau, max_tau)
         if (tau_new < tau .or. &
             (tUEG .or. tHub .or. enough_sing_hist .or. &
              (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub_hist) .or. &
@@ -751,7 +752,7 @@ contains
             ! initiator threshold, but slightly below it instead.
             ! does this make sense in the new implmentation? this way
             ! i will always decrease the time-step even if its not necessary..
-            call assign_value_to_tau(clamp(tau_new, min_tau, max_tau) * 0.99999_dp, 'Histogramming tau search')
+            call assign_value_to_tau(tau_new, 'Histogramming tau search')
         end if
 
     end subroutine update_tau_hist

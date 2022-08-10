@@ -44,9 +44,9 @@ calc
     tau-values \
         start user-defined 0.01 \
         max 0.02
-    # tau-search \
-    #     algorithm conventional \
-    #     stop-condition var-shift
+    tau-search \
+        algorithm conventional \
+        stop-condition var-shift
 
     maxwalkerbloom 1
     memoryfacspawn 100.00
