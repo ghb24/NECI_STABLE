@@ -1,39 +1,40 @@
 title
 
 system read
-nonuniformrandexcits mol_guga_weighted
-electrons 4
-guga 0
+    nonuniformrandexcits mol_guga_weighted
+    electrons 4
+    guga 0
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-load-balance-interval 1000
-memoryfacspawn 5.0
-memoryfacpart 2.0
-totalwalkers 10000
-tau-values \
-    start user-defined 0.01
-startsinglepart 10000
-shiftdamp 0.5
-stepsshift 1
-allrealcoeff
-realspawncutoff 0.01
-nmcyc 50
-trial-wavefunction
-pops-trial 20
-readpops
-load-balance-blocks off
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    load-balance-interval 1000
+    memoryfacspawn 5.0
+    memoryfacpart 2.0
+    totalwalkers 10000
+    tau-values \
+        start user-defined 0.01 \
+        readpops-but-tau-not-from-popsfile
+    startsinglepart 10000
+    shiftdamp 0.5
+    stepsshift 1
+    allrealcoeff
+    realspawncutoff 0.01
+    nmcyc 50
+    trial-wavefunction
+    pops-trial 20
+    readpops
+    load-balance-blocks off
 endcalc
 
 integral
 endint
 
 logging
-write-most-pop-core-end 50
-popsfile -1
+    write-most-pop-core-end 50
+    popsfile -1
 endlog
 end

@@ -206,8 +206,11 @@ contains
         character(*), parameter :: this_routine = 'assign_value_to_tau'
 
         if (.not. (min_tau <= new_tau .and. new_tau <= max_tau)) then
-            call stop_all(this_routine, '.not. (min_tau <= new_tau .and. new_tau <= max_tau)')
+            call stop_all(&
+                    this_routine, &
+                    '.not. (min_tau <= new_tau .and. new_tau <= max_tau)')
         end if
+
 
         if (large_change(tau, new_tau)) then
             if (iProcIndex == root) then
@@ -221,12 +224,13 @@ contains
     end subroutine
 
     elemental function large_change(old_tau, new_tau) result(res)
-        !! If the change of old_tau to new_tau is considered large.
+        !! If the change of `old_tau` to `new_tau` is considered large.
         real(dp), intent(in) :: old_tau, new_tau
         logical :: res
         real(kind(new_tau)), parameter :: threshhold = 0.001_dp
             !! Threshhold for the relative change of tau.
         if (near_zero(old_tau)) then
+            ! This is at initialization
             res = .false.
         else if (abs(old_tau - new_tau) / old_tau > threshhold) then
             res = .true.

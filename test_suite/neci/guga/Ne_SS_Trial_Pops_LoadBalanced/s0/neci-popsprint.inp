@@ -8,7 +8,7 @@ endsys
 
 calc
     methods
-    method vertex fcimc
+        method vertex fcimc
     endmethods
     seed -7
     load-balance-interval 1000

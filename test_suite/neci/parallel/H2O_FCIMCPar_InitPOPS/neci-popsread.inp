@@ -16,7 +16,8 @@ calc
     initwalkers 1000000
     maxnoathf 10000
     tau-values \
-        start user-defined 0.0005
+        start user-defined 0.0005 \
+        readpops-but-tau-not-from-popsfile
     readpops
     seed -8
     truncinitiator

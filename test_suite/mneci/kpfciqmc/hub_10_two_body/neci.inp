@@ -11,7 +11,9 @@ system hubbard
 endsys
 
 calc
-    tau-values start user-defined 0.01
+    tau-values \
+        start user-defined 0.01 \
+        readpops-but-tau-not-from-popsfile
     totalwalkers 2000
     shiftdamp 0.5
     diagshift 0.0

@@ -12,7 +12,8 @@ calc
     memoryfacpart 2.0
     totalwalkers 10000
     tau-values \
-        start user-defined 0.01
+        start user-defined 0.01 \
+        readpops-but-tau-not-from-popsfile
     shiftdamp 0.5
     stepsshift 1
     allrealcoeff

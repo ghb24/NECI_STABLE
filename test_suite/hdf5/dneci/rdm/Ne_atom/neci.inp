@@ -36,7 +36,8 @@ calc
     realspawncutoff .30
     tau-values \
         start user-defined 0.01 \
-        max 0.02
+        max 0.02 \
+        readpops-but-tau-not-from-popsfile
     tau-search off
     maxwalkerbloom 1
     memoryfacspawn 10.00
