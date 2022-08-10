@@ -163,8 +163,8 @@ set( SRC_FILES
     SystemData.F90
     System_neci.F90
     tau_search/tau_search.F90
+    tau_search/tau_search_impls.F90
     tau_search/tau_search_conventional.F90
-    tau_search/tau_search_conventional_impls.F90
     tau_search/tau_search_hist.F90
     tc_three_body_data.F90
     tc_three_body_excitgen.F90

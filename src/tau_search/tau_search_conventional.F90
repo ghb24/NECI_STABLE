@@ -44,7 +44,7 @@ module tau_search_conventional
     implicit none
     private
 
-    public :: find_tau_from_refdet_conn, log_spawn_magnitude, init_tau_search_conventional
+    public :: log_spawn_magnitude, init_tau_search_conventional
 
     public :: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
               cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
@@ -68,12 +68,6 @@ module tau_search_conventional
 
     ! this is to keep probabilities of generating excitations of allowed classes above zero
     real(dp), parameter :: prob_min_thresh = 1e-8_dp
-
-    interface
-        ! This is implemented in a submodule
-        module subroutine find_tau_from_refdet_conn()
-        end subroutine
-    end interface
 
 contains
 

@@ -66,11 +66,11 @@ module fcimc_initialisation
     use tau_search, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
         max_death_cpt, min_tau, max_tau, tau, taufactor, &
-        assign_value_to_tau
+        assign_value_to_tau, find_tau_from_refdet_conn
 
     use tau_search_hist, only: init_hist_tau_search
 
-    use tau_search_conventional, only: init_tau_search_conventional, find_tau_from_refdet_conn
+    use tau_search_conventional, only: init_tau_search_conventional
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
