@@ -19,7 +19,8 @@ module tau_search
               tau, taufactor, min_tau, max_tau, &
               scale_tau_to_death_triggered, t_scale_tau_to_death, &
               max_death_cpt, assign_value_to_tau, &
-              stop_options, find_tau_from_refdet_conn
+              stop_options, find_tau_from_refdet_conn, &
+              readpops_but_tau_not_from_popsfile
 
     protected :: tau
 
@@ -110,6 +111,8 @@ module tau_search
 
     logical :: scale_tau_to_death_triggered = .false., t_scale_tau_to_death = .false.
     real(dp) :: max_death_cpt = 0._dp
+
+    logical :: readpops_but_tau_not_from_popsfile = .false.
 
     interface
         ! This is implemented in a submodule
