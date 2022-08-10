@@ -53,12 +53,24 @@ contains
 
     module subroutine find_tau_from_refdet_conn()
 
-        ! Routine to find an upper bound to tau, by consideration of the
-        ! singles and doubles connected to the reference determinant
-        !
-        ! Obviously, this make assumptions about the possible range of pgen,
-        ! so may actually give a tau that is too SMALL for the latest
-        ! excitation generators, which is exciting!
+        !! Routine to find an upper bound to tau, by consideration of the
+        !! singles and doubles connected to the reference determinant
+        !!
+        !! Obviously, this make assumptions about the possible range of pgen,
+        !! so may actually give a tau that is too SMALL for the latest
+        !! excitation generators, which is exciting!
+        character(len=*), parameter :: this_routine = "find_tau_from_refdet_conn"
+
+        if (tGUGA) then
+            call stop_all(this_routine, "Not implemented for GUGA")
+        else if (t_k_space_hubbard) then
+            call hubbard_find_tau_from_refdet_conn()
+        else
+            call ab_initio_find_tau_from_refdet_conn()
+        end if
+    end subroutine find_tau_from_refdet_conn
+
+    subroutine ab_initio_find_tau_from_refdet_conn()
 
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound, tParity, tSameFunc, tSwapped, tSign
@@ -69,18 +81,14 @@ contains
         HElement_t(dp) :: hel
         integer :: ic, nJ(nel), nJ2(nel), iExcit, ex_saved(2, maxExcit)
         integer(kind=n_int) :: iLutnJ(0:niftot), iLutnJ2(0:niftot)
+        real(dp) :: new_tau
 
         type(ExcitGenSessionType) :: session
 
-        if (tGUGA) then
-            call stop_all(this_routine, "Not implemented for GUGA")
-        end if
+        ASSERT(.not. tGUGA)
+        ASSERT(.not. t_k_space_hubbard)
 
-
-        if (t_k_space_hubbard) then
-            call hubbard_find_tau_from_refdet_conn()
-            return
-        end if
+        new_tau = huge(new_tau)
 
         if (MaxWalkerBloom .isclose. -1._dp) then
             !No MaxWalkerBloom specified
@@ -94,8 +102,6 @@ contains
         else
             nAddFac = real(MaxWalkerBloom, dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
         end if
-
-        call assign_value_to_tau(clamp(1000.0_dp, min_tau, max_tau), 'Initial assignment')
 
         tAllExcitFound = .false.
         Ex_saved(:, :) = 0
@@ -182,9 +188,9 @@ contains
             if (tSameFunc) cycle
             if (MagHel > 0.0_dp) then
                 pGenFac = pGen * nAddFac / MagHel
-                if (Tau > pGenFac .and. pGenFac > EPS) then
-                    call assign_value_to_tau(pGenFac, this_routine)
-                end if
+                new_tau = clamp(&
+                    merge(new_tau, min(pGenFac, new_tau), near_zero(pGenFac)), &
+                    min_tau, max_tau)
             end if
 
             !Find pGen(nJ -> nI)
@@ -209,27 +215,25 @@ contains
             if (tSameFunc) cycle
             if (MagHel > 0.0_dp) then
                 pGenFac = pGen * nAddFac / MagHel
-                if (Tau > pGenFac .and. pGenFac > EPS) then
-                    call assign_value_to_tau(pGenFac, this_routine)
-                end if
+                new_tau = clamp(&
+                    merge(new_tau, min(pGenFac, new_tau), near_zero(pGenFac)), &
+                    min_tau, max_tau)
             end if
-
         end do
+
 
         call clean_excit_gen_store(store)
         call clean_excit_gen_store(store2)
         if (tKPntSym) deallocate(EXCITGEN)
 
-        if (tau > 0.075_dp) then
-            call assign_value_to_tau(0.075_dp, this_routine)
+        if (new_tau > 0.075_dp) then
+            new_tau = clamp(0.075_dp, min_tau, max_tau)
             write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                             &may be inappropriate. Care needed"
-        else
-            write(stdout, "(A,F18.10)") "From analysis of reference determinant and connections, &
-                                     &an upper bound for the timestep is: ", Tau
         end if
+        call assign_value_to_tau(new_tau, this_routine)
 
-    end subroutine find_tau_from_refdet_conn
+    end subroutine ab_initio_find_tau_from_refdet_conn
 
 
     subroutine hubbard_find_tau_from_refdet_conn()
@@ -246,17 +250,17 @@ contains
         real(dp) :: nAddFac, MagHel, pGen, pGenFac
         logical :: tParity
         integer(n_int), allocatable :: det_list(:, :)
+        real(dp) :: new_tau
 
-        ASSERT( t_k_space_hubbard)
-        if (tGUGA) then
-            call stop_all(this_routine, "Not implemented for GUGA")
-        end if
+        ASSERT(t_k_space_hubbard)
+        ASSERT(.not. tGUGA)
+
         ! NOTE: test if the new real-space implementation works with this
         ! function! maybe i also have to use a specific routine for this !
         ! since it might be necessary in the transcorrelated approach to
         ! the real-space hubbard
 
-        ! bypass everything below for the new k-space hubbard implementation
+        new_tau = huge(new_tau)
 
         if (MaxWalkerBloom .isclose. -1._dp) then
             !No MaxWalkerBloom specified
@@ -270,8 +274,6 @@ contains
         else
             nAddFac = real(MaxWalkerBloom, dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
         end if
-
-        call assign_value_to_tau(clamp(1000.0_dp, min_tau, max_tau), 'Initial assignment')
 
         if (tHPHF) then
             call Stop_All(this_routine, &
@@ -311,21 +313,18 @@ contains
 
             if (MagHel > EPS) then
                 pGenFac = pgen * nAddFac / MagHel
-
-                if (tau > pGenFac .and. pGenFac > EPS) then
-                    call assign_value_to_tau(pGenFac, this_routine)
-                end if
+                new_tau = clamp(&
+                    merge(new_tau, min(pGenFac, new_tau), near_zero(pGenFac)), &
+                    min_tau, max_tau)
             end if
         end do
 
-        if (tau > 0.075_dp) then
-            call assign_value_to_tau(0.075_dp, this_routine)
+        if (new_tau > 0.075_dp) then
+            new_tau = clamp(0.075_dp, min_tau, max_tau)
             write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                             &may be inappropriate. Care needed"
-        else
-            write(stdout, "(A,F18.10)") "From analysis of reference determinant and connections, &
-                                     &an upper bound for the timestep is: ", Tau
         end if
+        call assign_value_to_tau(new_tau, this_routine)
 
     end subroutine hubbard_find_tau_from_refdet_conn
 
