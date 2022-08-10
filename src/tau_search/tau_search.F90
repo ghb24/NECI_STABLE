@@ -203,27 +203,35 @@ contains
         real(dp), intent(in) :: new_tau
         character(len=*), intent(in) :: reason
             !! Message that gets printed when change was sufficiently large.
-        real(kind(new_tau)), parameter :: threshhold = 0.001_dp
-            !! Threshhold for the relative change of tau.
         character(*), parameter :: this_routine = 'assign_value_to_tau'
 
         if (.not. (min_tau <= new_tau .and. new_tau <= max_tau)) then
             call stop_all(this_routine, '.not. (min_tau <= new_tau .and. new_tau <= max_tau)')
         end if
 
-        associate(old_tau => tau)
-            if (near_zero(old_tau) &
-                    ! Properly avoid division by zero
-                    .or. abs(old_tau - new_tau) / merge(1._dp, old_tau, near_zero(old_tau)) > threshhold) then
-                if (iProcIndex == root) then
-                    write(stdout, '(A, E11.4, 1x, A, E11.4)') '>>> Changing tau:', old_tau, '->', new_tau
-                    write(stdout, '(A, A)') '>>> Reason: ', reason
-                end if
-                search_data%last_change_of_tau = iter
-                search_data%n_opts = search_data%n_opts + 1
+        if (large_change(tau, new_tau)) then
+            if (iProcIndex == root) then
+                write(stdout, '(A, E13.6, 1x, A, E13.6)') '>>> Changing tau:', tau, '->', new_tau
+                write(stdout, '(A, A)') '>>> Reason: ', reason
             end if
-            old_tau = new_tau
-        end associate
+            search_data%last_change_of_tau = iter
+            search_data%n_opts = search_data%n_opts + 1
+        end if
+        tau = new_tau
     end subroutine
 
+    elemental function large_change(old_tau, new_tau) result(res)
+        !! If the change of old_tau to new_tau is considered large.
+        real(dp), intent(in) :: old_tau, new_tau
+        logical :: res
+        real(kind(new_tau)), parameter :: threshhold = 0.001_dp
+            !! Threshhold for the relative change of tau.
+        if (near_zero(old_tau)) then
+            res = .false.
+        else if (abs(old_tau - new_tau) / old_tau > threshhold) then
+            res = .true.
+        else
+            res = .false.
+        end if
+    end function
 end module
