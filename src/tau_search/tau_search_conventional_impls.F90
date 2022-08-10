@@ -79,7 +79,7 @@ contains
             nAddFac = real(MaxWalkerBloom, dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
         end if
 
-        call assign_value_to_tau(1000.0_dp, 'Initial assignment in '//this_routine)
+        call assign_value_to_tau(clamp(1000.0_dp, min_tau, max_tau), 'Initial assignment')
 
         ! NOTE: test if the new real-space implementation works with this
         ! function! maybe i also have to use a specific routine for this !
@@ -128,17 +128,18 @@ contains
                     pGenFac = pgen * nAddFac / MagHel
 
                     if (tau > pGenFac .and. pGenFac > EPS) then
-                        call assign_value_to_tau(pGenFac, "From analysis of reference determinant and connections.")
-                    else
-                        call stop_all(this_routine, this_routine//' cannot guess a good tau.')
+                        call assign_value_to_tau(pGenFac, this_routine)
                     end if
-                else
-                    call stop_all(this_routine, this_routine//' cannot guess a good tau.')
                 end if
             end do
 
             if (tau > 0.075_dp) then
-                call assign_value_to_tau(0.075_dp, "Small system. Special value for tau in "//this_routine)
+                call assign_value_to_tau(0.075_dp, this_routine)
+                write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
+                                                &may be inappropriate. Care needed"
+            else
+                write(stdout, "(A,F18.10)") "From analysis of reference determinant and connections, &
+                                         &an upper bound for the timestep is: ", Tau
             end if
 
             return
@@ -230,13 +231,9 @@ contains
             if (tSameFunc) cycle
             if (MagHel > 0.0_dp) then
                 pGenFac = pGen * nAddFac / MagHel
-                if (tau > pGenFac .and. pGenFac > EPS) then
-                    call assign_value_to_tau(pGenFac, "From analysis of reference determinant and connections.")
-                else
-                    call stop_all(this_routine, this_routine//' cannot guess a good tau.')
+                if (Tau > pGenFac .and. pGenFac > EPS) then
+                    call assign_value_to_tau(pGenFac, this_routine)
                 end if
-            else
-                call stop_all(this_routine, this_routine//' cannot guess a good tau.')
             end if
 
             !Find pGen(nJ -> nI)
@@ -261,13 +258,9 @@ contains
             if (tSameFunc) cycle
             if (MagHel > 0.0_dp) then
                 pGenFac = pGen * nAddFac / MagHel
-                if (tau > pGenFac .and. pGenFac > EPS) then
-                    call assign_value_to_tau(pGenFac, "From analysis of reference determinant and connections.")
-                else
-                    call stop_all(this_routine, this_routine//' cannot guess a good tau.')
+                if (Tau > pGenFac .and. pGenFac > EPS) then
+                    call assign_value_to_tau(pGenFac, this_routine)
                 end if
-            else
-                call stop_all(this_routine, this_routine//' cannot guess a good tau.')
             end if
 
         end do
@@ -277,8 +270,17 @@ contains
         if (tKPntSym) deallocate(EXCITGEN)
 
         if (tau > 0.075_dp) then
-            call assign_value_to_tau(0.075_dp, "Small system. Special value for tau in "//this_routine)
+            call assign_value_to_tau(0.075_dp, this_routine)
+            write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
+                                            &may be inappropriate. Care needed"
+        else
+            write(stdout, "(A,F18.10)") "From analysis of reference determinant and connections, &
+                                     &an upper bound for the timestep is: ", Tau
         end if
+
+        ! if (tau < min_tau .or. tau > max_tau) then
+        !     call stop_all(this_routine, "The determined tau "//str(tau, 4)//" is smaller than min_tau or larger than max_tau")
+        ! end if
 
     end subroutine find_tau_from_refdet_conn
 

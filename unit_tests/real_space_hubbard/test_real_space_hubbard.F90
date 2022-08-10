@@ -213,9 +213,6 @@ contains
             call finddetspinsym(nI,flip,nel)
         end if
 
-!         nI = [1,4]
-!         nI = [1,2,3,4,5,6,7]
-
         nOccAlpha = 0
         nOccBeta = 0
 

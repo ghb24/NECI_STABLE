@@ -47,7 +47,7 @@ module tau_search
     type(TauSearchMethod_t), allocatable :: input_tau_search_method
 
     type, extends(EnumBase_t) :: StopMethod_t
-        character(40) :: str
+        character(45) :: str
     end type
 
     type :: PossibleStopMethods_t
@@ -110,6 +110,7 @@ module tau_search
 
     logical :: scale_tau_to_death_triggered = .false., t_scale_tau_to_death = .false.
     real(dp) :: max_death_cpt = 0._dp
+
 
 
 contains
@@ -184,26 +185,37 @@ contains
         end if
     end subroutine
 
-    subroutine assign_value_to_tau(in_tau, reason)
-        real(dp), intent(in) :: in_tau
+    subroutine assign_value_to_tau(new_tau, reason)
+        !! Assign `new_tau` to `tau`
+        !!
+        !! `new_tau` has to be `min_tau <= new_tau <= max_tau`.
+        !! If the change of `tau` is sufficiently large (determined by `threshhold`),
+        !! then `reason` is printed and the change is registered.
+        !! This is relevant for the stop-methods that depend on the last relevant
+        !! change of tau.
+        real(dp), intent(in) :: new_tau
         character(len=*), intent(in) :: reason
             !! Message that gets printed when change was sufficiently large.
-        real(kind(in_tau)), parameter :: threshhold = 0.001_dp
-        real(kind(in_tau)) :: tau_new
-        ! Make the final tau smaller than tau_new by a small amount
-        ! so that we don't get spawns exactly equal to the
-        ! initiator threshold, but slightly below it instead.
+        real(kind(new_tau)), parameter :: threshhold = 0.001_dp
+            !! Threshhold for the relative change of tau.
+        character(*), parameter :: this_routine = 'assign_value_to_tau'
+
+        if (.not. (min_tau <= new_tau .and. new_tau <= max_tau)) then
+            call stop_all(this_routine, '.not. (min_tau <= new_tau .and. new_tau <= max_tau)')
+        end if
+
         associate(old_tau => tau)
-            tau_new = clamp(in_tau, min_tau, max_tau)
-            if (near_zero(tau) .or. abs(tau - tau_new) / tau > threshhold) then
+            if (near_zero(old_tau) &
+                    ! Properly avoid division by zero
+                    .or. abs(old_tau - new_tau) / merge(1._dp, old_tau, near_zero(old_tau)) > threshhold) then
                 if (iProcIndex == root) then
-                    write(stdout, '(A, E11.4, 1x, A, E11.4)') '>>> Changing tau:', tau, '->', tau_new
+                    write(stdout, '(A, E11.4, 1x, A, E11.4)') '>>> Changing tau:', old_tau, '->', new_tau
                     write(stdout, '(A, A)') '>>> Reason: ', reason
                 end if
                 search_data%last_change_of_tau = iter
                 search_data%n_opts = search_data%n_opts + 1
             end if
-            tau = tau_new
+            old_tau = new_tau
         end associate
     end subroutine
 

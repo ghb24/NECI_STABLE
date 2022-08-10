@@ -40,12 +40,12 @@ module k_space_hubbard
     use CalcData, only: pParallelIn, pSinglesIn, pDoublesIn
 
     use tau_search, only: tau, tau_search_method, possible_tau_search_methods, &
-        assign_value_to_tau
+        assign_value_to_tau, min_tau, max_tau
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
     use util_mod, only: binary_search_first_ge, binary_search, near_zero, &
-                        operator(.isclose.), operator(.div.)
+                        operator(.isclose.), operator(.div.), clamp
 
     use get_excit, only: make_double
 
@@ -382,7 +382,7 @@ contains
 
         if (tau < EPS) then
             call assign_value_to_tau(&
-                lat_tau_factor * tau_opt, &
+                clamp(lat_tau_factor * tau_opt, min_tau, max_tau), &
                 'Initialization with optimal tau value')
         else
             if (iProcIndex == root) then

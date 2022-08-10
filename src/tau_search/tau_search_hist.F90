@@ -190,7 +190,7 @@ contains
         else
             print *, "initial guessed or input-provided time-step too small!"
         end if
-        call assign_value_to_tau(0.1_dp * time_step, 'Initial guess hubbard')
+        call assign_value_to_tau(clamp(0.1_dp * time_step, min_tau, max_tau), 'Initial guess hubbard')
         print *, "setting time-step to 0.1 * optimal: ", tau
         print *, "and turning tau-search OFF!"
 
@@ -751,8 +751,7 @@ contains
             ! initiator threshold, but slightly below it instead.
             ! does this make sense in the new implmentation? this way
             ! i will always decrease the time-step even if its not necessary..
-
-            call assign_value_to_tau(tau_new, 'Histogramming tau search')
+            call assign_value_to_tau(clamp(tau_new, min_tau, max_tau) * 0.99999_dp, 'Histogramming tau search')
         end if
 
     end subroutine update_tau_hist

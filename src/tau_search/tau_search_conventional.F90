@@ -19,7 +19,7 @@ module tau_search_conventional
 
     use util_mod, only: clamp
 
-    use tau_search, only: min_tau, possible_tau_search_methods, &
+    use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
                           input_tau_search_method, tau_search_method, &
                           t_scale_tau_to_death, scale_tau_to_death_triggered, max_death_cpt, &
                           tau_start_val, possible_tau_start, tau, assign_value_to_tau
@@ -481,7 +481,12 @@ contains
              (t_trans_corr_2body .or. t_trans_corr)) .or. &
             (t_new_real_space_hubbard .and. t_trans_corr_hop .and. enough_doub)) then
 
-            call assign_value_to_tau(tau_new, 'Conventional tau search')
+            ! Make the final tau smaller than tau_new by a small amount
+            ! so that we don't get spawns exactly equal to the
+            ! initiator threshold, but slightly below it instead.
+            ! does this make sense in the new implmentation? this way
+            ! i will always decrease the time-step even if its not necessary..
+            call assign_value_to_tau(clamp(tau_new, min_tau, max_tau) * 0.99999_dp, 'Conventional tau search')
         end if
 
         ! Make sure that we have at least some of both singles and doubles

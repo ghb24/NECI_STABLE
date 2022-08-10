@@ -40,7 +40,8 @@ module real_space_hubbard
     use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
 
     use tau_search, only: tau_search_method, input_tau_search_method, &
-        possible_tau_search_methods, t_scale_tau_to_death, tau, assign_value_to_tau
+        possible_tau_search_methods, t_scale_tau_to_death, tau, assign_value_to_tau, &
+        min_tau, max_tau
 
     use CalcData, only: matele_cutoff, pSinglesIn, pDoublesIn
 
@@ -53,7 +54,7 @@ module real_space_hubbard
 
     use util_mod, only: binary_search_first_ge, swap, get_free_unit, &
                         binary_search, near_zero, operator(.isclose.), &
-                        operator(.div.), stop_all
+                        operator(.div.), stop_all, clamp
 
     use bit_reps, only: decode_bit_det
 
@@ -234,7 +235,7 @@ contains
             root_print "setting time-step to optimally determined time-step: ", tau_opt
             root_print "times: ", lat_tau_factor
             call assign_value_to_tau(&
-                lat_tau_factor * tau_opt, &
+                clamp(lat_tau_factor * tau_opt, min_tau, max_tau), &
                 'Initialization with optimal real-space Hubbard value')
 
         else
