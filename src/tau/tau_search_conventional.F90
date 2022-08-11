@@ -67,16 +67,9 @@ module tau_search_conventional
 contains
 
     subroutine init_tau_search_conventional()
-        ! N.B. This must be called BEFORE a popsfile is read in, otherwise
-        !      we screw up the gamma values that have been carefully read in.
-
-        ! We want to start off with zero-values
+        ! Don't overwrite stats that were read from popsfile
         if (tau_start_val /= possible_tau_start%from_popsfile) then
             tau_search_stats = TauSearchConventionalStats_t()
-        else
-            if (near_zero(tau_search_stats%gamma_sing) .or. near_zero(tau_search_stats%gamma_doub)) then
-                call stop_all(this_routine, 'Read in gammas are strange')
-            end if
         end if
 
         ! Are we considering parallel-spin bias in the doubles?
