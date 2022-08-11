@@ -73,6 +73,10 @@ contains
         ! We want to start off with zero-values
         if (tau_start_val /= possible_tau_start%from_popsfile) then
             tau_search_stats = TauSearchConventionalStats_t()
+        else
+            if (near_zero(tau_search_stats%gamma_sing) .or. near_zero(tau_search_stats%gamma_doub)) then
+                call stop_all(this_routine, 'Read in gammas are strange')
+            end if
         end if
 
         ! Are we considering parallel-spin bias in the doubles?

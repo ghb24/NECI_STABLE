@@ -100,7 +100,7 @@ module tau_main
         type(TauStartVal_t) :: &
             user_given = TauStartVal_t(1, 'User defined'), &
             tau_factor = TauStartVal_t(2, 'Tau factor'), &
-            from_popsfile = TauStartVal_t(3, 'From Popsfile'), &
+            from_popsfile = TauStartVal_t(3, 'Popsfile'), &
             refdet_connections = TauStartVal_t(4, 'Reference determinant connections'), &
             deterministic = TauStartVal_t(5, 'Deterministic'), &
             not_needed = TauStartVal_t(6, 'Not required')

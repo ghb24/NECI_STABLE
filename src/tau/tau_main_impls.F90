@@ -94,15 +94,12 @@ contains
         end if
 
 
-        ! Not needed
-        if (tau_start_val /= possible_tau_start%from_popsfile) then
-            write(stdout, *) ">>> Initial tau from source: ", to_lower(tau_start_val%str), &
-                " is ", tau, "."
-        else
-        end if
+        write(stdout, *) ">>> Initial tau from source: ", to_lower(tau_start_val%str), " is ", tau, "."
         if (tau_search_method /= possible_tau_search_methods%OFF) then
             write(stdout, *) ">>> Tau-search activated. Using ", to_lower(tau_search_method%str), " algorithm. ", &
                 "Stop if ", to_lower(tau_stop_method%str), '.'
+        else
+            write(stdout, *) ">>> Tau-search off."
         end if
 
     end subroutine

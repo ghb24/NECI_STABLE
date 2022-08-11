@@ -68,10 +68,6 @@ module fcimc_initialisation
         max_death_cpt, min_tau, max_tau, tau, taufactor, &
         assign_value_to_tau, init_tau
 
-    use tau_search_hist, only: init_hist_tau_search
-
-    use tau_search_conventional, only: init_tau_search_conventional
-
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
 
