@@ -57,7 +57,7 @@ submodule(tau_main) tau_main_impls
 
 contains
 
-    subroutine init_tau()
+    module subroutine init_tau()
         ! And what is the maximum death-component found
         max_death_cpt = 0
 
@@ -107,7 +107,7 @@ contains
 
     end subroutine
 
-    subroutine stop_tau_search(stop_method)
+    module subroutine stop_tau_search(stop_method)
         type(StopMethod_t), intent(in) :: stop_method
         if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             t_fill_frequency_hists = .false.
@@ -119,7 +119,7 @@ contains
         tau_search_method = possible_tau_search_methods%OFF
     end subroutine
 
-    subroutine finalize_tau()
+    module subroutine finalize_tau()
         call finalize_tau_main()
         call finalize_tau_search_conventional()
         call finalize_hist_tau_search()
