@@ -44,8 +44,7 @@ MODULE PopsfileMod
     use tau_main, only: input_tau_search_method, tau_search_method, &
         possible_tau_search_methods, max_death_cpt, tau_start_val, possible_tau_start, &
         t_scale_tau_to_death, min_tau, max_tau, tau, assign_value_to_tau
-    use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                          gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, gamma_trip
+    use tau_search_conventional, only: tau_search_stats
     use tau_search_hist, only: finalize_hist_tau_search, t_fill_frequency_hists
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
                          t_initialized_roi, ilutref, perturbation, CurrentDets, AllSumENum, &
@@ -1494,16 +1493,16 @@ contains
         call MPIBCast(PopSumNoatHF_out)
 
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
-        gamma_sing = PopGammaSing
-        gamma_doub = PopGammaDoub
-        gamma_trip = PopGammaTrip
+        tau_search_stats%gamma_sing = PopGammaSing
+        tau_search_stats%gamma_doub = PopGammaDoub
+        tau_search_stats%gamma_trip = PopGammaTrip
         if (tReltvy) then
-            gamma_sing_spindiff1 = PopGammaSing_spindiff1
-            gamma_doub_spindiff1 = PopGammaDoub_spindiff1
-            gamma_doub_spindiff2 = PopGammaDoub_spindiff2
+            tau_search_stats%gamma_sing_spindiff1 = PopGammaSing_spindiff1
+            tau_search_stats%gamma_doub_spindiff1 = PopGammaDoub_spindiff1
+            tau_search_stats%gamma_doub_spindiff2 = PopGammaDoub_spindiff2
         endif
-        gamma_opp = PopGammaOpp
-        gamma_par = PopGammaPar
+        tau_search_stats%gamma_opp = PopGammaOpp
+        tau_search_stats%gamma_par = PopGammaPar
         max_death_cpt = PopMaxDeathCpt
 
     end subroutine ReadPopsHeadv4
@@ -2003,15 +2002,15 @@ contains
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.
-        write (iunit, '(6(a,g18.12))') 'PopGammaSing=', gamma_sing, &
-            ',PopGammaDoub=', gamma_doub, &
-            ',PopGammaTrip=', gamma_trip, &
-            ',PopGammaOpp=', gamma_opp, &
-            ',PopGammaPar=', gamma_par, &
+        write (iunit, '(6(a,g18.12))') 'PopGammaSing=', tau_search_stats%gamma_sing, &
+            ',PopGammaDoub=', tau_search_stats%gamma_doub, &
+            ',PopGammaTrip=', tau_search_stats%gamma_trip, &
+            ',PopGammaOpp=', tau_search_stats%gamma_opp, &
+            ',PopGammaPar=', tau_search_stats%gamma_par, &
             ',PopMaxDeathCpt=', max_death_cpt
-        write (iunit, '(5(a,g18.12))') ',PopGammaSing_spindiff1=', gamma_sing_spindiff1, &
-            ',PopGammaDoub_spindiff1=', gamma_doub_spindiff1, &
-            ',PopGammaDoub_spindiff2=', gamma_doub_spindiff2
+        write (iunit, '(5(a,g18.12))') ',PopGammaSing_spindiff1=', tau_search_stats%gamma_sing_spindiff1, &
+            ',PopGammaDoub_spindiff1=', tau_search_stats%gamma_doub_spindiff1, &
+            ',PopGammaDoub_spindiff2=', tau_search_stats%gamma_doub_spindiff2
 
         if (tLoadBalanceBlocks) &
             write (iunit, '(a,i7)') 'PopBalanceBlocks=', balance_blocks

@@ -20,10 +20,8 @@ module tau_search_conventional
     use util_mod, only: clamp
 
     use tau_main, only: min_tau, max_tau, possible_tau_search_methods, &
-                          input_tau_search_method, tau_search_method, &
-                          t_scale_tau_to_death, scale_tau_to_death_triggered, &
-                          tau_start_val, possible_tau_start, tau, assign_value_to_tau, &
-                          max_death_cpt, max_permitted_spawn
+            tau_search_method, tau_start_val, possible_tau_start, &
+            tau, assign_value_to_tau, max_death_cpt, max_permitted_spawn
 
     use tc_three_body_data, only: pTriples
 
@@ -44,26 +42,24 @@ module tau_search_conventional
     implicit none
     private
 
-    public :: log_spawn_magnitude, init_tau_search_conventional
+    public :: log_spawn_magnitude, init_tau_search_conventional, &
+        finalize_tau_search_conventional, tau_search_stats, update_tau
 
-    public :: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-              cnt_doub, cnt_opp, cnt_par, cnt_sing, cnt_trip, &
-              enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
-              update_tau, gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
 
-! make variables for automated tau determination, globally available
-! 4ind-weighted variables:
-    real(dp) :: gamma_sing = 0._dp, gamma_doub = 0._dp, gamma_trip = 0._dp, &
-                gamma_opp = 0._dp, gamma_par = 0._dp, &
-                gamma_sing_spindiff1 = 0._dp, gamma_doub_spindiff1 = 0._dp, &
-                gamma_doub_spindiff2 = 0._dp
-    integer :: cnt_sing = 0, cnt_doub = 0, cnt_opp = 0, cnt_par = 0, cnt_trip = 0
-    logical :: enough_sing = .false., enough_doub = .false., &
-               enough_trip = .false., enough_opp = .false., &
-               enough_par = .false., consider_par_bias = .false.
+    type :: TauSearchConventionalStats_t
+        real(dp) :: gamma_sing = 0._dp, gamma_doub = 0._dp, gamma_trip = 0._dp, &
+                    gamma_opp = 0._dp, gamma_par = 0._dp, &
+                    gamma_sing_spindiff1 = 0._dp, gamma_doub_spindiff1 = 0._dp, &
+                    gamma_doub_spindiff2 = 0._dp
+        integer :: cnt_sing = 0, cnt_doub = 0, cnt_opp = 0, cnt_par = 0, cnt_trip = 0
+        logical :: enough_sing = .false., enough_doub = .false., &
+                   enough_trip = .false., enough_opp = .false., &
+                   enough_par = .false.
+    end type
 
-! guga-specific:
-    integer :: n_opp, n_par
+    type(TauSearchConventionalStats_t) :: tau_search_stats
+
+    logical :: consider_par_bias = .false.
 
     ! this is to keep probabilities of generating excitations of allowed classes above zero
     real(dp), parameter :: prob_min_thresh = 1e-8_dp
@@ -76,30 +72,7 @@ contains
 
         ! We want to start off with zero-values
         if (tau_start_val /= possible_tau_start%from_popsfile) then
-            gamma_sing = 0.0_dp
-            gamma_doub = 0.0_dp
-            gamma_trip = 0.0_dp
-            gamma_opp = 0.0_dp
-            gamma_par = 0.0_dp
-            if (tReltvy) then
-                gamma_sing_spindiff1 = 0
-                gamma_doub_spindiff1 = 0
-                gamma_doub_spindiff2 = 0
-            end if
-
-            ! And the counts are used to make sure we don't update anything too
-            ! early
-            cnt_sing = 0
-            cnt_doub = 0
-            cnt_trip = 0
-
-            cnt_opp = 0
-            cnt_par = 0
-            enough_sing = .false.
-            enough_doub = .false.
-            enough_opp = .false.
-            enough_par = .false.
-            enough_trip = .false.
+            tau_search_stats = TauSearchConventionalStats_t()
         end if
 
         ! Are we considering parallel-spin bias in the doubles?
@@ -108,12 +81,8 @@ contains
         ! needs to be updated!
         if (tGen_4ind_weighted .or. tGen_4ind_2) then
             consider_par_bias = .true.
-            !n_opp = AB_elec_pairs
-            !n_par = par_elec_pairs
         else if (tGen_4ind_reverse) then
             consider_par_bias = .true.
-            n_opp = AB_hole_pairs
-            n_par = par_hole_pairs
         else if (t_k_space_hubbard .and. t_trans_corr_2body) then
             ! for the 2-body transcorrelated k-space hubbard we also have
             ! possible parallel excitations now. and to make the tau-search
@@ -133,12 +102,12 @@ contains
         if (nOccAlpha == 0 .or. nOccBeta == 0) then
             consider_par_bias = .false.
             pParallel = 1.0_dp
-            enough_opp = .true.
+            tau_search_stats%enough_opp = .true.
         end if
         if (nOccAlpha == 1 .and. nOccBeta == 1) then
             consider_par_bias = .false.
             pParallel = 0.0_dp
-            enough_par = .true.
+            tau_search_stats%enough_par = .true.
         end if
 
         if (t_mixed_hubbard .or. t_olle_hubbard) then
@@ -149,6 +118,10 @@ contains
 
     end subroutine init_tau_search_conventional
 
+    subroutine finalize_tau_search_conventional()
+        tau_search_stats = TauSearchConventionalStats_t()
+    end subroutine
+
     subroutine log_spawn_magnitude(ic, ex, matel, prob)
 
         integer, intent(in) :: ic, ex(2, ic)
@@ -156,17 +129,18 @@ contains
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
 
+        associate(t_s => tau_search_stats)
         select case (getExcitationType(ex, ic))
         case (1)
             ! no spin changing
             ! Log the details if necessary!
             tmp_prob = prob / pSingles
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_sing) gamma_sing = tmp_gamma
+            if (tmp_gamma > t_s%gamma_sing) t_s%gamma_sing = tmp_gamma
             ! And keep count!
-            if (.not. enough_sing .and. gamma_sing > 0) then
-                cnt_sing = cnt_sing + 1
-                if (cnt_sing > cnt_threshold) enough_sing = .true.
+            if (.not. t_s%enough_sing .and. t_s%gamma_sing > 0) then
+                t_s%cnt_sing = t_s%cnt_sing + 1
+                if (t_s%cnt_sing > cnt_threshold) t_s%enough_sing = .true.
             end if
 
         case (3)
@@ -174,13 +148,13 @@ contains
             ! Log the details if necessary!
             tmp_prob = prob / pSing_spindiff1
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_sing_spindiff1) &
-                gamma_sing_spindiff1 = tmp_gamma
+            if (tmp_gamma > t_s%gamma_sing_spindiff1) &
+                t_s%gamma_sing_spindiff1 = tmp_gamma
 
             ! And keep count!
-            if (.not. enough_sing .and. tmp_gamma > 0) then
-                cnt_sing = cnt_sing + 1
-                if (cnt_sing > cnt_threshold) enough_sing = .true.
+            if (.not. t_s%enough_sing .and. tmp_gamma > 0) then
+                t_s%cnt_sing = t_s%cnt_sing + 1
+                if (t_s%cnt_sing > cnt_threshold) t_s%enough_sing = .true.
             end if
 
         case (2)
@@ -194,40 +168,40 @@ contains
                 if (same_spin(ex(1, 1), ex(1, 2))) then
                     tmp_prob = tmp_prob / pParallel
                     tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > gamma_par) then
-                        gamma_par = tmp_gamma
+                    if (tmp_gamma > t_s%gamma_par) then
+                        t_s%gamma_par = tmp_gamma
                     end if
 
                     ! And keep count
-                    if (.not. enough_par) then
-                        cnt_par = cnt_par + 1
-                        if (cnt_par > cnt_threshold) enough_par = .true.
-                        if (enough_opp .and. enough_par) enough_doub = .true.
+                    if (.not. t_s%enough_par) then
+                        t_s%cnt_par = t_s%cnt_par + 1
+                        if (t_s%cnt_par > cnt_threshold) t_s%enough_par = .true.
+                        if (t_s%enough_opp .and. t_s%enough_par) t_s%enough_doub = .true.
                     end if
                 else
                     tmp_prob = tmp_prob / (1.0_dp - pParallel)
                     tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > gamma_opp) then
-                        gamma_opp = tmp_gamma
+                    if (tmp_gamma > t_s%gamma_opp) then
+                        t_s%gamma_opp = tmp_gamma
                     end if
 
                     ! And keep count
-                    if (.not. enough_opp) then
-                        cnt_opp = cnt_opp + 1
-                        if (cnt_opp > cnt_threshold) enough_opp = .true.
-                        if (enough_opp .and. enough_par) enough_doub = .true.
+                    if (.not. t_s%enough_opp) then
+                        t_s%cnt_opp = t_s%cnt_opp + 1
+                        if (t_s%cnt_opp > cnt_threshold) t_s%enough_opp = .true.
+                        if (t_s%enough_opp .and. t_s%enough_par) t_s%enough_doub = .true.
                     end if
                 end if
             else
                 ! We are not playing around with the same/opposite spin bias
                 ! then we should just treat doubles like the singles
                 tmp_gamma = abs(matel) / tmp_prob
-                if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
+                if (tmp_gamma > t_s%gamma_doub) t_s%gamma_doub = tmp_gamma
 
                 ! And keep count
-                if (.not. enough_doub .and. tmp_gamma > 0) then
-                    cnt_doub = cnt_doub + 1
-                    if (cnt_doub > cnt_threshold) enough_doub = .true.
+                if (.not. t_s%enough_doub .and. tmp_gamma > 0) then
+                    t_s%cnt_doub = t_s%cnt_doub + 1
+                    if (t_s%cnt_doub > cnt_threshold) t_s%enough_doub = .true.
                 end if
             end if
 
@@ -237,12 +211,12 @@ contains
             ! We are not playing around with the same/opposite spin bias
             ! then we should just treat doubles like the singles
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_doub_spindiff1) &
-                gamma_doub_spindiff1 = tmp_gamma
+            if (tmp_gamma > t_s%gamma_doub_spindiff1) &
+                t_s%gamma_doub_spindiff1 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub .and. tmp_gamma > 0) then
-                cnt_doub = cnt_doub + 1
-                if (cnt_doub > cnt_threshold) enough_doub = .true.
+            if (.not. t_s%enough_doub .and. tmp_gamma > 0) then
+                t_s%cnt_doub = t_s%cnt_doub + 1
+                if (t_s%cnt_doub > cnt_threshold) t_s%enough_doub = .true.
             end if
 
         case (5)
@@ -252,12 +226,12 @@ contains
             ! We are not playing around with the same/opposite spin bias
             ! then we should just treat doubles like the singles
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_doub_spindiff2) &
-                gamma_doub_spindiff2 = tmp_gamma
+            if (tmp_gamma > t_s%gamma_doub_spindiff2) &
+                t_s%gamma_doub_spindiff2 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub .and. tmp_gamma > 0) then
-                cnt_doub = cnt_doub + 1
-                if (cnt_doub > cnt_threshold) enough_doub = .true.
+            if (.not. t_s%enough_doub .and. tmp_gamma > 0) then
+                t_s%cnt_doub = t_s%cnt_doub + 1
+                if (t_s%cnt_doub > cnt_threshold) t_s%enough_doub = .true.
             end if
 
         case (6)
@@ -273,14 +247,15 @@ contains
                 tmp_gamma = 0.0_dp
             end if
 
-            if (tmp_gamma > gamma_trip) gamma_trip = tmp_gamma
+            if (tmp_gamma > t_s%gamma_trip) t_s%gamma_trip = tmp_gamma
             ! And keep count!
-            if (.not. enough_trip) then
-                cnt_trip = cnt_trip + 1
-                if (cnt_trip > cnt_threshold) enough_trip = .true.
+            if (.not. t_s%enough_trip) then
+                t_s%cnt_trip = t_s%cnt_trip + 1
+                if (t_s%cnt_trip > cnt_threshold) t_s%enough_trip = .true.
             end if
 
         end select
+        end associate
     end subroutine
 
     subroutine update_tau()
@@ -293,7 +268,6 @@ contains
 
 
         ASSERT(tau_search_method == possible_tau_search_methods%CONVENTIONAL)
-        ASSERT(.not. scale_tau_to_death_triggered)
 
         ! default value for pTriples_new
         pTriples_new = pTriples
@@ -301,59 +275,61 @@ contains
         ! What needs doing depends on the number of parameters that are being
         ! updated.
 
-        call MPIAllLORLogical(enough_sing, mpi_ltmp)
-        enough_sing = mpi_ltmp
-        call MPIAllLORLogical(enough_doub, mpi_ltmp)
-        enough_doub = mpi_ltmp
-        call MPIAllLORLogical(enough_trip, mpi_ltmp)
-        enough_trip = mpi_ltmp
+        associate(t_s => tau_search_stats)
+
+        call MPIAllLORLogical(t_s%enough_sing, mpi_ltmp)
+        t_s%enough_sing = mpi_ltmp
+        call MPIAllLORLogical(t_s%enough_doub, mpi_ltmp)
+        t_s%enough_doub = mpi_ltmp
+        call MPIAllLORLogical(t_s%enough_trip, mpi_ltmp)
+        t_s%enough_trip = mpi_ltmp
 
         ! Only considering a direct singles/doubles/triples bias
-        call MPIAllReduce(gamma_sing, MPI_MAX, mpi_tmp)
-        gamma_sing = mpi_tmp
-        call MPIAllReduce(gamma_doub, MPI_MAX, mpi_tmp)
-        gamma_doub = mpi_tmp
-        call MPIAllReduce(gamma_trip, MPI_MAX, mpi_tmp)
-        gamma_trip = mpi_tmp
+        call MPIAllReduce(t_s%gamma_sing, MPI_MAX, mpi_tmp)
+        t_s%gamma_sing = mpi_tmp
+        call MPIAllReduce(t_s%gamma_doub, MPI_MAX, mpi_tmp)
+        t_s%gamma_doub = mpi_tmp
+        call MPIAllReduce(t_s%gamma_trip, MPI_MAX, mpi_tmp)
+        t_s%gamma_trip = mpi_tmp
         if (tReltvy) then
-            call MPIAllReduce(gamma_sing_spindiff1, MPI_MAX, mpi_tmp)
-            gamma_sing_spindiff1 = mpi_tmp
-            call MPIAllReduce(gamma_doub_spindiff1, MPI_MAX, mpi_tmp)
-            gamma_doub_spindiff1 = mpi_tmp
-            call MPIAllReduce(gamma_doub_spindiff2, MPI_MAX, mpi_tmp)
-            gamma_doub_spindiff2 = mpi_tmp
-            gamma_sum = gamma_sing + gamma_sing_spindiff1 + gamma_doub + gamma_doub_spindiff1 + gamma_doub_spindiff2
+            call MPIAllReduce(t_s%gamma_sing_spindiff1, MPI_MAX, mpi_tmp)
+            t_s%gamma_sing_spindiff1 = mpi_tmp
+            call MPIAllReduce(t_s%gamma_doub_spindiff1, MPI_MAX, mpi_tmp)
+            t_s%gamma_doub_spindiff1 = mpi_tmp
+            call MPIAllReduce(t_s%gamma_doub_spindiff2, MPI_MAX, mpi_tmp)
+            t_s%gamma_doub_spindiff2 = mpi_tmp
+            gamma_sum = t_s%gamma_sing + t_s%gamma_sing_spindiff1 + t_s%gamma_doub + t_s%gamma_doub_spindiff1 + t_s%gamma_doub_spindiff2
         else
-            gamma_sum = gamma_sing + gamma_doub
+            gamma_sum = t_s%gamma_sing + t_s%gamma_doub
         end if
 
         if (consider_par_bias) then
             if (.not. tReltvy) then
-                call MPIAllReduce(gamma_sing, MPI_MAX, mpi_tmp)
-                gamma_sing = mpi_tmp
-                call MPIAllReduce(gamma_opp, MPI_MAX, mpi_tmp)
-                gamma_opp = mpi_tmp
-                call MPIAllReduce(gamma_par, MPI_MAX, mpi_tmp)
-                gamma_par = mpi_tmp
-                call MPIAllLORLogical(enough_opp, mpi_ltmp)
-                enough_opp = mpi_ltmp
-                call MPIAllLORLogical(enough_par, mpi_ltmp)
-                enough_par = mpi_ltmp
+                call MPIAllReduce(t_s%gamma_sing, MPI_MAX, mpi_tmp)
+                t_s%gamma_sing = mpi_tmp
+                call MPIAllReduce(t_s%gamma_opp, MPI_MAX, mpi_tmp)
+                t_s%gamma_opp = mpi_tmp
+                call MPIAllReduce(t_s%gamma_par, MPI_MAX, mpi_tmp)
+                t_s%gamma_par = mpi_tmp
+                call MPIAllLORLogical(t_s%enough_opp, mpi_ltmp)
+                t_s%enough_opp = mpi_ltmp
+                call MPIAllLORLogical(t_s%enough_par, mpi_ltmp)
+                t_s%enough_par = mpi_ltmp
 
-                if (enough_sing .and. enough_doub) then
-                    pparallel_new = gamma_par / (gamma_opp + gamma_par)
-                    psingles_new = gamma_sing * pparallel_new &
-                                   / (gamma_par + gamma_sing * pparallel_new)
+                if (t_s%enough_sing .and. t_s%enough_doub) then
+                    pparallel_new = t_s%gamma_par / (t_s%gamma_opp + t_s%gamma_par)
+                    psingles_new = t_s%gamma_sing * pparallel_new &
+                                   / (t_s%gamma_par + t_s%gamma_sing * pparallel_new)
                     tau_new = psingles_new * max_permitted_spawn &
-                              / gamma_sing
+                              / t_s%gamma_sing
                 else
                     pparallel_new = pParallel
                     psingles_new = pSingles
-                    if (gamma_sing > EPS .and. gamma_par > EPS .and. gamma_opp > EPS) then
+                    if (t_s%gamma_sing > EPS .and. t_s%gamma_par > EPS .and. t_s%gamma_opp > EPS) then
                         tau_new = max_permitted_spawn * &
-                                  min(pSingles / gamma_sing, &
-                                      min(pDoubles * pParallel / gamma_par, &
-                                          pDoubles * (1.0 - pParallel) / gamma_opp))
+                                  min(pSingles / t_s%gamma_sing, &
+                                      min(pDoubles * pParallel / t_s%gamma_par, &
+                                          pDoubles * (1.0 - pParallel) / t_s%gamma_opp))
                     else
                         ! if no spawns happened, do nothing
                         tau_new = tau
@@ -361,12 +337,12 @@ contains
                 end if
 
 !               checking for triples
-                if (enough_trip) then
-                    pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
+                if (t_s%enough_trip) then
+                    pTriples_new = t_s%gamma_trip / (t_s%gamma_par + t_s%gamma_sing * pparallel_new + t_s%gamma_trip)
                 end if
                 ! We only want to update the opposite spins bias here, as we only
                 ! consider it here!
-                if (enough_opp .and. enough_par) then
+                if (t_s%enough_opp .and. t_s%enough_par) then
                     if (abs(pParallel_new - pParallel) / pParallel > 0.0001_dp) then
                         root_print "Updating parallel-spin bias; new pParallel = ", &
                             pParallel_new
@@ -380,17 +356,17 @@ contains
 
             ! Get the probabilities and tau that correspond to the stored
             ! values
-            if ((tUEG .or. enough_sing) .and. enough_doub) then
-                psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
-                if (enough_trip) pTriples_new = max(gamma_trip / &
-                                                    (gamma_sum + gamma_trip), prob_min_thresh)
+            if ((tUEG .or. t_s%enough_sing) .and. t_s%enough_doub) then
+                psingles_new = max(t_s%gamma_sing / gamma_sum, prob_min_thresh)
+                if (t_s%enough_trip) pTriples_new = max(t_s%gamma_trip / &
+                                                    (gamma_sum + t_s%gamma_trip), prob_min_thresh)
                 if (tReltvy) then
-                    pSing_spindiff1_new = gamma_sing_spindiff1 / gamma_sum
-                    pDoub_spindiff1_new = gamma_doub_spindiff1 / gamma_sum
-                    pDoub_spindiff2_new = gamma_doub_spindiff2 / gamma_sum
+                    pSing_spindiff1_new = t_s%gamma_sing_spindiff1 / gamma_sum
+                    pDoub_spindiff1_new = t_s%gamma_doub_spindiff1 / gamma_sum
+                    pDoub_spindiff2_new = t_s%gamma_doub_spindiff2 / gamma_sum
                 end if
                 tau_new = max_permitted_spawn / gamma_sum
-            else if (t_new_real_space_hubbard .and. enough_sing .and. &
+            else if (t_new_real_space_hubbard .and. t_s%enough_sing .and. &
                      (t_trans_corr_2body .or. t_trans_corr)) then
                 ! for the transcorrelated real-space hubbard we could
                 ! actually also adapt the time-step!!
@@ -407,17 +383,17 @@ contains
                 end if
                 ! If no single/double spawns occurred, they are also not taken into account
                 ! (else would be undefined)
-                if (abs(gamma_doub) > EPS .and. abs(gamma_sing) > EPS) then
+                if (abs(t_s%gamma_doub) > EPS .and. abs(t_s%gamma_sing) > EPS) then
                     tau_new = max_permitted_spawn * &
-                              min(pSingles / gamma_sing, pDoubles / gamma_doub)
-                else if (abs(gamma_doub) > EPS) then
+                              min(pSingles / t_s%gamma_sing, pDoubles / t_s%gamma_doub)
+                else if (abs(t_s%gamma_doub) > EPS) then
                     ! If only doubles were counted, take them
-                    tau_new = max_permitted_spawn * pDoubles / gamma_doub
-                else if (abs(gamma_sing) > eps) then
+                    tau_new = max_permitted_spawn * pDoubles / t_s%gamma_doub
+                else if (abs(t_s%gamma_sing) > eps) then
                     ! else, we had to have some singles
-                    tau_new = max_permitted_spawn * pSingles / gamma_sing
-                else if (abs(gamma_trip) > eps) then
-                    tau_new = max_permitted_spawn * PTriples / gamma_trip
+                    tau_new = max_permitted_spawn * pSingles / t_s%gamma_sing
+                else if (abs(t_s%gamma_trip) > eps) then
+                    tau_new = max_permitted_spawn * PTriples / t_s%gamma_trip
                 else
                     ! no spawns
                     tau_new = tau
@@ -446,15 +422,15 @@ contains
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
         ! make the right if-statements here!
-        ! remember enough_sing is (mis)used for triples in the
+        ! remember t_s%enough_sing is (mis)used for triples in the
         ! 2-body transcorrelated k-space hubbard
         tau_new = clamp(tau_new, min_tau, max_tau)
-        if (tau_new < tau .or. (enough_sing .and. enough_doub) .or. &
-            ((tUEG .and. .not. t_ueg_3_body) .or. tHub .or. enough_sing .or. &
-             (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. &
-            (t_new_real_space_hubbard .and. enough_sing .and. &
+        if (tau_new < tau .or. (t_s%enough_sing .and. t_s%enough_doub) .or. &
+            ((tUEG .and. .not. t_ueg_3_body) .or. tHub .or. t_s%enough_sing .or. &
+             (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. t_s%enough_doub) .or. &
+            (t_new_real_space_hubbard .and. t_s%enough_sing .and. &
              (t_trans_corr_2body .or. t_trans_corr)) .or. &
-            (t_new_real_space_hubbard .and. t_trans_corr_hop .and. enough_doub)) then
+            (t_new_real_space_hubbard .and. t_trans_corr_hop .and. t_s%enough_doub)) then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
@@ -466,7 +442,7 @@ contains
 
         ! Make sure that we have at least some of both singles and doubles
         ! before we allow ourselves to change the probabilities too much...
-        if (enough_sing .and. enough_doub .and. psingles_new > 1e-5_dp &
+        if (t_s%enough_sing .and. t_s%enough_doub .and. psingles_new > 1e-5_dp &
             .and. psingles_new < (1.0_dp - 1e-5_dp)) then
 
             if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
@@ -488,19 +464,20 @@ contains
                 pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
                 pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
                 pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
-                ASSERT(pDoubles - gamma_doub / gamma_sum < prob_min_thresh)
+                ASSERT(pDoubles - t_s%gamma_doub / gamma_sum < prob_min_thresh)
             else
                 pDoubles = 1.0_dp - pSingles
             end if
         end if
 
         !checking whether we have enouigh triples
-        if (enough_trip) then
+        if (t_s%enough_trip) then
             if (abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
                 root_print "Updating triple-excitation bias. pTriples =", pTriples_new
                 pTriples = pTriples_new
             end if
         end if
+        end associate
 
     end subroutine update_tau
 end module

@@ -93,11 +93,7 @@ module hdf5_popsfile
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
         max_death_cpt, min_tau, max_tau, tau, assign_value_to_tau
     use tau_search_hist, only: finalize_hist_tau_search
-    use tau_search_conventional, only: &
-        cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par, &
-        gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-        enough_sing, enough_doub, enough_trip, enough_opp, enough_par, &
-        update_tau
+    use tau_search_conventional, only: tau_search_stats
     use fortran_strings, only: str
     implicit none
     private
@@ -451,22 +447,22 @@ contains
         ! We want to use the maximised values across all the processors
         ! (there is nothing ensuring that all the processors are adjusted to
         ! the same values...)
-        call MPIAllReduce(gamma_sing, MPI_MAX, max_gam_sing)
-        call MPIAllReduce(gamma_doub, MPI_MAX, max_gam_doub)
-        call MPIAllReduce(gamma_trip, MPI_MAX, max_gam_trip)
-        call MPIAllReduce(gamma_opp, MPI_MAX, max_gam_opp)
-        call MPIAllReduce(gamma_par, MPI_MAX, max_gam_par)
+        call MPIAllReduce(tau_search_stats%gamma_sing, MPI_MAX, max_gam_sing)
+        call MPIAllReduce(tau_search_stats%gamma_doub, MPI_MAX, max_gam_doub)
+        call MPIAllReduce(tau_search_stats%gamma_trip, MPI_MAX, max_gam_trip)
+        call MPIAllReduce(tau_search_stats%gamma_opp, MPI_MAX, max_gam_opp)
+        call MPIAllReduce(tau_search_stats%gamma_par, MPI_MAX, max_gam_par)
         call MPIAllReduce(max_death_cpt, MPI_MAX, max_max_death_cpt)
-        call MPIAllLORLogical(enough_sing, all_en_sing)
-        call MPIAllLORLogical(enough_doub, all_en_doub)
-        call MPIAllLORLogical(enough_trip, all_en_trip)
-        call MPIAllLORLogical(enough_opp, all_en_opp)
-        call MPIAllLORLogical(enough_par, all_en_par)
-        call MPIAllReduce(cnt_sing, MPI_MAX, max_cnt_sing)
-        call MPIAllReduce(cnt_doub, MPI_MAX, max_cnt_doub)
-        call MPIAllReduce(cnt_trip, MPI_MAX, max_cnt_trip)
-        call MPIAllReduce(cnt_opp, MPI_MAX, max_cnt_opp)
-        call MPIAllReduce(cnt_par, MPI_MAX, max_cnt_par)
+        call MPIAllLORLogical(tau_search_stats%enough_sing, all_en_sing)
+        call MPIAllLORLogical(tau_search_stats%enough_doub, all_en_doub)
+        call MPIAllLORLogical(tau_search_stats%enough_trip, all_en_trip)
+        call MPIAllLORLogical(tau_search_stats%enough_opp, all_en_opp)
+        call MPIAllLORLogical(tau_search_stats%enough_par, all_en_par)
+        call MPIAllReduce(tau_search_stats%cnt_sing, MPI_MAX, max_cnt_sing)
+        call MPIAllReduce(tau_search_stats%cnt_doub, MPI_MAX, max_cnt_doub)
+        call MPIAllReduce(tau_search_stats%cnt_trip, MPI_MAX, max_cnt_trip)
+        call MPIAllReduce(tau_search_stats%cnt_opp, MPI_MAX, max_cnt_opp)
+        call MPIAllReduce(tau_search_stats%cnt_par, MPI_MAX, max_cnt_par)
 
         if (.not. near_zero(max_gam_sing)) &
             call write_dp_scalar(tau_grp, nm_gam_sing, max_gam_sing)
@@ -663,22 +659,22 @@ contains
 
         ! These are all optional things to have in the popsfile. If they don't
         ! exist, then they will be left unchanged.
-        call read_dp_scalar(grp_id, nm_gam_sing, gamma_sing)
-        call read_dp_scalar(grp_id, nm_gam_doub, gamma_doub)
-        call read_dp_scalar(grp_id, nm_gam_trip, gamma_trip)
-        call read_dp_scalar(grp_id, nm_gam_opp, gamma_opp)
-        call read_dp_scalar(grp_id, nm_gam_par, gamma_par)
+        call read_dp_scalar(grp_id, nm_gam_sing, tau_search_stats%gamma_sing)
+        call read_dp_scalar(grp_id, nm_gam_doub, tau_search_stats%gamma_doub)
+        call read_dp_scalar(grp_id, nm_gam_trip, tau_search_stats%gamma_trip)
+        call read_dp_scalar(grp_id, nm_gam_opp, tau_search_stats%gamma_opp)
+        call read_dp_scalar(grp_id, nm_gam_par, tau_search_stats%gamma_par)
         call read_dp_scalar(grp_id, nm_max_death, max_death_cpt)
-        call read_log_scalar(grp_id, nm_en_sing, enough_sing)
-        call read_log_scalar(grp_id, nm_en_doub, enough_doub)
-        call read_log_scalar(grp_id, nm_en_trip, enough_trip)
-        call read_log_scalar(grp_id, nm_en_opp, enough_opp)
-        call read_log_scalar(grp_id, nm_en_par, enough_par)
-        call read_int64_scalar(grp_id, nm_cnt_sing, cnt_sing)
-        call read_int64_scalar(grp_id, nm_cnt_doub, cnt_doub)
-        call read_int64_scalar(grp_id, nm_cnt_trip, cnt_trip)
-        call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
-        call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
+        call read_log_scalar(grp_id, nm_en_sing, tau_search_stats%enough_sing)
+        call read_log_scalar(grp_id, nm_en_doub, tau_search_stats%enough_doub)
+        call read_log_scalar(grp_id, nm_en_trip, tau_search_stats%enough_trip)
+        call read_log_scalar(grp_id, nm_en_opp, tau_search_stats%enough_opp)
+        call read_log_scalar(grp_id, nm_en_par, tau_search_stats%enough_par)
+        call read_int64_scalar(grp_id, nm_cnt_sing, tau_search_stats%cnt_sing)
+        call read_int64_scalar(grp_id, nm_cnt_doub, tau_search_stats%cnt_doub)
+        call read_int64_scalar(grp_id, nm_cnt_trip, tau_search_stats%cnt_trip)
+        call read_int64_scalar(grp_id, nm_cnt_opp, tau_search_stats%cnt_opp)
+        call read_int64_scalar(grp_id, nm_cnt_par, tau_search_stats%cnt_par)
 
         if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
             write(stdout,*) "pSingles or pDoubles specified in input file, which take precedence"

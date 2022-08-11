@@ -40,7 +40,7 @@ submodule(tau_main) tau_main_impls
 
     use bit_rep_data, only: NIfTot
 
-    use fortran_strings, only: str
+    use fortran_strings, only: str, to_lower
 
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet, GetBitExcitation
@@ -49,7 +49,7 @@ submodule(tau_main) tau_main_impls
 
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
 
-    use tau_search_conventional, only: init_tau_search_conventional
+    use tau_search_conventional, only: init_tau_search_conventional, finalize_tau_search_conventional
 
     use tau_search_hist, only: init_hist_tau_search, finalize_hist_tau_search, t_fill_frequency_hists
 
@@ -75,12 +75,6 @@ contains
             max_permitted_spawn = real(MaxWalkerBloom, dp)
         end if
 
-        if (.not. (tReadPops .and. .not. tWalkContGrow)) then
-            write(stdout, "(a,f10.5)") "Will dynamically update timestep to &
-                         &limit spawning probability to", max_permitted_spawn
-        end if
-
-
         if (tau_start_val == possible_tau_start%refdet_connections) then
             call find_tau_from_refdet_conn()
         end if
@@ -99,6 +93,18 @@ contains
             end if
         end if
 
+
+        ! Not needed
+        if (tau_start_val /= possible_tau_start%from_popsfile) then
+            write(stdout, *) ">>> Initial tau from source: ", to_lower(tau_start_val%str), &
+                " is ", tau, "."
+        else
+        end if
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            write(stdout, *) ">>> Tau-search activated. Using ", to_lower(tau_search_method%str), " algorithm. ", &
+                "Stop if ", to_lower(tau_stop_method%str), '.'
+        end if
+
     end subroutine
 
     subroutine stop_tau_search(stop_method)
@@ -115,7 +121,7 @@ contains
 
     subroutine finalize_tau()
         call finalize_tau_main()
-!         call finalize_tau_search_conventional()
+        call finalize_tau_search_conventional()
         call finalize_hist_tau_search()
     end subroutine
 
@@ -396,14 +402,17 @@ contains
     end subroutine hubbard_find_tau_from_refdet_conn
 
     subroutine finalize_tau_main()
-        !! Resets the values
+        !! Reset the values
         tau = 0._dp
+
         tau_search_method = possible_tau_search_methods%OFF
         if (allocated(input_tau_search_method)) deallocate(input_tau_search_method)
         tau_stop_method = possible_tau_stop_methods%var_shift
+        if (allocated(tau_start_val)) deallocate(tau_start_val)
+
         search_data = TauSearchData_t()
         stop_options = StopOptions_t()
-        if (allocated(tau_start_val)) deallocate(tau_start_val)
+
         min_tau = 0._dp
         max_tau = huge(max_tau)
         taufactor = 0._dp

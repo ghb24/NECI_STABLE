@@ -55,7 +55,7 @@ program test_real_space_hubbard
     use SymExcitDataMod, only: excit_gen_store_type, ScratchSize, &
                                Scratchsize1, Scratchsize2
 
-    use tau_search, only: tau_search_method, possible_tau_search_methods, &
+    use tau_main, only: tau_search_method, possible_tau_search_methods, &
         t_scale_tau_to_death, tau, assign_value_to_tau
 
     implicit none

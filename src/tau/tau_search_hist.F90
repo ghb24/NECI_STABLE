@@ -26,10 +26,8 @@ module tau_search_hist
     use constants, only: dp, EPS, stdout, maxExcit, int64
 
     use tau_main, only: tau, min_tau, max_tau, possible_tau_search_methods, &
-                    tau_search_method, input_tau_search_method, scale_tau_to_death_triggered, &
-                    tau_start_val, possible_tau_start, assign_value_to_tau, max_death_cpt, &
-                    max_permitted_spawn
-
+                    tau_search_method, input_tau_search_method, &
+                    assign_value_to_tau, max_death_cpt, max_permitted_spawn
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -409,7 +407,6 @@ contains
         logical :: mpi_ltmp
 
         ASSERT(tau_search_method == possible_tau_search_methods%HISTOGRAMMING)
-        ASSERT(.not. scale_tau_to_death_triggered)
 
         ! What needs doing depends on the number of parametrs that are being
         ! updated.
