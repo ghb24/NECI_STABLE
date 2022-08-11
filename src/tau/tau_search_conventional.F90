@@ -19,10 +19,11 @@ module tau_search_conventional
 
     use util_mod, only: clamp
 
-    use tau_search, only: min_tau, max_tau, possible_tau_search_methods, &
+    use tau_main, only: min_tau, max_tau, possible_tau_search_methods, &
                           input_tau_search_method, tau_search_method, &
-                          t_scale_tau_to_death, scale_tau_to_death_triggered, max_death_cpt, &
-                          tau_start_val, possible_tau_start, tau, assign_value_to_tau
+                          t_scale_tau_to_death, scale_tau_to_death_triggered, &
+                          tau_start_val, possible_tau_start, tau, assign_value_to_tau, &
+                          max_death_cpt, max_permitted_spawn
 
     use tc_three_body_data, only: pTriples
 
@@ -32,8 +33,7 @@ module tau_search_conventional
 
     use constants, only: dp, EPS, stdout, n_int, maxExcit
 
-    use CalcData, only: InitiatorWalkNo, MaxWalkerBloom, t_consider_par_bias, tReadPops, &
-                        tTruncInitiator, tWalkContGrow
+    use CalcData, only: InitiatorWalkNo, MaxWalkerBloom, t_consider_par_bias, tTruncInitiator
 
     use util_mod, only: near_zero, operator(.isclose.)
 
@@ -61,7 +61,6 @@ module tau_search_conventional
     logical :: enough_sing = .false., enough_doub = .false., &
                enough_trip = .false., enough_opp = .false., &
                enough_par = .false., consider_par_bias = .false.
-    real(dp) :: gamma_sum, max_permitted_spawn
 
 ! guga-specific:
     integer :: n_opp, n_par
@@ -76,51 +75,31 @@ contains
         !      we screw up the gamma values that have been carefully read in.
 
         ! We want to start off with zero-values
-        gamma_sing = 0.0_dp
-        gamma_doub = 0.0_dp
-        gamma_trip = 0.0_dp
-        gamma_opp = 0.0_dp
-        gamma_par = 0.0_dp
-        if (tReltvy) then
-            gamma_sing_spindiff1 = 0
-            gamma_doub_spindiff1 = 0
-            gamma_doub_spindiff2 = 0
-        end if
-
-        ! And what is the maximum death-component found
-        max_death_cpt = 0
-
-        ! And the counts are used to make sure we don't update anything too
-        ! early
-        cnt_sing = 0
-        cnt_doub = 0
-        cnt_trip = 0
-
-        cnt_opp = 0
-        cnt_par = 0
-        enough_sing = .false.
-        enough_doub = .false.
-        enough_opp = .false.
-        enough_par = .false.
-        enough_trip = .false.
-
-        ! Set the maximum spawn size
-        if (MaxWalkerBloom.isclose.-1._dp) then
-            ! No maximum manually specified, so we set the limit of spawn
-            ! size to either the initiator criterion, or to 5 otherwise
-            if (tTruncInitiator) then
-                max_permitted_spawn = InitiatorWalkNo
-            else
-                max_permitted_spawn = 5.0_dp
+        if (tau_start_val /= possible_tau_start%from_popsfile) then
+            gamma_sing = 0.0_dp
+            gamma_doub = 0.0_dp
+            gamma_trip = 0.0_dp
+            gamma_opp = 0.0_dp
+            gamma_par = 0.0_dp
+            if (tReltvy) then
+                gamma_sing_spindiff1 = 0
+                gamma_doub_spindiff1 = 0
+                gamma_doub_spindiff2 = 0
             end if
-        else
-            ! This is specified manually
-            max_permitted_spawn = real(MaxWalkerBloom, dp)
-        end if
 
-        if (.not.(tReadPops .and. .not. tWalkContGrow)) then
-            write(stdout, "(a,f10.5)") "Will dynamically update timestep to &
-                         &limit spawning probability to", max_permitted_spawn
+            ! And the counts are used to make sure we don't update anything too
+            ! early
+            cnt_sing = 0
+            cnt_doub = 0
+            cnt_trip = 0
+
+            cnt_opp = 0
+            cnt_par = 0
+            enough_sing = .false.
+            enough_doub = .false.
+            enough_opp = .false.
+            enough_par = .false.
+            enough_trip = .false.
         end if
 
         ! Are we considering parallel-spin bias in the doubles?
@@ -310,6 +289,7 @@ contains
         real(dp) :: pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
+        real(dp) :: gamma_sum
 
 
         ASSERT(tau_search_method == possible_tau_search_methods%CONVENTIONAL)

@@ -8,7 +8,7 @@ module guga_pchb_class
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
-    use tau_search, only: max_tau, tau_search_method, possible_tau_search_methods
+    use tau_main, only: max_tau, tau_search_method, possible_tau_search_methods
     use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t

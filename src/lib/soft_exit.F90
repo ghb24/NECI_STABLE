@@ -125,8 +125,9 @@ module soft_exit
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift
-    use tau_search, only: tau_search_method, possible_tau_search_methods, &
-        tau_value => tau, assign_value_to_tau
+    use tau_main, only: tau_search_method, possible_tau_search_methods, &
+        tau_value => tau, assign_value_to_tau, possible_tau_stop_methods, &
+        stop_tau_search
     use tau_search_hist, only: frq_ratio_cutoff, t_fill_frequency_hists
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
@@ -535,14 +536,7 @@ contains
                     call assign_value_to_tau(local_tau, 'Manual change via `CHANGEVARS` file.')
                 end block
                 if (tau_search_method /= possible_tau_search_methods%off) then
-                    if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
-                        t_fill_frequency_hists = .false.
-                    end if
-                    write(stdout, *)
-                    write(stdout, *) 'The current tau search method is: ', trim(tau_search_method%str)
-                    write(stdout, *) 'It is switched off now.'
-                    write(stdout, *)
-                    tau_search_method = possible_tau_search_methods%OFF
+                    call stop_tau_search(possible_tau_stop_methods%changevars)
                 end if
             endif
 

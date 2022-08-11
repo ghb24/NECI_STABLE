@@ -29,7 +29,7 @@ module cont_time
     use FciMCData
     use constants
     use util_mod
-    use tau_search, only: tau
+    use tau_main, only: tau
     implicit none
     save
 

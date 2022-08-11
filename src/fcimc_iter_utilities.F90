@@ -16,9 +16,10 @@ module fcimc_iter_utils
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
 
-    use tau_search, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
+    use tau_main, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
-        tau_stop_method, end_of_search_reached, scale_tau_to_death, tau
+        tau_stop_method, end_of_search_reached, scale_tau_to_death, tau, &
+        stop_tau_search
     use tau_search_hist, only: t_fill_frequency_hists
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
@@ -1252,14 +1253,7 @@ contains
 
         if (tau_search_method /= possible_tau_search_methods%off) then
             if (end_of_search_reached(tau_search_method, tau_stop_method)) then
-                if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
-                    t_fill_frequency_hists = .false.
-                end if
-                write(stdout, *)
-                write(stdout, *) 'The current tau search method is: ', trim(tau_search_method%str)
-                write(stdout, *) 'It is switched off now because of: ', trim(tau_stop_method%str)
-                write(stdout, *)
-                tau_search_method = possible_tau_search_methods%OFF
+                call stop_tau_search(tau_stop_method)
             end if
         end if
     end subroutine update_shift

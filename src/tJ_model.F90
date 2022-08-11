@@ -20,7 +20,7 @@ module tJ_model
 
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
 
-    use tau_search, only: tau_search_method, possible_tau_search_methods, tau, &
+    use tau_main, only: tau_search_method, possible_tau_search_methods, tau, &
         assign_value_to_tau, min_tau, max_tau
 
     use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits

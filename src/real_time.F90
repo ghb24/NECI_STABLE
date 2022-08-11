@@ -81,7 +81,7 @@ module real_time
     use adi_references, only: setup_reference_space
     use adi_data, only: allDoubsInitsDelay, nRefs, tDelayGetRefs
     use core_space_util, only: cs_replicas
-    use tau_search, only: tau, assign_value_to_tau
+    use tau_main, only: tau, assign_value_to_tau
     implicit none
 
 ! main module file for the real-time implementation of the FCIQMC algorithm

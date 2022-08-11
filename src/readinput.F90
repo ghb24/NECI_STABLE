@@ -9,7 +9,7 @@ MODULE ReadInput_neci
     use SystemData, only: lms, user_input_m_s
     use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
-    use tau_search, only: tau_start_val, possible_tau_start, &
+    use tau_main, only: tau_start_val, possible_tau_start, &
         min_tau, max_tau, tau, readpops_but_tau_not_from_popsfile
 
     Implicit none

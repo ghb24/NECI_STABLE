@@ -39,7 +39,7 @@ module k_space_hubbard
 
     use CalcData, only: pParallelIn, pSinglesIn, pDoublesIn
 
-    use tau_search, only: tau, tau_search_method, possible_tau_search_methods, &
+    use tau_main, only: tau, tau_search_method, possible_tau_search_methods, &
         assign_value_to_tau, min_tau, max_tau
 
     use dsfmt_interface, only: genrand_real2_dsfmt

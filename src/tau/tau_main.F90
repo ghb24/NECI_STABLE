@@ -1,6 +1,6 @@
 #include "macros.h"
 
-module tau_search
+module tau_main
     use util_mod, only: EnumBase_t, stop_all, near_zero
     use constants, only: dp, inum_runs, EPS, stdout
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, iProcIndex, root
@@ -20,7 +20,9 @@ module tau_search
               scale_tau_to_death_triggered, t_scale_tau_to_death, &
               max_death_cpt, assign_value_to_tau, &
               stop_options, find_tau_from_refdet_conn, &
-              readpops_but_tau_not_from_popsfile
+              readpops_but_tau_not_from_popsfile, &
+              max_permitted_spawn, &
+              init_tau, finalize_tau, stop_tau_search
 
     protected :: tau
 
@@ -58,7 +60,8 @@ module tau_search
             max_eq_iter = StopMethod_t(3, 'n-th iteration after variable shift reached'), &
             no_change = StopMethod_t(4, 'n iterations without change of tau'), &
             n_opts = StopMethod_t(5, 'n optimizations of tau'), &
-            off = StopMethod_t(6, 'Off')
+            changevars = StopMethod_t(6, 'Manual change via `CHANGEVARS` file'), &
+            off = StopMethod_t(7, 'Off')
     end type
 
     type(PossibleStopMethods_t), parameter :: possible_tau_stop_methods = PossibleStopMethods_t()
@@ -110,7 +113,8 @@ module tau_search
     real(dp) :: min_tau = 0._dp, max_tau = huge(max_tau), taufactor = 0._dp
 
     logical :: scale_tau_to_death_triggered = .false., t_scale_tau_to_death = .false.
-    real(dp) :: max_death_cpt = 0._dp
+    real(dp) :: max_death_cpt = 0._dp, max_permitted_spawn
+
 
     logical :: readpops_but_tau_not_from_popsfile = .false.
 
@@ -118,11 +122,19 @@ module tau_search
         ! This is implemented in a submodule
         module subroutine find_tau_from_refdet_conn()
         end subroutine
+
+        module subroutine init_tau()
+        end subroutine
+
+        module subroutine stop_tau_search(stop_method)
+            type(StopMethod_t), intent(in) :: stop_method
+        end subroutine
+
+        module subroutine finalize_tau()
+        end subroutine
     end interface
 
 contains
-
-    ! TODO(@Oskar): implement reinit as well
 
     elemental function end_of_search_reached(curr_tau_search_method, stop_method) result(res)
         type(TauSearchMethod_t), intent(in) :: curr_tau_search_method

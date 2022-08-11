@@ -54,7 +54,7 @@ module real_time_procs
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
-    use tau_search, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
+    use tau_main, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
         tau, assign_value_to_tau
     use tau_search_conventional, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac

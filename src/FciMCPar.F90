@@ -135,8 +135,8 @@ module FciMCParMod
                               measure_double_occ_and_spin_diff, rezero_spin_diff, &
                               write_spin_diff_stats, write_spat_doub_occ_stats, &
                               all_sum_double_occ, calc_double_occ_from_rdm
-    use tau_search, only: tau_search_method, input_tau_search_method, possible_tau_search_methods
-    use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
+    use tau_main, only: tau_search_method, input_tau_search_method, possible_tau_search_methods
+    use tau_search_hist, only: print_frequency_histograms, finalize_hist_tau_search
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
@@ -851,7 +851,7 @@ contains
                 call print_frequency_histograms()
 
                 ! also deallocate here after no use of the histograms anymore
-                call deallocate_histograms()
+                call finalize_hist_tau_search()
             end if
         end if
 

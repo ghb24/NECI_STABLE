@@ -51,7 +51,7 @@ module verlet_aux
 
     use MPI_wrapper, only: iProcIndex
 
-    use tau_search, only: tau, assign_value_to_tau
+    use tau_main, only: tau, assign_value_to_tau
 
     implicit none
 

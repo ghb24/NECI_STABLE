@@ -41,12 +41,12 @@ MODULE PopsfileMod
                            tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod
-    use tau_search, only: input_tau_search_method, tau_search_method, &
+    use tau_main, only: input_tau_search_method, tau_search_method, &
         possible_tau_search_methods, max_death_cpt, tau_start_val, possible_tau_start, &
         t_scale_tau_to_death, min_tau, max_tau, tau, assign_value_to_tau
     use tau_search_conventional, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                           gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, gamma_trip
-    use tau_search_hist, only: deallocate_histograms, t_fill_frequency_hists
+    use tau_search_hist, only: finalize_hist_tau_search, t_fill_frequency_hists
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
                          t_initialized_roi, ilutref, perturbation, CurrentDets, AllSumENum, &
                          AllSumNoatHF, tSinglePartPhase, ProjEDet, SumNoatHF, ValidSpawnedList, &

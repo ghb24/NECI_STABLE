@@ -63,10 +63,10 @@ module fcimc_initialisation
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
 
-    use tau_search, only: tau_search_method, input_tau_search_method, &
-        possible_tau_search_methods, tau_start_val, possible_tau_start, &
+    use tau_main, only: tau_search_method, &
+        tau_start_val, possible_tau_start, &
         max_death_cpt, min_tau, max_tau, tau, taufactor, &
-        assign_value_to_tau, find_tau_from_refdet_conn
+        assign_value_to_tau, init_tau
 
     use tau_search_hist, only: init_hist_tau_search
 
@@ -1763,24 +1763,7 @@ contains
                               "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
-        if (tau_start_val == possible_tau_start%refdet_connections) then
-            call find_tau_from_refdet_conn()
-        end if
-
-        if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
-            call init_tau_search_conventional()
-        else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
-            call init_hist_tau_search()
-        else
-            ! Add a couple of checks for sanity
-            if (nOccAlpha == 0 .or. nOccBeta == 0) then
-                pParallel = 1.0_dp
-            end if
-            if (nOccAlpha == 1 .and. nOccBeta == 1) then
-                pParallel = 0.0_dp
-            end if
-        end if
-
+        call init_tau()
 
         IF ((NMCyc /= 0) .and. (tRotateOrbs .and. (.not. tFindCINatOrbs))) then
             CALL Stop_All(this_routine, "Currently not set up to rotate and then go straight into a spawning &

@@ -87,7 +87,7 @@ module semi_stoch_procs
 
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
 
-    use tau_search, only: tau
+    use tau_main, only: tau
 
     implicit none
 

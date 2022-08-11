@@ -32,7 +32,7 @@ MODULE Calc
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
                          user_input_max_davidson_iters
-    use tau_search, only:  &
+    use tau_main, only:  &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         tau_stop_method, possible_tau_stop_methods, &
         min_tau, max_tau, tau_start_val, possible_tau_start, &

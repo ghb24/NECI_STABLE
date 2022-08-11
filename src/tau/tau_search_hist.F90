@@ -11,8 +11,8 @@ module tau_search_hist
                           t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits, &
                           tGAS, t_pchb_excitgen
 
-    use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, &
-                        InitiatorWalkNo, tWalkContGrow, &
+    use CalcData, only: tTruncInitiator, MaxWalkerBloom, &
+                        InitiatorWalkNo, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
                         t_consider_par_bias
 
@@ -25,9 +25,11 @@ module tau_search_hist
 
     use constants, only: dp, EPS, stdout, maxExcit, int64
 
-    use tau_search, only: tau, min_tau, max_tau, possible_tau_search_methods, &
-                          tau_search_method, input_tau_search_method, scale_tau_to_death_triggered, &
-                          max_death_cpt, tau_start_val, possible_tau_start, assign_value_to_tau
+    use tau_main, only: tau, min_tau, max_tau, possible_tau_search_methods, &
+                    tau_search_method, input_tau_search_method, scale_tau_to_death_triggered, &
+                    tau_start_val, possible_tau_start, assign_value_to_tau, max_death_cpt, &
+                    max_permitted_spawn
+
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -42,7 +44,7 @@ module tau_search_hist
 
     implicit none
     private
-    public :: deallocate_histograms, fill_frequency_histogram_4ind, &
+    public :: finalize_hist_tau_search, fill_frequency_histogram_4ind, &
               fill_frequency_histogram_sd, &
               fill_frequency_histogram, init_hist_tau_search, update_tau_hist, &
               print_frequency_histograms
@@ -54,7 +56,6 @@ module tau_search_hist
 
     ! variables which i might have to define differently:
     logical :: consider_par_bias
-    real(dp) :: max_permitted_spawn
     integer :: n_opp, n_par
     ! do i have to define this here or in the CalcData:??
     integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist, cnt_trip_hist
@@ -207,7 +208,6 @@ contains
 
         integer :: ierr
 
-        ! at the beginning to some inut checking:
         if (.not. input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING ) then
             write(stdout, '(A)') 'init_hist_tau_search called but &
                 &HISTOGRAMMING was not given as tau-search method'
@@ -220,15 +220,6 @@ contains
             write(stdout, '("WARNING: NO spawn truncation chosen with keyword: &
                 &truncate-spawns [float] in input. this might cause &
                 &bloom problems with histogramming tau-search! BE CAUTIOUS!")')
-        end if
-
-        ! i have to check if i am restarting or i do a fresh calculation:
-        if (tReadPops) then
-            ! TODO i have to figure out what exactly to do in this case!
-            ! maybe use Pablos idea of storing histograms always and checking
-            ! here if a histogram is present and then calculating the
-            ! time-step and psingles etc. from it!
-            ! and also output the read-in or calculated quantities here!
         end if
 
         if (tHub) then
@@ -371,8 +362,7 @@ contains
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body) .or. &
                 (t_new_real_space_hubbard .and. .not. t_trans_corr_hop)) then
                 ! only one histogram is used!
-                allocate(frequency_bins(n_frequency_bins), stat=ierr)
-                frequency_bins = 0
+                allocate(frequency_bins(n_frequency_bins), stat=ierr, source=0)
 
                 call LogMemAlloc('frequency_bins', n_frequency_bins, 4, &
                                  this_routine, mem_tag_histograms, ierr)
@@ -392,50 +382,18 @@ contains
             allocate(frequency_bins_triples(n_frequency_bins), source=0)
         end if
 
-        ! also need to setup all the other quantities necessary for the
-        ! "normal" tau-search if they have not yet been setup if we only
-        ! use the new tau-search
-
-        ! And what is the maximum death-component found
-        max_death_cpt = 0
-
-        ! And the counts are used to make sure we don't update anything too
-        ! early
-        ! should we use the same variables in both tau-searches??
-
-        ! Set the maximum spawn size
-        if (MaxWalkerBloom .isclose. -1._dp) then
-            ! No maximum manually specified, so we set the limit of spawn
-            ! size to either the initiator criterion, or to 5 otherwise
-            if (tTruncInitiator) then
-                max_permitted_spawn = InitiatorWalkNo
-            else
-                ! change here to the "old" algorithm, since the time-step
-                ! will be orders of magnitude larger we should limit
-                ! the max_permitted_spawn to 1. (or 2 maybe.. lets see!)
-                max_permitted_spawn = 1.0_dp
-            end if
-        else
-            ! This is specified manually
-            max_permitted_spawn = real(MaxWalkerBloom, dp)
-        end if
-
-        if (.not.(tReadPops .and. .not. tWalkContGrow)) then
-            write(stdout, "(a,f10.5)") "Will dynamically update timestep to &
-                         &limit spawning probability to", max_permitted_spawn
-        end if
-
         if (t_log_ija) then
             ! allocate the new bins (although i am not sure i should do this
             ! here..
             ! change the logging of these functions to sepereate between the
             ! different sorts of excitations and log them through spatial orbitals!
-            allocate(ija_bins_sing(nBasis / 2)); ija_bins_sing = 0
-            allocate(ija_bins_para(nBasis / 2, nBasis / 2, nBasis / 2)); ija_bins_para = 0
-            allocate(ija_bins_anti(nBasis / 2, nBasis / 2, nBasis / 2)); ija_bins_anti = 0
-            allocate(ija_orbs_sing(nBasis / 2)); ija_orbs_sing = 0
-            allocate(ija_orbs_para(nBasis / 2, nBasis / 2, nBasis / 2)); ija_orbs_para = 0
-            allocate(ija_orbs_anti(nBasis / 2, nBasis / 2, nBasis / 2)); ija_orbs_anti = 0
+            allocate(ija_bins_sing(nBasis / 2), &
+                    ija_bins_para(nBasis / 2, nBasis / 2, nBasis / 2), &
+                    ija_bins_anti(nBasis / 2, nBasis / 2, nBasis / 2), &
+                    ija_orbs_sing(nBasis / 2), &
+                    ija_orbs_para(nBasis / 2, nBasis / 2, nBasis / 2), &
+                    ija_orbs_anti(nBasis / 2, nBasis / 2, nBasis / 2), &
+                source=0)
 
             root_print "Logging dead-end (a|ij) excitations below threshold: ", ija_thresh
 
@@ -1859,9 +1817,8 @@ contains
 
     end subroutine print_frequency_histograms
 
-    subroutine deallocate_histograms
-        ! TODO: also do mem-logging here and in the allocation!
-        character(*), parameter :: this_routine = "deallocate_histograms"
+    subroutine finalize_hist_tau_search
+        character(*), parameter :: this_routine = "finalize_hist_tau_search"
 
         call LogMemDealloc(this_routine, mem_tag_histograms)
         if (allocated(frequency_bins)) deallocate(frequency_bins)
@@ -1871,7 +1828,7 @@ contains
         if (allocated(frequency_bins_anti)) deallocate(frequency_bins_anti)
         if (allocated(frequency_bins_triples)) deallocate(frequency_bins_triples)
 
-    end subroutine deallocate_histograms
+    end subroutine finalize_hist_tau_search
 
     subroutine integrate_frequency_histogram_spec(spec_frequency_bins, ratio)
         ! specific histogram integration routine which sums up the inputted

@@ -162,10 +162,10 @@ set( SRC_FILES
     symrandexcit_ueg.F90
     SystemData.F90
     System_neci.F90
-    tau_search/tau_search.F90
-    tau_search/tau_search_impls.F90
-    tau_search/tau_search_conventional.F90
-    tau_search/tau_search_hist.F90
+    tau/tau_main.F90
+    tau/tau_main_impls.F90
+    tau/tau_search_conventional.F90
+    tau/tau_search_hist.F90
     tc_three_body_data.F90
     tc_three_body_excitgen.F90
     trial_wf_gen.F90

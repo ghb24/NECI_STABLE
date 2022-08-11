@@ -14,7 +14,7 @@ module replica_estimates
     use sort_mod
     use SystemData, only: NEl
     use core_space_util, only: cs_replicas, min_pt
-    use tau_search, only: tau
+    use tau_main, only: tau
     implicit none
 
 contains

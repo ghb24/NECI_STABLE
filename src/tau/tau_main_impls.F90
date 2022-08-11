@@ -1,12 +1,14 @@
 #include "macros.h"
-submodule(tau_search) tau_search_impls
+submodule(tau_main) tau_main_impls
     use constants, only: n_int, maxexcit
 
-    use FciMCData, only: ProjEDet, ilutRef, pDoubles
+    use FciMCData, only: ProjEDet, ilutRef, pDoubles, pParallel
 
-    use CalcData, only: InitiatorWalkNo, MaxWalkerBloom, tTruncInitiator
+    use CalcData, only: InitiatorWalkNo, MaxWalkerBloom, tTruncInitiator, &
+        tReadPops, tWalkContGrow
 
-    use SystemData, only: t_k_space_hubbard, t_trans_corr_2body, tReltvy, tGUGA
+    use SystemData, only: t_k_space_hubbard, t_trans_corr_2body, tReltvy, tGUGA, &
+        nOccAlpha, nOccBeta
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
@@ -47,9 +49,75 @@ submodule(tau_search) tau_search_impls
 
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
 
+    use tau_search_conventional, only: init_tau_search_conventional
+
+    use tau_search_hist, only: init_hist_tau_search, finalize_hist_tau_search, t_fill_frequency_hists
+
     better_implicit_none
 
 contains
+
+    subroutine init_tau()
+        ! And what is the maximum death-component found
+        max_death_cpt = 0
+
+        ! Set the maximum spawn size
+        if (MaxWalkerBloom .isclose. -1._dp) then
+            ! No maximum manually specified, so we set the limit of spawn
+            ! size to either the initiator criterion, or to 5 otherwise
+            if (tTruncInitiator) then
+                max_permitted_spawn = InitiatorWalkNo
+            else
+                max_permitted_spawn = 5.0_dp
+            end if
+        else
+            ! This is specified manually
+            max_permitted_spawn = real(MaxWalkerBloom, dp)
+        end if
+
+        if (.not. (tReadPops .and. .not. tWalkContGrow)) then
+            write(stdout, "(a,f10.5)") "Will dynamically update timestep to &
+                         &limit spawning probability to", max_permitted_spawn
+        end if
+
+
+        if (tau_start_val == possible_tau_start%refdet_connections) then
+            call find_tau_from_refdet_conn()
+        end if
+
+        if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
+            call init_tau_search_conventional()
+        else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+            call init_hist_tau_search()
+        else
+            ! Add a couple of checks for sanity
+            if (nOccAlpha == 0 .or. nOccBeta == 0) then
+                pParallel = 1.0_dp
+            end if
+            if (nOccAlpha == 1 .and. nOccBeta == 1) then
+                pParallel = 0.0_dp
+            end if
+        end if
+
+    end subroutine
+
+    subroutine stop_tau_search(stop_method)
+        type(StopMethod_t), intent(in) :: stop_method
+        if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+            t_fill_frequency_hists = .false.
+        end if
+        write(stdout, *)
+        write(stdout, *) 'The current tau search method is: ', trim(tau_search_method%str)
+        write(stdout, *) 'It is switched off now because of: ', trim(stop_method%str)
+        write(stdout, *)
+        tau_search_method = possible_tau_search_methods%OFF
+    end subroutine
+
+    subroutine finalize_tau()
+        call finalize_tau_main()
+!         call finalize_tau_search_conventional()
+        call finalize_hist_tau_search()
+    end subroutine
 
     module subroutine find_tau_from_refdet_conn()
 
@@ -325,7 +393,26 @@ contains
                                             &may be inappropriate. Care needed"
         end if
         call assign_value_to_tau(new_tau, this_routine)
-
     end subroutine hubbard_find_tau_from_refdet_conn
+
+    subroutine finalize_tau_main()
+        !! Resets the values
+        tau = 0._dp
+        tau_search_method = possible_tau_search_methods%OFF
+        if (allocated(input_tau_search_method)) deallocate(input_tau_search_method)
+        tau_stop_method = possible_tau_stop_methods%var_shift
+        search_data = TauSearchData_t()
+        stop_options = StopOptions_t()
+        if (allocated(tau_start_val)) deallocate(tau_start_val)
+        min_tau = 0._dp
+        max_tau = huge(max_tau)
+        taufactor = 0._dp
+        scale_tau_to_death_triggered = .false.
+        t_scale_tau_to_death = .false.
+        max_death_cpt = 0._dp
+        readpops_but_tau_not_from_popsfile = .false.
+    end subroutine
+
+
 
 end submodule

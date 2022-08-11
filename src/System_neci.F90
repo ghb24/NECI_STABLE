@@ -51,7 +51,7 @@ MODULE System
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
 
-    use tau_search, only: tau, assign_value_to_tau
+    use tau_main, only: tau, assign_value_to_tau
 
     IMPLICIT NONE
 

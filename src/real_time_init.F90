@@ -65,7 +65,7 @@ module real_time_init
     use bit_rep_data, only: IlutBits, niftot, extract_sign, nifd
     use bit_reps, only: decode_bit_det
     use adi_references, only: setup_reference_space
-    use tau_search, only: tau, assign_value_to_tau
+    use tau_main, only: tau, assign_value_to_tau
 
     implicit none
 
