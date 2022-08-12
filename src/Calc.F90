@@ -1269,21 +1269,21 @@ contains
                     case("START")
                         w = to_upper(tokens%next())
                         select case(w)
-                        case("USER-DEFINED")
-                            tau_start_val = possible_tau_start%user_given
-                            call assign_value_to_tau(to_realdp(tokens%next()), 'Initialization from user-defined value.')
-                        case("FROM-POPSFILE")
-                            tau_start_val = possible_tau_start%from_popsfile
-                        case("TAU-FACTOR")
-                            tau_start_val = possible_tau_start%tau_factor
-                            TauFactor = to_realdp(tokens%next())
-                        case("REFDET-CONNECTIONS")
-                            tau_start_val = possible_tau_start%refdet_connections
                         case("DETERMINISTIC")
                             tau_start_val = possible_tau_start%deterministic
+                        case("FROM-POPSFILE")
+                            tau_start_val = possible_tau_start%from_popsfile
                         case("NOT-NEEDED")
                             ! The user explicitly says, that tau is not required.
                             tau_start_val = possible_tau_start%not_needed
+                        case("REFDET-CONNECTIONS")
+                            tau_start_val = possible_tau_start%refdet_connections
+                        case("TAU-FACTOR")
+                            tau_start_val = possible_tau_start%tau_factor
+                            TauFactor = to_realdp(tokens%next())
+                        case("USER-DEFINED")
+                            tau_start_val = possible_tau_start%user_given
+                            call assign_value_to_tau(to_realdp(tokens%next()), 'Initialization from user-defined value.')
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select
@@ -1343,20 +1343,20 @@ contains
                     case("STOP-CONDITION")
                         w = to_upper(tokens%next())
                         select case(w)
-                        case("VAR-SHIFT")
-                            tau_stop_method = possible_tau_stop_methods%var_shift
-                        case("MAX-ITER")
-                            tau_stop_method = possible_tau_stop_methods%max_iter
-                            stop_options%max_iter = nint(to_realdp(tokens%next()))
                         case("MAX-EQ-ITER")
                             tau_stop_method = possible_tau_stop_methods%max_eq_iter
                             stop_options%max_eq_iter = nint(to_realdp(tokens%next()))
+                        case("MAX-ITER")
+                            tau_stop_method = possible_tau_stop_methods%max_iter
+                            stop_options%max_iter = nint(to_realdp(tokens%next()))
                         case("NO-CHANGE")
                             tau_stop_method = possible_tau_stop_methods%no_change
                             stop_options%max_iter_without_change = nint(to_realdp(tokens%next()))
                         case("N-OPTS")
                             tau_stop_method = possible_tau_stop_methods%n_opts
                             stop_options%max_n_opts = nint(to_realdp(tokens%next()))
+                        case("VAR-SHIFT")
+                            tau_stop_method = possible_tau_stop_methods%var_shift
                         case("OFF")
                             tau_stop_method = possible_tau_stop_methods%off
                         case default

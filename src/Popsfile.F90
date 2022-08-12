@@ -1145,7 +1145,7 @@ contains
             AllSumENum = 0.0_dp
             AllSumNoatHF = 0
         ENDIF
-        if (abs(read_tau) < 1.0e-12_dp) then
+        if (near_zero(read_tau)) then
             !Using popsfile v.3, where tau is not written out.
             !Exit if trying to dynamically search for timestep
             if (tau_start_val == possible_tau_start%from_popsfile) then

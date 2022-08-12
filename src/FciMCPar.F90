@@ -853,8 +853,6 @@ contains
             end if
         end if
 
-        call finalize_tau()
-
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
         end if
@@ -974,6 +972,8 @@ contains
             if (tLogEXLEVELStats) close(EXLEVELStats_unit)
         end if
         IF (TDebug) close(11)
+
+        call finalize_tau()
 
         if (tHistSpawn) then
             close(Tot_Unique_Dets_Unit)

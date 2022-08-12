@@ -157,7 +157,7 @@ contains
             else if (stop_method == possible_tau_stop_methods%max_iter) then
                 res = iter >= stop_options%max_iter
             else if (stop_method == possible_tau_stop_methods%max_eq_iter) then
-                res = (iter - maxval(VaryShiftIter)) >= stop_options%max_eq_iter
+                res = any(.not. tSinglePartPhase) .and. (iter - maxval(VaryShiftIter)) >= stop_options%max_eq_iter
             else if (stop_method == possible_tau_stop_methods%no_change) then
                 res = (iter - search_data%last_change_of_tau) >= stop_options%max_iter_without_change
             else if (stop_method == possible_tau_stop_methods%n_opts) then
