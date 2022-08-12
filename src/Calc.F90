@@ -1287,12 +1287,12 @@ contains
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select
-                    case("READPOPS-BUT-TAU-NOT-FROM-POPSFILE")
-                        readpops_but_tau_not_from_popsfile = .true.
                     case("MIN")
                         min_tau = to_realdp(tokens%next())
                     case("MAX")
                         max_tau = to_realdp(tokens%next())
+                    case("READPOPS-BUT-TAU-NOT-FROM-POPSFILE")
+                        readpops_but_tau_not_from_popsfile = .true.
                     case default
                         call stop_all(this_routine, "Invalid sub-keyword "//w)
                     end select
