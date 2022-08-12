@@ -719,6 +719,37 @@ and ends with the `endcalc` keyword.
     in a single attempt, with the scaling being guessed from previous
     spawning attempts.
 
+
+##### Example inputs for \(\Delta \tau\)
+
+The following input start with \(\Delta \tau = \SI{0.2}{\hbar \per \hartree} \cdot \I\)
+and keeps its value between \(\SI{0.1}{\hbar \per \hartree} \cdot \I\)
+and \(\SI{0.3}{\hbar \per \hartree} \cdot \I\).
+The conventional \(\Delta \tau\)-search that is
+stopped if there was no change of \(\Delta \tau\) for 1000 iterations.
+
+        tau-values \
+            start user-defined 0.2 \
+            min 0.1 \
+            max 0.3
+
+        tau-search \
+            algorithm conventional \
+            stop-condition no-change 1000
+
+The following input start with \(\Delta \tau \) from a popsfile.
+The histogramming \(\Delta \tau \)-search
+is performed with \(c = 0.9999, n_{\text{bins}} = 1000, b = 2000 \)
+and is stopped after 10000 iterations.
+
+        tau-values \
+            start from-popsfile
+
+        tau-search \
+            algorithm histogramming 1e-4 1000 2000 \
+            stop-condition max-iter 10000
+
+
 #### Wave function initialization options
 
 -   **\textcolor{blue}{walkContGrow}**<br>
