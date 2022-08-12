@@ -1226,11 +1226,7 @@ contains
             ! memory limitations.. but i think we do not actually need it.
             CALL CalcApproxpDoubles()
         end if
-        IF (abs(TauFactor) > 1.0e-12_dp) THEN
-            if (t_trans_corr_2body .and. t_k_space_hubbard) then
-                call Stop_All(this_routine, &
-                              "finding the number of excits from HF breaks for too large lattice")
-            end if
+        IF (tau_start_val == possible_tau_start%tau_factor) THEN
             write(stdout, *) "TauFactor detected. Resetting Tau based on connectivity of: ", HFConn
             call assign_value_to_tau(TauFactor / REAL(HFConn, dp), 'Initialization from Tau-Factor.')
         end if

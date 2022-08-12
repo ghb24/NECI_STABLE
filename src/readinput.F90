@@ -6,7 +6,7 @@ MODULE ReadInput_neci
     use constants, only: stdout, stdin
     use util_mod, only: operator(.implies.)
     Use Determinants, only: tDefineDet, DefDet
-    use SystemData, only: lms, user_input_m_s
+    use SystemData, only: lms, user_input_m_s, t_k_space_hubbard, t_trans_corr_2body
     use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     use tau_main, only: tau_start_val, possible_tau_start, &
@@ -697,7 +697,7 @@ contains
         end block
 
 
-        block
+        time_step: block
             if (.not. allocated(tau_start_val)) then
                 call stop_all(t_r, 'Start value for tau is required.')
             end if
@@ -714,12 +714,17 @@ contains
                 end if
             end if
 
+            if (tau_start_val == possible_tau_start%tau_factor &
+                    .and. t_trans_corr_2body .and. t_k_space_hubbard) then
+                call stop_all(this_routine, &
+                              "finding the number of excits from HF breaks for too large lattice.")
+            end if
+
             if (tau_start_val == possible_tau_start%refdet_connections .and. tGUGA) then
                 call stop_all(this_routine, &
                               "tau-values start refdet-connections is not compatible with GUGA calculations!")
             end if
-        end block
-
+        end block time_step
 
     end subroutine checkinput
 
