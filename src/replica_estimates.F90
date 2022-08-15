@@ -14,6 +14,7 @@ module replica_estimates
     use sort_mod
     use SystemData, only: NEl
     use core_space_util, only: cs_replicas, min_pt
+    use tau_main, only: tau
     implicit none
 
 contains
@@ -81,8 +82,6 @@ contains
     end subroutine get_ests_from_spawns_simple
 
     subroutine get_proj_e_for_preconditioner(ValidSpawned, proj_energy)
-
-        use CalcData, only: tau
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(out) :: proj_energy(lenof_sign)
@@ -172,7 +171,7 @@ contains
         ! walker dynamics - it doesn't just calculate some energies
         ! without affecting walkers. This step is done here for efficiency.
 
-        use CalcData, only: tau, tEN2Init, tEN2Rigorous, tTruncInitiator
+        use CalcData, only: tEN2Init, tEN2Rigorous, tTruncInitiator
         use global_det_data, only: det_diagH, replica_est_len
         use semi_stoch_procs, only: core_space_pos, check_determ_flag
 
@@ -476,7 +475,7 @@ contains
         ! This routine calculates the various energy estimates to be printed
         ! to the file for the preconditioned approach.
 
-        use CalcData, only: tau, tEN2Init, tEN2Rigorous, tTruncInitiator
+        use CalcData, only: tEN2Init, tEN2Rigorous, tTruncInitiator
         use global_det_data, only: det_diagH, replica_est_len
         use semi_stoch_procs, only: core_space_pos, check_determ_flag
 

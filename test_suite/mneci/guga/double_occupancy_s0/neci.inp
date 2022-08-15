@@ -21,7 +21,8 @@ calc
     seed -7
     allrealcoeff
 
-    tau 0.001
+    tau-values \
+        start user-defined 0.001
     truncinitiator
     addtoinitiator 3
     totalwalkers 100

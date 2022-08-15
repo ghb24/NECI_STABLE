@@ -40,13 +40,13 @@ module real_time_init
     use kp_fciqmc_data_mod, only: tMultiplePopStart, tScalePopulation, &
                                   tOverlapPert, overlap_pert, scaling_factor
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, tJumpShift, &
-                        tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
+                        tStartSinglePart, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
                         StepsSft, tSemiStochastic, tTruncInitiator, tAddToInitiator
-    use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
+    use FciMCData, only: alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
-                         MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
+                         MaxSpawned, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets, &
                          SpawnedParts, core_run
     use core_space_util, only: cs_replicas
@@ -65,6 +65,7 @@ module real_time_init
     use bit_rep_data, only: IlutBits, niftot, extract_sign, nifd
     use bit_reps, only: decode_bit_det
     use adi_references, only: setup_reference_space
+    use tau_main, only: tau, assign_value_to_tau
 
     implicit none
 
@@ -271,7 +272,7 @@ contains
         if (tVerletScheme) then
             call setup_delta_psi()
             call backup_initial_state()
-            tau = tau / iterInit
+            call assign_value_to_tau(tau / iterInit, this_routine)
         end if
 
         if (tStaticShift) DiagSft = asymptoticShift
@@ -386,9 +387,6 @@ contains
 
         ! energy offset
         benchmarkEnergy = 0.0_dp
-
-        ! for the start definetly not change tau
-        ! tSearchTau = .true.
 
         ! also set readpops to get the <y(0)| reference from the "normal"
         ! neci init routines

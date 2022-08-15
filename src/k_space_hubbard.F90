@@ -35,16 +35,16 @@ module k_space_hubbard
 
     use real_space_hubbard, only: lat_tau_factor
 
-    use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
-                         excit_gen_store_type, pSingles
+    use fcimcdata, only: pDoubles, pParallel, excit_gen_store_type, pSingles
 
-    use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, &
-                        t_fill_frequency_hists, pParallelIn, pSinglesIn, pDoublesIn
+    use CalcData, only: pParallelIn, pSinglesIn, pDoublesIn
+
+    use tau_main, only: tau, tau_search_method, possible_tau_search_methods, &
+        assign_value_to_tau, min_tau, max_tau
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use util_mod, only: binary_search_first_ge, binary_search_ilut, near_zero, &
-                        operator(.isclose.), operator(.div.)
+    use util_mod, only: near_zero, operator(.isclose.), clamp, operator(.div.)
 
     use get_excit, only: make_double
 
@@ -380,12 +380,9 @@ contains
         tau_opt = determine_optimal_time_step()
 
         if (tau < EPS) then
-            if (iProcIndex == root) then
-                print *, "setting time-step to optimally determined time-step: ", tau_opt
-                print *, "times: ", lat_tau_factor
-            end if
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(&
+                clamp(lat_tau_factor * tau_opt, min_tau, max_tau), &
+                'Initialization with optimal tau value')
         else
             if (iProcIndex == root) then
                 print *, "optimal time-step would be: ", tau_opt
@@ -404,15 +401,9 @@ contains
         ! in the transcorrelated case or if i messed it up due to the
         ! non-hermitian character of the hamiltonian
         if (.not. (t_trans_corr_2body .or. t_trans_corr .or. tGUGA)) then
-            ! but in the "normal" hubbard model, still turn it off as it is
-            ! unnecessary!
-            tsearchtau = .false.
-            tsearchtauoption = .true.
-
-            t_hist_tau_search = .false.
-            t_hist_tau_search_option = .false.
-
-            t_fill_frequency_hists = .false.
+            if (tau_search_method /= possible_tau_search_methods%OFF) then
+                call stop_all(this_routine, "tau-search should be switched off")
+            end if
         end if
 
         if (associated(lat)) then

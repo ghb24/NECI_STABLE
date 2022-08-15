@@ -44,7 +44,9 @@ contains
 
             call assert_true(file_reader%nextline(tokens, skip_empty=.true.))
             call assert_equals(2, tokens%remaining_items())
+            call assert_equals('System', tokens%glimpse())
             call assert_equals('System', tokens%next())
+            call assert_equals('read', to_lower(tokens%glimpse()))
             call assert_equals('read', to_lower(tokens%next()))
             call assert_equals(1, file_reader%get_current_line())
             call assert_equals(0, tokens%remaining_items())

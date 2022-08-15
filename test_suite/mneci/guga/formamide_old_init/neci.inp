@@ -1,46 +1,49 @@
 title
 
 system read noorder
-symignoreenergies
-freeformat
-electrons 18
-sym 0 0 0 0
-nonuniformrandexcits mol_guga_weighted
-guga 0
-nobrillouintheorem
-system-replicas 2
+    symignoreenergies
+    freeformat
+    electrons 18
+    sym 0 0 0 0
+    nonuniformrandexcits mol_guga_weighted
+    guga 0
+    nobrillouintheorem
+    system-replicas 2
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-memoryfacpart 5.0
-memoryfacspawn 10.0
-memoryfachash 1.0
-nmcyc 100
-seed 8761
-startsinglepart 2000
-totalwalkers 5000
-shiftdamp 0.05
-diagshift 0.0
-truncinitiator
-addtoinitiator 3
-maxwalkerbloom 3
-allrealcoeff
-realspawncutoff 0.0
-stepsshift 1
-load-balance-blocks off
-tau 0.0005 search
-en2-initiator
+    methods
+        method vertex fcimc
+    endmethods
+    memoryfacpart 5.0
+    memoryfacspawn 10.0
+    memoryfachash 1.0
+    nmcyc 100
+    seed 8761
+    startsinglepart 2000
+    totalwalkers 5000
+    shiftdamp 0.05
+    diagshift 0.0
+    truncinitiator
+    addtoinitiator 3
+    maxwalkerbloom 3
+    allrealcoeff
+    realspawncutoff 0.0
+    stepsshift 1
+    load-balance-blocks off
+    tau-values \
+        start user-defined 0.0005
+    tau-search \
+        algorithm conventional
+    en2-initiator
 endcalc
 
 integral
-freeze 0 0
+    freeze 0 0
 endint
 
 logging
-paired-replicas
-popsfile -1
+    paired-replicas
+    popsfile -1
 endlog
 end

@@ -3,9 +3,10 @@
 #:include "../macros.fpph"
 
 #:set countable_types = {'integer': {'int32', 'int64'}}
-#:set primitive_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
+#:set field_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
+#:set ordered_field_types = {key: field_types[key] for key in ['integer', 'real']}
 #:set log_entry = {'logical':{''}}
-#:set extended_types = dict(primitive_types, **log_entry)
+#:set extended_types = dict(field_types, **log_entry)
 #:set ops = {'integer': '==', 'real': '.isclose.', 'complex': '.isclose.', 'logical': '.eqv.'}
 
 module util_mod
@@ -52,7 +53,7 @@ module util_mod
         find_next_comb, binary_search_ilut, binary_search_custom, binary_search_first_ge, &
         cumsum, pairswap, swap, lex_leq, lex_geq, &
         get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
-        getSpinIndex, binary_search_int, binary_search_real
+        getSpinIndex, binary_search_int, binary_search_real, clamp
 
     public :: EnumBase_t
 
@@ -70,7 +71,7 @@ module util_mod
     end interface
 
     interface binary_search_int
-    #:for kind in primitive_types['integer']
+    #:for kind in field_types['integer']
         module procedure binary_search_int_${kind}$
     #:endfor
     end interface
@@ -80,19 +81,29 @@ module util_mod
     end interface
 
     interface choose_i64
-    #:for kind in primitive_types['integer']
+    #:for kind in field_types['integer']
         module procedure choose_i64_${kind}$
     #:endfor
     end interface
 
 #ifdef GFORTRAN_
     interface choose_i128
-    #:for kind in primitive_types['integer']
+    #:for kind in field_types['integer']
         module procedure choose_i128_${kind}$
     #:endfor
     end interface
 #endif
 
+    interface clamp
+        !! If v compares less than lo, returns lo;
+        !! otherwise if hi compares less than v, returns hi; otherwise returns v.
+        !! Is also defined for lo > hi!
+        #:for type, kinds in ordered_field_types.items()
+        #:for kind in kinds
+            module procedure clamp_${type}$_${kind}$
+        #:endfor
+        #:endfor
+    end interface
 
     interface
         pure function strlen_wrap(str) result(len) bind(c)
@@ -161,7 +172,7 @@ module util_mod
     end interface custom_findloc
 
     interface cumsum
-        #:for type, kinds in primitive_types.items()
+        #:for type, kinds in field_types.items()
         #:for kind in kinds
         module procedure cumsum_${type}$_${kind}$
         #:endfor
@@ -549,7 +560,7 @@ contains
             get_index = gauss_sum((n - 3) .div. 2) + gauss_sum((n - 4) .div. 2) + k - 1
         end function
 
-#:for kind in primitive_types['integer']
+#:for kind in field_types['integer']
     ! Unfortunately there are no recursive elemental functions in Fortran.
     recursive pure function choose_i64_${kind}$(n, r, signal_overflow) result(res)
         !! Return the binomail coefficient nCr(n, r)
@@ -864,7 +875,7 @@ contains
 
     end function binary_search_ilut
 
-    #:for kind in primitive_types['integer']
+    #:for kind in field_types['integer']
         pure function binary_search_int_${kind}$(arr, val) result(pos)
             integer(${kind}$), intent(in) :: arr(:)
             integer(${kind}$), intent(in) :: val
@@ -1294,7 +1305,7 @@ contains
 
     end subroutine open_new_file
 
-    #:for type, kinds in primitive_types.items()
+    #:for type, kinds in field_types.items()
     #:for kind in kinds
     pure function cumsum_${type}$_${kind}$(X) result(Y)
         ${type}$(${kind}$), intent(in) :: X(:)
@@ -1407,6 +1418,16 @@ contains
         if (.not. SAME_TYPE_AS(this, other)) error stop 'Can only compare objects of same type'
         neq_EnumBase_t = this%val /= other%val
     end function
+
+    #:for type, kinds in ordered_field_types.items()
+    #:for kind in kinds
+        elemental function clamp_${type}$_${kind}$(v, lo, hi) result(res)
+            ${type}$(${kind}$), intent(in) :: v, lo, hi
+            ${type}$(${kind}$) :: res
+            res = merge(lo, merge(hi, v, v > hi), v < lo)
+        end function
+    #:endfor
+    #:endfor
 
 end module
 

@@ -1,32 +1,33 @@
 title
 
 system read
-electrons 8
-nonuniformrandexcits mol_guga_weighted
-guga 0
-# system-replicas 2
+    electrons 8
+    nonuniformrandexcits mol_guga_weighted
+    guga 0
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-load-balance-interval 1000
-nmcyc 100
-totalwalkers 10000
-memoryfacspawn 10
-definedet 1 2 3 4 5 6 9 10
-shiftdamp 0.2
-stepsshift 1
-startsinglepart 10
-auto-adaptive-shift
-scale-spawns
-readpops
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    load-balance-interval 1000
+    nmcyc 100
+    totalwalkers 10000
+    memoryfacspawn 10
+    definedet 1 2 3 4 5 6 9 10
+    shiftdamp 0.2
+    stepsshift 1
+    startsinglepart 10
+    auto-adaptive-shift
+    scale-spawns
+    readpops
+    tau-values \
+        start from-popsfile
 endcalc
 
 logging
-popsfile -1
-hdf5-pops
+    popsfile -1
+    hdf5-pops
 endlog
 end

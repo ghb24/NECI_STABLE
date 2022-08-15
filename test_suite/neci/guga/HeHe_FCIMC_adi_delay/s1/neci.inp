@@ -15,7 +15,8 @@ load-balance-interval 1000
 definedet 1 2 3 5
 nmcyc 3000
 initwalkers 100
-tau 0.002
+tau-values \
+    start user-defined 0.002
 startsinglepart
 shiftdamp 0.01
 stepsshift 75

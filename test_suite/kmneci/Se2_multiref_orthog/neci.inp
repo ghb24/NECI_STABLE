@@ -40,6 +40,11 @@ calc
     stepsshift 10
     maxwalkerbloom 3
     load-balance-blocks off
+
+    tau-values \
+        start refdet-connections
+    tau-search \
+        algorithm conventional
 endcalc
 
 integral

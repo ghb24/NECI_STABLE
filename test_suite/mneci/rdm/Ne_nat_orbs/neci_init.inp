@@ -12,7 +12,7 @@ calc
     endmethods
     nmcyc 5000
     totalwalkers 5000
-    tau 0.0001
+    tau-values start user-defined 0.0001
     startsinglepart 10
     truncinitiator
     addtoinitiator 3

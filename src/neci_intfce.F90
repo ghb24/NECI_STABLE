@@ -34,5 +34,11 @@ module neci_intfce
             real(dp) pGen
             real(dp) Arr(nBasis, 2)
         END SUBROUTINE GenExcitProb
+
+      SUBROUTINE GETEXCITATION(NI,NJ,NEL,EX,TSIGN)
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL),NJ(NEL),EX(2,*)
+         LOGICAL TSIGN
+      end subroutine
     end interface
 end module neci_intfce

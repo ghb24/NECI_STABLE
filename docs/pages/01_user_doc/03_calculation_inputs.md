@@ -167,7 +167,7 @@ considered. The block starts with the `system` keyword and ends with the
     -   **guga-pchb**<br>
         Uses the pre-computed alias tables for the spin-adapted GUGA implementation.
         Needs the `guga` keyword in the `System` block.
-        If it is used in conjunction with the `hist-tau-search` option, which
+        If it is used in conjunction with the histogramming tau-search, which
         is recommended for GUGA calculations in general, it automatically sets
         more reasonable defaults than for the usual `mol-guga-weighted`
         excitation generation option.
@@ -589,36 +589,124 @@ and ends with the `endcalc` keyword.
 
 #### Time-step options
 
--   **\textcolor{red}{tau \(\tau\)} [SEARCH]**<br>
-    Sets the timestep per iteration to \(\tau\). Has one optional
-    argument SEARCH. If given, the time-step will be iteratively updated
-    to keep the calculation stable.
+-   **\textcolor{red}{tau-values}**<br>
+    This keyword is mandatory.
+    It is followed by "start", "min", or "max" and their respective sub-keywords.
+    It is necessary to define the source of the starting value of \(\Delta \tau\),
+    this means that `start` is required.
 
--   **<span style="color: blue">hist-tau-search [\(c\) \(nbins\)
-    \(bound\)]</span>**<br>
- Update the time-step based on histogramming of the ratio
-    \(\frac{H_{ij}}{p(i|j)}\). Not compatible with the tau \(\tau\)
-    SEARCH option. The three arguments \(c\), \(nbins\) and \(bound\)
-    are optional. \(0<c<1\) is the fraction of the histogram used for
-    determining the new timestep, \(nbins\) the number of bins in the
-    histogram and \(bound\) is the maximum value of
-    \(\frac{H_{ij}}{p(i|j)}\) to be stored.<br>
-    For spin-adapted GUGA calculations this option is *highly*
-    recommended! Otherwise the time-step can become quite small in these
-    simulations.
+    -   **\textcolor{red}{start}**<br>
+        This defines the source of the initial \(\Delta \tau\).
 
--   **\textcolor{blue}{max-tau \(\tau_\text{max}\)}**<br>
- Sets the maximal value of the time-step to
-    \(\tau_\text{max}\). Defaults to \(1\).
+        Has to be followed by one of the following sub-keywords:
+        -   **\textcolor{blue}{user-defined} \(\Delta \tau\)**<br>
+            Has to be followed by a real number that is the inital \(\Delta \tau\).
 
--   **min-tau [\(\tau_\text{min}\)]**<br>
-    Sets the minimal value of the time-step to \(\tau_\text{min}\) and
-    enables the iterative update of the time-step. Defaults to
-    \(10^{-7}\). The argument \(\tau_\text{min}\) is optional.
+        -   **\textcolor{blue}{from-popsfile}**<br>
+            Use the value from a popsfile. Requires `readpops`.
 
--   **keepTauFixed**<br>
-    Do never update \(\tau\) and the related parameter
-    \(p_\text{singles}\), \(p_\text{doubles}\) or \(p_\text{parallel}\).
+        -   **tau-factor**<br>
+            Use `tau-factor` times the connections from the reference
+            determinant as starting guess.
+
+        -   **refdet-connections**<br>
+            Use information about the connections from the reference
+            determinant as starting guess.
+
+        -   **deterministic**<br>
+            Use the deterministic time-step:
+            \begin{equation}
+                \tau = \frac{1}{E_{\text{max}} - E_0}
+            \end{equation}
+            where \(E_{\text{max}} - E_0\) is approximated by the
+            spread of diagonal elements of \(\hat{H}\).
+
+        -   **not-needed**<br>
+            Say explicitly that \(\Delta \tau\) is not needed.
+            This is only relevant for fully deterministic calculations,
+            e.g. Lanczos CI.
+
+    - **[min \(\tau_{\text{min}}\)]**<br>
+        Optional keyword. It defines a minimum for the initial value of
+        \(\Delta \tau\) and following \(\Delta \tau\)-searches.
+
+    - **[max \(\tau_{\text{max}}\)]**<br>
+        Optional keyword. It defines a maximum for the initial value of
+        \(\Delta \tau\) and following \(\Delta \tau\)-searches.
+
+    - **[readpops-but-tau-not-from-popsfile]**<br>
+        Optional keyword.
+        If `readpops` is switched on, but \(\Delta \tau\) should not be read from
+        a popsfile then it is necessary to explicitly state that
+        it is indeed wanted.
+
+
+-   **\textcolor{blue}{tau-search}**<br>
+    The \(\Delta \tau\)-search is off by default,
+    but can be switched on with two different algorithms.
+    It can also be switched off again when certain stop conditions are reached,
+    since it is an unnecessary expensive operation when \(\Delta \tau\) has reached a
+    stable value.
+
+    -   **[\textcolor{blue}{algorithm}]**<br>
+        Optional keyword.
+        This defines the algorithm of the \(\Delta \tau\)-search.
+
+        Has to be followed by one of the following sub-keywords:
+        -   **conventional**<br>
+            Adjusts \(\Delta \tau\) such that:
+            \begin{equation}
+                \Delta \tau = \min_{i,j} \left( \frac{p_{\text{gen}}(i, j)}{H_{ij}} \right)
+            \end{equation}
+
+        -   **histogramming [\( (1 - c) \quad n_{\text{bins}} \quad b \)]**<br>
+            Update the time-step based on histogramming of the ratio
+            \(\frac{H_{ij}}{p(i|j)}\).
+            The three arguments \(1 - c\), \(n_{\text{bins}}\) and \(b\)
+            are optional. \(0<c<1\) is the fraction of the histogram used for
+            determining the new timestep, \(n_{\text{bins}}\) the number of bins in the
+            histogram and \(b\) is the maximum value of
+            \(\frac{H_{ij}}{p(i|j)}\) to be stored.<br>
+            For spin-adapted GUGA calculations this option is *highly*
+            recommended! Otherwise the time-step can become quite small in these
+            simulations.
+
+    - **[stop-condition]**<br>
+        Optional keyword.
+        Defines a stop-condition for the \(\Delta \tau\)-search.
+        The default is `var-shift`, i.e. the search ends, when
+        variable shift mode is reached.
+
+        Has to be followed by one of the following sub-keywords:
+        -   **off**<br>
+            No stop-condition, i.e. run \(\Delta \tau\)-search until the
+            calculation ends.
+
+        -   **\textcolor{blue}{no-change \(i\)}**<br>
+            The \(\Delta \tau\)-search is switched off, if there
+            was no change of \(\Delta \tau\) in the last \(i\) iterations.
+
+        -   **max-iter \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th iteration.
+
+        -   **max-eq-iter \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th iteration counting from variable shift mode.
+
+        -   **n-opts \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th optimization of \(\Delta \tau\).
+
+    -   **[off]**<br>
+        Switch the tau-search explicitly off.
+        (Equivalent to not having the `tau-search` keyword at all.)
+
+    -   **[scale-tau-to-death]**<br>
+        Optional keyword. Off by default.
+        If the \(\Delta \tau\)-search is off, still scale
+        \(\Delta \tau\) such that the death probability is smaller than 1.0.
+
 
 -   **truncate-spawns [\(n\) UNOCC]**<br>
     Truncate spawns which are larger than a threshold value \(n\). Both
@@ -630,6 +718,37 @@ and ends with the `endcalc` keyword.
     The time step is scaled such that at most \(n\) walkers are spawned
     in a single attempt, with the scaling being guessed from previous
     spawning attempts.
+
+
+##### Example inputs for \(\Delta \tau\)
+
+The following input start with \(\Delta \tau = \SI{0.2}{\hbar \per \hartree} \cdot \I\)
+and keeps its value between \(\SI{0.1}{\hbar \per \hartree} \cdot \I\)
+and \(\SI{0.3}{\hbar \per \hartree} \cdot \I\).
+The conventional \(\Delta \tau\)-search that is
+stopped if there was no change of \(\Delta \tau\) for 1000 iterations.
+
+        tau-values \
+            start user-defined 0.2 \
+            min 0.1 \
+            max 0.3
+
+        tau-search \
+            algorithm conventional \
+            stop-condition no-change 1000
+
+The following input start with \(\Delta \tau \) from a popsfile.
+The histogramming \(\Delta \tau \)-search
+is performed with \(c = 0.9999, n_{\text{bins}} = 1000, b = 2000 \)
+and is stopped after 10000 iterations.
+
+        tau-values \
+            start from-popsfile
+
+        tau-search \
+            algorithm histogramming 1e-4 1000 2000 \
+            stop-condition max-iter 10000
+
 
 #### Wave function initialization options
 

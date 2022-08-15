@@ -1,40 +1,46 @@
 title
 
 system read
-electrons 10
-nonuniformrandexcits 4ind-weighted-unbound
+    electrons 10
+    nonuniformrandexcits 4ind-weighted-unbound
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-nmcyc 4000
-totalwalkers 5000
-diagShift 0.0
-tau 0.005 search
-startsinglepart 10
-truncinitiator
-addtoinitiator 3
-superinitiators
-superinitiator-population-threshold 1
-static-superinitiators
-coherent-superinitiators off
-shiftdamp 0.03
-stepsshift 25
-jump-shift
-load-balance-blocks off
-maxwalkerbloom 3.0
+    methods
+    method vertex fcimc
+    endmethods
+    seed -7
+    nmcyc 4000
+    totalwalkers 5000
+    diagShift 0.0
+    tau-values \
+        start user-defined 0.005
+    tau-search \
+        algorithm conventional \
+        stop-condition var-shift \
+        scale-tau-to-death
 
-memoryfacspawn 50
+    startsinglepart 10
+    truncinitiator
+    addtoinitiator 3
+    superinitiators
+    superinitiator-population-threshold 1
+    static-superinitiators
+    coherent-superinitiators off
+    shiftdamp 0.03
+    stepsshift 25
+    jump-shift
+    load-balance-blocks off
+    maxwalkerbloom 3.0
+
+    memoryfacspawn 50
 endcalc
 
 integral
-freeze 2 0
+    freeze 2 0
 endint
 
 logging
-popsfile -1
+    popsfile -1
 endlog
 end

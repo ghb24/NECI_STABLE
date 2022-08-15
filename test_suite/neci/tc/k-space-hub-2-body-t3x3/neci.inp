@@ -17,7 +17,8 @@ calc
 
     totalwalkers   1000
 
-    tau 0.01
+    tau-values \
+        start user-defined 0.01
 
     load-balance-blocks off
 
@@ -36,8 +37,6 @@ calc
     truncinitiator
     addtoinitiator 1.2
     allrealcoeff
-    # max-tau 0.001
-    # maxwalkerbloom 1
     startsinglepart 1
     shiftdamp 0.1
     stepsshift 1
