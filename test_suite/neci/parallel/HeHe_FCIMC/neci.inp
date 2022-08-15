@@ -20,7 +20,7 @@ load-balance-blocks off
 endcalc
 
 integral
-freeze 0,10
+freeze 0 10
 endint
 
 logging

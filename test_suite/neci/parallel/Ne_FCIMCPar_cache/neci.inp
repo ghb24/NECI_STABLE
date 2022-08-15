@@ -3,16 +3,15 @@ title
 system read
 electrons 10
 nonuniformrandexcits
-readcacheints
 umatepsilon 1.d-6
 endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 seed -7
-nmcyc 3000  
+nmcyc 3000
 diagshift 0.1
 initwalkers 800
 tau 0.001
@@ -26,7 +25,7 @@ load-balance-blocks off
 endcalc
 
 integral
-freeze 0,0
+freeze 0 0
 endint
 
 logging

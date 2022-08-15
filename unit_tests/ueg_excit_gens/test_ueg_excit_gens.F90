@@ -69,8 +69,8 @@ contains
         use constants, only: n_int, dp
         use procedure_pointers, only: get_umat_el
 
-        integer(n_int), ALLOCATABLE :: ilut(:)
-        integer :: src(2), ex(2,2)
+        integer(n_int), allocatable :: ilut(:)
+        integer :: src(2)
         real(dp) :: cum_sum
         real(dp), allocatable :: cum_arr(:)
 
@@ -213,7 +213,7 @@ contains
 
     end subroutine calc_pgen_ueg_test
 
-    function get_umat_test(i, j, k, l) result(hel)
+    pure function get_umat_test(i, j, k, l) result(hel)
         use constants, only: dp
         implicit none
         integer, intent(in) :: i, j, k, l

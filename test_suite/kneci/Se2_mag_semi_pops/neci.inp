@@ -21,7 +21,7 @@ memoryfacspawn 20.0
 totalwalkers 200000
 nmcyc 500
 seed 14
-startsinglepart 
+startsinglepart
 diagshift 0.0
 shiftdamp 0.05
 truncinitiator
@@ -48,7 +48,7 @@ endint
 
 logging
 popsfile -1
-(binarypops
+# binarypops
 endlog
 
 

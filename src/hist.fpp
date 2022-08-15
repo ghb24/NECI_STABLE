@@ -21,7 +21,7 @@ module hist
     use bit_rep_data, only: NIfTot, NIfD, extract_sign
     use bit_reps, only: encode_sign, extract_bit_rep, &
                         decode_bit_det, flag_initiator, test_flag, &
-                        get_initiator_flag, &
+                        get_initiator_flag, writebitdet, &
                         any_run_is_initiator
     use parallel_neci
     use searching, only: BinSearchParts2
@@ -232,7 +232,7 @@ contains
         s2_timer%timer_name = 'S^2'
         call set_timer(s2_timer)
 
-        max_linked = int(choose(nel, (nel + LMS) / 2))
+        max_linked = int(choose_i64(nel, (nel + LMS) / 2))
         max_per_proc = 2 * (max_linked / nProcessors) + 1
         max_spawned = max_per_proc * nProcessors
 

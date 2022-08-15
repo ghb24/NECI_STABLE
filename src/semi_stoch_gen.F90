@@ -2,7 +2,7 @@
 
 module semi_stoch_gen
 
-    use SystemData, only: tGUGA, nel
+    use SystemData, only: tGUGA, nel, t_mol_3_body
     use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det, nifguga
     use CalcData
@@ -194,7 +194,7 @@ contains
 
                 write(stdout, '("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
                 if (tAllSymSectors .or. tReltvy .or. nOccAlpha <= 1 .or. nOccBeta <= 1 &
-                    .or. tGUGA) then
+                    .or. tGUGA .or. t_mol_3_body) then
                     ! In the above cases the faster generation is not implemented, so
                     ! use the original algorithm.
                     call set_timer(SemiStoch_Hamil_Time)
@@ -1611,6 +1611,10 @@ contains
         ! Count the total number of determinants.
         call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
         allocate(nI_list(nel, ndets))
+        if (size(ilut_list, 2) < ndets) then
+            call stop_all(t_r, 'The ilut_list argument is too small. Probably SpawnedParts was allocated too small &
+                    & Please increase memoryfacspawn and memoryfacpart')
+        end if
         ! Generate and store all the determinants in nI_list.
         call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
 

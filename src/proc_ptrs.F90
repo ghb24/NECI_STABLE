@@ -111,25 +111,6 @@ module procedure_pointers
 
         end subroutine
 
-        ! Generic routine to deal with new particle statistics
-        subroutine new_child_stats_t(iter_data, ilutI, nJ, ilutJ, ic, &
-                                     walkExLevel, child, parent_flags, &
-                                     part_type)
-
-            use SystemData, only: nel
-            use bit_rep_data, only: NIfTot
-            use constants
-            use FciMCData, only: fcimc_iter_data
-            implicit none
-
-            integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
-            integer, intent(in) :: part_type
-            real(dp), intent(in) :: child(lenof_sign)
-            integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
-            type(fcimc_iter_data), intent(inout) :: iter_data
-
-        end subroutine
-
         !
         ! Generic particle death routine
         function attempt_die_t(nI, Kii, wSign, exLevel, DetPosition) result(ndie)
@@ -192,7 +173,7 @@ module procedure_pointers
 
         !
         ! Generic UMAT element routine (2e integrals)
-        function get_umat_el_t(i, j, k, l) result(hel)
+        pure function get_umat_el_t(i, j, k, l) result(hel)
 
             use constants
             implicit none
@@ -267,33 +248,32 @@ module procedure_pointers
 
     !
     ! And here are the stored procedure pointers (for use in FCIQMC)
-    procedure(generate_excitation_t), pointer :: generate_excitation
-    procedure(generate_excitation_t), pointer :: generate_two_body_excitation
-    procedure(generate_single_excit_t), pointer :: generate_single_excit
-    procedure(attempt_create_t), pointer :: attempt_create
-    procedure(get_spawn_helement_t), pointer :: get_spawn_helement
-    procedure(get_spawn_helement_t), pointer :: get_conn_helement
-    procedure(encode_child_t), pointer :: encode_child
-    procedure(new_child_stats_t), pointer :: new_child_stats
-    procedure(attempt_die_t), pointer :: attempt_die
-    procedure(extract_bit_rep_avsign_t), pointer :: extract_bit_rep_avsign
-    procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet
+    procedure(generate_excitation_t), pointer :: generate_excitation => null()
+    procedure(generate_excitation_t), pointer :: generate_two_body_excitation => null()
+    procedure(generate_single_excit_t), pointer :: generate_single_excit => null()
+    procedure(attempt_create_t), pointer :: attempt_create => null()
+    procedure(get_spawn_helement_t), pointer :: get_spawn_helement => null()
+    procedure(get_spawn_helement_t), pointer :: get_conn_helement => null()
+    procedure(encode_child_t), pointer :: encode_child => null()
+    procedure(attempt_die_t), pointer :: attempt_die => null()
+    procedure(extract_bit_rep_avsign_t), pointer :: extract_bit_rep_avsign => null()
+    procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet => null()
 
     !
     ! The two UMAT (2e integral) routines. The second is only used if a
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
-    procedure(get_umat_el_t), pointer :: get_umat_el
-    procedure(get_umat_el_t), pointer :: get_umat_el_secondary
+    procedure(get_umat_el_t), pointer :: get_umat_el => null()
+    procedure(get_umat_el_t), pointer :: get_umat_el_secondary => null()
 
     ! the function used to scale the walkers
-    procedure(scale_function_t), pointer :: scaleFunction
+    procedure(scale_function_t), pointer :: scaleFunction => null()
     ! the function used to scale the shift
-    procedure(shift_factor_function_t), pointer :: shiftFactorFunction
+    procedure(shift_factor_function_t), pointer :: shiftFactorFunction => null()
 
     ! the procedure to generate all determinants that are connected to a given determinant
-    procedure(generate_all_excits_t), pointer :: gen_all_excits
+    procedure(generate_all_excits_t), pointer :: gen_all_excits => null()
 
     ! the function used to scale the shift
-    procedure(scale_function_t), pointer :: shiftScaleFunction
+    procedure(scale_function_t), pointer :: shiftScaleFunction => null()
 
 end module

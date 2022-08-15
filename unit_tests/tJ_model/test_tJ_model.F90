@@ -7,7 +7,7 @@ program test_tJ_model
     use tJ_model
     use fruit
     use lattice_mod, only: lat
-    use constants, only: maxExcit, pi
+    use constants, only: maxExcit
     use lattice_models_utils, only : csf_purify, create_heisenberg_fock_space, &
                                      create_heisenberg_fock_space_guga
     use fcimcdata, only: ilutref
@@ -17,7 +17,7 @@ program test_tJ_model
     use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut
     use util_mod, only: near_zero
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
-    use bit_rep_data, only: GugaBits, IlutBits
+    use bit_rep_data, only: GugaBits
     use dsfmt_interface, only: dsfmt_init, genrand_real2_dSFMT
     use guga_excitations, only: csf_to_sds_ilut, csf_vector_to_sds
 
@@ -80,7 +80,7 @@ contains
         real(dp), allocatable :: hamil(:,:), bosonic_hamil(:,:), hamil_3(:,:)
         complex(dp), allocatable :: hamil_2(:,:), e_vecs_cmplx(:,:)
         integer(n_int), allocatable :: hilbert_space(:,:), ilutBipart(:), &
-                                 ilutZigZag(:), ilutVolcano(:), fock_space(:,:), &
+                                 ilutZigZag(:), ilutVolcano(:), &
                                  sds(:,:), ilutCompact(:)
         real(dp), allocatable :: hf_coeffs(:), off_diag_sum(:), abs_off_diag_sum(:), &
                                  n_diff_sign(:), sum_pos(:), sum_neg(:), &
@@ -90,7 +90,7 @@ contains
                                  bosonic_diff(:), bosonic_energy(:), bos_e_vecs(:,:), &
                                  localisation(:), ref_energies(:), all_weights(:,:), &
                                  all_ref_e(:,:), bandwith(:), gap(:), exchange(:), &
-                                 translation_matrix(:,:), single_csf_error(:), &
+                                 single_csf_error(:), &
                                  single_csf_spin_corr(:,:), exact_spin_corr(:), &
                                  bipart_spin_corr(:), orig_spin_corr(:), &
                                  final_energy(:), opt_energy(:), opt_spin_corr(:), &
@@ -107,10 +107,10 @@ contains
         integer :: bosonic_error_ind, n_guga
         real(dp) :: high_ref
         integer, allocatable :: nI(:), ref(:), ref_bipart(:), step(:), most_important_order(:)
-        integer, allocatable :: bos_err_order(:), opt_order(:), ref_compact(:), nJ(:)
+        integer, allocatable :: bos_err_order(:), ref_compact(:), nJ(:)
         integer(n_int), allocatable :: refs(:,:)
         character(2) :: num
-        complex(dp) :: fac
+        real(dp) :: fac
 
         t_input_perm = .true.
         t_input_order = .true.
@@ -407,7 +407,7 @@ contains
                     print *, "i: ", i
                     call write_det_guga(6, hilbert_space(:,1311))
                     call simulated_annealing(guga_exchange_matrix(hilbert_space(:,i),&
-                        nSpatorbs), spin_free_exchange, opt_order, final_energy(i), &
+                        nSpatorbs), spin_free_exchange, final_energy(i), &
                         opt_energy(i))
                 ! end do
                 ! call print_vec(final_energy, "final-annealing-energies", t_index = .true.)
@@ -423,7 +423,7 @@ contains
         end if
         if (t_perms) then
             open(iunit_read, file = 'permutations', status = 'old', action = 'read')
-            n_perms = factorial(nSpatOrbs - 1)
+            n_perms = int(factorial(nSpatOrbs - 1))
         else
             n_perms = 1
         end if
@@ -1079,7 +1079,6 @@ contains
                                  running_entanglement(nSpatorbs-1)
         integer :: i, j
         integer, allocatable :: ind(:)
-        real(dp) :: test(nSpatorbs-1)
 
 
         do i = 1, nSpatorbs
@@ -1129,10 +1128,8 @@ contains
         integer(n_int), intent(in) :: hilbert_space(:,:)
         real(dp), intent(in) :: state_vec(:)
         integer, intent(in) :: tgt_orbs(:)
-        character(*), parameter :: this_routine = "get_orbital_entanglement"
 
         real(dp), allocatable :: orbital_rdm(:,:), e_values(:), e_vecs(:,:)
-        integer :: i
 
         get_orbital_entanglement = 0.0_dp
 
@@ -1236,15 +1233,15 @@ contains
 
     end function create_fock_bit_masks
 
-    subroutine simulated_annealing(cost_matrix, connect_matrix, order, final_energy, opt_energy)
+    subroutine simulated_annealing(cost_matrix, connect_matrix, final_energy, opt_energy)
         real(dp), intent(in) :: cost_matrix(:,:), connect_matrix(:,:)
-        integer, intent(out), allocatable :: order(:)
         real(dp), intent(out) :: final_energy, opt_energy
 
+        character(*), parameter :: this_routine = 'simulated_annealing'
         integer, allocatable :: old_order(:), new_order(:), all_orders(:,:)
-        integer :: i, n_dim, n_tot_cycle, n_update_temp, ind_i, ind_j, j, iunit
+        integer :: i, n_dim, n_tot_cycle, n_update_temp, j, iunit
         real(dp) :: old_energy, new_energy, diff_energy, temp, temp_change
-        real(dp) :: prob, r
+        real(dp) :: prob
         real(dp), allocatable :: all_energies(:)
         logical :: old_mask(size(connect_matrix,1), size(connect_matrix,2)), &
                    new_mask(size(connect_matrix,1), size(connect_matrix,2))
@@ -1349,6 +1346,7 @@ contains
         logical, intent(out) :: new_mask(:,:)
         integer, intent(out) :: new_order(:)
 
+        character(*), parameter :: this_routine = 'propose_swap'
         logical :: temp_mask(size(old_mask,1),size(old_mask,2))
 
         integer :: ind_i, ind_j
@@ -1380,6 +1378,7 @@ contains
     subroutine draw_two_indices(n_dim, ind_i, ind_j)
         integer, intent(in) :: n_dim
         integer, intent(out) :: ind_i, ind_j
+        character(*), parameter :: this_routine = 'draw_two_indices'
 
         integer :: i
 
@@ -1409,22 +1408,6 @@ contains
         end do
 
     end function calc_single_csf_spin_corr
-
-    pure function translation_matrix(n_orb) result(matrix)
-        integer, intent(in) :: n_orb
-        real(dp) :: matrix(n_orb, n_orb)
-
-        integer :: i
-
-        matrix = 0.0_dp
-
-        do i = 1, n_orb - 1
-            matrix(i, i + 1) = 1.0_dp
-        end do
-
-        matrix(n_orb, 1) = 1.0_dp
-
-    end function translation_matrix
 
     pure function guga_exchange_matrix(state, n_orb) result(exchange)
         integer(n_int), intent(in) :: state(0:)
@@ -1575,7 +1558,7 @@ contains
         real(dp), allocatable :: spin_corr(:)
 
         integer :: i, j, nJ(nel), ms_0, ms_j
-        real(dp) :: loc_spin(nel), loc_0
+        real(dp) :: loc_spin(nel)
 
         allocate(spin_corr(nel), source = 0.0_dp)
 
@@ -1721,22 +1704,16 @@ contains
 
     pure logical function is_vec_sign_coherent(vector)
         real(dp), intent(in) :: vector(:)
+        integer :: copy(size(vector, 1))
 
-        real(dp) :: copy(size(vector,1))
-
-        copy = vector
-
-        where (abs(copy) <= EPS) copy = 0.0_dp
-        where (copy < 0.0_dp) copy = -1.0_dp
-        where (copy > 0.0_dp) copy = 1.0_dp
-
-
-        if (abs(sum(copy)) == sum(abs(copy))) then
-            is_vec_sign_coherent = .true.
-        else
-            is_vec_sign_coherent = .false.
-        end if
-
+        where (near_zero(vector))
+            copy = 0
+        else where (vector < 0.0_dp)
+            copy = -1
+        else where (vector > 0.0_dp)
+            copy = +1
+        end where
+        is_vec_sign_coherent = abs(sum(copy)) == sum(abs(copy))
     end function is_vec_sign_coherent
 
 
@@ -1757,16 +1734,6 @@ contains
 
 
     end function sum_non_zero_off_diag
-
-    subroutine set_diag(matrix, val)
-        real(dp), intent(inout) :: matrix(:,:)
-        real(dp), intent(in) :: val
-
-        integer :: i
-
-        forall (i = 1:size(matrix,1)) matrix(i,i) = val
-
-    end subroutine set_diag
 
     real(dp) function sum_off_diag(matrix)
         real(dp), intent(in) :: matrix(:,:)
@@ -1847,7 +1814,7 @@ contains
         use OneEInts, only: tmat2d
         use FciMCData, only: tsearchtau, tsearchtauoption, ilutref
         use CalcData, only: tau
-        use procedure_pointers, only: get_umat_el, generate_excitation
+        use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
         use bit_reps, only: init_bit_rep
@@ -1894,7 +1861,6 @@ contains
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
         length_x = -1
@@ -1913,7 +1879,7 @@ contains
         use OneEInts, only: tmat2d
         use FciMCData, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
-        use procedure_pointers, only: get_umat_el, generate_excitation
+        use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
 
@@ -1955,7 +1921,6 @@ contains
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
         length_x = -1
@@ -2476,7 +2441,6 @@ contains
         use DetBitOps, only: EncodeBitDet
 
         integer(n_int), allocatable :: ilut(:)
-        integer, allocatable :: ic_list(:)
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, cpt
 

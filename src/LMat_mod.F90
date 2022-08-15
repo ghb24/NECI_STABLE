@@ -144,24 +144,22 @@ contains
         call initializeLMatPtrs()
 
         if (tLMatCalc) then
-            call readLMatFactors()
+          call readLMatFactors()
         else
-            ! now, read lmat from file
-            if (tHDF5LMat) then
-                tcdump_name = "tcdump.h5"
-            else
-                tcdump_name = "TCDUMP"
-            end if
-            call lMat%read(trim(tcdump_name))
+          ! now, read lmat from file
+          if (tHDF5LMat) then
+            tcdump_name = "tcdump.h5"
+          else
+            tcdump_name = "TCDUMP"
+          end if
+          call lMat%read(trim(tcdump_name))
         end if
-
     end subroutine readLMat
 
     !------------------------------------------------------------------------------------------!
 
     subroutine freeLMat()
         character(*), parameter :: t_r = "freeLMat"
-
         if (tLMatCalc) then
             call freeLMatFactors()
         else
@@ -173,7 +171,7 @@ contains
     !------------------------------------------------------------------------------------------------
     !functions for contact interaction
 
-    function get_lmat_el_ua(a, b, c, i, j, k) result(matel)
+    pure function get_lmat_el_ua(a, b, c, i, j, k) result(matel)
         use SystemData, only: G1
         use UMatCache, only: gtID
         ! Gets an entry of the 3-body tensor L:
@@ -204,18 +202,18 @@ contains
         end if
 
         ! only add the contribution if the spins match
-        call addMatelContribution_ua(i, j, k, 1)
-        call addMatelContribution_ua(j, k, i, 1)
-        call addMatelContribution_ua(k, i, j, 1)
-        call addMatelContribution_ua(j, i, k, -1)
-        call addMatelContribution_ua(i, k, j, -1)
-        call addMatelContribution_ua(k, j, i, -1)
+        call addMatelContribution_ua(i, j, k, 1, matel)
+        call addMatelContribution_ua(j, k, i, 1, matel)
+        call addMatelContribution_ua(k, i, j, 1, matel)
+        call addMatelContribution_ua(j, i, k, -1, matel)
+        call addMatelContribution_ua(i, k, j, -1, matel)
+        call addMatelContribution_ua(k, j, i, -1, matel)
     contains
 
-        subroutine addMatelContribution_ua(p, q, r, sgn)
+        pure subroutine addMatelContribution_ua(p, q, r, sgn, matel)
             integer, value :: p, q, r
             integer, intent(in) :: sgn
-            !     integer(int64) :: ai,bj,ck
+            HElement_t(dp), intent(inout) :: matel
 
             if (G1(p)%ms == G1(a2)%ms .and. G1(q)%ms == G1(b2)%ms .and. G1(r)%ms == G1(c2)%ms) then
                 matel = matel + 2.d0 * sgn * get_lmat_ua(a2, b2, c2, p, q, r)

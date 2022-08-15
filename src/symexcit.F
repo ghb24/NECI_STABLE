@@ -1136,7 +1136,6 @@ C         WRITE(6,*) "COUNT:",ICOUNT
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: nEl,G1, nBasis,nBasisMax
-         use legacy_data, only: irat
          IMPLICIT NONE
          INTEGER NI(NEL)
          INTEGER, pointer :: DSTORE(:)

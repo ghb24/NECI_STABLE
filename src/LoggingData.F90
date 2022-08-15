@@ -252,4 +252,8 @@ module LoggingData
 
     logical :: t_full_core_rdms = .false.
 
+! The user knows that RDMs are biased for single replica runs
+    logical :: tUserKnowsBiasedRDMS = .false.
+
+
 end module LoggingData

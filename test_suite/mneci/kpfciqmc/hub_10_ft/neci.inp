@@ -29,7 +29,7 @@ truncinitiator
 addtoinitiator 2
 stochastic-hf-spawning
 jump-shift off
-(Add the following line so that the reference does not change after this option was made default)
+# Add the following line so that the reference does not change after this option was made default)
 proje-changeref 10000.0
 load-balance-blocks off
 endcalc

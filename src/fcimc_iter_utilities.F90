@@ -120,15 +120,12 @@ contains
             tRestart = .false.
             do run = 1, inum_runs
                 if (near_zero(sum(AllTotParts(min_part_type(run):max_part_type(run))))) then
-                    write(stdout, "(A)") "All particles have died. Restarting."
-                    tRestart = .true.
-                    exit
+                    call stop_all(t_r, "All particles have died. Aborting.")
                 end if
             end do
 #else
             if (near_zero(AllTotParts(1)) .or. near_zero(AllTotParts(inum_runs))) then
-                write(stdout, "(A)") "All particles have died. Restarting."
-                tRestart = .true.
+                call stop_all(t_r, "All particles have died. Aborting.")
             else
                 tRestart = .false.
             end if
@@ -1134,17 +1131,26 @@ contains
                                 !Calculate the shift required to keep the HF population constant
 
                                 AllHFGrowRate(run) = abs(AllHFCyc(run) / real(StepsSft, dp)) / abs(OldAllHFCyc(run))
-
-                                DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
-                                               (Tau * StepsSft)
-                            else
-                                !"write(stdout,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
-                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
-                                               (Tau * StepsSft)
-                                if (tTargetShiftdamp) then
+                                if (.not. near_zero(AllHFGrowRate(run))) then
+                                    DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
+                                                   (Tau * StepsSft)
+                                else
+                                    call stop_all(this_routine, "Shift undefined because HF growth rate is zero. Aborting.")
+                                end if
+                            else if (tTargetShiftdamp) then
+                                if (.not. near_zero(AllGrowRate(run)) .and. .not. near_zero(AllWalkers(run))) then
                                     DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp + &
-                                                       log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
-                                                       (Tau * StepsSft)
+                                                   log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
+                                                   (Tau * StepsSft)
+                                else
+                                    call stop_all(this_routine, "Shift undefined because walker growth rate is zero. Aborting.")
+                                end if
+                            else
+                                if (.not. near_zero(AllGrowRate(run))) then
+                                    DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
+                                                   (Tau * StepsSft)
+                                else
+                                    call stop_all(this_routine, "Shift undefined because walker growth rate is zero. Aborting.")
                                 end if
                             end if
                         end if

@@ -60,8 +60,9 @@ module real_time
     use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, &
                             create_particle_with_hash_table, walker_death, &
                             SumEContrib, end_iter_stats, check_semistoch_flags
+    use fcimc_pointed_fns, only: new_child_stats_normal
     use procedure_pointers, only: generate_excitation, encode_child, &
-                                  attempt_create, new_child_stats
+                                  attempt_create
     use bit_rep_data, only: IlutBits, niftot, extract_sign
     use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
@@ -740,7 +741,7 @@ contains
 
                             ! not quite sure about how to collect the child
                             ! stats in the new rt-fciqmc ..
-                            call new_child_stats(second_spawn_iter_data, CurrentDets(:, idet), &
+                            call new_child_stats_normal(second_spawn_iter_data, CurrentDets(:, idet), &
                                                  nI_child, ilut_child, ic, ex_level_to_ref, &
                                                  child_sign, parent_flags, ireplica)
                             call create_particle_with_hash_table(nI_child, ilut_child, child_sign, &
@@ -914,7 +915,7 @@ contains
 
                         ! not quite sure about how to collect the child
                         ! stats in the new rt-fciqmc ..
-                        call new_child_stats(iter_data_fciqmc, CurrentDets(:, idet), &
+                        call new_child_stats_normal(iter_data_fciqmc, CurrentDets(:, idet), &
                                              nI_child, ilut_child, ic, ex_level_to_ref, &
                                              child_sign, parent_flags, ireplica)
 

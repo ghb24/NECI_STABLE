@@ -36,6 +36,8 @@ module bit_reps
 
     use guga_bitRepOps, only: transfer_stochastic_rdm_info
 
+    use DeterminantData, only: write_det
+
     implicit none
 
     ! Structure of a bit representation:
@@ -444,29 +446,6 @@ contains
         iLut(IlutBits%ind_pop:IlutBits%ind_pop + IlutBits%len_pop - 1) = sgn
 
     end subroutine encode_sign
-
-!     subroutine encode_run_sign(ilut, real_sgn, imag_sgn, run)
-!
-!         ! Encode only the real AND imaginary component of the sign for the
-!         ! walker. Sign argument is now a scalar.
-!         !
-!         ! In:    real_sgn  - The new sign component
-!         !        imag_sgn  - The new imaginary sign component
-!         !        run - Update given run. 1 ==> inum_runs
-!         ! InOut:  ilut     - The bit representation to update
-!         integer(n_int), intent(inout) :: ilut(0:NIfTot)
-!         integer, intent(in) :: run
-!         real(dp), intent(in) :: real_sgn, imag_sgn
-!         character(*), parameter :: this_routine = 'encode_run_sign'
-!
-!         ASSERT(run <= inum_runs)
-!         call encode_part_sign(ilut, real_sgn, min_part_type(run))
-! #ifdef CMPLX_
-!         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
-! #else
-!         unused_var(imag_sgn)
-! #endif
-!     end subroutine encode_run_sign
 
     subroutine encode_part_sign(ilut, real_sgn, part_type)
 
@@ -1021,4 +1000,12 @@ contains
 
     end subroutine add_ilut_lists
 
+    ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
+    subroutine writebitdet(nunit, ilutni, lterm)
+        integer nunit, ni(nel)
+        integer(kind=n_int) :: ilutni(0:niftot)
+        logical lterm
+        call decode_bit_det(ni, ilutni)
+        call write_det(nunit, ni, lterm)
+    end
 end module bit_reps

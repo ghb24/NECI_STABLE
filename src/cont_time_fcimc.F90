@@ -22,7 +22,7 @@ module cont_time
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
     use SystemData, only: nel, tHPHF, LMS
-    use bit_reps, only: extract_bit_rep
+    use bit_reps, only: extract_bit_rep, writebitdet
     use LoggingData, only: FCIMCDebug
     use bit_rep_data, only: NIfTot
     use rdm_data, only: rdm_definitions

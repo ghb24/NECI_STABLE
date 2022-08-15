@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''extract.py [options] file
 
 Extract test suite data and output it in a format which can be used by

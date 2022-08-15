@@ -4,7 +4,7 @@ system read
 electrons 8
 nonuniformrandexcits mol_guga_weighted
 guga 0
-(system-replicas 2
+# system-replicas 2
 endsys
 
 calc

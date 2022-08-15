@@ -47,7 +47,7 @@ contains
         use bit_rep_data, only: NIfTot
         use gndts_mod, only: gndts_all_sym_this_proc
         use SystemData, only: nbasis, nel
-        use util_mod, only: choose
+        use util_mod, only: choose_i64
 
         integer :: expected_ndets_tot
         integer(n_int), allocatable :: ilut_list(:, :)
@@ -69,7 +69,7 @@ contains
         write(stdout, '(1x,a9)') "Complete."
         call neci_flush(6)
 
-        expected_ndets_tot = int(choose(nbasis, nel))
+        expected_ndets_tot = int(choose_i64(nbasis, nel))
         if (ndets_ed /= expected_ndets_tot) then
             write(stdout, *) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &
@@ -104,7 +104,7 @@ contains
         use Determinants, only: get_helement
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         use SystemData, only: tHPHF, nel
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
         use guga_bitrepops, only: new_CSF_Info_t, fill_csf_i
         use bit_rep_data, only: nifd
@@ -115,7 +115,7 @@ contains
         integer :: nI(nel), nJ(nel)
         character(*), parameter :: t_r = "calculate_full_hamiltonian"
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
 
         ! Initial checks that arrays passed in are consistent.
         ndets = size(ilut_list, 2)
@@ -135,12 +135,14 @@ contains
         end if
 
         call new_CSF_Info_t(nSpatOrbs, csf_i)
+        call new_CSF_Info_t(nSpatOrbs, csf_j)
         do i = 1, ndets
             call decode_bit_det(nI, ilut_list(:, i))
             if (tGUGA) call fill_csf_i(ilut_list(0:nifd, i), csf_i)
 
             do j = i, ndets
                 call decode_bit_det(nJ, ilut_list(:, j))
+                if (tGUGA) call fill_csf_i(ilut_list(:, j), csf_j)
                 if (i == j) then
                     if (tHPHF) then
                         local_hamil(i, i) = hphf_diag_helement(nI, ilut_list(:, i))
@@ -151,8 +153,8 @@ contains
                     if (tHPHF) then
                         local_hamil(i, j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), ilut_list(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), &
-                                                      excitInfo, local_hamil(i, j), .true., 1)
+                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), csf_j, &
+                                                      excitInfo, local_hamil(i, j), .true.)
 ! #ifdef CMPLX_
 !                         local_hamil(i,j) = conjg(local_hamil(i,j))
 ! #endif
