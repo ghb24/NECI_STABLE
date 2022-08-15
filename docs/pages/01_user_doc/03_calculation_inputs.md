@@ -722,16 +722,16 @@ and ends with the `endcalc` keyword.
 
 ##### Example inputs for \(\Delta \tau\)
 
-The following input start with \(\Delta \tau = \SI{0.2}{\hbar \per \hartree} \cdot \I\)
-and keeps its value between \(\SI{0.1}{\hbar \per \hartree} \cdot \I\)
-and \(\SI{0.3}{\hbar \per \hartree} \cdot \I\).
+The following input start with \(\Delta \tau = \SI{0.002}{\hbar \per \hartree} \cdot \I\)
+and keeps its value between \(\SI{0.001}{\hbar \per \hartree} \cdot \I\)
+and \(\SI{0.003}{\hbar \per \hartree} \cdot \I\).
 The conventional \(\Delta \tau\)-search that is
 stopped if there was no change of \(\Delta \tau\) for 1000 iterations.
 
         tau-values \
-            start user-defined 0.2 \
-            min 0.1 \
-            max 0.3
+            start user-defined 0.002 \
+            min 0.001 \
+            max 0.003
 
         tau-search \
             algorithm conventional \
