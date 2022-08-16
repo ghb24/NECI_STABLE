@@ -31,7 +31,7 @@ module tau_search_conventional
 
     use constants, only: dp, EPS, stdout, n_int, maxExcit
 
-    use CalcData, only: InitiatorWalkNo, MaxWalkerBloom, t_consider_par_bias, tTruncInitiator
+    use CalcData, only: InitiatorWalkNo, t_consider_par_bias, tTruncInitiator
 
     use util_mod, only: near_zero, operator(.isclose.)
 

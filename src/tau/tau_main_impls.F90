@@ -4,8 +4,7 @@ submodule(tau_main) tau_main_impls
 
     use FciMCData, only: ProjEDet, ilutRef, pDoubles, pParallel
 
-    use CalcData, only: InitiatorWalkNo, MaxWalkerBloom, tTruncInitiator, &
-        tReadPops, tWalkContGrow
+    use CalcData, only: InitiatorWalkNo, tTruncInitiator, tReadPops, tWalkContGrow
 
     use SystemData, only: t_k_space_hubbard, t_trans_corr_2body, tReltvy, tGUGA, &
         nOccAlpha, nOccBeta

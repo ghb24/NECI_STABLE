@@ -37,7 +37,7 @@ MODULE Calc
         tau_stop_method, possible_tau_stop_methods, &
         min_tau, max_tau, tau_start_val, possible_tau_start, &
         t_scale_tau_to_death, tau, taufactor, assign_value_to_tau, &
-        stop_options, readpops_but_tau_not_from_popsfile
+        stop_options, readpops_but_tau_not_from_popsfile, MaxWalkerBloom
 
     use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
         max_frequency_bound, frq_ratio_cutoff, n_frequency_bins

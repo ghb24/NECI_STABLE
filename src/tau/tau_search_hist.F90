@@ -11,8 +11,7 @@ module tau_search_hist
                           t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits, &
                           tGAS, t_pchb_excitgen
 
-    use CalcData, only: tTruncInitiator, MaxWalkerBloom, &
-                        InitiatorWalkNo, &
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
                         t_consider_par_bias
 
