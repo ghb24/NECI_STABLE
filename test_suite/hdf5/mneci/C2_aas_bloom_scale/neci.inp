@@ -18,7 +18,6 @@ calc
     shiftdamp 0.2
     stepsshift 1
     auto-adaptive-shift
-    scale-spawns
     readpops
 
     tau-values \

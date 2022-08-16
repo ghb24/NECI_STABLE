@@ -1579,14 +1579,7 @@ contains
                 ! optional: Adjust the number of spawns to the expected maximum
                 ! Hij/pgen ratio of this determinant -> prevent blooms
                 ! Only done while not updating tau (to prevent interdependencies)
-                ! or, for hist-tau-search, in vairable shift mode
-                ! Usually, this means: done in variable shift mode
-                if (tScaleBlooms &
-                        .and. .not. (tau_search_method == possible_tau_search_methods%CONVENTIONAL &
-                                     .or. (tau_search_method == possible_tau_search_methods%HISTOGRAMMING &
-                                            .and. tSinglePartPhase(part_type_to_run(part_type))) &
-                                     ) &
-                        ) then
+                if (tScaleBlooms .and. tau_search_method == possible_tau_search_methods%off) then
                     max_spawn = tau * get_max_ratio(j)
                     if (max_spawn > max_allowed_spawn) then
                         scale = max_spawn / max_allowed_spawn

@@ -28,12 +28,12 @@ calc
     tau-values \
         start user-defined 0.02
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3
     allrealcoeff
     realspawncutoff 0.01
     jump-shift
     stepsshift 20
-    maxwalkerbloom 3
     truncatecas 8 8
     en2-truncated
     load-balance-interval 1000

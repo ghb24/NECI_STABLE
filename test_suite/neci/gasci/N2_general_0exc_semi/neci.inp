@@ -43,8 +43,8 @@ calc
         max 0.02
     tau-search \
         algorithm conventional \
-        stop-condition var-shift
-    maxwalkerbloom 1
+        stop-condition var-shift \
+        maxwalkerbloom 1
     memoryfacspawn 10.00
     memoryfacpart 5.00
     time 200

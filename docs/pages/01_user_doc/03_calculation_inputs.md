@@ -600,7 +600,7 @@ and ends with the `endcalc` keyword.
 
         Has to be followed by one of the following sub-keywords:
         -   **\textcolor{blue}{user-defined} \(\Delta \tau\)**<br>
-            Has to be followed by a real number that is the inital \(\Delta \tau\).
+            Has to be followed by a real number that is the initial \(\Delta \tau\).
 
         -   **\textcolor{blue}{from-popsfile}**<br>
             Use the value from a popsfile. Requires `readpops`.
@@ -697,6 +697,9 @@ and ends with the `endcalc` keyword.
         -   **n-opts \(i\)**<br>
             The \(\Delta \tau\)-search is switched off
             after the \(i\)-th optimization of \(\Delta \tau\).
+
+        -   **var-shift**<br>
+            The \(\Delta \tau\)-search is switched off if variable shift is reached.
 
     -   **[off]**<br>
         Switch the tau-search explicitly off.

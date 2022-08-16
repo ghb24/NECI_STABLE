@@ -21,7 +21,8 @@ calc
         max 0.02
     tau-search \
         algorithm conventional \
-        stop-condition var-shift
+        stop-condition var-shift \
+        maxwalkerbloom 3.0
     startsinglepart
     truncinitiator
     addtoinitiator 3
@@ -29,7 +30,6 @@ calc
     stepsshift 25
     jump-shift
     load-balance-blocks off
-    maxwalkerbloom 3.0
 endcalc
 
 integral

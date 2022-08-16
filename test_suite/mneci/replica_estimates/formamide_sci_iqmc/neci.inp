@@ -25,7 +25,6 @@ calc
     diagshift -0.4
     truncinitiator
     addtoinitiator 3
-    maxwalkerbloom 3
     allrealcoeff
     realspawncutoff 0.0
     pure-initiator-space
@@ -40,7 +39,8 @@ calc
     tau-values \
         start user-defined 0.05
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3
 endcalc
 
 integral

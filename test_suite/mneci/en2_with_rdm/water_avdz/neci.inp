@@ -30,12 +30,12 @@ calc
     jump-shift
     proje-changeref 1.2
     stepsshift 40
-    maxwalkerbloom 3
     en2-initiator
     tau-values \
         start refdet-connections
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3
 endcalc
 
 integral
