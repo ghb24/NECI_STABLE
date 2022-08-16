@@ -18,8 +18,8 @@ calc
     shiftdamp 0.2
     stepsshift 1
     auto-adaptive-shift
-    scale-spawns 2
     readpops
+    scale-spawns 2
     load-balance-interval 1000
     tau-values \
         start from-popsfile
