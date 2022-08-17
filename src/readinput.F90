@@ -726,13 +726,13 @@ contains
                               "tau-values start refdet-connections is not compatible with GUGA calculations!")
             end if
 
-            if (tTruncInitiator .and. MaxWalkerBloom >= InitiatorWalkNo) then
+            if (tTruncInitiator .and. MaxWalkerBloom > InitiatorWalkNo) then
                 call stop_all(this_routine, &
-                              "MaxWalkerBloom has to be smaller than InitiatorWalkNo.")
+                              "MaxWalkerBloom has to be smaller equal than InitiatorWalkNo.")
             end if
-            if (tScaleBlooms .and. MaxWalkerBloom >= max_allowed_spawn) then
+            if (tScaleBlooms .and. MaxWalkerBloom > max_allowed_spawn) then
                 call stop_all(this_routine, &
-                              "MaxWalkerBloom has to be smaller than max_allowed_spawn.")
+                              "MaxWalkerBloom has to be smaller equal than max_allowed_spawn.")
             end if
         end block time_step
 
