@@ -20,7 +20,8 @@ calc
 
     tau-search \
         algorithm histogramming 1e-4 \
-        stop-condition OFF
+        stop-condition OFF \
+        maxwalkerbloom 3.0
 
     startsinglepart
     truncinitiator
@@ -29,7 +30,6 @@ calc
     stepsshift 25
     jump-shift
     load-balance-blocks off
-    maxwalkerbloom 3.0
 endcalc
 
 integral

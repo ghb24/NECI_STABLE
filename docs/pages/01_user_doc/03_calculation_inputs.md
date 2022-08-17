@@ -481,11 +481,13 @@ and ends with the `endcalc` keyword.
     used if the excitation generator creates a lot of invalid
     excitations, but should be avoided else.
 
--   **scale-spawns**<br>
+-   **scale-spawns** [\(k_{\text{scale-spawn}}\)]<br>
     Store the maximum value of \(\frac{H_{ij}}{p_{gen}}\) for each
-    determinant and use it to estimate the number of spawns per walker
-    to prevent blooms. Useful when this fraction strongly depends on the
-    determinant.
+    determinant. If a bloom with more than \(k_{\text{scale-spawn}}\) spawns
+    happens, then several spawning attempts with individual lower probability
+    will happen instead.
+    \(k_{\text{scale-spawn}}\) has to be smaller equal than \(k_{\text{maxbloom}}\)
+    from equations \ref{Eq:conventional_tau_search} and \ref{Eq:histogramming_tau_search}.
 
 -   **davidson-max-iters \(n\)**<br>
     Set the number of iterations in Davidson's algorithm when this is used.
@@ -600,7 +602,7 @@ and ends with the `endcalc` keyword.
 
         Has to be followed by one of the following sub-keywords:
         -   **\textcolor{blue}{user-defined} \(\Delta \tau\)**<br>
-            Has to be followed by a real number that is the inital \(\Delta \tau\).
+            Has to be followed by a real number that is the initial \(\Delta \tau\).
 
         -   **\textcolor{blue}{from-popsfile}**<br>
             Use the value from a popsfile. Requires `readpops`.
@@ -647,6 +649,7 @@ and ends with the `endcalc` keyword.
     It can also be switched off again when certain stop conditions are reached,
     since it is an unnecessary expensive operation when \(\Delta \tau\) has reached a
     stable value.
+    Has the following sub-keywords:
 
     -   **[\textcolor{blue}{algorithm}]**<br>
         Optional keyword.
@@ -656,20 +659,31 @@ and ends with the `endcalc` keyword.
         -   **conventional**<br>
             Adjusts \(\Delta \tau\) such that:
             \begin{equation}
-                \Delta \tau = \min_{i,j} \left( \frac{p_{\text{gen}}(i, j)}{H_{ij}} \right)
+                \label{Eq:conventional_tau_search}
+                \Delta \tau = k_{\text{maxbloom}} \cdot \min_{i,j} \left( \frac{p_{\text{gen}}(i, j)}{H_{ij}} \right) \quad.
             \end{equation}
+            The prefactor \(k_{\text{maxbloom}}\) is changed via `MaxWalkerBloom`.
 
         -   **histogramming [\( (1 - c) \quad n_{\text{bins}} \quad b \)]**<br>
             Update the time-step based on histogramming of the ratio
-            \(\frac{H_{ij}}{p(i|j)}\).
-            The three arguments \(1 - c\), \(n_{\text{bins}}\) and \(b\)
-            are optional. \(0<c<1\) is the fraction of the histogram used for
+            \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\).
+            \begin{equation}
+                \label{Eq:histogramming_tau_search}
+                \Delta \tau = k_{\text{maxbloom}} \cdot \left( \argmin_{t} \Big| c - \Int{p(x)}{x, 0, t} \Big| \right)^{-1}
+            \end{equation}
+            Where \(p\) is the probability distribution of \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\)
+            which is obtained numerically by binning.
+            The three arguments \(1 - c\), \(n_{\text{bins}}\) and \(b\) are optional.
+            \(0<c<1\) is the fraction of the histogram used for
             determining the new timestep, \(n_{\text{bins}}\) the number of bins in the
             histogram and \(b\) is the maximum value of
-            \(\frac{H_{ij}}{p(i|j)}\) to be stored.<br>
+            \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\) to be stored.<br>
             For spin-adapted GUGA calculations this option is *highly*
             recommended! Otherwise the time-step can become quite small in these
             simulations.
+            Note that for \(c = 1\) the conventional and histogramming time-search are
+            equivalent.
+            The prefactor \(k_{\text{maxbloom}}\) is changed via `MaxWalkerBloom`.
 
     - **[stop-condition]**<br>
         Optional keyword.
@@ -698,6 +712,9 @@ and ends with the `endcalc` keyword.
             The \(\Delta \tau\)-search is switched off
             after the \(i\)-th optimization of \(\Delta \tau\).
 
+        -   **var-shift**<br>
+            The \(\Delta \tau\)-search is switched off if variable shift is reached.
+
     -   **[off]**<br>
         Switch the tau-search explicitly off.
         (Equivalent to not having the `tau-search` keyword at all.)
@@ -707,6 +724,13 @@ and ends with the `endcalc` keyword.
         If the \(\Delta \tau\)-search is off, still scale
         \(\Delta \tau\) such that the death probability is smaller than 1.0.
 
+    -   **maxWalkerBloom \(k_{\text{maxbloom}}\)**<br>
+        The time step is scaled such that at most \(k_{\text{maxbloom}}\)
+        walkers are spawned in a single attempt,
+        with the scaling being guessed from previous spawning attempts.
+        Changes the prefactor in equations \ref{Eq:conventional_tau_search}
+        and \ref{Eq:histogramming_tau_search}.
+
 
 -   **truncate-spawns [\(n\) UNOCC]**<br>
     Truncate spawns which are larger than a threshold value \(n\). Both
@@ -714,24 +738,20 @@ and ends with the `endcalc` keyword.
     the truncation is restricted to spawns onto unoccupied. Useful in
     combination with hist-tau-search.
 
--   **maxWalkerBloom \(n\)**<br>
-    The time step is scaled such that at most \(n\) walkers are spawned
-    in a single attempt, with the scaling being guessed from previous
-    spawning attempts.
 
 
 ##### Example inputs for \(\Delta \tau\)
 
-The following input start with \(\Delta \tau = \SI{0.2}{\hbar \per \hartree} \cdot \I\)
-and keeps its value between \(\SI{0.1}{\hbar \per \hartree} \cdot \I\)
-and \(\SI{0.3}{\hbar \per \hartree} \cdot \I\).
+The following input start with \(\Delta \tau = \SI{0.002}{\hbar \per \hartree} \cdot \I\)
+and keeps its value between \(\SI{0.001}{\hbar \per \hartree} \cdot \I\)
+and \(\SI{0.003}{\hbar \per \hartree} \cdot \I\).
 The conventional \(\Delta \tau\)-search that is
 stopped if there was no change of \(\Delta \tau\) for 1000 iterations.
 
         tau-values \
-            start user-defined 0.2 \
-            min 0.1 \
-            max 0.3
+            start user-defined 0.002 \
+            min 0.001 \
+            max 0.003
 
         tau-search \
             algorithm conventional \

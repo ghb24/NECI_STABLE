@@ -31,7 +31,8 @@ calc
     realspawncutoff 0.0
     averagemcexcits 10.0
     tau-values \
-        start user-defined 0.001
+        start user-defined 0.001 \
+        maxwalkerbloom 3
     pure-initiator-space
     simple-initiator
     read-initiator

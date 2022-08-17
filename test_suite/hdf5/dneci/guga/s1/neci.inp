@@ -30,7 +30,6 @@ calc
     tau-values \
         start from-popsfile \
         max 0.02
-    maxwalkerbloom 1
     memoryfacspawn 10.0
     memoryfacpart 5.0
     time 2800

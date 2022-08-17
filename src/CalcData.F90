@@ -212,7 +212,6 @@ module CalcData
     INTEGER :: OccCASorbs, VirtCASorbs, iAnnInterval
     integer :: iPopsFileNoRead, iPopsFileNoWrite, iRestartWalkNum
     real(dp) :: iWeightPopRead
-    real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
     INTEGER(int64) :: HFPopThresh
     real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
 ! Options for dynamic rescaling of spawn attempts + blooms

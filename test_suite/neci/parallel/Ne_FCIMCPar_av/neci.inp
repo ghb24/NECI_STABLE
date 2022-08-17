@@ -13,7 +13,8 @@ calc
         start refdet-connections
     tau-search \
         algorithm conventional \
-        stop-condition OFF
+        stop-condition OFF \
+        maxwalkerbloom 3.0
 
     seed -7
     nmcyc 2250
@@ -27,7 +28,6 @@ calc
     truncinitiator
     addtoinitiator 3
     load-balance-blocks off
-    maxwalkerbloom 3.0
 endcalc
 
 integral

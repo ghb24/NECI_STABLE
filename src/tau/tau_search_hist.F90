@@ -11,8 +11,7 @@ module tau_search_hist
                           t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits, &
                           tGAS, t_pchb_excitgen
 
-    use CalcData, only: tTruncInitiator, MaxWalkerBloom, &
-                        InitiatorWalkNo, &
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
                         t_consider_par_bias
 
@@ -27,7 +26,7 @@ module tau_search_hist
 
     use tau_main, only: tau, min_tau, max_tau, possible_tau_search_methods, &
                     tau_search_method, input_tau_search_method, &
-                    assign_value_to_tau, max_death_cpt, max_permitted_spawn
+                    assign_value_to_tau, max_death_cpt, MaxWalkerBloom
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -449,7 +448,7 @@ contains
                 ! indicate enough spawning events!
                 ! the doubles flag is also used for single excitations in the
                 ! real-space hubbard! be careful
-                tau_new = max_permitted_spawn / ratio
+                tau_new = MaxWalkerBloom / ratio
 
                 ! and use the mixing now:
                 if (t_mix_ratios) then
@@ -545,7 +544,7 @@ contains
                                        mix_ratio * psingles_new
                     end if
 
-                    tau_new = psingles_new * max_permitted_spawn / ratio_singles
+                    tau_new = psingles_new * MaxWalkerBloom / ratio_singles
 
                     if (t_mix_ratios) then
                         tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
@@ -586,7 +585,7 @@ contains
                     ! adaptation.. hm.. todo
                     if (abs(ratio_singles) > EPS .or. abs(ratio_para) > EPS &
                         .or. abs(ratio_anti) > EPS) then
-                        tau_new = max_permitted_spawn * min( &
+                        tau_new = MaxWalkerBloom * min( &
                                   pSingles / max(EPS, ratio_singles), &
                                   pDoubles * pParallel / max(EPS, ratio_para), &
                                   pDoubles * (1.0_dp - pParallel) / max(EPS, ratio_anti))
@@ -622,7 +621,7 @@ contains
                                        mix_ratio * psingles_new
                     end if
 
-                    tau_new = max_permitted_spawn / (ratio_doubles + ratio_singles + ratio_triples)
+                    tau_new = MaxWalkerBloom / (ratio_doubles + ratio_singles + ratio_triples)
 
                     if (t_mix_ratios) then
                         tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
@@ -661,7 +660,7 @@ contains
                 else
                     psingles_new = pSingles
                     if (abs(ratio_singles) > EPS .or. abs(ratio_doubles) > EPS) then
-                        tau_new = max_permitted_spawn * &
+                        tau_new = MaxWalkerBloom * &
                                   min(pSingles / max(EPS, ratio_singles), pDoubles / max(EPS, ratio_doubles))
                     else
                         tau_new = tau

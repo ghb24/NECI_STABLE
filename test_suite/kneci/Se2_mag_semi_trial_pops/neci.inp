@@ -40,7 +40,6 @@ calc
     jump-shift
     proje-changeref 1000000
     stepsshift 10
-    maxwalkerbloom 3
     load-balance-blocks off
 endcalc
 

@@ -19,7 +19,8 @@ calc
         max 0.02
     tau-search \
         algorithm histogramming \
-        stop-condition OFF
+        stop-condition OFF \
+        maxwalkerbloom 3.0
     startsinglepart 100
     truncinitiator
     addtoinitiator 3
@@ -27,7 +28,6 @@ calc
     stepsshift 25
     jump-shift
     load-balance-blocks off
-    maxwalkerbloom 3.0
 endcalc
 
 integral
