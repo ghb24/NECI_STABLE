@@ -21,7 +21,7 @@ module tau_search_conventional
 
     use tau_main, only: min_tau, max_tau, possible_tau_search_methods, &
             tau_search_method, tau_start_val, possible_tau_start, &
-            tau, assign_value_to_tau, max_death_cpt, max_permitted_spawn
+            tau, assign_value_to_tau, max_death_cpt, MaxWalkerBloom
 
     use tc_three_body_data, only: pTriples
 
@@ -317,13 +317,13 @@ contains
                     pparallel_new = t_s%gamma_par / (t_s%gamma_opp + t_s%gamma_par)
                     psingles_new = t_s%gamma_sing * pparallel_new &
                                    / (t_s%gamma_par + t_s%gamma_sing * pparallel_new)
-                    tau_new = psingles_new * max_permitted_spawn &
+                    tau_new = psingles_new * MaxWalkerBloom &
                               / t_s%gamma_sing
                 else
                     pparallel_new = pParallel
                     psingles_new = pSingles
                     if (t_s%gamma_sing > EPS .and. t_s%gamma_par > EPS .and. t_s%gamma_opp > EPS) then
-                        tau_new = max_permitted_spawn * &
+                        tau_new = MaxWalkerBloom * &
                                   min(pSingles / t_s%gamma_sing, &
                                       min(pDoubles * pParallel / t_s%gamma_par, &
                                           pDoubles * (1.0 - pParallel) / t_s%gamma_opp))
@@ -362,14 +362,14 @@ contains
                     pDoub_spindiff1_new = t_s%gamma_doub_spindiff1 / gamma_sum
                     pDoub_spindiff2_new = t_s%gamma_doub_spindiff2 / gamma_sum
                 end if
-                tau_new = max_permitted_spawn / gamma_sum
+                tau_new = MaxWalkerBloom / gamma_sum
             else if (t_new_real_space_hubbard .and. t_s%enough_sing .and. &
                      (t_trans_corr_2body .or. t_trans_corr)) then
                 ! for the transcorrelated real-space hubbard we could
                 ! actually also adapt the time-step!!
                 ! but psingles stays 1
                 psingles_new = pSingles
-                tau_new = max_permitted_spawn / gamma_sum
+                tau_new = MaxWalkerBloom / gamma_sum
             else
                 psingles_new = pSingles
 
@@ -381,16 +381,16 @@ contains
                 ! If no single/double spawns occurred, they are also not taken into account
                 ! (else would be undefined)
                 if (abs(t_s%gamma_doub) > EPS .and. abs(t_s%gamma_sing) > EPS) then
-                    tau_new = max_permitted_spawn * &
+                    tau_new = MaxWalkerBloom * &
                               min(pSingles / t_s%gamma_sing, pDoubles / t_s%gamma_doub)
                 else if (abs(t_s%gamma_doub) > EPS) then
                     ! If only doubles were counted, take them
-                    tau_new = max_permitted_spawn * pDoubles / t_s%gamma_doub
+                    tau_new = MaxWalkerBloom * pDoubles / t_s%gamma_doub
                 else if (abs(t_s%gamma_sing) > eps) then
                     ! else, we had to have some singles
-                    tau_new = max_permitted_spawn * pSingles / t_s%gamma_sing
+                    tau_new = MaxWalkerBloom * pSingles / t_s%gamma_sing
                 else if (abs(t_s%gamma_trip) > eps) then
-                    tau_new = max_permitted_spawn * PTriples / t_s%gamma_trip
+                    tau_new = MaxWalkerBloom * PTriples / t_s%gamma_trip
                 else
                     ! no spawns
                     tau_new = tau

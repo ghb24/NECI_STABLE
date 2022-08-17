@@ -60,20 +60,6 @@ contains
         ! And what is the maximum death-component found
         max_death_cpt = 0
 
-        ! Set the maximum spawn size
-        if (MaxWalkerBloom .isclose. -1._dp) then
-            ! No maximum manually specified, so we set the limit of spawn
-            ! size to either the initiator criterion, or to 5 otherwise
-            if (tTruncInitiator) then
-                max_permitted_spawn = InitiatorWalkNo
-            else
-                max_permitted_spawn = 5.0_dp
-            end if
-        else
-            ! This is specified manually
-            max_permitted_spawn = real(MaxWalkerBloom, dp)
-        end if
-
         if (tau_start_val == possible_tau_start%refdet_connections) then
             call find_tau_from_refdet_conn()
         end if
@@ -160,18 +146,7 @@ contains
 
         new_tau = huge(new_tau)
 
-        if (MaxWalkerBloom .isclose. -1._dp) then
-            !No MaxWalkerBloom specified
-            !Therefore, assume that we do not want blooms larger than n_add if initiator,
-            !or 5 if non-initiator calculation.
-            if (tTruncInitiator) then
-                nAddFac = InitiatorWalkNo
-            else
-                nAddFac = 5.0_dp    !Won't allow more than 5 particles at a time
-            end if
-        else
-            nAddFac = real(MaxWalkerBloom, dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
-        end if
+        nAddFac = MaxWalkerBloom
 
         tAllExcitFound = .false.
         Ex_saved(:, :) = 0
@@ -332,18 +307,7 @@ contains
 
         new_tau = huge(new_tau)
 
-        if (MaxWalkerBloom .isclose. -1._dp) then
-            !No MaxWalkerBloom specified
-            !Therefore, assume that we do not want blooms larger than n_add if initiator,
-            !or 5 if non-initiator calculation.
-            if (tTruncInitiator) then
-                nAddFac = InitiatorWalkNo
-            else
-                nAddFac = 5.0_dp    !Won't allow more than 5 particles at a time
-            end if
-        else
-            nAddFac = real(MaxWalkerBloom, dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
-        end if
+        nAddFac = MaxWalkerBloom
 
         if (tHPHF) then
             call Stop_All(this_routine, &

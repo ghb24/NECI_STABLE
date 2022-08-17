@@ -21,7 +21,6 @@ module tau_main
               max_death_cpt, assign_value_to_tau, &
               stop_options, find_tau_from_refdet_conn, &
               readpops_but_tau_not_from_popsfile, &
-              max_permitted_spawn, &
               init_tau, finalize_tau, stop_tau_search, MaxWalkerBloom
 
     protected :: tau
@@ -115,7 +114,9 @@ module tau_main
     logical :: scale_tau_to_death_triggered = .false., t_scale_tau_to_death = .false.
     real(dp) :: max_death_cpt = 0._dp
 
-    real(dp) :: max_permitted_spawn, MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
+    real(dp) :: MaxWalkerBloom
+        !! Scaling factor of tau. Determines the maximum allowed spawns,
+        !!      for the **known** determinants.
 
     logical :: readpops_but_tau_not_from_popsfile = .false.
 

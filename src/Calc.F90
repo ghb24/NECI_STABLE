@@ -1533,7 +1533,7 @@ contains
 
             case("MAXWALKERBLOOM")
                 call stop_all(this_routine, trim(w)//" option deprecated. &
-                    &Moved to tau-search and scale-spawns respectivel.y")
+                    &Moved to tau-search and scale-spawns respectively.")
 
             case("SHIFTDAMP")
                 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
