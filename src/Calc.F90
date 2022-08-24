@@ -712,8 +712,7 @@ contains
                         tExitNow = .true.
 
                     case default
-                        write(stdout, *) 'REPORT'//trim(w)
-                        !call report ("Keyword "//trim(w)//" not recognized",.true.)
+                        call stop_all(this_routine, trim(w)//" is not a valid keyword in the METHODS block.")
                     end select
 
                 end do
