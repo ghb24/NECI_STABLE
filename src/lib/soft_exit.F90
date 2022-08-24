@@ -315,7 +315,7 @@ contains
 
         if (any_exist) then
             if (iProcIndex == 0) &
-                write (6, *) "CHANGEVARS file detected on iteration ", iter
+                write(stdout, *) "CHANGEVARS file detected on iteration ", iter
 
             ! Each processor attemtps to delete changevars in turn. Wait for
             ! all processors to reach AllReduce on each cycle, to avoid race
@@ -348,6 +348,10 @@ contains
                                 exit
                             endif
                         enddo
+
+                        if (.not. any(opts_selected)) &
+                            write(stdout, *) 'Input '//trim(w)//' not recognised. &
+                                Ignoring and continuing...'
 
                         ! Do we have any other items to read in?
                         if (i == tau) then
