@@ -22,7 +22,6 @@ calc
     stepsshift 1
     startsinglepart 10
     auto-adaptive-shift
-    scale-spawns
     readpops
     tau-values \
         start from-popsfile

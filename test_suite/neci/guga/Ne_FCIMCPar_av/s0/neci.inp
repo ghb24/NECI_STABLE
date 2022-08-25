@@ -22,13 +22,13 @@ averagemcexcits 3.0
 truncinitiator
 addtoinitiator 3
 load-balance-blocks off
-maxwalkerbloom 3.0
 
 tau-values \
     start user-defined 6.342713037945149E-003
 tau-search \
     algorithm conventional \
-    stop-condition var-shift
+    stop-condition var-shift \
+    maxwalkerbloom 3.0
 
 
 endcalc

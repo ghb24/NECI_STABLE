@@ -25,7 +25,6 @@ calc
     stepsshift 10
     truncinitiator
     addtoinitiator 2
-    maxwalkerbloom 1
     memoryfacspawn 20.0
     memoryfacpart 10.0
     allrealcoeff

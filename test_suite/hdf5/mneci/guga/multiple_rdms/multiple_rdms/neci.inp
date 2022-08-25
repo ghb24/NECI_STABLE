@@ -28,7 +28,6 @@ title
     addtoinitiator         3
     totalWalkers       2.5e4
     realspawncutoff      .30
-    maxwalkerbloom         1
     memoryfacspawn      10.0
     memoryfacpart        5.0
     startsinglepart       10
@@ -45,7 +44,8 @@ title
         readpops-but-tau-not-from-popsfile
     tau-search \
         algorithm histogramming 1e-6 100000 2000 \
-        stop-condition off
+        stop-condition off \
+        maxwalkerbloom         1
 
     definedet   1 3 5    8 9 11   14 16 18
     # root 1 uuu duu ddd

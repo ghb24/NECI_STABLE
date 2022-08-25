@@ -16,7 +16,8 @@ calc
     tau-values \
         start user-defined 0.001
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3.0
     startsinglepart 100
     truncinitiator
     addtoinitiator 3
@@ -30,7 +31,6 @@ calc
     trial-wavefunction 150
     pops-trial 100
     load-balance-blocks off
-    maxwalkerbloom 3.0
 endcalc
 
 integral

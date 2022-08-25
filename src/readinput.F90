@@ -10,7 +10,9 @@ MODULE ReadInput_neci
     use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     use tau_main, only: tau_start_val, possible_tau_start, &
-        min_tau, max_tau, tau, readpops_but_tau_not_from_popsfile
+        min_tau, max_tau, tau, readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
+        tau_search_method, possible_tau_search_methods
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms
 
     Implicit none
 !   Used to specify which default set of inputs to use
@@ -723,6 +725,17 @@ contains
             if (tau_start_val == possible_tau_start%refdet_connections .and. tGUGA) then
                 call stop_all(this_routine, &
                               "tau-values start refdet-connections is not compatible with GUGA calculations!")
+            end if
+
+            if (tau_search_method /= possible_tau_search_methods%off) then
+                if (tTruncInitiator .and. MaxWalkerBloom > InitiatorWalkNo) then
+                    call stop_all(this_routine, &
+                                  "MaxWalkerBloom has to be smaller equal than InitiatorWalkNo.")
+                end if
+                if (tScaleBlooms .and. MaxWalkerBloom > max_allowed_spawn) then
+                    call stop_all(this_routine, &
+                                  "MaxWalkerBloom has to be smaller equal than max_allowed_spawn.")
+                end if
             end if
         end block time_step
 

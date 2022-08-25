@@ -24,7 +24,6 @@ calc
     nmcyc 20
     seed 7611
     shiftdamp 0.05
-    maxwalkerbloom 3
     allrealcoeff
     realspawncutoff 0.0
     averagemcexcits 10.0
@@ -32,7 +31,8 @@ calc
     tau-values \
         start user-defined 0.1
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3
     semi-stochastic
     read-core
     global-core-space

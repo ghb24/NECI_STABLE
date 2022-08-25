@@ -31,7 +31,7 @@ module fcimc_initialisation
 
     use CalcData, only: G_VMC_Seed, MemoryFacPart, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, &
-                        MaxWalkerBloom, InitialPart, tStartMP1, tReadPops, &
+                        InitialPart, tStartMP1, tReadPops, &
                         InitialPartVec, iReadWalkersRoot, SinglesBias, NMCYC, &
                         tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &

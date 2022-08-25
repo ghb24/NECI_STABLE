@@ -34,9 +34,9 @@ calc
         max 0.02
     tau-search \
         algorithm histogramming 1e-3 \
-        stop-condition off
+        stop-condition off \
+        maxwalkerbloom 1
 
-    maxwalkerbloom 1
     memoryfacspawn 25.0
     memoryfacpart 5.0
     time 1200.0

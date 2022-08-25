@@ -35,7 +35,8 @@ calc
         max 0.03
     tau-search \
         algorithm conventional \
-        stop-condition off
+        stop-condition off \
+        maxwalkerbloom 2.
 
     totalwalkers 1e3
     startsinglepart 100
@@ -50,7 +51,6 @@ calc
     allrealcoeff
     proje-changeref 1.2 10
     realspawncutoff 0.01
-    maxwalkerbloom 2.
 endcalc
 
 logging

@@ -44,10 +44,10 @@ calc
         start user-defined 0.01
     tau-search \
         algorithm conventional \
-        stop-condition no-change 500
+        stop-condition no-change 500 \
+        maxwalkerbloom 1
 
 
-    maxwalkerbloom 1
     memoryfacspawn 10.00
     memoryfacpart 5.00
     time 200

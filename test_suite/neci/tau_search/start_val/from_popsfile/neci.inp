@@ -44,10 +44,10 @@ calc
         start from-popsfile
     tau-search \
         algorithm conventional \
-        stop-condition off
+        stop-condition off \
+        maxwalkerbloom 1
 
 
-    maxwalkerbloom 1
     memoryfacspawn 10.00
     memoryfacpart 5.00
     time 200

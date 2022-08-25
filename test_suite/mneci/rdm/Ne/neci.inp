@@ -15,14 +15,14 @@ calc
     tau-values \
         start user-defined 0.001
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3.0
     startsinglepart
     truncinitiator
     addtoinitiator 3
     shiftdamp 0.03
     stepsshift 25
     load-balance-blocks off
-    maxwalkerbloom 3.0
 endcalc
 
 integral

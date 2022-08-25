@@ -39,7 +39,6 @@ calc
         max 0.02 \
         readpops-but-tau-not-from-popsfile
     tau-search off
-    maxwalkerbloom 1
     memoryfacspawn 10.00
     memoryfacpart 5.00
     startsinglepart 10

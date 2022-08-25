@@ -28,14 +28,14 @@ calc
     tau-values \
         start user-defined 0.05
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3
     truncinitiator
     addtoinitiator 3.0
     allrealcoeff
     realspawncutoff 0.0
     jump-shift
     stepsshift 1
-    maxwalkerbloom 3
     semi-stochastic
     core-inits
     doubles-core

@@ -18,6 +18,7 @@ calc
     tau-search \
         algorithm conventional \
         stop-condition var-shift \
+        maxwalkerbloom 3.0 \
         scale-tau-to-death
 
     startsinglepart 10
@@ -31,7 +32,6 @@ calc
     stepsshift 25
     jump-shift
     load-balance-blocks off
-    maxwalkerbloom 3.0
 
     memoryfacspawn 50
 endcalc

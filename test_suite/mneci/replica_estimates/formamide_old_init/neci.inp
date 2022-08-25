@@ -27,7 +27,6 @@ calc
     diagshift 0.0
     truncinitiator
     addtoinitiator 3
-    maxwalkerbloom 3
     allrealcoeff
     realspawncutoff 0.0
     stepsshift 1
@@ -35,7 +34,8 @@ calc
     tau-values \
         start user-defined 0.0005
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3
     semi-stochastic
     core-inits
     en2-initiator

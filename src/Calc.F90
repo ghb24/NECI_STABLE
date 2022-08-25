@@ -37,7 +37,7 @@ MODULE Calc
         tau_stop_method, possible_tau_stop_methods, &
         min_tau, max_tau, tau_start_val, possible_tau_start, &
         t_scale_tau_to_death, tau, taufactor, assign_value_to_tau, &
-        stop_options, readpops_but_tau_not_from_popsfile
+        stop_options, readpops_but_tau_not_from_popsfile, MaxWalkerBloom
 
     use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
         max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
@@ -1261,7 +1261,6 @@ contains
             case("TAU", "MIN-TAU", "MAX-TAU", "TAU-FACTOR", "TAU-CNT-THRESHOLD")
                 call stop_all(this_routine, trim(w)//" option is deprecated.")
 
-
             case("TAU-VALUES")
                 do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
@@ -1366,6 +1365,10 @@ contains
                         input_tau_search_method = possible_tau_search_methods%OFF
                     case("SCALE-TAU-TO-DEATH")
                         t_scale_tau_to_death = .true.
+                    case("MAXWALKERBLOOM")
+                        ! Set the maximum allowed walkers to create in one go,
+                        !  before reducing tau to compensate.
+                        MaxWalkerBloom = to_realdp(tokens%next())
                     case default
                         call stop_all(this_routine, "Invalid sub-keyword "//w)
                     end select
@@ -1529,10 +1532,9 @@ contains
                 call write_det(stdout, DefDet, .true.)
 
             case("MAXWALKERBLOOM")
-                !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
-                MaxWalkerBloom = to_realdp(tokens%next())
-                ! default the maximum spaw to MaxWalkerBloom
-                max_allowed_spawn = MaxWalkerBloom
+                call stop_all(this_routine, trim(w)//" option deprecated. &
+                    &Moved to tau-search and scale-spawns respectively.")
+
             case("SHIFTDAMP")
                 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 if (allocated(user_input_SftDamp)) then
@@ -1573,7 +1575,7 @@ contains
                 ! This option is now deprecated, as it is default.
                 write(stdout, '("WARNING: LINSCALEFCIMCALGO option has been &
                               &deprecated, and now does nothing")')
-                !call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
+                call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
             case("PARTICLE-HASH-MULTIPLIER")
                 ! Determine the absolute length of the hash table relative to
@@ -2148,7 +2150,7 @@ contains
                     end do
                 end if
             case("INITS-PROJE")
-                ! deprecated
+                call stop_all(this_routine, trim(w)//" option is deprecated.")
             case("INITS-GAMMA0")
                 ! use the density matrix obtained from the initiator space to
                 ! correct for the adaptive shift
@@ -3541,6 +3543,7 @@ contains
                 ! scale down potential blooms to prevent instability
                 ! increases the number of spawns to unbias for scaling
                 tScaleBlooms = .true.
+                max_allowed_spawn = to_realdp(tokens%next())
 
             case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

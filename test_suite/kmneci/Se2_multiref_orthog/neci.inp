@@ -17,7 +17,7 @@ calc
 
     orthogonalise-replicas
     multi-ref-shift
-    REPLICA-SINGLE-DET-START
+    replica-single-det-start
 
     methods
     method vertex fcimc
@@ -38,13 +38,13 @@ calc
     jump-shift
     proje-changeref 1000000
     stepsshift 10
-    maxwalkerbloom 3
     load-balance-blocks off
 
     tau-values \
         start refdet-connections
     tau-search \
-        algorithm conventional
+        algorithm conventional \
+        maxwalkerbloom 3
 endcalc
 
 integral

@@ -26,7 +26,6 @@ calc
     startsinglepart 5000
     totalwalkers 100000
     shiftdamp 0.05
-    maxwalkerbloom 3
     allrealcoeff
     realspawncutoff 0.0
     averagemcexcits 10.0
