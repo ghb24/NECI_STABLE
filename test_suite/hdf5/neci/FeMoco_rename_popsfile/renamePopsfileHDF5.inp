@@ -21,7 +21,6 @@ calc
     (readpops
     proje-changeref 1.2
     truncinitiator
-    maxwalkerbloom 0.5
     allrealcoeff
     realspawncutoff 0.3
     memoryfacpart  5.0
@@ -32,7 +31,8 @@ calc
         start refdet-connections
     tau-search \
         algorithm conventional \
-        stop-condition off
+        stop-condition off \
+        maxwalkerbloom 0.5
 endcalc
 
 logging
