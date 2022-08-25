@@ -19,7 +19,6 @@ calc
     shiftdamp 0.03
     stepsshift 25
     load-balance-blocks off
-    maxwalkerbloom 3.0
     seed 12824
     memoryFacSpawn 1000
 endcalc

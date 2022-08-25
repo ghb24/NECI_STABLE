@@ -26,13 +26,11 @@ calc
     startsinglepart 5000
     totalwalkers 100000
     shiftdamp 0.05
-    maxwalkerbloom 3
     allrealcoeff
     realspawncutoff 0.0
     averagemcexcits 10.0
     tau-values \
-        start user-defined 0.001 \
-        maxwalkerbloom 3
+        start user-defined 0.001
     pure-initiator-space
     simple-initiator
     read-initiator
