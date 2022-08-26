@@ -352,7 +352,7 @@ contains
 
                         if (.not. any(opts_selected)) then
                             write(stdout, *) 'Input '//trim(w)//' not recognised. &
-                                Ignoring and continuing...'
+                                &Ignoring and continuing...'
                         endif
 
                         ! Do we have any other items to read in?
