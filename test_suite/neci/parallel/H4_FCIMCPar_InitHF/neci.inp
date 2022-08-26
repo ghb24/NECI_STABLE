@@ -15,7 +15,8 @@ nmcyc 10000
 diagshift 0.0
 initwalkers 500000
 maxnoathf 20000
-tau 0.001
+tau-values \
+    start user-defined 0.001
 startsinglepart
 truncinitiator
 addtoinitiator 3

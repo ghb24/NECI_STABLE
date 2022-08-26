@@ -2,7 +2,7 @@ title
 
     system read
         electrons 4
-        # at the moment, only the uniform excitgen works with UHF
+        # at the moment, only the uniform excitgen works with uhf
         uhf
         molpromimic
     endsys
@@ -21,7 +21,11 @@ title
         definedet 1-2 3 5
 
         startsinglepart 100
-        tau 0.01 search
+        tau-values \
+            start user-defined 0.01
+        tau-search \
+            algorithm conventional \
+            stop-condition var-shift
 
         shiftdamp 0.1
         stepsshift 10
@@ -33,13 +37,13 @@ title
         allrealcoeff
         pops-core 2
 
-        MEMORYFACSPAWN 50
+        memoryfacspawn 50
     endcalc
 
   logging
-    binarypops
-    highlypopwrite 10000
-    printorboccs
+        binarypops
+        highlypopwrite 10000
+        printorboccs
   endlog
 
 end

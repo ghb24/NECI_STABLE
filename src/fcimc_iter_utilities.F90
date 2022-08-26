@@ -4,18 +4,23 @@ module fcimc_iter_utils
 
     use SystemData, only: nel, tHPHF, tNoBrillouin, tRef_Not_HF
     use CalcData, only: tSemiStochastic, tChangeProjEDet, tTrialWavefunction, &
-                        tCheckHighestPopOnce, tRestartHighPop, StepsSft, tau, &
+                        tCheckHighestPopOnce, tRestartHighPop, StepsSft, &
                         tTruncInitiator, tJumpShift, TargetGrowRate, &
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, SftDamp2, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option, tSkipRef, N0_Target, &
-                        tSpinProject, &
+                        qmc_trial_wf, nEquilSteps, &
+                        tSkipRef, N0_Target, tSpinProject, &
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
+
+    use tau_main, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
+        tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        tau_stop_method, end_of_search_reached, scale_tau_to_death, tau, &
+        stop_tau_search
+    use tau_search_hist, only: t_fill_frequency_hists
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
@@ -26,7 +31,7 @@ module fcimc_iter_utils
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
                            AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput, &
                            t_measure_local_spin
-    use tau_search, only: update_tau
+    use tau_search_conventional, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
     use fcimc_initialisation
@@ -793,22 +798,23 @@ contains
         ! We should update tau searching if it is enabled, or if it has been
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
-        if (.not. tSearchTau) then
-            call MPIAllLORLogical(tSearchTauDeath, ltmp)
-            tSearchTauDeath = ltmp
+        if (t_scale_tau_to_death .and. tau_search_method == possible_tau_search_methods%OFF) then
+            call MPIAllLORLogical(scale_tau_to_death_triggered, ltmp)
+            scale_tau_to_death_triggered = ltmp
         end if
 
         ! for now with the new tau-search also update tau in variable shift
         ! mode..
-        if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) &
-            .and. (.not. tFillingStochRDMOnFly))) then
-
-            call update_tau()
-
-            ! [Werner Dobrautz 4.4.2017:]
-        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) &
-            .and. (.not. tFillingStochRDMonFly))) then
-            call update_tau_hist()
+        if (.not. tFillingStochRDMOnFly) then
+            if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
+                call update_tau()
+            else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                call update_tau_hist()
+            else if (scale_tau_to_death_triggered) then
+                ASSERT(tau_search_method == possible_tau_search_methods%OFF)
+                ASSERT(t_scale_tau_to_death)
+                call scale_tau_to_death()
+            end if
         end if
 
         ! quick fix for the double occupancy:
@@ -1242,13 +1248,14 @@ contains
         do run = 1, inum_runs
             if (.not. tSinglePartPhase(run)) then
                 TargetGrowRate(run) = 0.0_dp
-                if (tPreCond) then
-                    if (iter > 80) tSearchTau = .false.
-                else
-                    tSearchTau = .false.
-                end if
             end if
         end do
+
+        if (tau_search_method /= possible_tau_search_methods%off) then
+            if (end_of_search_reached(tau_search_method, tau_stop_method)) then
+                call stop_tau_search(tau_stop_method)
+            end if
+        end if
     end subroutine update_shift
 
     subroutine rezero_output_stats()

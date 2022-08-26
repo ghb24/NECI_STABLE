@@ -22,7 +22,8 @@ calc
 
     allrealcoeff
 
-    tau 0.001
+    tau-values \
+        start user-defined 0.001
 
     seed 1
 

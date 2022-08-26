@@ -15,7 +15,8 @@ nmcyc 4000
 seed -7
 diagshift 0.0
 totalwalkers 20000
-tau 0.00075
+tau-values \
+    start user-defined 0.00075
 startmp1
 directannihilation
 shiftdamp 0.1

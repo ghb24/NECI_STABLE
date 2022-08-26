@@ -30,7 +30,7 @@ module verlet_aux
                          popsfile_dets, WalkVecDets, exFlag, max_calc_ex_level, ilutRef, Hii, &
                          fcimc_iter_data, core_run
     use core_space_util, only: cs_replicas
-    use CalcData, only: tTruncInitiator, tau, AvMCExcits, tPairedReplicas, &
+    use CalcData, only: tTruncInitiator, AvMCExcits, tPairedReplicas, &
                         tSemiStochastic, tInitCoherentRule
 
     use procedure_pointers, only: attempt_create, attempt_die, generate_excitation, &
@@ -51,19 +51,20 @@ module verlet_aux
 
     use MPI_wrapper, only: iProcIndex
 
+    use tau_main, only: tau, assign_value_to_tau
+
     implicit none
 
 contains
 
     subroutine init_verlet_sweep()
         ! here, we initiate the first dpsi_cache from a runge-kutta calculation
-        implicit none
-        character(*), parameter :: this_routine = "init_"
+        character(*), parameter :: this_routine = "init_verlet_sweep"
 
         write(stdout, *) "Prepared initial delta_psi, starting verlet calculation"
         call build_initial_delta_psi()
         ! rescale the timestep
-        tau = iterInit * tau
+        call assign_value_to_tau(iterInit * tau, this_routine)
         tau_imag = iterInit * tau_imag
         tau_real = iterInit * tau_real
         ! There is only one step now (we might log the second spawns as quasi-second
@@ -75,7 +76,6 @@ contains
 !-----------------------------------------------------------------------------------------------!
 
     subroutine check_verlet_sweep(iterRK)
-        implicit none
         integer, intent(inout) :: iterRK
         ! if iterInit iterations were done in the runge-Kutta, switch to verlet scheme
         if (iterRK == iterInit) then
@@ -88,17 +88,15 @@ contains
 !-----------------------------------------------------------------------------------------------!
 
     subroutine end_verlet_sweep()
-        implicit none
         ! switch back to runge-kutta after adjusting alpha to get a new delta_psi
         write(stdout, *) "Switching to runge-kutta for update of alpha"
         tVerletSweep = .false.
-        tau = tau / iterInit
+        call assign_value_to_tau(tau / iterInit, 'end_verlet_sweep')
     end subroutine end_verlet_sweep
 
 !-----------------------------------------------------------------------------------------------!
 
     subroutine build_initial_delta_psi()
-        implicit none
         character(*), parameter :: this_routine = "build_initial_delta_psi"
         ! build delta_psi as  psi(delta_t) - psi(0), where psi(delta_t) is the current population
         ! and psi(0) the backup stored in popsfile_dets
@@ -116,7 +114,6 @@ contains
 !-----------------------------------------------------------------------------------------------!
 
     subroutine setup_delta_psi()
-        implicit none
         ! temp_det_list is sufficient as a cache
         ! note that therefore, dpsi_cache also has a hashtable (temp_det_hash)
         dpsi_cache => temp_det_list
@@ -126,7 +123,6 @@ contains
 !-----------------------------------------------------------------------------------------------!
 
     subroutine backup_initial_state()
-        implicit none
         character(*), parameter :: this_routine = "backup_initial_state"
 
         ! popsfile_dets is certainly large enough to house CurrentDets, so use it if available
@@ -138,7 +134,6 @@ contains
 
     subroutine init_verlet_iteration()
         use rdm_data, only: rdm_definitions_t
-        implicit none
         type(rdm_definitions_t) :: dummy
 
         FreeSlot(1:iEndFreeSlot) = 0
@@ -156,7 +151,6 @@ contains
     ! applies the hamiltonian twice to the current population and stores the result
     ! in spawnedParts
     subroutine obtain_h2_psi()
-        implicit none
         real(dp) :: dummy_sign(lenof_sign)
 
         ! apply H once, we now have the spawnedParts from a single iteration
@@ -184,7 +178,6 @@ contains
         ! keep it minimalistic and stick to the SRP principle
 
         ! by default writes into SpawnedParts
-        implicit none
         integer(n_int), intent(in) :: population(0:, 1:)
         integer, intent(in) :: popsize
         ! store the free slots in population
@@ -257,7 +250,6 @@ contains
 !-----------------------------------------------------------------------------------------------!
 
     subroutine perform_spawn(iLut_parent, nI, parent_sign, hdiag, tCoreDet)
-        implicit none
         real(dp), intent(in) :: parent_sign(lenof_sign), hdiag
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut_parent(0:niftot)
@@ -329,7 +321,6 @@ contains
     subroutine create_diagonal_with_hashtable(nI, iLut, sign, err)
         ! this subroutine is somewhat a variant of create_particle_with_hashtable
         ! that takes a global sign with many entries as it appears in diagonal spawning events
-        implicit none
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: iLut(0:niftot)
         real(dp), intent(in) :: sign(lenof_sign)
@@ -389,7 +380,6 @@ contains
 !-----------------------------------------------------------------------------------------------!
 
     subroutine generate_spawn_buf()
-        implicit none
         character(*), parameter :: this_routine = "generate_spawn_buf"
 
         call SendProcNewParts(spawnBufSize, .false.)
@@ -445,7 +435,6 @@ contains
 !-----------------------------------------------------------------------------------------------!
 
     subroutine merge_ilut_lists(listA, listB, hashTable, sizeA, sizeB, maxSizeA)
-        implicit none
         integer(n_int), intent(in) :: listB(0:, 1:)
         integer(n_int), intent(inout) :: listA(0:, 1:)
         integer, intent(in) :: sizeB, maxSizeA
@@ -493,7 +482,6 @@ contains
         ! here, we add H^2 psi to delta_psi to generate the new delta_psi
         ! this might cause trouble as stochastic error is not averaged out,
         ! but we just carry over the error from the last iteration
-        implicit none
         character(*), parameter :: this_routine = "update_delta_psi"
 
         ! add up delta_psi from the last iteration and spawnedParts (i.e. H^2 psi)
@@ -519,7 +507,6 @@ contains
 !-----------------------------------------------------------------------------------------------!
 
     subroutine set_initiator_flags_array(list, listSize)
-        implicit none
         integer(n_int), intent(inout) :: list(0:, 1:)
         integer, intent(in) :: listSize
         integer :: i, run

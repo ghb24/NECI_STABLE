@@ -37,11 +37,13 @@ module real_space_hubbard
 
     use OneEInts, only: tmat2d, GetTMatEl, spin_free_tmat
 
-    use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption, &
-                         excit_gen_store_type
+    use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
 
-    use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, &
-                        t_fill_frequency_hists, matele_cutoff, pSinglesIn, pDoublesIn
+    use tau_main, only: tau_search_method, input_tau_search_method, &
+        possible_tau_search_methods, t_scale_tau_to_death, tau, assign_value_to_tau, &
+        min_tau, max_tau
+
+    use CalcData, only: matele_cutoff, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -52,7 +54,7 @@ module real_space_hubbard
 
     use util_mod, only: binary_search_first_ge, swap, get_free_unit, &
                         binary_search, near_zero, operator(.isclose.), &
-                        operator(.div.), stop_all
+                        operator(.div.), stop_all, clamp
 
     use bit_reps, only: decode_bit_det
 
@@ -232,7 +234,9 @@ contains
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
             root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
+            call assign_value_to_tau(&
+                clamp(lat_tau_factor * tau_opt, min_tau, max_tau), &
+                'Initialization with optimal real-space Hubbard value')
 
         else
             root_print "optimal time-step would be: ", tau_opt
@@ -242,15 +246,11 @@ contains
         ! re-enable tau-search if we have transcorrelation
         if (.not. (t_trans_corr_2body .or. t_trans_corr .or. t_trans_corr_hop &
                    .or. t_spin_dependent_transcorr)) then
-            ! and i have to turn off the time-step search for the hubbard
-            tsearchtau = .false.
-            ! set tsearchtauoption to true to use the death-tau search option
-            tsearchtauoption = .true.
 
-            t_hist_tau_search = .false.
-            t_hist_tau_search_option = .false.
-
-            t_fill_frequency_hists = .false.
+            if (tau_search_method /= possible_tau_search_methods%OFF) then
+                call stop_all(this_routine, "tau-search should be switched off")
+            end if
+            t_scale_tau_to_death = .true.
         end if
 
         if (t_start_neel_state) then

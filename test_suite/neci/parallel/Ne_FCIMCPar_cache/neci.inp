@@ -14,7 +14,8 @@ seed -7
 nmcyc 3000
 diagshift 0.1
 initwalkers 800
-tau 0.001
+tau-values \
+    start user-defined 0.001
 startsinglepart
 shiftdamp 0.05
 memoryfacpart 2.5

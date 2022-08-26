@@ -6,7 +6,7 @@ module dSFMT_interface
     ! See also dSFMT.h/c
 
 
-    use constants
+    use constants, only: dp
     use, intrinsic :: iso_c_binding, only: c_double, c_int32_t, c_int
     implicit none
 

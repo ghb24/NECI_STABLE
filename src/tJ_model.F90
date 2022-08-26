@@ -18,10 +18,10 @@ module tJ_model
 
     use procedure_pointers, only: get_umat_el
 
-    use FciMCData, only: tsearchtau, tsearchtauoption, excit_gen_store_type, &
-                         pSingles, pDoubles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
 
-    use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
+    use tau_main, only: tau_search_method, possible_tau_search_methods, tau, &
+        assign_value_to_tau, min_tau, max_tau
 
     use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits
 
@@ -149,10 +149,9 @@ contains
 
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
@@ -225,22 +224,17 @@ contains
         ! where i need the connectivity of the lattice i guess?
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value asdf.')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
         if (t_start_neel_state) then
             root_print "starting from the Neel state: "
@@ -317,22 +311,18 @@ contains
         ! TODO: maybe I need the tau-search for the GUGA..
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
 
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
     end subroutine init_guga_heisenberg_model
 
@@ -399,30 +389,24 @@ contains
         ! where i need the connectivity of the lattice i guess?
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
         if (t_start_neel_state) then
-!             neel_state_ni = create_neel_state(ilut_neel)
-
             root_print "starting from the Neel state: "
             if (nel > nbasis / 2) then
-                call stop_all(this_routine, &
-                              "more than half-filling! does neel state make sense?")
+                call stop_all(&
+                    this_routine, &
+                    "more than half-filling! does neel state make sense?")
             end if
 
         end if

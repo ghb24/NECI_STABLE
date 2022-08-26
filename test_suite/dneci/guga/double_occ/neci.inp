@@ -20,7 +20,8 @@ calc
 
     allrealcoeff
     load-balance-interval 1000
-    tau 0.001
+    tau-values \
+        start user-defined 0.001
     truncinitiator
     addtoinitiator 3
     totalwalkers 100

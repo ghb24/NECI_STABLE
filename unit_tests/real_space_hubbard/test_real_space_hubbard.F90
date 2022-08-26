@@ -55,6 +55,8 @@ program test_real_space_hubbard
     use SymExcitDataMod, only: excit_gen_store_type, ScratchSize, &
                                Scratchsize1, Scratchsize2
 
+    use tau_main, only: tau_search_method, possible_tau_search_methods, &
+        t_scale_tau_to_death, tau, assign_value_to_tau
 
     implicit none
 
@@ -210,9 +212,6 @@ contains
             allocate(flip(nel), source = 0)
             call finddetspinsym(nI,flip,nel)
         end if
-
-!         nI = [1,4]
-!         nI = [1,2,3,4,5,6,7]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -1920,8 +1919,7 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
                               bhub, ecore
         use OneEInts, only: tmat2d
-        use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
-        use CalcData, only: tau
+        use fcimcdata, only: pSingles, pDoubles
         use procedure_pointers, only: get_umat_el
         use lattice_mod, only: lattice_deconstructor
 
@@ -1934,7 +1932,7 @@ contains
         length_y = 1
         nel = 2
         bhub = 1
-        tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp, 'Initialization in init_real_space_hubbard_test')
 
         call init_real_space_hubbard()
 
@@ -1965,8 +1963,8 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(t_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
@@ -1978,7 +1976,7 @@ contains
         nel = -1
         bhub = 0
         nbasis = -1
-        tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp, 'Initialization in real-space Hubbard test.')
         deallocate(tmat2d)
         nullify(get_umat_el)
 
@@ -2002,8 +2000,8 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(t_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(1.0/8.0_dp * lat_tau_factor, tau)
 
@@ -2016,7 +2014,7 @@ contains
         nel = -1
         bhub = 0
         nbasis = -1
-        tau = 0.0
+        call assign_value_to_tau(0.0_dp, 'Initialization in real-space Hubbard test.')
         deallocate(tmat2d)
         nullify(get_umat_el)
 
@@ -2040,8 +2038,8 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(t_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
         call assert_equals(1.0/12.0_dp * lat_tau_factor, tau)
 
@@ -2757,4 +2755,3 @@ contains
 
     end subroutine determine_optimal_time_step_test
 end program test_real_space_hubbard
-

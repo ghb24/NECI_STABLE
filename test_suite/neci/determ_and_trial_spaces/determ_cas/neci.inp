@@ -12,7 +12,8 @@ seed -7
 memoryfacspawn 5.0
 memoryfacpart 2.0
 totalwalkers 10000
-tau 0.01
+tau-values \
+    start user-defined 0.01
 startsinglepart 10000
 shiftdamp 0.5
 stepsshift 1

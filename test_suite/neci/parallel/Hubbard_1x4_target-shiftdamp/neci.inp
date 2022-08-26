@@ -19,7 +19,8 @@ load-balance-blocks off
 totalwalkers   1000
 nmcyc 10000
 
-tau 0.001
+tau-values \
+    start user-defined 0.001
 
 start-neel-state
 

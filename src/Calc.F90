@@ -24,14 +24,23 @@ MODULE Calc
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use rdm_data, only: tApplyLC
-    use FciMCData, only: tTimeExit, MaxTimeExit, InputDiagSft, tSearchTau, &
-                         nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
+    use FciMCData, only: tTimeExit, MaxTimeExit, InputDiagSft, &
+                         nWalkerHashes, HashLengthFrac, &
+                         tTrialHash, tIncCancelledInitEnergy, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
+                         alloc_popsfile_dets, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
                          user_input_max_davidson_iters
+    use tau_main, only:  &
+        tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        tau_stop_method, possible_tau_stop_methods, &
+        min_tau, max_tau, tau_start_val, possible_tau_start, &
+        t_scale_tau_to_death, tau, taufactor, assign_value_to_tau, &
+        stop_options, readpops_but_tau_not_from_popsfile, MaxWalkerBloom
+
+    use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
+        max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
@@ -73,7 +82,7 @@ MODULE Calc
 
     use sets_mod, only: disjoint, operator(.U.)
 
-    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
+    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -117,12 +126,6 @@ contains
         iReadWalkersRoot = 0
         tShiftonHFPop = .false.
         MaxWalkerBloom = 2
-        tSearchTau = .true.
-        tSearchTauOption = .true.
-        tSearchTauDeath = .false.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
 
         t_lanczos_init = .false.
         t_lanczos_store_vecs = .true.
@@ -211,7 +214,7 @@ contains
         tWalkContGrow = .false.
         StepsSft = 10
         SftDamp = 0.1_dp
-        Tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp, 'Default value initialization.')
         InitWalkers = 3000.0_dp
         NMCyc = -1
         eq_cyc = -1
@@ -393,7 +396,6 @@ contains
             pParallel = 0.5_dp
         end if
 
-        MaxTau = 1.0_dp
         pop_change_min = 50
         tOrthogonaliseReplicas = .false.
         tOrthogonaliseSymmetric = .false.
@@ -712,8 +714,7 @@ contains
                         tExitNow = .true.
 
                     case default
-                        write(stdout, *) 'REPORT'//trim(w)
-                        !call report ("Keyword "//trim(w)//" not recognized",.true.)
+                        call stop_all(this_routine, "Keyword "//trim(w)//" not recognized")
                     end select
 
                 end do
@@ -1248,77 +1249,146 @@ contains
                     InputDiagSftSingle = to_realdp(tokens%next())
                     InputDiagSft = InputDiagSftSingle
                 else
-                    if(inum_runs /= tokens%remaining_items()) call stop_all(t_r, "The number of initial shifts input is not equal to &
+                    if (inum_runs /= tokens%remaining_items()) then
+                        call stop_all(t_r, "The number of initial shifts input is not equal to &
                                            &the number of replicas being used.")
+                    end if
                     do i = 1, inum_runs
                         InputDiagSft(i) = to_realdp(tokens%next())
                     end do
                 end if
 
-            case("TAUFACTOR")
-!For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
-                tSearchTau = .false.  !Tau is set, so don't search for it.
-                tSearchTauOption = .false.
-                TauFactor = to_realdp(tokens%next())
-            case("TAU")
-                ! For FCIMC, this can be considered the timestep of the
-                ! simulation. It is a constant which will increase/decrease
-                ! the rate of spawning/death for a given iteration.
-                Tau = to_realdp(tokens%next())
-                tSpecifiedTau = .true.
+            case("TAU", "MIN-TAU", "MAX-TAU", "TAU-FACTOR", "TAU-CNT-THRESHOLD")
+                call stop_all(this_routine, trim(w)//" option is deprecated.")
 
-                ! If SEARCH is provided, use this value as the starting value
-                ! for tau searching
-                if(tokens%remaining_items() > 0) then
+            case("TAU-VALUES")
+                do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
                     select case(w)
-                    case("SEARCH")
-                        tSearchTau = .true.
-                        tSearchTauOption = .true.
+                    case("START")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("DETERMINISTIC")
+                            tau_start_val = possible_tau_start%deterministic
+                        case("FROM-POPSFILE")
+                            tau_start_val = possible_tau_start%from_popsfile
+                        case("NOT-NEEDED")
+                            ! The user explicitly says, that tau is not required.
+                            tau_start_val = possible_tau_start%not_needed
+                        case("REFDET-CONNECTIONS")
+                            tau_start_val = possible_tau_start%refdet_connections
+                        case("TAU-FACTOR")
+                            tau_start_val = possible_tau_start%tau_factor
+                            TauFactor = to_realdp(tokens%next())
+                        case("USER-DEFINED")
+                            tau_start_val = possible_tau_start%user_given
+                            call assign_value_to_tau(to_realdp(tokens%next()), 'Initialization from user-defined value.')
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("MIN")
+                        min_tau = to_realdp(tokens%next())
+                    case("MAX")
+                        max_tau = to_realdp(tokens%next())
+                    case("READPOPS-BUT-TAU-NOT-FROM-POPSFILE")
+                        readpops_but_tau_not_from_popsfile = .true.
                     case default
-                        tSearchTau = .false.
-                        tSearchTauOption = .false.
+                        call stop_all(this_routine, "Invalid sub-keyword "//w)
                     end select
-                else
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
+                end do
+
+            case("TAU-SEARCH")
+                if (tokens%remaining_items() == 0) then
+                    call stop_all(this_routine, "TAU-SEARCH requires more information")
                 end if
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
+                    select case(w)
+                    case("ALGORITHM")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("CONVENTIONAL")
+                            input_tau_search_method = possible_tau_search_methods%CONVENTIONAL
+                        case("HISTOGRAMMING")
+                            input_tau_search_method = possible_tau_search_methods%HISTOGRAMMING
+                            t_fill_frequency_hists = .true.
+                            if (can_be_real(tokens%glimpse(''))) then
+                                frq_ratio_cutoff = 1._dp - to_realdp(tokens%next())
+                                if (frq_ratio_cutoff < 0.9_dp) then
+                                    write(stderr, *) 'The frequency ratio cutoff `c` of histogramming is below 0.9.'
+                                    write(stderr, *) 'Note that the input is the first argument to `histogramming` as `1 - c`.'
+                                    write(stderr, *) 'If you want c = 0.999 just write:'
+                                    write(stderr, *) '  tau-search \'
+                                    write(stderr, *) '      algorithm histogramming 1e-3'
+                                    write(stderr, *) 'If you really want c < 0.9 contact the developers.'
+                                    call stop_all(this_routine, 'Invalid `frq_ratio_cutoff`.')
+                                end if
+                            end if
+                            if (can_be_real(tokens%glimpse(''))) then
+                                n_frequency_bins = nint(to_realdp(tokens%next()))
+                                if (n_frequency_bins > 10**6) then
+                                    write(stdout, "(A)") &
+                                        '("WARNING: maybe too many bins used for the &
+                                        &histograms! This might cause MPI problems!")'
+                                end if
+                            end if
+                            if (can_be_real(tokens%glimpse(''))) then
+                                max_frequency_bound = to_realdp(tokens%next())
+                            end if
 
-            case("MIN-TAU")
-                ! use a minimum tau value or the automated tau-search
-                ! to avoid that a single, worst case excitation kills your
-                ! time-step
-                t_min_tau = .true.
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("STOP-CONDITION")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("MAX-EQ-ITER")
+                            tau_stop_method = possible_tau_stop_methods%max_eq_iter
+                            stop_options%max_eq_iter = nint(to_realdp(tokens%next()))
+                        case("MAX-ITER")
+                            tau_stop_method = possible_tau_stop_methods%max_iter
+                            stop_options%max_iter = nint(to_realdp(tokens%next()))
+                        case("NO-CHANGE")
+                            tau_stop_method = possible_tau_stop_methods%no_change
+                            stop_options%max_iter_without_change = nint(to_realdp(tokens%next()))
+                        case("N-OPTS")
+                            tau_stop_method = possible_tau_stop_methods%n_opts
+                            stop_options%max_n_opts = nint(to_realdp(tokens%next()))
+                        case("VAR-SHIFT")
+                            tau_stop_method = possible_tau_stop_methods%var_shift
+                        case("OFF")
+                            tau_stop_method = possible_tau_stop_methods%off
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("OFF")
+                        input_tau_search_method = possible_tau_search_methods%OFF
+                    case("SCALE-TAU-TO-DEATH")
+                        t_scale_tau_to_death = .true.
+                    case("MAXWALKERBLOOM")
+                        ! Set the maximum allowed walkers to create in one go,
+                        !  before reducing tau to compensate.
+                        MaxWalkerBloom = to_realdp(tokens%next())
+                    case default
+                        call stop_all(this_routine, "Invalid sub-keyword "//w)
+                    end select
+                    tau_search_method = input_tau_search_method
+                end do
 
-                if(tokens%remaining_items() > 0) then
-                    min_tau_global = to_realdp(tokens%next())
-                end if
+            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
+                call stop_all(this_routine, trim(w)//" option deprecated")
 
-                ! assume thats only for the tau-search so enable all the
-                ! other quantities
-                tSearchTau = .true.
-                tSearchTauOption = .true.
+            case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
+                ! test a change to the tau search to avoid those nasty
+                ! MPI communications each iteration
+                t_test_hist_tau = .true.
 
-            case("MAX-TAU")
-                ! For tau searching, set a maximum value of tau. This places
-                ! a limit to prevent craziness at the start of a calculation
-                MaxTau = to_realdp(tokens%next())
-
-            case("READ-PROBABILITIES")
-                ! introduce a new flag to read pSingles/pParallel etc. from
-                ! a popsfile even if the tau-search is not turned on, since
-                ! this scenario often shows up in my restarted calculations
-                t_read_probs = .true.
-
-            case("NO-READ-PROBABILITIES")
-                ! change the default behavior to always read in the
-                ! pSingles etc. quantities! and only turn that off with this
-                ! keyword
-                t_read_probs = .false.
+            case("READ-PROBABILITIES", "NO-READ-PROBABILITIES")
+                call stop_all(this_routine, trim(w)//" option deprecated")
 
             case ("DIRECT-GUGA-REF")
                 ! obsolet since standard now!
-                write(stdout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
+                call stop_all(this_routine, trim(w)//" option deprecated, since it is standard now")
 
             case ("LIST-GUGA-REF")
                 ! option to calculate the reference energy via a pre-computed list
@@ -1375,81 +1445,9 @@ contains
                     end select
                 end if
 
-            case("KEEPTAUFIXED")
-                ! option for a restarted run to keep the tau, read in from the
-                ! POPSFILE and other parameters, as pSingles, pParallel
-                ! fixed for the remainder of the run, even if we keep
-                ! growing the walkers
-                t_keep_tau_fixed = .true.
-
-                ! here i need to turn off the tau-search option
-                tSearchTau = .false.
-                tSearchTauOption = .false.
-
             case("TEST-ORDER")
                 ! test order of transcorrelated matrix elements
                 t_test_order = .true.
-            case("HIST-TAU-SEARCH", "NEW-TAU-SEARCH")
-                ! [Werner Dobrautz, 4.4.2017:]
-                ! the new tau search method using histograms of the
-                ! H_ij / pgen ratio and integrating the histograms up to
-                ! a certain value, to obtain the time-step and not using
-                ! only the worst case H_ij / pgen ration
-
-                ! this option has 3 possible input parameters:
-                ! 1) the integration cutoff in percentage [0.999 default]
-                ! 2) the number of bins used [100000 default]
-                ! 3) the upper bound of the bins [10000.0 default]
-                t_hist_tau_search = .true.
-                t_hist_tau_search_option = .true.
-                t_fill_frequency_hists = .true.
-
-                ! turn off the other tau-search, if by mistake both were
-                ! chosen!
-                if(tSearchTau .or. tSearchTauOption) then
-                    write(stdout, &
-                        '("(WARNING: both the histogramming and standard tau&
-                        &-search option were chosen! TURNING STANDARD VERSION OFF!")')
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    frq_ratio_cutoff = to_realdp(tokens%next())
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    n_frequency_bins = to_int(tokens%next())
-
-                    ! check that not too many bins are used which may crash
-                    ! the MPI communication of the histograms!
-                    if(n_frequency_bins > 1000000) then
-                        write(stdout, &
-                            '("WARNING: maybe too many bins used for the &
-                            &histograms! This might cause MPI problems!")')
-                    end if
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    max_frequency_bound = to_realdp(tokens%next())
-                end if
-
-            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
-                ! [Werner Dobrautz 5.5.2017:]
-                ! a keyword, which in case of a continued run from a
-                ! previous hist-tau-search run restarts the histogramming
-                ! tau-search anyway, in case the tau-search is not yet
-                ! converged enough
-                t_restart_hist_tau = .true.
-
-                if(tokens%remaining_items() > 0) then
-                    hist_search_delay = to_int(tokens%next())
-                end if
-
-            case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
-                ! test a change to the tau search to avoid those nasty
-                ! MPI communications each iteration
-                t_test_hist_tau = .true.
 
             case("TRUNCATE-SPAWNS")
                 ! [Werner Dobrautz, 4.4.2017:]
@@ -1534,10 +1532,9 @@ contains
                 call write_det(stdout, DefDet, .true.)
 
             case("MAXWALKERBLOOM")
-                !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
-                MaxWalkerBloom = to_realdp(tokens%next())
-                ! default the maximum spaw to MaxWalkerBloom
-                max_allowed_spawn = MaxWalkerBloom
+                call stop_all(this_routine, trim(w)//" option deprecated. &
+                    &Moved to tau-search and scale-spawns respectively.")
+
             case("SHIFTDAMP")
                 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 if (allocated(user_input_SftDamp)) then
@@ -1578,7 +1575,7 @@ contains
                 ! This option is now deprecated, as it is default.
                 write(stdout, '("WARNING: LINSCALEFCIMCALGO option has been &
                               &deprecated, and now does nothing")')
-                !call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
+                call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
             case("PARTICLE-HASH-MULTIPLIER")
                 ! Determine the absolute length of the hash table relative to
@@ -2153,7 +2150,7 @@ contains
                     end do
                 end if
             case("INITS-PROJE")
-                ! deprecated
+                call stop_all(this_routine, trim(w)//" option is deprecated.")
             case("INITS-GAMMA0")
                 ! use the density matrix obtained from the initiator space to
                 ! correct for the adaptive shift
@@ -2998,9 +2995,6 @@ contains
                     end if
                 end do
 
-            case("TAU-CNT-THRESHOLD")
-                write(stdout, *) 'WARNING: This option is unused in this branch'
-
             case("INITIATOR-SURVIVAL-CRITERION")
                 ! If a site survives for at least a certain number of
                 ! iterations, it should be treated as an initiator.
@@ -3549,6 +3543,7 @@ contains
                 ! scale down potential blooms to prevent instability
                 ! increases the number of spawns to unbias for scaling
                 tScaleBlooms = .true.
+                max_allowed_spawn = to_realdp(tokens%next())
 
             case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

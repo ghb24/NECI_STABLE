@@ -1,41 +1,44 @@
-TITLE
- 
-SYSTEM READ NOORDER
-ELECTRONS 3
-NOBRILLOUINTHEOREM
-nonuniformrandexcits pchb
-molecular-transcorr 3-body
-ENDSYS
- 
-CALC
-METHODS
-METHOD VERTEX FCIMC
-ENDMETHODS
-nmcyc 5000
-SEED        -7
-TOTALWALKERS       10000
-DIAGSHIFT       1.5000000000
-SHIFTDAMP       0.1000000000
-STEPSSHIFT      10
-tau 0.001
-hist-tau-search
-MEMORYFACPART         1.500000000000000
-MEMORYFACSPAWN         5.
-TRUNCINITIATOR
-ADDTOINITIATOR        2
-allrealcoeff
-realspawncutoff 1.
-AVGROWTHRATE
-startsinglepart 10
-definedet 1 2 3
-load-balance-interval 1000
-ENDCALC
+title
+
+system read noorder
+    electrons 3
+    nobrillouintheorem
+    nonuniformrandexcits pchb
+    molecular-transcorr 3-body
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+    nmcyc 5000
+    seed        -7
+    totalwalkers       10000
+    diagshift       1.5000000000
+    shiftdamp       0.1000000000
+    stepsshift      10
+    tau-values \
+        start user-defined 0.001
+    tau-search \
+        algorithm histogramming \
+        stop-condition off
+    memoryfacpart         1.50
+    memoryfacspawn         5.
+    truncinitiator
+    addtoinitiator        2
+    allrealcoeff
+    realspawncutoff 1.
+    avgrowthrate
+    startsinglepart 10
+    definedet 1 2 3
+    load-balance-interval 1000
+endcalc
 
 integral
-hdf5-integrals
+    hdf5-integrals
 endint
- 
-LOGGING
-popsfile -1
-ENDLOG
-END
+
+logging
+    popsfile -1
+endlog
+end
