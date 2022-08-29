@@ -354,13 +354,13 @@ contains
 
                 !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 2               read(iunit, END=99) Z, IND
-                L = int(iand(IND, MASK), sizeof_int)
+                L = int(iand(IND, MASK))
                 IND = Ishft(IND, -16)
-                K = int(iand(IND, MASK), sizeof_int)
+                K = int(iand(IND, MASK))
                 IND = Ishft(IND, -16)
-                J = int(iand(IND, MASK), sizeof_int)
+                J = int(iand(IND, MASK))
                 IND = Ishft(IND, -16)
-                I = int(iand(IND, MASK), sizeof_int)
+                I = int(iand(IND, MASK))
 
 !                I=Index(I)
 !                J=Index(J)
@@ -534,7 +534,7 @@ contains
                 G1(ISPINS * I - ISPN + 1)%k(2) = 0
                 G1(ISPINS * I - ISPN + 1)%k(3) = 0
                 G1(ISPINS * I - ISPN + 1)%Ms = -MOD(ISPINS * I - ISPN + 1, 2) * 2 + 1
-                IF (SYMMAX < ORBSYM(I)) SYMMAX = int(ORBSYM(I), sizeof_int)
+                IF (SYMMAX < ORBSYM(I)) SYMMAX = int(ORBSYM(I))
                 IF (abs(SYMLZ(I)) > iMaxLz) iMaxLz = abs(SYMLZ(I))
             end do
         end do
@@ -711,7 +711,9 @@ contains
             call reorder_orb_label(L)
 
             ! Remove integrals that are too small
-            if (abs(Z) < UMatEps) then
+            ! NOTE we need I > 0 in case we have a UHF-type FCIDUMP, as the spin
+            ! delimiter has Z == 0
+            if (abs(Z) < UMatEps .and. I > 0) then
                 if (ZeroedInt < 100) then
                     write(stdout, '(a,2i4,a,2i4,a)', advance='no') &
                         'Ignoring integral (chem. notation) (', i, j, '|', k, &
@@ -928,7 +930,7 @@ contains
 
     !This is a copy of the routine above, but now for reading in binary files of integrals
     SUBROUTINE READFCIINTBIN(UMAT, ECORE)
-        use constants, only: dp, int64, sizeof_int
+        use constants, only: dp, int64
         use SystemData, only: Symmetry, BasisFN, t_non_hermitian
         USE UMatCache, only: UMatInd
         use OneEInts, only: TMatind, TMat2D
@@ -946,13 +948,13 @@ contains
         MASK = (2**16) - 1
         !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 101     read(iunit, END=199) Z, IND
-        L = int(iand(IND, MASK), sizeof_int)
+        L = int(iand(IND, MASK))
         IND = Ishft(IND, -16)
-        K = int(iand(IND, MASK), sizeof_int)
+        K = int(iand(IND, MASK))
         IND = Ishft(IND, -16)
-        J = int(iand(IND, MASK), sizeof_int)
+        J = int(iand(IND, MASK))
         IND = Ishft(IND, -16)
-        I = int(iand(IND, MASK), sizeof_int)
+        I = int(iand(IND, MASK))
 
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
         IF (I == 0) THEN

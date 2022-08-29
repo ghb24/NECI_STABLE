@@ -17,6 +17,7 @@ module rdm_data_utils
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
     use util_mod
     use SystemData, only: tGUGA, nSpatOrbs
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use guga_bitRepOps, only: contract_2_rdm_ind, contract_1_rdm_ind, &
                               extract_2_rdm_ind
 
@@ -657,7 +658,7 @@ contains
         end do
 
         ! The total number of RDM elements in the list after the receive.
-        new_nelements = rdm_recv%nelements + int(sum(recv_sizes), sizeof_int)
+        new_nelements = rdm_recv%nelements + int(sum(recv_sizes))
 
         ! If we don't have enough memory in the receiving list, try
         ! reallocating it to be big enough.

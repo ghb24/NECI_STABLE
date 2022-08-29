@@ -86,9 +86,9 @@ contains
         integer :: ind
 
         if (tFixLz) then
-            ind = int(2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin), sizeof_int)
+            ind = int(2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin))
         else
-            ind = int(2 * Sym + Spin, sizeof_int)
+            ind = int(2 * Sym + Spin)
         end if
 
         if (tNoSymGenRandExcits) then
@@ -268,6 +268,12 @@ contains
         ! Default initial value
         bValid = .true.
         if (present(err_msg)) err_msg = ''
+
+        if (nI(1) == 0 .or. nJ(1) == 0) then
+            bValid = .false.
+            if (present(err_msg)) err_msg = 'nI or nJ is zero.'
+            return
+        endif
 
         ! Check reported excitation level
         exLevel = iGetExcitLevel(nI, nJ, nel)

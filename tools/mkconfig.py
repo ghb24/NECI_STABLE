@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Produce a makefile for compiling the neci source code for a specified target/configuration.
 
 Usage:
@@ -79,6 +79,7 @@ max_mem
     The amount of available memory (per core) in MB.  Used for logging purposes.
 '''
 
+from __future__ import print_function
 import ConfigParser
 import optparse
 import os
@@ -784,11 +785,11 @@ Multiple configuration files can only be given in conjunction with the --print o
 
     if not (options.print_conf or options.ls):
         if len(args) > 1:
-            print 'Incorrect arguments.'
+            print('Incorrect arguments.')
             parser.print_help()
             sys.exit(1)
         if not config_file:
-            print '.default file not found.'
+            print('.default file not found.')
             parser.print_help()
             sys.exit(1)
 
@@ -916,7 +917,7 @@ if __name__=='__main__':
     args=sys.argv[1:]
     (options, config_file) = parse_options(args)
     if options.ls:
-        print 'Available configurations are: %s.' % (', '.join(list_configs(options.dir)))
+        print('Available configurations are: %s.' % (', '.join(list_configs(options.dir))))
     elif options.print_conf:
         if config_file:
             config_files = config_file.split()
@@ -924,9 +925,9 @@ if __name__=='__main__':
             config_files = list_configs(options.dir)
         for config_file in config_files:
             config = parse_config(config_file)
-            print 'Settings in configuration file: %s' % (config_file)
+            print('Settings in configuration file: %s' % (config_file))
             pprint.pprint(config)
-            print
+            print()
     else:
         if options.out == '-':
             f = sys.stdout

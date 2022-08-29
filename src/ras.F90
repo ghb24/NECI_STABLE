@@ -540,7 +540,7 @@ contains
 
                             ! Find bitstring representation.
                             counter = counter + 1
-                            call EncodeBitDet(int(nI, sizeof_int), ilut_list(:, counter))
+                            call EncodeBitDet(int(nI), ilut_list(:, counter))
                             if (present(parities)) then
                                 parities(counter) = par
                             end if
@@ -579,7 +579,7 @@ contains
                 temp_sym = ieor(temp_sym, G1(BRR(string(i) * 2))%Sym%S)
             end do
 
-            sym = int(temp_sym, sizeof_int)
+            sym = int(temp_sym)
         end if
 
     end function get_abelian_sym
@@ -607,7 +607,7 @@ contains
                     ! Finally, add the total number of combinations of strings from the two
                     ! classes with these symmetry labels.
                     space_size = space_size + &
-                                 int(classes(i)%num_sym(k) * classes(temp_class)%num_sym(l), sizeof_int)
+                                 int(classes(i)%num_sym(k) * classes(temp_class)%num_sym(l))
                 end do
             end do
         end do

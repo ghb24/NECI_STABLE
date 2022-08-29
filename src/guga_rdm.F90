@@ -6,6 +6,7 @@ module guga_rdm
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
                          Root2, int64, int_rdm, stdout
     use SystemData, only: nel, nSpatOrbs
+    use fortran_strings, only: str
     use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifd, &
                         any_run_is_initiator, all_runs_are_initiator
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
@@ -65,7 +66,7 @@ module guga_rdm
     use rdm_data_utils, only: add_to_rdm_spawn_t, extract_sign_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
-    use util_mod, only: operator(.div.), near_zero, operator(.isclose.)
+    use util_mod, only: operator(.div.), near_zero, operator(.isclose.), stop_all
     use sort_mod, only: sort
     use rdm_data, only: rdm_list_t, rdm_definitions_t
     use util_mod, only: get_free_unit
@@ -198,144 +199,147 @@ contains
     end subroutine extract_molcas_2_rdm_index
 
     subroutine output_molcas_rdms(rdm_defs, rdm, rdm_trace)
-        ! routine which prints spin-free GUGA RDMs directly in molcas format
+
+        !! Print spin-free GUGA RDMs directly in Molcas format
+
         type(rdm_definitions_t), intent(in) :: rdm_defs
+            !! Type contanining the number of RDMs sampled and which states
+            !! contribute to each RDM.
         type(rdm_list_t), intent(in) :: rdm
+            !! Stores RDMs as 1D lists whose elements can be accessed through
+            !! a hash table.
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+            !! Trace of RDMs required for normalisation of sampled arrays.
 
         real(dp), allocatable :: psmat(:), pamat(:), dmat(:)
-        integer :: iunit_psmat, iunit_pamat, iunit_dmat, i
+        real(dp), parameter :: thresh = 1e-12_dp
+        integer :: iunit_psmat, iunit_pamat, iunit_dmat, i, irdm
+        character(*), parameter :: this_routine = "output_molcas_rdms"
 
-        ! first fill the molcas rdms
-        call fill_molcas_rdms(rdm_defs, rdm, rdm_trace, psmat, pamat, dmat)
-
-        ! then print them
-        ! Open the file to be written to.
-        iunit_psmat = get_free_unit()
-        iunit_pamat = get_free_unit()
-        iunit_dmat = get_free_unit()
-
-        ! only print on the root processor
-        if (iProcIndex == root) then
-            open(iunit_psmat, file='PSMAT', status='replace')
-            do i = 1, size(psmat)
-                if (abs(psmat(i)) > 1e-12_dp) then
-                    write(iunit_psmat, '(I6, G25.17)') i, psmat(i)
-                end if
-            end do
-            close(iunit_psmat)
-
-            open(iunit_pamat, file='PAMAT', status='replace')
-            do i = 1, size(pamat)
-                if (abs(pamat(i)) > 1e-12_dp) then
-                    write(iunit_pamat, '(I6, G25.17)') i, pamat(i)
-                end if
-            end do
-            close(iunit_pamat)
-
-            open(iunit_dmat, file='DMAT', status='replace')
-            do i = 1, size(dmat)
-                if (abs(dmat(i)) > 1e-12_dp) then
-                    write(iunit_dmat, '(I6, G25.17)') i, dmat(i)
-                end if
-            end do
-            close(iunit_dmat)
+        if (rdm_defs%nrdms_transition > 0) then
+            call stop_all(this_routine,"GUGA transition RDMs yet to be implemented")
         end if
+
+        do irdm = 1, rdm_defs%nrdms_standard
+            call fill_molcas_rdms(rdm, rdm_trace, irdm, psmat, pamat, dmat)
+            if (iProcIndex == root) then
+                open(newunit=iunit_psmat, file='PSMAT.'//str(irdm), &
+                     status='replace')
+                    do i = 1, size(psmat)
+                        if (abs(psmat(i)) > thresh) then
+                            write(iunit_psmat, '(I6, G25.17)') i, psmat(i)
+                        end if
+                    end do
+                close(iunit_psmat)
+
+                open(newunit=iunit_pamat, file='PAMAT.'//str(irdm), &
+                     status='replace')
+                do i = 1, size(pamat)
+                    if (abs(pamat(i)) > thresh) then
+                        write(iunit_pamat, '(I6, G25.17)') i, pamat(i)
+                    end if
+                end do
+                close(iunit_pamat)
+
+                open(newunit=iunit_dmat, file='DMAT.'//str(irdm), &
+                     status='replace')
+                do i = 1, size(dmat)
+                    if (abs(dmat(i)) > thresh) then
+                        write(iunit_dmat, '(I6, G25.17)') i, dmat(i)
+                    end if
+                end do
+                close(iunit_dmat)
+            end if
+        end do
 
     end subroutine output_molcas_rdms
 
-    subroutine fill_molcas_rdms(rdm_defs, rdm, rdm_trace, &
-                                psmat, pamat, dmat)
-        type(rdm_definitions_t), intent(in) :: rdm_defs
-        type(rdm_list_t), intent(in) :: rdm
-        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
-        real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
+    subroutine fill_molcas_rdms(rdm, rdm_trace, irdm, psmat, pamat, dmat)
 
-        integer :: n_one_rdm, n_two_rdm, iproc, irdm, ielem
-        integer(int_rdm) :: pqrs, pq_, rs_
-        integer :: pq, rs, pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
+        !! Populate the Molcas RDM arrays PSMAT/PAMAT/DMAT.
+
+        type(rdm_list_t), intent(in) :: rdm
+            !! Stores RDMs as 1D lists whose elements can be accessed through
+            !! a has table.
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+            !! Trace of RDMs required for normalisation of sampled arrays.
+        integer, intent(in) :: irdm
+            !! loop index over the different states to be sampled;
+            !! 2 replicas are required per state.
+        real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
+            !! Molcas RDM arrays to be populated.
+
+        integer :: n_one_rdm, n_two_rdm, iproc, ielem
+        integer :: pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
+        integer(int_rdm) :: pqrs
+        integer :: ierr
         real(dp) :: rdm_sign(rdm%sign_length), rdm_sign_
         real(dp), allocatable :: dmat_loc(:), psmat_loc(:), pamat_loc(:)
-        integer :: ierr
 
-        n_one_rdm = nSpatorbs * (nSpatorbs + 1) / 2
-        n_two_rdm = n_one_rdm * (n_one_rdm + 1) / 2
+        n_one_rdm = nSpatorbs * (nSpatorbs + 1) .div. 2
+        n_two_rdm = n_one_rdm * (n_one_rdm + 1) .div. 2
 
         allocate(dmat_loc(n_one_rdm), source=0.0_dp)
         allocate(psmat_loc(n_two_rdm), source=0.0_dp)
         allocate(pamat_loc(n_two_rdm), source=0.0_dp)
 
-        ! first
-        do iproc = 0, nProcessors - 1
-            if (iproc == iProcIndex) then
-                ! Loop over all RDMs beings sampled.
-                do irdm = 1, rdm_defs%nrdms
-                    do ielem = 1, rdm%nelements
-                        pqrs = rdm%elements(0, ielem)
-                        call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
-                        pq = int(pq_)
-                        rs = int(rs_)
-                        pqrs_m = contract_molcas_2_rdm_index(p, q, r, s)
-                        call extract_molcas_2_rdm_index(pqrs_m, &
-                                                        p_m, q_m, r_m, s_m, pq_m, rs_m)
+        do ielem = 1, rdm%nelements
+            pqrs = rdm%elements(0, ielem)
+            call extract_2_rdm_ind(pqrs, p, q, r, s)
+            pqrs_m = contract_molcas_2_rdm_index(p, q, r, s)
+            call extract_molcas_2_rdm_index(pqrs_m, &
+                                            p_m, q_m, r_m, s_m, pq_m, rs_m)
 
-                        call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
-                        rdm_sign_ = rdm_sign(1)
-                        ! now make the fill logic
-                        ! the molcas rdm elements are given by
-                        ! if r /= s (and probably here p /= q)
-                        ! psmat_loc(pqrs) = (two_rdm(pqrs) + two_rdm(pqsr)) / 2
-                        ! pamat_loc(pqrs) = (two_rdm(pqrs) - two_rdm(pqsr)) / 2
-                        ! if r == s (and probably .or. p == q)
-                        ! psmat_loc(pqrs) = 2 * two_rdm(pqrs)
-                        ! es geht eigentlich nur drum wann das element
-                        ! negativ zur anti-symmetrischen beiträgt..
-                        ! und wenn es nur zur diagonalen beiträgt..
+            call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
+            rdm_sign_ = rdm_sign(irdm) / rdm_trace(irdm)
 
-                        if (pq_m == rs_m) then
-                            if (p_m == q_m) then
-                                psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 2.0_dp
-                            else
-                                psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 4.0_dp
-                                pamat_loc(pqrs_m) = pamat_loc(pqrs_m) + &
-                                                    molcas_sign(p, q, r, s) * rdm_sign_ / 4.0_dp
-                            end if
-                        else
-                            if (p_m == q_m) then
-                                psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 4.0_dp
-                            else
-                                psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 8.0_dp
-                                if (r_m /= s_m) then
-                                    pamat_loc(pqrs_m) = pamat_loc(pqrs_m) + &
-                                                        molcas_sign(p, q, r, s) * rdm_sign_ / 8.0_dp
-                                end if
-                            end if
-                        end if
+            ! now make the fill logic
+            ! the molcas rdm elements are given by
+            ! if r /= s (and probably here p /= q)
+            ! psmat_loc(pqrs) = (two_rdm(pqrs) + two_rdm(pqsr)) / 2
+            ! pamat_loc(pqrs) = (two_rdm(pqrs) - two_rdm(pqsr)) / 2
+            ! if r == s (and probably .or. p == q)
+            ! psmat_loc(pqrs) = 2 * two_rdm(pqrs)
+            ! es geht eigentlich nur drum wann das element
+            ! negativ zur anti-symmetrischen beiträgt..
+            ! und wenn es nur zur diagonalen beiträgt..
 
-                        pq_m = contract_molcas_1_rdm_index(p, q)
-                        rs_m = contract_molcas_1_rdm_index(r, s)
-                        ! convert to 1-RDM
-                        if (r == s .and. p == q) then
-                            dmat_loc(pq_m) = dmat_loc(pq_m) + rdm_sign_
-                            dmat_loc(rs_m) = dmat_loc(rs_m) + rdm_sign_
-                        else
-                            if (r == s) then
-                                dmat_loc(pq_m) = dmat_loc(pq_m) + rdm_sign_ / 2.0_dp
-                            else if (p == q) then
-                                dmat_loc(rs_m) = dmat_loc(rs_m) + rdm_sign_ / 2.0_dp
-                            end if
-                        end if
-                    end do
-                end do
+            if (pq_m == rs_m) then
+                if (p_m == q_m) then
+                    psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 2.0_dp
+                else
+                    psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 4.0_dp
+                    pamat_loc(pqrs_m) = pamat_loc(pqrs_m) + &
+                                        molcas_sign(p, q, r, s) * rdm_sign_ / 4.0_dp
+                end if
+            else
+                if (p_m == q_m) then
+                    psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 4.0_dp
+                else
+                    psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 8.0_dp
+                    if (r_m /= s_m) then
+                        pamat_loc(pqrs_m) = pamat_loc(pqrs_m) + &
+                                            molcas_sign(p, q, r, s) * rdm_sign_ / 8.0_dp
+                    end if
+                end if
             end if
-            ! Wait for the current processor to finish summing its RDM elements
-            call MPIBarrier(ierr)
 
+            pq_m = contract_molcas_1_rdm_index(p, q)
+            rs_m = contract_molcas_1_rdm_index(r, s)
+            ! convert to 1-RDM
+            if (r == s .and. p == q) then
+                dmat_loc(pq_m) = dmat_loc(pq_m) + rdm_sign_
+                dmat_loc(rs_m) = dmat_loc(rs_m) + rdm_sign_
+            else
+                if (r == s) then
+                    dmat_loc(pq_m) = dmat_loc(pq_m) + rdm_sign_ / 2.0_dp
+                else if (p == q) then
+                    dmat_loc(rs_m) = dmat_loc(rs_m) + rdm_sign_ / 2.0_dp
+                end if
+            end if
         end do
 
-        psmat_loc = psmat_loc / rdm_trace(1)
-        pamat_loc = pamat_loc / rdm_trace(1)
-        dmat_loc = dmat_loc / (2.0 * rdm_trace(1) * real(nel - 1, dp))
+        dmat_loc(:) = dmat_loc(:) / (2.0_dp * real(nel - 1, dp))
 
         allocate(dmat(n_one_rdm), source=0.0_dp)
         allocate(psmat(n_two_rdm), source=0.0_dp)
@@ -347,17 +351,17 @@ contains
 
     end subroutine fill_molcas_rdms
 
-    pure function molcas_sign(p, q, r, s) result(sgn)
-        ! gives me the sign to fill the anti-symmetric molcas RDM with
+    elemental function molcas_sign(p, q, r, s) result(sgn)
+
+        !! Gives me the sign to fill the anti-symmetric molcas RDM with
+
         integer, intent(in) :: p, q, r, s
         real(dp) :: sgn
 
-        sgn = 1.0_dp
+        character(*), parameter :: this_routine = "molcas_sign"
 
-        ! i know p /= q and r /= s when coming here
-
-        if (p < q) sgn = -sgn
-        if (r < s) sgn = -sgn
+        ASSERT(p /= q .and. r /= s)
+        sgn = merge(-1.0_dp, 1.0_dp, p < q .neqv. r < s)
 
     end function molcas_sign
 
@@ -1179,7 +1183,7 @@ contains
 
                     ilutJ = Doub_ExcDjs2(:, j)
 
-                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), &
+                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers), &
                                             PartInd, tDetFound)
 
                     if (tDetFound) then
@@ -1239,7 +1243,7 @@ contains
 
                     ilutJ = Sing_ExcDjs2(:, j)
 
-                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), PartInd, tDetFound)
+                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers), PartInd, tDetFound)
 
                     if (tDetFound) then
 

@@ -1,38 +1,39 @@
 title
 
-system hubbard 
-nonuniformrandexcits nosymgen
-real
-electrons 4 
-cell 2 2 1
-b -1
-u 16
-system-replicas 2
+system hubbard
+    nonuniformrandexcits nosymgen
+    real
+    electrons 4
+    cell 2 2 1
+    b -1
+    u 16
+    system-replicas 2
 endsys
 
 calc
 
-methods
-method vertex fcimc
-endmethods
+    methods
+        method vertex fcimc
+    endmethods
 
-definedet 1 4 5 8
-seed -7
-allrealcoeff
-load-balance-interval 1000
-nmcyc 14000
+    definedet 1 4 5 8
+    seed -7
+    allrealcoeff
+    load-balance-interval 1000
+    nmcyc 14000
 
-tau 0.001
-truncinitiator
-addtoinitiator 3
-totalwalkers 100
-shiftdamp 0.1
-stepsshift 10
+    tau 0.001
+    truncinitiator
+    addtoinitiator 3
+    totalwalkers 100
+    shiftdamp 0.1
+    stepsshift 10
 
+    memoryFacSpawn 10
 endcalc
 
 logging
-double-occupancy
+    double-occupancy
 endlog
 
-end 
+end

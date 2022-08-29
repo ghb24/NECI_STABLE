@@ -75,6 +75,8 @@ module fcimc_initialisation
     use SymData, only: SymLabelList, SymLabelCounts, TwoCycleSymGens, &
                        SymClassSize, nSymLabels, sym_psi
 
+    use dSFMT_interface, only: genrand_real2_dSFMT
+
     use DeterminantData, only: write_det, write_det_len, FDet
 
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
@@ -429,7 +431,7 @@ contains
             !Use this as the reference.
             write(6, "(A)") "Converging to ODD S eigenstate"
 
-            SymFinal = int((G1(HFDet(nel))%Sym%S), sizeof_int) + 1
+            SymFinal = int((G1(HFDet(nel))%Sym%S)) + 1
 
             tAlreadyOcc = .false.
             do i = SymLabelCounts(1, SymFinal), SymLabelCounts(1, SymFinal) + SymLabelCounts(2, SymFinal) - 1
@@ -590,8 +592,8 @@ contains
 
                     Beta = (2 * SymLabelList(j)) - 1
                     Alpha = (2 * SymLabelList(j))
-                    SymAlpha = INT((G1(Alpha)%Sym%S), sizeof_int)
-                    SymBeta = INT((G1(Beta)%Sym%S), sizeof_int)
+                    SymAlpha = int((G1(Alpha)%Sym%S))
+                    SymBeta = int((G1(Beta)%Sym%S))
 
                     IF (.not. tFoundOrbs(Beta)) THEN
                         tFoundOrbs(Beta) = .true.
@@ -636,8 +638,8 @@ contains
 
         CALL GetSym(HFDet, NEl, G1, NBasisMax, HFSym)
 
-        Sym_Psi = INT(HFSym%Sym%S, sizeof_int)  !Store the symmetry of the wavefunction for later
-        write(stdout, "(A,I10)") "Symmetry of reference determinant is: ", INT(HFSym%Sym%S, sizeof_int)
+        Sym_Psi = int(HFSym%Sym%S)  !Store the symmetry of the wavefunction for later
+        write(stdout, "(A,I10)") "Symmetry of reference determinant is: ", int(HFSym%Sym%S)
 
         if (TwoCycleSymGens) then
             SymHF = 0
@@ -1526,18 +1528,19 @@ contains
 
                 if (iProcIndex == root) close(iunithead)
             else
-                MaxWalkersUncorrected = int(InitWalkers, sizeof_int)
+                MaxWalkersUncorrected = int(InitWalkers)
             end if
 
             MaxWalkersPart = NINT(MemoryFacPart * MaxWalkersUncorrected)
-            ExpectedMemWalk = real((NIfTot + 1) * MaxWalkersPart * size_n_int + 8 * MaxWalkersPart, dp) / 1048576.0_dp
+            ExpectedMemWalk = real( (NIfTot + 1) * size_n_int + 8, dp ) * &
+                real(MaxWalkersPart, dp) / 2._dp**20
             if (ExpectedMemWalk < 20.0) then
                 !Increase memory allowance for small runs to a min of 20mb
-                MaxWalkersPart = int(20.0 * 1048576.0 / real((NIfTot + 1) * size_n_int + 8, dp), sizeof_int)
+                MaxWalkersPart = ceiling( 20._dp * 2._dp**20 / &
+                    real((NIfTot + 1) * size_n_int + 8, dp) )
                 block
                     character(*), parameter :: mem_warning = "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
-                    write(stdout, "(A)") mem_warning
-                    write(stderr, "(A)") mem_warning
+                    if (iProcIndex == root) write(stderr, "(A)") mem_warning
                 end block
             end if
             write(stdout, "(A,I14)") "Memory allocated for a maximum particle number per node of: ", MaxWalkersPart
@@ -2982,7 +2985,7 @@ contains
                     (/int(abs(largest_coeff), int32), int(iProcIndex, int32)/), 1, &
                     MPI_MAXLOC, MPI_2INTEGER, int_tmp)
                 proc_highest = int_tmp(2)
-                call MPIBCast(largest_det, NIfTot + 1, int(proc_highest, sizeof_int))
+                call MPIBCast(largest_det, NIfTot + 1, int(proc_highest))
 !                 call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
                 write(6, *) 'Setting ref', run

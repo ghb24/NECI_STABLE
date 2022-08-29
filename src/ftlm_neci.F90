@@ -122,7 +122,7 @@ contains
             disps_ftlm(i) = disps_ftlm(i - 1) + ndets_ftlm(i - 1)
         end do
 
-        ndets_tot = int(sum(ndets_ftlm), sizeof_int)
+        ndets_tot = int(sum(ndets_ftlm))
         expected_ndets_tot = int(choose_i64(nbasis, nel))
         if (ndets_tot /= expected_ndets_tot) then
             write(stdout, *) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot

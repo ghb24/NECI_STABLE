@@ -2,7 +2,7 @@ module test_time_pchb
     use fruit
     use constants, only: dp, int64, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
-    use util_mod, only: factrl, intswap, cumsum
+    use util_mod, only: factrl, swap, cumsum
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
 

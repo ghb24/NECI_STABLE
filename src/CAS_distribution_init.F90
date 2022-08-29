@@ -56,13 +56,15 @@ module CAS_distribution_init
 
     use Parallel_neci, only: iProcIndex, nNodes, mpisumall
 
-    use util_mod, only: operator(.isclose.), genrand_real2_dSFMT
+    use util_mod, only: operator(.isclose.)
 
     use FciMCData, only: ll_node, HFSym, ProjEDet, tSinglePartPhase, NoatHF, TotParts, &
         iLutRef, CurrentDets, OldAllHFCyc, AllTotParts, iter_data_fciqmc, AllNoAbortedOld, &
         AllNoatHf, AllTotPartsOld, AllTotWalkers, AllTotWalkersOld, Hii, &
         nWalkerHashes, OldAllNoatHF, TotPartsOld, TotWalkers, TotWalkersOld, &
         HashIndex, OldAllAvWalkersCyc
+
+    use dSFMT_interface, only: genrand_real2_dSFMT
 
     use sym_mod
 

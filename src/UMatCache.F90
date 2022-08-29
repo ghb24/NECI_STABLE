@@ -412,7 +412,7 @@ Contains
             ELSE
                 IF(nMemInit /= 0) THEN
                     write(stdout, *) "Allocating ", nMemInit, "Mb for UMatCache+Labels."
-                    nSlotsInit = nint((nMemInit * 1048576 / 8) / (nPairs * (nTypes * HElement_t_size + 1.0_dp / irat)), sizeof_int)
+                    nSlotsInit = nint((nMemInit * 1048576 / 8) / (nPairs * (nTypes * HElement_t_size + 1.0_dp / irat)))
                 end if
                 NSLOTS = MIN(NPAIRS, NSLOTSINIT)
                 tSmallUMat = .FALSE.

@@ -538,7 +538,7 @@ contains
 !The product of the three connecting elements are then histogrammed in two separate files.
 !In one, the triangular connections that combine
 !to be sign coherent are recorded, and in the other, those which are sign incoherent.
-                CALL Stop_All(t_r, "PRINTTRICONNECTIONS option depreciated")
+                CALL Stop_All(t_r, "PRINTTRICONNECTIONS option deprecated")
 !            TriConMax = to_realdp(tokens%next())
 !            NoTriConBins = to_int(tokens%next())
 !            tPrintTriConnections=.true.
@@ -548,7 +548,7 @@ contains
 !element that contributes to the triangle.
 !It then prints these according to whether they are single or double connecting elements.
 !It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
-                CALL Stop_All(t_r, "HISTTRICONNELEMENTS option depreciated")
+                CALL Stop_All(t_r, "HISTTRICONNELEMENTS option deprecated")
 !            TriConHElSingMax = to_realdp(tokens%next())
 !            TriConHElDoubMax = to_realdp(tokens%next())
 !            NoTriConHElBins = to_int(tokens%next())
@@ -558,7 +558,7 @@ contains
 !This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts
 !that are accepted or not accepted.
 !It prints out the average H elements where spawning is accepted and the average where it is not accepted.
-                CALL Stop_All(t_r, "PRINTHELACCEPTSTATS option depreciated")
+                CALL Stop_All(t_r, "PRINTHELACCEPTSTATS option deprecated")
 !            tPrintHElAccept=.true.
 
             case ("PRINTSPINCOUPHELS")
@@ -1151,7 +1151,7 @@ contains
                         ILOGGING = IOR(ILOGGING, 2**2)
                     case default
                         call stop_all(this_routine, "Logging keyword FMCPR "//trim(w)       &
-           &               //" not recognised", .true.)
+           &               //" not recognised")
                     end select
                 end do
             case ("CALCPATH")
@@ -1166,7 +1166,7 @@ contains
                         ILOGGING = IOR(ILOGGING, 2**4)
                     case default
                         call stop_all(this_routine, "Logging keyword CALCPATH "//trim(w)    &
-           &               //" not recognised", .true.)
+           &               //" not recognised")
                     end select
                 end do
             case ("XIJ")
@@ -1436,7 +1436,7 @@ contains
                         t_symmetry_inversion = .true.
 
                     case default
-                        call stop_all(this_routine, "Logging keyword "//trim(w)//" not recognised", .true.)
+                        call stop_all(this_routine, "Logging keyword "//trim(w)//" not recognised")
 
                     end select
                 else
@@ -1505,7 +1505,7 @@ contains
                 symmetry_states = 0_n_int
 
             case default
-                call stop_all(this_routine, "Logging keyword "//trim(w)//" not recognised", .true.)
+                call stop_all(this_routine, "Logging keyword "//trim(w)//" not recognised")
             end select
         end do logging
 

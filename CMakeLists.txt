@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
 endif ()
@@ -20,12 +19,12 @@ execute_process( COMMAND "${PROJECT_SOURCE_DIR}/tools/install_hooks.sh" ${PROJEC
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
 # We require at least ifort17, previous versions do not support all required options
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-    if(${CMAKE_Fortran_COMPILER_VERSION} LESS 17)
-	    message(FATAL_ERROR "ifort 17 or newer required")
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
+    if("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 17)
+        message(FATAL_ERROR "ifort 17 or newer required")
     endif()
 endif()
 
@@ -129,6 +128,7 @@ list(APPEND NECI_GLOBAL_DEFINES
 
     # Identify the compiler to the code
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},Intel>:IFORT_>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},IntelLLVM>:INTELLLVM_>
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},GNU>:GFORTRAN_>
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},PGI>:PGI_>
 )

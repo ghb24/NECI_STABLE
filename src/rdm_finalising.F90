@@ -41,7 +41,7 @@ contains
         use rdm_data, only: rdm_definitions_t, en_pert_t
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
-        use util_mod, only: set_timer, halt_timer
+        use timing_neci, only: set_timer, halt_timer
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -1284,7 +1284,7 @@ contains
 
             if (RDMExcitLevel == 1) then
                 ! Only non-transition RDMs should be hermitian and obey the
-                ! Cauchy-Schwarz inequalityo.
+                ! Cauchy-Schwarz inequality.
                 do irdm = 1, rdm_defs%nrdms_standard
                     call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
                     if (tForceCauchySchwarz) call Force_Cauchy_Schwarz(one_rdms(irdm)%matrix)

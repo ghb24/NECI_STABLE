@@ -34,20 +34,24 @@ module hdf5_popsfile
     !     /tau_search/       - Values used in timestep optimisation
     !         /gamma_sing/
     !         /gamma_doub/
+    !         /gamma_trip/
     !         /gamma_opp/
     !         /gamma_par/
     !         /enough_sing/
     !         /enough_doub/
+    !         /enough_trip/
     !         /enough_opp/
     !         /enough_par/
     !         /cnt_sing/
     !         /cnt_doub/
+    !         /cnt_trip/
     !         /cnt_opp/
     !         /cnt_par/
     !         /max_death_cpt/
     !
     !         /psingles/     - And the values which have been optimised
     !         /pdoubles/
+    !         /ptriples/
     !         /pparallel/
     !         /tau/
     !     /accumulators/     - Accumulated (output) data
@@ -73,11 +77,14 @@ module hdf5_popsfile
     use constants
     use hdf5_util
     use util_mod
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn, pTriplesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
     use global_det_data, only: max_ratio_size, fvals_size, apvals_size
+    use FcimcData, only: SpawnedParts2, AllTotParts, MaxSpawned, PreviousCycles, tSinglePartPhase, &
+        SpawnedParts
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
 #ifdef USE_HDF_
     use hdf5
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
@@ -106,21 +113,24 @@ module hdf5_popsfile
         nm_tau_grp = 'tau_search', &
         nm_gam_sing = 'gamma_sing', &
         nm_gam_doub = 'gamma_doub', &
+        nm_gam_trip = 'gamma_trip', &
         nm_gam_opp = 'gamma_opp', &
         nm_gam_par = 'gamma_par', &
         nm_en_sing = 'enough_sing', &
         nm_en_doub = 'enough_doub', &
+        nm_en_trip = 'enough_trip', &
         nm_en_opp = 'enough_opp', &
         nm_en_par = 'enough_par', &
         nm_cnt_sing = 'cnt_sing', &
         nm_cnt_doub = 'cnt_doub', &
+        nm_cnt_trip = 'cnt_trip', &
         nm_cnt_opp = 'cnt_opp', &
         nm_cnt_par = 'cnt_par', &
         nm_max_death = 'max_death', &
         nm_psingles = 'psingles', &
         nm_pdoubles = 'pdoubles', &
-        nm_pparallel = 'pparallel', &
         nm_ptriples = 'ptriples', &
+        nm_pparallel = 'pparallel', &
         nm_tau = 'tau', &
         ! [W.D.]:
         ! can i just add another entry without breaking anything?
@@ -411,10 +421,10 @@ contains
 
     subroutine write_tau_opt(parent)
 
-        use tau_search, only: cnt_sing, cnt_doub, cnt_opp, cnt_par
+        use tau_search, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                            enough_sing, enough_doub, enough_opp, enough_par, max_death_cpt
+        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
+                            enough_sing, enough_doub, enough_trip, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
         use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
@@ -422,12 +432,12 @@ contains
         integer(hid_t) :: tau_grp
         integer(hdf_err) :: err
 
-        real(dp) :: max_gam_sing, max_gam_doub, max_gam_opp, max_gam_par
+        real(dp) :: max_gam_sing, max_gam_doub, max_gam_trip, max_gam_opp, max_gam_par
         real(dp) :: max_max_death_cpt
-        logical :: all_en_sing, all_en_doub, all_en_opp, all_en_par
-        integer :: max_cnt_sing, max_cnt_doub, max_cnt_opp, max_cnt_par
+        logical :: all_en_sing, all_en_doub, all_en_trip, all_en_opp, all_en_par
+        integer :: max_cnt_sing, max_cnt_doub, max_cnt_trip, max_cnt_opp, max_cnt_par
 
-        real(dp) :: all_pdoub, all_psing, all_ppar, all_tau, all_trip
+        real(dp) :: all_pdoub, all_psing, all_ppar, all_tau, all_ptrip
 
         ! Create the group
         call h5gcreate_f(parent, nm_tau_grp, tau_grp, err)
@@ -437,15 +447,18 @@ contains
         ! the same values...)
         call MPIAllReduce(gamma_sing, MPI_MAX, max_gam_sing)
         call MPIAllReduce(gamma_doub, MPI_MAX, max_gam_doub)
+        call MPIAllReduce(gamma_trip, MPI_MAX, max_gam_trip)
         call MPIAllReduce(gamma_opp, MPI_MAX, max_gam_opp)
         call MPIAllReduce(gamma_par, MPI_MAX, max_gam_par)
         call MPIAllReduce(max_death_cpt, MPI_MAX, max_max_death_cpt)
         call MPIAllLORLogical(enough_sing, all_en_sing)
         call MPIAllLORLogical(enough_doub, all_en_doub)
+        call MPIAllLORLogical(enough_trip, all_en_trip)
         call MPIAllLORLogical(enough_opp, all_en_opp)
         call MPIAllLORLogical(enough_par, all_en_par)
         call MPIAllReduce(cnt_sing, MPI_MAX, max_cnt_sing)
         call MPIAllReduce(cnt_doub, MPI_MAX, max_cnt_doub)
+        call MPIAllReduce(cnt_trip, MPI_MAX, max_cnt_trip)
         call MPIAllReduce(cnt_opp, MPI_MAX, max_cnt_opp)
         call MPIAllReduce(cnt_par, MPI_MAX, max_cnt_par)
 
@@ -453,6 +466,8 @@ contains
             call write_dp_scalar(tau_grp, nm_gam_sing, max_gam_sing)
         if (.not. near_zero(max_gam_doub)) &
             call write_dp_scalar(tau_grp, nm_gam_doub, max_gam_doub)
+        if (.not. near_zero(max_gam_trip)) &
+            call write_dp_scalar(tau_grp, nm_gam_trip, max_gam_trip)
         if (.not. near_zero(max_gam_opp)) &
             call write_dp_scalar(tau_grp, nm_gam_opp, max_gam_opp)
         if (.not. near_zero(max_gam_par)) &
@@ -463,6 +478,8 @@ contains
             call write_log_scalar(tau_grp, nm_en_sing, all_en_sing)
         if (all_en_doub) &
             call write_log_scalar(tau_grp, nm_en_doub, all_en_doub)
+        if (all_en_trip) &
+            call write_log_scalar(tau_grp, nm_en_trip, all_en_trip)
         if (all_en_opp) &
             call write_log_scalar(tau_grp, nm_en_opp, all_en_opp)
         if (all_en_par) &
@@ -471,24 +488,26 @@ contains
             call write_int64_scalar(tau_grp, nm_cnt_sing, max_cnt_sing)
         if (max_cnt_doub /= 0) &
             call write_int64_scalar(tau_grp, nm_cnt_doub, max_cnt_doub)
+        if (max_cnt_trip /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_trip, max_cnt_trip)
         if (max_cnt_opp /= 0) &
             call write_int64_scalar(tau_grp, nm_cnt_opp, max_cnt_opp)
         if (max_cnt_par /= 0) &
             call write_int64_scalar(tau_grp, nm_cnt_par, max_cnt_par)
 
         ! Use the probability values from the head node
-        all_psing = pSingles; all_pdoub = pDoubles; all_ppar = pParallel; all_trip = pTriples
+        all_psing = pSingles; all_pdoub = pDoubles; all_ptrip = pTriples; all_ppar = pParallel
         all_tau = tau
         call MPIBcast(all_psing)
         call MPIBcast(all_pdoub)
+        call MPIBCast(all_ptrip)
         call MPIBcast(all_ppar)
-        call MPIBCast(all_trip)
         call MPIBcast(all_tau)
 
         call write_dp_scalar(tau_grp, nm_psingles, all_psing)
         call write_dp_scalar(tau_grp, nm_pdoubles, all_pdoub)
+        call write_dp_scalar(tau_grp, nm_ptriples, all_ptrip)
         call write_dp_scalar(tau_grp, nm_pparallel, all_ppar)
-        call write_dp_scalar(tau_grp, nm_ptriples, all_trip)
         call write_dp_scalar(tau_grp, nm_tau, all_tau)
 
         ! [W.D.]:
@@ -537,6 +556,7 @@ contains
                              tSearchTau, pSingles, pDoubles, pParallel
         use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search, &
                             hdf5_diagsft
+        use tc_three_body_data, only: pTriples, tReadPTriples
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
@@ -592,6 +612,7 @@ contains
         write(stdout, *) "time-step: ", tau
         write(stdout, *) "pSingles: ", pSingles
         write(stdout, *) "pDoubles: ", pDoubles
+        if (tReadPTriples) write(stdout, *) "pTriples: ", pTriples
         write(stdout, *) "pParallel: ", pParallel
         if (tSearchTau .or. t_hist_tau_search) then
             write(stdout, *) "continuing tau-search!"
@@ -611,9 +632,9 @@ contains
 
     subroutine read_tau_opt(parent)
 
-        use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                              enough_sing, enough_doub, enough_opp, &
-                              enough_par, cnt_sing, cnt_doub, cnt_opp, &
+        use tau_search, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
+                              enough_sing, enough_doub, enough_trip, enough_opp, &
+                              enough_par, cnt_sing, cnt_doub, cnt_trip, cnt_opp, &
                               cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
                              tSearchTauOption
@@ -640,15 +661,18 @@ contains
         ! exist, then they will be left unchanged.
         call read_dp_scalar(grp_id, nm_gam_sing, gamma_sing)
         call read_dp_scalar(grp_id, nm_gam_doub, gamma_doub)
+        call read_dp_scalar(grp_id, nm_gam_trip, gamma_trip)
         call read_dp_scalar(grp_id, nm_gam_opp, gamma_opp)
         call read_dp_scalar(grp_id, nm_gam_par, gamma_par)
         call read_dp_scalar(grp_id, nm_max_death, max_death_cpt)
         call read_log_scalar(grp_id, nm_en_sing, enough_sing)
         call read_log_scalar(grp_id, nm_en_doub, enough_doub)
+        call read_log_scalar(grp_id, nm_en_trip, enough_trip)
         call read_log_scalar(grp_id, nm_en_opp, enough_opp)
         call read_log_scalar(grp_id, nm_en_par, enough_par)
         call read_int64_scalar(grp_id, nm_cnt_sing, cnt_sing)
         call read_int64_scalar(grp_id, nm_cnt_doub, cnt_doub)
+        call read_int64_scalar(grp_id, nm_cnt_trip, cnt_trip)
         call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
         call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
 
@@ -658,8 +682,11 @@ contains
             call read_dp_scalar(grp_id, nm_psingles, psingles)
             call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
         end if
-        call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists=tReadPTriples, default=0.1_dp, &
-                            required=.false.)
+        if (allocated(pTriplesIn)) then
+            write(stdout,*) "pTriples specified in input file, which takes precedence"
+        else
+            call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists=tReadPTriples)
+        end if
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
         ! here i want to make the distinction if we want to tau-search
         ! or not
@@ -669,6 +696,10 @@ contains
                              exists=hist_tau)
 
         call h5gclose_f(grp_id, err)
+
+        ! Disable tau search in variable-shift mode (like in Popsfile.F90).
+        if (.not.tSinglePartPhase(1) .or. .not.tSinglePartPhase(inum_runs)) &
+            tSearchTau = .false.
 
         if (tSpecifiedTau) then
             write(stdout, *) "time-step specified in input, which takes precedence!"
@@ -799,7 +830,7 @@ contains
         gdata_size = gdata_write_handler%entry_size()
         if (gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
 
-        do i = 1, int(TotWalkers, sizeof_int)
+        do i = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, i), CurrentSign)
             ! Skip empty determinants (unless we are accumulating its population)
             if (IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:, i))) cycle

@@ -137,7 +137,7 @@ contains
                 call MPIAllGather(mpi_temp, rep%determ_sizes, ierr)
 
                 rep%determ_space_size = sum(rep%determ_sizes)
-                rep%determ_space_size_int = int(rep%determ_space_size, sizeof_int)
+                rep%determ_space_size_int = int(rep%determ_space_size)
 
                 ! This is now the total size on the replica with the largest space
                 ! Typically, all replicas will have either similar or the same space size
@@ -161,8 +161,8 @@ contains
 
                 ! This array will hold the positions of the deterministic states in CurrentDets.
                 allocate(rep%indices_of_determ_states(rep%determ_sizes(iProcIndex)), stat=ierr)
-                call LogMemAlloc('indices_of_determ_states', int(rep%determ_sizes(iProcIndex), &
-                                                                 sizeof_int), bytes_int, t_r, rep%IDetermTag, ierr)
+                call LogMemAlloc('indices_of_determ_states', int(rep%determ_sizes(iProcIndex)), &
+                                  sizeof_int, t_r, rep%IDetermTag, ierr)
 
                 ! Calculate the indices in the full vector at which the various processors end.
                 rep%determ_last(0) = rep%determ_sizes(0)
@@ -999,7 +999,7 @@ contains
         ! Finally send the actual determinants to the ilut_list array.
         call MPIScatterV(ilut_store, sendcounts, disps, ilut_list(:, space_size + 1:space_size + this_proc_size), recvcount, ierr)
 
-        space_size = space_size + int(this_proc_size, sizeof_int)
+        space_size = space_size + int(this_proc_size)
 
         ! Finally, deallocate arrays.
         if (allocated(ilut_store)) then
@@ -1115,13 +1115,13 @@ contains
 
         ! Allocate necessary arrays and log the memory used.
         allocate(amps_this_proc(length_this_proc), stat=ierr)
-        call LogMemAlloc("amps_this_proc", int(length_this_proc, sizeof_int), 8, this_routine, TagA, ierr)
+        call LogMemAlloc("amps_this_proc", int(length_this_proc), 8, this_routine, TagA, ierr)
         allocate(amps_all_procs(total_length), stat=ierr)
-        call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, this_routine, TagB, ierr)
+        call LogMemAlloc("amps_all_procs", int(total_length), 8, this_routine, TagB, ierr)
         allocate(indices_to_keep(n_pops_keep), stat=ierr)
         call LogMemAlloc("indices_to_keep", n_pops_keep, sizeof_int, this_routine, TagC, ierr)
         allocate(largest_states(0:NIfTot, length_this_proc), stat=ierr)
-        call LogMemAlloc("largest_states", int(length_this_proc, sizeof_int) * (NIfTot + 1), &
+        call LogMemAlloc("largest_states", int(length_this_proc) * (NIfTot + 1), &
                          size_n_int, this_routine, TagD, ierr)
 
         disps(0) = 0_MPIArg
@@ -1130,7 +1130,7 @@ contains
         end do
 
         ! Return the most populated states in source on *this* processor.
-        call proc_most_populated_states(int(length_this_proc, sizeof_int), run, largest_states)
+        call proc_most_populated_states(int(length_this_proc), run, largest_states)
 
         do i = 1, length_this_proc
             ! Store the real amplitudes in their real form.
@@ -1162,7 +1162,7 @@ contains
             call MPIAllGatherV(amps_this_proc(1:length_this_proc), amps_all_procs(1:total_length), lengths, disps)
             ! This routine returns indices_to_keep, which will store the indices in amps_all_procs
             ! of those amplitudes which are among the n_pops_keep largest (but not sorted).
-            call return_largest_indices(n_pops_keep, int(total_length, sizeof_int), amps_all_procs, indices_to_keep)
+            call return_largest_indices(n_pops_keep, int(total_length), amps_all_procs, indices_to_keep)
 
             n_states_this_proc = 0
             do i = 1, n_pops_keep
@@ -1642,7 +1642,7 @@ contains
         integer :: SpawnedPartsMax
 
         SpawnedPartsWidth = int(size(SpawnedParts, 1), MPIArg)
-        SpawnedPartsMax = int(SpawnedPartsWidth, sizeof_int) - 1
+        SpawnedPartsMax = int(SpawnedPartsWidth) - 1
 
         if (space_size > 0) then
 
@@ -1869,7 +1869,7 @@ contains
         call MPIAllGather(mpi_temp, var_sizes, ierr)
 
         var_space_size = sum(var_sizes)
-        var_space_size_int = int(var_space_size, sizeof_int)
+        var_space_size_int = int(var_space_size)
 
         var_displs(0) = 0
         do i = 1, nProcessors - 1
