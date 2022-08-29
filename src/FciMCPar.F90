@@ -872,15 +872,6 @@ contains
            call print_averaged_ci_coeff()
         end if
 
-        ! [Werner Dobrautz 4.4.2017]
-        ! for now always print out the frequency histograms for the
-        ! tau-search.. maybe change that later to be an option
-        ! to be turned off
-        if (t_print_frq_histograms .and. t_hist_tau_search_option) then
-            call print_frequency_histograms()
-
-            ! also deallocate here after no use of the histograms anymore
-            call deallocate_histograms()
         if (allocated(input_tau_search_method)) then
             if (t_print_frq_histograms .and. input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
                 call print_frequency_histograms()

@@ -106,7 +106,7 @@ contains
 
     use SymExcitDataMod, only:  OrbClassCount
     use GenRandSymExcitNUMod , only : ClassCountInd
-    use util_mod, only: intswap
+    use util_mod, only: swap
     use sort_mod, only: sort
 
     integer :: i, ic, ex(2,4),icI, Nind,h1,h2,h3
@@ -246,7 +246,7 @@ contains
                  do k=2,icI
                    do j=k,2,-1
                      if (indCoef(p,j).lt.indCoef(p,j-1)) then
-                       call intswap(indCoef(p,j),indCoef(p,j-1))
+                       call swap(indCoef(p,j),indCoef(p,j-1))
                        signCI=-signCI
                      else
                        exit
