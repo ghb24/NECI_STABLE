@@ -9,7 +9,7 @@ module bit_reps
                         tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater, tPreCond, tReplicaEstimates, tStoredDets
 
-    use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp, sizeof_int
+    use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp, sizeof_int, stdout
 
     use DetBitOps, only: count_open_orbs, CountBits
 

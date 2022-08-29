@@ -113,6 +113,7 @@ set( SRC_FILES
     pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
+    Popsfile_impls.F90
     proc_ptrs.F90
     ras_data.F90
     ras.F90
@@ -304,6 +305,7 @@ set( RELAX_WARNINGS_SRCS
     initial_trial_states.F90
     initiator_space_procs.F90
     IntegralsData.F90
+    Integrals_neci.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -337,6 +339,7 @@ set( RELAX_WARNINGS_SRCS
     pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
+    Popsfile_impls.F90
     proc_ptrs.F90
     ras_data.F90
     ras.F90
@@ -418,6 +421,8 @@ set( RELAX_WARNINGS_SRCS
     real_time_read_input.F90
     verlet_aux.F90
     CAS_distribution_init.F90
+
+    tau/tau_main_impls.F90
 )
 
 set( FYPP_SRC_FILES

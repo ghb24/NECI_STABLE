@@ -12,8 +12,6 @@ module Integrals_neci
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts, setup_UMatInd
 
-    use vasp_neci_interface
-
     use IntegralsData
 
     use shared_memory_mpi
@@ -39,7 +37,7 @@ module Integrals_neci
 
     USE OneEInts, only: TMAT2D
 
-    use util_mod, only: get_free_unit, stop_all
+    use util_mod, only: get_free_unit, stop_all, neci_flush
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 

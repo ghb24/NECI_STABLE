@@ -63,8 +63,8 @@ module MemoryManager
 
 ! Using a "tag" for each allocated routine makes searching the log for an array
 ! trivial (and fast).
-
     implicit none
+    external :: stop_all
 
     private
     public :: MemoryLeft, MemoryUsed, MaxMemory, LookupPointer, PrintMemory
@@ -292,7 +292,6 @@ contains
         integer, intent(in), optional :: err
         integer :: i, ismallloc(1)
         character(len=25) :: ObjectName
-        external :: stop_all
         if (.not. initialised) then
             if (err_output) write (6, *) 'Memory manager not initialised. Cannot log deallocation.'
             return

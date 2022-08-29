@@ -18,9 +18,12 @@ module load_balance
                                store_decoding, reset_all_tot_spawns, &
                                reset_all_acc_spawns
     use bit_rep_data, only: flag_initiator, nifd, &
-                            flag_connected, flag_trial, flag_prone, flag_removed
+                            flag_connected, flag_trial, flag_prone, flag_removed, &
+                            niftot, flag_deterministic
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut, writebitdet
+                        encode_part_sign, nullify_ilut, writebitdet, &
+                        decode_bit_det, extract_sign, test_flag, &
+                        test_flag_multi
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
@@ -29,7 +32,8 @@ module load_balance
                          AvNoAtHF, HolesInList, iEndFreeSlot, iLutHF_True, &
                          InstNoAtHf, NoBorn, NoRemoved, iStartFreeSlot, &
                          iter, IterRDM_HF, tEScaleWalkers, TotParts, &
-                         Hii, MaxWalkersPart, tTrialHash, TotWalkers, trial_space_size
+                         Hii, MaxWalkersPart, tTrialHash, TotWalkers, &
+                         trial_space_size, ll_node
     use core_space_util, only: cs_replicas
     use gasci_supergroup_index, only: lookup_supergroup_indexer
     use SystemData, only: nel
@@ -42,13 +46,17 @@ module load_balance
     use sparse_arrays, only: con_ht, trial_ht, trial_hashtable
     use trial_ht_procs, only: buffer_trial_ht_entries, add_trial_ht_entries
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
-    use load_balance_calcnodes
+    use load_balance_calcnodes, only: get_det_block, LoadBalanceMapping, &
+        lb_tag, balance_blocks, tLoadBalanceBlocks
     use dSFMT_interface, only: genrand_real2_dSFMT
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
-    use Parallel_neci
-    use constants
-    use util_mod
-    use hash
+    use Parallel_neci, only: MPISum, MPIBarrier, MPIBcast, MPISumAll, &
+        MPIRecv, MPISend, nProcessors, iProcIndex, root, bNodeRoot, &
+        nNodes
+    use constants, only: int64, dp, n_int, stdout, stderr, inum_runs, lenof_sign
+    use util_mod, only: stop_all, neci_flush, abs_sign
+    use hash, only: add_hash_table_entry, remove_hash_table_entry, &
+        FindWalkerHash
 
     implicit none
 

@@ -10,17 +10,22 @@
 
 module util_mod
     use util_mod_comparisons, only: operator(.arrgt.), operator(.arrlt.), arr_gt, arr_lt
-    use util_mod_numerical
-    use util_mod_cpts
-    use util_mod_epsilon_close
+    use util_mod_numerical, only: binary_search_first_ge, stats_out
+    use util_mod_cpts, only: arr_2d_ptr, arr_2d_dims, ptr_abuse_1d, &
+        ptr_abuse_scalar, ptr_abuse_2d
+    use util_mod_epsilon_close, only: near_zero, operator(.isclose.)
+    use constants, only: sp, dp, int32, int64, n_int, inum_runs, lenof_sign, &
+        sizeof_int
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
 #ifdef GFORTRAN_
+    use constants, only: int128
     use binomial_lookup, only: binomial_lookup_table_i128
 #endif
-    use fmt_utils
+    use fmt_utils, only: int_fmt
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use constants
+    use DetBitOps, only: DetBitLt
     use, intrinsic :: iso_c_binding, only: c_char, c_int, c_double
+    use mpi, only: MPI_WTIME
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
@@ -251,7 +256,7 @@ contains
         ! used in the integer algorithm, so is retained in this real
         ! version of the algorithm
 #else
-        abs_int4_sign = abs(sgn(1))
+        abs_int4_sign = real(abs(sgn(1)), dp)
 #endif
     end function abs_int4_sign
 
@@ -590,7 +595,7 @@ contains
                 integer(int64) :: prev
                 prev = choose_i64_${kind}$(n - 1, r - 1, signal_overflow)
             ! Note that the recursion stops at n = 66
-                res = (prev * n) .div. k
+                res = (prev * int(n, int64)) .div. k
                 check_for_overflow: if (prev < 0 .or. res < 0) then
                     if (present(signal_overflow)) then
                         if (signal_overflow) then
@@ -650,7 +655,7 @@ contains
                 integer(int128) :: prev
                 prev = choose_i128_${kind}$(n - 1, r - 1, signal_overflow)
             ! Note that the recursion stops at n = 66
-                res = (prev * n) .div. k
+                res = (prev * int(n, kind=int128)) .div. k
                 check_for_overflow: if (prev < 0 .or. res < 0) then
                     if (present(signal_overflow)) then
                         if (signal_overflow) then
@@ -708,7 +713,6 @@ contains
 !--- Comparison of subarrays ---
 
     logical pure function det_int_arr_gt(a, b, len)
-        use constants, only: n_int
 
         ! Make a comparison we can sort determinant integer arrays by. Return true if the
         ! first differing integer of a, b is such that a(i) > b(i).
@@ -751,7 +755,6 @@ contains
     end function det_int_arr_gt
 
     logical pure function det_int_arr_eq(a, b, len)
-        use constants, only: n_int
 
         ! If two specified integer arrays are equal, return true. Otherwise
         ! return false.
@@ -798,7 +801,6 @@ contains
     !       strings now. We can template it if it wants to be more general
     !       in the future if needed.
     function binary_search(arr, val, cf_len) result(pos)
-        use constants, only: n_int
 
         integer(kind=n_int), intent(in) :: arr(:, :)
         integer(kind=n_int), intent(in) :: val(:)
@@ -885,7 +887,7 @@ contains
         end if
 
         do while(hi /= lo)
-            pos = int(real(hi + lo, sp) / 2.0_dp)
+            pos = int(real(hi + lo, dp) / 2.0_dp)
 
             if(arr(pos) == val) then
                 exit
@@ -931,7 +933,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while(hi /= lo)
-            pos = int(real(hi + lo, sp) / 2_sp)
+            pos = int(real(hi + lo, dp) / 2_dp)
 
             if(abs(arr(pos) - val) < thresh) then
                 exit
@@ -970,12 +972,10 @@ contains
 
     function binary_search_custom(arr, val, cf_len, custom_gt) &
         result(pos)
-        use constants, only: n_int
-        use DetBitOps, only: DetBitLt
-
         interface
             pure function custom_gt(a, b) result(ret)
-                use constants, only: n_int
+                import :: n_int
+                implicit none
                 logical :: ret
                 integer(kind=n_int), intent(in) :: a(:), b(:)
             end function
@@ -1180,8 +1180,6 @@ contains
 
     function error_function_c(argument) result(res)
 
-        use constants, only: dp
-
         real(dp), intent(in) :: argument
         real(dp) :: res
 
@@ -1189,8 +1187,6 @@ contains
     end function error_function_c
 
     function error_function(argument) result(res)
-
-        use constants, only: dp
 
         real(dp), intent(in) :: argument
         real(dp) :: res
@@ -1232,9 +1228,6 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-#if !defined(IFORT_) && !defined(INTELLLVM_)
-        use mpi
-#endif
         ! Return elapsed time for timing and calculation ending purposes.
 
         real(dp), intent(out) :: time(2)
@@ -1256,7 +1249,7 @@ contains
         ! environments, so keep it consistent
         ret = MPI_WTIME()
         time(1) = ret
-        time(2) = real(0.0, dp)
+        time(2) = 0._dp
 #endif
 #endif
 
@@ -1439,8 +1432,6 @@ subroutine neci_getarg(i, str)
 #ifdef NAGF95
     use f90_unix_env, only: getarg
 #endif
-    use constants
-    use util_mod
     implicit none
     integer, intent(in) :: i
     character(len=*), intent(out) :: str

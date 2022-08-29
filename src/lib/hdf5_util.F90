@@ -13,9 +13,10 @@ module hdf5_util
     ! build configurations, then it helps to be explicit.
 
 #ifdef USE_HDF_
-    use constants
+    use constants, only: dp, int32, int64, stdout, hdf_err, hdf_log, lenof_sign
     use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
-    use util_mod
+    use util_mod, only: stop_all, ptr_abuse_scalar, ptr_abuse_1d, ptr_abuse_2d, &
+        arr_2d_ptr
     use hdf5, only: hid_t, hsize_t, H5S_SCALAR_F, H5_INTEGER_KIND, &
         H5KIND_TO_TYPE, H5T_FORTRAN_S1, H5_REAL_KIND, H5T_FLOAT_F, &
         H5T_COMPOUND_F, H5P_DATASET_XFER_F, H5FD_MPIO_INDEPENDENT_F, &
@@ -30,7 +31,7 @@ module hdf5_util
         h5pset_dxpl_mpio_f, h5dcreate_f, h5screate_simple_f, &
         h5sselect_hyperslab_f, h5dwrite_f, h5tcreate_f, h5tinsert_f, &
         h5dwrite_f, h5screate_f, h5screate_f, h5tcopy_f, h5tset_size_f, size_t
-    use MPI_wrapper
+    use MPI_wrapper, only: iProcIndex
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc, TagIntType
     implicit none
 
@@ -190,7 +191,7 @@ contains
         integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
 
-        dims = [size(val)]
+        dims = [size(val, kind=int64)]
         call h5screate_simple_f(1, dims, dataspace, err)
         call h5acreate_f(parent, nm, h5kind_to_type(dp, H5_REAL_KIND), dataspace, attribute, &
                          err)
@@ -220,7 +221,7 @@ contains
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
-            dims = [size(val)]
+            dims = [size(val, kind=int64)]
             call check_attribute_params(attribute, nm, 8_hsize_t, H5T_FLOAT_F, dims)
             call h5aread_f(attribute, h5kind_to_type(dp, H5_REAL_KIND), val, dims, err)
             call h5aclose_f(attribute, err)
@@ -503,7 +504,7 @@ contains
         integer(int32), pointer :: ptr(:)
 
         ! Create the appropriate dataspace
-        dims = [size(val)]
+        dims = [size(val, kind=int64)]
         call h5screate_simple_f(1, dims, dataspace, err)
 
         ! Create the dataset with the correct type
@@ -543,7 +544,7 @@ contains
         integer(hsize_t) :: dims(1)
 
         ! Create the appropriate dataspace
-        dims = [size(val)]
+        dims = [size(val, kind=int64)]
         call h5screate_simple_f(1, dims, dataspace, err)
 
         ! Create the dataset with the correct type
@@ -584,7 +585,7 @@ contains
             call setup_dp_1d_dataset_buffer(buf,val)
 
             ! Check dimensions and types.
-            dims = [size(buf)]
+            dims = [size(buf, kind=int64)]
             ! check versus the input, not the calculation's parameters
             call check_dataset_params(dataset, nm, 8_hsize_t, H5T_FLOAT_F, dims)
 
@@ -690,7 +691,7 @@ contains
         integer(int32), pointer :: ptr(:)
 
         ! Create the appropriate dataspace
-        dims = [size(val)]
+        dims = [size(val, kind=int64)]
         call h5screate_simple_f(1, dims, dataspace, err)
 
         ! Create the dataset with the correct type
@@ -730,7 +731,7 @@ contains
             call h5dget_type_f(dataset, type_id, err)
 
             ! Check dimensions and types.
-            dims = [size(val)]
+            dims = [size(val, kind=int64)]
             call check_dataset_params(dataset, nm, 16_hsize_t, H5T_COMPOUND_F, &
                                       dims)
 
@@ -876,7 +877,7 @@ contains
 
         ! Create the target (memory) dataspace, and select the appropriate
         ! hyperslab inside it.
-        mem_dims = [size(val, 1), size(val, 2)]
+        mem_dims = [size(val, 1, kind=int64), size(val, 2, kind=int64)]
         call h5screate_simple_f(2, mem_dims, memspace, err)
         call h5sselect_hyperslab_f(memspace, H5S_SELECT_SET_F, tgt_offset, &
                                    dims, err)
@@ -979,7 +980,7 @@ contains
             call h5tget_size_f(type_id, sz, err)
 
             ! We can only read in if our buffer is big enough
-            buf_sz = len(val)
+            buf_sz = len(val, kind=int64)
             if (sz > buf_sz) then
                 write(stdout,*) 'WARNING: Insufficient read buffer in routine ', t_r
                 exists_ = .false.
@@ -1048,7 +1049,7 @@ contains
             call h5dget_type_f(dataset, type_id, err)
 
             ! Check dimensions and types.
-            dims = [size(val)]
+            dims = [size(val, kind=int64)]
             call check_dataset_params(dataset, nm, 8_hsize_t, H5T_INTEGER_F, dims)
 
             ! And actually read the data. Note that we manipulate the pointer

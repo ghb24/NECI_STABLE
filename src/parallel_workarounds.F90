@@ -26,6 +26,7 @@ module Parallel_neci
                             neci_MPIInit_called, neci_MPINodes_called
 
     use constants
+    use mpi, only: MPI_INTEGER4, MPI_SUCCESS, MPI_SUM, MPI_MIN, MPI_MAX
     implicit none
 
     interface MPIBcast

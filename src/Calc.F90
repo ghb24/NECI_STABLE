@@ -50,7 +50,8 @@ MODULE Calc
                         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
                         minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
-    use load_balance, only: tLoadBalanceBlocks, loadBalanceInterval
+    use load_balance, only: tLoadBalanceBlocks
+    use load_balance_calcnodes, only: loadBalanceInterval
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl

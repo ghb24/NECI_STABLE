@@ -40,5 +40,6 @@ module neci_intfce
          INTEGER NEL,NI(NEL),NJ(NEL),EX(2,*)
          LOGICAL TSIGN
       end subroutine
+
     end interface
 end module neci_intfce
