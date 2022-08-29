@@ -1,47 +1,50 @@
 title
 
 system read noorder
-symignoreenergies
-freeformat
-electrons 8
-spin-restrict 0
-sym 0 0 0 0
-nonuniformrandexcits 4ind-weighted
-nobrillouintheorem
-hphf 0
-system-replicas 2
+    symignoreenergies
+    freeformat
+    electrons 8
+    spin-restrict 0
+    sym 0 0 0 0
+    nonuniformrandexcits 4ind-weighted
+    nobrillouintheorem
+    hphf 0
+    system-replicas 2
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-memoryfacpart 5.0
-memoryfacspawn 25.0
-totalwalkers 1000
-nmcyc -1
-seed 278
-startsinglepart 100
-diagshift 0.1
-rdmsamplingiters 3000
-shiftdamp 0.05
-tau 0.02 search
-allrealcoeff
-realspawncutoff 0.01
-jump-shift
-stepsshift 20
-maxwalkerbloom 3
-truncatecas 8 8
-en2-truncated
-load-balance-interval 1000
+    methods
+    method vertex fcimc
+    endmethods
+    memoryfacpart 5.0
+    memoryfacspawn 25.0
+    totalwalkers 1000
+    nmcyc -1
+    seed 278
+    startsinglepart 100
+    diagshift 0.1
+    rdmsamplingiters 3000
+    shiftdamp 0.05
+    tau-values \
+        start user-defined 0.02
+    tau-search \
+        algorithm conventional \
+        maxwalkerbloom 3
+    allrealcoeff
+    realspawncutoff 0.01
+    jump-shift
+    stepsshift 20
+    truncatecas 8 8
+    en2-truncated
+    load-balance-interval 1000
 endcalc
 
 integral
-freeze 0 0
+    freeze 0 0
 endint
 
 logging
-popsfile -1
-calcrdmonfly 3 2000 100
+    popsfile -1
+    calcrdmonfly 3 2000 100
 endlog
 end

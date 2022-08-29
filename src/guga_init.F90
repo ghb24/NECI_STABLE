@@ -13,7 +13,7 @@ module guga_init
                           t_tJ_model, t_guga_pchb, t_pchb_weighted_singles
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                        t_hist_tau_search, tSpinProject, &
+                        tSpinProject, &
                         tReplicaEstimates, tPreCond, ss_space_in, trial_space_in, &
                         t_fast_pops_core, t_core_inits
 
@@ -40,7 +40,7 @@ module guga_init
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
 
-    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
+    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
 
     use constants, only: dp, int_rdm, n_int, stdout, inum_runs
 
@@ -335,12 +335,6 @@ contains
                 call stop_all(this_routine, &
                               "can only determine up to excit level 2 in GUGA for now!")
             end if
-        end if
-
-        ! avoid using both the old and the new tau search functionality
-        if (tSearchTau .and. t_hist_tau_search) then
-            call stop_all(this_routine, &
-                          "can't use both the old and the new tau search option at the same time!")
         end if
 
         if (tReplicaEstimates) then

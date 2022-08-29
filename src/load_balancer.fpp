@@ -7,7 +7,7 @@ module load_balance
                         tCheckHighestPop, OccupiedThresh, &
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
-                        tPairedReplicas, tau, tSeniorInitiators, &
+                        tPairedReplicas, tSeniorInitiators, &
                         t_activate_decay, tAutoAdaptiveShift, tMoveGlobalDetData
     use global_det_data, only: global_determinant_data, &
                                global_determinant_data_tmp, &

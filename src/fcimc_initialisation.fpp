@@ -29,9 +29,9 @@ module fcimc_initialisation
     use core_space_util, only: cs_replicas
     use dSFMT_interface, only: dSFMT_init
 
-    use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
-                        tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
-                        MaxWalkerBloom, InitialPart, tStartMP1, tReadPops, &
+    use CalcData, only: G_VMC_Seed, MemoryFacPart, StepsSftImag, &
+                        tCheckHighestPop, tSpatialOnlyHash, tStartCAS, &
+                        InitialPart, tStartMP1, tReadPops, &
                         InitialPartVec, iReadWalkersRoot, SinglesBias, NMCYC, &
                         tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
@@ -49,8 +49,8 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
-                        tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
+                        tMultipleInitialStates, initial_states, &
+                        t_back_spawn, &
                         t_trunc_nopen_diff, t_guga_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
@@ -62,6 +62,11 @@ module fcimc_initialisation
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
+
+    use tau_main, only: tau_search_method, &
+        tau_start_val, possible_tau_start, &
+        max_death_cpt, min_tau, max_tau, tau, taufactor, &
+        assign_value_to_tau, init_tau
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
@@ -174,8 +179,6 @@ module fcimc_initialisation
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
     use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
 
-    use tau_search, only: init_tau_search, max_death_cpt
-
     use fcimc_helper, only: CalcParentFlag, update_run_reference
 
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
@@ -219,8 +222,6 @@ module fcimc_initialisation
     use real_time_procs, only: attempt_create_realtime
 
     use adi_references, only: setup_reference_space, clean_adi
-
-    use tau_search_hist, only: init_hist_tau_search
 
     use double_occ_mod, only: init_spin_measurements
 
@@ -910,6 +911,10 @@ contains
             UpperTau = 0.0_dp
         end if
 
+        if (tau_start_val == possible_tau_start%deterministic) then
+            call assign_value_to_tau(UpperTau, 'Deterministically approximated value 1 / (E_max - E_0)')
+        end if
+
         ! Initialise DiagSft according to the input parameters. If we have
         ! multiple projected-energy references, then the shift on each of the
         ! runs should be adjusted so that it is still relative to the first
@@ -1221,14 +1226,9 @@ contains
             ! memory limitations.. but i think we do not actually need it.
             CALL CalcApproxpDoubles()
         end if
-        IF (abs(TauFactor) > 1.0e-12_dp) THEN
-            if (t_trans_corr_2body .and. t_k_space_hubbard) then
-                call Stop_All(this_routine, &
-                              "finding the number of excits from HF breaks for too large lattice")
-            end if
+        IF (tau_start_val == possible_tau_start%tau_factor) THEN
             write(stdout, *) "TauFactor detected. Resetting Tau based on connectivity of: ", HFConn
-            Tau = TauFactor / REAL(HFConn, dp)
-            write(stdout, *) "Timestep set to: ", Tau
+            call assign_value_to_tau(TauFactor / REAL(HFConn, dp), 'Initialization from Tau-Factor.')
         end if
 
         ! [W.D.] I guess I want to initialize that before the tau-search,
@@ -1755,42 +1755,7 @@ contains
                               "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! if this is a continued run from a histogramming tau-search
-        ! and a restart of the tau-search is not forced by input, turn
-        ! both the new and the old tau-search off!
-        ! i cannot do it here, since this is called before the popsfile read-in
-        if (t_previous_hist_tau) then
-            ! i have to check for tau-search option and stuff also, so that
-            ! the death tau adaption is still used atleast! todo!
-            tSearchTau = .false.
-            t_hist_tau_search = .false.
-            t_fill_frequency_hists = .false.
-            write(stdout, *) "Turning OFF the tau-search, since continued run!"
-        end if
-
-        if (tSearchTau) then
-            call init_tau_search()
-            if (t_hist_tau_search) then
-                call Stop_All(t_r, &
-                      "Input error! both standard AND Histogram tau-search chosen!")
-            end if
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
-        else
-            ! Add a couple of checks for sanity
-            if (nOccAlpha == 0 .or. nOccBeta == 0) then
-                pParallel = 1.0_dp
-            end if
-            if (nOccAlpha == 1 .and. nOccBeta == 1) then
-                pParallel = 0.0_dp
-            end if
-        end if
+        call init_tau()
 
         IF ((NMCyc /= 0) .and. (tRotateOrbs .and. (.not. tFindCINatOrbs))) then
             CALL Stop_All(this_routine, "Currently not set up to rotate and then go straight into a spawning &
