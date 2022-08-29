@@ -21,7 +21,7 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
+                        t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
@@ -138,7 +138,9 @@ module FciMCParMod
                               measure_double_occ_and_spin_diff, rezero_spin_diff, &
                               write_spin_diff_stats, write_spat_doub_occ_stats, &
                               all_sum_double_occ, calc_double_occ_from_rdm
-    use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
+    use tau_main, only: tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        finalize_tau
+    use tau_search_hist, only: print_frequency_histograms
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
@@ -879,8 +881,11 @@ contains
 
             ! also deallocate here after no use of the histograms anymore
             call deallocate_histograms()
+        if (allocated(input_tau_search_method)) then
+            if (t_print_frq_histograms .and. input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                call print_frequency_histograms()
+            end if
         end if
-
 
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
@@ -1001,6 +1006,8 @@ contains
             if (tLogEXLEVELStats) close(EXLEVELStats_unit)
         end if
         IF (TDebug) close(11)
+
+        call finalize_tau()
 
         if (tHistSpawn) then
             close(Tot_Unique_Dets_Unit)
@@ -1606,11 +1613,7 @@ contains
                 ! optional: Adjust the number of spawns to the expected maximum
                 ! Hij/pgen ratio of this determinant -> prevent blooms
                 ! Only done while not updating tau (to prevent interdependencies)
-                ! or, for hist-tau-search, in vairable shift mode
-                ! Usually, this means: done in variable shift mode
-                if (tScaleBlooms .and. .not. tSearchTau &
-                    .and. .not. (t_hist_tau_search .and. tSinglePartPhase( &
-                                 part_type_to_run(part_type)))) then
+                if (tScaleBlooms .and. tau_search_method == possible_tau_search_methods%off) then
                     max_spawn = tau * get_max_ratio(j)
                     if (max_spawn > max_allowed_spawn) then
                         scale = max_spawn / max_allowed_spawn

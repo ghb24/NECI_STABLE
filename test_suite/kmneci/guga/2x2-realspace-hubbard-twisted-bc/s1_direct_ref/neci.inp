@@ -17,14 +17,13 @@ calc
         method vertex fcimc
     endmethods
 
-    direct-guga-ref
-
     definedet 1 4 5 7
     load-balance-interval 1000
     seed -7
 
     allrealcoeff
-    tau 0.01
+    tau-values \
+        start user-defined 0.01
 
     nmcyc 5000
 

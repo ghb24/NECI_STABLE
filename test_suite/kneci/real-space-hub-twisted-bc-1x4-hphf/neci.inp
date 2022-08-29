@@ -24,7 +24,8 @@ calc
     semi-stochastic 10
     pops-core 10
 
-    tau 0.001
+    tau-values \
+        start user-defined 0.001
 
     nmcyc 10000
 

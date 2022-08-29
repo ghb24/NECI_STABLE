@@ -14,7 +14,8 @@ seed -7
 load-balance-interval 1000
 nmcyc 20000
 initwalkers 50
-tau 0.002
+tau-values \
+    start user-defined 0.002
 startsinglepart 10
 shiftdamp 0.01
 stepsshift 75
