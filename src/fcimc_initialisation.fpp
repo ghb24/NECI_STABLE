@@ -23,7 +23,8 @@ module fcimc_initialisation
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
                           t_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
-                          basisfn
+                          basisfn, t_mixed_excits
+
 
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -344,7 +345,7 @@ module fcimc_initialisation
 
     use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard, &
                                gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr, &
-                               t_mixed_excits, gen_excit_k_space_hub, &
+                               gen_excit_k_space_hub, &
                                gen_excit_uniform_k_space_hub, &
                                gen_excit_mixed_k_space_hub_transcorr
 

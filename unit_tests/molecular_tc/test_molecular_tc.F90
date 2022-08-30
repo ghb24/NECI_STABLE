@@ -1,14 +1,27 @@
 ! unit tests for molecular tc
 #include "macros.h"
 program test_molecular_tc
-    use constants
+    use constants, only: dp, n_int, EPS
     use SystemData, only: nBasis, tStoreSpinOrbs, nel, G1, nullBasisFn
     use bit_rep_data, only: NIfTot
-    use LMat_mod
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use tc_three_body_data, only: tSparseLMat, tHDF5LMat
-    use tc_three_body_excitgen, only: setup_mol_tc_excitgen
+    use tc_three_body_data, only: pTriples, tSparseLMat, tHDF5LMat
+    use tc_three_body_excitgen, only: setup_mol_tc_excitgen, calc_pgen_triple, &
+        gen_excit_mol_tc
+    use OneEInts, only: tOneElecDiag
+    use SymData, only: symlabelintscum, Symclasses, StateSymMap
+    use SymExcitDataMod, only: SpinOrbSymLabel
+    use procedure_pointers, only: get_umat_el
+    use sltcnd_mod, only: initSltCndPtr
+    use UMatCache, only: nullUMat
+    use SystemData, only: nOccAlpha, nOccBeta, AA_elec_pairs, AB_elec_pairs, &
+                          BB_elec_pairs, par_elec_pairs, tNoSymGenRandExcits, t_mol_3_body
+    use dSFMT_interface, only: dSFMT_init
+    use FciMCData, only: pParallel, pSingles, pDoubles, excit_gen_store_type
+    use DeterminantData, only: write_det
 
     implicit none
 
@@ -32,7 +45,6 @@ program test_molecular_tc
 contains
 
     subroutine molecular_tc_test_driver()
-        implicit none
         call setup_tests()
         ! test the three-body excitation generator
         call run_excitgen_test()
@@ -42,15 +54,6 @@ contains
 
     subroutine setup_tests()
         ! initialization of the tests: mimic the environment of a NECI calculation
-        use procedure_pointers, only: get_umat_el
-        use sltcnd_mod, only: initSltCndPtr
-        use UMatCache, only: nullUMat
-        use SystemData, only: nOccAlpha, nOccBeta, AA_elec_pairs, AB_elec_pairs, &
-                              BB_elec_pairs, par_elec_pairs, tNoSymGenRandExcits, t_mol_3_body
-        use dSFMT_interface, only: dSFMT_init
-        use FciMCData, only: pParallel, pSingles, pDoubles
-        use tc_three_body_data, only: pTriples
-        implicit none
 
         integer :: i
 
@@ -105,10 +108,6 @@ contains
     subroutine run_excitgen_test()
         ! TODO: Scrap this crap and use the proper excitation generator unit test
         ! (as in the framework of k-space-hubbard/umat-hash)
-        use tc_three_body_excitgen
-        use tc_three_body_data, only: pgen3B, pgen2B, pgen1B, pgen0B, pTriples
-        use DeterminantData, only: write_det
-        implicit none
 
         integer :: nI(nel), nJ(nel), exFlag, ic, ExcitMat(2, 3)
         logical :: tParity
@@ -133,10 +132,6 @@ contains
     endsubroutine run_excitgen_test
 
     subroutine init_dummy()
-        use OneEInts, only: tOneElecDiag
-        use SymData
-        use SymExcitDataMod, only: SpinOrbSymLabel
-        implicit none
         tOneElecDiag = .false.
 
         allocate(Symclasses(nBasis))
@@ -151,8 +146,6 @@ contains
     endsubroutine init_dummy
 
     subroutine clear_resources()
-        use SymData
-        implicit none
 
         deallocate(StateSymMap)
         deallocate(symlabelintscum)

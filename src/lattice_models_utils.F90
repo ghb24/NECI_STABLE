@@ -40,6 +40,19 @@ module lattice_models_utils
     use guga_bitRepOps, only: csf_purify
 
     implicit none
+    private
+
+    public :: find_minority_spin, pick_spin_par_elecs, &
+        pick_three_opp_elecs, pick_spin_opp_elecs, make_ilutJ, &
+        get_orb_from_kpoints, get_ispn, get_occ_neighbors, &
+        get_spin_density_neighbors, find_elec_in_ni, &
+        get_orb_from_kpoints_three, create_all_open_shell_dets, &
+        get_spin_opp_neighbors, create_one_spin_basis, calc_n_double, &
+        create_neel_state_chain, create_neel_state, &
+        pick_from_cum_list, combine_spin_basis, set_alpha_beta_spins, &
+        right_most_zero, gen_all_excits_k_space_hubbard, &
+        swap_excitations, pick_spin_opp_holes, pick_random_hole, &
+        get_opp_spin, create_all_dets, gen_all_excits_r_space_hubbard
 
     interface swap_excitations
         module procedure swap_excitations_higher

@@ -98,6 +98,30 @@ module k_space_hubbard
     use guga_data, only: ExcitationInformation_t
 
     implicit none
+    private
+    public :: get_diag_helement_k_sp_hub, &
+        init_three_body_const_mat, init_two_body_trancorr_fac_matrix, &
+        get_j_opt, init_get_helement_k_space_hub, setup_k_space_hub_sym, &
+        init_tmat_kspace, setup_g1, setup_nbasismax, &
+        setup_k_total, setup_kPointToBasisFn, setup_tmat_k_space, &
+        get_offdiag_helement_k_sp_hub, get_helement_k_space_hub, &
+        initialize_excit_table, get_3_body_helement_ks_hub, &
+        check_momentum_sym, make_triple, two_body_transcorr_factor, &
+        epsilon_kvec, three_body_transcorr_fac, same_spin_transcorr_factor, &
+        get_helement_k_space_hub_general, get_helement_k_space_hub_ex_mat, &
+        n_opp, three_body_prefac, create_ab_list_hubbard, &
+        calc_pgen_k_space_hubbard, gen_parallel_double_hubbard, &
+        gen_triple_hubbard, pick_a_orbital_hubbard, &
+        pick_ab_orbitals_hubbard, pick_bc_orbitals_hubbard, &
+        create_ab_list_par_hubbard, pick_ab_orbitals_par_hubbard, &
+        create_bc_list_hubbard, calc_pgen_k_space_hubbard_transcorr, &
+        calc_pgen_k_space_hubbard_par, calc_pgen_k_space_hubbard_triples, &
+        gen_excit_k_space_hub, gen_excit_uniform_k_space_hub_test, &
+        gen_excit_k_space_hub_transcorr_test, get_umat_kspace, &
+        gen_excit_uniform_k_space_hub, init_k_space_hubbard, &
+        gen_excit_k_space_hub_transcorr, gen_excit_mixed_k_space_hub_transcorr, &
+        gen_excit_uniform_k_space_hub_transcorr, setup_symmetry_table, &
+        get_2_body_diag_transcorr, get_3_body_diag_transcorr, calc_pgen_k_space_hubbard_uniform_transcorr
 
     integer, parameter :: ABORT_EXCITATION = 0
     integer, parameter :: N_DIM = 3

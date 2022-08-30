@@ -29,7 +29,9 @@ module unit_test_helper_excitgen
     use util_mod, only: get_free_unit
     use orb_idx_mod, only: SpinProj_t
     implicit none
-
+    private
+    public :: test_excitation_generator, generate_uniform_integrals, FciDumpWriter_t, &
+        init_excitgen_test
     abstract interface
         function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
             use constants

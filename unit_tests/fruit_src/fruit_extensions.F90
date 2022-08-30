@@ -2,6 +2,8 @@ module fruit_extensions
 
     use fruit
     implicit none
+    private
+    public :: my_run_test_case
 
 contains
 
