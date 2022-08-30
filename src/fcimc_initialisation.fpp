@@ -257,6 +257,9 @@ module fcimc_initialisation
         AllGrowRate, AllGrowRateAbort, AllSumWalkersCyc, AllSumWalkersOut, AllNoBorn, &
         AllSpawnFromSing, AllNoDied, AllAnnihilated, AllENumCyc, AllENumOut, AllHFCyc, &
         AllHFOut, replica_overlaps_real, ValidSpawnedList
+#ifdef CMPLX_
+    use FciMCData, only: replica_overlaps_imag
+#endif
 
     use FciMCData, only: HFDet_True, HFDet, tSpinCoupProjE, SpawnInfoVec2Tag, &
         SpawnInfoVecTag, iRefProc, SpawnInfoVec, SpawnInfoVec2, &

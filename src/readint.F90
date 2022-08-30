@@ -6,7 +6,9 @@ module read_fci
         tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
         tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
         BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
-        UMatEps, t_non_hermitian, tRIIntegrals, SYMMAX, irrepOrbOffset
+        UMatEps, t_non_hermitian, tRIIntegrals, SYMMAX, irrepOrbOffset, &
+        t_complex_ints
+
 
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
 

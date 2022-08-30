@@ -20,7 +20,7 @@ module constants
     integer, parameter :: int128 = selected_int_kind(38)
 #endif
 
-    real(dp), parameter ::  PI    = atan(1._dp) / 4._dp
+    real(dp), parameter ::  PI    = 4._dp * atan(1._dp)
     real(dp), parameter ::  PI2   = 2._dp * PI
     real(dp), parameter ::  THIRD = 1._dp / 3._dp
     real(dp), parameter ::  Root2 = sqrt(2._dp)
