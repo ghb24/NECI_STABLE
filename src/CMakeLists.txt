@@ -254,7 +254,6 @@ set( RELAX_WARNINGS_SRCS
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90
-    DetBitOps.F90
     DetCalcData.F90
     DetCalc.F90
     DeterminantData.F90
@@ -410,7 +409,6 @@ set( RELAX_WARNINGS_SRCS
     guga_rdm.F90
     unit_test_helpers.F90
     real_time_data.F90
-    cc_amplitudes.F90
     cepa_shifts.F90
     real_time.F90
     real_time_aux.F90
