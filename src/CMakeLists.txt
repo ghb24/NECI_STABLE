@@ -402,8 +402,6 @@ set( RELAX_WARNINGS_SRCS
     vasp_neci_interface_stub.F90
     double_occ.F90
     real_space_hubbard.F90
-    back_spawn.F90
-    back_spawn_excit_gen.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
