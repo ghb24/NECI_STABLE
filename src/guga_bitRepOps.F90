@@ -2308,7 +2308,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
 
         ! should no just be:
-        ilut(GugaBits%ind_b) = int(deltaB, n_int)
+        ilut(GugaBits%ind_b) = deltaB
 
     end subroutine setDeltaB
 
@@ -3037,8 +3037,8 @@ contains
 
         rdm_ind_ = iand(rdm_ind, rdm_ind_bitmask)
 
-        a = int(mod(rdm_ind_ - 1_int_rdm, int(nSpatOrbs, int_rdm))) + 1
-        i = int((rdm_ind_ - 1_int_rdm) .div. int(nSpatOrbs, int_rdm)) + 1
+        a = int(mod(rdm_ind_ - 1, nSpatOrbs) + 1)
+        i = int((rdm_ind_ - 1) / nSpatOrbs + 1)
 
         if (present(excit_lvl)) then
             excit_lvl = extract_excit_lvl_rdm(rdm_ind)
@@ -3057,7 +3057,7 @@ contains
         integer, intent(in), optional :: excit_lvl, excit_typ
         integer(int_rdm) :: rdm_ind
 
-        rdm_ind = int(nSpatOrbs * (i - 1) + a, int_rdm)
+        rdm_ind = nSpatOrbs * (i - 1) + a
 
         if (present(excit_lvl)) then
             call encode_excit_lvl_rdm(rdm_ind, excit_lvl)
@@ -3118,7 +3118,7 @@ contains
         ij = contract_1_rdm_ind(i, j)
         kl = contract_1_rdm_ind(k, l)
 
-        ijkl = (ij - 1) * (int(nSpatOrbs, int_rdm)**2_int_rdm) + kl
+        ijkl = (ij - 1) * (nSpatOrbs**2) + kl
 
         if (present(excit_lvl)) then
             call encode_excit_lvl_rdm(ijkl, excit_lvl)
@@ -3146,8 +3146,8 @@ contains
 
         ijkl_ = iand(ijkl, rdm_ind_bitmask)
 
-        kl = mod(ijkl_ - 1, (int(nSpatOrbs, int_rdm)**2_int_rdm)) + 1
-        ij = (ijkl_ - kl) .div. (int(nSpatOrbs, int_rdm)**2_int_rdm) + 1
+        kl = mod(ijkl_ - 1, int(nSpatOrbs, int_rdm)**2) + 1
+        ij = (ijkl_ - kl) / (nSpatOrbs**2) + 1
 
         call extract_1_rdm_ind(ij, i, j)
         call extract_1_rdm_ind(kl, k, l)
