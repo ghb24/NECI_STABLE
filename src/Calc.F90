@@ -716,7 +716,7 @@ contains
                         tExitNow = .true.
 
                     case default
-                        call stop_all(this_routine, "Keyword "//trim(w)//" not recognized")
+                        call stop_all(this_routine, trim(w)//" is not a valid keyword in the METHODS block.")
                     end select
 
                 end do
