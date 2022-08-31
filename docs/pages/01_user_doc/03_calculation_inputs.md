@@ -20,7 +20,7 @@ description of each paragraph. Then come recommended options, marked in
 given in black.
 
 Keywords which are purely for debugging purposes and only interesting
-for developers are markes as **\textcolor{green}{green}**.
+for developers are marked in **\textcolor{green}{green}**.
 
 Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`)
 Line continuation is achieved with `\`. (A deprecated line continuation string found in legacy inputs is `+++`.)
@@ -394,7 +394,7 @@ considered. The block starts with the `system` keyword and ends with the
     account 3-body interactions for all other purposes.
 
 
--   **evolve-adjoint**<br>
+-   **adjoint-replicas**<br>
     For multiple replicas (mneci, system-replicas >=2) or a dneci run,
     evolves the left eigenvector for the even replicas, while still
     evolving the right eigenvector for the odd replicas.
@@ -1459,7 +1459,7 @@ keyword.
 -   **\textcolor{blue}{endlog}**<br>
  Terminates the LOGGING block.
 
--   **\textcolor{blue}{hdf5-pops}**\
+-   **\textcolor{blue}{hdf5-pops}**<br>
  Sets the format to read and write the wave function to HDF5.
     Requires building with the `ENABLE-HDF5` cmake option.
 
