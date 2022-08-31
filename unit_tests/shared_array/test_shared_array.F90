@@ -1,9 +1,11 @@
 module test_shared_array_mod
     use constants, only: int64, MPIArg, stdout
     use shared_array, only: shared_array_int64_t
-    use Parallel_neci, only: mpi_comm_intra, iProcIndex_intra
+    use Parallel_neci, only: mpi_comm_intra, iProcIndex_intra, MPI_LOGICAL, MPI_LAND
+#ifndef IFORT_
+    use MPI_Wrapper, only: MPI_Allreduce
+#endif
     use fruit, only: assert_true
-    use Parallel_neci, only: MPI_Allreduce, MPI_LOGICAL, MPI_LAND
     implicit none
     private
     public :: test_large_array
@@ -38,7 +40,9 @@ contains
                     exit
                 end if
             end do
+#ifdef USE_MPI
             call MPI_Allreduce(correct, all_correct, 1_MPIArg, MPI_LOGICAL, MPI_LAND, mpi_comm_intra, ierr)
+#endif
             call assert_true(all_correct(1))
         end block
         call shared_arr%shared_dealloc()
