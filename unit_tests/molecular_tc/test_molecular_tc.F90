@@ -5,12 +5,12 @@ program test_molecular_tc
     use SystemData, only: nBasis, tStoreSpinOrbs, nel, G1, nullBasisFn
     use bit_rep_data, only: NIfTot
     use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
-        get_failed_count, run_test_case, assert_true
+                     get_failed_count, run_test_case, assert_true
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use tc_three_body_data, only: pTriples, tSparseLMat, tHDF5LMat
     use tc_three_body_excitgen, only: setup_mol_tc_excitgen, calc_pgen_triple, &
-        gen_excit_mol_tc
+                                      gen_excit_mol_tc
     use OneEInts, only: tOneElecDiag
     use SymData, only: symlabelintscum, Symclasses, StateSymMap
     use SymExcitDataMod, only: SpinOrbSymLabel
@@ -37,8 +37,8 @@ program test_molecular_tc
     block
         integer :: failed_count
         call get_failed_count(failed_count)
-        if(failed_count /= 0) call stop_all('test_molecular_tc', 'failed_tests')
-    endblock
+        if (failed_count /= 0) call stop_all('test_molecular_tc', 'failed_tests')
+    end block
 
     call MPIEnd(.false.)
 
@@ -50,7 +50,7 @@ contains
         call run_excitgen_test()
 
         call clear_resources()
-    endsubroutine molecular_tc_test_driver
+    end subroutine molecular_tc_test_driver
 
     subroutine setup_tests()
         ! initialization of the tests: mimic the environment of a NECI calculation
@@ -65,12 +65,12 @@ contains
         G1 = nullBasisFn
 
         do i = 1, nBasis
-            if(is_beta(i)) then
+            if (is_beta(i)) then
                 G1(i)%ms = -1
             else
                 G1(i)%ms = 1
-            endif
-        enddo
+            end if
+        end do
 
         t_mol_3_body = .true.
         ! the slater condon rules in the TC are routed via procedure pointers, they have to
@@ -103,7 +103,7 @@ contains
 
         ! initialize the excitgen
         call setup_mol_tc_excitgen()
-    endsubroutine setup_tests
+    end subroutine setup_tests
 
     subroutine run_excitgen_test()
         ! TODO: Scrap this crap and use the proper excitation generator unit test
@@ -128,8 +128,8 @@ contains
                                   tParity, pgen, helgen, store)
 
             call assert_true(abs(pgen - calc_pgen_triple(nI, ExcitMat)) < eps)
-        enddo
-    endsubroutine run_excitgen_test
+        end do
+    end subroutine run_excitgen_test
 
     subroutine init_dummy()
         tOneElecDiag = .false.
@@ -143,13 +143,13 @@ contains
 
         allocate(spinorbsymlabel(nBasis), source=0)
 
-    endsubroutine init_dummy
+    end subroutine init_dummy
 
     subroutine clear_resources()
 
         deallocate(StateSymMap)
         deallocate(symlabelintscum)
         deallocate(Symclasses)
-    endsubroutine clear_resources
+    end subroutine clear_resources
 
-endprogram test_molecular_tc
+end program test_molecular_tc

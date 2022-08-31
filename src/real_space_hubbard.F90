@@ -80,6 +80,23 @@ module real_space_hubbard
                               current_csf_i, CSF_Info_t
 
     implicit none
+    private
+    public :: get_diag_helemen_rs_hub_transcorr_spin, &
+        init_tmat_rs_hub_spin_transcorr, &
+        init_umat_rs_hub_transcorr, get_diag_helemen_rs_hub_transcorr_hop, &
+        get_optimal_correlation_factor, init_get_helement_hubbard, &
+        init_tmat, create_cum_list_rs_hubbard, &
+        create_avail_neighbors_list, calc_pgen_rs_hubbard, &
+        trans_corr_fac, init_real_space_hubbard, gen_excit_rs_hubbard, &
+        get_offdiag_helement_rs_hub, get_umat_el_hub, &
+        get_umat_rs_hub_trans, t_recalc_tmat, t_recalc_umat, &
+        gen_excit_rs_hubbard_transcorr, gen_excit_rs_hubbard_transcorr_uniform, &
+        get_umat_el, tmat_rs_hub_spin_transcorr, &
+        umat_rs_hub_trancorr_hop, lat_tau_factor, t_start_neel_state, &
+        check_real_space_hubbard_input, init_spin_free_tmat, init_hopping_transcorr, &
+        calc_pgen_rs_hubbard_transcorr, calc_pgen_rs_hubbard_spin_dependent_transcorr, &
+        calc_pgen_rs_hubbard_transcorr_uniform, gen_excit_rs_hubbard_spin_dependent_transcorr, &
+        gen_excit_rs_hubbard_transcorr_hole_focus
 
     real(dp) :: lat_tau_factor = 0.5_dp
 

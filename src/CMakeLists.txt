@@ -404,8 +404,8 @@ set( RELAX_WARNINGS_SRCS
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
-    lattice_models_utils.F90
     analyse_wf_symmetry.F90
+    lattice_models_utils.F90
     guga_rdm.F90
     unit_test_helpers.F90
     real_time_data.F90

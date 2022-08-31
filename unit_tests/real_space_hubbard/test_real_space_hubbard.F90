@@ -9,28 +9,50 @@
 ! unit test module which tests all the functionality of a other module
 program test_real_space_hubbard
 
-    use real_space_hubbard
+    use real_space_hubbard, only: get_diag_helemen_rs_hub_transcorr_spin, &
+        init_tmat_rs_hub_spin_transcorr, &
+        init_umat_rs_hub_transcorr, get_diag_helemen_rs_hub_transcorr_hop, &
+        get_optimal_correlation_factor, init_get_helement_hubbard, &
+        init_tmat, create_cum_list_rs_hubbard, &
+        create_avail_neighbors_list, calc_pgen_rs_hubbard, &
+        trans_corr_fac, init_real_space_hubbard, gen_excit_rs_hubbard, &
+        get_offdiag_helement_rs_hub, get_umat_el_hub, &
+        get_umat_rs_hub_trans, t_recalc_tmat, t_recalc_umat, &
+        gen_excit_rs_hubbard_transcorr, gen_excit_rs_hubbard_transcorr_uniform, &
+        get_umat_el, tmat_rs_hub_spin_transcorr, umat_rs_hub_trancorr_hop, &
+        umat_rs_hub_trancorr_hop, umat_rs_hub_trancorr_hop, lat_tau_factor
 
-    use constants
 
-    use fruit
+    use constants, only: dp, bn2_, infinity, n_int, EPS, maxExcit
+
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals, assert_true
 
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, &
                           trans_corr_param, t_lattice_model, t_trans_corr_hop, brr, &
                           t_trans_corr_2body, trans_corr_param_2body, &
                           t_trans_corr_new, t_uniform_excits, tHPHF, &
-                          length_x, length_y
+                          length_x, length_y, G1
 
-    use bit_reps, only: niftot
+    use bit_reps, only: decode_bit_det
 
-    use lattice_mod, only: lat, init_dispersion_rel_cache
+    use DetBitOps, only: EncodeBitDet, findbitexcitlevel
+
+    use bit_rep_data, only: niftot, nifd
+
+    use lattice_mod, only: lat, init_dispersion_rel_cache, lattice, &
+         get_helement_lattice
 
     use sort_mod, only: sort
 
-    use util_mod, only: get_free_unit, operator(.div.)
+    use SystemData, only: uhub, nBasis, nel, bhub, nOccAlpha, nOccBeta, &
+        t_spin_dependent_transcorr
+
+    use util_mod, only: get_free_unit, operator(.div.), stop_all
 
     use unit_test_helpers, only: create_spin_dependent_hopping, create_lattice_hamil_nI, &
-        similarity_transform, run_excit_gen_tester, setup_arr_brr
+        similarity_transform, run_excit_gen_tester, setup_arr_brr, &
+        run_excit_gen_tester
 
     use matrix_util, only: norm, calc_eigenvalues, matrix_exponential, &
                            print_matrix, eig, linspace, norm_cmplx
@@ -39,10 +61,11 @@ program test_real_space_hubbard
 
     use fcimcdata, only: pSingles, pDoubles
 
-    use lattice_models_utils, only: gen_all_excits_r_space_hubbard, &
-                                    create_hilbert_space_realspace, &
-                                    gen_all_doubles_k_space, &
-                                    gen_all_singles_rs_hub_default
+    use lattice_models_utils, only: &
+        gen_all_excits_r_space_hubbard, create_hilbert_space_realspace, &
+        gen_all_doubles_k_space, gen_all_singles_rs_hub_default, &
+        create_hilbert_space_realspace, gen_all_singles_rs_hub_default, &
+        gen_all_doubles_k_space, create_neel_state
 
     use HPHFRandexcitmod, only: gen_hphf_excit, finddetspinsym
 
@@ -1649,7 +1672,6 @@ contains
 
     subroutine create_cum_list_rs_hubbard_test
         use SystemData, only: nel
-        use bit_rep_data, only: niftot
         use Detbitops, only: encodebitdet
         use constants, only: n_int, dp
         use OneEInts, only: tmat2d
@@ -1744,7 +1766,6 @@ contains
         use SystemData, only: nel
         use constants, only: n_int
         use Detbitops, only: encodebitdet
-        use bit_rep_data, only: niftot
 
         integer(n_int), allocatable :: ilut(:)
         integer, allocatable :: orbs(:)
@@ -1788,7 +1809,6 @@ contains
         use SystemData, only: nel, nbasis, bhub
         use constants, only: n_int, dp
         use lattice_mod, only: lattice
-        use bit_rep_data, only: niftot
         use Detbitops, only: encodebitdet
         use OneEInts, only: tmat2d
 
@@ -1874,7 +1894,6 @@ contains
         use Detbitops, only: encodebitdet
         use constants, only: n_int
         use SystemData, only: nel
-        use bit_rep_data, only: niftot
 
         integer(n_int), allocatable :: ilut(:)
 
@@ -2393,7 +2412,6 @@ contains
     subroutine get_offdiag_helement_rs_hub_test
         use SystemData, only: nel, nbasis , bhub, t_trans_corr, trans_corr_param_2body, &
                               t_trans_corr_2body, trans_corr_param
-        use bit_rep_data, only: niftot, nifd
         use lattice_mod, only: lattice
 
         nel = 2
@@ -2446,7 +2464,6 @@ contains
 
     subroutine get_helement_test
         use SystemData, only: nel, bhub, uhub, nbasis, G1
-        use bit_rep_data, only: nifd, niftot
         use Determinants, only: get_helement
         use constants, only: dp, n_int
         use OneEInts, only: tmat2d

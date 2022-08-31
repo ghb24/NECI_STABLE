@@ -8,7 +8,7 @@ module lattice_models_utils
     use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
     use util_mod, only: binary_search, binary_search_first_ge, choose_i64, swap, &
-                        operator(.isclose.), operator(.div.)
+                        operator(.isclose.), operator(.div.), stop_all
 
     use sort_mod, only: sort
 
@@ -52,7 +52,11 @@ module lattice_models_utils
         pick_from_cum_list, combine_spin_basis, set_alpha_beta_spins, &
         right_most_zero, gen_all_excits_k_space_hubbard, &
         swap_excitations, pick_spin_opp_holes, pick_random_hole, &
-        get_opp_spin, create_all_dets, gen_all_excits_r_space_hubbard
+        get_opp_spin, create_all_dets, gen_all_excits_r_space_hubbard, &
+        create_hilbert_space_realspace, gen_all_singles_rs_hub_default, &
+        gen_all_doubles_k_space, create_heisenberg_fock_space, &
+        create_heisenberg_fock_space_guga, gen_all_triples_k_space, &
+        create_hilbert_space_kspace
 
     interface swap_excitations
         module procedure swap_excitations_higher

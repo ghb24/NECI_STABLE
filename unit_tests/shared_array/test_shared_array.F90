@@ -1,9 +1,9 @@
 module test_shared_array_mod
-    use mpi
     use constants, only: int64, MPIArg, stdout
     use shared_array, only: shared_array_int64_t
     use Parallel_neci, only: mpi_comm_intra, iProcIndex_intra
-    use fruit
+    use fruit, only: assert_true
+    use Parallel_neci, only: MPI_Allreduce, MPI_LOGICAL, MPI_LAND
     implicit none
     private
     public :: test_large_array
@@ -50,11 +50,11 @@ end module
 program test_shared_array
 
     use Parallel_neci, only: MPIInit, MPIEnd
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
     use util_mod, only: stop_all
-    use fruit
 
-    use test_shared_array_mod
-    ! use shared_array
+    use test_shared_array_mod, only: test_large_array
 
     implicit none
 

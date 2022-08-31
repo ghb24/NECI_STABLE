@@ -9,7 +9,9 @@ module MPI_wrapper
         MPI_Comm_Group, MPI_Gather, MPI_Comm_create, MPI_Group_incl, &
         MPI_Error_string, MPI_SUCCESS, MPI_LOR, MPI_WTIME, &
         MPI_IN_PLACE, MPI_COMM_SIZE, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, &
-        MPI_Win_Sync, MPI_MINLOC, MPI_2INTEGER
+        MPI_Win_Sync, MPI_MINLOC, MPI_2INTEGER, MPI_Allreduce, MPI_LOGICAL, MPI_LAND
+    use mpi, only: MPI_INTEGER4, MPI_SUCCESS, MPI_SUM, MPI_MIN, MPI_MAX, MPI_COMM_RANK, &
+        mpi_comm_world
 #endif
     use timing_neci, only: timer, set_timer, halt_timer
     better_implicit_none

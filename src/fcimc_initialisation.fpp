@@ -23,7 +23,7 @@ module fcimc_initialisation
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
                           t_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
-                          basisfn, t_mixed_excits
+                          basisfn, t_mixed_excits, t_hole_focus_excits
 
 
     use tc_three_body_data, only: ptriples
@@ -325,7 +325,7 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn, setup_virtual_mask
 
     use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard, &
-                                  t_hole_focus_excits, gen_excit_rs_hubbard, &
+                                  gen_excit_rs_hubbard, &
                                   gen_excit_rs_hubbard_transcorr_hole_focus, &
                                   gen_excit_rs_hubbard_transcorr_uniform, &
                                   gen_excit_rs_hubbard_transcorr, &
