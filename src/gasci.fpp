@@ -2,6 +2,7 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
+
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
 module gasci
