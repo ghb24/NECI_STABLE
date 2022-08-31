@@ -17,7 +17,7 @@ We use the equilibrium geometry, 2.074 bohr radii.
 @note
 For this problem, FCIQMC will actually underperform compared to conventional Davidson CI.
 In addition, Davidson CI has no stochastic error (unlike FCIQMC), so it is strongly preferred for this problem.
-However, this is a relatively cheap example with which to get comfortable with NECI and FCIQMC.
+However, this is a relatively cheap example through which to get comfortable with NECI and FCIQMC.
 FCIQMC has better scaling behaviour, can be better parallelised, and benefits from sparsity.
 If you go to (e.g.) a (20, 20) CAS then FCIQMC outshines Davidson, which is not a feasible method for problems of this size.
 @endnote
@@ -36,7 +36,6 @@ Perhaps also include the Molpro code to generate this FCIDUMP file?
 In order to run a NECI calculation, we must create an input file. Here is an example for the FCIDUMP file provided, called `n2_neci.inp`.
 ```
 # comments are given like this
-( or like this (which is deprecated)
 
 # simple N2 FCIQMC calculation
 # for more complex FCIQMC variations, see the keywords for additional options
@@ -79,9 +78,9 @@ end
 these keywords are case insensitive.
 @endnote
 
-All these keywords (and plenty more) are explained in the [next section](03_calculation_inputs.html). Let's break down the structure of this input file.
+All these keywords (and plenty more) are explained in the [next section](03_calculation_inputs.html). For now, let's break down the structure of the input file.
 
-- Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`)
+- Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`. Please use `#`.)
 - First, the actual input starts with `title`, which is mandatory, and must also end with `end` (i.e. wrap the program in this block).
 - Next, we have the `system` block, which is also mandatory.
     - The `system` keyword has a mandatory argument which comes directly after it on the same line. Here, we use `read` (as in `system read`), as we are doing the FCIQMC calculation from an FCIDUMP file.
