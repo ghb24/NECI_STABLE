@@ -335,6 +335,7 @@ set( RELAX_WARNINGS_SRCS
     Orthonorm.F90
     Parallel_Calc.F90
     parallel_workarounds.F90
+    MPI_wrapper.F90
     pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
