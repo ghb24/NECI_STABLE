@@ -54,7 +54,7 @@ module load_balance
         MPIRecv, MPISend, nProcessors, iProcIndex, root, bNodeRoot, &
         nNodes
     use constants, only: int64, dp, n_int, stdout, stderr, inum_runs, lenof_sign
-    use util_mod, only: stop_all, neci_flush, abs_sign
+    use util_mod, only: stop_all, neci_flush, abs_sign, operator(.div.)
     use hash, only: add_hash_table_entry, remove_hash_table_entry, &
         FindWalkerHash
 
