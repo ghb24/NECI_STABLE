@@ -520,7 +520,7 @@ and ends with the `endcalc` keyword.
  \(\zeta^2 / 4\) to achieve critical damping. Both parameters have to
  be \(<1.0\) and \(\eta < \zeta\).
 
--   **\textcolor{blue}{stepsSft \(n\)}**<br>
+-   **\textcolor{blue}{stepsshift \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
     \(n\). Defaults to \(10\).
 
@@ -841,7 +841,7 @@ and is stopped after 10000 iterations.
     Makes any determinant that has a half-time of at least \(age\)
     iterations an initiator. \(age\) is optional and defaults to \(1\).
 
--   **superInitiator [\(n\)]**<br>
+-   **superInitiators [\(n\)]**<br>
     Create a list of \(n\) superinitiators, from which all connected
     determinants are set to be initiators. The superinitiators are
     chosen according to population. \(n\) is optional and defaults to
@@ -927,7 +927,7 @@ and is stopped after 10000 iterations.
 
 #### Adaptive shift options
 
--   **auto-adpative-shift [\(t\) \(\alpha\) \(c\)]**<br>
+-   **auto-adaptive-shift [\(t\) \(\alpha\) \(c\)]**<br>
     Scale the shift per determinant based on the acceptance rate on a
     determinant. Has three optional arguments. The first is the
     threshold value \(t\) which is the minimal number of spawning
@@ -945,11 +945,6 @@ and is stopped after 10000 iterations.
     applied at \(\sigma\) with a default of \(0\) and \(f_2\) is the
     shift fraction to be applied at the initiator threshold, defaults to
     \(1\). Every initiator is applied the full shift.
-
--   **exp-adaptive-shift [\(\alpha\)]**<br>
-    Scales the shift expoentially with the population of a determinant.
-    The optional argument \(\alpha\) is the exponent of scaling, the
-    default is \(2\).
 
 -   **core-adaptive-shift**<br>
     By default, determinants in the corespace are always applied the
@@ -1306,7 +1301,7 @@ terminated with the `end-kp-fciqmc` keyword.
     list, \(B\) is the number of Krylov vectors, and \(x\) is the value
     input with this option.
 
--   **num-walker-per-site-init \(x\)**<br>
+-   **num-walkers-per-site-init \(x\)**<br>
     For finite-temperature jobs, \(x\) specifies the number of walkers
     to place on a determinant when it is chosen to be occupied.
 
@@ -1520,7 +1515,7 @@ keyword.
     shift over the energy of a determinant. Only has an effect if
     `auto-adaptive-shift` is used.
 
--   **fval-pops-hist**<br>
+-   **fval-pop-hist**<br>
     Create a histogram of the scaling factor used for the auto-adaptive
     shift over the population of a determinant. Only has an effect if
     `auto-adaptive-shift` is used.
