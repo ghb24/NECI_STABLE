@@ -3,7 +3,7 @@ module cont_time
 
     use CalcData, only: tContTimeFull, tOrthogonaliseReplicas, &
                         orthogonalise_iter, use_spawn_hash_table, &
-                        tTruncInitiator, DiagSft, tau, tPairedReplicas
+                        tTruncInitiator, DiagSft, tPairedReplicas
     use fcimc_helper, only: rezero_iter_stats_each_iter, CalcParentFlag, &
                             create_particle, create_particle_with_hash_table, &
                             SumEContrib, end_iter_stats
@@ -29,6 +29,7 @@ module cont_time
     use FciMCData
     use constants
     use util_mod
+    use tau_main, only: tau
     implicit none
     save
 

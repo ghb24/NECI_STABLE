@@ -77,7 +77,7 @@ module hdf5_popsfile
     use constants
     use hdf5_util
     use util_mod
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn, pTriplesIn
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
@@ -89,6 +89,12 @@ module hdf5_popsfile
     use hdf5
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
 #endif
+    use tau_main, only: tau_search_method, input_tau_search_method, &
+        possible_tau_search_methods, tau_start_val, possible_tau_start, &
+        max_death_cpt, min_tau, max_tau, tau, assign_value_to_tau
+    use tau_search_hist, only: finalize_hist_tau_search
+    use tau_search_conventional, only: tau_search_stats
+    use fortran_strings, only: str
     implicit none
     private
 
@@ -421,12 +427,8 @@ contains
 
     subroutine write_tau_opt(parent)
 
-        use tau_search, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-                            enough_sing, enough_doub, enough_trip, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
-        use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp
@@ -445,22 +447,22 @@ contains
         ! We want to use the maximised values across all the processors
         ! (there is nothing ensuring that all the processors are adjusted to
         ! the same values...)
-        call MPIAllReduce(gamma_sing, MPI_MAX, max_gam_sing)
-        call MPIAllReduce(gamma_doub, MPI_MAX, max_gam_doub)
-        call MPIAllReduce(gamma_trip, MPI_MAX, max_gam_trip)
-        call MPIAllReduce(gamma_opp, MPI_MAX, max_gam_opp)
-        call MPIAllReduce(gamma_par, MPI_MAX, max_gam_par)
+        call MPIAllReduce(tau_search_stats%gamma_sing, MPI_MAX, max_gam_sing)
+        call MPIAllReduce(tau_search_stats%gamma_doub, MPI_MAX, max_gam_doub)
+        call MPIAllReduce(tau_search_stats%gamma_trip, MPI_MAX, max_gam_trip)
+        call MPIAllReduce(tau_search_stats%gamma_opp, MPI_MAX, max_gam_opp)
+        call MPIAllReduce(tau_search_stats%gamma_par, MPI_MAX, max_gam_par)
         call MPIAllReduce(max_death_cpt, MPI_MAX, max_max_death_cpt)
-        call MPIAllLORLogical(enough_sing, all_en_sing)
-        call MPIAllLORLogical(enough_doub, all_en_doub)
-        call MPIAllLORLogical(enough_trip, all_en_trip)
-        call MPIAllLORLogical(enough_opp, all_en_opp)
-        call MPIAllLORLogical(enough_par, all_en_par)
-        call MPIAllReduce(cnt_sing, MPI_MAX, max_cnt_sing)
-        call MPIAllReduce(cnt_doub, MPI_MAX, max_cnt_doub)
-        call MPIAllReduce(cnt_trip, MPI_MAX, max_cnt_trip)
-        call MPIAllReduce(cnt_opp, MPI_MAX, max_cnt_opp)
-        call MPIAllReduce(cnt_par, MPI_MAX, max_cnt_par)
+        call MPIAllLORLogical(tau_search_stats%enough_sing, all_en_sing)
+        call MPIAllLORLogical(tau_search_stats%enough_doub, all_en_doub)
+        call MPIAllLORLogical(tau_search_stats%enough_trip, all_en_trip)
+        call MPIAllLORLogical(tau_search_stats%enough_opp, all_en_opp)
+        call MPIAllLORLogical(tau_search_stats%enough_par, all_en_par)
+        call MPIAllReduce(tau_search_stats%cnt_sing, MPI_MAX, max_cnt_sing)
+        call MPIAllReduce(tau_search_stats%cnt_doub, MPI_MAX, max_cnt_doub)
+        call MPIAllReduce(tau_search_stats%cnt_trip, MPI_MAX, max_cnt_trip)
+        call MPIAllReduce(tau_search_stats%cnt_opp, MPI_MAX, max_cnt_opp)
+        call MPIAllReduce(tau_search_stats%cnt_par, MPI_MAX, max_cnt_par)
 
         if (.not. near_zero(max_gam_sing)) &
             call write_dp_scalar(tau_grp, nm_gam_sing, max_gam_sing)
@@ -513,8 +515,10 @@ contains
         ! [W.D.]:
         ! for the new hist-tau search i essentially only need to indicat
         ! that a histogramming tau-search was used:
-        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
-            call write_log_scalar(tau_grp, nm_hist_tau, .true.)
+        if (allocated(input_tau_search_method)) then
+            if (input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                call write_log_scalar(tau_grp, nm_hist_tau, .true.)
+            end if
         end if
 
         ! Clear up
@@ -552,16 +556,16 @@ contains
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption, &
-                             tSearchTau, pSingles, pDoubles, pParallel
-        use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search, &
-                            hdf5_diagsft
+        use FciMCData, only: PreviousCycles, Hii, TotImagTime, &
+                             pSingles, pDoubles, pParallel
+        use CalcData, only: DiagSft, tWalkContGrow, hdf5_diagsft
         use tc_three_body_data, only: pTriples, tReadPTriples
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         integer :: tmp_inum_runs
         logical :: exists, t_resize
+        debug_function_name("read_calc_data")
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
 
@@ -614,9 +618,13 @@ contains
         write(stdout, *) "pDoubles: ", pDoubles
         if (tReadPTriples) write(stdout, *) "pTriples: ", pTriples
         write(stdout, *) "pParallel: ", pParallel
-        if (tSearchTau .or. t_hist_tau_search) then
-            write(stdout, *) "continuing tau-search!"
+
+        if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
+            write(stdout, *) "continuing conventional tau-search!"
+        else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+            write(stdout, *) "continuing histogramming tau-search!"
         else
+            ASSERT(tau_search_method == possible_tau_search_methods%OFF)
             write(stdout, *) "Do not continue tau-search!"
         end if
 
@@ -632,18 +640,9 @@ contains
 
     subroutine read_tau_opt(parent)
 
-        use tau_search, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-                              enough_sing, enough_doub, enough_trip, enough_opp, &
-                              enough_par, cnt_sing, cnt_doub, cnt_trip, cnt_opp, &
-                              cnt_par, max_death_cpt, update_tau
-        use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
-                             tSearchTauOption
+        use FciMCData, only: pSingles, pDoubles, pParallel
         use tc_three_body_data, only: pTriples, tReadPTriples
-        use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
-                            t_hist_tau_search, t_hist_tau_search_option, &
-                            t_fill_frequency_hists
         use LoggingData, only: t_print_frq_histograms
-        use tau_search_hist, only: deallocate_histograms
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...
@@ -652,6 +651,7 @@ contains
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         logical :: ppar_set, tau_set, hist_tau, temp_previous
+        character(*), parameter :: this_routine = "read_tau_opt"
 
         real(dp) :: temp_tau
 
@@ -659,22 +659,22 @@ contains
 
         ! These are all optional things to have in the popsfile. If they don't
         ! exist, then they will be left unchanged.
-        call read_dp_scalar(grp_id, nm_gam_sing, gamma_sing)
-        call read_dp_scalar(grp_id, nm_gam_doub, gamma_doub)
-        call read_dp_scalar(grp_id, nm_gam_trip, gamma_trip)
-        call read_dp_scalar(grp_id, nm_gam_opp, gamma_opp)
-        call read_dp_scalar(grp_id, nm_gam_par, gamma_par)
+        call read_dp_scalar(grp_id, nm_gam_sing, tau_search_stats%gamma_sing)
+        call read_dp_scalar(grp_id, nm_gam_doub, tau_search_stats%gamma_doub)
+        call read_dp_scalar(grp_id, nm_gam_trip, tau_search_stats%gamma_trip)
+        call read_dp_scalar(grp_id, nm_gam_opp, tau_search_stats%gamma_opp)
+        call read_dp_scalar(grp_id, nm_gam_par, tau_search_stats%gamma_par)
         call read_dp_scalar(grp_id, nm_max_death, max_death_cpt)
-        call read_log_scalar(grp_id, nm_en_sing, enough_sing)
-        call read_log_scalar(grp_id, nm_en_doub, enough_doub)
-        call read_log_scalar(grp_id, nm_en_trip, enough_trip)
-        call read_log_scalar(grp_id, nm_en_opp, enough_opp)
-        call read_log_scalar(grp_id, nm_en_par, enough_par)
-        call read_int64_scalar(grp_id, nm_cnt_sing, cnt_sing)
-        call read_int64_scalar(grp_id, nm_cnt_doub, cnt_doub)
-        call read_int64_scalar(grp_id, nm_cnt_trip, cnt_trip)
-        call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
-        call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
+        call read_log_scalar(grp_id, nm_en_sing, tau_search_stats%enough_sing)
+        call read_log_scalar(grp_id, nm_en_doub, tau_search_stats%enough_doub)
+        call read_log_scalar(grp_id, nm_en_trip, tau_search_stats%enough_trip)
+        call read_log_scalar(grp_id, nm_en_opp, tau_search_stats%enough_opp)
+        call read_log_scalar(grp_id, nm_en_par, tau_search_stats%enough_par)
+        call read_int64_scalar(grp_id, nm_cnt_sing, tau_search_stats%cnt_sing)
+        call read_int64_scalar(grp_id, nm_cnt_doub, tau_search_stats%cnt_doub)
+        call read_int64_scalar(grp_id, nm_cnt_trip, tau_search_stats%cnt_trip)
+        call read_int64_scalar(grp_id, nm_cnt_opp, tau_search_stats%cnt_opp)
+        call read_int64_scalar(grp_id, nm_cnt_par, tau_search_stats%cnt_par)
 
         if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
             write(stdout,*) "pSingles or pDoubles specified in input file, which take precedence"
@@ -690,61 +690,20 @@ contains
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
         ! here i want to make the distinction if we want to tau-search
         ! or not
+        call read_log_scalar(grp_id, nm_hist_tau, temp_previous, exists=hist_tau)
         call read_dp_scalar(grp_id, nm_tau, temp_tau, exists=tau_set)
-
-        call read_log_scalar(grp_id, nm_hist_tau, temp_previous, &
-                             exists=hist_tau)
 
         call h5gclose_f(grp_id, err)
 
-        ! Disable tau search in variable-shift mode (like in Popsfile.F90).
-        if (.not.tSinglePartPhase(1) .or. .not.tSinglePartPhase(inum_runs)) &
-            tSearchTau = .false.
-
-        if (tSpecifiedTau) then
-            write(stdout, *) "time-step specified in input, which takes precedence!"
-        else
-            if (tSearchTauOption .and. tau_set) then
-                tau = temp_tau
-            end if
-
-            ! also set if previous hist-tau
-            if (hist_tau .and. tau_set) then
-                tau = temp_tau
-                ! and turn off if i dont want to force restart!
-                if (.not. t_restart_hist_tau) then
-                    t_previous_hist_tau = temp_previous
-
-                    if (t_previous_hist_tau) then
-                        tSearchTau = .false.
-                        tSearchTauOption = .false.
-
-                        if (t_hist_tau_search) then
-                            call deallocate_histograms()
-                            t_hist_tau_search = .false.
-                            t_fill_frequency_hists = .false.
-
-                            t_hist_tau_search_option = .true.
-                            t_print_frq_histograms = .false.
-                        end if
-                    end if
+        if (tau_start_val == possible_tau_start%from_popsfile) then
+            if (tau_set) then
+                if (temp_tau < min_tau .or. temp_tau > max_tau) then
+                    call stop_all(this_routine, "The read tau "//str(temp_tau, after_comma=5)//" is smaller than min_tau or larger than max_tau")
                 end if
+                call assign_value_to_tau(temp_tau, 'Initialization from HDF5 file.')
+            else
+                call stop_all(this_routine, 'Time-step does not exist in Popsfile')
             end if
-        end if
-
-        ! if tau is 0, because no input provided, use the one here too
-        if (near_zero(tau) .and. (.not. near_zero(temp_tau))) then
-            tau = temp_tau
-        end if
-
-        ! Deal with a previous bug, that leads to popsfiles existing with all
-        ! the optimising parameters excluding tau, such that the first
-        ! iteration results in chaos
-        ! [W.D]: this if should suffice or?
-        if (.not. hist_tau) then
-            t_previous_hist_tau = .false.
-            if (ppar_set .and. .not. tau_set) &
-                call update_tau()
         end if
 
     end subroutine

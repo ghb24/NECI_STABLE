@@ -4,7 +4,6 @@
 
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
-
 module gasci
     use constants, only: n_int, dp
     use SystemData, only: nBasis
@@ -23,8 +22,7 @@ module gasci
     use bit_reps, only: decode_bit_det
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
 
-
-    implicit none
+    better_implicit_none
     private
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &

@@ -1,0 +1,728 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Aug 10 2022 at 17:07:22
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     1efc8dedc316b8db67661491406dc3df60c9c63f
+ Working directory: 
+     /home/mcocdawc/code/neci/test_suite/neci/parallel/Ne_FCIMCPar_unbound_hist_tau
+ Running on: tower-mcocdawc
+ Started running on 10/08/2022 at 17:22:32
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+>>> Changing tau: 0.0000E+00 -> 0.0000E+00
+>>> Reason: Default value initialization.
+
+****************************************************************
+
+title
+
+system read
+    electrons 10
+    nonuniformrandexcits 4ind-weighted-unbound
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+
+    seed -7
+    load-balance-blocks off
+
+    nmcyc 3500
+
+    tau-values \
+        start refdet-connections \
+        max 0.02
+    tau-search \
+        algorithm histogramming 1e-3 \
+        stop-condition off
+
+    totalwalkers 20000
+    startsinglepart
+    truncinitiator
+    addtoinitiator 3
+    shiftdamp 0.03
+    stepsshift 25
+    jump-shift
+    maxwalkerbloom 3.0
+endcalc
+
+integral
+    freeze 2 0
+endint
+
+logging
+    popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      5     17      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      6     18      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      7     23      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      8     24      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      9     33      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     10     34      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     11      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     12      6      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     13     19      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     14     20      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     15     25      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     16     26      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     17     35      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     18     36      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21      9      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     22     10      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     23     29      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     24     30      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     25     39      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     26     40      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     27     43      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     28     44      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     29     21      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     30     22      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     31     27      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     32     28      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     33     37      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     34     38      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     15      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     40     16      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     41     31      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     42     32      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     43     41      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     44     42      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     45     45      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     46     46      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 38226
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                  4806
+ ECORE=   0.0000000000000000     
+ Setting normal get_umat_el_normal routine
+ N_alpha: 5 ; N_beta: 5 ; LMS: 0 ; NEl:10
+ Fermi det (D0):(    1,    2,    3,    4,   17,   18,   23,   24,   33,   34)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -74.588984324264047     
+======== FREEZING ORBITALS ==========
+ Freezing            2  core orbitals.
+ Freezing            0  virtual orbitals.
+ Post-Freeze Fermi det (D0):(    1,    2,   15,   16,   21,   22,   31,   32)
+ Symmetry:  ( 0, 0, 0) 0
+ ECORE now  -93.848901545480004     
+ Number of orbitals remaining:           44
+ Number of active electrons:           8
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      3     15      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      4     16      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      5     21      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      6     22      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      7     31      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      8     32      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      9      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     10      4      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     11     17      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     12     18      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     13     23      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     14     24      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     15     33      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     16     34      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     17      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     18      6      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21     27      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     22     28      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     23     37      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     24     38      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     25     41      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     26     42      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     27     19      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     28     20      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     29     25      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     30     26      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     31     35      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     32     36      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     33      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     34     10      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     29      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     40     30      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     41     39      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     42     40      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     43     43      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     44     44      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+ Setting normal get_umat_el_normal routine
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          28  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -128.49634973032460     
+ <D0|T|D0>=  -60.295813781004199     
+ <D0|U|D0>  -68.200535949320397     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+              153 alpha-alpha (vacant) hole pairs
+              153 beta-beta (vacant) hole pairs
+              324 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:      -128.4963497303
+Highest energy determinant is (approximately):     -75.3862942834926    
+Corresponding to a correlation energy of:      53.1100554468320    
+This means tau should be no more than about         0.018828826134461
+ Highest energy determinant is:           13          14          29          30          39          40          43          44
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    960 double excitations, and      24 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.975610
+ pSingles set to:       0.024390
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:          984
+Memory allocated for a maximum particle number per node of:         655360
+ Determinant related persistent storage requires:      25.000000 Mb / processor
+Spawning vectors allowing for a total of        15000 particles to be spawned in any one iteration per core.
+ Memory requirement   0.22888183593750000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            3500
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,   15,   16,   21,   22,   31,   32)
+Initial number of particles set to          1 and shift will be held at     0.000 until particle number gets to           20000
+ Initial memory (without excitgens + temp arrays) consists of :      15.686646 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+>>> Changing tau: 0.0000E+00 -> 0.2000E-01
+>>> Reason: Initial assignment
+From analysis of reference determinant and connections, an upper bound for the timestep is:       0.0200000000
+WARNING: NO spawn truncation chosen with keyword: truncate-spawns [float] in input. this might cause bloom problems with histogramming tau-search! BE CAUTIOUS!
+ Setup of the Histogramming tau-search: 
+   Integration cut-off:   0.99900000000000000     
+   Number of bins:       100000
+   Max. ratio:    10000.000000000000     
+   Bin-width:   0.10000000000000001     
+Will dynamically update timestep to limit spawning probability to   3.00000
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+           0    0.000000        0.000000        0.000000        1.000000        0.000000        0.000000        0.000000        0.000000        0.000000        0.000000        1.000000        0.000000        0.000000               1           0   0.0000    
+          25    0.000000        5.000000        2.640000        6.000000        0.000000        8.000000        30.00000      -0.7520308E-01    0.000000      -0.7520308E-01    1.000000        5.000000       0.4545455               6           2  0.24465E-04
+          50    0.000000       -1.000000        2.712121        5.000000        0.000000        18.00000        91.00000      -0.2041218        0.000000      -0.3330405        1.000000        3.000000       0.5083799               5           4  0.22651E-04
+          75    0.000000        1.000000       0.9162011        6.000000        0.000000        14.00000        74.00000      -0.2316779        0.000000      -0.2867901        1.000000        6.000000       0.4512195               6           3  0.22293E-04
+         100    0.000000        0.000000       0.9756098        6.000000        0.000000        12.00000        85.00000      -0.2652120        0.000000      -0.3658143        1.000000        5.000000       0.5312500               6           5  0.21026E-04
+         125    0.000000        3.000000       0.9312500        9.000000        0.000000        9.000000        73.00000      -0.2665920        0.000000      -0.2721119        1.000000        7.000000       0.4899329               9           3  0.19263E-04
+>>> Changing tau: 0.2000E-01 -> 0.1876E-01
+>>> Reason: Histogramming tau search
+         150    0.000000       -2.000000        1.241611        7.000000        0.000000        20.00000        101.0000      -0.2807241        0.000000      -0.3513847        1.000000        5.000000       0.5459459               6           5  0.21016E-04
+>>> Changing tau: 0.1876E-01 -> 0.1785E-01
+>>> Reason: Histogramming tau search
+         175    0.000000        0.000000       0.9837838        7.000000        0.000000        16.00000        100.0000      -0.2980659        0.000000      -0.4021171        1.000000        7.000000       0.5494505               6           2  0.21989E-04
+         200    0.000000       -1.000000       0.8296703        6.000000        0.000000        17.00000        89.00000      -0.2943530        0.000000      -0.2683623        1.000000        6.000000       0.5894040               6           3  0.21982E-04
+         225    0.000000        7.000000        1.165563        13.00000        0.000000        20.00000        85.00000      -0.2683399        0.000000      -0.1444679        3.000000        9.000000       0.4829545              10           7  0.21930E-04
+>>> Changing tau: 0.1785E-01 -> 0.1663E-01
+>>> Reason: Histogramming tau search
+         250    0.000000        4.000000        2.204545        17.00000        2.000000        36.00000        195.0000      -0.2727860        0.000000      -0.2871321        3.000000        13.00000       0.5025773              15          10  0.30380E-04
+>>> Changing tau: 0.1663E-01 -> 0.1435E-01
+>>> Reason: Histogramming tau search
+         275    0.000000        0.000000        1.244845        17.00000        0.000000        34.00000        188.0000      -0.2703525        0.000000      -0.2603341        4.000000        11.00000       0.3892340              14           6  0.33398E-04
+         300    0.000000        4.000000       0.8840580        21.00000        0.000000        29.00000        150.0000      -0.2501651        0.000000      -0.1706268        4.000000        16.00000       0.3512881              17          11  0.31318E-04
+         325    0.000000       -2.000000        1.330211        19.00000        2.000000        40.00000        219.0000      -0.2571646        0.000000      -0.2917422        4.000000        19.00000       0.3855634              16           7  0.34957E-04
+>>> Changing tau: 0.1435E-01 -> 0.1407E-01
+>>> Reason: Histogramming tau search
+         350    0.000000       -1.000000       0.9119718        18.00000        0.000000        41.00000        169.0000      -0.2493529        0.000000      -0.2029516        4.000000        14.00000       0.3262548              14           5  0.33956E-04
+>>> Changing tau: 0.1407E-01 -> 0.1381E-01
+>>> Reason: Histogramming tau search
+         375    0.000000        4.000000       0.9517375        22.00000        0.000000        28.00000        192.0000      -0.2443183        0.000000      -0.2093779        4.000000        19.00000       0.3894523              18           9  0.35208E-04
+         400    0.000000        2.000000        1.174442        24.00000        0.000000        36.00000        215.0000      -0.2463278        0.000000      -0.2622831        4.000000        21.00000       0.3713299              21           8  0.37577E-04
+         425    0.000000        10.00000        1.200345        34.00000        0.000000        52.00000        241.0000      -0.2409349        0.000000      -0.2109896        7.000000        25.00000       0.3467626              26          12  0.48398E-04
+ Updating singles/doubles bias. pSingles =    6.3321385902031055E-002
+  pDoubles =   0.93667861409796893     
+ Updating parallel-spin bias; new pParallel =   0.22959183673469385     
+>>> Changing tau: 0.1381E-01 -> 0.2000E-01
+>>> Reason: Histogramming tau search
+         450    0.000000       -4.000000        1.225899        30.00000        0.000000        69.00000        299.0000      -0.2394296        0.000000      -0.2303547        7.000000        26.00000       0.3509390              24          13  0.55623E-04
+ Updating singles/doubles bias. pSingles =    6.2060889929742388E-002
+  pDoubles =   0.93793911007025765     
+ Updating parallel-spin bias; new pParallel =   0.23345817727840196     
+         475    0.000000        8.000000        1.092723        38.00000        0.000000        75.00000        459.0000      -0.2418215        0.000000      -0.2586327        7.000000        30.00000       0.4930183              28          17  0.53459E-04
+ Updating singles/doubles bias. pSingles =    6.4000000000000001E-002
+  pDoubles =   0.93599999999999994     
+ Updating parallel-spin bias; new pParallel =   0.22832722832722829     
+         500    0.000000        8.000000        1.214823        46.00000        4.000000        104.0000        582.0000      -0.2489919        0.000000      -0.3031557        9.000000        34.00000       0.5145889              36          28  0.58429E-04
+ Updating singles/doubles bias. pSingles =    6.6820276497695855E-002
+  pDoubles =   0.93317972350230416     
+ Updating parallel-spin bias; new pParallel =   0.23086419753086418     
+         525    0.000000        4.000000        1.083112        50.00000        8.000000        107.0000        607.0000      -0.2487767        0.000000      -0.2472686        10.00000        41.00000       0.4955102              38          19  0.62099E-04
+ Updating singles/doubles bias. pSingles =    6.7567567567567557E-002
+  pDoubles =   0.93243243243243246     
+ Updating parallel-spin bias; new pParallel =   0.22584541062801927     
+         550    0.000000        24.00000        1.131429        74.00000        6.000000        139.0000        676.0000      -0.2390736        0.000000      -0.1830724        15.00000        59.00000       0.4877345              53          25  0.65744E-04
+ Updating singles/doubles bias. pSingles =    6.7189249720044780E-002
+  pDoubles =   0.93281075027995519     
+ Updating parallel-spin bias; new pParallel =   0.22448979591836732     
+         575    0.000000        19.00000        1.398268        93.00000        12.00000        191.0000        964.0000      -0.2391080        0.000000      -0.2393036        15.00000        71.00000       0.4974200              67          48  0.83816E-04
+ Updating singles/doubles bias. pSingles =    7.3170731707317069E-002
+  pDoubles =   0.92682926829268297     
+ Updating parallel-spin bias; new pParallel =   0.22727272727272724     
+         600    0.000000        19.00000        1.212590        112.0000        16.00000        239.0000        1198.000      -0.2428095        0.000000      -0.2646529        18.00000        82.00000       0.5097872              79          57  0.10220E-03
+ Updating singles/doubles bias. pSingles =    7.3869900771775091E-002
+  pDoubles =   0.92613009922822487     
+ Updating parallel-spin bias; new pParallel =   0.22619047619047619     
+         625    0.000000        15.00000        1.373617        127.0000        24.00000        327.0000        1613.000      -0.2503146        0.000000      -0.2948743        21.00000        99.00000       0.4996902              93          54  0.14946E-03
+ Updating singles/doubles bias. pSingles =    7.7936333699231614E-002
+  pDoubles =   0.92206366630076841     
+ Updating parallel-spin bias; new pParallel =   0.22738095238095241     
+         650    0.000000        6.000000       0.9526022        133.0000        18.00000        322.0000        1551.000      -0.2491503        0.000000      -0.2421748        24.00000        101.0000       0.5043902              91          66  0.13796E-03
+ Updating singles/doubles bias. pSingles =   0.10782241014799154     
+  pDoubles =   0.89217758985200846     
+ Updating parallel-spin bias; new pParallel =   0.22985781990521328     
+         675    0.000000        6.000000        1.148293        139.0000        24.00000        368.0000        1771.000      -0.2438520        0.000000      -0.2110530        28.00000        107.0000       0.5015576              95          58  0.15867E-03
+ Updating singles/doubles bias. pSingles =   0.10805084745762714     
+  pDoubles =   0.89194915254237284     
+ Updating parallel-spin bias; new pParallel =   0.22802850356294541     
+         700    0.000000        34.00000        1.086661        173.0000        24.00000        364.0000        1805.000      -0.2399879        0.000000      -0.2161199        33.00000        129.0000       0.4704196             113          70  0.14835E-03
+ Updating singles/doubles bias. pSingles =   0.10649627263045792     
+  pDoubles =   0.89350372736954209     
+ Updating parallel-spin bias; new pParallel =   0.23003575685339689     
+         725    0.000000        16.00000        1.207975        189.0000        28.00000        436.0000        2318.000      -0.2392957        0.000000      -0.2348539        34.00000        151.0000       0.5001079             127          83  0.16904E-03
+ Updating singles/doubles bias. pSingles =   0.10604453870625660     
+  pDoubles =   0.89395546129374337     
+ Updating parallel-spin bias; new pParallel =   0.23013048635824435     
+         750    0.000000        45.00000        1.117368        234.0000        60.00000        523.0000        2528.000      -0.2388593        0.000000      -0.2358548        39.00000        156.0000       0.4881251             160         105  0.18081E-03
+ Updating singles/doubles bias. pSingles =   0.10021321961620470     
+  pDoubles =   0.89978678038379534     
+ Updating parallel-spin bias; new pParallel =   0.22985781990521328     
+         775    0.000000       -1.000000        1.136320        233.0000        78.00000        636.0000        2991.000      -0.2371811        0.000000      -0.2257955        43.00000        185.0000       0.5082413             153         122  0.22957E-03
+ Updating singles/doubles bias. pSingles =    9.9252934898612588E-002
+  pDoubles =   0.90074706510138736     
+         800    0.000000       -16.00000       0.9570093        217.0000        76.00000        621.0000        2800.000      -0.2331273        0.000000      -0.2032720        46.00000        155.0000       0.4971591             140         104  0.23171E-03
+ Updating singles/doubles bias. pSingles =    9.9041533546325902E-002
+  pDoubles =   0.90095846645367406     
+ Updating parallel-spin bias; new pParallel =   0.23167848699763596     
+         825    0.000000        46.00000        1.058416        263.0000        90.00000        630.0000        2957.000      -0.2303876        0.000000      -0.2091670        51.00000        197.0000       0.4960577             167         122  0.24155E-03
+ Updating singles/doubles bias. pSingles =    9.7872340425531931E-002
+  pDoubles =   0.90212765957446805     
+ Updating parallel-spin bias; new pParallel =   0.22995283018867926     
+         850    0.000000        17.00000        1.168428        280.0000        124.0000        758.0000        3496.000      -0.2274009        0.000000      -0.2041962        57.00000        213.0000       0.5019383             187         123  0.27178E-03
+ Updating singles/doubles bias. pSingles =    9.6911608093716725E-002
+  pDoubles =   0.90308839190628332     
+         875    0.000000        85.00000        1.160517        365.0000        110.0000        865.0000        4083.000      -0.2264402        0.000000      -0.2188960        64.00000        267.0000       0.5051342             224         172  0.30943E-03
+ Updating singles/doubles bias. pSingles =    9.6153846153846145E-002
+  pDoubles =   0.90384615384615385     
+ Updating parallel-spin bias; new pParallel =   0.23049645390070919     
+         900    0.000000        52.00000        1.191142        417.0000        186.0000        1058.000        4822.000      -0.2248010        0.000000      -0.2118813        73.00000        290.0000       0.5008309             254         196  0.37674E-03
+ Updating singles/doubles bias. pSingles =    9.6051227321237970E-002
+  pDoubles =   0.90394877267876206     
+ Updating parallel-spin bias; new pParallel =   0.23140495867768593     
+         925    0.000000        50.00000        1.185189        467.0000        204.0000        1336.000        5743.000      -0.2250181        0.000000      -0.2267494        80.00000        328.0000       0.5032863             284         216  0.44624E-03
+ Updating singles/doubles bias. pSingles =    9.4882729211087424E-002
+  pDoubles =   0.90511727078891258     
+ Updating parallel-spin bias; new pParallel =   0.23085983510011779     
+         950    0.000000       -28.00000        1.005959        439.0000        218.0000        1294.000        5679.000      -0.2228225        0.000000      -0.2043753        83.00000        295.0000       0.4947295             254         212  0.43827E-03
+ Updating singles/doubles bias. pSingles =    9.3916755602988261E-002
+  pDoubles =   0.90608324439701171     
+         975    0.000000        69.00000        1.006098        508.0000        266.0000        1377.000        5746.000      -0.2204146        0.000000      -0.1991067        88.00000        331.0000       0.4975323             307         236  0.43443E-03
+        1000    0.000000        126.0000        1.238289        634.0000        266.0000        1736.000        6953.000      -0.2201672        0.000000      -0.2179533        99.00000        396.0000       0.4861898             387         264  0.52252E-03
+ Updating singles/doubles bias. pSingles =    9.3716719914802987E-002
+  pDoubles =   0.90628328008519698     
+ Updating parallel-spin bias; new pParallel =   0.23149236192714454     
+        1025    0.000000        152.0000        1.239004        786.0000        380.0000        2067.000        8821.000      -0.2196566        0.000000      -0.2151457        110.0000        480.0000       0.4978272             486         349  0.64140E-03
+        1050    0.000000        94.00000        1.151814        880.0000        486.0000        2447.000        9984.000      -0.2203707        0.000000      -0.2268342        121.0000        506.0000       0.4891959             549         412  0.69324E-03
+ Updating singles/doubles bias. pSingles =    9.1978609625668437E-002
+  pDoubles =   0.90802139037433161     
+ Updating parallel-spin bias; new pParallel =   0.23085983510011779     
+        1075    0.000000        188.0000        1.083346        1068.000        552.0000        2705.000        10945.00      -0.2200584        0.000000      -0.2172911        140.0000        581.0000       0.4950249             640         492  0.77681E-03
+ Updating singles/doubles bias. pSingles =    9.4479830148619950E-002
+  pDoubles =   0.90552016985138006     
+ Updating parallel-spin bias; new pParallel =   0.23094958968347010     
+        1100    0.000000        211.0000        1.250837        1279.000        708.0000        3572.000        13630.00      -0.2202736        0.000000      -0.2221159        156.0000        667.0000       0.4928406             777         565  0.95075E-03
+ Updating singles/doubles bias. pSingles =    9.4680851063829799E-002
+  pDoubles =   0.90531914893617016     
+ Updating parallel-spin bias; new pParallel =   0.23031727379553471     
+        1125    0.000000        56.00000        1.164666        1335.000        870.0000        4167.000        15872.00      -0.2199988        0.000000      -0.2175495        171.0000        689.0000       0.4927662             817         616  0.10793E-02
+ Updating singles/doubles bias. pSingles =    9.5541401273885315E-002
+  pDoubles =   0.90445859872611467     
+ Updating parallel-spin bias; new pParallel =   0.23004694835680747     
+        1150    0.000000        167.0000        1.127352        1502.000        1070.000        4760.000        17790.00      -0.2195496        0.000000      -0.2156176        198.0000        799.0000       0.4899207             877         696  0.12333E-02
+        1175    0.000000        308.0000        1.150171        1810.000        1310.000        5482.000        20534.00      -0.2185321        0.000000      -0.2097464        218.0000        860.0000       0.4916557            1090         817  0.13604E-02
+ Updating singles/doubles bias. pSingles =    9.5440084835630948E-002
+  pDoubles =   0.90455991516436907     
+ Updating parallel-spin bias; new pParallel =   0.22977725674091440     
+        1200    0.000000        50.00000        1.140069        1860.000        1530.000        6566.000        23164.00      -0.2176346        0.000000      -0.2097276        236.0000        884.0000       0.4864854            1113         815  0.15460E-02
+ Updating singles/doubles bias. pSingles =    9.5137420718816063E-002
+  pDoubles =   0.90486257928118397     
+ Updating parallel-spin bias; new pParallel =   0.22897196261682246     
+        1225    0.000000        279.0000        1.058910        2139.000        1552.000        6970.000        24687.00      -0.2166807        0.000000      -0.2079817        258.0000        1013.000       0.4896271            1281         984  0.16562E-02
+ Updating singles/doubles bias. pSingles =    9.6092925026399156E-002
+  pDoubles =   0.90390707497360090     
+        1250    0.000000        425.0000        1.161821        2564.000        2006.000        8185.000        28680.00      -0.2158748        0.000000      -0.2086678        293.0000        1186.000       0.4895952            1504        1177  0.19355E-02
+ Updating singles/doubles bias. pSingles =    9.5789473684210522E-002
+  pDoubles =   0.90421052631578946     
+ Updating parallel-spin bias; new pParallel =   0.22817229336437719     
+        1275    0.000000        564.0000        1.171853        3128.000        2296.000        9846.000        33459.00      -0.2154902        0.000000      -0.2120933        331.0000        1368.000       0.4874137            1789        1408  0.22176E-02
+        1300    0.000000        292.0000        1.155785        3420.000        2964.000        11528.00        38568.00      -0.2153608        0.000000      -0.2142153        359.0000        1458.000       0.4861104            1977        1534  0.25407E-02
+ Updating singles/doubles bias. pSingles =    9.6740273396424825E-002
+  pDoubles =   0.90325972660357512     
+        1325    0.000000        478.0000        1.158974        3898.000        3472.000        13581.00        44402.00      -0.2147029        0.000000      -0.2089333        405.0000        1634.000       0.4828771            2237        1756  0.29552E-02
+ Updating singles/doubles bias. pSingles =    9.7791798107255523E-002
+  pDoubles =   0.90220820189274442     
+ Updating parallel-spin bias; new pParallel =   0.22843822843822842     
+        1350    0.000000        445.0000        1.138614        4343.000        3990.000        15655.00        50645.00      -0.2139105        0.000000      -0.2068610        444.0000        1749.000       0.4837200            2495        1964  0.33058E-02
+        1375    0.000000        438.0000        1.082885        4781.000        4448.000        17301.00        54732.00      -0.2131746        0.000000      -0.2065013        482.0000        1890.000       0.4827434            2711        2131  0.35128E-02
+ Updating singles/doubles bias. pSingles =    9.8101265822784819E-002
+  pDoubles =   0.90189873417721522     
+ Updating parallel-spin bias; new pParallel =   0.22807017543859648     
+        1400    0.000000        1042.000        1.155402        5823.000        5382.000        20273.00        63162.00      -0.2128227        0.000000      -0.2096498        547.0000        2234.000       0.4821674            3285        2614  0.40384E-02
+ Updating singles/doubles bias. pSingles =    9.7997892518440460E-002
+  pDoubles =   0.90200210748155951     
+ Updating parallel-spin bias; new pParallel =   0.22780373831775699     
+        1425    0.000000        877.0000        1.178212        6700.000        6586.000        24395.00        74323.00      -0.2132248        0.000000      -0.2168329        614.0000        2511.000       0.4815506            3804        2980  0.48226E-02
+ Updating singles/doubles bias. pSingles =    9.8947368421052617E-002
+  pDoubles =   0.90105263157894733     
+        1450    0.000000        643.0000        1.122067        7343.000        7590.000        27439.00        82867.00      -0.2132429        0.000000      -0.2134054        680.0000        2707.000       0.4784994            4068        3278  0.52902E-02
+ Updating singles/doubles bias. pSingles =    9.8843322818086235E-002
+  pDoubles =   0.90115667718191372     
+ Updating parallel-spin bias; new pParallel =   0.22753792298716452     
+        1475    0.000000        1188.000        1.148729        8531.000        9288.000        31785.00        95205.00      -0.2136529        0.000000      -0.2173011        767.0000        3059.000       0.4785662            4695        3773  0.60596E-02
+ Updating singles/doubles bias. pSingles =    9.8947368421052617E-002
+  pDoubles =   0.90105263157894733     
+ Updating parallel-spin bias; new pParallel =   0.22780373831775699     
+        1500    0.000000        871.0000        1.127085        9402.000        10880.00        36220.00        107073.0      -0.2135187        0.000000      -0.2123431        861.0000        3344.000       0.4775355            5185        4219  0.68639E-02
+        1525    0.000000        1140.000        1.102752        10542.00        12204.00        40310.00        117490.0      -0.2129632        0.000000      -0.2080667        943.0000        3728.000       0.4751698            5703        4691  0.74952E-02
+ Updating singles/doubles bias. pSingles =    9.9789915966386547E-002
+  pDoubles =   0.90021008403361347     
+ Updating parallel-spin bias; new pParallel =   0.22753792298716452     
+        1550    0.000000        1521.000        1.149022        12063.00        14886.00        46830.00        135542.0      -0.2126583        0.000000      -0.2099485        1044.000        4133.000       0.4770825            6504        5371  0.84091E-02
+ Updating singles/doubles bias. pSingles =   0.10062893081761008     
+  pDoubles =   0.89937106918238996     
+ Updating parallel-spin bias; new pParallel =   0.22727272727272729     
+        1575    0.000000        1249.000        1.111458        13312.00        17314.00        52391.00        150391.0      -0.2128129        0.000000      -0.2142024        1154.000        4497.000       0.4762645            7142        5877  0.94329E-02
+ Updating singles/doubles bias. pSingles =   0.10146443514644352     
+  pDoubles =   0.89853556485355646     
+ Updating parallel-spin bias; new pParallel =   0.22700814901047728     
+        1600    0.000000        2363.000        1.152936        15675.00        20652.00        60657.00        173546.0      -0.2130314        0.000000      -0.2149646        1302.000        5285.000       0.4766896            8355        7067  0.10793E-01
+ Updating singles/doubles bias. pSingles =   0.10240334378265413     
+  pDoubles =   0.89759665621734586     
+        1625    0.000000        1127.000        1.118100        16802.00        23736.00        68926.00        194020.0      -0.2129911        0.000000      -0.2126333        1448.000        5692.000       0.4766362            8753        7444  0.12082E-01
+        1650    0.000000        1871.000        1.104328        18673.00        27374.00        76000.00        212724.0      -0.2130177        0.000000      -0.2132537        1603.000        6287.000       0.4732153            9585        8206  0.13339E-01
+ Updating singles/doubles bias. pSingles =   0.10229645093945720     
+  pDoubles =   0.89770354906054284     
+ Updating parallel-spin bias; new pParallel =   0.22674418604651161     
+Exiting the single particle growth phase on iteration:          1675 - Shift can now change for population1
+        1675  -0.2132537        2551.000        1.102378        21224.00        30990.00        84816.00        235409.0      -0.2127720        0.000000      -0.2105770        1762.000        7018.000       0.4750449           10857        9395  0.14717E-01
+ Updating singles/doubles bias. pSingles =   0.10323253388946819     
+  pDoubles =   0.89676746611053182     
+        1700  -0.2170978       -373.0000        1.066167        20851.00        33760.00        92536.00        250208.0      -0.2126816        0.000000      -0.2118275        1780.000        7070.000       0.4735738           10656        9328  0.15621E-01
+ Updating singles/doubles bias. pSingles =   0.10334029227557411     
+  pDoubles =   0.89665970772442594     
+ Updating parallel-spin bias; new pParallel =   0.22700814901047728     
+        1725  -0.2170678        254.0000       0.9995003        21105.00        33630.00        91952.00        250042.0      -0.2124650        0.000000      -0.2102189        1783.000        7038.000       0.4734962           10853        9362  0.15694E-01
+        1750  -0.2168358       -6.000000       0.9961407        21099.00        33712.00        91668.00        249745.0      -0.2122270        0.000000      -0.2095148        1781.000        7042.000       0.4747661           10734        9290  0.15548E-01
+        1775  -0.2170957       -88.00000        1.004340        21011.00        33668.00        92848.00        250384.0      -0.2123980        0.000000      -0.2145252        1773.000        7011.000       0.4739240           10694        9267  0.15604E-01
+        1800  -0.2160533       -408.0000       0.9827775        20603.00        32570.00        91458.00        246195.0      -0.2124064        0.000000      -0.2125199        1761.000        6969.000       0.4741613           10451        9154  0.15657E-01
+        1825  -0.2156456        426.0000       0.9932283        21029.00        32672.00        90560.00        244424.0      -0.2123934        0.000000      -0.2122026        1746.000        6986.000       0.4739600           10806        9347  0.15294E-01
+        1850  -0.2164389       -79.00000        1.013308        20950.00        33346.00        91408.00        247769.0      -0.2124227        0.000000      -0.2128815        1766.000        7015.000       0.4741364           10694        9266  0.15589E-01
+        1875  -0.2170931       -31.00000        1.010963        20919.00        32938.00        92725.00        250024.0      -0.2124230        0.000000      -0.2124274        1754.000        6947.000       0.4732632           10703        9298  0.15686E-01
+        1900  -0.2161294       -371.0000       0.9840677        20548.00        32478.00        90815.00        245908.0      -0.2123018        0.000000      -0.2101627        1753.000        6904.000       0.4730082           10523        9154  0.15556E-01
+        1925  -0.2159198        44.00000       0.9965127        20592.00        32534.00        90854.00        245657.0      -0.2123085        0.000000      -0.2124331        1754.000        6906.000       0.4741791           10533        9191  0.15568E-01
+        1950  -0.2148113       -384.0000       0.9816935        20208.00        31666.00        89105.00        240395.0      -0.2122117        0.000000      -0.2103023        1750.000        6822.000       0.4726751           10264        8863  0.15319E-01
+        1975  -0.2148937        163.0000        1.001374        20371.00        32480.00        88941.00        241863.0      -0.2122048        0.000000      -0.2120606        1741.000        6843.000       0.4749088           10473        9075  0.15138E-01
+        2000  -0.2151324       -117.0000        1.003986        20254.00        32398.00        89941.00        242642.0      -0.2122405        0.000000      -0.2130169        1742.000        6856.000       0.4745469           10364        9061  0.15332E-01
+        2025  -0.2152534        369.0000        1.002020        20623.00        32276.00        89373.00        242897.0      -0.2123647        0.000000      -0.2152131        1720.000        6853.000       0.4740878           10560        9233  0.15292E-01
+        2050  -0.2153147        67.00000        1.001021        20690.00        32326.00        89695.00        243456.0      -0.2124988        0.000000      -0.2157405        1706.000        6919.000       0.4746943           10629        9100  0.15206E-01
+ Updating singles/doubles bias. pSingles =   0.10323253388946819     
+  pDoubles =   0.89676746611053182     
+ Updating parallel-spin bias; new pParallel =   0.22674418604651161     
+        2075  -0.2159544       -248.0000        1.010720        20442.00        32494.00        90717.00        245946.0      -0.2127619        0.000000      -0.2194099        1706.000        6770.000       0.4744631           10549        9116  0.15291E-01
+        2100  -0.2141556       -131.0000       0.9704649        20311.00        30998.00        88058.00        238059.0      -0.2126678        0.000000      -0.2101965        1697.000        6769.000       0.4732247           10473        8984  0.14939E-01
+        2125  -0.2145957        109.0000        1.007361        20420.00        31446.00        89052.00        240311.0      -0.2126802        0.000000      -0.2130203        1704.000        6780.000       0.4742107           10624        9190  0.15022E-01
+        2150  -0.2148827       -18.00000        1.004795        20402.00        32774.00        88828.00        241416.0      -0.2127346        0.000000      -0.2142690        1706.000        6801.000       0.4741177           10473        9075  0.15166E-01
+        2175  -0.2149881        10.00000        1.001758        20412.00        32496.00        89150.00        241736.0      -0.2126585        0.000000      -0.2104347        1710.000        6873.000       0.4739132           10520        9145  0.15176E-01
+        2200  -0.2155449        238.0000        1.009324        20650.00        32522.00        89607.00        243995.0      -0.2126961        0.000000      -0.2138302        1716.000        6870.000       0.4739230           10575        9166  0.15217E-01
+        2225  -0.2154471       -295.0000       0.9983704        20355.00        32704.00        90034.00        243845.0      -0.2127543        0.000000      -0.2145606        1722.000        6791.000       0.4744048           10437        9121  0.15241E-01
+ Updating singles/doubles bias. pSingles =   0.10334029227557411     
+  pDoubles =   0.89665970772442594     
+ Updating parallel-spin bias; new pParallel =   0.22700814901047728     
+        2250  -0.2149112        142.0000       0.9911090        20497.00        32510.00        88971.00        242189.0      -0.2127368        0.000000      -0.2121779        1730.000        6797.000       0.4754099           10515        9097  0.15210E-01
+        2275  -0.2156269        453.0000        1.012000        20950.00        32836.00        90017.00        244684.0      -0.2127607        0.000000      -0.2135410        1730.000        7001.000       0.4746123           10738        9409  0.15323E-01
+        2300  -0.2160405       -647.0000        1.006917        20303.00        33648.00        90490.00        246316.0      -0.2127626        0.000000      -0.2128293        1746.000        6686.000       0.4744958           10438        9123  0.15312E-01
+        2325  -0.2142174       -158.0000       0.9700719        20145.00        31966.00        88169.00        238560.0      -0.2127192        0.000000      -0.2112232        1750.000        6798.000       0.4737328           10250        8911  0.15572E-01
+        2350  -0.2156037        713.0000        1.023375        20858.00        32460.00        90475.00        244755.0      -0.2127223        0.000000      -0.2128310        1761.000        6968.000       0.4749333           10718        9266  0.15526E-01
+ Updating singles/doubles bias. pSingles =   0.10323253388946819     
+  pDoubles =   0.89676746611053182     
+ Updating parallel-spin bias; new pParallel =   0.22674418604651161     
+        2375  -0.2151820       -687.0000       0.9929950        20171.00        32192.00        89833.00        242565.0      -0.2127110        0.000000      -0.2122990        1727.000        6747.000       0.4740042           10376        9000  0.17212E-01
+        2400  -0.2145540        0.000000       0.9895884        20171.00        31246.00        88690.00        239909.0      -0.2126945        0.000000      -0.2120698        1739.000        6791.000       0.4737465           10253        8997  0.16757E-01
+        2425  -0.2157097        685.0000        1.019449        20856.00        32300.00        90197.00        244066.0      -0.2127148        0.000000      -0.2134923        1756.000        6967.000       0.4727607           10706        9288  0.16875E-01
+        2450  -0.2164492        240.0000        1.012401        21096.00        33220.00        91584.00        247634.0      -0.2127383        0.000000      -0.2136668        1756.000        7019.000       0.4737965           10812        9361  0.16412E-01
+        2475  -0.2168005       -396.0000        1.005872        20700.00        33516.00        92048.00        249188.0      -0.2127460        0.000000      -0.2130561        1745.000        6915.000       0.4739865           10537        9145  0.17397E-01
+        2500  -0.2158997       -22.00000       0.9850988        20678.00        33086.00        91095.00        245650.0      -0.2127624        0.000000      -0.2134466        1728.000        6931.000       0.4743249           10595        9188  0.16673E-01
+        2525  -0.2161119        63.00000        1.003543        20741.00        33080.00        90775.00        246151.0      -0.2127852        0.000000      -0.2137679        1723.000        6888.000       0.4736141           10643        9215  0.17488E-01
+        2550  -0.2161470        18.00000        1.000585        20759.00        32930.00        90977.00        246094.0      -0.2128542        0.000000      -0.2158924        1740.000        6934.000       0.4732277           10591        9257  0.17981E-01
+        2575  -0.2156512       -272.0000       0.9917717        20487.00        32244.00        90449.00        244233.0      -0.2128562        0.000000      -0.2129447        1718.000        6848.000       0.4735455           10492        9083  0.15675E-01
+        2600  -0.2153094       -99.00000       0.9943190        20388.00        32258.00        89894.00        242900.0      -0.2128589        0.000000      -0.2129823        1729.000        6836.000       0.4736518           10547        9138  0.15320E-01
+        2625  -0.2154884        689.0000        1.002987        21077.00        32000.00        89986.00        243342.0      -0.2128808        0.000000      -0.2139087        1735.000        7038.000       0.4731003           10756        9290  0.16194E-01
+ Updating singles/doubles bias. pSingles =   0.10416666666666667     
+  pDoubles =   0.89583333333333337     
+        2650  -0.2160871       -495.0000        1.010028        20582.00        32838.00        91127.00        246001.0      -0.2129185        0.000000      -0.2147140        1744.000        6872.000       0.4735214           10501        9117  0.15601E-01
+Beginning to average shift value on iteration:           2675
+        2675  -0.2157917        137.0000       0.9950896        20719.00        32502.00        90613.00        245237.0      -0.2129853      -0.2157917      -0.2162369        1738.000        6923.000       0.4743802           10599        9262  0.15544E-01
+        2700  -0.2157399       -408.0000       0.9991373        20311.00        33082.00        90503.00        244781.0      -0.2129785      -0.2157658      -0.2126445        1735.000        6775.000       0.4739070           10339        9128  0.15790E-01
+        2725  -0.2157075        150.0000       0.9994598        20461.00        33102.00        90720.00        245602.0      -0.2130096      -0.2157464      -0.2145942        1722.000        6860.000       0.4757534           10485        9121  0.17634E-01
+ Updating singles/doubles bias. pSingles =   0.10323253388946819     
+  pDoubles =   0.89676746611053182     
+        2750  -0.2154604        289.0000       0.9958895        20750.00        32128.00        89987.00        243855.0      -0.2130446      -0.2156749      -0.2148639        1725.000        6950.000       0.4743190           10692        9210  0.17024E-01
+        2775  -0.2153976       -590.0000       0.9989535        20160.00        32318.00        90267.00        243277.0      -0.2130644      -0.2156194      -0.2141133        1726.000        6683.000       0.4736905           10391        8975  0.17707E-01
+        2800  -0.2143203        101.0000       0.9822052        20261.00        31480.00        88065.00        238598.0      -0.2130242      -0.2154029      -0.2108520        1716.000        6708.000       0.4729967           10533        8949  0.16203E-01
+        2825  -0.2150994        302.0000        1.013070        20563.00        31652.00        89064.00        242332.0      -0.2130111      -0.2153595      -0.2122886        1728.000        6930.000       0.4742012           10505        9216  0.15553E-01
+        2850  -0.2157967        188.0000        1.011690        20751.00        33230.00        89990.00        244851.0      -0.2130109      -0.2154142      -0.2129984        1739.000        6905.000       0.4735941           10686        9285  0.16461E-01
+        2875  -0.2165116        416.0000        1.011986        21167.00        33180.00        91371.00        248033.0      -0.2130077      -0.2155361      -0.2128274        1763.000        7084.000       0.4740665           10811        9381  0.16293E-01
+        2900  -0.2172675       -210.0000        1.012678        20957.00        33586.00        92572.00        250988.0      -0.2130273      -0.2157092      -0.2141536        1740.000        6967.000       0.4737088           10777        9396  0.17022E-01
+        2925  -0.2163668       -181.0000       0.9851011        20776.00        32900.00        91437.00        246896.0      -0.2130563      -0.2157690      -0.2147505        1740.000        6877.000       0.4730334           10719        9159  0.17326E-01
+        2950  -0.2157655       -5.000000       0.9900276        20771.00        32578.00        90618.00        244913.0      -0.2130800      -0.2157687      -0.2144957        1729.000        6944.000       0.4739606           10634        9215  0.16245E-01
+        2975  -0.2156463        214.0000       0.9980164        20985.00        32812.00        90472.00        244952.0      -0.2130880      -0.2157593      -0.2135754        1744.000        7027.000       0.4749783           10740        9374  0.16227E-01
+        3000  -0.2165320       -154.0000        1.014871        20831.00        33768.00        91501.00        248163.0      -0.2131051      -0.2158145      -0.2141558        1759.000        7012.000       0.4741536           10666        9354  0.17218E-01
+        3025  -0.2162008       -82.00000       0.9944954        20749.00        33004.00        91509.00        246318.0      -0.2131326      -0.2158403      -0.2148287        1766.000        6904.000       0.4732334           10600        9179  0.16582E-01
+        3050  -0.2161816       -50.00000       0.9996792        20699.00        33122.00        91505.00        246190.0      -0.2131326      -0.2158616      -0.2131298        1780.000        6914.000       0.4731393           10529        9172  0.16243E-01
+        3075  -0.2166213        203.0000        1.007355        20902.00        33346.00        91443.00        247910.0      -0.2131002      -0.2159063      -0.2110452        1772.000        6892.000       0.4729663           10794        9374  0.15684E-01
+        3100  -0.2167895        201.0000        1.002808        21103.00        33454.00        91701.00        249332.0      -0.2131199      -0.2159554      -0.2143956        1756.000        6995.000       0.4743471           10855        9402  0.15893E-01
+        3125  -0.2161765       -553.0000       0.9898351        20550.00        33042.00        90840.00        245637.0      -0.2131487      -0.2159670      -0.2150626        1741.000        6851.000       0.4721165           10548        9060  0.16684E-01
+        3150  -0.2159242        481.0000       0.9958043        21031.00        32672.00        90789.00        245732.0      -0.2131339      -0.2159649      -0.2121403        1770.000        6980.000       0.4742890           10767        9269  0.16332E-01
+        3175  -0.2171650        209.0000        1.020895        21240.00        33788.00        92391.00        251198.0      -0.2131179      -0.2160220      -0.2120362        1757.000        7004.000       0.4749155           10880        9415  0.18252E-01
+        3200  -0.2164982       -758.0000       0.9889475        20482.00        33418.00        91998.00        247922.0      -0.2131210      -0.2160436      -0.2133321        1765.000        6902.000       0.4739603           10462        9132  0.19057E-01
+        3225  -0.2158170        352.0000       0.9887112        20834.00        32382.00        90835.00        245264.0      -0.2131567      -0.2160338      -0.2156483        1767.000        7011.000       0.4742324           10606        9171  0.17886E-01
+        3250  -0.2161087        99.00000        1.004873        20933.00        32850.00        91677.00        246548.0      -0.2131798      -0.2160369      -0.2148098        1769.000        6999.000       0.4744036           10687        9317  0.19644E-01
+        3275  -0.2165555       -127.0000        1.007475        20806.00        33212.00        91757.00        248055.0      -0.2131858      -0.2160577      -0.2136077        1779.000        7039.000       0.4737617           10660        9249  0.17715E-01
+        3300  -0.2163735       -173.0000       0.9969709        20633.00        32912.00        91113.00        246635.0      -0.2131569      -0.2160698      -0.2110683        1764.000        6989.000       0.4724808           10541        9170  0.17040E-01
+        3325  -0.2156719       -292.0000       0.9883755        20341.00        32450.00        90349.00        244259.0      -0.2131683      -0.2160551      -0.2140176        1755.000        6889.000       0.4734325           10391        8977  0.17198E-01
+        3350  -0.2153938        77.00000       0.9953754        20418.00        32100.00        90467.00        243360.0      -0.2131510      -0.2160315      -0.2118559        1762.000        6793.000       0.4738816           10471        9126  0.16741E-01
+        3375  -0.2149580        259.0000       0.9927621        20677.00        31958.00        89510.00        242118.0      -0.2130805      -0.2159944      -0.2077566        1773.000        6901.000       0.4749004           10550        9162  0.16391E-01
+        3400  -0.2159424        375.0000        1.016543        21052.00        32530.00        90713.00        245834.0      -0.2130621      -0.2159927      -0.2116557        1772.000        7115.000       0.4743422           10746        9309  0.17000E-01
+        3425  -0.2167711       -93.00000        1.013908        20959.00        33424.00        91984.00        248851.0      -0.2130781      -0.2160178      -0.2143112        1777.000        6954.000       0.4735770           10733        9325  0.16965E-01
+        3450  -0.2170820        424.0000        1.005195        21383.00        33274.00        92614.00        250486.0      -0.2131358      -0.2160511      -0.2175958        1807.000        7089.000       0.4742248           10887        9567  0.17265E-01
+        3475  -0.2180228       -150.0000        1.015803        21233.00        34214.00        94420.00        253826.0      -0.2131419      -0.2161108      -0.2136154        1806.000        7165.000       0.4730723           10899        9478  0.16791E-01
+        3500  -0.2176919       -25.00000       0.9945000        21208.00        34200.00        93682.00        252376.0      -0.2131330      -0.2161573      -0.2124315        1795.000        7072.000       0.4729712           10793        9561  0.17950E-01
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    33.319626892000002     
+ Time lost due to load imbalance:    5.3966188687498580     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ writing singles frequency histogram...
+ Done!
+ Number of zero-valued singles excitations:                     0
+ Number of valid singles excitations:    4330140.0000000000     
+ ratio of zero-valued singles excitations:    0.0000000000000000     
+ Number of singles excitations above threshold:            0
+ ratio of singles excitations above threshold:    0.0000000000000000     
+ Number of singles excitations below threshold:       371785
+ ratio of singles excitations below threshold:    8.5859810537303641E-002
+ integrated singles H_ij/pgen ratio:    9.9000000000000004     
+ for   0.99900000000000000       percent coverage!
+ maximum singles H_ij/pgen ratio:    14.358630874135645     
+ singles maximum/integrated ratio:    1.4503667549631964     
+ minimum singles H_ij/pgen ratio:    3.9676479879346964E-008
+ writing parallel frequency histogram...
+ Done!
+ Number of zero-valued parallel excitations:                     0
+ Number of valid parallel excitations:    5739930.0000000000     
+ ratio of zero-valued parallel excitations:    0.0000000000000000     
+ Number of parallel excitations above threshold:            0
+ ratio of parallel excitations above threshold:    0.0000000000000000     
+ Number of parallel excitations below threshold:            0
+ ratio of parallel excitations below threshold:    0.0000000000000000     
+ integrated parallel H_ij/pgen ratio:    19.500000000000000     
+ for   0.99900000000000000       percent coverage!
+ maximum parallel H_ij/pgen ratio:    21.923576857190948     
+ maximum/integrated parallel ratio:    1.1242859926764588     
+ minimum parallel H_ij/pgen ratio:    2.9672427846889377E-003
+ writing anti-parallel frequency histogram...
+ Done!
+ Number of zero-valued anti-parallel excitations:                     0
+ Number of valid anti-parallel excitations:    28248703.000000000     
+ ratio of zero-valued anti-parallel excitations:    0.0000000000000000     
+ Number of anti-parallel excitations above threshold:            0
+ ratio of anti-parallel excitations above threshold:    0.0000000000000000     
+ Number of anti-parallel excitations below threshold:            0
+ ratio of anti-parallel excitations below threshold:    0.0000000000000000     
+ integrated anti-parallel H_ij/pgen ratio:    66.500000000000000     
+ for   0.99900000000000000       percent coverage!
+ maximum anti-parallel H_ij/pgen ratio:    83.375946902740168     
+ maximum/integrated anti-parallel ratio:    1.2537736376351905     
+ minimum anti-parallel H_ij/pgen ratio:    1.6733180641959847E-003
+ 
+Current reference: 
+(    1,    2,   15,   16,   21,   22,   31,   32)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-4  17-18  23-24  33-34
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+ Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   <D|H|D>  Proc
+11000000000000110000110000000011000000000000    0    0    1796.000      0.97906  Y  -1.28496350E+02       1
+11000000000000110000110000000000001100000000    2    0   -75.00000      0.04088  Y  -1.24013535E+02       3
+11000000000000110000000011000011000000000000    2    0   -56.00000      0.03053  Y  -1.24013535E+02       1
+11000000000000000011110000000011000000000000    2    0   -55.00000      0.02998  Y  -1.24013535E+02       3
+01000000100000100001110000000011000000000000    2    4    50.00000      0.02726  Y  -1.22220592E+02       3
+11000000000000100001100001000011000000000000    2    4   -49.00000      0.02671  Y  -1.24085920E+02       3
+11000000000000100001010010000011000000000000    2    4    45.00000      0.02453  Y  -1.24044637E+02       2
+11000000000000100001110000000001001000000000    2    4    45.00000      0.02453  Y  -1.24044637E+02       2
+11000000000000110000100001000010000100000000    2    4   -44.00000      0.02399  Y  -1.24085920E+02       3
+11000000000000110000001001000011000000000000    2    2   -40.00000      0.02181  Y  -1.25253947E+02       2
+11000000000000110000010010000010000100000000    2    4    40.00000      0.02181  Y  -1.24044637E+02       2
+10000000010000110000110000000001001000000000    2    4    36.00000      0.01962  Y  -1.22220592E+02       0
+11000000000000110000000110000011000000000000    2    2    36.00000      0.01962  Y  -1.25253947E+02       2
+11000000000000010010110000000010000100000000    2    4    36.00000      0.01962  Y  -1.24044637E+02       3
+10000000010000110000010010000011000000000000    2    4    35.00000      0.01908  Y  -1.22220592E+02       0
+ 
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process    2832.7500000000
+ Min number of determinants/process               2735
+ Max number of determinants/process               2901
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:    5302.0000000000
+     Min number of walkers/process:         4374.00000
+     Max number of walkers/process:         6631.00000
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:         1675
+Reading back in FCIMCStats datafile...
+Number of comment lines found in file:            3
+Number of data points found in file:          140
+Number of useable data points:           73
+Relaxation time for projected energy estimated to be        0 update cycles.
+Relaxation time for shift estimated to be        8 update cycles.
+Number of blocks assumed for calculation of error in projected energy denominator:       9
+Number of blocks assumed for calculation of error in projected energy numerator:       9
+WARNING: Error increases monotonically on the blocking graph for *shift*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in shift:       8
+ProjE_denominator:       1746.1211111111 +/-        6.7493073     Relative error:       0.3865314505E-02
+ProjE_numerator:         -372.2577461036 +/-        1.3910705     Relative error:       0.3736847592E-02
+ Current reference energy                            -128.496349730325
+ Projected correlation energy                          -0.213191252162
+ Estimated error in Projected correlation energy        0.000442939885
+ Shift correlation energy                              -0.215788593750
+ Estimated error in shift correlation energy            0.000175544269
+
+ Projected and shift energy estimates do not agree to within approximate errorbars: EDiff =      0.00259734
+
+ Total projected energy        -128.70954098 +/-    0.442940E-03
+ Total shift energy            -128.71213832 +/-    0.175544E-03
+
+
+ Final energy estimate for state 1:     -128.70948277723    
+ Warning: attempting to log deallocation but never logged allocation.
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      42.1
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datclean_global_det_da  25.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   15.0MB
+ frequency_bins    init_hist_tau_searcdeallocate_histogra   1.1MB
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar  351.6KB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar  351.6KB
+ UMat              IntInit            IntFreeze           298.6KB
+ UMat2             IntFreeze          IntCleanup          251.0KB
+ TMAT2D            SetupTMAT          DestroyTMat          16.5KB
+ TMAT2D2           SetupTMAT2         not deallocated      15.1KB
+ UMat2D            SetupUMat2d_dense  DESTROYUMATCACHE      3.8KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                3500     29.05
+ AnnMainTime                               3500      1.15
+ Compress Sort interface                   3500      0.78
+ GetDiagMatelTime                       1087920      0.74
+ AnnihilTime                               3500      0.59
+ Compression interface                     3500      0.32
+ SortTime                                  3500      0.27
+ StatsCommsTime                             140      0.18
+ NECICUBE                                     1      0.14
+ GetOffDiagMatelTime                    1087920      0.12
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  33.32
+
+ Global wall clock time         33.54
+ ================================================================
+ Calculation ended 10/08/2022 at 17:23:05
+ ================================================================
