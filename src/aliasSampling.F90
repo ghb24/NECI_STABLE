@@ -169,7 +169,7 @@ contains
         ! as this is shared memory, only node-root has to do this
         if (iProcIndex_intra == 0) then
             ! initialize the probabilities
-            this%biasTable%ptr = arr / sum(arr) * real(arrSize, dp)
+            this%biasTable%ptr = arr / sum(arr) * arrSize
 
             ! indices of subarrays
             allocate(overfull(arrSize))
