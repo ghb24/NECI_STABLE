@@ -29,7 +29,7 @@ module gasci_pchb
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
         operator(.div.), operator(.implies.), EnumBase_t, &
-        operator(.isclose.), swap
+        operator(.isclose.), swap, stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize

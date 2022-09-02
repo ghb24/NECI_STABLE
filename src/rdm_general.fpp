@@ -4,7 +4,6 @@
 module rdm_general
 
     use bit_rep_data, only: NIfTot, nifd, nifguga, IlutBits, IlutBitsParent
-    use constants
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
                         inits_estimates, tSetupInitsEst
@@ -13,7 +12,13 @@ module rdm_general
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use SystemData, only: tGUGA
-    use util_mod, only: near_zero, operator(.div.)
+    use util_mod, only: near_zero, operator(.div.), stop_all
+    use constants, only: dp, n_int, lenof_sign, size_n_int, int64, &
+        eps, inum_runs, size_int_rdm
+    use rdm_reading, only: print_1rdms_from_sf2rdms_wrapper, &
+        read_spinfree_2rdm_files, read_1rdm, read_2rdm_popsfile, &
+        print_1rdms_from_2rdms_wrapper
+    use Parallel_neci, only: iProcIndex, nProcessors, MPISumAll
 
     implicit none
 
@@ -32,7 +37,6 @@ contains
         use LoggingData, only: tReadRDMs, tPopsfile, tno_RDMs_to_read
         use LoggingData, only: twrite_RDMs_to_read, tPrint1RDMsFrom2RDMPops
         use LoggingData, only: tPrint1RDMsFromSpinfree, t_spin_resolved_rdms
-        use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: two_rdm_recv_2, tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
@@ -45,7 +49,6 @@ contains
         use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
         use rdm_data_utils, only: init_en_pert_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
-        use rdm_reading
         use RotateOrbsData, only: SymLabelCounts2_rot, SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -930,7 +933,6 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine UpdateRDMCorrectionTerm()
-        use Parallel_neci
         ! first, communicate the rdm correction term between the procs
         ! take the instantaneous correction term and sum it into the accumulated one
         implicit none

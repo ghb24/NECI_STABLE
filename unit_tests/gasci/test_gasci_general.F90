@@ -1,5 +1,5 @@
 module test_gasci_general_mod
-    use fruit
+    use fruit, only: assert_equals, assert_true, assert_false
     use constants, only: dp, maxExcit
     use util_mod, only: operator(.div.), near_zero
     use SystemData, only: nEl
@@ -78,8 +78,9 @@ end module test_gasci_general_mod
 
 program test_gasci_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_general_mod, only: test_pgen
 

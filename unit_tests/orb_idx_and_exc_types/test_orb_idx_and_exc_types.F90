@@ -1,5 +1,5 @@
 module test_orb_idx_mod
-    use fruit
+    use fruit, only: assert_true
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
         calc_spin, alpha, beta, operator(==)
     use excitation_types, only: NoExc_t, SingleExc_t, DoubleExc_t, excite
@@ -61,17 +61,20 @@ end module test_orb_idx_mod
 
 program test_orb_idx_and_exc_types
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use test_orb_idx_mod, only: test_calc_spin, test_conversion, &
         test_excite
+    use Parallel_neci, only: MPIInit, MPIEnd
 
 
 
     implicit none
-    integer :: failed_count, err
+    integer :: failed_count
+    logical :: err
 
-    call mpi_init(err)
+    call MPIInit(err)
 
     call init_fruit()
 
@@ -83,7 +86,7 @@ program test_orb_idx_and_exc_types
 
     if (failed_count /= 0) call stop_all('test_orb_idx_and_exc_types_program', 'failed_tests')
 
-    call mpi_finalize(err)
+    call MPIEnd(err)
 
 contains
 

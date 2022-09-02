@@ -9,11 +9,33 @@
 ! unit test module which tests all the functionality of a other module
 program test_k_space_hubbard
 
-    use k_space_hubbard
+    use k_space_hubbard, only: get_diag_helement_k_sp_hub, &
+        init_three_body_const_mat, init_two_body_trancorr_fac_matrix, &
+        get_j_opt, init_get_helement_k_space_hub, setup_k_space_hub_sym, &
+        init_tmat_kspace, setup_g1, setup_nbasismax, &
+        setup_k_total, setup_kPointToBasisFn, setup_tmat_k_space, &
+        get_offdiag_helement_k_sp_hub, get_helement_k_space_hub, &
+        initialize_excit_table, get_3_body_helement_ks_hub, &
+        check_momentum_sym, make_triple, two_body_transcorr_factor, &
+        epsilon_kvec, three_body_transcorr_fac, same_spin_transcorr_factor, &
+        get_helement_k_space_hub_general, get_helement_k_space_hub_ex_mat, &
+        n_opp, three_body_prefac, create_ab_list_hubbard, &
+        calc_pgen_k_space_hubbard, gen_parallel_double_hubbard, &
+        gen_triple_hubbard, pick_a_orbital_hubbard, &
+        pick_ab_orbitals_hubbard, pick_bc_orbitals_hubbard, &
+        create_ab_list_par_hubbard, pick_ab_orbitals_par_hubbard, &
+        create_bc_list_hubbard, calc_pgen_k_space_hubbard_transcorr, &
+        calc_pgen_k_space_hubbard_par, calc_pgen_k_space_hubbard_triples, &
+        gen_excit_k_space_hub, gen_excit_uniform_k_space_hub_test, &
+        gen_excit_k_space_hub_transcorr_test
 
-    use constants
+    use constants, only: dp, infinity, lenof_sign, PI, n_int, EPS, maxExcit
 
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals, &
+        assert_true
+
+    use util_mod, only: stop_all, near_zero
 
     use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, &
                           t_trans_corr, G1, nBasisMax, nOccBeta, nOccAlpha, &
@@ -21,13 +43,14 @@ program test_k_space_hubbard
                           t_trans_corr, t_trans_corr_2body, trans_corr_param, &
                           thub, tpbc, treal, ttilt, TSPINPOLAR, &
                           tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym, &
-                          t_twisted_bc, twisted_bc, brr, lms, lattice_type, &
+                          t_twisted_bc, twisted_bc, lms, lattice_type, &
                           length_x, length_y
 
-    use bit_rep_data, only: niftot, nifd
+    use bit_rep_data, only: niftot
 
     use lattice_mod, only: lat, lattice, get_helement_lattice_general, &
-                           get_helement_lattice_ex_mat, get_helement_lattice
+                           get_helement_lattice_ex_mat, get_helement_lattice, &
+                           init_dispersion_rel_cache
 
     use dsfmt_interface, only: dsfmt_init
 
@@ -37,9 +60,11 @@ program test_k_space_hubbard
 
     use IntegralsData, only: umat
 
-    use DetBitOps, only: EncodeBitDet, findbitexcitlevel
+    USE OneEInts, only: TMAT2D
 
-    use fcimcdata, only: pDoubles, pParallel
+    use DetBitOps, only: EncodeBitDet, findbitexcitlevel, getbitexcitation
+
+    use fcimcdata, only: pDoubles, pParallel, excit_gen_store_type
 
     use sort_mod, only: sort
 
@@ -47,7 +72,7 @@ program test_k_space_hubbard
 
     use bit_reps, only: decode_bit_det, encode_sign, writebitdet
 
-    use SymExcitDataMod, only: kTotal
+    use SymExcitDataMod, only: kTotal, KPointToBasisFn
 
     use lanczos_wrapper, only: frsblk_wrapper
 
@@ -71,7 +96,13 @@ program test_k_space_hubbard
 
     use ras, only: sort_orbitals
 
+    use Determinants, only: WriteDetBit
+
+    use neci_intfce, only: GetExcitation
+
     implicit none
+
+    external :: FindExcitDet
 
     integer :: failed_count
     logical :: t_test_excit_gen, t_run_explicit, t_exact_study

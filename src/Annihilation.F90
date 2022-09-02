@@ -33,8 +33,9 @@ module AnnihilationMod
 
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
-    use load_balance, only: DetermineDetNode, AddNewHashDet, &
+    use load_balance, only: AddNewHashDet, &
                             CalcHashTableStats, RemoveHashDet
+    use load_balance_calcnodes, only: DetermineDetNode
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use searching
     use hash

@@ -5,15 +5,15 @@
 
 module gasci_disconnected
     use SystemData, only: tGAS, nBasis, nel
-    use constants
+    use constants, only: dp, n_int, maxExcit, bits_n_int
     use SymExcitDataMod, only: ScratchSize
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
-                        near_zero
+                        near_zero, stop_all
     use sort_mod, only: sort
     use sets_mod, only: operator(.in.)
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use FciMCData, only: pDoubles, pSingles
+    use FciMCData, only: pDoubles, pSingles, excit_gen_store_type
     use get_excit, only: make_double, make_single
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb, get_pgen_pick_biased_elecs
@@ -176,9 +176,6 @@ contains
         ! particle number conserving GAS excitation generator:
         ! we create only excitations, that preserver the number of electrons within
         ! each active space
-        use SystemData, only: nel
-        use FciMCData, only: excit_gen_store_type
-        use constants
         class(GAS_disc_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)

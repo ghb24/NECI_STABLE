@@ -20,11 +20,11 @@ module constants
     integer, parameter :: int128 = selected_int_kind(38)
 #endif
 
-    real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993751_dp
-    real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072408_dp
-    real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333333_dp
-    real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753769_dp
-    real(dp), parameter ::  OverR2 = 1.0_dp/Root2
+    real(dp), parameter ::  PI    = 4._dp * atan(1._dp)
+    real(dp), parameter ::  PI2   = 2._dp * PI
+    real(dp), parameter ::  THIRD = 1._dp / 3._dp
+    real(dp), parameter ::  Root2 = sqrt(2._dp)
+    real(dp), parameter ::  OverR2 = 1.0_dp / Root2
     real(dp), parameter :: EPS = 0.0000000000001_dp
     real(dp), parameter :: INFINITY = huge(1.0_dp)
 

@@ -1,13 +1,17 @@
 ! replace _template by whatever one needs
 program test_cc_amplitudes
 
-    use fruit
-    use cc_amplitudes
-    use util_mod, only: binomial => choose_i64
+    use constants, only: n_int
+    use cc_amplitudes, only: cc_amplitude, calc_number_of_excitations, &
+        calc_n_parallel_excitations, setup_ind_matrix_singles
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals
+    use util_mod, only: binomial => choose_i64, stop_all
     use systemdata, only: nel, nbasis
     use FciMCData, only: projedet, ilutref
     use detbitops, only: encodebitdet
     use bit_reps, only: init_bit_rep
+    use bit_rep_data, only: NIfTot
 
     implicit none
 

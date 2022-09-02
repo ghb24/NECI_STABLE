@@ -142,12 +142,14 @@ module soft_exit
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
-    use constants, only: lenof_sign, int32, dp
+    use constants, only: lenof_sign, int32, int64, dp, stdout, inum_runs, &
+        stderr
     use bit_rep_data, only: extract_sign
     use bit_reps, only: encode_sign
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
-    use Parallel_neci
+    use Parallel_neci, only: MPIBcast, bNodeRoot, iNodeIndex, iProcIndex, &
+        nProcessors, MPIAllLorLogical
     use fortran_strings, only: to_lower, to_int, to_realdp
 
     implicit none
@@ -317,8 +319,9 @@ contains
         ios = 0
 
         if (any_exist) then
-            if (iProcIndex == 0) &
-                write (6, *) "CHANGEVARS file detected on iteration ", iter
+            if (iProcIndex == 0) then
+                write(stdout, *) "CHANGEVARS file detected on iteration ", iter
+            endif
 
             ! Each processor attemtps to delete changevars in turn. Wait for
             ! all processors to reach AllReduce on each cycle, to avoid race
@@ -351,6 +354,11 @@ contains
                                 exit
                             endif
                         enddo
+
+                        if (.not. any(opts_selected)) then
+                            write(stdout, *) 'Input '//trim(w)//' not recognised. &
+                                &Ignoring and continuing...'
+                        endif
 
                         ! Do we have any other items to read in?
                         if (i == tau) then

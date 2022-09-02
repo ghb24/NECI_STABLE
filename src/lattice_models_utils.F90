@@ -8,7 +8,7 @@ module lattice_models_utils
     use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
     use util_mod, only: binary_search_ilut, binary_search_first_ge, choose_i64, swap, &
-                        operator(.isclose.), operator(.div.)
+                        operator(.isclose.), operator(.div.), stop_all
 
     use sort_mod, only: sort
 
@@ -40,6 +40,23 @@ module lattice_models_utils
     use guga_bitRepOps, only: csf_purify
 
     implicit none
+    private
+
+    public :: find_minority_spin, pick_spin_par_elecs, &
+        pick_three_opp_elecs, pick_spin_opp_elecs, make_ilutJ, &
+        get_orb_from_kpoints, get_ispn, get_occ_neighbors, &
+        get_spin_density_neighbors, find_elec_in_ni, &
+        get_orb_from_kpoints_three, create_all_open_shell_dets, &
+        get_spin_opp_neighbors, create_one_spin_basis, calc_n_double, &
+        create_neel_state_chain, create_neel_state, &
+        pick_from_cum_list, combine_spin_basis, set_alpha_beta_spins, &
+        right_most_zero, gen_all_excits_k_space_hubbard, &
+        swap_excitations, pick_spin_opp_holes, pick_random_hole, &
+        get_opp_spin, create_all_dets, gen_all_excits_r_space_hubbard, &
+        create_hilbert_space_realspace, gen_all_singles_rs_hub_default, &
+        gen_all_doubles_k_space, create_heisenberg_fock_space, &
+        create_heisenberg_fock_space_guga, gen_all_triples_k_space, &
+        create_hilbert_space_kspace
 
     interface swap_excitations
         module procedure swap_excitations_higher
@@ -104,9 +121,6 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2)
         real(dp), intent(out) :: p_elec
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "pick_spin_opp_elecs"
-#endif
         ! think of a routine to get the possible spin-opposite electron
         ! pairs. i think i could do that way more efficiently, but do it in
         ! the simple loop way for now
@@ -134,9 +148,6 @@ contains
         real(dp), intent(in) :: cum_arr(:), cum_sum
         integer, intent(out) :: ind
         real(dp), intent(out) :: pgen
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "pick_from_cum_list"
-#endif
         real(dp) :: r
 
         if (cum_sum < EPS) then
@@ -166,9 +177,8 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        character(*), parameter :: this_routine = "gen_all_excits_r_space_hubbard"
 
-        integer :: save_excits, n_doubles, i
+        integer :: save_excits, n_doubles
         integer(n_int), allocatable :: double_dets(:, :), temp_dets(:, :)
 
         call gen_all_singles_rs_hub(nI, n_excits, det_list)
@@ -219,12 +229,8 @@ contains
         integer(n_int), intent(in) :: det_list_in(0:NIfTot, n_excits_in)
         integer, intent(out) :: n_excits_out
         integer(n_int), intent(out), allocatable :: det_list_out(:, :)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "spin_purify"
-#endif
-        integer :: nI(nel), nJ(nel), i, pos, cnt
+        integer :: i, pos, cnt
         integer(n_int) :: ilut(0:NIfTot), ilut_sym(0:NIfTot)
-        logical :: t_swapped
         integer(n_int), allocatable :: temp_dets(:, :)
 
         allocate(temp_dets(0:NIfTot, n_excits_in))
@@ -261,13 +267,9 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "gen_all_doubles_rs_hub_hop_transcorr"
-#endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
-        integer :: n_bound, i, src(2), j, neigh, ex(2, 2), pos, a, b
+        integer :: n_bound, i, src(2), j, ex(2, 2), pos, a, b
         integer(n_int), allocatable :: temp_list(:, :)
-        integer, allocatable :: neighbors(:)
         real(dp) :: elem
 
         call EncodeBitDet(nI, ilut)
@@ -332,7 +334,6 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        character(*), parameter :: this_routine = "gen_all_singles_rs_hub"
 
         if (t_trans_corr_hop) then
             call gen_all_singles_rs_hub_hop_transcorr(nI, n_excits, det_list)
@@ -346,13 +347,9 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "gen_all_singles_rs_hub_hop_transcorr"
-#endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
-        integer :: n_bound, i, src, j, neigh, ex(2, 2), pos, a
+        integer :: n_bound, i, src, ex(2, 2), pos, a
         integer(n_int), allocatable :: temp_list(:, :)
-        integer, allocatable :: neighbors(:)
         real(dp) :: elem
 
         call EncodeBitDet(nI, ilut)
@@ -653,8 +650,6 @@ contains
 
         integer, allocatable :: n_dets(:)
         integer(n_int), allocatable :: open_shells(:,:), max_basis(:)
-        integer :: n_max, n_min
-        integer :: nI(nel)
 
         n_dets = calc_n_double(n_orbs, n_alpha, n_beta)
 
@@ -933,9 +928,6 @@ contains
         ! dependent orbital n_orbs
         integer(n_int), intent(in) :: i
         integer, intent(in) :: n_orbs
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "right_most_zero"
-#endif
         integer, allocatable :: nZeros(:), nOnes(:)
         integer(n_int) :: j
 
@@ -1029,9 +1021,6 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: orbs(2)
         real(dp), intent(out) :: p_orb
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "pick_spin_opp_holes"
-#endif
 
         integer, parameter :: max_trials = 100
         integer :: cnt
@@ -1142,7 +1131,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_spin_opp_neighbors"
 #endif
-        integer :: i, flip
+        integer :: i
         integer, allocatable :: neighbors(:)
 
         ASSERT(associated(lat))
@@ -1318,11 +1307,9 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        character(*), parameter :: this_routine = "gen_all_excits_k_space_hubbard"
 
         integer(n_int), allocatable :: triple_dets(:, :), temp_dets(:, :)
         integer :: n_triples, save_excits
-        real(dp), allocatable :: sign_list(:)
 
         call gen_all_doubles_k_space(nI, n_excits, det_list)!, sign_list)
 
@@ -1691,9 +1678,8 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        character(*), parameter :: this_routine = "gen_all_triples_k_space"
 
-        integer :: i, j, k, a, b, c, spin, ind, src(3), ex(2, 3), n_bound, pos
+        integer :: i, j, k, a, b, c, spin, src(3), ex(2, 3), n_bound, pos
         integer(n_int) :: ilut(0:niftot), ilutJ(0:NIfTot)
         integer(n_int), allocatable :: temp_list(:, :)
         real(dp) :: elem

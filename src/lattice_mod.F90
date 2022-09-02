@@ -625,10 +625,6 @@ module lattice_mod
         procedure site_constructor
     end interface
 
-    interface assignment(=)
-        module procedure site_assign
-        module procedure lattice_assign
-    end interface
     integer, parameter :: DIM_CHAIN = 1, &
                           DIM_STAR = 1, &
                           N_CONNECT_MAX_CHAIN = 2, &
@@ -926,7 +922,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_orb_from_k_vec"
 #endif
-        integer :: k_vec(3), i
+        integer :: i
 
         ! checking if it is in the first is not necessary anymore
         ! as the lookup table captures more than just the BZ
@@ -1006,7 +1002,6 @@ contains
     logical pure function inside_bz(this, k_vec)
         class(lattice), intent(in) :: this
         integer, intent(in) :: k_vec(3)
-        character(*), parameter :: this_routine = "inside_bz"
 
         ! this function should also be deferred!
 
@@ -1065,102 +1060,6 @@ contains
 
     end function inside_bz_chain
 
-    pure function apply_basis_vector_general(this, k_in) result(k_out)
-        ! todo: i think i can write a general routine to apply the basis
-        ! vectors.. so i do not have to write a specific one for all the
-        ! different sorts of lattices..
-        class(lattice), intent(in) :: this
-        integer, intent(in) :: k_in(sdim)
-        integer, allocatable :: k_out(:, :)
-
-        character(*), parameter :: this_routine = "apply_basis_vector_general"
-
-        unused_var(this)
-        unused_var(k_in)
-
-        call stop_all(this_routine, "not yet implemented!")
-
-        k_out = 0
-
-    end function apply_basis_vector_general
-
-    pure function apply_basis_vector_cube(this, k_in, ind) result(k_out)
-        class(cube), intent(in) :: this
-        integer, intent(in) :: k_in(3)
-        integer, intent(in), optional :: ind
-        integer :: k_out(3)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "apply_basis_vector_cube"
-#endif
-
-        call stop_all("apply_basis_vector_cube", "not yet implemented!")
-#ifdef WARNING_WORKAROUND_
-        k_out = 0
-#endif
-        unused_var(this)
-        unused_var(k_in)
-        if (present(ind)) then
-            unused_var(ind)
-        end if
-
-    end function apply_basis_vector_cube
-
-    pure function apply_basis_vector_rect(this, k_in, ind) result(k_out)
-        class(rectangle), intent(in) :: this
-        integer, intent(in) :: k_in(3)
-        integer, intent(in), optional :: ind
-        integer :: k_out(3)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "apply_basis_vector_rect"
-#endif
-
-        integer :: basis_vec(8, 3), r1(3), r2(3)
-
-        ASSERT(ind >= 0)
-        ASSERT(ind <= 8)
-
-        ! with negative signs we have in total 8 possibilities of
-        ! vectors to apply:
-
-        r1 = this%k_vec(:, 1)
-        r2 = this%k_vec(:, 2)
-
-        basis_vec(1, :) = r1
-        basis_vec(2, :) = -r1
-        basis_vec(3, :) = r2
-        basis_vec(4, :) = -r2
-        basis_vec(5, :) = r1 + r2
-        basis_vec(6, :) = -(r1 + r2)
-        basis_vec(7, :) = r1 - r2
-        basis_vec(8, :) = -(r1 - r2)
-
-        k_out = k_in + basis_vec(ind, :)
-
-    end function apply_basis_vector_rect
-
-    function apply_basis_vector_chain(this, k_in, ind) result(k_out)
-        ! i think i have to make ind non-optional, as it is actually
-        ! always needed.. what else should i do here?
-        class(chain) :: this
-        integer, intent(in) :: k_in(3)
-        integer, intent(in), optional :: ind
-        integer :: k_out(3)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "apply_basis_vector_chain"
-#endif
-        integer :: basis_vec(4, 3)
-
-#ifdef DEBUG_
-        if (t_trans_corr_2body) then
-            ASSERT(ind > 0 .and. ind <= 4)
-        else
-            ASSERT(ind == 1 .or. ind == 2)
-        end if
-#endif
-
-        k_out = k_in + this%basis_vecs(ind, :)
-
-    end function apply_basis_vector_chain
 
     subroutine init_basis_vecs(this)
         class(lattice) :: this
@@ -1255,39 +1154,6 @@ contains
         k_out = k_in + this%basis_vecs(ind, :)
 
     end function apply_basis_vector
-
-    function apply_basis_vector_ole(this, k_in, ind) result(k_out)
-        class(ole) :: this
-        integer, intent(in) :: k_in(3)
-        integer, intent(in), optional :: ind
-        integer :: k_out(3)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "apply_basis_vector_ole"
-#endif
-
-        integer :: basis_vec(8, 3), r1(3), r2(3)
-
-        ASSERT(ind >= 0)
-        ASSERT(ind <= 8)
-
-        ! with negative signs we have in total 8 possibilities of
-        ! vectors to apply:
-
-        r1 = this%k_vec(:, 1)
-        r2 = this%k_vec(:, 2)
-
-        basis_vec(1, :) = r1
-        basis_vec(2, :) = -r1
-        basis_vec(3, :) = r2
-        basis_vec(4, :) = -r2
-        basis_vec(5, :) = r1 + r2
-        basis_vec(6, :) = -(r1 + r2)
-        basis_vec(7, :) = r1 - r2
-        basis_vec(8, :) = -(r1 - r2)
-
-        k_out = k_in + basis_vec(ind, :)
-
-    end function apply_basis_vector_ole
 
     integer pure function get_length_aim_star(this, dimen)
         class(aim_star), intent(in) :: this
@@ -1397,7 +1263,6 @@ contains
         class(aim) :: this
         integer, intent(in) :: ind
         character(*), parameter :: this_routine = "is_bath_site"
-        class(site), allocatable :: temp
 
         ASSERT(ind > 0)
         ASSERT(ind <= this%get_nsites())
@@ -1421,9 +1286,6 @@ contains
     function get_bath(this) result(bath_sites)
         class(aim) :: this
         integer :: bath_sites(this%n_bath)
-        character(*), parameter :: this_routine = "get_bath"
-
-        integer :: i, j
 
         bath_sites = this%bath_sites
 
@@ -1432,14 +1294,10 @@ contains
     function get_impurities(this) result(imp_sites)
         class(aim) :: this
         integer :: imp_sites(this%n_imps)
-        character(*), parameter :: this_routine = "get_impurities"
-
-        integer :: i, j
 
         ! i guees it is better to store the impurity and the bath
         ! indices
         imp_sites = this%impurity_sites
-
     end function get_impurities
 
     subroutine set_n_imps(this, n_imps)
@@ -1531,55 +1389,6 @@ contains
         get_site_index = this%sites(ind)%get_index()
 
     end function get_site_index
-
-    subroutine init_sites_lattice(this)
-        ! these are the important routines.. which set up the connectivity
-        ! of the lattice sites. or atleast call the specific init-routines!
-        class(lattice) :: this
-
-        unused_var(this)
-
-    end subroutine init_sites_lattice
-
-    subroutine site_assign(lhs, rhs)
-        type(site), intent(out) :: lhs
-        type(site), intent(in) :: rhs
-
-        ! argh.. on every change in the site constructor i have to make
-        ! the change here too.. annoying..
-        ! but make i OOP style!
-        call lhs%set_index(rhs%get_index())
-        call lhs%set_num_neighbors(rhs%get_num_neighbors())
-        call lhs%allocate_neighbors(rhs%get_num_neighbors())
-        call lhs%set_neighbors(rhs%get_neighbors())
-        call lhs%set_impurity(rhs%is_impurity())
-        call lhs%set_bath(rhs%is_bath())
-        call lhs%set_k_vec(rhs%k_vec)
-        call lhs%set_r_vec(rhs%r_vec)
-
-        ! can i work with an allocatable statement here?
-
-    end subroutine site_assign
-
-    subroutine lattice_assign(lhs, rhs)
-        ! specific lattice assigner to not have to use pointers..
-        class(lattice), intent(out) :: lhs
-        class(lattice), intent(in), pointer :: rhs
-
-        character(*), parameter :: this_routine = "lattice_assign"
-
-        unused_var(rhs)
-
-        ! here i have to copy all the specific values!
-        ! this is annoying but make the code more readable, and i do not
-        ! have to use pointers so much..
-        ! todo although.. since i cannot use class(lattice) in the main
-        ! program without allocatable or pointer attribute anyway..
-        ! i think there is no need of an assignment overload!
-        call stop_all(this_routine, "Lattice assignment operator deleted")
-        unused_var(rhs)
-
-    end subroutine lattice_assign
 
     subroutine init_sites_aim_star(this)
         class(aim_star) :: this
@@ -2179,15 +1988,13 @@ contains
         class(rectangle) :: this
         character(*), parameter :: this_routine = "init_sites_rect"
 
-        integer :: i, temp_neigh(4), x, y, min_val, max_val, j
+        integer :: i, temp_neigh(4), x, y
         integer :: temp_array(this%length(1), this%length(2))
         integer :: down(this%length(1), this%length(2))
         integer :: up(this%length(1), this%length(2))
         integer :: left(this%length(1), this%length(2))
         integer :: right(this%length(1), this%length(2))
-        integer :: unique(4)
         integer, allocatable :: neigh(:)
-        integer :: sort_array_3(3), sort_array_2(2), sort_array(4)
         integer :: k_vec(3), r_vec(3)
         integer, allocatable :: order(:)
 
@@ -2402,14 +2209,9 @@ contains
 
         class(ext_input):: this
 
-        character(*), parameter :: this_routine = "read_sites"
-
-        integer:: iunit, ios, i, n_site, n_neighbors, neigh
+        integer:: i, n_site, n_neighbors
         integer, allocatable :: neighs(:)
 
-        logical :: exists, leof
-
-        CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
         type(ManagingFileReader_t) :: file_reader
         type(TokenIterator_t) :: tokens
@@ -2442,7 +2244,6 @@ contains
         ! 1 2 5 8
         !
         class(sujun) :: this
-        character(*), parameter :: this_routine = "init_sites_sujun"
         this%sites(1) = site(1, 4, [2,4,8,10])
         this%sites(2) = site(2, 4, [1,3,5,7])
         this%sites(3) = site(3, 4, [2,4,6,8])
@@ -2458,7 +2259,6 @@ contains
 
     subroutine init_sites_ole(this)
         class(ole) :: this
-        character(*), parameter :: this_routine = "init_sites_ole"
 
         ! i think i can index an array in fortran in reversed order
         integer :: ind_array(-this%length(1):(this%length(1) + 1), &
@@ -2579,18 +2379,6 @@ contains
         ! function to give me a periodic neighbor of a specific lattice
         class(ole) :: this
         integer, intent(in) :: ind(2), A(:, :)
-        integer :: ur(-this%length(1):(this%length(1) + 1), &
-                      -this%length(2):this%length(1))
-        integer :: dr(-this%length(1):(this%length(1) + 1), &
-                      -this%length(2):this%length(1))
-        integer :: ul(-this%length(1):(this%length(1) + 1), &
-                      -this%length(2):this%length(1))
-        integer :: dl(-this%length(1):(this%length(1) + 1), &
-                      -this%length(2):this%length(1))
-        integer :: rr(-this%length(1):(this%length(1) + 1), &
-                      -this%length(2):this%length(1))
-        integer :: ll(-this%length(1):(this%length(1) + 1), &
-                      -this%length(2):this%length(1))
         integer :: temp(-this%length(1):(this%length(1) + 1), &
                         -this%length(2):this%length(1))
 
@@ -2653,7 +2441,7 @@ contains
         ! https://stackoverflow.com/questions/2752725/finding-whether-a-point-lies-inside-a-rectangle-or-not
         integer, intent(in) :: x, y, A(2), B(2), C(2), D(2)
 
-        integer :: vertex(4, 2), edges(4, 2), R(4), S(4), T(4), U(4), i
+        integer :: vertex(4, 2), edges(4, 2), R(4), S(4), T(4), U(4)
         inside_bz_2d = .false.
 
         vertex = transpose(reshape([A, B, C, D], [2, 4]))
@@ -3298,19 +3086,6 @@ contains
 
     end function dispersion_rel_chain_k
 
-    function dispersion_rel_chain_orb(this, orb) result(disp)
-        class(chain) :: this
-        integer, intent(in) :: orb
-        real(dp) :: disp
-
-        integer :: k_vec(3)
-
-        k_vec = this%get_k_vec(orb)
-
-        disp = this%dispersion_rel(k_vec)
-
-    end function dispersion_rel_chain_orb
-
     function dispersion_rel_rect(this, k_vec) result(disp)
         class(rectangle) :: this
         integer, intent(in) :: k_vec(3)
@@ -3409,18 +3184,13 @@ contains
         integer, intent(in) :: orb
         real(dp) :: disp
 
-        integer :: k_vec(3)
-
         disp = this%dispersion_rel(this%get_k_vec(orb))
-
     end function dispersion_rel_orb
 
     function dispersion_rel_spin_orb(this, orb) result(disp)
         class(lattice) :: this
         integer, intent(in) :: orb
         real(dp) :: disp
-
-        integer :: k_vec(3)
 
         disp = this%dispersion_rel(this%get_k_vec(get_spatial(orb)))
 
@@ -3502,17 +3272,6 @@ contains
         allocate(output(i), source=unique(1:i))
 
     end function sort_unique
-
-    subroutine init_aim(this, length_x, length_y)
-        class(aim) :: this
-        integer, intent(in) :: length_x, length_y
-        character(*), parameter :: this_routine = "init_aim"
-
-        unused_var(this)
-        unused_var(length_x)
-        unused_var(length_y)
-
-    end subroutine init_aim
 
     subroutine init_lattice(this, length_x, length_y, length_z, &
                             t_periodic_x, t_periodic_y, t_periodic_z, t_bipartite_order)
@@ -3794,9 +3553,6 @@ contains
         ! maybe move this function to lattice_mod?!
         class(lattice) :: this
         integer, intent(out), optional :: r_min(3), r_max(3)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "init_hop_cache_bounds"
-#endif
         integer :: n_sites, i, j, ri(3), rj(3), r_diff(3)
 
         if (.not. (all(this%r_min == this%r_max) .and. all(this%r_min == 0))) then
@@ -3909,8 +3665,8 @@ contains
     subroutine fill_lu_table(this)
         implicit none
         class(lattice) :: this
-        integer :: ki(sdim), kj(sdim), ka(sdim), i, j, m, a, k_check(sdim), k_sum(sdim), nsites
-        integer :: k, b, kk(sdim), kb(sdim)
+        integer :: i, j, m, k_check(sdim), k_sum(sdim), nsites
+        integer :: k
 
         nsites = this%get_nsites()
         !U.Ebling:
@@ -4301,11 +4057,6 @@ contains
 
     end subroutine deallocate_neighbors
 
-    subroutine finalize_site(this)
-        type(site) :: this
-        if (allocated(this%neighbors)) deallocate(this%neighbors)
-    end subroutine finalize_site
-
     subroutine lattice_deconstructor(this)
         ! routine to nullify the pointer to a lattice class
         class(lattice), pointer :: this
@@ -4598,7 +4349,6 @@ contains
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
         integer :: n_sites
-        character(*), parameter :: this_routine = "calc_nsites_tilted"
         unused_var(this)
         if (present(length_z)) then
             unused_var(length_z)
@@ -4612,7 +4362,6 @@ contains
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
         integer :: n_sites
-        character(*), parameter :: this_routine = "calc_nsites_sujun"
         unused_var(this)
         unused_var(length_x)
         unused_var(length_y)
@@ -4653,20 +4402,6 @@ contains
     end function calc_nsites_ole
 
     ! Setter and getter routines for the private data of the lattice types
-
-    subroutine set_length_lattice(this, length_x, length_y)
-        class(lattice) :: this
-        integer, intent(in) :: length_x, length_y
-        character(*), parameter :: this_routine = "set_length_lattice"
-
-        unused_var(length_x)
-        unused_var(length_y)
-        unused_var(this)
-
-        call stop_all(this_routine, &
-                      'type(lattice) should never be actually instantiated!')
-
-    end subroutine set_length_lattice
 
     subroutine set_length_aim_star(this, length_x, length_y, length_z)
         class(aim_star) :: this
@@ -4714,7 +4449,6 @@ contains
         class(chain) :: this
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
-        character(*), parameter :: this_routine = "set_length_chain"
         if (present(length_z)) then
             unused_var(length_z)
         end if
@@ -5061,7 +4795,6 @@ contains
         real(dp) :: time_step
         ! move this time-step determination to this routine for the real
         ! space hubbard to have it fully conained
-        character(*), parameter :: this_routine = "determine_optimal_time_step"
 
         real(dp) :: p_elec, p_hole, mat_ele, max_diag
 
@@ -5135,17 +4868,12 @@ contains
 
         class(ext_input):: this
 
-        integer :: iunit, ios
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
         integer :: n_sites
 
-        logical :: exists, leof
 
-        CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
-        character(*), parameter :: this_routine = "calc_nsites_gen"
-
         type(ManagingFileReader_t) :: file_reader
         type(TokenIterator_t) :: tokens
 
@@ -5175,13 +4903,9 @@ contains
 
         class(ext_input):: this
 
-        integer :: iunit, lat_dim, x1,y1, x2,y2, z1,z2, length_x, length_y, n_sites, ios
+        integer :: x1,y1, x2,y2
 
-        logical :: exists, leof
-
-        CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
-        CHARACTER(LEN=NAME_LEN) lat_typ
         type(ManagingFileReader_t) :: file_reader
         type(TokenIterator_t) :: tokens
 
