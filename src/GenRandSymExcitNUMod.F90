@@ -53,8 +53,10 @@ MODULE GenRandSymExcitNUMod
     use sym_general_mod
     use get_excit, only: make_single, make_double
     use procedure_pointers, only: get_umat_el
-    use back_spawn, only: pick_virtual_electrons_double_hubbard
-    use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location, get_ispn
+    use back_spawn, only: pick_virtual_electrons_double_hubbard, &
+        pick_occupied_orbital_hubbard, check_electron_location
+    use lattice_models_utils, only: get_ispn
+
     use neci_intfce
     use bit_rep_data, only: test_flag
 
@@ -2300,7 +2302,6 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
     !Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs
     !This routine does it for the lattice models: UEG and hubbard model
     SUBROUTINE CalcPGenLattice(Ex, pGen)
-        use back_spawn, only: get_ispn
 
         INTEGER :: Ex(2, 2), iSpin, jSpin
         real(dp) :: pGen, pAIJ

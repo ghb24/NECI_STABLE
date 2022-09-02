@@ -1,5 +1,5 @@
 module test_cases
-    use fruit
+    use fruit, only: assert_true, assert_false, assert_equals
     use sets_mod, only: is_sorted, disjoint, subset, operator(.U.), operator(.cap.), &
         operator(.complement.), suc => special_union_complement
     implicit none
@@ -107,15 +107,18 @@ end module test_cases
 
 program test_sets_mod
 
-    use mpi
-    use fruit
+    use Parallel_neci, only: MPIInit, MPIEnd
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use test_cases, only: test_is_sorted, test_disjoint, test_union, &
         test_intersect, test_complement, test_subset, &
         test_special_union_complement
     implicit none
-    integer :: failed_count, err
+    integer :: failed_count
+    logical :: err
 
-    call mpi_init(err)
+    call MPIInit(err)
 
     call init_fruit()
 
@@ -127,7 +130,7 @@ program test_sets_mod
 
     if (failed_count /= 0) call stop_all('test_sets_mod', 'failed_tests')
 
-    call mpi_finalize(err)
+    call MPIEnd(err)
 
 contains
 

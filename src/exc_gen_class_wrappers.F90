@@ -6,6 +6,7 @@ module exc_gen_class_wrappers
     use SystemData, only: nel
     use bit_rep_data, only: NIfTot
     use SymExcitDataMod, only: ScratchSize
+    use util_mod, only: stop_all
 
     use GenRandSymExcitNUMod, only: uniform_single_excit_wrapper, calc_pgen_symrandexcit2
     use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind

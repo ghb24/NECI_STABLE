@@ -6,7 +6,7 @@ module matel_getter
     ! as stored in global_determinant_data.  Moved here from load_balance so
     ! to avoid circular dependencies.
 
-    use constants
+    use constants, only: dp, n_int
     use FciMCData, only: ilutRef, GetDiagMatel_Time, GetOffDiagMatel_Time
     use SystemData, only: nel, tHPHF, tNoBrillouin, tGUGA, t_3_body_excits, &
         t_ueg_3_body, t_mol_3_body

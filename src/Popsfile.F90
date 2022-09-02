@@ -92,12 +92,11 @@ MODULE PopsfileMod
     logical :: tRealPOPSfile
 
     interface
-        subroutine ChangeRefDet(det)
-            use SystemData, only: nel
-            implicit none
-            integer :: det(nel)
+        module subroutine ChangeRefDet(DetCurr)
+            integer, intent(in) :: DetCurr(nel)
         end subroutine
     end interface
+
 
 contains
 

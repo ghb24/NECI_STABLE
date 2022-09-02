@@ -1,44 +1,75 @@
 !A simple module with some interfaces to avoid compilation warnings. Ignore.
 module neci_intfce
+    implicit none
     interface
-        SUBROUTINE GENSYMEXCITIT2(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEVEL)
-            use SystemData, only: BasisFN
-            IMPLICIT NONE
-            INTEGER NEL, NI(NEL), NBASIS
-            TYPE(BasisFN) G1(nBasis)
-            INTEGER STORE(6)
-            INTEGER, target :: NMEM(*)
-            INTEGER NJ(NEL), IC
-            LOGICAL TSETUP
-            INTEGER ILEVEL
-        END SUBROUTINE GENSYMEXCITIT2
-        SUBROUTINE GENSYMEXCITIT3Par(NI, TSETUP, NMEM, NJ, IC, STORE, ILEVEL, iMinElec1, iMaxElec1)
-            use SystemData, only: nEl
-            IMPLICIT NONE
-            INTEGER NI(NEL)
-            INTEGER, pointer :: DSTORE(:)
-            INTEGER STORE(6)
-            INTEGER, target ::  NMEM(*)
-            INTEGER NJ(NEL), IC
-            LOGICAL TSETUP
-            INTEGER ILEVEL
-            INTEGER iMinElec1, iMaxElec1
-        END SUBROUTINE GENSYMEXCITIT3Par
-        SUBROUTINE GenExcitProb(nI, nJ, nEl, nIExcitor, G1, nBasisMax, Arr, nBasis, pGen)
+        subroutine gensymexcitit2(ni, nel, g1, nbasis, tsetup, nmem, nj, ic, store, ilevel)
+            use systemdata, only: basisfn
+            implicit none
+            integer nel, ni(nel), nbasis
+            type(basisfn) g1(nbasis)
+            integer store(6)
+            integer, target :: nmem(*)
+            integer nj(nel), ic
+            logical tsetup
+            integer ilevel
+        end subroutine gensymexcitit2
+        subroutine gensymexcitit3par(ni, tsetup, nmem, nj, ic, store, ilevel, iminelec1, imaxelec1)
+            use systemdata, only: nel
+            implicit none
+            integer ni(nel)
+            integer, pointer :: dstore(:)
+            integer store(6)
+            integer, target ::  nmem(*)
+            integer nj(nel), ic
+            logical tsetup
+            integer ilevel
+            integer iminelec1, imaxelec1
+        end subroutine gensymexcitit3par
+        subroutine genexcitprob(ni, nj, nel, niexcitor, g1, nbasismax, arr, nbasis, pgen)
             use constants, only: dp
-            use SystemData, only: BasisFN
-            IMPLICIT NONE
-            INTEGER nEl, nI(nEl), nJ(nEl), nBasis, nBasisMax(*)
-            INTEGER, target :: nIExcitor(*)
-            TYPE(BasisFN) G1(nBasis)
-            real(dp) pGen
-            real(dp) Arr(nBasis, 2)
-        END SUBROUTINE GenExcitProb
+            use systemdata, only: basisfn
+            implicit none
+            integer nel, ni(nel), nj(nel), nbasis, nbasismax(*)
+            integer, target :: niexcitor(*)
+            type(basisfn) g1(nbasis)
+            real(dp) pgen
+            real(dp) arr(nbasis, 2)
+        end subroutine genexcitprob
 
-      SUBROUTINE GETEXCITATION(NI,NJ,NEL,EX,TSIGN)
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NJ(NEL),EX(2,*)
-         LOGICAL TSIGN
-      end subroutine
+        subroutine getexcitation(ni, nj, nel, ex, tsign)
+            implicit none
+            integer nel, ni(nel), nj(nel), ex(2, *)
+            logical tsign
+        end subroutine
+
+        subroutine setbasislim_hub(nbasismax, nmaxx, nmaxy, nmaxz, len, &
+                                   tpbc, treal)
+            integer nbasismax(5, *), nmaxx, nmaxy, nmaxz, len
+            logical tpbc, treal
+        end subroutine
+
+        subroutine setbasislim_hubtilt(nbasismax, nmaxx, nmaxy, nmaxz, len, &
+                                       tpbc, itiltx, itilty)
+            use constants, only: sizeof_int, dp
+            implicit none
+            integer nbasismax(5, *), nmaxx, nmaxy, nmaxz, len
+            logical tpbc
+            integer itiltx, itilty
+        end subroutine
+
+        subroutine calctmathub(nbasis, nbasismax, bhub, ttilt, g1, treal, tpbc)
+            use constants, only: dp
+            use systemdata, only: basisfn, t_open_bc_x, t_open_bc_y
+            use oneeints, only: tmat2d, tmatsym, setuptmat
+            use parallel_neci, only: iprocindex
+            use sym_mod, only: mompbcsym
+            implicit none
+            integer nbasis, nbasismax(5, *)
+            type(basisfn) g1(nbasis)
+            real(dp) bhub
+            integer isize
+            logical ttilt, treal, tpbc
+        end subroutine
+
     end interface
 end module neci_intfce

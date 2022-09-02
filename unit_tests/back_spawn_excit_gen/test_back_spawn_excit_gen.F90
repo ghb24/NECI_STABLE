@@ -1,8 +1,10 @@
 #include "macros.h"
 program test_back_spawn_excit_gen
 
-    use back_spawn_excit_gen
-    use fruit
+    use back_spawn_excit_gen, only: calc_pgen_back_spawn_hubbard, &
+        calc_pgen_back_spawn_ueg, calc_pgen_back_spawn_ueg_new
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals
     use bit_rep_data, only: IlutBits
 
     implicit none

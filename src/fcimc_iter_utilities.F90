@@ -53,6 +53,7 @@ module fcimc_iter_utils
 
     use local_spin, only: all_local_spin, inst_local_spin, rezero_local_spin_stats
 
+    use PopsfileMod, only: ChangeRefDet
 
     implicit none
 

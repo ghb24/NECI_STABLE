@@ -17,8 +17,8 @@ module tau_search_hist
 
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel
 
-    use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
-                             MPISumAll, MPISUM, mpireduce, MPI_MIN
+    use Parallel_neci, only: MPIAllReduce, MPI_MIN, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
+                             MPISumAll, MPISUM, mpireduce
 
     use MPI_wrapper, only: iprocindex, root
 
@@ -32,7 +32,7 @@ module tau_search_hist
 
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
-    use util_mod, only: operator(.isclose.), near_zero, clamp
+    use util_mod, only: operator(.isclose.), near_zero, clamp, stop_all
     use LoggingData, only: t_log_ija, ija_bins_sing, all_ija_bins_sing, ija_thresh, &
                            ija_bins_para, all_ija_bins, ija_bins_anti, &
                            ija_orbs_sing, all_ija_orbs_sing, &

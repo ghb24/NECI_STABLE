@@ -3,13 +3,16 @@
 program countbits_tests
 
     use DetBitOps, only: Countbits, CountBits_elemental
-    use constants
-    use fruit
+    use constants, only: int64
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals, set_case_name, &
+        assert_true
+    use util_mod, only: stop_all
     implicit none
 
     abstract interface
         function count_bits_t (ilut, nlast, nbitsmax) result(bits)
-            use constants
+            import :: int64
             implicit none
             integer, intent(in) :: nlast
             integer(int64), intent(in) :: ilut(0:nlast)

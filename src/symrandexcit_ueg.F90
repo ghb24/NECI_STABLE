@@ -14,7 +14,8 @@ module ueg_excit_gens
     use UMatCache, only: gtID
     use constants
     use util_mod
-    use back_spawn, only: is_allowed_ueg_k_vector, get_orb_from_kpoints, get_ispn
+    use back_spawn, only: is_allowed_ueg_k_vector
+    use lattice_models_utils, only: get_orb_from_kpoints, get_ispn
     implicit none
 
 contains
@@ -42,7 +43,7 @@ contains
 #ifdef WARNING_WORKAROUND_
         HelGen = h_cast(0.0_dp)
 #endif
-        unused_var(exFlag); unused_var(store); unused_var(part_type); 
+        unused_var(exFlag); unused_var(store); unused_var(part_type);
         ! W.D:
         ! split this functionality to allow back-spawning to reuse code
         call gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar, ex, pgen)

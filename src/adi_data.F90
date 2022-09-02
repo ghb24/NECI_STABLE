@@ -1,6 +1,6 @@
 module adi_data
 
-    use constants
+    use constants, only: dp, n_int
     use FciMCData, only: ll_node
     implicit none
     save

@@ -1,5 +1,5 @@
 #include "macros.h"
-submodule(tau_main) tau_main_impls
+submodule (tau_main) tau_main_impls
     use constants, only: n_int, maxexcit
 
     use FciMCData, only: ProjEDet, ilutRef, pDoubles, pParallel

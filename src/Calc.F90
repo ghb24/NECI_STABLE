@@ -50,15 +50,15 @@ MODULE Calc
                         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
                         minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
-    use load_balance, only: tLoadBalanceBlocks, loadBalanceInterval
+    use load_balance, only: tLoadBalanceBlocks
+    use load_balance_calcnodes, only: loadBalanceInterval
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
 
-    use real_space_hubbard, only: t_start_neel_state, create_neel_state, &
-                                  init_get_helement_hubbard
+    use real_space_hubbard, only: t_start_neel_state, init_get_helement_hubbard
     use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
                         init_get_helement_heisenberg_guga, init_get_helement_tj_guga
     use k_space_hubbard, only: init_get_helement_k_space_hub, get_2_body_diag_transcorr, &
@@ -83,6 +83,8 @@ MODULE Calc
     use sets_mod, only: disjoint, operator(.U.)
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
+
+    use lattice_models_utils, only: create_neel_state
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
