@@ -27,9 +27,7 @@ NECI is a solver for the CI-problem and *not* a standalone quantum chemistry sui
 For this, choose any program that can generate these (e.g. PySCF, Molpro, Molcas).
 This has been done for you, and you may download the file [here](|media|/N2_neci_files/FCIDUMP).
 
-@todo
-Perhaps also include the Molpro code to generate this FCIDUMP file?
-@endtodo
+<!-- todo? It it worth also including the Molpro code to generate this FCIDUMP file? -->
 
 ### Anatomy of an Input File
 
@@ -167,13 +165,9 @@ Plot (1) is the most immediately useful plot, as it gives you a quick estimate o
 
 Once we are confident that all these plots exhibit plateaus for sufficiently large step numbers, we proceed with an error analysis. However, since FCIQMC calculations generally have correlated data, we cannot use standard error analysis, and here we use blocking analysis.[@Flyvbjerg1989] A script to do blocking analysis is included in the NECI repository: `path/to/neci/utils/blocking.py`.
 
-@todo
-The blocking script is still written in Python2, and IMO should be updated to Python3 (which should be easy to do with `2to3`).
-@endtodo
-
 Running the blocking analysis as
 ```bash
-path/to/neci/utils/blocking.py -p 'plots/blocking.png' -f <numiter> -d24 -d23 -o/ > stats
+path/to/neci/utils/blocking.py -p 'plots/blocking.png' -f <numiter> -d24 -d23 -o/ FCIMCStats > stats
 ```
 will output a blocking plot to the plots subdirectory, starting after `<numiter>` iterations, which should be chosen at a point where the plateaus in plots (5) and (6) (i.e. the numerator and denominator for the error estimate) are both stable. In this example, we might choose `<numiter>` to be 9000. Running this, we get the following plot.
 

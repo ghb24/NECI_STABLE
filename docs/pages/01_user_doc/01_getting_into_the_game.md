@@ -23,6 +23,7 @@ create a bitbucket account as prompted if necessary.
 
 To gain access to the NECI repository, an ssh key is required. This can
 be generated on any linux machine using the command\footnote{`ssh-keygen` can also generate DSA keys. Some ssh clients and servers will reject DSA keys longer than 1024 bits, and 1024 bits is	currently on the margin of being crackable. As such 2048 bit RSA keys are preferred. Top secret this code is. Probably. Apart from the master branch which hosted for all on github. And in molpro.	And anyone that wants it obviously.}
+<!-- todo is this sassy footnote really necessary? :D -->
 
 ```bash
 ssh-keygen -t rsa -b 2048
@@ -45,7 +46,7 @@ git clone git@bitbucket.org:neci_developers/neci.git [target_dir]
 ## NECI Installation
 
 @note
-This is modified from instructions found on the internal wiki, written by Kai and Oskar.
+This is modified from instructions found on the group's internal wiki, written by Kai and Oskar.
 @endnote
 
 Installation of NECI requires\footnote{If you are on a cluster, you may need to run a command similar to `module load ifort mpi.intel`.}
@@ -59,7 +60,7 @@ Installation of NECI requires\footnote{If you are on a cluster, you may need to 
 
 To get started, we must first clone the repository, with
 ```bash
-https://github.com/ghb24/NECI_STABLE.git
+git clone https://github.com/ghb24/NECI_STABLE.git
 ```
 for the public release, or
 ```bash
@@ -130,3 +131,5 @@ Requirements to produce the docs are:
 
 This will not only generate this documentation in the form of a PDF, but also as a website,
 having in addition to the information in the PDF also automatically generated documentation from comments in the source files.
+
+<!-- todo ? should we include brief descriptions of all (important) build options? -->

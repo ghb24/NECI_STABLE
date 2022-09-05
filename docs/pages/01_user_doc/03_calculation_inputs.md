@@ -1132,10 +1132,10 @@ and is stopped after 10000 iterations.
     spawns increases, the more processors are used, so when running with
     few walkers on relatively many processors, a large factor might be
     needed. Defaults to \(3\).
-
--   **prone-walkers**<br>
+<!-- TODO this keyword doesn't appear in the source code; should it be deleted? -->
+<!-- -   **prone-walkers**<br>
     Instead of terminating when running out of memory, randomly delete
-    determinants with low population and few spawns.
+    determinants with low population and few spawns. -->
 
 -   **store-dets**<br>
     Employ extra memory to store additional information on the
