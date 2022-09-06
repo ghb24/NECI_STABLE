@@ -347,6 +347,7 @@ set( RELAX_WARNINGS_SRCS
     rdm_explicit.F90
     rdm_filling.F90
     rdm_finalising.F90
+    rdm_hdf5.F90
     rdm_integral_fns.F90
     rdm_nat_orbs.F90
     rdm_reading.F90
@@ -440,6 +441,7 @@ set( FYPP_SRC_FILES
     global_det_data.fpp
     rdm_general.fpp
     hist.fpp
+    lib/parallel_hdf5_utils.fpp
     lib/util_mod.fpp
     lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
