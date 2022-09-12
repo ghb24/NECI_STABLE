@@ -718,6 +718,7 @@ and ends with the `endcalc` keyword.
     -   **[off]**<br>
         Switch the tau-search explicitly off.
         (Equivalent to not having the `tau-search` keyword at all.)
+        Note that this keyword is incompatible with other options (e.g. `maxWalkerBloom`).
 
     -   **[scale-tau-to-death]**<br>
         Optional keyword. Off by default.
