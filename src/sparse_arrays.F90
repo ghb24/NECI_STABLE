@@ -423,7 +423,6 @@ contains
 
     subroutine calc_determ_hamil_sparse(rep)
 
-        use SystemData, only: t_3_body_excits, t_mol_3_body, t_ueg_transcorr
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, row_size, counter, ierr
         integer :: nI(nel), nJ(nel)

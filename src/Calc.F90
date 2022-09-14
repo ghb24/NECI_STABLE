@@ -3747,17 +3747,17 @@ contains
                 if (t_k_space_hubbard) then
                     h_2_temp = get_2_body_diag_transcorr(fdet)
                     h_3_temp = get_3_body_diag_transcorr(fdet)
-                    write(stdout, *) "<D0|U|D0>", h_2_temp
-                    write(stdout, *) "<D0|L|D0>", h_3_temp
+                    write(stdout, *) "<D0|U|D0>=", h_2_temp
+                    write(stdout, *) "<D0|L|D0>=", h_3_temp
                 else
                     HDiagTemp = sltcnd_0_tc(fdet, NoExc)
                     h_2_temp = sltcnd_0_base(fdet, NoExc) - calct(fdet, nel)
                     h_3_temp = HDiagTemp - sltcnd_0_base(fdet, NoExc)
-                    write(stdout, *) "<D0|U|D0>", h_2_temp
-                    write(stdout, *) "<D0|L|D0>", h_3_temp
+                    write(stdout, *) "<D0|U|D0>=", h_2_temp
+                    write(stdout, *) "<D0|L|D0>=", h_3_temp
                 end if
             else
-                write(stdout, *) "<D0|U|D0>", real(HDiagTemp,dp) - calct(fdet, nel)
+                write(stdout, *) "<D0|U|D0>=", real(HDiagTemp,dp) - calct(fdet, nel)
             end if
 
             IF(TUEG) THEN

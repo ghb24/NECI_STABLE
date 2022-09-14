@@ -20,7 +20,7 @@
 !>  from the excitation_types module
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module sltcnd_mod
-    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, t_3_body_excits, &
+    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, &
                           t_mol_3_body, t_ueg_3_body, tContact
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
