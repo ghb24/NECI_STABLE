@@ -1,30 +1,35 @@
 title
 
 system read
-electrons 8
-nonuniformrandexcits pchb
-system-replicas 4
+    electrons 8
+    nonuniformrandexcits pchb
+    system-replicas 4
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-nmcyc 300
-totalwalkers 10000
-memoryfacspawn 10
-definedet 1-6 9-10
-shiftdamp 0.2
-stepsshift 1
-auto-adaptive-shift
-scale-spawns
-readpops
-load-balance-interval 1000
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    nmcyc 300
+    totalwalkers 10000
+    memoryfacspawn 10
+    definedet 1-6 9-10
+    shiftdamp 0.2
+    stepsshift 1
+    auto-adaptive-shift
+    readpops
+    scale-spawns 2
+    load-balance-interval 1000
+    tau-values \
+        start from-popsfile
+    tau-search \
+        algorithm conventional \
+        stop-condition var-shift
 endcalc
 
 logging
-popsfile -1
-hdf5-pops
+    popsfile -1
+    hdf5-pops
 endlog
 end

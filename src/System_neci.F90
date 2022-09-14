@@ -4,7 +4,7 @@ MODULE System
 
     use SystemData
 
-    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tPairedReplicas, &
                         S2Init, tDynamicAvMcEx
 
@@ -50,6 +50,8 @@ MODULE System
     use guga_data, only: tGUGACore
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
+
+    use tau_main, only: tau, assign_value_to_tau
 
     IMPLICIT NONE
 
@@ -3322,12 +3324,17 @@ contains
         !Detemines tau for a given lattice type
 
         if (dimen == 3) then ! 3D
-            TAU = (k_lattice_constant**2 * OMEGA) / (4.0_dp * PI) !Hij_min**-1
-            if (tTruncInitiator) TAU = TAU * InitiatorWalkNo
-            if (tHPHF) TAU = TAU / sqrt(2.0_dp)
-            TAU = 0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL)
+            ! Hij_min**-1
+            call assign_value_to_tau((k_lattice_constant**2 * OMEGA) / (4.0_dp * PI), &
+                'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, 'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), 'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                'Initialization in System_neci.')
             if (TAU > k_lattice_constant**(-2) / OrbEcutoff) then
-                TAU = 1.0_dp / (k_lattice_constant**(2) * OrbEcutoff)  !using Hii
+                ! using Hii
+                call assign_value_to_tau(1.0_dp / (k_lattice_constant**(2) * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
                 !write(stdout,*) 1.0_dp/((2.0_dp*PI/Omega**third)**2*orbEcutoff)
             else
@@ -3335,25 +3342,37 @@ contains
             end if
 
         else if (dimen == 2) then !2D
-            TAU = (k_lattice_constant * OMEGA) / (2.0_dp * PI)  !Hij_min**-1
-            if (tTruncInitiator) TAU = TAU * InitiatorWalkNo
-            if (tHPHF) TAU = TAU / sqrt(2.0_dp)
-            TAU = 0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL)
+            ! Hij_min**-1
+            call assign_value_to_tau((k_lattice_constant * OMEGA) / (2.0_dp * PI), &
+                    'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, &
+                    'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), 'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                    'Initialization in System_neci.')
             if (TAU > k_lattice_constant**(-2) / OrbEcutoff) then
             !!!!!!!! NOT WORKING YET!!!!!!!
-                TAU = 1.0_dp / (k_lattice_constant**(2) * OrbEcutoff)  !using Hii
+                !using Hii
+                call assign_value_to_tau(1.0_dp / (k_lattice_constant**(2) * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
             else
                 write(stdout, *) 'Tau set by using Hji'
             end if
 
         else if (dimen == 1) then !1D
-            TAU = OMEGA / (-2.0_dp * log(1.0_dp / (2.0_dp * sqrt(orbEcutoff))))
-            if (tTruncInitiator) TAU = TAU * InitiatorWalkNo
-            if (tHPHF) TAU = TAU / sqrt(2.0_dp)
-            TAU = 0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL)
+            call assign_value_to_tau(OMEGA / (-2.0_dp * log(1.0_dp / (2.0_dp * sqrt(orbEcutoff)))), &
+                    'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, &
+                    'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), &
+                    'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                    'Initialization in System_neci.')
             if (TAU > 0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff)) then
-                TAU = 0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff)   !using Hii
+                ! using Hii
+                call assign_value_to_tau(0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
             else
                 write(stdout, *) 'Tau set by using Hji'
@@ -3480,75 +3499,6 @@ contains
     end function
 
 END MODULE System
-
-SUBROUTINE WRITEBASIS(NUNIT, G1, NHG, ARR, BRR)
-    ! Write out the current basis to unit nUnit
-    use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, k_lattice_vectors
-    use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, nel, tUEG2
-    use DeterminantData, only: fdet
-    use sym_mod, only: writesym
-    use constants, only: dp
-    IMPLICIT NONE
-    INTEGER NUNIT, NHG, BRR(NHG), I
-    integer :: pos
-    TYPE(BASISFN) G1(NHG)
-    real(dp) ARR(NHG, 2), unscaled_energy, kvecX, kvecY, kvecZ
-
-    ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
-    !     filled in yet. --> track pos.
-    if (.not. associated(fdet)) &
-        write(nunit, '("HF determinant not yet defined.")')
-    pos = 1
-!=============================================
-    if (tUEG2) then
-
-        DO I = 1, NHG
-!     kvectors in cartesian coordinates
-            kvecX = k_lattice_vectors(1, 1) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 1) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 1) * G1(BRR(I))%K(3)
-            kvecY = k_lattice_vectors(1, 2) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 2) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 2) * G1(BRR(I))%K(3)
-            kvecZ = k_lattice_vectors(1, 3) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 3) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 3) * G1(BRR(I))%K(3)
-
-            unscaled_energy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
-
-            write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
-            CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
-            write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
-            write(NUNIT, '(3F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2), unscaled_energy
-
-            if (associated(fdet)) then
-                pos = 1
-                do while (pos < nel .and. fdet(pos) < brr(i))
-                    pos = pos + 1
-                end do
-                if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
-            end if
-            write(nunit, *)
-        end do
-        RETURN
-    end if !UEG2
-!=============================================
-    DO I = 1, NHG
-        write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
-        CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
-        write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
-        write(NUNIT, '(2F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2)
-        if (associated(fdet)) then
-            pos = 1
-            do while (pos < nel .and. fdet(pos) < brr(i))
-                pos = pos + 1
-            end do
-            if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
-        end if
-        write(nunit, *)
-    end do
-    RETURN
-END SUBROUTINE WRITEBASIS
 
 SUBROUTINE ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
     use SystemData, only: BasisFN, t_guga_noreorder, lNoSymmetry
@@ -3725,3 +3675,75 @@ SUBROUTINE GetUEGKE(I, J, K, ALAT, tUEGTrueEnergies, tUEGOffset, k_offset, Energ
         Energy = E
     end if
 END SUBROUTINE GetUEGKE
+
+
+SUBROUTINE WRITEBASIS(NUNIT, G1, NHG, ARR, BRR)
+    ! Write out the current basis to unit nUnit
+    use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, k_lattice_vectors
+    use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, nel, tUEG2
+    use DeterminantData, only: fdet
+    use sym_mod, only: writesym
+    use constants, only: dp
+    implicit none
+    integer, intent(in) :: nunit
+    type(basisfn), intent(in) :: g1(nhg)
+    integer, intent(in) :: nhg, brr(nhg)
+
+    integer :: pos, i
+    real(dp) ARR(NHG, 2), unscaled_energy, kvecX, kvecY, kvecZ
+
+    ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
+    !     filled in yet. --> track pos.
+    if (.not. associated(fdet)) &
+        write(nunit, '("HF determinant not yet defined.")')
+    pos = 1
+!=============================================
+    if (tUEG2) then
+
+        DO I = 1, NHG
+!     kvectors in cartesian coordinates
+            kvecX = k_lattice_vectors(1, 1) * G1(BRR(I))%K(1) &
+                    + k_lattice_vectors(2, 1) * G1(BRR(I))%K(2) &
+                    + k_lattice_vectors(3, 1) * G1(BRR(I))%K(3)
+            kvecY = k_lattice_vectors(1, 2) * G1(BRR(I))%K(1) &
+                    + k_lattice_vectors(2, 2) * G1(BRR(I))%K(2) &
+                    + k_lattice_vectors(3, 2) * G1(BRR(I))%K(3)
+            kvecZ = k_lattice_vectors(1, 3) * G1(BRR(I))%K(1) &
+                    + k_lattice_vectors(2, 3) * G1(BRR(I))%K(2) &
+                    + k_lattice_vectors(3, 3) * G1(BRR(I))%K(3)
+
+            unscaled_energy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
+
+            write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
+            CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
+            write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
+            write(NUNIT, '(3F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2), unscaled_energy
+
+            if (associated(fdet)) then
+                pos = 1
+                do while (pos < nel .and. fdet(pos) < brr(i))
+                    pos = pos + 1
+                end do
+                if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
+            end if
+            write(nunit, *)
+        end do
+        RETURN
+    end if !UEG2
+!=============================================
+    DO I = 1, NHG
+        write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
+        CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
+        write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
+        write(NUNIT, '(2F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2)
+        if (associated(fdet)) then
+            pos = 1
+            do while (pos < nel .and. fdet(pos) < brr(i))
+                pos = pos + 1
+            end do
+            if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
+        end if
+        write(nunit, *)
+    end do
+    RETURN
+END SUBROUTINE WRITEBASIS

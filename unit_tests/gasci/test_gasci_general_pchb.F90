@@ -1,5 +1,5 @@
 module test_gasci_general_pchb
-    use fruit
+    use fruit, only: assert_equals, assert_true, assert_false
     use constants, only: dp, int64, n_int, maxExcit
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use util_mod, only: factrl, swap, cumsum
@@ -85,8 +85,9 @@ end module
 
 program test_gasci_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_general_pchb, only: test_pgen
 

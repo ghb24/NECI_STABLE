@@ -9,6 +9,10 @@ module cepa_shifts
                              cc_doubles_factor, cc_triples_factor, cc_quads_factor
 
     implicit none
+    private
+    public :: cepa_0, cepa_aqcc, cepa_shift_double, &
+        cepa_acpf, init_cepa_shifts, cepa_shift_single, &
+        cepa_shift, cepa_method, aqcc_factor, t_cepa_shift
 
     ! maybe i should start and store all the necessary flags and variables
     ! in the files the functionality belongs to.. is this less messy?

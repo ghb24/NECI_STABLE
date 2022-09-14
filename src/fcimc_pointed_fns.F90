@@ -12,11 +12,10 @@ module fcimc_pointed_fns
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
-                        RealCoeffExcitThresh, tau, DiagSft, &
+                        RealCoeffExcitThresh, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
-                        t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, &
+                        t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        t_hist_tau_search_option, &
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
@@ -32,8 +31,11 @@ module fcimc_pointed_fns
 
     use bit_rep_data, only: NIfTot, test_flag
 
-    use tau_search, only: log_death_magnitude, fill_frequency_histogram_nosym_diff, &
-                          fill_frequency_histogram_nosym_nodiff, log_spawn_magnitude
+    use tau_main, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
+        log_death_magnitude, tau
+    use tau_search_conventional, only: log_spawn_magnitude
+    use tau_search_hist, only: t_fill_frequency_hists, fill_frequency_histogram_4ind, &
+        fill_frequency_histogram_sd, fill_frequency_histogram
 
     use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run, writebitdet
 
@@ -57,9 +59,6 @@ module fcimc_pointed_fns
 
     use real_time_data, only: runge_kutta_step, t_real_time_fciqmc
 
-    use tau_search_hist, only: fill_frequency_histogram_4ind, &
-                               fill_frequency_histogram_sd, &
-                               fill_frequency_histogram
 
     use excit_gen_5, only: pgen_select_a_orb
 
@@ -426,7 +425,7 @@ contains
 
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+            if (tau_search_method /= possible_tau_search_methods%OFF .or. tFillingStochRDMonFly) then
                 ! in the back-spawning i have to adapt the probabilites
                 ! back, to be sure the time-step covers the changed
                 ! non-initiators spawns!
@@ -651,7 +650,7 @@ contains
 
         if (any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then
-                if (tSearchTauOption .or. t_hist_tau_search_option) then
+                if ((tau_search_method /= possible_tau_search_methods%OFF) .or. t_scale_tau_to_death) then
                     ! If we are early in the calculation, and are using tau
                     ! searching, then this is not a big deal. Just let the
                     ! searching deal with it

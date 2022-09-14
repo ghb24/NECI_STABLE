@@ -10,6 +10,7 @@ subroutine stop_all(sub_name, error_msg)
     use Parallel_neci, only: iProcIndex, MPIStopAll
 #endif
     implicit none
+    external :: neci_flush
 
     interface
         subroutine print_backtrace_neci () bind(c)

@@ -8,6 +8,7 @@ MODULE Determinants
                           t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
                           nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
+    ! use System, only: writeBasis
 
     use IntegralsData, only: UMat, FCK, NMAX
 
@@ -38,6 +39,20 @@ MODULE Determinants
         module procedure get_helement_compat
         module procedure get_helement_excit
         module procedure get_helement_normal
+    end interface
+
+    interface
+        !Write out the determinant in bit notation
+        SUBROUTINE WriteDetBit(nUnit, iLutnI, lTerm)
+            use SystemData, only: nBasis
+            use bit_reps, only: nIfTot
+            use constants, only: n_int, bits_n_int
+            use util_mod, only: operator(.div.)
+            implicit none
+            integer, intent(in) :: nUnit
+            integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+            logical, intent(in) :: lTerm
+        end subroutine
     end interface
 
     save

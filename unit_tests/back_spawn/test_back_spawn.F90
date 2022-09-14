@@ -2,8 +2,19 @@
 
 program test_back_spawn
 
-    use back_spawn
-    use fruit
+    use constants, only: dp
+    use back_spawn, only: is_in_ref, mask_virt_ni, check_electron_location, &
+        is_in_virt_mask, mask_virt_ilut, mask_virt_ni, &
+        init_back_spawn, setup_virtual_mask, pick_occupied_orbital_single, &
+        pick_occupied_orbital, pick_virtual_electron_single, &
+        pick_virtual_electrons_double_hubbard, pick_occupied_orbital_ueg, &
+        pick_second_occupied_orbital, is_allowed_ueg_k_vector, &
+        encode_mask_virt, pick_virtual_electrons_double, &
+        pick_occupied_orbital_hubbard
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true, assert_equals
+    use SystemData, only: tGen_4ind_2, tGen_4ind_2_symmetric
+    use CalcData, only: tTruncInitiator
 
     implicit none
 

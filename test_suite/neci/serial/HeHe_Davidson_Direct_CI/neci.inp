@@ -1,14 +1,14 @@
 title
 
 system read
-electrons 4
+    electrons 4
 endsys
 
 calc
-methods
-davidson 2 0 8 0 4
-endmethods
-seed -7
+    methods
+        davidson 2 0 8 0 4
+    endmethods
+    tau-values start not-needed
 endcalc
 
 integral

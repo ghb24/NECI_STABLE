@@ -6,13 +6,12 @@ module Integrals_neci
                           tRIIntegrals, tVASP, tComplexOrbs_RealInts, NEl, LMS, &
                           ECore, t_new_real_space_hubbard, t_trans_corr_hop, &
                           t_new_hubbard, t_k_space_hubbard, t_mol_3_body, &
-                          tContact, t12FoldSym
+                          tContact, t12FoldSym, t_tJ_model, t_heisenberg_model
+
 
     use UmatCache, only: tUmat2D, UMatInd, UMat2Ind, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts, setup_UMatInd
-
-    use vasp_neci_interface
 
     use IntegralsData
 
@@ -33,13 +32,11 @@ module Integrals_neci
 
     use constants
 
-    use tJ_model, only: t_tJ_model, t_heisenberg_model
-
     use sym_mod, only: symProd, symConj, totsymrep
 
     USE OneEInts, only: TMAT2D
 
-    use util_mod, only: get_free_unit, stop_all
+    use util_mod, only: get_free_unit, stop_all, neci_flush
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 

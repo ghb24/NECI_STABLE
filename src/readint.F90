@@ -1,4 +1,25 @@
 module read_fci
+    use constants, only: dp, int64, stdout, sizeof_int, nel_uninitialized
+    use util_mod, only: stop_all, get_free_unit, near_zero
+
+    use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, &
+        tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
+        tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
+        BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
+        UMatEps, t_non_hermitian, tRIIntegrals, SYMMAX, irrepOrbOffset, &
+        t_complex_ints
+
+
+    use SymData, only: nProp, PropBitLen, TwoCycleSymGens
+
+    use UMatCache, only: GetCacheIndexStates, GTID, &
+        UMatInd, UMatConj, UMAT2D, TUMAT2D, CacheFCIDUMP, &
+        FillUpCache, GTID, nStates, GetUMatSize
+
+    use OneEInts, only: TMatind, TMat2D, CalcTMatSize
+
+    use Parallel_neci, only: MPIBCast, iProcIndex, MPIBcast, MPIArg
+    use shared_memory_mpi, only: shared_sync_mpi, MPIBCast_inter_byte
     implicit none
 
     character(len=1024) :: FCIDUMP_name
@@ -10,12 +31,6 @@ module read_fci
 contains
 
     SUBROUTINE INITFROMFCID(NEL, NBASISMAX, LEN, LMS, TBIN)
-        use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, &
-            tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
-            tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps
-        use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-        use Parallel_neci
-        use util_mod, only: get_free_unit, near_zero
         logical, intent(in) :: tbin
         integer, intent(out) :: nBasisMax(5, *), LEN, LMS
         integer, intent(inout) :: NEL
@@ -213,17 +228,6 @@ contains
     END SUBROUTINE INITFROMFCID
 
     SUBROUTINE GETFCIBASIS(NBASISMAX, ARR, BRR, G1, LEN, TBIN)
-        use SystemData, only: BasisFN, Symmetry, NullBasisFn, tMolpro, &
-            tROHF, tFixLz, iMaxLz, tRotatedOrbsReal, &
-            tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, nIrreps
-#if defined(CMPLX_)
-        use SystemData, only: t_complex_ints
-#endif
-        use UMatCache, only: GetCacheIndexStates, GTID
-        use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-        use Parallel_neci
-        use constants, only: dp, sizeof_int
-        use util_mod, only: get_free_unit
         integer, intent(in) :: LEN
         integer, intent(inout) :: nBasisMax(5, *)
         integer, intent(out) :: BRR(LEN)
@@ -558,21 +562,6 @@ contains
     END SUBROUTINE GETFCIBASIS
 
     SUBROUTINE READFCIINT(UMAT, umat_win, NBASIS, ECORE)
-        use constants, only: dp
-        use SystemData, only: Symmetry, BasisFN, tMolpro, UMatEps, tUHF, &
-            tRIIntegrals, tROHF, tRotatedOrbsReal, &
-            tReadFreeFormat, tFixLz, tReltvy, nIrreps
-#if defined(CMPLX_)
-        use SystemData, only: t_complex_ints
-#endif
-        USE UMatCache, only: UMatInd, UMatConj, UMAT2D, TUMAT2D, CacheFCIDUMP, &
-            FillUpCache, GTID, nStates, GetUMatSize
-        use OneEInts, only: TMatind, TMat2D
-        use OneEInts, only: CalcTMatSize
-        use Parallel_neci
-        use shared_memory_mpi
-        use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-        use util_mod, only: get_free_unit, near_zero
         integer, intent(in) :: NBASIS
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(inout) :: UMAT(:)
@@ -928,11 +917,6 @@ contains
 
     !This is a copy of the routine above, but now for reading in binary files of integrals
     SUBROUTINE READFCIINTBIN(UMAT, ECORE)
-        use constants, only: dp, int64
-        use SystemData, only: Symmetry, BasisFN
-        USE UMatCache, only: UMatInd
-        use OneEInts, only: TMatind, TMat2D
-        use util_mod, only: get_free_unit
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(out) :: UMAT(*)
         HElement_t(dp) Z
@@ -992,12 +976,6 @@ contains
     END SUBROUTINE READFCIINTBIN
 
     SUBROUTINE ReadPropInts(nBasis, PropFile, CoreVal, OneElInts)
-
-        use constants, only: dp, int64, stdout
-        use util_mod, only: get_free_unit
-        use SymData, only: PropBitLen, nProp
-        use SystemData, only: UMatEps, tROHF, tReltvy
-        use Parallel_neci, only: iProcIndex, MPIBcast
 
         integer, intent(in) :: nBasis
         HElement_t(dp) :: OneElInts(nBasis, nBasis)
@@ -1109,7 +1087,6 @@ contains
     end subroutine clear_orb_perm
 
     subroutine reorder_sym_labels(ORBSYM, SYML, SYMLZ)
-        use constants, only: int64
         integer(int64), intent(inout) :: ORBSYM(:)
         integer, intent(inout) :: SYML(:), SYMLZ(:)
 

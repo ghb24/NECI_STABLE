@@ -472,16 +472,6 @@ MODULE FciMCData
     ! auxiliary variables used to determine AvMCExcits on the fly
     integer(int64) :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
 
-    ! Tau searching variables
-    ! tSearchTau specifies if we are searching tau
-    ! tSearchTauOption specifies if we have ever searched for tau
-    ! tSearchTauDeath is an override - if we need to adjust tau due to
-    !     particle death, when tSearchTau is disabled, but tSearchTauOption
-    !     is enabled.
-    logical :: tSearchTau, tSearchTauOption
-    logical :: tSearchTauDeath
-    real(dp) :: MaxTau
-
     !Variables for diagonalisation of the walker subspace
     integer :: unitWalkerDiag
 

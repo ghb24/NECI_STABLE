@@ -12,7 +12,8 @@ calc
         method vertex fcimc
     endmethods
 
-    tau 0.25
+    tau-values \
+        start user-defined 0.25
     totalwalkers   100
 
     definedet 1 3 5 8 10 12
@@ -27,7 +28,6 @@ calc
     stepsshift 10
     truncinitiator
     addtoinitiator 2
-    maxwalkerbloom 1
     memoryfacspawn 20.0
     memoryfacpart 10.0
     trial-wavefunction 10

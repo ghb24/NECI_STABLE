@@ -143,7 +143,6 @@ module CalcData
     logical :: tRPA_QBA     !RPA calculation with QB approximation
     logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
     logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
-    logical :: tSpecifiedTau
     logical :: tInitializeCSF
     real(dp) :: S2Init
     logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
@@ -213,7 +212,6 @@ module CalcData
     INTEGER :: OccCASorbs, VirtCASorbs, iAnnInterval
     integer :: iPopsFileNoRead, iPopsFileNoWrite, iRestartWalkNum
     real(dp) :: iWeightPopRead
-    real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
     INTEGER(int64) :: HFPopThresh
     real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
 ! Options for dynamic rescaling of spawn attempts + blooms
@@ -232,10 +230,10 @@ module CalcData
     real(dp) :: G_VMC_EXCITWEIGHT(10), G_VMC_EXCITWEIGHTS(6, 10)
     real(dp) :: BETAP, RHOEPSILON, DBETA, STARCONV, GraphBias
     real(dp), allocatable :: user_input_SftDamp
-    real(dp) :: GrowGraphsExpo, Tau, SftDamp, SftDamp2, ScaleWalkers
+    real(dp) :: GrowGraphsExpo, SftDamp, SftDamp2, ScaleWalkers
     real(dp) :: PRet, FracLargerDet, pop_change_min
     real(dp) :: MemoryFacPart
-    real(dp) :: MemoryFacSpawn, SinglesBias, TauFactor, StepsSftImag
+    real(dp) :: MemoryFacSpawn, SinglesBias, StepsSftImag
 
     real(dp) :: MemoryFacInit
 
@@ -443,40 +441,14 @@ module CalcData
 ! Keep track of where in the calculation sequence we are.
     integer :: calc_seq_no
 
-! introduce a min_tau value to set a minimum of tau for the automated tau
-! search
-    logical :: t_min_tau = .false.
-    real(dp) :: min_tau_global = 1.0e-7_dp
-
-! alis suggestion: have an option after restarting to keep the time-step
-! fixed to the values obtained from the POPSFILE
-    logical :: t_keep_tau_fixed = .false.
-
     logical :: tPopsAlias = .false.
     character(255) :: aliasStem
-! new tau-search using HISTOGRAMS:
-    logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
-    logical :: t_fill_frequency_hists = .false.
-
-! also use a logical, read-in in the case of a continued run, which turns
-! off the tau-search independent of the input and uses the time-step
-! pSingles and pDoubles values from the previous calculation.
-    logical :: t_previous_hist_tau = .false.
-
-! it can be forced to do a tau-search again, if one provides an additional
-! input restart-hist-tau-search in addition to the the hist-tau-search
-! keyword in case the tau-search is not converged enough
-    logical :: t_restart_hist_tau = .false.
 
     logical :: t_consider_par_bias = .false.
 
 ! quickly implement a control parameter to test the order of matrix element
 ! calculation in the transcorrelated approach
     logical :: t_test_order = .false.
-! also introduce an integer, to delay the actual changing of the time-step
-! for a set amount of iterations
-! (in the restart case for now!)
-    integer :: hist_search_delay = 0
 
 ! maybe also introduce a mixing between the old and new quantities in the
 ! histogramming tau-search, since it is a stochastic process now
@@ -487,18 +459,6 @@ module CalcData
 ! inputted, without an additional argument default it to 0.7_dp
     real(dp) :: mix_ratio = 1.0_dp
 
-    logical :: t_test_hist_tau = .false.
-! real(dp) :: frq_step_size = 0.1_dp
-!
-!
-! ! i need bin arrays for all types of possible spawns:
-! integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
-!                         frequency_bins_anti(:), frequency_bins_doubles(:), &
-!                         frequency_bins(:)
-!
-! ! for the rest of the tau-search, reuse the quantities from the "standard"
-! ! tau search, like enough_sing, etc. although they are not global yet..
-! ! so maybe define new ones to not get confused
 
 ! and i also need to truncate the spawns maybe:
     logical :: t_truncate_spawns = .false.
@@ -535,91 +495,7 @@ module CalcData
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
     integer :: occ_virt_level = 0
 
-! make variables for automated tau determination, globally available
-! 4ind-weighted variables:
-    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt, &
-                max_permitted_spawn
-    real(dp) :: gamma_trip
-    logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
-    logical :: enough_trip
-    real(dp) :: gamma_sum
 
-    real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
-    integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par, cnt_trip
-! guga-specific:
-    integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
-    integer :: n_opp, n_par
-    integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
-
-! guga non-weighted excitation generator tau-update variables
-    real(dp) :: gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
-                gamma_four
-    logical :: enough_two, enough_two_same, enough_two_mixed, enough_three, &
-               enough_three_same, enough_three_mixed, enough_four
-
-! introducing an new way to adapt the time-step through H_ij/pgen frequency
-! analysis: for this we need to store a histogram of the H_ij/pgens
-! across all processors which are accumulated during a FCIQMC run
-! the bins and boundaries need to be able to be adjusted during run-time
-! to store the number of elements
-    integer, allocatable :: frequency_bins(:)!, all_frequency_bins(:)
-! to store the boundaries of bins
-    real(dp), allocatable :: frequency_bounds(:)!, all_frequency_bounds(:)
-    logical :: t_frequency_analysis = .false. ! flag to initiate the new analysis
-! change how this is approached to avoid MPI communication issues
-! fix the size of the bins to 10M and the bound to 1M and the step-size to
-! 0.1 and ignore all the frequency ratios above that.. and assume these
-! happen really seldomly and would be cut-off anyway with the integration
-! technique..
-    integer :: n_frequency_bins = 100000 ! optional input to adjust the number of bins
-    real(dp) :: max_frequency_bound = 10000.0_dp
-! and also store data for the MPI communication
-    real(dp) :: all_max_bound = 0.0_dp
-    integer :: all_n_bins = 0
-! use a global step-size, so no numericall error creeps in ..
-    real(dp) :: frq_step_size = 0.1_dp
-
-! for automated tau-search i need more histograms to distinguish between
-! the different types of excitations..
-    integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
-                            frequency_bins_anti(:), frequency_bins_doubles(:)
-    real(dp), allocatable :: frequency_bounds_singles(:), frequency_bounds_para(:), &
-                             frequency_bounds_anti(:), frequency_bounds_doubles(:)
-
-! for the nosym guga implementation also use different bins for the mixed
-! and alike types of excitations
-    integer, allocatable :: frequency_bins_type2(:), frequency_bins_type2_diff(:), &
-                            frequency_bins_type3(:), frequency_bins_type3_diff(:), &
-                            frequency_bins_type4(:)
-    real(dp), allocatable :: frequency_bounds_type2(:), frequency_bounds_type2_diff(:), &
-                             frequency_bounds_type3(:), frequency_bounds_type3_diff(:), &
-                             frequency_bounds_type4(:)
-
-! use also an input dependent ratio cutoff for the time-step adaptation
-    real(dp) :: frq_ratio_cutoff = 0.999_dp
-
-! also use an additional flag to turn the new tau-search off but keep some
-! of its functionality anyway..
-
-! do that for the nosym guga now too deliberately! because there seems to be
-! some matrix element or dynamics problem..
-    integer :: cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
-               cnt_type4
-! and also logicals if i have enough of the excitations
-    logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
-
-! keep also track of the H_ij/pgen value at the integration threshold to
-! determine what we should do with the spawning events above that ..
-    real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
-
-! introduce a flag to read the pSingles/pDoubles quantity even though the
-! tau-search may be turned off
-! do i want to change this to the default behavior? and indicate it
-! with "no-read_probs?" to do otherwise? i think so, because why wouldn't
-! i always use that, since we are always using tau-search, and even if
-! we dont use it, the pSingles etc. are stored anyway, and if the are not
-! stored they are 0, and in this case they are not read in anyway!
-    logical :: t_read_probs = .false.
 ! also need multiple new specific excitation type probabilites, but they are
 ! defined in FciMCdata module!
 ! move tSpinProject here to avoid circular dependencies

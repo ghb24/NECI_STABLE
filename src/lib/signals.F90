@@ -8,6 +8,7 @@ module neci_signals
 
     use, intrinsic :: iso_c_binding, only: c_int
     use constants, only: stdout
+    use util_mod, only: stop_all, neci_flush
     implicit none
     private
 
