@@ -90,7 +90,8 @@ contains
                 if (tHPHF) then
                     offdiagH = hphf_off_diag_helement(det0, det, ilut0, ilut)
                 else
-                    offdiagH = get_helement(det0, det, exlevel, ilut0, ilut)
+                    offdiagH = get_helement(det, det0, exlevel, ilut, ilut0)
+!                     offdiagH = get_helement(det0, det, exlevel, ilut0, ilut)
                 end if
             end if
         end if

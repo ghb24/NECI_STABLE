@@ -685,10 +685,10 @@ contains
                 do run = 1, inum_runs
                     if(t_evolve_adjoint(part_type_to_run(run))) then
                         HOffDiag(run) = &
-                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
                     else
                         HOffDiag(run) = &
-                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
                     end if
                 end do
             end if
@@ -792,16 +792,6 @@ contains
             dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign, run)) / dProbFin
         end function enum_contrib
 
-        function assigned_matrix_element(nA, nB, ilutA, ilutB) result(matel)
-            integer, intent(in) :: nA(nel), nB(nel)
-            integer(n_int), intent(in) :: ilutA(0:NIfTot), ilutB(0:NIfTot)
-            HElement_t(dp) :: matel
-            if(tHPHF) then
-                matel = hphf_off_diag_helement(nA, nB, ilutA, ilutB)
-            else
-                matel = get_helement(nA, nB, ExcitLevel, ilutA, ilutB)
-            endif
-        end function assigned_matrix_element
     end subroutine SumEContrib
 
     subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
@@ -968,14 +958,24 @@ contains
                         hoffdiag = hphf_off_diag_helement(ProjEDet(:, run), nI, &
                                                           iLutRef(:, run), ilut)
                     else
-                        hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
+                        if(t_evolve_adjoint(part_type_to_run(run))) then
+                            hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
                                                 ilutRef(:, run), ilut)
+                        else
+                            hoffdiag = get_helement(nI, ProjEDet(:, run), exlevel, &
+                                                ilut, ilutRef(:, run))
+                        end if
                     end if
 
                 else if (exlevel == 3 .and. &
                          (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
-                    hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
+                    if(t_evolve_adjoint(part_type_to_run(run))) then
+                        hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
                                             iLutRef(:, run), ilut)
+                    else
+                        hoffdiag = get_helement(nI, ProjEDet(:, run), exlevel, &
+                                            ilut, iLutRef(:, run))
+                    end if
                 end if
             end if
 
