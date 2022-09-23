@@ -53,6 +53,8 @@ module verlet_aux
 
     use tau_main, only: tau, assign_value_to_tau
 
+    use util_mod, only: stop_all
+
     implicit none
 
 contains

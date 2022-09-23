@@ -6,6 +6,7 @@
       SUBROUTINE LOWDIN_ORTH(MAT, N, R1, R2, WORK)
           use constants, only: dp, sp, stdout
           use HElem
+          use util_mod, only: stop_all
           IMPLICIT NONE
           INTEGER N
           HElement_t(dp) MAT(N, N), R1(N, N), R2(N, N)

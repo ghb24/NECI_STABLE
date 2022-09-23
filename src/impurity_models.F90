@@ -13,6 +13,7 @@ module impurity_models
     use get_excit, only: make_single, make_double
     use UMatCache, only: GtID
     use procedure_pointers, only: get_umat_el
+    use util_mod, only: stop_all
 ! This module contains utility for treating impurity models, i.e. systems
 ! which are seperable into a (large) noninteracting bath and a (small) interacting
 ! impurity

@@ -39,6 +39,8 @@ module bit_reps
 
     use DeterminantData, only: write_det
 
+    use util_mod, only: stop_all, neci_flush
+
     implicit none
 
     ! Structure of a bit representation:

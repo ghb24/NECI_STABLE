@@ -56,6 +56,7 @@ module AnnihilationMod
     use initiator_space_procs, only: set_conn_init_space_flags_slow
     use guga_bitRepOps, only: transfer_stochastic_rdm_info, extract_stochastic_rdm_ind
     use tau_main, only: tau
+    use util_mod, only: stop_all, neci_flush, warning_neci
 
     implicit none
 

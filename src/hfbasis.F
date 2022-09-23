@@ -75,6 +75,7 @@ C..Symmetries not needed by UMatInd
          use SystemData, only: Symmetry,BasisFN
          use constants, only: dp
          use sym_mod, only: GENMOLPSYMTABLE, GENMOLPSYMREPS, TotSymRep
+         use error_handling_neci, only: stop_all
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -120,7 +121,7 @@ C.. Generic spatial symmetry
          USE UMatCache , only : UMatInd,GTID
          use constants, only: dp
          use global_utilities
-         use util_mod, only: near_zero
+         use util_mod, only: near_zero, stop_all
          IMPLICIT NONE
          INTEGER NBASIS,ISS
          real(dp) UMAT(*)
@@ -235,6 +236,7 @@ C..Symmetries not needed by UMatInd
       SUBROUTINE READHFBASIS(HFBASIS,HFE,G1,NBASIS)
          use SystemData, only: BasisFN
          use constants, only: dp
+         use util_mod, only: stop_all
          IMPLICIT NONE
          INTEGER NBASIS,NQNS(5),NN
          TYPE(BasisFN) G1(nBasis)
@@ -282,6 +284,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          use global_utilities
          use SystemData, only: BasisFN
          use MemoryManager, only: TagIntType
+         use util_mod, only: stop_all
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          INTEGER NBASIS,nBasisMax(5,*)
@@ -307,12 +310,8 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER HFDET(NEL)
          INTEGER ILOGGING
          character(*),parameter :: this_routine='CALCHFBASIS'
-C.. Allocate mem etc.
-C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
-C         IF(TRHF) call stop_all(this_routine, 'RHF not supported')
          NSPINS=1+(NBASISMAX(4,2)-NBASISMAX(4,1))/2
          NSBASIS=NBASIS/NSPINS
-C         IF(TRHF) NSPINS=1
          allocate(FMAT(NSBASIS*NSBASIS*NSPINS))
          call LogMemAlloc('FMAT',NSBASIS*NSBASIS*NSPINS,
      &                           HElement_t_size*8,this_routine,tagFMAT)
@@ -630,6 +629,7 @@ C.. Now sum in the alpha and beta block of u matrix
          USE LoggingData, only :HFLogLevel
          use constants, only: dp
          use HElem, only: HElement_t_size
+         use util_mod, only: stop_all
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
          real(dp) HFES(NSBASIS,NSPINS)
@@ -811,6 +811,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           use sort_mod
           use sym_mod, only: checkMomentumInvalidity, MomPbcSym
           use lattice_mod, only: lat
+          use util_mod, only: stop_all, neci_flush
           implicit none
 
           integer, intent(out) :: fdet(nel)
@@ -916,7 +917,7 @@ C.. Generate an initial determinant of specified spin
          use SystemData, only: BasisFN,tMolpro, IPARITY, nbasisMax,
      &       symmetry, symmax
          Use Determinants, only: write_det, write_det_len, get_helement
-         use util_mod, only: int_fmt
+         use util_mod, only: int_fmt, stop_all
          use sort_mod
          use sym_mod, only: getsym, writesym, symprod
          use constants, only: dp
@@ -1436,6 +1437,7 @@ C.. Unrestricted Hartree Fock with a gradient descent method.
          use constants, only: dp
          use Determinants, only: write_det
          use sort_mod
+         use util_mod, only: stop_all
          IMPLICIT NONE
          TYPE(BasisFn) G1(*)
          INTEGER NSPINS,NSBASIS
@@ -1878,6 +1880,7 @@ C.. Here A and C correspond to J and B corresponds to K
       SUBROUTINE READHFFMAT(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,TRANSP)
          use SystemData, only: BasisFn
          use constants, only: dp
+         use util_mod, only: stop_all
          IMPLICIT NONE
          TYPE(BasisFn) G1(*)
          INTEGER NBASIS,NQNS(5),NN,NSPINS,NSBASIS
@@ -1922,6 +1925,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       SUBROUTINE ORDERBASISHF(ARR,BRR,HFE,HFBASIS,NBASIS,FDET,NEL)
          use sort_mod
          use constants, only: dp
+         use error_handling_neci, only: neci_flush, stop_all
          IMPLICIT NONE
          INTEGER NBASIS,BRR(NBASIS)
          real(dp) ARR(NBASIS,2),HFE(NBASIS),HFBASIS(NBASIS,NBASIS)

@@ -201,7 +201,7 @@ module fcimc_initialisation
         Sync_Time, MPIAllReduceDatatype
 
     use util_mod, only: stop_all, get_free_unit, neci_flush, &
-        operator(.isclose.), operator(.div.)
+        operator(.isclose.), operator(.div.), warning_neci
 
     use fortran_strings, only: str
 
@@ -368,7 +368,7 @@ module fcimc_initialisation
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
     implicit none
 
-    external :: dgeev, Warning_neci, LargestBitSet
+    external :: dgeev, LargestBitSet
 
 contains
 
@@ -2426,21 +2426,6 @@ contains
 
         call finalize_exz_gen_class()
 
-!There seems to be some problems freeing the derived mpi type.
-!        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-!Free the mpi derived type that we have created for the hashes.
-!            CALL MPI_Type_free(mpilongintegertype,error)
-!            IF(error.ne.MPI_SUCCESS) THEN
-!                CALL MPI_Error_string(error,message,length,temp)
-!                IF(temp.ne.MPI_SUCCESS) THEN
-!                    write(stdout,*) "REALLY SERIOUS PROBLEMS HERE!",temp
-!                    CALL neci_flush(stdout)
-!                end if
-!                write(stdout,*) message(1:length)
-!                write(stdout,*) "ERROR FOUND"
-!                CALL neci_flush(stdout)
-!            end if
-!        end if
 
     end subroutine DeallocFCIMCMemPar
 

@@ -33,6 +33,7 @@ module symrandexcit_Ex_mag
     use symrandexcit3, only: pick_elec_pair, count_orb_pairs, select_syms, select_orb_pair, &
                              create_excit_det2, construct_class_counts
     use symexcit3, only: GenSingleExcit
+    use util_mod, only: stop_all, neci_flush
 
     implicit none
 
@@ -755,19 +756,3 @@ contains
     END SUBROUTINE
 
 end module
-
-! N.B. This is outside the module *sigh*
-!subroutine virt_uniform_sym_setup ()
-
-!    use SymExcitDataMod, only: ScratchSize, ScratchSize3
-!    implicit none
-
-! We use the third scratch array to store data for single
-! excitations
-
-!    call SpinOrbSymSetup ()
-
-!    ScratchSize3 = ScratchSize
-
-!end subroutine
-
