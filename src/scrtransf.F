@@ -135,6 +135,7 @@ C..
      &   COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,TOTSUM)
          use constants, only: dp
+         use util_mod, only: stop_all
          IMPLICIT NONE
          INTEGER NEL
          INTEGER NSBASIS,NSPINS

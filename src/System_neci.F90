@@ -19,7 +19,8 @@ MODULE System
     use read_fci, only: FCIDUMP_name, load_orb_perm
 
     use util_mod, only: error_function, error_function_c, &
-                        near_zero, operator(.isclose.), get_free_unit, operator(.div.)
+                        near_zero, operator(.isclose.), get_free_unit, operator(.div.), &
+                        stop_all, neci_flush
 
     use lattice_mod, only: lattice, lat
 
@@ -3515,7 +3516,7 @@ END MODULE System
 SUBROUTINE ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
     use SystemData, only: BasisFN, t_guga_noreorder, lNoSymmetry
     use sort_mod
-    use util_mod, only: NECI_ICOPY
+    use util_mod, only: NECI_ICOPY, stop_all
     use constants, only: dp, stdout
     use sym_mod, only: GENMOLPSYMTABLE
     implicit none

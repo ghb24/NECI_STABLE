@@ -15,6 +15,7 @@ module davidson_semistoch
     use MPI_wrapper, only: root, MPI_WTIME
     use sparse_arrays, only: HDiagTag
     use core_space_util, only: cs_replicas
+    use util_mod, only: neci_flush
     implicit none
 
     integer :: max_num_davidson_iters = 25

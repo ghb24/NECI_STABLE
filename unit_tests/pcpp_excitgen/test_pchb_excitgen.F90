@@ -69,6 +69,7 @@ program test_pchb_excitgen
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_pchb_excitgen_mod, only: pchb_test_driver
+    use util_mod, only: stop_all
     implicit none
 
     call MPIInit(.false.)

@@ -216,12 +216,12 @@ set( SRC_FILES
     exc_gen_class_wrappers.F90
     exc_gen_classes.F90
 
-    lib/backtrace.cpp
     lib/cons_neci.F90
     lib/dSFMT.cpp
     lib/dSFMT_interface.F90
     lib/environment_report.F90
     lib/error_handling_neci.F90
+    lib/error_handling_neci_impls.F90
     lib/hdf5_util.F90
     lib/MemoryManagement.F90
     lib/signals.F90
@@ -414,7 +414,11 @@ set( RELAX_WARNINGS_SRCS
     verlet_aux.F90
     CAS_distribution_init.F90
 
+
+    # If this bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105594) in gfortran
+    #  is resolved, we can have again stricter compilation options.
     tau/tau_main_impls.F90
+    lib/error_handling_neci_impls.F90
 )
 
 set( FYPP_SRC_FILES

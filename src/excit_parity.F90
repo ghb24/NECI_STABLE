@@ -7,6 +7,7 @@ module get_excit
     use DeterminantData, only: write_det
     use sym_general_mod, only: SymAllowedExcit
     use sym_mod, only: MomPbcSym
+    use util_mod, only: stop_all
     implicit none
 
 contains

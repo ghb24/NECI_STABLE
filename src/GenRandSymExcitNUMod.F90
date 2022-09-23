@@ -56,6 +56,7 @@ MODULE GenRandSymExcitNUMod
     use back_spawn, only: pick_virtual_electrons_double_hubbard, &
         pick_occupied_orbital_hubbard, check_electron_location
     use lattice_models_utils, only: get_ispn
+    use util_mod, only: stop_all
 
     use neci_intfce
     use bit_rep_data, only: test_flag
@@ -2499,6 +2500,7 @@ SUBROUTINE SpinOrbSymSetup()
     use Determinants, only: FDet
     use umatcache, only: gtID
     use sym_mod, only: mompbcsym, SymProd, writesym
+    use util_mod, only: stop_all
     use constants, only: dp, stdout
     use lattice_mod, only: lat
 

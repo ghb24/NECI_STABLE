@@ -36,6 +36,7 @@ module sparse_arrays
     use guga_data, only: tag_excitations, ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
+    use util_mod, only: stop_all
 
     implicit none
 
