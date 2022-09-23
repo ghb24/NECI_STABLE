@@ -677,14 +677,14 @@ contains
         max_death_cpt = mpi_tmp
         ! again, only count deaths if any occured
         if(abs(max_death_cpt) > EPS) then
-           tau_death = 1.0_dp / max_death_cpt
-           if (tau_death < tau_new) then
-              if (tau_death < min_tau) then
-                 root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
-                 min_tau = tau_death
-              end if
-              tau_new = tau_death
-           end if
+            tau_death = 1.0_dp / max_death_cpt
+            if (tau_death < tau_new) then
+                if (tau_death < min_tau) then
+                    root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                    min_tau = tau_death
+                end if
+                tau_new = tau_death
+            end if
         end if
 
         ! If the calculated tau is less than the current tau, we should ALWAYS
@@ -1835,7 +1835,7 @@ contains
         character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
 
         integer(int64) :: all_frequency_bins(n_frequency_bins)
-        integer :: i, threshold
+        integer(int64) :: i, threshold
         integer(int64) :: n_elements, cnt
         real(dp) :: test_ratio, all_test_ratio
         logical :: mpi_ltmp
@@ -1859,9 +1859,9 @@ contains
 
             else
 
-                threshold = int(frq_ratio_cutoff * real(n_elements, dp))
-                cnt = 0
-                i = 0
+                threshold = int(frq_ratio_cutoff * n_elements, kind=int64)
+                cnt = 0_int64
+                i = 0_int64
                 do while (cnt < threshold)
                     i = i + 1
                     cnt = cnt + spec_frequency_bins(i)
@@ -1918,7 +1918,7 @@ contains
             return
         end if
 
-        threshold = int(frq_ratio_cutoff * real(n_elements, dp))
+        threshold = int(frq_ratio_cutoff * n_elements, kind=int64)
 
         cnt = 0
         i = 0

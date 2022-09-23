@@ -2,7 +2,7 @@
 
 module tau_main
     use util_mod, only: EnumBase_t, stop_all, near_zero
-    use constants, only: dp, inum_runs, EPS, stdout
+    use constants, only: dp, inum_runs, EPS, stdout, stderr
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, iProcIndex, root
     use FciMCData, only: iter, tSinglePartPhase, VaryShiftIter
     use CalcData, only: tPrecond
@@ -220,6 +220,7 @@ contains
         character(*), parameter :: this_routine = 'assign_value_to_tau'
 
         if (.not. (min_tau <= new_tau .and. new_tau <= max_tau)) then
+            write(stderr, *) 'min_tau, new_tau, max_tau', min_tau, new_tau, max_tau
             call stop_all(&
                     this_routine, &
                     '.not. (min_tau <= new_tau .and. new_tau <= max_tau)')

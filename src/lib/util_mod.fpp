@@ -526,11 +526,7 @@ contains
 #ifdef GFORTRAN_
         isnan_neci = isnan(r)
 #else
-        if((r == 0) .and. (r * 1 == 1)) then
-            isnan_neci = .true.
-        else
-            isnan_neci = .false.
-        endif
+        isnan_neci = r /= r
 #endif
     end function
 
