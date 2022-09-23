@@ -1811,6 +1811,7 @@ C.. TOT now contains dE/dcij, so we store this
          USE UMatCache, only : UMatInd,GTID
          use OneEInts, only: GetTMatEl
          use constants, only: dp
+         use util_mod, only: stop_all
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,NEL
          real(dp) CMAT(NSBASIS,NSBASIS,NSPINS)

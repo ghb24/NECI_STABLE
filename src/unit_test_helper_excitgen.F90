@@ -26,7 +26,7 @@ module unit_test_helper_excitgen
     use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
     use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
     use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, stop_all
     use orb_idx_mod, only: SpinProj_t
     implicit none
     private
