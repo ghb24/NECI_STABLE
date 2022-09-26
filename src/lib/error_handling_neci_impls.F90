@@ -14,7 +14,7 @@ submodule (error_handling_neci) error_handling_neci_impls
 contains
 
 
-    subroutine neci_flush(un)
+    module subroutine neci_flush(un)
         integer, intent(in) :: un
 #ifdef NAGF95
         integer(kind=int32) :: dummy
@@ -31,7 +31,7 @@ contains
 #endif
     end subroutine neci_flush
 
-    subroutine warning_neci(sub_name,error_msg)
+    module subroutine warning_neci(sub_name,error_msg)
         != Print a warning message in a (helpfully consistent) format.
         !=
         != In:
