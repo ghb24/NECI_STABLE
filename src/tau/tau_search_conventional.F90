@@ -383,7 +383,6 @@ contains
                     tau_new = merge(MaxWalkerBloom * minval(new_taus, mask=non_zero), tau, any(non_zero))
                 end block
             end if
-
         end if
 
         ! The range of tau is restricted by particle death. It MUST be <=
