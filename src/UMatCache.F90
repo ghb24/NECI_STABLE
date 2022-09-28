@@ -9,7 +9,8 @@ MODULE UMatCache
 
     use SystemData, only: tRIIntegrals, t_non_hermitian
 
-    use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero, operator(.div.)
+    use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero, operator(.div.), &
+        stop_all
 
     use sort_mod
 

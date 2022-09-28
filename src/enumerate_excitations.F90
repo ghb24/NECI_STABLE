@@ -12,6 +12,8 @@ module enumerate_excitations
 
     use constants
 
+    use util_mod, only: stop_all
+
     use DetBitOps, only: IsAllowedHPHF, TestClosedShellDet, EncodeBitDet
 
     use FciMCData, only: SpinInvBRR

@@ -12,7 +12,7 @@ module lanczos_general
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
-    use MPI_wrapper, only: root
+    use MPI_wrapper, only: root, MPI_WTime
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
     use hamiltonian_linalg, only: &
@@ -28,6 +28,9 @@ module lanczos_general
         inner_product, &
         euclidean_norm_square, &
         euclidean_norm
+    use util_mod, only: stop_all, neci_flush
+
+    implicit none
 
     type LanczosCalcType
         ! "super type" for common hamiltonian data

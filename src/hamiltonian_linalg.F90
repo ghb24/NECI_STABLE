@@ -13,6 +13,7 @@ module hamiltonian_linalg
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
     use MPI_wrapper, only: root
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+    use error_handling_neci, only: stop_all, neci_flush
 
     implicit none
     ! The value of hamil_type specifies what form the Hamiltonian is stored in.

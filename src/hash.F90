@@ -8,6 +8,7 @@ module hash
     use Systemdata, only: nel, nBasis
     use CalcData, only: tSemiStochastic
     use constants
+    use error_handling_neci, only: stop_all
 
     implicit none
 

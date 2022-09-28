@@ -26,6 +26,7 @@ module Parallel_neci
                             neci_MPIInit_called, neci_MPINodes_called
 
     use constants
+    use error_handling_neci, only: stop_all
     implicit none
 
     interface MPIBcast

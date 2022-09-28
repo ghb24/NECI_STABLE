@@ -72,7 +72,9 @@ MODULE Calc
 
     use guga_data, only: tGUGACore
 
-    use util_mod, only: near_zero, operator(.isclose.), operator(.div.), stop_all
+    use util_mod, only: near_zero, operator(.isclose.), operator(.div.), &
+        stop_all, neci_flush
+
     use unit_test_helpers, only: batch_run_excit_gen_tester
 
     use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
@@ -4036,6 +4038,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
     use RPA_Mod, only: tDirectRPA
     use LoggingData, only: tCalcFCIMCPsi
     use input_parser_mod, only: TokenIterator_t
+    use util_mod, only: stop_all
     implicit none
     integer I_HMAX, NWHTAY, I_V
     type(TokenIterator_t), intent(inout) :: tokens
@@ -4236,6 +4239,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
 end subroutine inpgetmethod
 
 subroutine inpgetexcitations(NWHTAY, w)
+    use util_mod, only: stop_all
     IMPLICIT NONE
     INTEGER NWHTAY
     character(*), parameter :: this_routine = 'inpgetexcitations'

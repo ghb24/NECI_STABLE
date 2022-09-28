@@ -26,6 +26,7 @@ module util_mod
     use DetBitOps, only: DetBitLt
     use, intrinsic :: iso_c_binding, only: c_char, c_int, c_double
     use mpi, only: MPI_WTIME
+    use error_handling_neci, only: stop_all, neci_flush, warning_neci
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
@@ -58,21 +59,10 @@ module util_mod
         cumsum, pairswap, swap, lex_leq, lex_geq, &
         get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
         getSpinIndex, binary_search_int, binary_search_real, clamp
+    public :: warning_neci
 
     public :: EnumBase_t
 
-
-    interface
-        ! NOTE: A stop all is of course state-changing, but even
-        !   the Fortran standard allows an `error stop`.
-        pure subroutine stop_all(sub_name, error_msg)
-            character(*), intent(in) :: sub_name, error_msg
-        end subroutine
-
-        subroutine neci_flush(n)
-            integer, intent(in) :: n
-        end subroutine
-    end interface
 
     interface operator(.implies.)
         module procedure implies
@@ -536,11 +526,7 @@ contains
 #ifdef GFORTRAN_
         isnan_neci = isnan(r)
 #else
-        if((r == 0) .and. (r * 1 == 1)) then
-            isnan_neci = .true.
-        else
-            isnan_neci = .false.
-        endif
+        isnan_neci = r /= r
 #endif
     end function
 
@@ -1491,37 +1477,3 @@ function etime(tarr) result(tret)
 end function
 
 #endif
-
-subroutine neci_flush(un)
-#ifdef NAGF95
-    use f90_unix, only: flush
-    use constants, only: int32
-#endif
-    integer, intent(in) :: un
-#ifdef NAGF95
-    integer(kind=int32) :: dummy
-#endif
-#ifdef BLUEGENE_HACKS
-    call flush_(un)
-#else
-#ifdef NAGF95
-    dummy = un
-    call flush(dummy)
-#else
-    call flush(un)
-#endif
-#endif
-end subroutine neci_flush
-
-subroutine warning_neci(sub_name,error_msg)
-    != Print a warning message in a (helpfully consistent) format.
-    !=
-    != In:
-    !=    sub_name:  calling subroutine name.
-    !=    error_msg: error message.
-    use, intrinsic :: iso_fortran_env, only: stderr => error_unit
-    character(*), intent(in) :: sub_name, error_msg
-
-    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-    write (stderr,'(a/)') adjustl(error_msg)
-end subroutine warning_neci
