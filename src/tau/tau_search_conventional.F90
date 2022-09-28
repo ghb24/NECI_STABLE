@@ -177,10 +177,7 @@ contains
                     end if
                 else
                     tmp_prob = tmp_prob / (1.0_dp - pParallel)
-                    tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > t_s%gamma_opp) then
-                        t_s%gamma_opp = tmp_gamma
-                    end if
+                    t_s%gamma_opp = max(abs(matel) / tmp_prob, t_s%gamma_opp)
 
                     ! And keep count
                     if (.not. t_s%enough_opp) then
@@ -322,15 +319,14 @@ contains
                 else
                     pparallel_new = pParallel
                     psingles_new = pSingles
-                    if (t_s%gamma_sing > EPS .and. t_s%gamma_par > EPS .and. t_s%gamma_opp > EPS) then
-                        tau_new = MaxWalkerBloom * &
-                                  min(pSingles / t_s%gamma_sing, &
-                                      min(pDoubles * pParallel / t_s%gamma_par, &
-                                          pDoubles * (1.0 - pParallel) / t_s%gamma_opp))
-                    else
-                        ! if no spawns happened, do nothing
-                        tau_new = tau
-                    end if
+                    block
+                        real(dp) :: new_taus(3)
+                        logical :: non_zero(3)
+
+                        new_taus = [pSingles / t_s%gamma_sing, pDoubles * pParallel / t_s%gamma_par, pDoubles * (1.0 - pParallel) / t_s%gamma_opp]
+                        non_zero = ([t_s%gamma_sing, t_s%gamma_par, t_s%gamma_opp] > EPS)
+                        tau_new = merge(MaxWalkerBloom * minval(pack(new_taus, non_zero)), tau, any(non_zero))
+                    end block
                 end if
 
 !               checking for triples
@@ -378,23 +374,14 @@ contains
                     pDoub_spindiff1_new = pDoub_spindiff1
                     pDoub_spindiff2_new = pDoub_spindiff2
                 end if
-                ! If no single/double spawns occurred, they are also not taken into account
-                ! (else would be undefined)
-                if (abs(t_s%gamma_doub) > EPS .and. abs(t_s%gamma_sing) > EPS) then
-                    tau_new = MaxWalkerBloom * &
-                              min(pSingles / t_s%gamma_sing, pDoubles / t_s%gamma_doub)
-                else if (abs(t_s%gamma_doub) > EPS) then
-                    ! If only doubles were counted, take them
-                    tau_new = MaxWalkerBloom * pDoubles / t_s%gamma_doub
-                else if (abs(t_s%gamma_sing) > eps) then
-                    ! else, we had to have some singles
-                    tau_new = MaxWalkerBloom * pSingles / t_s%gamma_sing
-                else if (abs(t_s%gamma_trip) > eps) then
-                    tau_new = MaxWalkerBloom * PTriples / t_s%gamma_trip
-                else
-                    ! no spawns
-                    tau_new = tau
-                end if
+                block
+                    real(dp) :: new_taus(3)
+                    logical :: non_zero(3)
+
+                    new_taus = [pSingles / t_s%gamma_sing, pDoubles / t_s%gamma_doub, pTriples / t_s%gamma_trip]
+                    non_zero = ([t_s%gamma_sing, t_s%gamma_doub, t_s%gamma_trip] > EPS)
+                    tau_new = merge(MaxWalkerBloom * minval(pack(new_taus, non_zero)), tau, any(non_zero))
+                end block
             end if
 
         end if
@@ -421,8 +408,8 @@ contains
         ! make the right if-statements here!
         ! remember t_s%enough_sing is (mis)used for triples in the
         ! 2-body transcorrelated k-space hubbard
-        tau_new = clamp(tau_new, min_tau, max_tau)
-        if (tau_new < tau .or. (t_s%enough_sing .and. t_s%enough_doub) .or. &
+        tau_new = clamp(tau_new, max(min_tau, tau * 0.8), min(max_tau, tau * 1.2))
+        if (tau_new /= tau .or. (t_s%enough_sing .and. t_s%enough_doub) .or. &
             ((tUEG .and. .not. t_ueg_3_body) .or. tHub .or. t_s%enough_sing .or. &
              (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. t_s%enough_doub) .or. &
             (t_new_real_space_hubbard .and. t_s%enough_sing .and. &
