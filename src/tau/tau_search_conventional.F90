@@ -325,7 +325,7 @@ contains
 
                         new_taus = [pSingles / t_s%gamma_sing, pDoubles * pParallel / t_s%gamma_par, pDoubles * (1.0 - pParallel) / t_s%gamma_opp]
                         non_zero = ([t_s%gamma_sing, t_s%gamma_par, t_s%gamma_opp] > EPS)
-                        tau_new = merge(MaxWalkerBloom * minval(pack(new_taus, non_zero)), tau, any(non_zero))
+                        tau_new = merge(MaxWalkerBloom * minval(new_taus, mask=non_zero), tau, any(non_zero))
                     end block
                 end if
 
@@ -374,25 +374,15 @@ contains
                     pDoub_spindiff1_new = pDoub_spindiff1
                     pDoub_spindiff2_new = pDoub_spindiff2
                 end if
-                ! If no single/double spawns occurred, they are also not taken into account
-                ! (else would be undefined)
-                if (abs(t_s%gamma_doub) > EPS .and. abs(t_s%gamma_sing) > EPS) then
-                    tau_new = MaxWalkerBloom * &
-                              min(pSingles / t_s%gamma_sing, pDoubles / t_s%gamma_doub)
-                else if (abs(t_s%gamma_doub) > EPS) then
-                    ! If only doubles were counted, take them
-                    tau_new = MaxWalkerBloom * pDoubles / t_s%gamma_doub
-                else if (abs(t_s%gamma_sing) > eps) then
-                    ! else, we had to have some singles
-                    tau_new = MaxWalkerBloom * pSingles / t_s%gamma_sing
-                else if (abs(t_s%gamma_trip) > eps) then
-                    tau_new = MaxWalkerBloom * PTriples / t_s%gamma_trip
-                else
-                    ! no spawns
-                    tau_new = tau
-                end if
-            end if
+                block
+                    real(dp) :: new_taus(3)
+                    logical :: non_zero(3)
 
+                    new_taus = [pSingles / t_s%gamma_sing, pDoubles / t_s%gamma_doub, pTriples / t_s%gamma_trip]
+                    non_zero = ([t_s%gamma_sing, t_s%gamma_doub, t_s%gamma_trip] > EPS)
+                    tau_new = merge(MaxWalkerBloom * minval(new_taus, mask=non_zero), tau, any(non_zero))
+                end block
+            end if
         end if
 
         ! The range of tau is restricted by particle death. It MUST be <=
