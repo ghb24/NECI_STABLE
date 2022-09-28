@@ -325,7 +325,7 @@ contains
 
                         new_taus = [pSingles / t_s%gamma_sing, pDoubles * pParallel / t_s%gamma_par, pDoubles * (1.0 - pParallel) / t_s%gamma_opp]
                         non_zero = ([t_s%gamma_sing, t_s%gamma_par, t_s%gamma_opp] > EPS)
-                        tau_new = merge(MaxWalkerBloom * minval(pack(new_taus, non_zero)), tau, any(non_zero))
+                        tau_new = merge(MaxWalkerBloom * minval(new_taus, mask=non_zero), tau, any(non_zero))
                     end block
                 end if
 
@@ -380,7 +380,7 @@ contains
 
                     new_taus = [pSingles / t_s%gamma_sing, pDoubles / t_s%gamma_doub, pTriples / t_s%gamma_trip]
                     non_zero = ([t_s%gamma_sing, t_s%gamma_doub, t_s%gamma_trip] > EPS)
-                    tau_new = merge(MaxWalkerBloom * minval(pack(new_taus, non_zero)), tau, any(non_zero))
+                    tau_new = merge(MaxWalkerBloom * minval(new_taus, mask=non_zero), tau, any(non_zero))
                 end block
             end if
 
