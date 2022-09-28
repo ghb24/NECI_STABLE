@@ -1644,7 +1644,7 @@ the RDMs are calculated and the content of the files, please see section
 -   **print-hdf5-rdms**<br>
     Output the density matrices in HDF5 format to a file called
     `fciqmc.rdms.<statenumber>.h5`. Currently only pure state RDMs are
-    supported. This keyword needs to be used in conjungtion with
+    supported. This keyword needs to be used in conjunction with
     `write-spin-free-rdm` for the 2RDM and `printonerdm` for the 1RDM
     respectively.
 

@@ -347,7 +347,6 @@ set( RELAX_WARNINGS_SRCS
     rdm_explicit.F90
     rdm_filling.F90
     rdm_finalising.F90
-    rdm_hdf5.F90
     rdm_integral_fns.F90
     rdm_nat_orbs.F90
     rdm_reading.F90
