@@ -7,7 +7,7 @@ module aliasSampling
     use sets_mod, only: is_set, subset, operator(.in.)
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: stop_all, near_zero, binary_search_int
+    use util_mod, only: stop_all, near_zero, binary_search_int, operator(.isclose.)
     implicit none
 
     private
