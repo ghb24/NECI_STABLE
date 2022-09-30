@@ -27,7 +27,7 @@ module symrandexcit3
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
-    use util_mod, only: binary_search_first_ge
+    use util_mod, only: stop_all, neci_flush, binary_search_first_ge
 
     implicit none
 

@@ -10,8 +10,19 @@ module DetBitOps
     use bit_rep_data, only: NIfTot, NIfD, &
                             test_flag, extract_sign
     use constants, only: n_int, bits_n_int, end_n_int, dp, lenof_sign
+    use error_handling_neci, only: stop_all
 
     implicit none
+
+    private
+    public :: MaskAlpha, MaskBeta, DetBitLt, Countbits, findbitexcitlevel, &
+        count_open_orbs, DetBitEQ, return_ms, ilut_lt, ilut_gt, &
+        count_set_bits, encodebitdet, return_hphf_sym_det, &
+        tAccumEmptyDet, getbitexcitation, get_bit_excitmat, &
+        spatial_bit_det, testclosedshelldet, findexcitbitdet, &
+        isallowedhphf, calcopenorbs, get_single_parity, sign_lt, sign_gt, &
+        spin_sym_ilut, findspatialbitexcitlevel, detbitzero, &
+        Countbits_elemental
 
 #ifdef INT64_
     ! 10101010 and 01010101 in binary respectively.
@@ -329,9 +340,6 @@ contains
         ! return the same determinant
         integer(n_int), intent(in) :: ilut_in(0:niftot)
         integer(n_int) :: ilut_out(0:niftot)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "return_hphf_sym_det"
-#endif
         INTEGER(n_int) :: iLutAlpha(0:NIfTot), iLutBeta(0:NIfTot)
         INTEGER :: i
 
@@ -532,8 +540,7 @@ contains
     pure subroutine EncodeBitDet(nI, iLut)
         integer, intent(in) :: nI(:)
         integer(kind=n_int), intent(out) :: iLut(0:NIfTot)
-        integer :: i, det, pos, nopen, num_el
-        logical :: open_shell
+        integer :: i, pos
 
         iLut(:) = 0_n_int
 
@@ -778,34 +785,6 @@ contains
 
     end function
 
-    pure function spin_flip(ilut) result(ilut_flip)
-        ! Take the determinant represented by ilut and flip every spin
-        integer(n_int), intent(in) :: ilut(0:niftot)
-        integer(n_int) :: ilut_flip(0:niftot)
-        integer :: i, orb
-        logical :: up, down
-
-        ilut_flip = ilut
-        do i = 1, NIfD
-            ! We check every other bit and compare it with the previous one, to see
-            ! if we need to change something
-            do orb = 0, end_n_int, 2
-                up = .false.
-                down = .false.
-                if (BTEST(ilut(i), orb)) up = .true.
-                if (BTEST(ilut(i), orb + 1)) down = .true.
-                if (up .and. .not. down) then
-                    ilut_flip = iBCLR(ilut_flip, orb)
-                    ilut_flip = iBSET(ilut_flip, orb + 1)
-                end if
-                if (down .and. .not. up) then
-                    ilut_flip = iBCLR(ilut_flip, orb + 1)
-                    ilut_flip = iBSET(ilut_flip, orb)
-                end if
-            end do
-        end do
-    end function spin_flip
-
     pure function tAccumEmptyDet(ilut) result(tAccum)
         use FciMCData, only: iLutHF
         use bit_rep_data, only: test_flag, NIfD, flag_removed
@@ -816,7 +795,7 @@ contains
 
         integer(kind=n_int), intent(in) :: iLut(0:NIfD)
         logical :: tAccum
-        integer :: ExcitLevel, pops_iter
+        integer :: ExcitLevel
 
         tAccum = .false.
 
@@ -998,6 +977,7 @@ end module
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
 SUBROUTINE LargestBitSet(iLut, NIfD, LargestOrb)
     use constants, only: bits_n_int, end_n_int, n_int
+    use error_handling_neci, only: stop_all
     IMPLICIT NONE
     INTEGER :: LargestOrb, NIfD, i, j
     INTEGER(KIND=n_int) :: iLut(0:NIfD)

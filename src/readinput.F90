@@ -4,7 +4,7 @@
 !               Failing that, we use stdin
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
-    use util_mod, only: operator(.implies.)
+    use util_mod, only: operator(.implies.), stop_all
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s, t_k_space_hubbard, t_trans_corr_2body
     use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t

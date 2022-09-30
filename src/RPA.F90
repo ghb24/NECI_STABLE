@@ -14,7 +14,7 @@ module RPA_Mod
     use DetBitops, only: EncodeBitDet
     use Integrals_neci, only: get_umat_el
     use UMatCache, only: GTID
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, stop_all, neci_flush
 
     implicit none
 

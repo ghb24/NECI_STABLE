@@ -14,7 +14,7 @@ module semi_stoch_procs
 
     use constants
 
-    use util_mod, only: stop_all
+    use util_mod, only: stop_all, neci_flush, warning_neci
 
     use orb_idx_mod, only: SpinOrbIdx_t
 

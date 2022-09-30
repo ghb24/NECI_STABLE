@@ -50,15 +50,15 @@ MODULE Calc
                         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
                         minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
-    use load_balance, only: tLoadBalanceBlocks, loadBalanceInterval
+    use load_balance, only: tLoadBalanceBlocks
+    use load_balance_calcnodes, only: loadBalanceInterval
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
 
-    use real_space_hubbard, only: t_start_neel_state, create_neel_state, &
-                                  init_get_helement_hubbard
+    use real_space_hubbard, only: t_start_neel_state, init_get_helement_hubbard
     use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
                         init_get_helement_heisenberg_guga, init_get_helement_tj_guga
     use k_space_hubbard, only: init_get_helement_k_space_hub, get_2_body_diag_transcorr, &
@@ -72,7 +72,9 @@ MODULE Calc
 
     use guga_data, only: tGUGACore
 
-    use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
+    use util_mod, only: near_zero, operator(.isclose.), operator(.div.), &
+        stop_all, neci_flush
+
     use unit_test_helpers, only: batch_run_excit_gen_tester
 
     use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
@@ -83,6 +85,8 @@ MODULE Calc
     use sets_mod, only: disjoint, operator(.U.)
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
+
+    use lattice_models_utils, only: create_neel_state
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -714,7 +718,7 @@ contains
                         tExitNow = .true.
 
                     case default
-                        call stop_all(this_routine, "Keyword "//trim(w)//" not recognized")
+                        call stop_all(this_routine, trim(w)//" is not a valid keyword in the METHODS block.")
                     end select
 
                 end do
@@ -983,27 +987,8 @@ contains
                     allocate(DefDet(NEl), stat=ierr)
                     CALL LogMemAlloc('DefDet', NEl, 4, t_r, tagDefDet, ierr)
                 end if
-                DefDet(:) = 0
+                call parse_definedet(tokens, DefDet)
 
-                block
-                    integer, allocatable :: def_det(:), input_range(:)
-                    def_det = [integer ::]
-                    do while(tokens%remaining_items() > 0)
-                        input_range = get_range(tokens%next())
-                        if (disjoint(def_det, input_range)) then
-                            def_det = def_det .U. input_range
-                        else
-                            call stop_all(this_routine, 'Every value of definedet has to be given only once.')
-                        end if
-                    end do
-                    if (size(def_det) < nEl) then
-                        call stop_all(this_routine, 'Too few elements specified for Definedet.')
-                    else if (size(def_det) > nEl) then
-                        call stop_all(this_routine, 'Too many elements specified for Definedet.')
-                    else
-                        DefDet(:) = def_det
-                    end if
-                end block
 
                 ! there is something going wrong later in the init, so
                 ! do it actually here
@@ -1029,14 +1014,11 @@ contains
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
-                allocate(initial_refs(nel, inum_runs), stat=ierr)
-                initial_refs = 0
+                allocate(initial_refs(nel, inum_runs), stat=ierr, source=0)
 
                 do line = 1, inum_runs
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                        do i = 1, nel
-                            initial_refs(i, line) = to_int(tokens%next())
-                        end do
+                        call parse_definedet(tokens, initial_refs(:, line))
                         if(tGUGA) then
                             if (.not. isProperCSF_ni(initial_refs(:, line))) then
                                 call write_det(stdout, initial_refs(:, line), .true.)
@@ -1050,14 +1032,11 @@ contains
 
             case("MULTIPLE-INITIAL-STATES")
                 tMultipleInitialStates = .true.
-                allocate(initial_states(nel, inum_runs), stat=ierr)
-                initial_states = 0
+                allocate(initial_states(nel, inum_runs), stat=ierr, source=0)
 
                 do line = 1, inum_runs
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                        do i = 1, nel
-                            initial_states(i, line) = to_int(tokens%next())
-                        end do
+                        call parse_definedet(tokens, initial_states(:, line))
                         if(tGUGA) then
                             if (.not. isProperCSF_ni(initial_states(:, line))) then
                                 call write_det(stdout, initial_states(:, line), .true.)
@@ -4019,6 +3998,31 @@ contains
         if (allocated(user_input_SftDamp)) deallocate(user_input_SftDamp)
     End Subroutine CalcCleanup
 
+
+    subroutine parse_definedet(tokens, def_det)
+        type(TokenIterator_t), intent(inout) :: tokens
+        integer, intent(out) :: def_det(nEl)
+        character(*), parameter :: this_routine = 'parse_definedet'
+
+        integer, allocatable :: input_range(:), local_def_det(:)
+
+        local_def_det = [integer ::]
+        do while(tokens%remaining_items() > 0)
+            input_range = get_range(tokens%next())
+            if (disjoint(local_def_det, input_range)) then
+                local_def_det = local_def_det .U. input_range
+            else
+                call stop_all(this_routine, 'Every value of definedet has to be given only once.')
+            end if
+        end do
+        if (size(local_def_det) < nEl) then
+            call stop_all(this_routine, 'Too few elements specified for Definedet.')
+        else if (size(local_def_det) > nEl) then
+            call stop_all(this_routine, 'Too many elements specified for Definedet.')
+        end if
+        def_det(:) = local_def_det(:)
+    end subroutine
+
 END MODULE Calc
 
 subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
@@ -4034,6 +4038,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
     use RPA_Mod, only: tDirectRPA
     use LoggingData, only: tCalcFCIMCPsi
     use input_parser_mod, only: TokenIterator_t
+    use util_mod, only: stop_all
     implicit none
     integer I_HMAX, NWHTAY, I_V
     type(TokenIterator_t), intent(inout) :: tokens
@@ -4234,6 +4239,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
 end subroutine inpgetmethod
 
 subroutine inpgetexcitations(NWHTAY, w)
+    use util_mod, only: stop_all
     IMPLICIT NONE
     INTEGER NWHTAY
     character(*), parameter :: this_routine = 'inpgetexcitations'

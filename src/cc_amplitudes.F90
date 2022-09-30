@@ -16,8 +16,15 @@ module cc_amplitudes
     use bit_rep_data, only: nifd
     use MPI_wrapper, only: iProcIndex, root
     use Parallel_neci, only: MPISumAll, MPIReduce, MPI_SUM, MPI_LOR, MPIAllLorLogical
+    use util_mod, only: stop_all
 
     implicit none
+    private
+    public :: cc_amplitude, calc_number_of_excitations, &
+        calc_n_parallel_excitations, setup_ind_matrix_singles, &
+        t_plot_cc_amplitudes, t_cc_amplitudes, &
+        cc_singles_factor, cc_doubles_factor, cc_triples_factor, cc_quads_factor, &
+        cc_delay, init_cc_amplitudes, print_cc_amplitudes, cc_order
 
     logical :: t_cc_amplitudes = .false.
     logical :: t_plot_cc_amplitudes = .false.
@@ -238,7 +245,6 @@ contains
         ! cepa-shift for the singles.. if the correct variable are not
         ! yet set or sampled as 0 it should default to 1
         real(dp) :: factor
-        character(*), parameter :: this_routine = "cc_singles_factor"
 
         real(dp) :: fac_triples, fac_doubles, weight
 
@@ -284,7 +290,6 @@ contains
 
     function cc_doubles_factor() result(factor)
         real(dp) :: factor
-        character(*), parameter :: this_routine = "cc_doubles_factor"
 
         real(dp) :: fac_triples, fac_quads, weight
 
@@ -315,7 +320,6 @@ contains
 
     function cc_triples_factor() result(factor)
         real(dp) :: factor
-        character(*), parameter :: this_routine = "cc_triples_factor"
 
         ! for now just set that to 1
         factor = 1.0_dp
@@ -329,7 +333,6 @@ contains
 
     function cc_quads_factor() result(factor)
         real(dp) :: factor
-        character(*), parameter :: this_routine = "cc_quads_factor"
 
         ! see above
         factor = 1.0_dp
@@ -431,7 +434,6 @@ contains
     function linear_elec_ind(i, j) result(ind)
         integer, intent(in) :: i, j
         integer :: ind
-        character(*), parameter :: this_routine = "linear_elec_ind"
 
         ! for a general orbital indexing i want to get a linear index
         ! for the electron pairs in the closed shell reference
@@ -446,7 +448,6 @@ contains
     function linear_orb_ind(a, b) result(ind)
         integer, intent(in) :: a, b
         integer :: ind
-        character(*), parameter :: this_routine = "linear_orb_ind"
 
         ! see above!
         ind = orb_ind_mat(a, b)
@@ -651,7 +652,6 @@ contains
 
     subroutine communicate_cc_amps(n_excits)
         integer, intent(in) :: n_excits(cc_order)
-        character(*), parameter :: this_routine = "communicate_cc_amps"
 
         integer :: i, j
         ! only deal with systems with no single excitations, so we just
@@ -687,7 +687,6 @@ contains
         ! routine to setup the hash for the quadrupels
         type(cc_hash), pointer, intent(inout) :: hash_table(:)
         integer, intent(in) :: hash_table_size
-        character(*), parameter :: this_routine = "init_cc_hash"
 
         integer :: i
         ! estimate the hash table size with num_doubles^2 for now..
@@ -707,7 +706,6 @@ contains
         ! this routine calculates the number of "important" triples
         ! from the samples singles and doubles amplitudes:
         ! essentiall calulating T1 * T2
-        character(*), parameter :: this_routine = "calc_n_triples"
 
         integer :: i, j, ia(2, 1), jk_cd(2, 2)
 
@@ -754,7 +752,6 @@ contains
         ! but when i store the tripels also i could also estimate the
         ! quadrupels "exactly" .. which would be quite nice actually!
         ! todo: hash-table or dividing by 18..
-        character(*), parameter :: this_routine = "calc_n_quads"
 
         integer :: i, j, ij_ab(2, 2), kl_cd(2, 2), ijab_klcd(8), hash_ind
         integer(n_int) :: temp_int(0:nifd)
@@ -907,7 +904,6 @@ contains
         type(cc_hash), pointer :: hash_table(:)
         integer, intent(out) :: hash_val
         logical, intent(out) :: t_found
-        character(*), parameter :: this_routine = "cc_hash_look_up"
 
         type(cc_hash), pointer :: temp_node
 
@@ -968,7 +964,6 @@ contains
         integer, intent(in) :: hash_val
         integer(n_int), intent(in) :: tgt(:)
         real(dp), intent(in) :: amp
-        character(*), parameter :: this_routine = "cc_hash_add"
 
         type(cc_hash), pointer :: temp_node
 
@@ -1020,7 +1015,7 @@ contains
         integer, intent(out) :: ijab_klcd(8)
         character(*), parameter :: this_routine = "order_quad_indices_2_2"
 
-        integer :: ij(2), ab(2), kl(2), cd(2), i, j, k, l, a, b, c, d
+        integer :: ij(2), ab(2), kl(2), cd(2)
         integer :: n
         ! the correctly order t_ij^ab * t_kl^cd has the sign convention -1!
         ! and we can be sure that the inputed (ij),(ab) etc. are ordered i < j
@@ -1193,7 +1188,7 @@ contains
         integer(n_int) :: temp_ilut(0:nifd)
         integer :: dummy_ind, dummy_hash, temp_nI(nel)
         logical :: tSuccess
-        integer :: ijk_abc(2, 3), l_d(2, 1), i_a(2, 1), j_b(2, 1)
+        integer :: i_a(2, 1), j_b(2, 1)
         integer :: n_disc_1, n_disc_2
         integer :: quad_ind(8), hash_ind
         logical :: t_found

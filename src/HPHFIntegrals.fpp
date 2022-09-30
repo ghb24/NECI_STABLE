@@ -14,6 +14,7 @@ module hphf_integrals
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
     use bit_reps, only: NIfD, NIfTot, decode_bit_det
     use lattice_mod, only: get_helement_lattice
+    use util_mod, only: stop_all
     implicit none
 
     interface hphf_off_diag_helement

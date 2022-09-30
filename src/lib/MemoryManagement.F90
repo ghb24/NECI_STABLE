@@ -1,6 +1,7 @@
 #include "macros.h"
 module MemoryManager
     use constants, only: dp, int64, int32
+    use error_handling_neci, only: stop_all, warning_neci
 
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation,
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS),
@@ -63,7 +64,6 @@ module MemoryManager
 
 ! Using a "tag" for each allocated routine makes searching the log for an array
 ! trivial (and fast).
-
     implicit none
 
     private
@@ -219,7 +219,6 @@ contains
         integer(int64) :: ObjectSizeBytes
         integer :: ismallloc(1)
         character(*), parameter :: this_routine = 'LogMemAlloc'
-        external :: warning_neci
         if (present(nCalls)) nCalls = nCalls + 1
 
         if (.not. initialised) then
@@ -292,7 +291,6 @@ contains
         integer, intent(in), optional :: err
         integer :: i, ismallloc(1)
         character(len=25) :: ObjectName
-        external :: stop_all
         if (.not. initialised) then
             if (err_output) write (6, *) 'Memory manager not initialised. Cannot log deallocation.'
             return

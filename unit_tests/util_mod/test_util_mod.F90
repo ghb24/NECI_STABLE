@@ -1,6 +1,7 @@
 #include "macros.h"
 module test_util_mod
-    use fruit
+    use fruit, only: run_test_case, assert_equals
+    use util_mod, only: stop_all
     use constants, only: int64
     use util_mod, only: choose_i64
     better_implicit_none
@@ -38,8 +39,9 @@ end module
 program test_prog_util_mod
     use test_util_mod, only: test_driver
     use Parallel_neci, only: MPIInit, MPIEnd
-
-    use fruit
+    use util_mod, only: stop_all
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count
 
     implicit none
 

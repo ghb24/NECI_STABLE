@@ -11,7 +11,7 @@ module rdm_estimators
     use SystemData, only: tGUGA
     use guga_rdm, only: calc_rdm_energy_guga
     use guga_bitRepOps, only: extract_2_rdm_ind
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, neci_flush
 
     implicit none
 
@@ -573,8 +573,8 @@ contains
             ! Obtain spin orbital labels.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             ! Obtain spatial orbital labels.
-            p = spatial(i); q = spatial(j); 
-            r = spatial(k); s = spatial(l); 
+            p = spatial(i); q = spatial(j);
+            r = spatial(k); s = spatial(l);
             ! Note to the reader for the following code: if mod(i,2) == 1 then
             ! i is a beta (b) orbital, if mod(i,2) == 0 then it is an alpha (a)
             ! obrital.

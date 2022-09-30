@@ -7,6 +7,7 @@ module exact_spectrum
     use PopsfileMod, only: read_popsfile_wrapper
     use spectral_data
     use spectral_lanczos, only: output_spectrum, return_perturbed_ground_spec
+    use util_mod, only: stop_all, neci_flush
 
     implicit none
 

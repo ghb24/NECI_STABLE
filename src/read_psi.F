@@ -1,7 +1,7 @@
       SUBROUTINE READ_PSI(BOX,BOA,COA,NDET,NEVAL,
      &        NBASISMAX,NEL,CK,W)
-!      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp, EPS
+      use util_mod, only: stop_all
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
       integer :: NEVAL,NDET,I,J,NEL,NDETCK,NEVALCK,NELCK

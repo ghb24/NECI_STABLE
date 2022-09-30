@@ -14,7 +14,7 @@ module sym_mod
 !                    tagSymConjTab, SymReps, SymClasses2, tagSymClasses2, &
 !                    tagSymReps
     use SymData
-    use util_mod, only: int_fmt, stop_all
+    use util_mod, only: int_fmt, stop_all, neci_flush
     use global_utilities
     use sort_mod
     implicit none

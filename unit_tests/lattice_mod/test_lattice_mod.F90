@@ -6,8 +6,11 @@
 program test_lattice_mod
 
     use constants, only: dp, pi
-    use lattice_mod
-    use fruit
+    use lattice_mod, only: on_line_2d, inside_bz_2d, sort_unique, &
+        lattice, lattice_deconstructor
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals, assert_true
+    ! use util_mod, only: stop_all
     use sort_mod, only: sort
     use SystemData, only: t_trans_corr_2body, t_k_space_hubbard
 

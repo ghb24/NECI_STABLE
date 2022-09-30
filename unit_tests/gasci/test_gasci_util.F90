@@ -1,5 +1,5 @@
 module test_gasci_util_mod
-    use fruit
+    use fruit, only: assert_true, assert_equals
     use constants, only: dp, n_int, int64
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use procedure_pointers, only: generate_excitation
@@ -1126,8 +1126,9 @@ end module test_gasci_util_mod
 
 program test_gasci_util_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_util_mod, only: &
         Local_test_get_possible_spaces, Local_test_possible_holes, test_available, &

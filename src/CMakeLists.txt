@@ -113,6 +113,7 @@ set( SRC_FILES
     pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
+    Popsfile_impls.F90
     proc_ptrs.F90
     ras_data.F90
     ras.F90
@@ -216,12 +217,12 @@ set( SRC_FILES
     exc_gen_class_wrappers.F90
     exc_gen_classes.F90
 
-    lib/backtrace.cpp
     lib/cons_neci.F90
     lib/dSFMT.cpp
     lib/dSFMT_interface.F90
     lib/environment_report.F90
     lib/error_handling_neci.F90
+    lib/error_handling_neci_impls.F90
     lib/hdf5_util.F90
     lib/MemoryManagement.F90
     lib/signals.F90
@@ -254,7 +255,6 @@ set( RELAX_WARNINGS_SRCS
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90
-    DetBitOps.F90
     DetCalcData.F90
     DetCalc.F90
     DeterminantData.F90
@@ -305,6 +305,7 @@ set( RELAX_WARNINGS_SRCS
     initial_trial_states.F90
     initiator_space_procs.F90
     IntegralsData.F90
+    Integrals_neci.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -335,9 +336,11 @@ set( RELAX_WARNINGS_SRCS
     Orthonorm.F90
     Parallel_Calc.F90
     parallel_workarounds.F90
+    MPI_wrapper.F90
     pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
+    Popsfile_impls.F90
     proc_ptrs.F90
     ras_data.F90
     ras.F90
@@ -399,18 +402,10 @@ set( RELAX_WARNINGS_SRCS
     vasp_interface.F90
     vasp_neci_interface_stub.F90
     double_occ.F90
-    real_space_hubbard.F90
-    back_spawn.F90
-    back_spawn_excit_gen.F90
-    lattice_mod.F90
-    tJ_model.F90
-    k_space_hubbard.F90
-    lattice_models_utils.F90
     analyse_wf_symmetry.F90
     guga_rdm.F90
     unit_test_helpers.F90
     real_time_data.F90
-    cc_amplitudes.F90
     cepa_shifts.F90
     real_time.F90
     real_time_aux.F90
@@ -419,6 +414,12 @@ set( RELAX_WARNINGS_SRCS
     real_time_read_input.F90
     verlet_aux.F90
     CAS_distribution_init.F90
+
+
+    # If this bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105594) in gfortran
+    #  is resolved, we can have again stricter compilation options.
+    tau/tau_main_impls.F90
+    lib/error_handling_neci_impls.F90
 )
 
 set( FYPP_SRC_FILES

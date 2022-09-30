@@ -25,7 +25,7 @@ module RotateOrbsMod
     use Soft_exit, only: test_SOFTEXIT
     use RotateOrbsData
     use sort_mod
-    use util_mod, only: get_free_unit, near_zero, operator(.isclose.)
+    use util_mod, only: get_free_unit, near_zero, operator(.isclose.), stop_all, neci_flush
 
     implicit none
 

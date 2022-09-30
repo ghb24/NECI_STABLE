@@ -9,8 +9,8 @@ module global_det_data
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
-    use constants
-    use util_mod
+    use constants, only: dp, int32, int64, n_int, inum_runs, lenof_sign, eps
+    use util_mod, only: stop_all, operator(.div.)
     implicit none
 
     private

@@ -1,34 +1,38 @@
 #include "macros.h"
 program test_guga_pchb_excitgen
 
-    use constants
-    use SystemData
-    use CalcData
-    use FciMCData
-    use dSFMT_interface
-    use procedure_pointers
-    use read_fci
-    use UMatCache
-    use Parallel_neci
-    use Calc
-    use System
-    use shared_memory_mpi
-    use DetCalc
-    use unit_test_helper_excitgen
-    use LoggingData
-    use bit_reps
-    use bit_rep_data
-    use guga_init
-    use guga_bitRepOps
-    use guga_data
-    use guga_types
+    use constants, only: dp, int64, n_int
+    use SystemData, only: tstorespinorbs, tReadInt, UMatEps, tReadFreeFormat, &
+        tGUGA, t_pchb_weighted_singles, t_guga_pchb, nSpatOrbs, &
+        nel, nbasis
+    use FciMCData, only: tFillingStochRDMOnFly
+    use dSFMT_interface, only: dSFMT_init
+    use procedure_pointers, only: get_umat_el
+    use read_fci, only: initfromfcid, GetUMatSize, readfciint, fcidump_name, &
+        tumat2d, TMat2d
+    use UMatCache, only: tTransGTID, tdeferred_umat2d
+    use Parallel_neci, only: MPIInit, MPIEnd
+    use Calc, only: CalcInit, SetCalcDefaults
+    use System, only: SetSysDefaults, SysInit
+    use shared_memory_mpi, only: shared_allocate_mpi
+    use DetCalc, only: DetCalcInit
+    use unit_test_helper_excitgen, only: generate_uniform_integrals
+    use IntegralsData, only: Umat, umat_win
+    use Integrals_Neci, only: get_umat_el_normal
+    use LoggingData, only: tExplicitAllRDM, tRDMonfly
+    use bit_reps, only:  init_bit_rep
+    use bit_rep_data, only: GugaBits
+    use guga_init, only: init_guga
+    use guga_bitRepOps, only: CSF_Info_t, encodebitdet_guga
+    use guga_data, only: ExcitationInformation_t, excit_type, gen_type
     use guga_pchb_class, only: GugaAliasSampler_t, &
         calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, &
         pick_orbitals_pure_uniform_singles
-    use util_mod
+    use Determinants, only: DetInit, DetPreFreezeInit
 
-    use fruit
-    use fruit_extensions
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals, assert_true
+    use fruit_extensions, only: my_run_test_case
 
     implicit none
 
@@ -40,7 +44,7 @@ program test_guga_pchb_excitgen
     call fruit_finalize()
 
     call get_failed_count(failed_count)
-    if (failed_count /= 0) stop - 1
+    if (failed_count /= 0) stop -1
 
 contains
 

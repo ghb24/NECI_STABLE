@@ -37,6 +37,8 @@ MODULE Logging
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
 
+    use util_mod, only: stop_all
+
     IMPLICIT NONE
 
     logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp

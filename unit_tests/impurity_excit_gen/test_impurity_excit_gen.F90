@@ -1,9 +1,15 @@
 #include "macros.h"
 
 program test_impurity_excit_gen
-    use impurity_models
-    use fruit
-    use unit_test_helper_excitgen
+    use constants, only: dp
+    use impurity_models, only: gen_excit_impurity_model, setupImpurityExcitgen
+    use procedure_pointers, only: generate_excitation
+    use Parallel_neci, only: MPIInit, MPIEnd
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true, assert_equals
+    use util_mod, only: stop_all
+    use unit_test_helper_excitgen, only: FciDumpWriter_t, init_excitgen_test, &
+        test_excitation_generator
 
     implicit none
 
