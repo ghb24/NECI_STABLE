@@ -10,10 +10,16 @@ $:'dimsf(1)' if RANK == 1 else _rankdims(RANK-1) + ', dimsf({num})'.format(num=R
 
 module parallel_hdf5_utils
 
-    use MPI_wrapper
-    use Parallel_neci
+    use constants, only: dp, hdf_err
+    use MPI_wrapper, only: MPI_SUM
+    use Parallel_neci, only: MPIAllReduce, MPIAllGather, iProcIndex, nProcessors
 #ifdef USE_HDF_
-    use hdf5
+    use hdf5, only: hid_t, hsize_t, H5T_NATIVE_DOUBLE, H5T_NATIVE_INTEGER, &
+                    H5P_DATASET_XFER_F, H5FD_MPIO_COLLECTIVE_F, H5S_SELECT_SET_F, &
+                    h5dclose_f, h5sclose_f, h5pclose_f, h5dwrite_f, h5sselect_hyperslab_f, &
+                    h5sselect_none_f, h5pset_dxpl_mpio_f, h5screate_simple_f, h5pcreate_f, &
+                    h5dcreate_f, h5dread_f, h5sget_simple_extent_dims_f, h5dget_space_f, &
+                    h5sget_simple_extent_ndims_f, h5dopen_f
 #endif
 
     implicit none

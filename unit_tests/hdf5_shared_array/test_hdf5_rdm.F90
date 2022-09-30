@@ -1,11 +1,16 @@
 program test_hdf5_rdm
-    use fruit
-    use constants, only: dp
-    use MPI_wrapper
-    use Parallel_neci
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, get_failed_count, &
+                     assert_true
+    use constants, only: dp, hdf_err
+    use MPI_wrapper, only: CommGlobal, mpiInfoNull
+    use Parallel_neci, only: nProcessors, MPIInit, MPIEnd, MPIAllGather, iProcIndex
+    use util_mod, only: stop_all
 #ifdef USE_HDF_
     use parallel_hdf5_utils, only: write_data_phdf5, read_data_phdf5
-    use hdf5
+    use hdf5, only: hid_t, h5open_f, h5pcreate_f, h5pset_fapl_mpio_f, &
+                    h5fcreate_f, h5pclose_f, h5gcreate_f, H5F_ACC_TRUNC_F, &
+                    h5garbage_collect_f, h5fclose_f, h5gclose_f, h5close_f, &
+                    H5P_FILE_ACCESS_F
 #endif
     implicit none
 

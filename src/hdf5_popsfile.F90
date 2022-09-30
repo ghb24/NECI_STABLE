@@ -72,11 +72,22 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use MPI_wrapper
-    use Parallel_neci
-    use constants
-    use hdf5_util
-    use util_mod
+    use MPI_wrapper, only: CommGlobal, mpiInfoNull
+    use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, stop_all, MPISumAll, &
+                             MPIAllLORLogical, MPIAllGather, MPIArg, MPIAlltoAllV, &
+                             MPIAlltoAll, nProcessors, MPI_MAX, MPIAllReduce, MPISum
+    use error_handling_neci, only: neci_flush
+    use constants, only: dp, stdout, n_int, int32, int64, hdf_log, hdf_err, lenof_sign, &
+                         inum_runs, build_64bit
+    use hdf5_util, only: write_int32_attribute, write_int64_attribute, write_string_attribute, &
+                         write_log_scalar , write_dp_scalar, read_string_attribute, &
+                         write_int64_scalar, write_dp_1d_dataset, read_dp_scalar, &
+                         read_dp_1d_dataset, read_log_scalar, read_int64_scalar, &
+                         write_dp_1d_attribute, read_dp_1d_attribute, read_int64_attribute, &
+                         check_dataset_params, read_int32_attribute, write_2d_multi_arr_chunk_buff, &
+                         read_2d_multi_chunk, tmp_lenof_sign, tmp_inum_runs, read_cplx_1d_dataset, &
+                         write_cplx_1d_dataset
+    use util_mod, only: near_zero, operator(.div.), get_unique_filename
     use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
@@ -86,7 +97,11 @@ module hdf5_popsfile
         SpawnedParts
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
 #ifdef USE_HDF_
-    use hdf5
+    use hdf5, only: h5pcreate_f, h5gopen_f, h5gcreate_f, h5gopen_f, h5dopen_f, H5P_FILE_ACCESS_F, &
+                    H5F_ACC_TRUNC_F, H5F_ACC_RDONLY_F, h5fcreate_f, hid_t, hsize_t, h5garbage_collect_f, &
+                    h5close_f, h5pclose_f, h5pset_fapl_mpio_f, h5open_f, h5close_f, &
+                    h5fclose_f, h5gclose_f, h5dclose_f, h5fopen_f, H5T_INTEGER_F, &
+                    H5T_FLOAT_F, H5_REAL_KIND, h5kind_to_type, h5lexists_f, H5_INTEGER_KIND
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
 #endif
     use tau_main, only: tau_search_method, input_tau_search_method, &
@@ -177,7 +192,6 @@ contains
 
         integer, intent(in), optional :: MaxEx
         logical, intent(in), optional :: IterSuffix
-        character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef USE_HDF_
         integer(hid_t) :: plist_id, file_id
         integer(hdf_err) :: err
@@ -254,7 +268,7 @@ contains
         write(stdout, *) "popsfile write successful"
 
 #else
-        call stop_all(t_r, 'HDF5 support not enabled at compile time')
+        call stop_all('write_popsfile_hdf5', 'HDF5 support not enabled at compile time')
         unused_var(MaxEx)
         unused_var(IterSuffix)
 #endif
@@ -365,7 +379,6 @@ contains
         ! Read in the macroscopic metadata applicable to the restart file.
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: attribute
 
         logical :: exists
         character(100) :: str_buf
@@ -397,7 +410,6 @@ contains
 
     subroutine write_calc_data(parent)
 
-        use load_balance_calcnodes, only: RandomOrbIndex
         use FciMCData, only: Iter, PreviousCycles, TotImagTime, Hii
         use CalcData, only: DiagSft
 
@@ -555,7 +567,6 @@ contains
 
     subroutine read_calc_data(parent)
 
-        use load_balance_calcnodes, only: RandomOrbIndex
         use FciMCData, only: PreviousCycles, Hii, TotImagTime, &
                              pSingles, pDoubles, pParallel
         use CalcData, only: DiagSft, tWalkContGrow, hdf5_diagsft
@@ -563,8 +574,7 @@ contains
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
-        integer :: tmp_inum_runs
-        logical :: exists, t_resize
+        logical :: exists
         debug_function_name("read_calc_data")
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
@@ -642,7 +652,6 @@ contains
 
         use FciMCData, only: pSingles, pDoubles, pParallel
         use tc_three_body_data, only: pTriples, tReadPTriples
-        use LoggingData, only: t_print_frq_histograms
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...
@@ -734,9 +743,8 @@ contains
     subroutine write_walkers(parent, MaxEx)
 
         use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
-        use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
-                             TotWalkers, iLutHF, Iter, PreviousCycles
-        use CalcData, only: tUseRealCoeffs
+        use FciMCData, only: CurrentDets, &
+                             TotWalkers, iLutHF
         use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
         use global_det_data, only: writeFValsAsInt, writeAPValsAsInt
 
@@ -745,24 +753,18 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer, intent(in), optional :: MaxEx
-        type(c_ptr) :: cptr
-        integer(int32), pointer :: ptr(:)
-        integer(int32) :: boop
 
         character(*), parameter :: t_r = 'write_walkers'
 
-        integer(hid_t) :: wfn_grp_id, dataspace, dataset, memspace
+        integer(hid_t) :: wfn_grp_id
         integer(hdf_err) :: err
-        integer(hid_t) :: plist_id
 
         integer(hsize_t) :: counts(0:nProcessors - 1)
         integer(hsize_t) :: all_count
 
         integer(int32) :: bit_rep_width
-        integer(hsize_t) :: mem_offset(2), write_offset(2)
-        integer(hsize_t) :: dims(2), hyperdims(2)
+        integer(hsize_t) :: write_offset(2)
         real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
-        integer(hsize_t) :: block_size, block_start, block_end
         integer :: ierr
         integer(n_int), allocatable :: gdata_buf(:, :)
 
@@ -770,11 +772,15 @@ contains
         integer(hsize_t) :: printed_count
         integer(kind=n_int), allocatable, target :: TmpVecDets(:, :)
         integer(kind=n_int), pointer :: PrintedDets(:, :)
-        integer :: i, run
+        integer :: i
         real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
                     printed_norm_sqr(inum_runs)
         type(gdata_io_t) :: gdata_write_handler
         integer :: gdata_size
+#ifdef CMPLX_
+        integer :: run
+#endif
+
 
         ! We do not want to print all dets. At least empty dets should be skipped
         ! Let us find out which ones to be printed and copy them
@@ -914,9 +920,8 @@ contains
 
     subroutine read_walkers(parent, dets, CurrWalkers)
 
-        use bit_rep_data, only: NIfD, NIfTot
+        use bit_rep_data, only: NIfD
         use CalcData, only: pops_norm
-        use FciMCData, only: InitialSpawnedSlots
 
         ! This is the routine that has complexity!!!
         !
@@ -953,7 +958,6 @@ contains
         logical :: running, any_running
         integer(hsize_t), dimension(:, :), allocatable :: temp_ilut, temp_sgns
         integer(hsize_t), dimension(:, :), allocatable :: gdata_buf
-        integer(hsize_t), dimension(:, :), allocatable :: tmp_gdata, tmp_mr
         integer :: temp_ilut_tag, temp_sgns_tag, rest
         integer(int32) :: read_lenof_sign
         type(gdata_io_t) :: gdata_read_handler
@@ -1248,8 +1252,6 @@ contains
     subroutine read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, block_size, &
                                       bit_rep_width, temp_ilut, temp_sgns, gdata_buf)
 
-        use bit_rep_data, only: NIfD
-        use FciMCData, only: SpawnedParts2
 
         ! Read the walkers into the array spawnedparts2
         !
@@ -1264,7 +1266,6 @@ contains
         integer(int32), intent(in) :: bit_rep_width
         integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns
         integer(hsize_t), dimension(:, :) :: gdata_buf
-        integer(hid_t) :: plist_id
         integer :: gdata_size
 
 #ifdef INT64_
@@ -1353,21 +1354,20 @@ contains
 
         use load_balance_calcnodes, only: DetermineDetNode
         use bit_reps, only: decode_bit_det, extract_sign
-        use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList
+        use FciMCData, only: SpawnedParts2, SpawnedParts
 
         use Determinants, only: write_det
-        use bit_rep_data, only: NIfD, IlutBits
+        use bit_rep_data, only: IlutBits
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
-        character(*), parameter :: t_r = 'distribute_walkers_from_block'
         integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns, gdata_buf, gdata_comm
         integer(hsize_t), dimension(:, :) :: gdata_loc
         integer(hsize_t) :: onepart(0:IlutBits%len_bcast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
         integer(MPIArg) :: sendcount(0:nProcessors - 1)
         integer :: index, index2
-        logical :: list_full, t_read_gdata
+        logical :: t_read_gdata
 
         sizeilut = size(temp_ilut, 1)
         t_read_gdata = size(gdata_buf, dim=1) > 0
@@ -1571,8 +1571,6 @@ contains
                                     pops_det_count, pops_num_parts, &
                                     pops_norm_sqr)
 
-        use CalcData, only: pops_norm
-
         ! Check that the values received in these routines are valid
         !
         ! nread_walkers  - Number of determinant/walker lines read (this proc)
@@ -1588,7 +1586,7 @@ contains
         real(dp), intent(in) :: norm(lenof_sign), parts(lenof_sign)
         character(*), parameter :: t_r = 'check_read_particles'
 
-        integer(int64) :: all_read_walkers, tot_walkers
+        integer(int64) :: all_read_walkers
         real(dp) :: all_norm(lenof_sign), all_parts(lenof_sign)
 
         ! Have all the sites been correctly read in from the file

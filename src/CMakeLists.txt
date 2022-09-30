@@ -288,7 +288,6 @@ set( RELAX_WARNINGS_SRCS
     gndwork.F90
     hash.F90
     hamiltonian_linalg.F90
-    hdf5_popsfile.F90
     hdiag.F
     hdiag_from_excit.F90
     HElem.F90

@@ -2,14 +2,17 @@
 
 module rdm_hdf5
 
-    use MPI_wrapper
-    use Parallel_neci
-    use constants
+    use MPI_wrapper, only: mpiInfoNull, CommGlobal
+    use Parallel_neci, only: iProcIndex, stop_all, MPIBCast
+    use constants, only: dp, stdout, hdf_err
 #ifdef USE_HDF_
-    use parallel_hdf5_utils
-    use hdf5
+    use parallel_hdf5_utils, only: read_data_phdf5, write_data_phdf5
+    use hdf5, only: h5open_f, h5pset_fapl_mpio_f, h5gcreate_f, h5pclose_f, &
+                    h5close_f, h5garbage_collect_f, h5pcreate_f, H5P_FILE_ACCESS_F, &
+                    hid_t, hsize_t, h5fclose_f, h5gclose_f, H5F_ACC_TRUNC_F, &
+                    h5fcreate_f
 #endif
-    use fortran_strings
+    use fortran_strings, only: str
 
     implicit none
     private
@@ -134,7 +137,7 @@ contains
 
     !> Write the 2RDM to an HDF5 archive.
     subroutine write_2rdm_hdf5(parent, rdm, rdm_trace, iroot)
-        use rdm_data, only: rdm_list_t
+        use rdm_data, only: rdm_list_t, int_rdm
         use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
         !> HDF5 file handle of the parent directory.
         integer(hid_t), intent(in) :: parent
