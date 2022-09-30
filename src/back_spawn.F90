@@ -32,9 +32,20 @@ module back_spawn
 
     use lattice_models_utils, only: get_orb_from_kpoints, get_ispn
 
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), stop_all
 
     implicit none
+    private
+
+    public :: is_in_ref, mask_virt_ni, check_electron_location, &
+        check_electron_location_spatial, is_in_virt_mask, mask_virt_ilut, &
+        init_back_spawn, setup_virtual_mask, pick_occupied_orbital_single, &
+        pick_occupied_orbital, pick_virtual_electron_single, &
+        pick_virtual_electrons_double_hubbard, pick_occupied_orbital_ueg, &
+        pick_second_occupied_orbital, is_allowed_ueg_k_vector, &
+        encode_mask_virt, pick_virtual_electrons_double, &
+        pick_occupied_orbital_hubbard, check_orbital_location_spatial, &
+        check_orbital_location
 
     ! i need a list to indicate the virtual orbitals in the reference
     ! determinant: the idea of the first implementation is for non-initiators
@@ -47,11 +58,6 @@ module back_spawn
 
     ! or i could use a list of orbitals in the nI format
     integer, allocatable :: mask_virt_ni(:, :)
-
-    ! and i guess it could also be wise to do it in a spatial resolved way.
-    integer, allocatable :: mask_virt_spat(:)
-
-    real(dp) :: back_spawn_factor
 
 contains
 
@@ -834,7 +840,7 @@ contains
         logical, intent(in), optional :: calc_pgen
         character(*), parameter :: this_routine = "pick_virtual_electrons_double_hubbard"
 
-        integer :: n_valid, i, j, n_valid_pairs, ind_1, ind_2
+        integer :: n_valid, i, j, ind_1, ind_2
         integer :: virt_elecs(nel)
         integer :: n_beta, n_alpha
         ! but it is also good to to it here so i can do it more cleanly

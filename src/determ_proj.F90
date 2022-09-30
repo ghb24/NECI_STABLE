@@ -21,6 +21,7 @@ module determ_proj
     use Parallel_neci, only: iProcIndex, MPIAllGatherV, MPISum
     use semi_stoch_procs, only: determ_projection, determ_proj_approx
     use core_space_util, only: cs_replicas
+    use util_mod, only: stop_all, neci_flush
     implicit none
 
 contains

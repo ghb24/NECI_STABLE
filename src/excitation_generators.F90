@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module excitation_generators
-    use constants
+    use constants, only: dp, n_int, maxExcit
     use util_mod, only: operator(.isclose.)
     use SystemData, only: nel, nBasis
     use bit_rep_data, only: NIfTot

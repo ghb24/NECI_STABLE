@@ -11,6 +11,7 @@ module spectral_lanczos
     use MPI_wrapper, only: root
     use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
     use spectral_data
+    use util_mod, only: stop_all, neci_flush
 
     implicit none
 

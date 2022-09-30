@@ -1,13 +1,13 @@
 #include "macros.h"
 
 module MPI_wrapper
-    use constants
+    use constants, only: dp, MPIArg
 !All use of mpi routines come from this module
 #if defined(USE_MPI)
     use mpi
 #endif
     use timing_neci, only: timer, set_timer, halt_timer
-    implicit none
+    better_implicit_none
 
     type(timer), save :: Sync_Time
 
@@ -83,7 +83,6 @@ module MPI_wrapper
 
 contains
     Subroutine GetComm(Comm, Node, rt, tMe)
-        implicit none
         type(CommI), intent(in), optional :: Node
         integer(MPIArg), intent(out) :: Comm
         integer(MPIArg), intent(out), optional :: rt

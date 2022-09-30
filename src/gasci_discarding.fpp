@@ -3,6 +3,7 @@
 
 module gasci_discarding
     use constants, only: n_int, dp, maxExcit
+    use util_mod, only: stop_all
     use SystemData, only: nel
     use FciMCData, only: excit_gen_store_type
     use bit_rep_data, only: NIfTot

@@ -223,8 +223,9 @@ end module
 
 program test_time_pchb_prog
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_time_pchb, only: test_pgen, test_FePor
 

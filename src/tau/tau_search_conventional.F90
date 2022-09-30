@@ -33,7 +33,7 @@ module tau_search_conventional
 
     use CalcData, only: InitiatorWalkNo, t_consider_par_bias, tTruncInitiator
 
-    use util_mod, only: near_zero, operator(.isclose.)
+    use util_mod, only: near_zero, operator(.isclose.), stop_all
 
     use lattice_mod, only: get_helement_lattice
 

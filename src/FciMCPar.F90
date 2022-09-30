@@ -78,7 +78,8 @@ module FciMCParMod
     use bit_reps, only: set_flag, clr_flag, any_run_is_initiator, &
                         all_runs_are_initiator
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet, &
-                            need_load_balancing, loadBalanceInterval
+                            need_load_balancing
+    use load_balance_calcnodes, only: loadBalanceInterval
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone

@@ -7,7 +7,7 @@ module kp_fciqmc_init
     use constants
     use Parallel_neci, only: iProcIndex, MPISum, MPISumAll, nProcessors
     use kp_fciqmc_data_mod
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, stop_all, neci_flush
     use FciMCData, only: core_run
     use core_space_util, only: cs_replicas
     use input_parser_mod, only: FileReader_t, TokenIterator_t

@@ -5,7 +5,7 @@ MODULE SymExcit2
     use CalcData, only: TUPOWER
     use IntegralsData, only: ChemPot
     use constants, only: dp
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, stop_all
     IMPLICIT NONE
 
     TYPE ExcitWeight

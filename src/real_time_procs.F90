@@ -46,7 +46,7 @@ module real_time_procs
     use core_space_util, only: cs_replicas
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
                              init_perturbation_annihilation, apply_perturbation_array
-    use util_mod, only: int_fmt
+    use util_mod, only: int_fmt, stop_all, neci_flush
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
                         tRealSpawnCutoff, RealSpawnCutoff, RealCoeffExcitThresh, &
                         DiagSft, tTruncInitiator, OccupiedThresh, tReadPops, InitiatorWalkNo, &
