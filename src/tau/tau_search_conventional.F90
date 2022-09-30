@@ -378,7 +378,9 @@ contains
                     real(dp) :: new_taus(3)
                     logical :: non_zero(3)
 
-                    new_taus = [pSingles / t_s%gamma_sing, pDoubles / t_s%gamma_doub, pTriples / t_s%gamma_trip]
+                    new_taus = [merge(0._dp, pSingles / t_s%gamma_sing, near_zero(t_s%gamma_sing)), &
+                                merge(0._dp, pDoubles / t_s%gamma_doub, near_zero(t_s%gamma_doub)), &
+                                merge(0._dp, pTriples / t_s%gamma_trip, near_zero(t_s%gamma_trip))]
                     non_zero = ([t_s%gamma_sing, t_s%gamma_doub, t_s%gamma_trip] > EPS)
                     tau_new = merge(MaxWalkerBloom * minval(new_taus, mask=non_zero), tau, any(non_zero))
                 end block
@@ -408,7 +410,7 @@ contains
         ! remember t_s%enough_sing is (mis)used for triples in the
         ! 2-body transcorrelated k-space hubbard
         tau_new = clamp(tau_new, max(min_tau, tau * 0.8), min(max_tau, tau * 1.2))
-        if (tau_new /= tau .or. (t_s%enough_sing .and. t_s%enough_doub) .or. &
+        if (abs(tau_new - tau) / tau > 1e-5_dp .or. (t_s%enough_sing .and. t_s%enough_doub) .or. &
             ((tUEG .and. .not. t_ueg_3_body) .or. tHub .or. t_s%enough_sing .or. &
              (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. t_s%enough_doub) .or. &
             (t_new_real_space_hubbard .and. t_s%enough_sing .and. &
