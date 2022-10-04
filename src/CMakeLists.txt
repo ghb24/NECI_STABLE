@@ -413,7 +413,7 @@ set( RELAX_WARNINGS_SRCS
     real_time_read_input.F90
     verlet_aux.F90
     CAS_distribution_init.F90
-
+    rdm_hdf5.F90
 
     # If this bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105594) in gfortran
     #  is resolved, we can have again stricter compilation options.
