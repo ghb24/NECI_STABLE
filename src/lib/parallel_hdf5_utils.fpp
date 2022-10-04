@@ -13,6 +13,7 @@ module parallel_hdf5_utils
     use constants, only: dp, hdf_err
     use MPI_wrapper, only: MPI_SUM
     use Parallel_neci, only: MPIAllReduce, MPIAllGather, iProcIndex, nProcessors
+    use util_mod, only: stop_all
 #ifdef USE_HDF_
     use hdf5, only: hid_t, hsize_t, H5T_NATIVE_DOUBLE, H5T_NATIVE_INTEGER, &
                     H5P_DATASET_XFER_F, H5FD_MPIO_COLLECTIVE_F, H5S_SELECT_SET_F, &
@@ -59,6 +60,11 @@ contains
             #:endif
             !> Name of dataset
             character(len=*), intent(in) :: dataset_name
+#ifndef USE_HDF_
+            integer, intent(in) :: grp_id
+            character(*), parameter :: this_routine = 'write_nD_data_phdf5'
+#endif
+#ifdef USE_HDF_
             !> ID of group that dataset should be written into
             integer(hid_t), intent(in) :: grp_id
             !> Various filespace handles, rank of the tensor to be written
@@ -137,6 +143,12 @@ contains
             call h5sclose_f(filespace, err)
             call h5sclose_f(memspace, err)
             call h5dclose_f(dset_id, err)
+#else
+            call stop_all(this_routine, 'HDF5 support not enabled at compile time')
+            unused_var(wrt_buf)
+            unused_var(dataset_name)
+            unused_var(grp_id)
+#endif
           end subroutine write_${RANK}$d_${DATA_TYPE}$_data_phdf5
 
           !> Read up to 2D data from an HDF5 archive in parallel on all processors.
@@ -149,6 +161,11 @@ contains
             #:endif
             !> Name of dataset
             character(len=*), intent(in) :: dataset_name
+#ifndef USE_HDF_
+            integer, intent(in) :: grp_id
+            character(*), parameter :: this_routine = 'read_nD_data_phdf5'
+#endif
+#ifdef USE_HDF_
             !> ID of the group containing data set
             integer(hid_t), intent(in) :: grp_id
             !> Various filespace handles, rank of the tensor to be written
@@ -189,6 +206,12 @@ contains
             call h5pclose_f(plist_id, err)
             call h5sclose_f(filespace, err)
             call h5sclose_f(memspace, err)
+#else
+            call stop_all(this_routine, 'HDF5 support not enabled at compile time')
+            unused_var(rec_buf)
+            unused_var(dataset_name)
+            unused_var(grp_id)
+#endif
         end subroutine
     #:endfor
 #:endfor

@@ -79,14 +79,6 @@ module hdf5_popsfile
     use error_handling_neci, only: neci_flush
     use constants, only: dp, stdout, n_int, int32, int64, hdf_log, hdf_err, lenof_sign, &
                          inum_runs, build_64bit
-    use hdf5_util, only: write_int32_attribute, write_int64_attribute, write_string_attribute, &
-                         write_log_scalar , write_dp_scalar, read_string_attribute, &
-                         write_int64_scalar, write_dp_1d_dataset, read_dp_scalar, &
-                         read_dp_1d_dataset, read_log_scalar, read_int64_scalar, &
-                         write_dp_1d_attribute, read_dp_1d_attribute, read_int64_attribute, &
-                         check_dataset_params, read_int32_attribute, write_2d_multi_arr_chunk_buff, &
-                         read_2d_multi_chunk, tmp_lenof_sign, tmp_inum_runs, read_cplx_1d_dataset, &
-                         write_cplx_1d_dataset
     use util_mod, only: near_zero, operator(.div.), get_unique_filename
     use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
@@ -103,6 +95,14 @@ module hdf5_popsfile
                     h5fclose_f, h5gclose_f, h5dclose_f, h5fopen_f, H5T_INTEGER_F, &
                     H5T_FLOAT_F, H5_REAL_KIND, h5kind_to_type, h5lexists_f, H5_INTEGER_KIND
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
+    use hdf5_util, only: write_int32_attribute, write_int64_attribute, write_string_attribute, &
+                         write_log_scalar , write_dp_scalar, read_string_attribute, &
+                         write_int64_scalar, write_dp_1d_dataset, read_dp_scalar, &
+                         read_dp_1d_dataset, read_log_scalar, read_int64_scalar, &
+                         write_dp_1d_attribute, read_dp_1d_attribute, read_int64_attribute, &
+                         check_dataset_params, read_int32_attribute, write_2d_multi_arr_chunk_buff, &
+                         read_2d_multi_chunk, tmp_lenof_sign, tmp_inum_runs, read_cplx_1d_dataset, &
+                         write_cplx_1d_dataset
 #endif
     use tau_main, only: tau_search_method, input_tau_search_method, &
         possible_tau_search_methods, tau_start_val, possible_tau_start, &
@@ -170,8 +170,10 @@ module hdf5_popsfile
         nm_gdata = 'gdata', &
         nm_gdata_old = 'fvals'
 
+#ifdef USE_HDF_
     integer(n_int), dimension(:, :), allocatable :: receivebuff
     integer:: receivebuff_tag
+#endif
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
@@ -274,14 +276,20 @@ contains
         call stop_all(this_routine, 'HDF5 support not enabled at compile time')
         unused_var(MaxEx)
         unused_var(IterSuffix)
+        unused_var(tIncrementPops)
+        unused_var(iPopsFileNoWrite)
+        unused_var(iter)
+        unused_var(PreviousCycles)
 #endif
 
     end subroutine write_popsfile_hdf5
 
     function read_popsfile_hdf5(dets) result(CurrWalkers)
 
+#ifdef USE_HDF_
         use CalcData, only: iPopsFileNoRead
         use LoggingData, only: tIncrementPops
+#endif
 
         ! Read a popsfile in, prior to running a new calculation
         ! TODO: Integrate with CheckPopsParams

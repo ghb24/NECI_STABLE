@@ -32,8 +32,10 @@ contains
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         !> Array carrying the 1RDM belonging to each root
         type(one_rdm_t), intent(inout), optional :: one_rdms(:)
+#ifndef USE_HDF_
         !> Required for the stop all to check for HDF5 library
         character(*), parameter :: this_routine = 'write_hdf5_rdms'
+#endif
 #ifdef USE_HDF_
         !> File and group handles
         integer(hid_t) :: file_id, root_id, rdm_id, plist_id
@@ -88,6 +90,10 @@ contains
             if (iProcIndex == 0) write(stdout, *) "RDM file write successful."
         end do
 #else
+      unused_var(rdm_defs)
+      unused_var(rdm)
+      unused_var(rdm_trace)
+      unused_var(one_rdms)
       call stop_all(this_routine, 'HDF5 support not enabled at compile time.')
 #endif
     end subroutine write_rdms_hdf5
@@ -95,6 +101,15 @@ contains
     !> Write the 1RDM to an HDF5 archive.
     subroutine write_1rdm_hdf5(parent, one_rdm)
         use RotateOrbsData, only: ind => SymLabelListInv_rot
+#ifndef USE_HDF_
+        !> HDF5 file handle of the parent directory.
+        integer, intent(in) :: parent
+        !> 1RDM data redundant on each MPI rank
+        real(dp), intent(inout) :: one_rdm(:, :)
+        !> Required for the stop all to check for HDF5 library
+        character(*), parameter :: this_routine = 'write_1rdm_hdf5'
+#endif
+#ifdef USE_HDF_
         !> HDF5 file handle of the parent directory.
         integer(hid_t), intent(in) :: parent
         !> 1RDM data redundant on each MPI rank
@@ -133,12 +148,30 @@ contains
         call write_data_phdf5(values, 'values', grp_id)
         call write_data_phdf5(indices, 'indices', grp_id)
         call h5gclose_f(grp_id, err)
+#else
+      unused_var(parent)
+      unused_var(one_rdm)
+      call stop_all(this_routine, 'HDF5 support not enabled at compile time.')
+#endif
     end subroutine write_1rdm_hdf5
 
     !> Write the 2RDM to an HDF5 archive.
     subroutine write_2rdm_hdf5(parent, rdm, rdm_trace, iroot)
         use rdm_data, only: rdm_list_t, int_rdm
         use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
+#ifndef USE_HDF_
+        !> HDF5 file handle of the parent directory.
+        integer, intent(in) :: parent
+        !> 2RDM data distributed over all MPI ranks
+        type(rdm_list_t), intent(in) :: rdm
+        !> Normalisation of the 2RDM
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        !> The iroot'th eigenvector of Hamiltonian, e.g. 1 for ground state,
+        !> 2 for first excited state, ...
+        integer, intent(in) :: iroot
+        character(*), parameter :: this_routine = 'write_2rdm_hdf5'
+#endif
+#ifdef USE_HDF_
         !> HDF5 file handle of the parent directory.
         integer(hid_t), intent(in) :: parent
         !> 2RDM data distributed over all MPI ranks
@@ -186,6 +219,13 @@ contains
         call write_data_phdf5(values, 'values', grp_id)
         call write_data_phdf5(indices, 'indices', grp_id)
         call h5gclose_f(grp_id, err)
+#else
+      unused_var(parent)
+      unused_var(rdm)
+      unused_var(rdm_trace)
+      unused_var(iroot)
+      call stop_all(this_routine, 'HDF5 support not enabled at compile time.')
+#endif
     end subroutine write_2rdm_hdf5
 
 end module rdm_hdf5
