@@ -192,6 +192,9 @@ contains
 
         integer, intent(in), optional :: MaxEx
         logical, intent(in), optional :: IterSuffix
+#ifndef USE_HDF_
+        character(*), parameter :: this_routine = 'write_popsfile_hdf5'
+#endif
 #ifdef USE_HDF_
         integer(hid_t) :: plist_id, file_id
         integer(hdf_err) :: err
@@ -268,7 +271,7 @@ contains
         write(stdout, *) "popsfile write successful"
 
 #else
-        call stop_all('write_popsfile_hdf5', 'HDF5 support not enabled at compile time')
+        call stop_all(this_routine, 'HDF5 support not enabled at compile time')
         unused_var(MaxEx)
         unused_var(IterSuffix)
 #endif
