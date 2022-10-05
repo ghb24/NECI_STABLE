@@ -32,10 +32,8 @@ contains
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         !> Array carrying the 1RDM belonging to each root
         type(one_rdm_t), intent(inout), optional :: one_rdms(:)
-#ifndef USE_HDF_
         !> Required for the stop all to check for HDF5 library
         character(*), parameter :: this_routine = 'write_hdf5_rdms'
-#endif
 #ifdef USE_HDF_
         !> File and group handles
         integer(hid_t) :: file_id, root_id, rdm_id, plist_id
