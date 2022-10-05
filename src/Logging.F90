@@ -251,6 +251,10 @@ contains
             w = to_upper(tokens%next())
             select case (w)
 
+            case ("PRINT-HDF5-RDMS")
+                ! output density matrices as HDF5 files
+                t_print_hdf5_rdms = .true.
+
             case ("PRINT-MOLCAS-RDMS")
                 ! output density matrices also in Molcas format in the GUGA RDM
                 ! implementation

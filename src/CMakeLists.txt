@@ -123,6 +123,7 @@ set( SRC_FILES
     rdm_explicit.F90
     rdm_filling.F90
     rdm_finalising.F90
+    rdm_hdf5.F90
     rdm_integral_fns.F90
     rdm_nat_orbs.F90
     rdm_reading.F90
@@ -287,7 +288,6 @@ set( RELAX_WARNINGS_SRCS
     gndwork.F90
     hash.F90
     hamiltonian_linalg.F90
-    hdf5_popsfile.F90
     hdiag.F
     hdiag_from_excit.F90
     HElem.F90
@@ -413,7 +413,7 @@ set( RELAX_WARNINGS_SRCS
     real_time_read_input.F90
     verlet_aux.F90
     CAS_distribution_init.F90
-
+    rdm_hdf5.F90
 
     # If this bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105594) in gfortran
     #  is resolved, we can have again stricter compilation options.
@@ -442,6 +442,7 @@ set( FYPP_SRC_FILES
     global_det_data.fpp
     rdm_general.fpp
     hist.fpp
+    lib/parallel_hdf5_utils.fpp
     lib/util_mod.fpp
     lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
