@@ -1,5 +1,5 @@
 module test_pchb_excitgen_mod
-    use fruit
+    use fruit, only: assert_true
     use constants, only: dp, maxExcit
     use gasci_pchb, only: possible_PCHB_particle_selection
     use pchb_excitgen, only: PCHB_FCI_excit_generator_t
@@ -65,8 +65,7 @@ contains
 end module
 
 program test_pchb_excitgen
-    use constants
-    use fruit
+    use fruit, only: get_failed_count, init_fruit, fruit_summary, fruit_finalize
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_pchb_excitgen_mod, only: pchb_test_driver
     use util_mod, only: stop_all
