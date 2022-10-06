@@ -8,11 +8,10 @@ System read
     FCIDUMP-name Li2.FciDmp
     GAS-CI general_PCHB \
         SINGLES ON-FLY-HEAT-BATH
-    GAS-SPEC LOCAL \
-    2 \
-    5 2 4 \
-    5 2 4 \
-    1 1 1 1 1 2 2 2 2 2
+    GAS-SPEC LOCAL 2
+        5 2 4
+        5 2 4
+        1 1 1 1 1 2 2 2 2 2
 endsys
 
 calc

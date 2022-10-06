@@ -1785,33 +1785,42 @@ contains
                     nGAS = to_int(tokens%next())
                     allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
                     do iGAS = 1, nGAS
-                        n_orbs(iGAS) = to_int(tokens%next())
-                        cn_min(iGAS) = to_int(tokens%next())
-                        cn_max(iGAS) = to_int(tokens%next())
+                        if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                            n_orbs(iGAS) = to_int(tokens%next())
+                            cn_min(iGAS) = to_int(tokens%next())
+                            cn_max(iGAS) = to_int(tokens%next())
+                        else
+                            call stop_all(t_r, 'Error in GAS spec.')
+                        end if
                     end do
 
                     n_spat_orbs = sum(n_orbs)
-                    allocate(spat_GAS_orbs(n_spat_orbs))
-                    block
-                        use fortran_strings, only: operator(.in.), Token_t, split
-                        integer :: times, iGAS
-                        type(Token_t), allocatable :: splitted(:)
+                    allocate(spat_GAS_orbs(n_spat_orbs), source=0)
 
-                        i_orb = 1
-                        do while (i_orb  <= n_spat_orbs)
-                            w = to_upper(tokens%next())
-                            if ('*' .in. w) then
-                                splitted = split(w, '*')
-                                read(splitted(1)%str, *) times
-                                read(splitted(2)%str, *) iGAS
-                            else
-                                read(w, *) iGAS
-                                times = 1
-                            end if
-                            spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
-                            i_orb = i_orb + times
-                        end do
-                    end block
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                        block
+                            use fortran_strings, only: operator(.in.), Token_t, split
+                            integer :: times, iGAS
+                            type(Token_t), allocatable :: splitted(:)
+
+                            i_orb = 1
+                            do while (i_orb  <= n_spat_orbs)
+                                w = to_upper(tokens%next())
+                                if ('*' .in. w) then
+                                    splitted = split(w, '*')
+                                    read(splitted(1)%str, *) times
+                                    read(splitted(2)%str, *) iGAS
+                                else
+                                    read(w, *) iGAS
+                                    times = 1
+                                end if
+                                spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
+                                i_orb = i_orb + times
+                            end do
+                        end block
+                    else
+                        call stop_all(t_r, 'Error in GAS spec.')
+                    end if
 
                     if (tokens%remaining_items() > 0) then
                         w = to_upper(tokens%next())
