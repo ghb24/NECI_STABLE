@@ -1358,7 +1358,7 @@ contains
                 tNonUniRandExcits = .true.
                 do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
-                    select case (w)
+                    non_uniform_rand_excits: select case (w)
                     case ("NOSYM_GUGA")
                         call Stop_All(this_routine, "'nosym-guga' option deprecated!")
 
@@ -1612,7 +1612,7 @@ contains
 
                     case default
                         call Stop_All("ReadSysInp", trim(w)//" not a valid keyword")
-                    end select
+                    end select non_uniform_rand_excits
                 end do
 
             case ("PCHB-WEIGHTED-SINGLES")
@@ -1881,9 +1881,6 @@ contains
                             call Stop_All(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after GENERAL-PCHB")
                         end if
                     end do
-
-                    if (tokens%remaining_items() > 0) then
-                    end if
                 case default
                     call Stop_All(t_r, trim(w)//" not a valid keyword")
                 end select
