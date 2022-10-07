@@ -12,7 +12,7 @@ module exc_gen_classes
     use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name
     use gasci_discarding, only: GAS_DiscardingGenerator_t
     use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
-        GAS_PCHB_singles_generator, PCHB_particle_selection
+        GAS_PCHB_singles_generator, GAS_PCHB_particle_selection
     use gasci_general, only: GAS_heat_bath_ExcGenerator_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
     use gasci_util, only: write_GAS_info
@@ -63,7 +63,7 @@ contains
                     select type(current_exc_generator)
                     type is (GAS_DiscardingGenerator_t)
                         call current_exc_generator%init(&
-                            GAS_specification, PCHB_particle_selection)
+                            GAS_specification, GAS_PCHB_particle_selection)
                     end select
                 else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
                     allocate(GAS_PCHB_ExcGenerator_t :: current_exc_generator)
@@ -72,7 +72,7 @@ contains
                         call current_exc_generator%init(&
                             GAS_specification, use_supergroup_lookup, &
                             use_supergroup_lookup, GAS_PCHB_singles_generator, &
-                            PCHB_particle_selection)
+                            GAS_PCHB_particle_selection)
                     end select
                 else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)
@@ -96,7 +96,7 @@ contains
                 allocate(PCHB_FCI_excit_generator_t :: current_exc_generator)
                 select type(current_exc_generator)
                 type is (PCHB_FCI_excit_generator_t)
-                    call current_exc_generator%init(PCHB_particle_selection)
+                    call current_exc_generator%init(GAS_PCHB_particle_selection)
                 end select
             end if
         end block

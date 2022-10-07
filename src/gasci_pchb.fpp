@@ -73,7 +73,7 @@ module gasci_pchb
     public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
         GAS_doubles_PCHB_ExcGenerator_t, &
         possible_GAS_singles, GAS_PCHB_singles_generator, &
-        PCHB_particle_selection, possible_PCHB_particle_selection, &
+        GAS_PCHB_particle_selection, PCHB_particle_selections, &
         PCHB_ParticleSelection_t
 
     logical, parameter :: use_supergroup_lookup = .true.
@@ -151,9 +151,9 @@ module gasci_pchb
     end type
 
     type(possible_PCHB_ParticleSelection_t), parameter :: &
-        possible_PCHB_particle_selection = possible_PCHB_ParticleSelection_t()
+        PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
 
-    type(PCHB_ParticleSelection_t) :: PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_OCC
+    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_OCC
 
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
@@ -822,19 +822,19 @@ contains
         end do
 
 
-        if (PCHB_particle_selection == possible_PCHB_particle_selection%PC_WEIGHTED_OCC) then
+        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_OCC) then
             allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_WeightedParticlesOcc_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == possible_PCHB_particle_selection%PC_WEIGHTED_FAST) then
+        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_FAST) then
             allocate(PC_FastWeightedParticles_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_FastWeightedParticles_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == possible_PCHB_particle_selection%UNIFORM) then
+        else if (PCHB_particle_selection == PCHB_particle_selections%UNIFORM) then
             allocate(UniformParticles_t :: this%particle_selector)
         else
             call stop_all(this_routine, 'not yet implemented')

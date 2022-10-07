@@ -30,18 +30,9 @@ MODULE System
 
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
-    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
-        LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
-
-    use gasci_util, only: t_output_GAS_sizes
-
-
     use SD_spin_purification_mod, only: possible_purification_methods, &
         SD_spin_purification, spin_pure_J
 
-
-    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
-        possible_PCHB_particle_selection, PCHB_particle_selection
 
     use MPI_wrapper, only: iprocindex, root
 
@@ -54,6 +45,10 @@ MODULE System
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
 
     use tau_main, only: tau, assign_value_to_tau
+
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
+         user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t
+    use gasci_util, only: t_output_GAS_sizes
 
     IMPLICIT NONE
 
@@ -1599,6 +1594,42 @@ contains
                     case ("PCHB")
                         ! the precomputed heat-bath excitation generator (uniform singles)
                         t_pchb_excitgen = .true.
+                        w = to_upper(tokens%next())
+                        if (w == 'SINGLES') then
+                        block
+                            use pchb_excitgen, only: FCI_PCHB_singles, possible_PCHB_singles
+
+                            w = to_upper(tokens%next())
+                            select case (w)
+                            case('UNIFORM')
+                                FCI_PCHB_singles = possible_PCHB_singles%UNIFORM
+                            case('ON-FLY-HEAT-BATH')
+                                FCI_PCHB_singles = possible_PCHB_singles%ON_FLY_HEAT_BATH
+                            case default
+                                call Stop_All(t_r, trim(w)//" not a valid PCHB singles generator")
+                            end select
+                        end block
+                        else if (w == 'PARTICLE_SELECTION') then
+                        block
+                            use pchb_excitgen, only: FCI_PCHB_particle_selection
+                            use gasci_pchb, only: PCHB_particle_selections
+
+                            w = to_upper(tokens%next())
+                            select case (w)
+                            case('PC_WEIGHTED_APPROX')
+                                FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_FAST
+                            case('PC_WEIGHTED')
+                                FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_OCC
+                            case('UNIFORM')
+                                FCI_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
+                            case default
+                                call Stop_All(t_r, trim(w)//" not a valid PCHB particle selector")
+                            end select
+                        end block
+                        else
+                            call Stop_All(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after GENERAL-PCHB")
+                        end if
+
 
                     case ("GUGA-PCHB")
                         ! use an explicit guga-pchb keyword and flag
@@ -1617,7 +1648,11 @@ contains
 
             case ("PCHB-WEIGHTED-SINGLES")
                 ! Enable using weighted single excitations with the pchb excitation generator
-                t_pchb_weighted_singles = .true.
+                write(stdout, *) trim(w)//" is deprecated."
+                write(stdout, *) "Please use `nonuniformrandexcits pchb &
+                    &singles on-fly-heat-bath` instead."
+                call stop_all(this_routine, trim(w)//" is deprecated.")
+                ! t_pchb_weighted_singles = .true.
 
             ! enable intermediately some pchb+guga testing
             case("ANALYZE-PCHB")
@@ -1849,6 +1884,12 @@ contains
                 end block
 
             case ("GAS-CI")
+            block
+                use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
+                    PCHB_particle_selections, GAS_PCHB_particle_selection
+
+
+
                 w = to_upper(tokens%next())
                 select case (w)
                 case ('GENERAL')
@@ -1878,11 +1919,11 @@ contains
                             w = to_upper(tokens%next())
                             select case (w)
                             case('PC_WEIGHTED_FAST')
-                                PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_FAST
+                                GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_FAST
                             case('PC_WEIGHTED_OCC')
-                                PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_OCC
+                                GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_OCC
                             case('UNIFORM')
-                                PCHB_particle_selection = possible_PCHB_particle_selection%UNIFORM
+                                GAS_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
                             case default
                                 call Stop_All(t_r, trim(w)//" not a valid GAS particle selector")
                             end select
@@ -1893,6 +1934,7 @@ contains
                 case default
                     call Stop_All(t_r, trim(w)//" not a valid keyword")
                 end select
+                end block
 
             case("OUTPUT-GAS-HILBERT-SPACE-SIZE")
                 t_output_GAS_sizes = .true.

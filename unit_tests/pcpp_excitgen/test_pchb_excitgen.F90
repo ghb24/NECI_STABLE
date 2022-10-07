@@ -1,7 +1,7 @@
 module test_pchb_excitgen_mod
     use fruit, only: assert_true
     use constants, only: dp, maxExcit
-    use gasci_pchb, only: possible_PCHB_particle_selection
+    use gasci_pchb, only: PCHB_particle_selections
     use pchb_excitgen, only: PCHB_FCI_excit_generator_t
     use FciMCData, only: pSingles, pDoubles, pParallel
     use SystemData, only: nEl
@@ -30,7 +30,7 @@ contains
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
-        call exc_generator%init(possible_PCHB_particle_selection%UNIFORM)
+        call exc_generator%init(PCHB_particle_selections%UNIFORM)
 
         call run_excit_gen_tester( &
             exc_generator, 'PCHB FCI', &

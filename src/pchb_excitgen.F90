@@ -2,7 +2,7 @@
 module pchb_excitgen
     use constants, only: n_int, dp, maxExcit
     use SystemData, only: nel, nBasis, t_pchb_weighted_singles
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), EnumBase_t
     use bit_rep_data, only: NIfTot
     use FciMCData, only: pSingles, excit_gen_store_type, pDoubles
     use SymExcitDataMod, only: ScratchSize
@@ -11,12 +11,14 @@ module pchb_excitgen
     use gasci, only: GASSpec_t, LocalGASSpec_t
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, get_pgen_sd, gen_exc_sd, gen_all_excits_sd
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t, PCHB_ParticleSelection_t
+    use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t, &
+        PCHB_ParticleSelection_t, PCHB_particle_selections
     implicit none
 
     private
 
-    public :: PCHB_FCI_excit_generator_t
+    public :: PCHB_FCI_excit_generator_t, FCI_PCHB_particle_selection, &
+        FCI_PCHB_singles, possible_PCHB_singles
 
     type, extends(ExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
         private
@@ -30,6 +32,22 @@ module pchb_excitgen
         procedure, public :: get_pgen
         procedure, public :: gen_all_excits
     end type
+
+    type(PCHB_ParticleSelection_t) :: FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_OCC
+
+
+    type, extends(EnumBase_t) :: PCHB_used_singles_t
+    end type
+
+    type :: possible_PCHB_singles_t
+        type(PCHB_used_singles_t) :: &
+            ON_FLY_HEAT_BATH = PCHB_used_singles_t(1), &
+            UNIFORM = PCHB_used_singles_t(2)
+    end type
+
+    type(possible_PCHB_singles_t), parameter :: possible_PCHB_singles = possible_PCHB_singles_t()
+
+    type(PCHB_used_singles_t) :: FCI_PCHB_singles = possible_PCHB_singles%UNIFORM
 
 contains
 
