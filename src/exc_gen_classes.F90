@@ -53,8 +53,7 @@ contains
 
     subroutine init_exc_gen_class()
         use SystemData, only: t_pchb_excitgen
-        use pchb_excitgen, only: PCHB_FCI_excit_generator_t
-
+        use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_singles
 
         block
             if (tGAS) then
@@ -96,7 +95,7 @@ contains
                 allocate(PCHB_FCI_excit_generator_t :: current_exc_generator)
                 select type(current_exc_generator)
                 type is (PCHB_FCI_excit_generator_t)
-                    call current_exc_generator%init(GAS_PCHB_particle_selection)
+                    call current_exc_generator%init(GAS_PCHB_particle_selection, FCI_PCHB_singles)
                 end select
             end if
         end block

@@ -6,7 +6,7 @@ System read
     freeformat
     spin-restrict 0
     FCIDUMP-name Li2.FciDmp
-    GAS-CI general_PCHB \
+    nonuniformrandexcits GAS-CI general_PCHB \
         SINGLES ON-FLY-HEAT-BATH
     GAS-SPEC LOCAL 2
         5 2 4

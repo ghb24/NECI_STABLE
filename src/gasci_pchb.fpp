@@ -146,14 +146,14 @@ module gasci_pchb
     type :: possible_PCHB_ParticleSelection_t
         type(PCHB_ParticleSelection_t) :: &
             UNIFORM = PCHB_ParticleSelection_t(1), &
-            PC_WEIGHTED_OCC = PCHB_ParticleSelection_t(2), &
-            PC_WEIGHTED_FAST = PCHB_ParticleSelection_t(3)
+            PC_WEIGHTED = PCHB_ParticleSelection_t(2), &
+            PC_WEIGHTED_APPROX = PCHB_ParticleSelection_t(3)
     end type
 
     type(possible_PCHB_ParticleSelection_t), parameter :: &
         PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
 
-    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_OCC
+    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
 
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
@@ -822,13 +822,13 @@ contains
         end do
 
 
-        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_OCC) then
+        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED) then
             allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_WeightedParticlesOcc_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_FAST) then
+        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_APPROX) then
             allocate(PC_FastWeightedParticles_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_FastWeightedParticles_t)

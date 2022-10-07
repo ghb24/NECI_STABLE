@@ -3,7 +3,7 @@ program test_guga_pchb_excitgen
 
     use constants, only: dp, int64, n_int
     use SystemData, only: tstorespinorbs, tReadInt, UMatEps, tReadFreeFormat, &
-        tGUGA, t_pchb_weighted_singles, t_guga_pchb, nSpatOrbs, &
+        tGUGA, t_guga_pchb_weighted_singles, t_guga_pchb, nSpatOrbs, &
         nel, nbasis
     use FciMCData, only: tFillingStochRDMOnFly
     use dSFMT_interface, only: dSFMT_init
@@ -66,7 +66,7 @@ contains
         tFillingStochRDMOnFly = .true.
         call init_bit_rep()
 
-        t_pchb_weighted_singles = .false.
+        t_guga_pchb_weighted_singles = .false.
         t_guga_pchb = .true.
         tdeferred_umat2d = .true.
         tumat2d = .false.
@@ -280,4 +280,3 @@ contains
     end subroutine pick_uniform_spatial_hole_test
 
 end program test_guga_pchb_excitgen
-

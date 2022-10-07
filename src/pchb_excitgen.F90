@@ -1,8 +1,8 @@
 #include "macros.h"
 module pchb_excitgen
     use constants, only: n_int, dp, maxExcit
-    use SystemData, only: nel, nBasis, t_pchb_weighted_singles
-    use util_mod, only: operator(.div.), EnumBase_t
+    use SystemData, only: nel, nBasis
+    use util_mod, only: operator(.div.), EnumBase_t, stop_all
     use bit_rep_data, only: NIfTot
     use FciMCData, only: pSingles, excit_gen_store_type, pDoubles
     use SymExcitDataMod, only: ScratchSize
@@ -13,7 +13,7 @@ module pchb_excitgen
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t, &
         PCHB_ParticleSelection_t, PCHB_particle_selections
-    implicit none
+    better_implicit_none
 
     private
 
@@ -33,7 +33,7 @@ module pchb_excitgen
         procedure, public :: gen_all_excits
     end type
 
-    type(PCHB_ParticleSelection_t) :: FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_OCC
+    type(PCHB_ParticleSelection_t) :: FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
 
 
     type, extends(EnumBase_t) :: PCHB_used_singles_t
@@ -51,9 +51,11 @@ module pchb_excitgen
 
 contains
 
-    subroutine init(this, PCHB_particle_selection)
+    subroutine init(this, PCHB_particle_selection, PCHB_singles)
         class(PCHB_FCI_excit_generator_t), intent(inout) :: this
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
+        type(PCHB_used_singles_t), intent(in) :: PCHB_singles
+        character(*), parameter :: this_routine = 'pchb_excitgen::init'
         ! CAS is implemented as a special case of GAS with only one GAS space.
         ! Since a GAS specification with one GAS space is trivially disconnected, there
         ! is no point to use the lookup.
@@ -63,10 +65,12 @@ contains
                 PCHB_particle_selection=PCHB_particle_selection)
 
         ! luckily the singles generators don't require initialization.
-        if (t_pchb_weighted_singles) then
+        if (PCHB_singles == possible_PCHB_singles%ON_FLY_HEAT_BATH) then
             allocate(WeightedSingles_t :: this%singles_generator)
-        else
+        else if (PCHB_singles == possible_PCHB_singles%UNIFORM) then
             allocate(UniformSingles_t :: this%singles_generator)
+        else
+            call stop_all(this_routine, "Invalid PCHB_singles in FCI PCHB init.")
         end if
     contains
 

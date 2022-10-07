@@ -10,7 +10,7 @@ module gasci_discarding
     use sort_mod, only: sort
     use SymExcitDataMod, only: ScratchSize
 
-    use pchb_excitgen, only: PCHB_FCI_excit_generator_t
+    use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_singles
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, DoubleExcitationGenerator_t
     use gasci, only: GASSpec_t
     use gasci_util, only: GAS_gen_all_excits => gen_all_excits
@@ -88,7 +88,7 @@ contains
         class(GASSpec_t), intent(in) :: GAS_spec
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         this%GAS_spec = GAS_spec
-        call this%FCI_generator%init(PCHB_particle_selection)
+        call this%FCI_generator%init(PCHB_particle_selection, FCI_PCHB_singles)
     end subroutine
 
     subroutine finalize(this)
