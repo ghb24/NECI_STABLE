@@ -193,12 +193,8 @@ contains
         use CalcData, only: user_input_seed, G_VMC_SEED
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
 
-        if (tGAS) then
-            if (allocated(user_input_GAS_exc_gen)) then
-                GAS_exc_gen = user_input_GAS_exc_gen
-            else
-                GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
-            end if
+        if (tGAS .and. allocated(user_input_GAS_exc_gen)) then
+            GAS_exc_gen = user_input_GAS_exc_gen
         end if
 
         if (allocated(user_input_seed)) then
@@ -267,7 +263,7 @@ contains
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, user_input_GAS_exc_gen
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -644,6 +640,10 @@ contains
             end if
         end if
 
+        if (tGAS .neqv. allocated(user_input_GAS_exc_gen)) then
+            call stop_all(this_routine, 'GAS-CI and GAS-SPEC required.')
+        end if
+
         if (tGAS) then
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
@@ -654,7 +654,7 @@ contains
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%GENERAL_PCHB])) then
+            if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%PCHB])) then
                 call stop_all(t_r, "Running GAS without spin-recoupling requires {DISCONNECTED, GENERAL_PCHB} implementations.")
             end if
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then

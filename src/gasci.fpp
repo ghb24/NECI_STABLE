@@ -34,14 +34,14 @@ module gasci
     type :: possible_GAS_exc_gen_t
         type(GAS_exc_gen_t) :: &
             DISCONNECTED = GAS_exc_gen_t(1), &
-            GENERAL = GAS_exc_gen_t(2), &
+            ON_FLY_HEAT_BATH = GAS_exc_gen_t(2), &
             DISCARDING = GAS_exc_gen_t(3), &
-            GENERAL_PCHB = GAS_exc_gen_t(4)
+            PCHB = GAS_exc_gen_t(4)
     end type
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
 
-    type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+    type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
     type(GAS_exc_gen_t), allocatable :: user_input_GAS_exc_gen
 
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
@@ -321,11 +321,11 @@ contains
         character(len=:), allocatable :: res
         if (impl == possible_GAS_exc_gen%DISCONNECTED) then
             res = 'Heat-bath on-the-fly GAS implementation for disconnected spaces'
-        else if (impl == possible_GAS_exc_gen%GENERAL) then
+        else if (impl == possible_GAS_exc_gen%ON_FLY_HEAT_BATH) then
             res = 'Heat-bath on-the-fly GAS implementation'
         else if (impl == possible_GAS_exc_gen%DISCARDING) then
             res = 'Discarding GAS implementation'
-        else if (impl == possible_GAS_exc_gen%GENERAL_PCHB) then
+        else if (impl == possible_GAS_exc_gen%PCHB) then
             res = 'PCHB GAS implementation'
         end if
     end function

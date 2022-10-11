@@ -64,7 +64,7 @@ contains
                         call current_exc_generator%init(&
                             GAS_specification, GAS_PCHB_particle_selection)
                     end select
-                else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
+                else if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
                     allocate(GAS_PCHB_ExcGenerator_t :: current_exc_generator)
                     select type(current_exc_generator)
                     type is (GAS_PCHB_ExcGenerator_t)
@@ -73,7 +73,7 @@ contains
                             use_supergroup_lookup, GAS_PCHB_singles_generator, &
                             GAS_PCHB_particle_selection)
                     end select
-                else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
+                else if (GAS_exc_gen == possible_GAS_exc_gen%ON_FLY_HEAT_BATH) then
                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)
                 else if (GAS_exc_gen == possible_GAS_exc_gen%disconnected) then
                     current_exc_generator = GAS_disc_ExcGenerator_t(GAS_specification)
