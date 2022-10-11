@@ -3,7 +3,7 @@ title
 system read
     electrons 10
     nonuniformrandexcits pchb \
-        singles on-fly-heat-bath
+        singles on-the-fly-heat-bath
     hphf 0
 endsys
 

@@ -7,6 +7,7 @@ System read
     spin-restrict -8
     freeformat
     SD-SPIN-PURIFICATION 3d-4
+    nonuniformrandexcits GAS-CI PCHB
     GAS-SPEC LOCAL 4
         3 3 3
         3 3 3
