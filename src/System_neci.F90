@@ -1646,7 +1646,7 @@ contains
                     case ('DISCARDING')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
                     case ('PCHB')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
 
                         do while (tokens%remaining_items() > 0)
                             w = to_upper(tokens%next())
