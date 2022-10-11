@@ -1906,23 +1906,9 @@ contains
 
 
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                        spat_GAS_orbs = read_spat_GAS_orbs(tokens)
+                        call read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
                     else
                         call stop_all(t_r, 'Error in GAS spec.')
-                    end if
-
-                    if (tokens%remaining_items() > 0) then
-                        w = to_upper(tokens%next())
-                        select case (w)
-                        case ('RECOUPLING')
-                            recoupling = .true.
-                        case ('NO-RECOUPLING')
-                            recoupling = .false.
-                        case default
-                            call Stop_All(t_r, "Only RECOUPLING or NO-RECOUPLING allowed.")
-                        end select
-                    else
-                        recoupling = .true.
                     end if
 
                     select type(GAS_specification)
@@ -3563,33 +3549,44 @@ contains
         return
     end function
 
-    function read_spat_GAS_orbs(tokens) result(spat_GAS_orbs)
-        use fortran_strings, only: operator(.in.), Token_t, split
+    subroutine read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
+        use fortran_strings, only: operator(.in.), Token_t, split, can_be_int
         use input_parser_mod, only: TokenIterator_t
         type(TokenIterator_t), intent(inout) :: tokens
-        integer, allocatable :: spat_GAS_orbs(:)
+        integer, allocatable, intent(out) :: spat_GAS_orbs(:)
+        logical, intent(out) :: recoupling
         integer :: times, iGAS, i
         type(Token_t), allocatable :: splitted(:)
         type(buffer_int_1D_t) :: buffer
         character(len=100) :: w
+        routine_name("read_spat_GAS_orbs")
 
         call buffer%init()
+        recoupling = .true.
         do while (tokens%remaining_items() > 0)
             w = to_upper(tokens%next())
             if ('*' .in. w) then
                 splitted = split(w, '*')
-                read(splitted(1)%str, *) times
-                read(splitted(2)%str, *) iGAS
-            else
-                read(w, *) iGAS
+                times = to_int(splitted(1)%str)
+                iGAS = to_int(splitted(2)%str)
+            else if (can_be_int(w)) then
                 times = 1
+                iGAS = to_int(w)
+            else if (w == 'RECOUPLING') then
+                recoupling = .true.
+                exit
+            else if (w == 'NO-RECOUPLING') then
+                recoupling = .false.
+                exit
+            else
+                call stop_all(this_routine, "Error in reading GAS orbitals.")
             end if
             do i = 1, times
                 call buffer%push_back(iGAS)
             end do
         end do
         call buffer%dump_reset(spat_GAS_orbs)
-    end function
+    end subroutine
 
 END MODULE System
 
