@@ -195,6 +195,31 @@ contains
 
             call assert_equals(5, indexer%idx_nI([7, 10, 11]))
         end block
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec
+            integer, allocatable :: supergroups(:, :)
+            integer :: N
+            integer(int64) :: idx_last
+
+            supergroups = reshape([[1, 1, 1, 1], [2, 1, 1, 0], [0, 1, 1, 2], [1, 2, 0, 1]], [4, 4])
+            GAS_spec = CumulGASSpec_t(&
+                supergroups=supergroups
+                spat_GAS_orbs = [1, 2, 3, 4])
+
+            indexer = SuperGroupIndexer_t(GAS_spec, GAS_spec%N_particle())
+            supergroups_from_free = get_supergroups(GAS_spec, GAS_spec%N_particle())
+
+            correct = .true.
+            do i = 1, size(supergroups, 2)
+                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                        .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
+                    correct = .false.
+                end if
+            end do
+            call assert_true(correct)
+
+        end block
     end subroutine
 
     elemental function get_benzene_GAS_spec(n_benz, n_exc) result(res)
@@ -634,6 +659,35 @@ contains
 
             sg = next_supergroup(GAS_spec, idx_last, sg)
             call assert_equals(sg, [0, 2, 0, 2], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1, -1], 4)
+        end block
+
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec
+            integer, allocatable :: sg(:)
+            integer :: N
+            integer(int64) :: idx_last
+
+            GAS_spec = CumulGASSpec_t(&
+                supergroups=reshape([[1, 1, 1, 1], [2, 1, 1, 0], [0, 1, 1, 2], [1, 2, 0, 1]], [4, 4])
+                spat_GAS_orbs = [1, 2, 3, 4])
+            call assert_true(GAS_spec%is_valid())
+            N = 4
+            idx_last = composition_idx(get_last_supergroup(GAS_spec, N))
+            sg = get_first_supergroup(GAS_spec, N)
+            call assert_equals(sg, [2, 1, 1, 0], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 2, 0, 1], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 1, 1, 1], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 1, 1, 2], 4)
 
             sg = next_supergroup(GAS_spec, idx_last, sg)
             call assert_equals(sg, [-1, -1, -1, -1], 4)
