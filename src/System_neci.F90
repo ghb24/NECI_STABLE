@@ -1604,22 +1604,22 @@ contains
                                 select case (w)
                                 case('UNIFORM')
                                     FCI_PCHB_singles = possible_PCHB_singles%UNIFORM
-                                case('ON-FLY-HEAT-BATH')
+                                case('ON-THE-FLY-HEAT-BATH')
                                     FCI_PCHB_singles = possible_PCHB_singles%ON_FLY_HEAT_BATH
                                 case default
                                     call Stop_All(t_r, trim(w)//" not a valid PCHB singles generator")
                                 end select
                             end block
-                            else if (w == 'PARTICLE_SELECTION') then
+                            else if (w == 'PARTICLE-SELECTION') then
                             block
                                 use pchb_excitgen, only: FCI_PCHB_particle_selection
                                 use gasci_pchb, only: PCHB_particle_selections
 
                                 w = to_upper(tokens%next())
                                 select case (w)
-                                case('PC_WEIGHTED_APPROX')
+                                case('PC-WEIGHTED-APPROX')
                                     FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
-                                case('PC_WEIGHTED')
+                                case('PC-WEIGHTED')
                                     FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
                                 case('UNIFORM')
                                     FCI_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
@@ -1628,7 +1628,7 @@ contains
                                 end select
                             end block
                             else
-                                call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
+                                call stop_all(t_r, "Only SINGLES or PARTICLE-SELECTION allowed as optional next keyword after PCHB")
                             end if
                         end do
 
@@ -1639,13 +1639,13 @@ contains
 
                     w = to_upper(tokens%next())
                     select case (w)
-                    case ('GENERAL')
+                    case ('ON-THE-FLY-HEAT-BATH')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
                     case ('DISCONNECTED')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
                     case ('DISCARDING')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                    case ('GENERAL_PCHB', 'GENERAL-PCHB')
+                    case ('PCHB')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
 
                         do while (tokens%remaining_items() > 0)
@@ -1657,17 +1657,17 @@ contains
                                     GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
                                 case('PC-UNIFORM')
                                     GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
-                                case('ON-FLY-HEAT-BATH')
+                                case('ON-THE-FLY-HEAT-BATH')
                                     GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
                                 case default
                                     call Stop_All(t_r, trim(w)//" not a valid GAS singles generator")
                                 end select
-                            else if (w == 'PARTICLE_SELECTION') then
+                            else if (w == 'PARTICLE-SELECTION') then
                                 w = to_upper(tokens%next())
                                 select case (w)
-                                case('PC_WEIGHTED_FAST')
+                                case('PC-WEIGHTED-APPROX')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
-                                case('PC_WEIGHTED_OCC')
+                                case('PC-WEIGHTED')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
                                 case('UNIFORM')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
@@ -1675,11 +1675,11 @@ contains
                                     call Stop_All(t_r, trim(w)//" not a valid GAS particle selector")
                                 end select
                             else
-                                call Stop_All(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after GENERAL-PCHB")
+                                call Stop_All(t_r, "Only SINGLES or PARTICLE-SELECTION allowed as optional next keyword after GENERAL-PCHB")
                             end if
                         end do
                     case default
-                        call Stop_All(t_r, trim(w)//" not a valid keyword")
+                        call stop_all(t_r, trim(w)//" not a valid keyword")
                     end select
                     end block
 
