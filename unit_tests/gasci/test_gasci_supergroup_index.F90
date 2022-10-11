@@ -15,13 +15,13 @@ module test_gasci_supergroup_index_mod
 contains
 
     subroutine test_gasci_driver()
-        ! call run_test_case(test_compositioning, "test_compositioning")
-        ! call run_test_case(test_composition_from_idx, "test_composition_from_idx")
-        ! call run_test_case(test_first_supergroup, "test_first_supergroup")
-        ! call run_test_case(test_last_supergroup, "test_last_supergroup")
-        ! call run_test_case(test_next_supergroup, "test_next_supergroup")
-        ! call run_test_case(test_get_supergroups, "test_get_supergroups")
-        ! call run_test_case(test_count_supergroups, "test_count_supergroups")
+        call run_test_case(test_compositioning, "test_compositioning")
+        call run_test_case(test_composition_from_idx, "test_composition_from_idx")
+        call run_test_case(test_first_supergroup, "test_first_supergroup")
+        call run_test_case(test_last_supergroup, "test_last_supergroup")
+        call run_test_case(test_next_supergroup, "test_next_supergroup")
+        call run_test_case(test_get_supergroups, "test_get_supergroups")
+        call run_test_case(test_count_supergroups, "test_count_supergroups")
         call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
     end subroutine
 
@@ -204,7 +204,7 @@ contains
             integer(int64) :: idx_last
             logical :: correct
 
-            supergroups = reshape([[1, 1, 1, 1], [2, 1, 1, 0], [0, 1, 1, 2], [1, 2, 0, 1]], shape=[4, 4])
+            supergroups = reshape([[2, 1, 1, 0], [1, 2, 0, 1], [1, 1, 1, 1], [0, 1, 1, 2]], shape=[4, 4])
             GAS_spec = FlexibleGASSpec_t(&
                 supergroups=supergroups, &
                 spat_GAS_orbs = [1, 2, 3, 4])

@@ -381,6 +381,17 @@ contains
             type is(CumulGASSpec_t)
                 call find_flip_cumul(GAS_spec, previous, src, tgt)
                 res = move_particles_cumul(GAS_spec, previous, src, tgt)
+            type is (FlexibleGASSpec_t)
+            ! This is certainly not efficient and can and should be improved
+            block
+                integer :: i_sg
+                do i_sg = 1, size(GAS_spec%supergroups, 2)
+                    if (all(previous == GAS_spec%supergroups(:, i_sg))) then
+                        res = GAS_spec%supergroups(:, i_sg + 1)
+                        return
+                    end if
+                end do
+            end block
             class default
                 call stop_all(this_routine, 'Wrong class.')
             end select

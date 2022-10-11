@@ -11,7 +11,7 @@ module gasci
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==)
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
-        operator(.isclose.), custom_findloc, EnumBase_t
+        operator(.isclose.), custom_findloc, EnumBase_t, lex_geq
     use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
         alpha, beta
@@ -1128,7 +1128,8 @@ contains
         type(FlexibleGASSpec_t) :: GAS_spec
 
         integer :: n_spin_orbs, max_GAS_size
-        integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), GAS_sizes(:)
+        integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), &
+            GAS_sizes(:), sorted_supergroup(:, :)
         integer :: i, iel, iGAS, nGAS, N
         character(*), parameter :: this_routine = 'construct_FlexibleGASSpec_t'
 
@@ -1140,11 +1141,14 @@ contains
                 this_routine, 'Different particle numbers in the supergroups.')
         end if
 
+        sorted_supergroup = supergroups
+        @:sort(integer, sorted_supergroup, rank=2, along=2, comp=lex_geq)
+
 
         nGAS = maxval(spat_GAS_orbs)
         GAS_sizes = 2 * frequency(spat_GAS_orbs)
 
-        if (any(GAS_sizes < maxval(supergroups, dim=2))) then
+        if (any(GAS_sizes < maxval(sorted_supergroup, dim=2))) then
             call stop_all(this_routine, 'Pauli violation: Too many particles per GAS space.')
         end if
 
@@ -1174,12 +1178,12 @@ contains
         ! If you can remove it, I am happy.
         block
             GAS_spec = FlexibleGASSpec_t(&
-                    supergroups=supergroups, &
+                    supergroups=sorted_supergroup, &
                     N=N, &
                     GAS_table=GAS_table, &
                     GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
                     splitted_orbitals=splitted_orbitals, &
-                    lookup_is_connected=size(supergroups, 2) > 1, &
+                    lookup_is_connected=size(sorted_supergroup, 2) > 1, &
                     exchange_recoupling=recoupling_)
         end block
 
