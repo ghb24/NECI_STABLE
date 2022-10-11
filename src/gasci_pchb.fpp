@@ -41,10 +41,8 @@ module gasci_pchb
     use FciMCData, only: pSingles, excit_gen_store_type, pParallel, projEDet
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use shared_ragged_array, only: shared_ragged_array_int32_t
-    use growing_buffers, only: buffer_int32_1D_t
     use parallel_neci, only: iProcIndex_intra
     use get_excit, only: make_single
-    use growing_buffers, only: buffer_int_2D_t
     use timing_neci, only: timer, set_timer, halt_timer
 
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs

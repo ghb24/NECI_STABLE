@@ -280,6 +280,7 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS + 1
             end do
+            @:pure_ASSERT(remaining == 0)
         type is(CumulGASSpec_t)
             res = GAS_spec%get_cmin() &
                     - eoshift(GAS_spec%get_cmax(), shift=-1)
@@ -292,12 +293,12 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS + 1
             end do
+            @:pure_ASSERT(remaining == 0)
         type is(FlexibleGASSpec_t)
             res = GAS_spec%supergroups(:, 1)
         class default
             call stop_all(this_routine, 'Wrong class.')
         end select
-        @:pure_ASSERT(remaining == 0)
     end function
 
 
@@ -327,6 +328,7 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS - 1
             end do
+            @:pure_ASSERT(remaining == 0)
         type is(CumulGASSpec_t)
             res = min(GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1), &
                       GAS_spec%GAS_size())
@@ -339,12 +341,12 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS - 1
             end do
+            @:pure_ASSERT(remaining == 0)
         type is(FlexibleGASSpec_t)
             res = GAS_spec%supergroups(:, size(GAS_spec%supergroups, 2))
         class default
             call stop_all(this_routine, 'Wrong class.')
         end select
-        @:pure_ASSERT(remaining == 0)
     end function
 
 
