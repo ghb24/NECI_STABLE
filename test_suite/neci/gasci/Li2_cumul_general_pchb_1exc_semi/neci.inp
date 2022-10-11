@@ -6,9 +6,9 @@ System read
     freeformat
     spin-restrict 0
     FCIDUMP-name Li2.FciDmp
-    nonuniformrandexcits GAS-CI general_PCHB \
+    nonuniformrandexcits GAS-CI PCHB \
         SINGLES PC-UNIFORM \
-        PARTICLE_SELECTION UNIFORM
+        PARTICLE-SELECTION UNIFORM
     GAS-SPEC CUMULATIVE 2
         5 2 4
         5 6 6

@@ -4,7 +4,7 @@ System read
     electrons  30
     nobrillouintheorem
     nonuniformrandexcits pchb \
-        particle_selection uniform
+        particle-selection uniform
     freeformat
     FCIDUMP-name benzene_3.0_Ang.FciDmp
 endsys

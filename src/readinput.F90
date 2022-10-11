@@ -188,8 +188,14 @@ contains
     !>   Evaluate this dependency here.
     subroutine evaluate_depending_keywords()
         use SystemData, only: tGAS
+        use gasci, only: GAS_specification, GAS_exc_gen, &
+            possible_GAS_exc_gen, user_input_GAS_exc_gen
         use CalcData, only: user_input_seed, G_VMC_SEED
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
+
+        if (tGAS .and. allocated(user_input_GAS_exc_gen)) then
+            GAS_exc_gen = user_input_GAS_exc_gen
+        end if
 
         if (allocated(user_input_seed)) then
             G_VMC_SEED = user_input_seed
@@ -634,9 +640,10 @@ contains
             end if
         end if
 
-        if (allocated(user_input_GAS_exc_gen) .neqv. tGAS) then
-            call stop_all(t_r, "A GAS specification via `GAS-SPEC` and a GAS implementation via GAS-CI is required.")
+        if (tGAS .neqv. allocated(user_input_GAS_exc_gen)) then
+            call stop_all(this_routine, 'GAS-CI and GAS-SPEC required.')
         end if
+
         if (tGAS) then
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")

@@ -1628,7 +1628,7 @@ contains
                                 end select
                             end block
                             else
-                                call stop_all(t_r, "Only SINGLES or PARTICLE-SELECTION allowed as optional next keyword after PCHB")
+                                call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
                             end if
                         end do
 
@@ -1640,7 +1640,7 @@ contains
                     w = to_upper(tokens%next())
                     select case (w)
                     case ('ON-THE-FLY-HEAT-BATH')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
                     case ('DISCONNECTED')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
                     case ('DISCARDING')
@@ -1665,9 +1665,9 @@ contains
                             else if (w == 'PARTICLE-SELECTION') then
                                 w = to_upper(tokens%next())
                                 select case (w)
-                                case('PC-WEIGHTED-APPROX')
+                                case('PC-WEIGHTED-FAST')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
-                                case('PC-WEIGHTED')
+                                case('PC-WEIGHTED-OCC')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
                                 case('UNIFORM')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
@@ -1675,11 +1675,11 @@ contains
                                     call Stop_All(t_r, trim(w)//" not a valid GAS particle selector")
                                 end select
                             else
-                                call Stop_All(t_r, "Only SINGLES or PARTICLE-SELECTION allowed as optional next keyword after GENERAL-PCHB")
+                                call Stop_All(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after GENERAL-PCHB")
                             end if
                         end do
                     case default
-                        call stop_all(t_r, trim(w)//" not a valid keyword")
+                        call Stop_All(t_r, trim(w)//" not a valid keyword")
                     end select
                     end block
 

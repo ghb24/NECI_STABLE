@@ -5,7 +5,7 @@ System read
     nobrillouintheorem
     freeformat
     spin-restrict 0
-    nonuniformrandexcits GAS-CI general
+    nonuniformrandexcits GAS-CI on-the-fly-heat-bath
     GAS-SPEC LOCAL 3
         2 2 2
         2 2 2

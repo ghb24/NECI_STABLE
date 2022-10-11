@@ -73,7 +73,7 @@ contains
                             use_supergroup_lookup, GAS_PCHB_singles_generator, &
                             GAS_PCHB_particle_selection)
                     end select
-                else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
+                else if (GAS_exc_gen == possible_GAS_exc_gen%ON_FLY_HEAT_BATH) then
                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)
                 else if (GAS_exc_gen == possible_GAS_exc_gen%disconnected) then
                     current_exc_generator = GAS_disc_ExcGenerator_t(GAS_specification)
