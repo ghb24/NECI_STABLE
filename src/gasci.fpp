@@ -26,7 +26,8 @@ module gasci
     private
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
-        user_input_GAS_exc_gen, get_name, LocalGASSpec_t, CumulGASSpec_t
+        user_input_GAS_exc_gen, get_name, &
+        LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
 
     type, extends(EnumBase_t) :: GAS_exc_gen_t
     end type
@@ -190,6 +191,25 @@ module gasci
         module procedure construct_CumulGASSpec_t
     end interface
 
+    type, extends(GASSpec_t) :: FlexibleGASSpec_t
+        private
+        !> List the allowed supergroups.
+        !> The indices are: (nGAS, n_supergroups)
+        integer, public, allocatable :: supergroups(:, :)
+        !> The number of particles.
+        integer :: N
+    contains
+        procedure :: contains_supergroup => Flexible_contains_supergroup
+        procedure :: is_valid => Flexible_is_valid
+        procedure :: write_to => Flexible_write_to
+        procedure :: get_possible_spaces => Flexible_get_possible_spaces
+
+        procedure :: N_particle => Flexible_N_particle
+    end type
+
+    interface FlexibleGASSpec_t
+        module procedure construct_FlexibleGASSpec_t
+    end interface
 
     class(GASSpec_t), allocatable :: GAS_specification
 
@@ -1013,4 +1033,176 @@ contains
         end block
         end if
     end function
+
+
+    !>  Query wether a supergroup is contained in the GAS space.
+    pure function Flexible_contains_supergroup(this, supergroup) result(res)
+        !> Specification of GAS spaces.
+        class(FlexibleGASSpec_t), intent(in) :: this
+        !> A supergroup.
+        integer, intent(in) :: supergroup(:)
+        logical :: res
+        integer :: i
+        ! This function can be considerably sped up by applying
+        ! the composition index trick from gasci_supergroup_index.fpp
+        res = .false.
+        do i = 1, size(this%supergroups, 2)
+            if (all(supergroup == this%supergroups(:, i))) then
+                res = .true.
+                return
+            end if
+        end do
+    end function
+
+
+    !> Check if the GAS specification is valid
+    !>
+    !> If the number of particles or the number of spin orbitals
+    !> is provided, then the consistency with these numbers
+    !> is checked as well.
+    logical pure function Flexible_is_valid(this, n_basis)
+        !>  Specification of GAS spaces with local constraints.
+        class(FlexibleGASSpec_t), intent(in) :: this
+        integer, intent(in), optional :: n_basis
+
+        logical :: shapes_match, pauli_principle, n_orbs_correct
+
+        associate(GAS_sizes => this%GAS_sizes, nGAS => this%nGAS())
+
+            shapes_match = &
+                size(GAS_sizes) == nGAS .and. maxval(this%GAS_table) == nGAS
+
+            pauli_principle = all(maxval(this%supergroups, dim=2) <= GAS_sizes)
+
+            if (present(n_basis)) then
+                n_orbs_correct = sum(GAS_sizes) == n_basis
+            else
+                n_orbs_correct = .true.
+            end if
+        end associate
+
+        Flexible_is_valid = all([shapes_match, pauli_principle, n_orbs_correct])
+    end function
+
+    subroutine Flexible_write_to(this, iunit)
+        class(FlexibleGASSpec_t), intent(in) :: this
+        integer, intent(in) :: iunit
+        integer :: i_sg
+
+        write(iunit, '(A)') 'Flexible GAS constraints'
+        if (.not. this%recoupling()) then
+            write(iunit, '(A)') 'Double excitations with exchange are forbidden.'
+        end if
+        write(iunit, '(A)') 'The following supergroups are allowed'
+        do i_sg = 1, size(this%supergroups, 2)
+            write(iunit, *) this%supergroups(:, i_sg)
+        end do
+    end subroutine
+
+    pure function Flexible_get_possible_spaces(this, supergroup, add_holes, add_particles, n_total) result(spaces)
+        class(FlexibleGASSpec_t), intent(in) :: this
+        integer, intent(in) :: supergroup(size(this%GAS_sizes))
+        integer, intent(in), optional :: add_holes(:), add_particles(:), n_total
+        integer, allocatable :: spaces(:)
+        character(*), parameter :: this_routine = 'Flexible_get_possible_spaces'
+
+        integer :: n_total_
+
+        @:def_default(n_total_, n_total, 1)
+        @:unused_var(supergroup, add_holes, add_particles)
+        spaces = [-1]
+
+        call stop_all(this_routine, "Has to be implemented.")
+    end function
+
+    !>  Constructor of FlexibleGASSpec_t
+    pure function construct_FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling) result(GAS_spec)
+        !> The allowed supergroups.
+        integer, intent(in) :: supergroups(:, :)
+        !> GAS space for the i-th **spatial** orbital.
+        integer, intent(in) :: spat_GAS_orbs(:)
+        !> Exchange double excitations that recouple the spin are allowed
+        logical, intent(in), optional :: recoupling
+        logical :: recoupling_
+
+        type(FlexibleGASSpec_t) :: GAS_spec
+
+        integer :: n_spin_orbs, max_GAS_size
+        integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), GAS_sizes(:)
+        integer :: i, iel, iGAS, nGAS, N
+        character(*), parameter :: this_routine = 'construct_FlexibleGASSpec_t'
+
+        @:def_default(recoupling_, recoupling, .true.)
+
+        N = sum(supergroups(:, 1))
+        if (any(N /= sum(supergroups, dim=1))) then
+            call stop_all(&
+                this_routine, 'Different particle numbers in the supergroups.')
+        end if
+
+
+        nGAS = maxval(spat_GAS_orbs)
+        GAS_sizes = 2 * frequency(spat_GAS_orbs)
+
+        if (any(GAS_sizes < maxval(supergroups, dim=2))) then
+            call stop_all(this_routine, 'Pauli violation: Too many particles per GAS space.')
+        end if
+
+        max_GAS_size = maxval(GAS_sizes)
+        n_spin_orbs = sum(GAS_sizes)
+
+        allocate(GAS_table(n_spin_orbs))
+        GAS_table(1::2) = spat_GAS_orbs
+        GAS_table(2::2) = spat_GAS_orbs
+
+        allocate(splitted_orbitals(max_GAS_size, nGAS))
+        block
+            integer :: all_orbs(n_spin_orbs), splitted_sizes(nGAS)
+            all_orbs = [(i, i = 1, n_spin_orbs)]
+            splitted_sizes = 0
+            do iel = 1, size(all_orbs)
+                iGAS = GAS_table(iel)
+                splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
+                splitted_orbitals(splitted_sizes(iGAS), iGAS) = all_orbs(iel)
+            end do
+            @:pure_ASSERT(all(GAS_sizes == splitted_sizes))
+        end block
+
+
+        ! This block and the additional declaration of new_n_max
+        ! is just necessary because of shitty intel compilers (Ifort 18).
+        ! If you can remove it, I am happy.
+        block
+            GAS_spec = FlexibleGASSpec_t(&
+                    supergroups=supergroups, &
+                    N=N, &
+                    GAS_table=GAS_table, &
+                    GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
+                    splitted_orbitals=splitted_orbitals, &
+                    lookup_is_connected=size(supergroups, 2) > 1, &
+                    exchange_recoupling=recoupling_)
+        end block
+
+        @:pure_ASSERT(GAS_spec%is_valid())
+
+        contains
+
+            pure function frequency(N) result(res)
+                integer, intent(in) :: N(:)
+                integer, allocatable :: res(:)
+                integer :: i
+                @:pure_ASSERT(minval(N) == 1)
+                allocate(res(maxval(N)), source=0)
+                do i = 1, size(N)
+                    res(N(i)) = res(N(i)) + 1
+                end do
+            end function
+    end function
+
+    elemental function Flexible_N_particle(this) result(res)
+        class(FlexibleGASSpec_t), intent(in) :: this
+        integer :: res
+        res = this%N
+    end function
+
 end module gasci
