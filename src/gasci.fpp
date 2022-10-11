@@ -36,7 +36,7 @@ module gasci
             DISCONNECTED = GAS_exc_gen_t(1), &
             GENERAL = GAS_exc_gen_t(2), &
             DISCARDING = GAS_exc_gen_t(3), &
-            GENERAL_PCHB = GAS_exc_gen_t(4)
+            PCHB = GAS_exc_gen_t(4)
     end type
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
@@ -325,7 +325,7 @@ contains
             res = 'Heat-bath on-the-fly GAS implementation'
         else if (impl == possible_GAS_exc_gen%DISCARDING) then
             res = 'Discarding GAS implementation'
-        else if (impl == possible_GAS_exc_gen%GENERAL_PCHB) then
+        else if (impl == possible_GAS_exc_gen%PCHB) then
             res = 'PCHB GAS implementation'
         end if
     end function

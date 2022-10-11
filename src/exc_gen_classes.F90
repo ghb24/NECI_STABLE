@@ -64,7 +64,7 @@ contains
                         call current_exc_generator%init(&
                             GAS_specification, GAS_PCHB_particle_selection)
                     end select
-                else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
+                else if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
                     allocate(GAS_PCHB_ExcGenerator_t :: current_exc_generator)
                     select type(current_exc_generator)
                     type is (GAS_PCHB_ExcGenerator_t)

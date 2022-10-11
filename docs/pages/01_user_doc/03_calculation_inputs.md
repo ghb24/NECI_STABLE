@@ -266,7 +266,7 @@ considered. The block starts with the `system` keyword and ends with the
         Requires a GAS specification via the `GAS-SPEC` keyword.
 
         -   **PCHB**<br>
-            This is the default and the fastest implementation, if
+            This is the fastest implementation, if
             sufficient memory is available. The double excitations work
             similar to the FCI precomputed heat bath excitation generator
             but automatically exclude GAS forbidden excitations.
