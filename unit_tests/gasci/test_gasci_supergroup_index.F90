@@ -200,8 +200,7 @@ contains
             type(FlexibleGASSpec_t) :: GAS_spec
             type(SuperGroupIndexer_t) :: indexer
             integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
-            integer :: N, i
-            integer(int64) :: idx_last
+            integer :: i
             logical :: correct
 
             supergroups = reshape([[2, 1, 1, 0], [1, 2, 0, 1], [1, 1, 1, 1], [0, 1, 1, 2]], shape=[4, 4])
