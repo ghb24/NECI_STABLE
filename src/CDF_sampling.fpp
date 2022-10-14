@@ -40,6 +40,7 @@ contains
         !! The weights do not have to be normalized.
         real(dp), intent(in) :: w(:)
         type(CDF_Sampler_t) :: res
+        debug_function_name("construct_CDF_sampler_t")
         real(dp), allocatable :: p(:)
         ASSERT(sum(w) > 0._dp)
         p = w / sum(w)
