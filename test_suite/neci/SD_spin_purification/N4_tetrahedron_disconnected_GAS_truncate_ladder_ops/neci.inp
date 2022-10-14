@@ -7,11 +7,12 @@ System read
     spin-restrict -8
     freeformat
     sd-spin-purification 5d-4 TRUNCATE-LADDER-OPERATOR
-    GAS-SPEC LOCAL 4 +++
-        3 3 3 +++
-        3 3 3 +++
-        3 3 3 +++
-        3 3 3 +++
+    nonuniformrandexcits GAS-CI PCHB
+    GAS-SPEC LOCAL 4
+        3 3 3
+        3 3 3
+        3 3 3
+        3 3 3
         3*1 3*2 3*3 3*4
 endsys
 
@@ -21,9 +22,9 @@ calc
 
     nmcyc 5000
 
-    definedet  1  3  5 +++
-               7  9 11 +++
-              13 15 17 +++
+    definedet  1  3  5 \
+               7  9 11 \
+              13 15 17 \
               19 22 24
 
     totalwalkers 1000000
@@ -41,9 +42,13 @@ calc
     allrealcoeff
     realspawncutoff .30
     jump-shift
-    tau 0.01 search
-    max-tau .02
-    maxwalkerbloom 1
+    tau-values \
+        start user-defined 0.01 \
+        max 0.02
+    tau-search \
+        algorithm conventional \
+        stop-condition var-shift \
+        maxwalkerbloom 1
     memoryfacspawn 100.00
     memoryfacpart 50.00
     startsinglepart 10

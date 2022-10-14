@@ -2,25 +2,31 @@
 #:include "../algorithms.fpph"
 #:include "../macros.fpph"
 
-#:set countable_types = {'integer': {'int32', 'int64'}}
-#:set primitive_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
+#:set field_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
+#:set ordered_field_types = {key: field_types[key] for key in ['integer', 'real']}
 #:set log_entry = {'logical':{''}}
-#:set extended_types = dict(primitive_types, **log_entry)
+#:set extended_types = dict(field_types, **log_entry)
 #:set ops = {'integer': '==', 'real': '.isclose.', 'complex': '.isclose.', 'logical': '.eqv.'}
 
 module util_mod
     use util_mod_comparisons, only: operator(.arrgt.), operator(.arrlt.), arr_gt, arr_lt
-    use util_mod_numerical
-    use util_mod_cpts
-    use util_mod_epsilon_close
+    use util_mod_numerical, only: binary_search_first_ge, stats_out
+    use util_mod_cpts, only: arr_2d_ptr, arr_2d_dims, ptr_abuse_1d, &
+        ptr_abuse_scalar, ptr_abuse_2d
+    use util_mod_epsilon_close, only: near_zero, operator(.isclose.)
+    use constants, only: sp, dp, int32, int64, n_int, inum_runs, lenof_sign, &
+        sizeof_int
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
 #ifdef GFORTRAN_
+    use constants, only: int128
     use binomial_lookup, only: binomial_lookup_table_i128
 #endif
-    use fmt_utils
+    use fmt_utils, only: int_fmt
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use constants
+    use DetBitOps, only: DetBitLt
     use, intrinsic :: iso_c_binding, only: c_char, c_int, c_double
+    use mpi, only: MPI_WTIME
+    use error_handling_neci, only: stop_all, neci_flush, warning_neci
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
@@ -52,25 +58,14 @@ module util_mod
         find_next_comb, binary_search_ilut, binary_search_custom, binary_search_first_ge, &
         cumsum, pairswap, swap, lex_leq, lex_geq, &
         get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
-        getSpinIndex, binary_search_int, binary_search_real
+        getSpinIndex, binary_search_int, binary_search_real, clamp
+    public :: warning_neci
 
     public :: EnumBase_t
 
 
-    interface
-        ! NOTE: A stop all is of course state-changing, but even
-        !   the Fortran standard allows an `error stop`.
-        pure subroutine stop_all(sub_name, error_msg)
-            character(*), intent(in) :: sub_name, error_msg
-        end subroutine
-
-        subroutine neci_flush(n)
-            integer, intent(in) :: n
-        end subroutine
-    end interface
-
     interface binary_search_int
-    #:for kind in primitive_types['integer']
+    #:for kind in field_types['integer']
         module procedure binary_search_int_${kind}$
     #:endfor
     end interface
@@ -80,19 +75,29 @@ module util_mod
     end interface
 
     interface choose_i64
-    #:for kind in primitive_types['integer']
+    #:for kind in field_types['integer']
         module procedure choose_i64_${kind}$
     #:endfor
     end interface
 
 #ifdef GFORTRAN_
     interface choose_i128
-    #:for kind in primitive_types['integer']
+    #:for kind in field_types['integer']
         module procedure choose_i128_${kind}$
     #:endfor
     end interface
 #endif
 
+    interface clamp
+        !! If v compares less than lo, returns lo;
+        !! otherwise if hi compares less than v, returns hi; otherwise returns v.
+        !! Is also defined for lo > hi!
+        #:for type, kinds in ordered_field_types.items()
+        #:for kind in kinds
+            module procedure clamp_${type}$_${kind}$
+        #:endfor
+        #:endfor
+    end interface
 
     interface
         pure function strlen_wrap(str) result(len) bind(c)
@@ -161,7 +166,7 @@ module util_mod
     end interface custom_findloc
 
     interface cumsum
-        #:for type, kinds in primitive_types.items()
+        #:for type, kinds in field_types.items()
         #:for kind in kinds
         module procedure cumsum_${type}$_${kind}$
         #:endfor
@@ -247,7 +252,7 @@ contains
         ! used in the integer algorithm, so is retained in this real
         ! version of the algorithm
 #else
-        abs_int4_sign = abs(sgn(1))
+        abs_int4_sign = real(abs(sgn(1)), dp)
 #endif
     end function abs_int4_sign
 
@@ -527,11 +532,7 @@ contains
 #ifdef GFORTRAN_
         isnan_neci = isnan(r)
 #else
-        if((r == 0) .and. (r * 1 == 1)) then
-            isnan_neci = .true.
-        else
-            isnan_neci = .false.
-        endif
+        isnan_neci = r /= r
 #endif
     end function
 
@@ -549,7 +550,7 @@ contains
             get_index = gauss_sum((n - 3) .div. 2) + gauss_sum((n - 4) .div. 2) + k - 1
         end function
 
-#:for kind in primitive_types['integer']
+#:for kind in field_types['integer']
     ! Unfortunately there are no recursive elemental functions in Fortran.
     recursive pure function choose_i64_${kind}$(n, r, signal_overflow) result(res)
         !! Return the binomail coefficient nCr(n, r)
@@ -704,7 +705,6 @@ contains
 !--- Comparison of subarrays ---
 
     logical pure function det_int_arr_gt(a, b, len)
-        use constants, only: n_int
 
         ! Make a comparison we can sort determinant integer arrays by. Return true if the
         ! first differing integer of a, b is such that a(i) > b(i).
@@ -747,7 +747,6 @@ contains
     end function det_int_arr_gt
 
     logical pure function det_int_arr_eq(a, b, len)
-        use constants, only: n_int
 
         ! If two specified integer arrays are equal, return true. Otherwise
         ! return false.
@@ -794,7 +793,6 @@ contains
     !       strings now. We can template it if it wants to be more general
     !       in the future if needed.
     function binary_search_ilut(arr, val, cf_len) result(pos)
-        use constants, only: n_int
 
         integer(kind=n_int), intent(in) :: arr(:, :)
         integer(kind=n_int), intent(in) :: val(:)
@@ -864,7 +862,7 @@ contains
 
     end function binary_search_ilut
 
-    #:for kind in primitive_types['integer']
+    #:for kind in field_types['integer']
         pure function binary_search_int_${kind}$(arr, val) result(pos)
             integer(${kind}$), intent(in) :: arr(:)
             integer(${kind}$), intent(in) :: val
@@ -925,7 +923,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while(hi /= lo)
-            pos = int(real(hi + lo, sp) / 2_sp)
+            pos = int(real(hi + lo, dp) / 2_dp)
 
             if(abs(arr(pos) - val) < thresh) then
                 exit
@@ -964,12 +962,10 @@ contains
 
     function binary_search_custom(arr, val, cf_len, custom_gt) &
         result(pos)
-        use constants, only: n_int
-        use DetBitOps, only: DetBitLt
-
         interface
             pure function custom_gt(a, b) result(ret)
-                use constants, only: n_int
+                import :: n_int
+                implicit none
                 logical :: ret
                 integer(kind=n_int), intent(in) :: a(:), b(:)
             end function
@@ -1174,8 +1170,6 @@ contains
 
     function error_function_c(argument) result(res)
 
-        use constants, only: dp
-
         real(dp), intent(in) :: argument
         real(dp) :: res
 
@@ -1183,8 +1177,6 @@ contains
     end function error_function_c
 
     function error_function(argument) result(res)
-
-        use constants, only: dp
 
         real(dp), intent(in) :: argument
         real(dp) :: res
@@ -1226,9 +1218,6 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-#if !defined(IFORT_) && !defined(INTELLLVM_)
-        use mpi
-#endif
         ! Return elapsed time for timing and calculation ending purposes.
 
         real(dp), intent(out) :: time(2)
@@ -1250,7 +1239,7 @@ contains
         ! environments, so keep it consistent
         ret = MPI_WTIME()
         time(1) = ret
-        time(2) = real(0.0, dp)
+        time(2) = 0._dp
 #endif
 #endif
 
@@ -1294,7 +1283,7 @@ contains
 
     end subroutine open_new_file
 
-    #:for type, kinds in primitive_types.items()
+    #:for type, kinds in field_types.items()
     #:for kind in kinds
     pure function cumsum_${type}$_${kind}$(X) result(Y)
         ${type}$(${kind}$), intent(in) :: X(:)
@@ -1408,6 +1397,16 @@ contains
         neq_EnumBase_t = this%val /= other%val
     end function
 
+    #:for type, kinds in ordered_field_types.items()
+    #:for kind in kinds
+        elemental function clamp_${type}$_${kind}$(v, lo, hi) result(res)
+            ${type}$(${kind}$), intent(in) :: v, lo, hi
+            ${type}$(${kind}$) :: res
+            res = merge(lo, merge(hi, v, v > hi), v < lo)
+        end function
+    #:endfor
+    #:endfor
+
 end module
 
 !Hacks for compiler specific system calls.
@@ -1423,8 +1422,6 @@ subroutine neci_getarg(i, str)
 #ifdef NAGF95
     use f90_unix_env, only: getarg
 #endif
-    use constants
-    use util_mod
     implicit none
     integer, intent(in) :: i
     character(len=*), intent(out) :: str
@@ -1484,37 +1481,3 @@ function etime(tarr) result(tret)
 end function
 
 #endif
-
-subroutine neci_flush(un)
-#ifdef NAGF95
-    use f90_unix, only: flush
-    use constants, only: int32
-#endif
-    integer, intent(in) :: un
-#ifdef NAGF95
-    integer(kind=int32) :: dummy
-#endif
-#ifdef BLUEGENE_HACKS
-    call flush_(un)
-#else
-#ifdef NAGF95
-    dummy = un
-    call flush(dummy)
-#else
-    call flush(un)
-#endif
-#endif
-end subroutine neci_flush
-
-subroutine warning_neci(sub_name,error_msg)
-    != Print a warning message in a (helpfully consistent) format.
-    !=
-    != In:
-    !=    sub_name:  calling subroutine name.
-    !=    error_msg: error message.
-    use, intrinsic :: iso_fortran_env, only: stderr => error_unit
-    character(*), intent(in) :: sub_name, error_msg
-
-    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-    write (stderr,'(a/)') adjustl(error_msg)
-end subroutine warning_neci

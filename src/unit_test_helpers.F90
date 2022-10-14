@@ -17,7 +17,8 @@ module unit_test_helpers
 
     use fcimcdata, only: excit_gen_store_type, pSingles, pDoubles
 
-    use util_mod, only: binary_search_ilut, choose_i64, operator(.div.), operator(.isclose.), near_zero
+    use util_mod, only: binary_search_ilut, choose_i64, &
+        operator(.div.), operator(.isclose.), near_zero, stop_all
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 

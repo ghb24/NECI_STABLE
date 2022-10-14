@@ -37,11 +37,13 @@ module real_space_hubbard
 
     use OneEInts, only: tmat2d, GetTMatEl, spin_free_tmat
 
-    use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption, &
-                         excit_gen_store_type
+    use fcimcdata, only: pSingles, pDoubles, excit_gen_store_type
 
-    use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, &
-                        t_fill_frequency_hists, matele_cutoff, pSinglesIn, pDoublesIn
+    use tau_main, only: tau_search_method, input_tau_search_method, &
+        possible_tau_search_methods, t_scale_tau_to_death, tau, assign_value_to_tau, &
+        min_tau, max_tau
+
+    use CalcData, only: matele_cutoff, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -50,9 +52,8 @@ module real_space_hubbard
 
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
-    use util_mod, only: binary_search_first_ge, swap, get_free_unit, &
-                        binary_search_ilut, near_zero, operator(.isclose.), &
-                        operator(.div.), stop_all
+    use util_mod, only: &
+        get_free_unit, operator(.isclose.), stop_all, clamp, operator(.div.)
 
     use bit_reps, only: decode_bit_det
 
@@ -76,8 +77,26 @@ module real_space_hubbard
     use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, is_compatible, &
                               current_csf_i, CSF_Info_t
+    use neci_intfce, only: GetExcitation
 
     implicit none
+    private
+    public :: get_diag_helemen_rs_hub_transcorr_spin, &
+        init_tmat_rs_hub_spin_transcorr, &
+        init_umat_rs_hub_transcorr, get_diag_helemen_rs_hub_transcorr_hop, &
+        get_optimal_correlation_factor, init_get_helement_hubbard, &
+        init_tmat, create_cum_list_rs_hubbard, &
+        create_avail_neighbors_list, calc_pgen_rs_hubbard, &
+        trans_corr_fac, init_real_space_hubbard, gen_excit_rs_hubbard, &
+        get_offdiag_helement_rs_hub, get_umat_el_hub, &
+        get_umat_rs_hub_trans, t_recalc_tmat, t_recalc_umat, &
+        gen_excit_rs_hubbard_transcorr, gen_excit_rs_hubbard_transcorr_uniform, &
+        get_umat_el, tmat_rs_hub_spin_transcorr, &
+        umat_rs_hub_trancorr_hop, lat_tau_factor, t_start_neel_state, &
+        check_real_space_hubbard_input, init_spin_free_tmat, init_hopping_transcorr, &
+        calc_pgen_rs_hubbard_transcorr, calc_pgen_rs_hubbard_spin_dependent_transcorr, &
+        calc_pgen_rs_hubbard_transcorr_uniform, gen_excit_rs_hubbard_spin_dependent_transcorr, &
+        gen_excit_rs_hubbard_transcorr_hole_focus
 
     real(dp) :: lat_tau_factor = 0.5_dp
 
@@ -89,9 +108,7 @@ module real_space_hubbard
 
     complex(dp), parameter :: imag_unit = cmplx(0.0_dp, 1.0_dp, dp)
 
-    real(dp), allocatable :: hop_transcorr_factor_cached(:), &
-                             hop_transcorr_factor_cached_m(:), &
-                             hop_transcorr_factor_cached_vec(:, :, :), &
+    real(dp), allocatable :: hop_transcorr_factor_cached_vec(:, :, :), &
                              hop_transcorr_factor_cached_vec_m(:, :, :)
 
     logical :: t_recalc_umat = .false.
@@ -126,8 +143,6 @@ contains
         character(*), parameter :: this_routine = "init_real_space_hubbard"
         ! especially do some stop_all here so no wrong input is used
         real(dp) :: tau_opt
-        integer :: neel_state_ni(nel)
-        integer(n_int) :: ilut_neel(0:NIfTot)
 
         root_print "using new real-space hubbard implementation: "
 
@@ -232,7 +247,9 @@ contains
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
             root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
+            call assign_value_to_tau(&
+                clamp(lat_tau_factor * tau_opt, min_tau, max_tau), &
+                'Initialization with optimal real-space Hubbard value')
 
         else
             root_print "optimal time-step would be: ", tau_opt
@@ -242,15 +259,11 @@ contains
         ! re-enable tau-search if we have transcorrelation
         if (.not. (t_trans_corr_2body .or. t_trans_corr .or. t_trans_corr_hop &
                    .or. t_spin_dependent_transcorr)) then
-            ! and i have to turn off the time-step search for the hubbard
-            tsearchtau = .false.
-            ! set tsearchtauoption to true to use the death-tau search option
-            tsearchtauoption = .true.
 
-            t_hist_tau_search = .false.
-            t_hist_tau_search_option = .false.
-
-            t_fill_frequency_hists = .false.
+            if (tau_search_method /= possible_tau_search_methods%OFF) then
+                call stop_all(this_routine, "tau-search should be switched off")
+            end if
+            t_scale_tau_to_death = .true.
         end if
 
         if (t_start_neel_state) then
@@ -277,7 +290,6 @@ contains
         ! k-space lattice for this transcorrelation!
         ! and i finally have to get the real-space and k-space vector
         ! relations fully correct!
-        integer :: i
 
         call setup_lattice_symmetry()
 
@@ -324,55 +336,6 @@ contains
         ASSERT(abs(aimag(temp)) < EPS)
 
     end function hop_transcorr_factor
-
-    subroutine init_hop_trancorr_fac_cached(J_fac, in_lat)
-        ! also store the hopping transcorrelation factor in a cache,
-        ! since the umat initialization takes awfully long already
-        ! and the access to this cache is via orbitals, not the r-vector
-        ! associated with it!
-        real(dp), intent(in) :: J_fac
-        class(lattice), intent(in) :: in_lat
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "init_hop_trancorr_fac_cached"
-#endif
-        integer :: n_sites, i, j, r_vec(3), k_vec(3)
-        complex(dp) :: temp, temp_m
-
-        if (allocated(hop_transcorr_factor_cached)) deallocate(hop_transcorr_factor_cached)
-        if (allocated(hop_transcorr_factor_cached_m)) deallocate(hop_transcorr_factor_cached_m)
-
-        n_sites = in_lat%get_nsites()
-
-        allocate(hop_transcorr_factor_cached(n_sites))
-        allocate(hop_transcorr_factor_cached_m(n_sites))
-
-        hop_transcorr_factor_cached = 0.0_dp
-        hop_transcorr_factor_cached_m = 0.0_dp
-
-        do i = 1, n_sites
-            r_vec = in_lat%get_r_vec(i)
-            temp = 0.0_dp
-            temp_m = 0.0_dp
-
-            do j = 1, n_sites
-                k_vec = in_lat%get_k_vec(j)
-
-                temp = temp + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * &
-                       exp(-J_fac * epsilon_kvec(j))
-
-                temp_m = temp_m + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * &
-                         exp(J_fac * epsilon_kvec(j))
-            end do
-
-            ASSERT(abs(aimag(temp)) < EPS)
-            ASSERT(abs(aimag(temp_m)) < EPS)
-
-            hop_transcorr_factor_cached(i) = real(temp) / real(n_sites, dp)
-            hop_transcorr_factor_cached_m(i) = real(temp_m) / real(n_sites, dp)
-
-        end do
-
-    end subroutine init_hop_trancorr_fac_cached
 
     subroutine init_hop_trancorr_fac_cached_vec(J_fac, in_lat)
         ! maybe it is better to cache it to be accessible by the r-vecs,
@@ -660,7 +623,6 @@ contains
         integer :: n_sites, i, j, k, l
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "init_umat_rs_hub_transcorr"
-        integer :: r1(3), ri(3)
 #endif
         real(dp) :: elem
         integer :: iunit
@@ -732,7 +694,7 @@ contains
         use SystemData, only: tReltvy, tUEG, tUEG2, tHub, &
                               tKPntSym, tLatticeGens, tUEGNewGenerator, &
                               tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse, &
-                              tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
+                              tUEGNewGenerator, tGen_4ind_part_exact, &
                               tGen_4ind_2, tGen_4ind_2_symmetric, tGen_4ind_unbound, tStoreSpinOrbs, &
                               tReal
         use OneEInts, only: tcpmdsymtmat, tOneelecdiag
@@ -1379,7 +1341,7 @@ contains
 #ifdef DEBUG_
         real(dp) :: temp_pgen
 #endif
-        integer :: n_spatial_hole, ind_spatial_hole(nBasis / 2), n_e_h_pair, ind_e_h_pair(4 * nel, 2), i, n_double
+        integer :: n_spatial_hole, ind_spatial_hole(nBasis / 2), n_e_h_pair, ind_e_h_pair(4 * nel, 2), i
         integer, allocatable :: neighbors(:)
 
         unused_var(exFlag)
@@ -1549,11 +1511,11 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr"
 
-        integer :: iunused, ind, elec, src, orb
+        integer :: ind, elec, src, orb
         real(dp) :: cum_arr_t(nBasis / 2)
         ! i have to resolve this conflict:
         real(dp), allocatable :: cum_arr_o(:)
-        integer, allocatable :: neighbors(:), orbs(:)
+        integer, allocatable :: neighbors(:)
         real(dp) :: cum_sum, p_elec, p_orb
 
         unused_var(exFlag)
@@ -1658,7 +1620,6 @@ contains
         integer :: spin, ex(2, maxExcit), nJ(nel), i, orb
         integer, allocatable :: ex2(:, :)
         real(dp) :: elem
-        real(dp) :: temp
 
         ASSERT(IsOcc(ilutI, src))
 
@@ -1805,7 +1766,6 @@ contains
         integer :: ex(2, 2), spin, b, nJ(nel), orb_b
         integer, allocatable :: ex2(:, :)
         real(dp) :: elem
-        real(dp) :: temp
 
         ASSERT(.not. same_spin(src(1), src(2)))
         ASSERT(IsNotOcc(ilutI, orb_a))
@@ -1992,13 +1952,13 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard"
 
-        integer :: iunused, ind, elec, src, orb, n_avail, n_orbs, i
-        integer, allocatable :: neighbors(:), orbs(:)
+        integer :: ind, elec, src, orb
+        integer, allocatable :: neighbors(:)
         real(dp), allocatable :: cum_arr(:)
-        real(dp) :: cum_sum, elem, r, p_elec, p_orb
+        real(dp) :: cum_sum, p_elec, p_orb
 
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
+        integer(n_int) :: ilutGj(0:nifguga)
 
         unused_var(exFlag)
         hel = h_cast(0.0_dp)
@@ -2082,10 +2042,9 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard"
 #endif
-        integer :: src, tgt, n_orbs
+        integer :: src, tgt
         real(dp) :: p_elec, p_orb, cum_sum
         real(dp), allocatable :: cum_arr(:)
-        integer, allocatable :: orbs(:)
 
         ! only single excitations in the real-space hubbard
         if (ic /= 1) then
@@ -2399,7 +2358,7 @@ contains
         integer, intent(in) :: nI(nel)
         HElement_t(dp) :: hel
 
-        integer :: i, j, id(nel), idX, idN
+        integer :: i, j, id(nel)
 
         hel = 0.0_dp
 
@@ -2642,9 +2601,6 @@ contains
         ! the one, whhich access the "normal" fcidump.. figure out!
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "get_umat_rs_hub_trans"
-#endif
 
         hel = umat_rs_hub_trancorr_hop(i, j, k, l)
 

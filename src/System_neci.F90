@@ -4,7 +4,7 @@ MODULE System
 
     use SystemData
 
-    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tPairedReplicas, &
                         S2Init, tDynamicAvMcEx
 
@@ -19,7 +19,8 @@ MODULE System
     use read_fci, only: FCIDUMP_name, load_orb_perm
 
     use util_mod, only: error_function, error_function_c, &
-                        near_zero, operator(.isclose.), get_free_unit, operator(.div.)
+                        near_zero, operator(.isclose.), get_free_unit, operator(.div.), &
+                        stop_all, neci_flush
 
     use lattice_mod, only: lattice, lat
 
@@ -29,18 +30,9 @@ MODULE System
 
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
-    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
-        LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
-
-    use gasci_util, only: t_output_GAS_sizes
-
-
     use SD_spin_purification_mod, only: possible_purification_methods, &
         SD_spin_purification, spin_pure_J
 
-
-    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
-        possible_PCHB_particle_selection, PCHB_particle_selection
 
     use MPI_wrapper, only: iprocindex, root
 
@@ -51,6 +43,12 @@ MODULE System
     use guga_data, only: tGUGACore
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
+
+    use tau_main, only: tau, assign_value_to_tau
+
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
+         user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t
+    use gasci_util, only: t_output_GAS_sizes
 
     IMPLICIT NONE
 
@@ -230,7 +228,7 @@ contains
         t_pcpp_excitgen = .false.
         t_pchb_excitgen = .false.
         ! use weighted singles for the pchb excitgen?
-        t_pchb_weighted_singles = .false.
+        t_guga_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
         t_adjoint_replicas = .false.
         tGiovannisBrokenInit = .false.
@@ -1355,7 +1353,7 @@ contains
                 tNonUniRandExcits = .true.
                 do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
-                    select case (w)
+                    non_uniform_rand_excits: select case (w)
                     case ("NOSYM_GUGA")
                         call Stop_All(this_routine, "'nosym-guga' option deprecated!")
 
@@ -1596,6 +1594,95 @@ contains
                     case ("PCHB")
                         ! the precomputed heat-bath excitation generator (uniform singles)
                         t_pchb_excitgen = .true.
+                        do while (tokens%remaining_items() > 0)
+                            w = to_upper(tokens%next())
+                            if (w == 'SINGLES') then
+                            block
+                                use pchb_excitgen, only: FCI_PCHB_singles, possible_PCHB_singles
+
+                                w = to_upper(tokens%next())
+                                select case (w)
+                                case('UNIFORM')
+                                    FCI_PCHB_singles = possible_PCHB_singles%UNIFORM
+                                case('ON-THE-FLY-HEAT-BATH')
+                                    FCI_PCHB_singles = possible_PCHB_singles%ON_FLY_HEAT_BATH
+                                case default
+                                    call Stop_All(t_r, trim(w)//" not a valid PCHB singles generator")
+                                end select
+                            end block
+                            else if (w == 'PARTICLE-SELECTION') then
+                            block
+                                use pchb_excitgen, only: FCI_PCHB_particle_selection
+                                use gasci_pchb, only: PCHB_particle_selections
+
+                                w = to_upper(tokens%next())
+                                select case (w)
+                                case('PC-WEIGHTED-APPROX')
+                                    FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
+                                case('PC-WEIGHTED')
+                                    FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
+                                case('UNIFORM')
+                                    FCI_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
+                                case default
+                                    call Stop_All(t_r, trim(w)//" not a valid PCHB particle selector")
+                                end select
+                            end block
+                            else
+                                call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
+                            end if
+                        end do
+
+                case ("GAS-CI")
+                block
+                    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
+                        PCHB_particle_selections, GAS_PCHB_particle_selection
+
+                    w = to_upper(tokens%next())
+                    select case (w)
+                    case ('ON-THE-FLY-HEAT-BATH')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
+                    case ('DISCONNECTED')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                    case ('DISCARDING')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                    case ('PCHB')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+
+                        do while (tokens%remaining_items() > 0)
+                            w = to_upper(tokens%next())
+                            if (w == 'SINGLES') then
+                                w = to_upper(tokens%next())
+                                select case (w)
+                                case('DISCARDING-UNIFORM')
+                                    GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
+                                case('PC-UNIFORM')
+                                    GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
+                                case('ON-THE-FLY-HEAT-BATH')
+                                    GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
+                                case default
+                                    call Stop_All(t_r, trim(w)//" not a valid GAS singles generator")
+                                end select
+                            else if (w == 'PARTICLE-SELECTION') then
+                                w = to_upper(tokens%next())
+                                select case (w)
+                                case('PC-WEIGHTED-FAST')
+                                    GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
+                                case('PC-WEIGHTED-OCC')
+                                    GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
+                                case('UNIFORM')
+                                    GAS_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
+                                case default
+                                    call Stop_All(t_r, trim(w)//" not a valid GAS particle selector")
+                                end select
+                            else
+                                call Stop_All(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after GENERAL-PCHB")
+                            end if
+                        end do
+                    case default
+                        call Stop_All(t_r, trim(w)//" not a valid keyword")
+                    end select
+                    end block
+
 
                     case ("GUGA-PCHB")
                         ! use an explicit guga-pchb keyword and flag
@@ -1609,12 +1696,19 @@ contains
 
                     case default
                         call Stop_All("ReadSysInp", trim(w)//" not a valid keyword")
-                    end select
+                    end select non_uniform_rand_excits
                 end do
 
             case ("PCHB-WEIGHTED-SINGLES")
                 ! Enable using weighted single excitations with the pchb excitation generator
-                t_pchb_weighted_singles = .true.
+                write(stdout, *) trim(w)//" is deprecated."
+                write(stdout, *) "For SD basis please use `nonuniformrandexcits pchb &
+                    &singles on-fly-heat-bath` instead."
+                write(stdout, *) "For GUGA please use `GUGA-PCHB-WEIGHTED-SINGLES`."
+                call stop_all(this_routine, trim(w)//" is deprecated.")
+
+            case ("GUGA-PCHB-WEIGHTED-SINGLES")
+                t_guga_pchb_weighted_singles = .true.
 
             ! enable intermediately some pchb+guga testing
             case("ANALYZE-PCHB")
@@ -1763,7 +1857,7 @@ contains
 
                 tGAS = .true.
                 block
-                    logical :: cumulative_constraints, recoupling
+                    logical :: recoupling
                     integer :: nGAS, iGAS
                     integer :: i_orb, n_spat_orbs
                     ! n_orbs are the number of spatial orbitals per GAS space
@@ -1772,9 +1866,9 @@ contains
                                             spat_GAS_orbs(:), beta_orbs(:)
                     w = to_upper(tokens%next())
                     if (w == 'LOCAL') then
-                        cumulative_constraints = .false.
+                        allocate(LocalGASSpec_t :: GAS_specification)
                     else if (w == 'CUMULATIVE') then
-                        cumulative_constraints = .true.
+                        allocate(CumulGASSpec_t :: GAS_specification)
                     else
                         call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
                     end if
@@ -1782,33 +1876,42 @@ contains
                     nGAS = to_int(tokens%next())
                     allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
                     do iGAS = 1, nGAS
-                        n_orbs(iGAS) = to_int(tokens%next())
-                        cn_min(iGAS) = to_int(tokens%next())
-                        cn_max(iGAS) = to_int(tokens%next())
+                        if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                            n_orbs(iGAS) = to_int(tokens%next())
+                            cn_min(iGAS) = to_int(tokens%next())
+                            cn_max(iGAS) = to_int(tokens%next())
+                        else
+                            call stop_all(t_r, 'Error in GAS spec.')
+                        end if
                     end do
 
                     n_spat_orbs = sum(n_orbs)
-                    allocate(spat_GAS_orbs(n_spat_orbs))
-                    block
-                        use fortran_strings, only: operator(.in.), Token_t, split
-                        integer :: times, iGAS
-                        type(Token_t), allocatable :: splitted(:)
+                    allocate(spat_GAS_orbs(n_spat_orbs), source=0)
 
-                        i_orb = 1
-                        do while (i_orb  <= n_spat_orbs)
-                            w = to_upper(tokens%next())
-                            if ('*' .in. w) then
-                                splitted = split(w, '*')
-                                read(splitted(1)%str, *) times
-                                read(splitted(2)%str, *) iGAS
-                            else
-                                read(w, *) iGAS
-                                times = 1
-                            end if
-                            spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
-                            i_orb = i_orb + times
-                        end do
-                    end block
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                        block
+                            use fortran_strings, only: operator(.in.), Token_t, split
+                            integer :: times, iGAS
+                            type(Token_t), allocatable :: splitted(:)
+
+                            i_orb = 1
+                            do while (i_orb  <= n_spat_orbs)
+                                w = to_upper(tokens%next())
+                                if ('*' .in. w) then
+                                    splitted = split(w, '*')
+                                    read(splitted(1)%str, *) times
+                                    read(splitted(2)%str, *) iGAS
+                                else
+                                    read(w, *) iGAS
+                                    times = 1
+                                end if
+                                spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
+                                i_orb = i_orb + times
+                            end do
+                        end block
+                    else
+                        call stop_all(t_r, 'Error in GAS spec.')
+                    end if
 
                     if (tokens%remaining_items() > 0) then
                         w = to_upper(tokens%next())
@@ -1824,11 +1927,14 @@ contains
                         recoupling = .true.
                     end if
 
-                    if (cumulative_constraints) then
+                    select type(GAS_specification)
+                    type is(CumulGASSpec_t)
                         GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
-                    else
+                    type is(LocalGASSpec_t)
                         GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
-                    end if
+                    class default
+                        call stop_all(t_r, "Invalid type for GAS specification.")
+                    end select
 
                     beta_orbs = [(i, i=1, n_spat_orbs * 2, 2)]
                     if (.not. all(n_orbs == GAS_specification%count_per_GAS(beta_orbs))) then
@@ -1836,54 +1942,6 @@ contains
                     end if
                 end block
 
-            case ("GAS-CI")
-                w = to_upper(tokens%next())
-                select case (w)
-                case ('GENERAL')
-                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
-                case ('DISCONNECTED')
-                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                case ('DISCARDING')
-                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                case ('GENERAL_PCHB', 'GENERAL-PCHB')
-                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
-
-                    do while (tokens%remaining_items() > 0)
-                        w = to_upper(tokens%next())
-                        if (w == 'SINGLES') then
-                            w = to_upper(tokens%next())
-                            select case (w)
-                            case('DISCARDING-UNIFORM')
-                                GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
-                            case('PC-UNIFORM')
-                                GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
-                            case('ON-FLY-HEAT-BATH')
-                                GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
-                            case default
-                                call Stop_All(t_r, trim(w)//" not a valid GAS singles generator")
-                            end select
-                        else if (w == 'PARTICLE_SELECTION') then
-                            w = to_upper(tokens%next())
-                            select case (w)
-                            case('PC_WEIGHTED_FAST')
-                                PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_FAST
-                            case('PC_WEIGHTED_OCC')
-                                PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_OCC
-                            case('UNIFORM')
-                                PCHB_particle_selection = possible_PCHB_particle_selection%UNIFORM
-                            case default
-                                call Stop_All(t_r, trim(w)//" not a valid GAS particle selector")
-                            end select
-                        else
-                            call Stop_All(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after GENERAL-PCHB")
-                        end if
-                    end do
-
-                    if (tokens%remaining_items() > 0) then
-                    end if
-                case default
-                    call Stop_All(t_r, trim(w)//" not a valid keyword")
-                end select
 
             case("OUTPUT-GAS-HILBERT-SPACE-SIZE")
                 t_output_GAS_sizes = .true.
@@ -3334,12 +3392,17 @@ contains
         !Detemines tau for a given lattice type
 
         if (dimen == 3) then ! 3D
-            TAU = (k_lattice_constant**2 * OMEGA) / (4.0_dp * PI) !Hij_min**-1
-            if (tTruncInitiator) TAU = TAU * InitiatorWalkNo
-            if (tHPHF) TAU = TAU / sqrt(2.0_dp)
-            TAU = 0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL)
+            ! Hij_min**-1
+            call assign_value_to_tau((k_lattice_constant**2 * OMEGA) / (4.0_dp * PI), &
+                'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, 'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), 'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                'Initialization in System_neci.')
             if (TAU > k_lattice_constant**(-2) / OrbEcutoff) then
-                TAU = 1.0_dp / (k_lattice_constant**(2) * OrbEcutoff)  !using Hii
+                ! using Hii
+                call assign_value_to_tau(1.0_dp / (k_lattice_constant**(2) * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
                 !write(stdout,*) 1.0_dp/((2.0_dp*PI/Omega**third)**2*orbEcutoff)
             else
@@ -3347,25 +3410,37 @@ contains
             end if
 
         else if (dimen == 2) then !2D
-            TAU = (k_lattice_constant * OMEGA) / (2.0_dp * PI)  !Hij_min**-1
-            if (tTruncInitiator) TAU = TAU * InitiatorWalkNo
-            if (tHPHF) TAU = TAU / sqrt(2.0_dp)
-            TAU = 0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL)
+            ! Hij_min**-1
+            call assign_value_to_tau((k_lattice_constant * OMEGA) / (2.0_dp * PI), &
+                    'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, &
+                    'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), 'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                    'Initialization in System_neci.')
             if (TAU > k_lattice_constant**(-2) / OrbEcutoff) then
             !!!!!!!! NOT WORKING YET!!!!!!!
-                TAU = 1.0_dp / (k_lattice_constant**(2) * OrbEcutoff)  !using Hii
+                !using Hii
+                call assign_value_to_tau(1.0_dp / (k_lattice_constant**(2) * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
             else
                 write(stdout, *) 'Tau set by using Hji'
             end if
 
         else if (dimen == 1) then !1D
-            TAU = OMEGA / (-2.0_dp * log(1.0_dp / (2.0_dp * sqrt(orbEcutoff))))
-            if (tTruncInitiator) TAU = TAU * InitiatorWalkNo
-            if (tHPHF) TAU = TAU / sqrt(2.0_dp)
-            TAU = 0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL)
+            call assign_value_to_tau(OMEGA / (-2.0_dp * log(1.0_dp / (2.0_dp * sqrt(orbEcutoff)))), &
+                    'Initialization in System_neci.')
+            if (tTruncInitiator) call assign_value_to_tau(TAU * InitiatorWalkNo, &
+                    'Initialization in System_neci.')
+            if (tHPHF) call assign_value_to_tau(TAU / sqrt(2.0_dp), &
+                    'Initialization in System_neci.')
+            call assign_value_to_tau(0.9_dp * TAU * 4.0_dp / (NEL * (NEL - 1)) / (NBASIS - NEL), &
+                    'Initialization in System_neci.')
             if (TAU > 0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff)) then
-                TAU = 0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff)   !using Hii
+                ! using Hii
+                call assign_value_to_tau(0.9_dp * 1.0_dp / (0.5_dp * (k_lattice_constant)**2 * NEL * OrbEcutoff), &
+                    'Initialization in System_neci.')
                 write(stdout, *) '***************** Tau set by using Hii *******************************'
             else
                 write(stdout, *) 'Tau set by using Hji'
@@ -3493,79 +3568,10 @@ contains
 
 END MODULE System
 
-SUBROUTINE WRITEBASIS(NUNIT, G1, NHG, ARR, BRR)
-    ! Write out the current basis to unit nUnit
-    use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, k_lattice_vectors
-    use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, nel, tUEG2
-    use DeterminantData, only: fdet
-    use sym_mod, only: writesym
-    use constants, only: dp
-    IMPLICIT NONE
-    INTEGER NUNIT, NHG, BRR(NHG), I
-    integer :: pos
-    TYPE(BASISFN) G1(NHG)
-    real(dp) ARR(NHG, 2), unscaled_energy, kvecX, kvecY, kvecZ
-
-    ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
-    !     filled in yet. --> track pos.
-    if (.not. associated(fdet)) &
-        write(nunit, '("HF determinant not yet defined.")')
-    pos = 1
-!=============================================
-    if (tUEG2) then
-
-        DO I = 1, NHG
-!     kvectors in cartesian coordinates
-            kvecX = k_lattice_vectors(1, 1) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 1) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 1) * G1(BRR(I))%K(3)
-            kvecY = k_lattice_vectors(1, 2) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 2) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 2) * G1(BRR(I))%K(3)
-            kvecZ = k_lattice_vectors(1, 3) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 3) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 3) * G1(BRR(I))%K(3)
-
-            unscaled_energy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
-
-            write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
-            CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
-            write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
-            write(NUNIT, '(3F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2), unscaled_energy
-
-            if (associated(fdet)) then
-                pos = 1
-                do while (pos < nel .and. fdet(pos) < brr(i))
-                    pos = pos + 1
-                end do
-                if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
-            end if
-            write(nunit, *)
-        end do
-        RETURN
-    end if !UEG2
-!=============================================
-    DO I = 1, NHG
-        write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
-        CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
-        write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
-        write(NUNIT, '(2F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2)
-        if (associated(fdet)) then
-            pos = 1
-            do while (pos < nel .and. fdet(pos) < brr(i))
-                pos = pos + 1
-            end do
-            if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
-        end if
-        write(nunit, *)
-    end do
-    RETURN
-END SUBROUTINE WRITEBASIS
-
 SUBROUTINE ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
     use SystemData, only: BasisFN, t_guga_noreorder, lNoSymmetry
     use sort_mod
-    use util_mod, only: NECI_ICOPY
+    use util_mod, only: NECI_ICOPY, stop_all
     use constants, only: dp, stdout
     use sym_mod, only: GENMOLPSYMTABLE
     implicit none
@@ -3737,3 +3743,75 @@ SUBROUTINE GetUEGKE(I, J, K, ALAT, tUEGTrueEnergies, tUEGOffset, k_offset, Energ
         Energy = E
     end if
 END SUBROUTINE GetUEGKE
+
+
+SUBROUTINE WRITEBASIS(NUNIT, G1, NHG, ARR, BRR)
+    ! Write out the current basis to unit nUnit
+    use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, k_lattice_vectors
+    use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, nel, tUEG2
+    use DeterminantData, only: fdet
+    use sym_mod, only: writesym
+    use constants, only: dp
+    implicit none
+    integer, intent(in) :: nunit
+    type(basisfn), intent(in) :: g1(nhg)
+    integer, intent(in) :: nhg, brr(nhg)
+
+    integer :: pos, i
+    real(dp) ARR(NHG, 2), unscaled_energy, kvecX, kvecY, kvecZ
+
+    ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
+    !     filled in yet. --> track pos.
+    if (.not. associated(fdet)) &
+        write(nunit, '("HF determinant not yet defined.")')
+    pos = 1
+!=============================================
+    if (tUEG2) then
+
+        DO I = 1, NHG
+!     kvectors in cartesian coordinates
+            kvecX = k_lattice_vectors(1, 1) * G1(BRR(I))%K(1) &
+                    + k_lattice_vectors(2, 1) * G1(BRR(I))%K(2) &
+                    + k_lattice_vectors(3, 1) * G1(BRR(I))%K(3)
+            kvecY = k_lattice_vectors(1, 2) * G1(BRR(I))%K(1) &
+                    + k_lattice_vectors(2, 2) * G1(BRR(I))%K(2) &
+                    + k_lattice_vectors(3, 2) * G1(BRR(I))%K(3)
+            kvecZ = k_lattice_vectors(1, 3) * G1(BRR(I))%K(1) &
+                    + k_lattice_vectors(2, 3) * G1(BRR(I))%K(2) &
+                    + k_lattice_vectors(3, 3) * G1(BRR(I))%K(3)
+
+            unscaled_energy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
+
+            write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
+            CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
+            write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
+            write(NUNIT, '(3F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2), unscaled_energy
+
+            if (associated(fdet)) then
+                pos = 1
+                do while (pos < nel .and. fdet(pos) < brr(i))
+                    pos = pos + 1
+                end do
+                if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
+            end if
+            write(nunit, *)
+        end do
+        RETURN
+    end if !UEG2
+!=============================================
+    DO I = 1, NHG
+        write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
+        CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
+        write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
+        write(NUNIT, '(2F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2)
+        if (associated(fdet)) then
+            pos = 1
+            do while (pos < nel .and. fdet(pos) < brr(i))
+                pos = pos + 1
+            end do
+            if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
+        end if
+        write(nunit, *)
+    end do
+    RETURN
+END SUBROUTINE WRITEBASIS

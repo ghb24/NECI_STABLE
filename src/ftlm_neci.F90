@@ -7,6 +7,7 @@ module ftlm_neci
 
     use bit_rep_data, only: NIfTot
     use constants
+    use util_mod, only: stop_all, neci_flush
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGatherV, MPIAllGather, &
                              MPISumAll
     use MPI_wrapper, only: root

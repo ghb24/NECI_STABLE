@@ -1,13 +1,17 @@
 ! Unit test for gdata_io handlers
 program test_gdata_io
-    use constants
-    use fruit
+    use constants, only: dp, inum_runs
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true, assert_equals
+    use util_mod, only: stop_all
     use FciMCData, only: MaxWalkersPart
     use LoggingData, only: tAccumPops, tExplicitAllRDM, tRDMonFly
     use CalcData, only: tActivateLAS, tAutoAdaptiveShift, tContTimeFCIMC, tContTimeFull, &
         tReplicaEstimates, tPairedReplicas, tScaleBlooms, tSeniorInitiators, tStoredDets
     use gdata_io, only: gdata_io_t
-    use global_det_data
+    use global_det_data, only: get_tot_spawns, get_acc_spawns, get_max_ratio, &
+        set_max_ratio, init_global_det_data, apvals_size, global_determinant_data, &
+        fvals_size, max_ratio_size, pos_acc_spawns, pos_tot_spawns
     implicit none
 
     integer, parameter :: ndets = 1e4

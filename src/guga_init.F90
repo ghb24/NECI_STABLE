@@ -10,10 +10,10 @@ module guga_init
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
                           treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_tJ_model, t_guga_pchb, t_pchb_weighted_singles
+                          t_tJ_model, t_guga_pchb, t_guga_pchb_weighted_singles
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                        t_hist_tau_search, tSpinProject, &
+                        tSpinProject, &
                         tReplicaEstimates, tPreCond, ss_space_in, trial_space_in, &
                         t_fast_pops_core, t_core_inits
 
@@ -40,7 +40,7 @@ module guga_init
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
 
-    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
+    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
 
     use constants, only: dp, int_rdm, n_int, stdout, inum_runs
 
@@ -97,7 +97,7 @@ contains
 
         else if (t_guga_pchb) then
 
-            if (t_pchb_weighted_singles) then
+            if (t_guga_pchb_weighted_singles) then
                 pickOrbitals_single => pickOrbs_sym_uniform_mol_single
             else
                 pickOrbitals_single => pick_orbitals_pure_uniform_singles
@@ -335,12 +335,6 @@ contains
                 call stop_all(this_routine, &
                               "can only determine up to excit level 2 in GUGA for now!")
             end if
-        end if
-
-        ! avoid using both the old and the new tau search functionality
-        if (tSearchTau .and. t_hist_tau_search) then
-            call stop_all(this_routine, &
-                          "can't use both the old and the new tau search option at the same time!")
         end if
 
         if (tReplicaEstimates) then

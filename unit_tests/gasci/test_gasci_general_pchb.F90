@@ -1,5 +1,5 @@
 module test_gasci_general_pchb
-    use fruit
+    use fruit, only: assert_equals, assert_true, assert_false
     use constants, only: dp, int64, n_int, maxExcit
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use util_mod, only: factrl, swap, cumsum
@@ -9,7 +9,7 @@ module test_gasci_general_pchb
 
     use gasci, only: LocalGASSpec_t
     use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
-        possible_PCHB_particle_selection
+        PCHB_particle_selections
     use excitation_generators, only: ExcitationGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
@@ -49,7 +49,7 @@ contains
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
-                                    PCHB_particle_selection=possible_PCHB_particle_selection%UNIFORM)
+                                    PCHB_particle_selection=PCHB_particle_selections%UNIFORM)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -71,7 +71,7 @@ contains
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
-                                    PCHB_particle_selection=possible_PCHB_particle_selection%PC_WEIGHTED_OCC)
+                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -92,7 +92,7 @@ contains
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
-                                    PCHB_particle_selection=possible_PCHB_particle_selection%PC_WEIGHTED_FAST)
+                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED_APPROX)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -133,8 +133,9 @@ end module
 
 program test_gasci_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_general_pchb, only: test_pgen
 

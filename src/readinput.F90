@@ -4,11 +4,16 @@
 !               Failing that, we use stdin
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
-    use util_mod, only: operator(.implies.)
+    use util_mod, only: operator(.implies.), stop_all
     Use Determinants, only: tDefineDet, DefDet
-    use SystemData, only: lms, user_input_m_s
+    use SystemData, only: lms, user_input_m_s, t_k_space_hubbard, t_trans_corr_2body
     use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+    use tau_main, only: tau_start_val, possible_tau_start, &
+        min_tau, max_tau, tau, readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
+        tau_search_method, possible_tau_search_methods
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms
+
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -188,12 +193,8 @@ contains
         use CalcData, only: user_input_seed, G_VMC_SEED
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
 
-        if (tGAS) then
-            if (allocated(user_input_GAS_exc_gen)) then
-                GAS_exc_gen = user_input_GAS_exc_gen
-            else
-                GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
-            end if
+        if (tGAS .and. allocated(user_input_GAS_exc_gen)) then
+            GAS_exc_gen = user_input_GAS_exc_gen
         end if
 
         if (allocated(user_input_seed)) then
@@ -262,7 +263,7 @@ contains
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, user_input_GAS_exc_gen
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -639,6 +640,10 @@ contains
             end if
         end if
 
+        if (tGAS .neqv. allocated(user_input_GAS_exc_gen)) then
+            call stop_all(this_routine, 'GAS-CI and GAS-SPEC required.')
+        end if
+
         if (tGAS) then
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
@@ -649,7 +654,7 @@ contains
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%GENERAL_PCHB])) then
+            if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%PCHB])) then
                 call stop_all(t_r, "Running GAS without spin-recoupling requires {DISCONNECTED, GENERAL_PCHB} implementations.")
             end if
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
@@ -692,6 +697,47 @@ contains
                 end if
             end if
         end block
+
+
+        time_step: block
+            if (.not. allocated(tau_start_val)) then
+                call stop_all(t_r, 'Start value for tau is required.')
+            end if
+
+            if (tau_start_val == possible_tau_start%from_popsfile .neqv. tReadPops) then
+                if (tau_start_val == possible_tau_start%from_popsfile) then
+                    call stop_all(t_r, 'Starting tau from popsfile requires readpops.')
+                else if (.not. readpops_but_tau_not_from_popsfile) then
+                    write(stdout, *) 'Using readpops while not reading tau from popsfile is &
+                        &very likely an input error.'
+                    write(stdout, *) 'If you think that your input is correct and you know what you do &
+                        &add `readpops-but-tau-not-from-popsfile` to the tau-values keywords'
+                    call stop_all(t_r, 'Readpops requires `tau-values start from-popsfile`.')
+                end if
+            end if
+
+            if (tau_start_val == possible_tau_start%tau_factor &
+                    .and. t_trans_corr_2body .and. t_k_space_hubbard) then
+                call stop_all(this_routine, &
+                              "finding the number of excits from HF breaks for too large lattice.")
+            end if
+
+            if (tau_start_val == possible_tau_start%refdet_connections .and. tGUGA) then
+                call stop_all(this_routine, &
+                              "tau-values start refdet-connections is not compatible with GUGA calculations!")
+            end if
+
+            if (tau_search_method /= possible_tau_search_methods%off) then
+                if (tTruncInitiator .and. MaxWalkerBloom > InitiatorWalkNo) then
+                    call stop_all(this_routine, &
+                                  "MaxWalkerBloom has to be smaller equal than InitiatorWalkNo.")
+                end if
+                if (tScaleBlooms .and. MaxWalkerBloom > max_allowed_spawn) then
+                    call stop_all(this_routine, &
+                                  "MaxWalkerBloom has to be smaller equal than max_allowed_spawn.")
+                end if
+            end if
+        end block time_step
 
     end subroutine checkinput
 

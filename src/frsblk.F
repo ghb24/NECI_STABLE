@@ -86,7 +86,7 @@ C ====================================================================
       use constants, only: dp,sp
       use global_utilities
       use util_mod, only: neci_etime
-!      IMPLICIT real(dp) (A-H,O-Z)
+      use error_handling_neci, only: stop_all
       IMPLICIT NONE
       LOGICAL :: PRINTOUT,TLargest,tDie2,tFail
       integer :: LISCR,ISCR(LISCR),I,J,NK,LL,NHPSI,N,NBLK,M,NBLEFF,NBL
@@ -319,6 +319,7 @@ C =======================================================================
       SUBROUTINE NECI_WRITE_MATRIX(CHAR,M,N,A)
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
+      use error_handling_neci, only: stop_all
       IMPLICIT NONE
       CHARACTER(*) CHAR
       INTEGER :: N,M,I,J
@@ -332,8 +333,8 @@ C =======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_PUTTMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
-!      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
+      use error_handling_neci, only: stop_all
       IMPLICIT NONE
       integer :: N,M,MA,NA,IBEG,JBEG,I,J
       real(dp) :: T(M,N),A(MA,NA)
@@ -537,7 +538,7 @@ C     ==--------------------------------------------------------------==
       END
 C =======================================================================
       SUBROUTINE NECI_PUTTAB(N,KD,A,SCR,LSCR)
-!      IMPLICIT real(dp)(A-H,O-Z)
+      use error_handling_neci, only: stop_all
       use constants, only: dp
       IMPLICIT NONE
       integer :: N,LSCR,KD,I,IBEG,J
@@ -594,7 +595,7 @@ C =======================================================================
       SUBROUTINE NECI_RSDBLK(CHAR,M,N,V1,A,V2)
       use global_utilities
       use constants, only: dp
-!      IMPLICIT real(dp)(A-H,O-Z)
+      use util_mod, only: stop_all
       IMPLICIT NONE
       CHARACTER(1) CHAR
       integer :: N,M
@@ -666,7 +667,7 @@ C Returns the n largest eigenvalues of MxM symtric banded matrix T    ==
 C ==------------------------------------------------------------------==
       use global_utilities
       use constants, only: dp
-!      IMPLICIT real(dp) (A-H,O-Z)
+      use error_handling_neci, only: stop_all
       IMPLICIT NONE
       type(timer), save :: proc_timer
       INTEGER :: IFAIL(*),IN,LSCR,LISCR,N,MEVAL,INFO,ISCR(LISCR)
@@ -728,7 +729,7 @@ C     ==  GRAM-SCHMIDT ORTHOGONALIZATION                              ==
 C     ==--------------------------------------------------------------==
       use global_utilities
       use constants, only: dp
-!      IMPLICIT real(dp) (A-H,O-Z)
+      use error_handling_neci, only: warning_neci
       IMPLICIT NONE
 C     Arguments
       INTEGER    N,M,LDCP
@@ -754,6 +755,7 @@ C     ==================================================================
       SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N,tDie2,tFail)
 C     ==--------------------------------------------------------------==
       use constants, only: dp,sp
+      use error_handling_neci, only: stop_all, warning_neci
       IMPLICIT NONE
 C     ARGUMENTS
       CHARACTER(1) UPLO

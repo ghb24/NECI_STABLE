@@ -139,6 +139,7 @@ module par_internal
     use, intrinsic :: iso_c_binding, only: c_size_t, c_char
     use constants
     use fmt_utils
+    use error_handling_neci, only: stop_all, neci_flush
     implicit none
 
     interface MPIReduce

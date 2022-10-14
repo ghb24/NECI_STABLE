@@ -21,7 +21,7 @@ module analyse_wf_symmetry
     use constants, only: n_int, dp, pi, lenof_sign, stdout
 
     use util_mod, only: binary_search_ilut, binary_search_int, near_zero, &
-                        operator(.isclose.)
+                        operator(.isclose.), stop_all
 
     use bit_reps, only: extract_sign, encode_sign, decode_bit_det
 

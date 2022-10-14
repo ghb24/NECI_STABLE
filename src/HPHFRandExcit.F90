@@ -86,6 +86,8 @@ MODULE HPHFRandExcitMod
 
     use guga_bitRepOps, only: current_csf_i
 
+    use util_mod, only: stop_all
+
     IMPLICIT NONE
 
     procedure(generate_excitation_t), pointer :: exc_generator_for_HPHF => null()
@@ -607,8 +609,6 @@ contains
         INTEGER :: i, j, N, Comp
         LOGICAL :: tSuccess
 
-!        write(stdout,*) "Binary searching between ",MinInd, " and ",MaxInd
-!        CALL neci_flush(6)
         i = MinInd
         j = MaxInd
         IF(i - j == 0) THEN

@@ -271,6 +271,7 @@ C         ENDIF
       SUBROUTINE SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,
      &         TPBC,ITILTX,ITILTY)
          use constants, only : sizeof_int,dp
+         use util_mod, only: stop_all
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC
@@ -324,6 +325,7 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          use sym_mod, only: RoundSym, AddElecSym
          use constants, only: int64
          use lattice_mod, only: lat
+         use util_mod, only: stop_all
          IMPLICIT NONE
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)

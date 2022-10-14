@@ -9,13 +9,14 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
-nmcyc 1000   
+nmcyc 1000
 diagshift 0.05
 seed -7
-initwalkers 175000 
-tau 0.0025
+initwalkers 175000
+tau-values \
+    start user-defined 0.0025
 startsinglepart
 shiftdamp 0.15
 singlesbias 1.5

@@ -15,6 +15,7 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
       SUBROUTINE CPMDANTISYMINTEL(G1,UMat2D,HarInt,NStates)
          use constants, only: dp
          use SystemData, only: BasisFN
+         use util_mod, only: stop_all
          IMPLICIT NONE
          type(BasisFN) :: G1(*)
          complex(dp) :: HarInt(*)

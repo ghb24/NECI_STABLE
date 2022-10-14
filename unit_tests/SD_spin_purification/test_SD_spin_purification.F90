@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module test_SD_spin_purification_mod
-    use fruit
+    use fruit, only: assert_equals, assert_true, run_test_case
     use constants, only: dp, n_int
     use SD_spin_purification_mod, only: S2_expval, spin_momentum, &
         get_open_shell, spin_q_num, S2_expval_exc, dyn_S2_expval_exc
@@ -9,12 +9,18 @@ module test_SD_spin_purification_mod
     use util_mod, only: operator(.isclose.)
     implicit none
     private
-    public :: test_S2_expval, test_spin_momentum, test_spin_q_num, &
-        test_get_open_shell, test_S2_expval_exc, test_dyn_S2_expval_exc
-
-
+    public :: test_SD_spin_purification_driver
 
 contains
+
+    subroutine test_SD_spin_purification_driver()
+        call run_test_case(test_spin_momentum, "test_spin_momentum")
+        call run_test_case(test_spin_q_num, "test_spin_q_num")
+        call run_test_case(test_S2_expval, "test_S2_expval")
+        call run_test_case(test_S2_expval_exc, "test_S2_expval_exc")
+        call run_test_case(test_dyn_S2_expval_exc, "test_dyn_S2_expval_exc")
+        call run_test_case(test_get_open_shell, "test_get_open_shell")
+    end subroutine
 
     subroutine test_spin_momentum()
         call assert_equals(0._dp, spin_momentum(s=0._dp))
@@ -141,11 +147,12 @@ end module test_SD_spin_purification_mod
 
 program test_SD_spin_purification_prog
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
 
-    use test_SD_spin_purification_mod
+    use test_SD_spin_purification_mod, only: test_SD_spin_purification_driver
 
     implicit none
     integer :: failed_count
@@ -165,15 +172,4 @@ program test_SD_spin_purification_prog
 
         call MPIEnd(.false.)
     end block
-
-contains
-
-    subroutine test_SD_spin_purification_driver()
-        call run_test_case(test_spin_momentum, "test_spin_momentum")
-        call run_test_case(test_spin_q_num, "test_spin_q_num")
-        call run_test_case(test_S2_expval, "test_S2_expval")
-        call run_test_case(test_S2_expval_exc, "test_S2_expval_exc")
-        call run_test_case(test_dyn_S2_expval_exc, "test_dyn_S2_expval_exc")
-        call run_test_case(test_get_open_shell, "test_get_open_shell")
-    end subroutine
 end program test_SD_spin_purification_prog

@@ -2,7 +2,8 @@
 #include "macros.h"
 program test_aliasTables
     use constants, only: dp, stdout
-    use fruit
+    use fruit, only: assert_true, init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count
     use aliasSampling, only: aliasTable_t, aliasSampler_t
     use Parallel_neci, only: MPIInit, MPIEnd
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init

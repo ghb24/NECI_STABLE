@@ -47,7 +47,7 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tEN2, tEN2Started, &
+                        tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, ErrThresh, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, &
@@ -78,7 +78,9 @@ module fcimc_helper
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
-    use Parallel_neci
+    use Parallel_neci, only: iProcIndex, nProcessors, &
+        MPIAllReduceDatatype, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, &
+        MPI_MINLOC, nNodes, MPISumAll, MPIBcast
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &

@@ -8,6 +8,7 @@ module guga_write_H_matrix
     use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, onlY: write_det_guga, CSF_Info_t
     use bit_reps, only: nifguga
+    use util_mod, only: stop_all
     implicit none
 
     private

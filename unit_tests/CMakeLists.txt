@@ -1,23 +1,23 @@
 macro (add_unit_test _config test_name)
         neci_add_test(
-    	    TARGET test_${_config}_${test_name}
-	    SOURCES
+            TARGET test_${_config}_${test_name}
+        SOURCES
             test_${test_name}.F90
-	    LIBS
+        LIBS
             lib${_config} fruit
-	    LINKER_LANGUAGE
+        LINKER_LANGUAGE
             Fortran
-	    META_TARGET
+        META_TARGET
             test_${_config}
         PRIVATE_INCLUDES
             "${MPI_Fortran_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
-	    DEFINITIONS
+        DEFINITIONS
             "${NECI_GLOBAL_DEFINES}"
-	    	"${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+            "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
         WARNERR
             ${${PROJECT_NAME}_${_config}_WARNERR}
-	)
+        )
 endmacro()
 
 macro (add_unit_test_all_configs test_name)
@@ -87,3 +87,5 @@ add_subdirectory( lib )
 add_subdirectory( input_parser )
 
 add_subdirectory( util_mod )
+
+add_subdirectory( hdf5_shared_array )

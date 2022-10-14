@@ -29,7 +29,7 @@ module gasci_pchb
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
         operator(.div.), operator(.implies.), EnumBase_t, &
-        operator(.isclose.), swap
+        operator(.isclose.), swap, stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
@@ -73,7 +73,7 @@ module gasci_pchb
     public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
         GAS_doubles_PCHB_ExcGenerator_t, &
         possible_GAS_singles, GAS_PCHB_singles_generator, &
-        PCHB_particle_selection, possible_PCHB_particle_selection, &
+        GAS_PCHB_particle_selection, PCHB_particle_selections, &
         PCHB_ParticleSelection_t
 
     logical, parameter :: use_supergroup_lookup = .true.
@@ -146,14 +146,14 @@ module gasci_pchb
     type :: possible_PCHB_ParticleSelection_t
         type(PCHB_ParticleSelection_t) :: &
             UNIFORM = PCHB_ParticleSelection_t(1), &
-            PC_WEIGHTED_OCC = PCHB_ParticleSelection_t(2), &
-            PC_WEIGHTED_FAST = PCHB_ParticleSelection_t(3)
+            PC_WEIGHTED = PCHB_ParticleSelection_t(2), &
+            PC_WEIGHTED_APPROX = PCHB_ParticleSelection_t(3)
     end type
 
     type(possible_PCHB_ParticleSelection_t), parameter :: &
-        possible_PCHB_particle_selection = possible_PCHB_ParticleSelection_t()
+        PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
 
-    type(PCHB_ParticleSelection_t) :: PCHB_particle_selection = possible_PCHB_particle_selection%PC_WEIGHTED_OCC
+    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
 
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
@@ -822,19 +822,19 @@ contains
         end do
 
 
-        if (PCHB_particle_selection == possible_PCHB_particle_selection%PC_WEIGHTED_OCC) then
+        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED) then
             allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_WeightedParticlesOcc_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == possible_PCHB_particle_selection%PC_WEIGHTED_FAST) then
+        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_APPROX) then
             allocate(PC_FastWeightedParticles_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_FastWeightedParticles_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == possible_PCHB_particle_selection%UNIFORM) then
+        else if (PCHB_particle_selection == PCHB_particle_selections%UNIFORM) then
             allocate(UniformParticles_t :: this%particle_selector)
         else
             call stop_all(this_routine, 'not yet implemented')

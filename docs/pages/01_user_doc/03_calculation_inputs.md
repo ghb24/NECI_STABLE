@@ -163,11 +163,63 @@ considered. The block starts with the `system` keyword and ends with the
         elements using pre-computed alias tables. This excitation
         generator is extremely fast, while maintaining high acceptance
         rates and is generally recommended when memory is not an issue.
+        The keyword has two optional sub-keywords,
+        `SINGLES` and `PARTICLE-SELECTION`.
+        With **SINGLES** one can select the single excitation algorithm:
+
+        -   **UNIFORM**<br>
+            This is the default. It chooses single
+            excitations uniformly.
+
+        -   **ON-THE-FLY-HEAT-BATH**<br>
+            It chooses single excitations weighted by their matrix
+            element.
+
+        With **PARTICLE-SELECTION** one can select the particle selection
+        algorithm for double excitations:
+
+        -   **PC-WEIGHTED**<br>
+            This is the default.
+            Assuming that a particle \( I \) was chosen, the
+            next particle \( J \) is chosen with the following
+            conditional probability:
+
+            \begin{equation*}
+                p(J | I) = \frac{ \sum_{XY} H^{XY}_{I, J} }{ \sum_{XYZ} H^{XY}_{I, Z} }
+            \end{equation*}
+
+            Where \( H^{AB}_{IJ} = | g_{IA, JB} - g_{IB, JA} | \)
+            is the absolute value of the matrix element of the double
+            excitation.
+            These probability distributions are precomputed as in the hole
+            selection of PCHB.
+            To ensure that only occupied particles are drawn from the
+            determinant we draw from the on-the-fly renormalized distribution
+
+            \begin{equation*}
+                p(J | I) \Big|_{D_i} = \frac{p(J | I)}{\sum_{X} p(X | I) }
+            \end{equation*}
+
+        -   **PC-WEIGHTED-APPROX**<br>
+            The particle is drawn according to the previously defined
+            \(p(J | I) \) in `PC-WEIGHTED`, but the renormalization is
+            ommitted and invalid \(J\) values are just discarded.
+            This is faster per iteration in wall clock time, but less efficient
+            per iteration.
+
+        -   **UNIFORM**<br>
+            \(I\) and \(J\) are just drawn uniformly.
+
+        An example input is:
+
+            nonuniformrandexcits PCHB \
+                    SINGLES ON-FLY-HEAT-BATH \
+                    PARTICLE-SELECTION PC-WEIGHTED
 
     -   **guga-pchb**<br>
         Uses the pre-computed alias tables for the spin-adapted GUGA implementation.
         Needs the `guga` keyword in the `System` block.
-        If it is used in conjunction with the `hist-tau-search` option, which
+        If it is used in conjunction with the histogramming tau-search, which
         is recommended for GUGA calculations in general, it automatically sets
         more reasonable defaults than for the usual `mol-guga-weighted`
         excitation generation option.
@@ -209,6 +261,62 @@ considered. The block starts with the `system` keyword and ends with the
         k-space/real-space Hubbard model calculations. It is mandatory
         to specify this keyword in this case!
 
+    -   **GAS-CI**<br>
+        Specify the actual implementation for GAS.
+        Requires a GAS specification via the `GAS-SPEC` keyword.
+
+        -   **PCHB**<br>
+            This is the default and the fastest implementation, if
+            sufficient memory is available. The double excitations work
+            similar to the FCI precomputed heat bath excitation generator
+            but automatically exclude GAS forbidden excitations.
+            The keyword has two optional sub-keywords,
+            `SINGLES` and `PARTICLE-SELECTION`.
+            With **SINGLES** one can select the single excitation algorithm:
+
+            -   **PC-UNIFORM**<br>
+                This is the default. It chooses GAS allowed single
+                excitations uniformly.
+
+            -   **DISCARDING-UNIFORM**<br>
+                It chooses single excitations uniformly as in FCI and discards.
+
+            -   **ON-THE-FLY-HEAT-BATH**<br>
+                It chooses GAS allowed electrons weighted by their matrix
+                element.
+
+            With **PARTICLE-SELECTION** one can select the particle selection
+            algorithm for double excitations. Read at the section of Full CI
+            PCHB about the details.
+
+            -   **PC-WEIGHTED**<br>
+
+            -   **PC-WEIGHTED-APPROX**<br>
+
+            -   **UNIFORM**<br>
+
+            An example input is:
+
+                nonuniformrandexcits GAS-CI PCHB \
+                        SINGLES ON-FLY-HEAT-BATH \
+                        PARTICLE-SELECTION PC-WEIGHTED
+
+        -   **DISCARDING**<br>
+            Use a Full CI excitation generator and just discard excitations
+            which are not contained in the GAS space. Currently PCHB is used
+            for Full CI.
+
+        -   **ON-THE-FLY-HEAT-BATH**<br>
+            Use heat bath on the fly general GAS, which is applicable to any
+            GAS specification, but a bit slower than necessary for
+            disconnected spaces.
+
+        -   **DISCONNECTED**<br>
+            Use the disconnected GAS implementations, which assumes
+            disconnected spaces and performs there a bit better than the
+            general implementation.
+
+
 -   **lattice-excitgen**<br>
     Generates uniform excitations using momentum conservation. Requires
     the `kpoints` keyword.
@@ -223,7 +331,7 @@ considered. The block starts with the `system` keyword and ends with the
 
 -   **GAS-SPEC**<br>
     Perform a *Generalized Active Spaces* (GAS) calculation and specify
-    the GAS spaces.[@Weser2021] It is possible to select the actual implementation
+    the GAS spaces.[@Weser2021] It is necessary to select the actual implementation
     with the `GAS-CI` keyword. It is possible to use *local* or
     *cumulative* constraints on the particle number. Local constraints
     define the minimum and maximum particle number per GAS space.
@@ -231,32 +339,31 @@ considered. The block starts with the `system` keyword and ends with the
     cumulative particle number. The specification is first `LOCAL` or
     `CUMULATIVE` to define the kind of constraints followed by the
     number of GAS spaces \(n_\text{GAS}\). The next items are
-    \(3 \times n_\text{GAS}\) numbers which are the number of spatial
+    \(n_\text{GAS}\) rows with 3 numbers which are the number of spatial
     orbitals and (cumulative) minimum and maximum number of particles
-    per GAS space \(n_i, N_i^\text{min}, N_i^\text{max}\). Finally an
-    integer array denotes for each spatial orbital to which GAS space it
-    belongs. Instead of `1 1 1 1 1` one can write `5*1`. It is
-    advantageous to use the line continuation (`\`) for human-readable
-    formatting as table. Two benzenes with single inter-space excitation
+    per GAS space \(n_i, N_i^\text{min}, N_i^\text{max}\). Finally the last row
+    denotes for each spatial orbital to which GAS space it
+    belongs. Instead of `1 1 1 1 1` one can write `5*1`.
+    Two benzenes with single inter-space excitation
     would be e.g. denoted as:
 
-        GAS-SPEC LOCAL 2 \
-                 6  5  7  \
-                 6  5  7  \
+        GAS-SPEC LOCAL 2
+                 6  5  7
+                 6  5  7
                  1  1  1  1  1  1  2  2  2  2  2  2
 
     or
 
-        GAS-SPEC LOCAL  2 \
-                 6  5  7  \
-                 6  5  7  \
+        GAS-SPEC LOCAL  2
+                 6  5  7
+                 6  5  7
                  6*1 6*2
 
     or
 
-        GAS-SPEC CUMULATIVE 2 \
-                 6  5  7  \
-                 6 12 12 \
+        GAS-SPEC CUMULATIVE 2
+                 6  5  7
+                 6 12 12
                  6*1 6*2
 
     In the given example the local and cumulative constraints are
@@ -264,49 +371,6 @@ considered. The block starts with the `system` keyword and ends with the
 
     It is possible to switch off the spin recoupling between
     different GAS spaces by appending `NO-RECOUPLING`.
-
--   **GAS-CI**<br>
-    *Optional keyword.* Specify the actual implementation for GAS. If it
-    is ommitted, it will be deduced from `GAS-SPEC`.
-
-    -   **GENERAL-PCHB**<br>
-        This is the default and the fastest implementation, if
-        sufficient memory is available. The double excitations work
-        similar to the FCI precomputed heat bath excitation generator
-        but automatically exclude GAS forbidden excitations. If one
-        follows the keyword, by `SINGLES`, one can select the singles
-        for which there are three possibilities:
-
-        -   **PC-UNIFORM**<br>
-            This is the default. It chooses GAS allowed electrons
-            uniformly.
-
-        -   **DISCARDING-UNIFORM**<br>
-            It chooses electrons uniformly as in FCI and discards.
-
-        -   **ON-FLY-HEAT-BATH**<br>
-            It chooses GAS allowed electrons weighted by their matrix
-            element.
-
-        An example is
-
-            GAS-CI GENERAL-PCHB \
-                            SINGLES ON-FLY-HEAT-BATH
-
-    -   **DISCARDING**<br>
-        Use a Full CI excitation generator and just discard excitations
-        which are not contained in the GAS space. Currently PCHB is used
-        for Full CI.
-
-    -   **GENERAL**<br>
-        Use heat bath on the fly general GAS, which is applicable to any
-        GAS specification, but a bit slower than necessary for
-        disconnected spaces.
-
-    -   **DISCONNECTED**<br>
-        Use the disconnected GAS implementations, which assumes
-        disconnected spaces and performs there a bit better than the
-        general implementation.
 
 -   **OUTPUT-GAS-HILBERT-SPACE-SIZE**<br>
     *Optional keyword.* If a GAS calculation is performed, then output the
@@ -481,11 +545,13 @@ and ends with the `endcalc` keyword.
     used if the excitation generator creates a lot of invalid
     excitations, but should be avoided else.
 
--   **scale-spawns**<br>
+-   **scale-spawns** [\(k_{\text{scale-spawn}}\)]<br>
     Store the maximum value of \(\frac{H_{ij}}{p_{gen}}\) for each
-    determinant and use it to estimate the number of spawns per walker
-    to prevent blooms. Useful when this fraction strongly depends on the
-    determinant.
+    determinant. If a bloom with more than \(k_{\text{scale-spawn}}\) spawns
+    happens, then several spawning attempts with individual lower probability
+    will happen instead.
+    \(k_{\text{scale-spawn}}\) has to be smaller equal than \(k_{\text{maxbloom}}\)
+    from equations \ref{Eq:conventional_tau_search} and \ref{Eq:histogramming_tau_search}.
 
 -   **davidson-max-iters \(n\)**<br>
     Set the number of iterations in Davidson's algorithm when this is used.
@@ -589,36 +655,146 @@ and ends with the `endcalc` keyword.
 
 #### Time-step options
 
--   **\textcolor{red}{tau \(\tau\)} [SEARCH]**<br>
-    Sets the timestep per iteration to \(\tau\). Has one optional
-    argument SEARCH. If given, the time-step will be iteratively updated
-    to keep the calculation stable.
+-   **\textcolor{red}{tau-values}**<br>
+    This keyword is mandatory.
+    It is followed by "start", "min", or "max" and their respective sub-keywords.
+    It is necessary to define the source of the starting value of \(\Delta \tau\),
+    this means that `start` is required.
 
--   **<span style="color: blue">hist-tau-search [\(c\) \(nbins\)
-    \(bound\)]</span>**<br>
- Update the time-step based on histogramming of the ratio
-    \(\frac{H_{ij}}{p(i|j)}\). Not compatible with the tau \(\tau\)
-    SEARCH option. The three arguments \(c\), \(nbins\) and \(bound\)
-    are optional. \(0<c<1\) is the fraction of the histogram used for
-    determining the new timestep, \(nbins\) the number of bins in the
-    histogram and \(bound\) is the maximum value of
-    \(\frac{H_{ij}}{p(i|j)}\) to be stored.<br>
-    For spin-adapted GUGA calculations this option is *highly*
-    recommended! Otherwise the time-step can become quite small in these
-    simulations.
+    -   **\textcolor{red}{start}**<br>
+        This defines the source of the initial \(\Delta \tau\).
 
--   **\textcolor{blue}{max-tau \(\tau_\text{max}\)}**<br>
- Sets the maximal value of the time-step to
-    \(\tau_\text{max}\). Defaults to \(1\).
+        Has to be followed by one of the following sub-keywords:
+        -   **\textcolor{blue}{user-defined} \(\Delta \tau\)**<br>
+            Has to be followed by a real number that is the initial \(\Delta \tau\).
 
--   **min-tau [\(\tau_\text{min}\)]**<br>
-    Sets the minimal value of the time-step to \(\tau_\text{min}\) and
-    enables the iterative update of the time-step. Defaults to
-    \(10^{-7}\). The argument \(\tau_\text{min}\) is optional.
+        -   **\textcolor{blue}{from-popsfile}**<br>
+            Use the value from a popsfile. Requires `readpops`.
 
--   **keepTauFixed**<br>
-    Do never update \(\tau\) and the related parameter
-    \(p_\text{singles}\), \(p_\text{doubles}\) or \(p_\text{parallel}\).
+        -   **tau-factor**<br>
+            Use `tau-factor` times the connections from the reference
+            determinant as starting guess.
+
+        -   **refdet-connections**<br>
+            Use information about the connections from the reference
+            determinant as starting guess.
+
+        -   **deterministic**<br>
+            Use the deterministic time-step:
+            \begin{equation}
+                \tau = \frac{1}{E_{\text{max}} - E_0}
+            \end{equation}
+            where \(E_{\text{max}} - E_0\) is approximated by the
+            spread of diagonal elements of \(\hat{H}\).
+
+        -   **not-needed**<br>
+            Say explicitly that \(\Delta \tau\) is not needed.
+            This is only relevant for fully deterministic calculations,
+            e.g. Lanczos CI.
+
+    - **[min \(\tau_{\text{min}}\)]**<br>
+        Optional keyword. It defines a minimum for the initial value of
+        \(\Delta \tau\) and following \(\Delta \tau\)-searches.
+
+    - **[max \(\tau_{\text{max}}\)]**<br>
+        Optional keyword. It defines a maximum for the initial value of
+        \(\Delta \tau\) and following \(\Delta \tau\)-searches.
+
+    - **[readpops-but-tau-not-from-popsfile]**<br>
+        Optional keyword.
+        If `readpops` is switched on, but \(\Delta \tau\) should not be read from
+        a popsfile then it is necessary to explicitly state that
+        it is indeed wanted.
+
+
+-   **\textcolor{blue}{tau-search}**<br>
+    The \(\Delta \tau\)-search is off by default,
+    but can be switched on with two different algorithms.
+    It can also be switched off again when certain stop conditions are reached,
+    since it is an unnecessary expensive operation when \(\Delta \tau\) has reached a
+    stable value.
+    Has the following sub-keywords:
+
+    -   **[\textcolor{blue}{algorithm}]**<br>
+        Optional keyword.
+        This defines the algorithm of the \(\Delta \tau\)-search.
+
+        Has to be followed by one of the following sub-keywords:
+        -   **conventional**<br>
+            Adjusts \(\Delta \tau\) such that:
+            \begin{equation}
+                \label{Eq:conventional_tau_search}
+                \Delta \tau = k_{\text{maxbloom}} \cdot \min_{i,j} \left( \frac{p_{\text{gen}}(i, j)}{H_{ij}} \right) \quad.
+            \end{equation}
+            The prefactor \(k_{\text{maxbloom}}\) is changed via `MaxWalkerBloom`.
+
+        -   **histogramming [\( (1 - c) \quad n_{\text{bins}} \quad b \)]**<br>
+            Update the time-step based on histogramming of the ratio
+            \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\).
+            \begin{equation}
+                \label{Eq:histogramming_tau_search}
+                \Delta \tau = k_{\text{maxbloom}} \cdot \left( \argmin_{t} \Big| c - \Int{p(x)}{x, 0, t} \Big| \right)^{-1}
+            \end{equation}
+            Where \(p\) is the probability distribution of \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\)
+            which is obtained numerically by binning.
+            The three arguments \(1 - c\), \(n_{\text{bins}}\) and \(b\) are optional.
+            \(0<c<1\) is the fraction of the histogram used for
+            determining the new timestep, \(n_{\text{bins}}\) the number of bins in the
+            histogram and \(b\) is the maximum value of
+            \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\) to be stored.<br>
+            For spin-adapted GUGA calculations this option is *highly*
+            recommended! Otherwise the time-step can become quite small in these
+            simulations.
+            Note that for \(c = 1\) the conventional and histogramming time-search are
+            equivalent.
+            The prefactor \(k_{\text{maxbloom}}\) is changed via `MaxWalkerBloom`.
+
+    - **[stop-condition]**<br>
+        Optional keyword.
+        Defines a stop-condition for the \(\Delta \tau\)-search.
+        The default is `var-shift`, i.e. the search ends, when
+        variable shift mode is reached.
+
+        Has to be followed by one of the following sub-keywords:
+        -   **off**<br>
+            No stop-condition, i.e. run \(\Delta \tau\)-search until the
+            calculation ends.
+
+        -   **\textcolor{blue}{no-change \(i\)}**<br>
+            The \(\Delta \tau\)-search is switched off, if there
+            was no change of \(\Delta \tau\) in the last \(i\) iterations.
+
+        -   **max-iter \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th iteration.
+
+        -   **max-eq-iter \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th iteration counting from variable shift mode.
+
+        -   **n-opts \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th optimization of \(\Delta \tau\).
+
+        -   **var-shift**<br>
+            The \(\Delta \tau\)-search is switched off if variable shift is reached.
+
+    -   **[off]**<br>
+        Switch the tau-search explicitly off.
+        (Equivalent to not having the `tau-search` keyword at all.)
+
+    -   **[scale-tau-to-death]**<br>
+        Optional keyword. Off by default.
+        If the \(\Delta \tau\)-search is off, still scale
+        \(\Delta \tau\) such that the death probability is smaller than 1.0.
+
+    -   **maxWalkerBloom \(k_{\text{maxbloom}}\)**<br>
+        The time step is scaled such that at most \(k_{\text{maxbloom}}\)
+        walkers are spawned in a single attempt,
+        with the scaling being guessed from previous spawning attempts.
+        Changes the prefactor in equations \ref{Eq:conventional_tau_search}
+        and \ref{Eq:histogramming_tau_search}.
+
 
 -   **truncate-spawns [\(n\) UNOCC]**<br>
     Truncate spawns which are larger than a threshold value \(n\). Both
@@ -626,10 +802,37 @@ and ends with the `endcalc` keyword.
     the truncation is restricted to spawns onto unoccupied. Useful in
     combination with hist-tau-search.
 
--   **maxWalkerBloom \(n\)**<br>
-    The time step is scaled such that at most \(n\) walkers are spawned
-    in a single attempt, with the scaling being guessed from previous
-    spawning attempts.
+
+
+##### Example inputs for \(\Delta \tau\)
+
+The following input start with \(\Delta \tau = \SI{0.002}{\hbar \per \hartree} \cdot \I\)
+and keeps its value between \(\SI{0.001}{\hbar \per \hartree} \cdot \I\)
+and \(\SI{0.003}{\hbar \per \hartree} \cdot \I\).
+The conventional \(\Delta \tau\)-search that is
+stopped if there was no change of \(\Delta \tau\) for 1000 iterations.
+
+        tau-values \
+            start user-defined 0.002 \
+            min 0.001 \
+            max 0.003
+
+        tau-search \
+            algorithm conventional \
+            stop-condition no-change 1000
+
+The following input start with \(\Delta \tau \) from a popsfile.
+The histogramming \(\Delta \tau \)-search
+is performed with \(c = 0.9999, n_{\text{bins}} = 1000, b = 2000 \)
+and is stopped after 10000 iterations.
+
+        tau-values \
+            start from-popsfile
+
+        tau-search \
+            algorithm histogramming 1e-4 1000 2000 \
+            stop-condition max-iter 10000
+
 
 #### Wave function initialization options
 
@@ -1501,6 +1704,13 @@ the RDMs are calculated and the content of the files, please see section
     This option activates a full sampling of RDMs,
     at least in the semi-stochastic space.
     This option does increase the cost though.
+
+-   **print-hdf5-rdms**<br>
+    Output the density matrices in HDF5 format to a file called
+    `fciqmc.rdms.<statenumber>.h5`. Currently only pure state RDMs are
+    supported. This keyword needs to be used in conjunction with
+    `write-spin-free-rdm` for the 2RDM and `printonerdm` for the 1RDM
+    respectively.
 
 
 ### FCIMCStats output functions

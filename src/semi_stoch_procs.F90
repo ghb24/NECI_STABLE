@@ -14,7 +14,7 @@ module semi_stoch_procs
 
     use constants
 
-    use util_mod, only: stop_all
+    use util_mod, only: stop_all, neci_flush, warning_neci
 
     use orb_idx_mod, only: SpinOrbIdx_t
 
@@ -86,6 +86,8 @@ module semi_stoch_procs
     use DeterminantData, only: write_det
 
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
+
+    use tau_main, only: tau
 
     implicit none
 

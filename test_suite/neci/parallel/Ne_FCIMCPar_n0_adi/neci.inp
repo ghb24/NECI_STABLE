@@ -7,13 +7,14 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 seed -7
 nmcyc 3000
 initwalkers 20000
 fixed-n0 1500
-tau 0.001
+tau-values \
+    start user-defined 0.001
 startsinglepart
 shiftdamp 0.1
 memoryfacpart 10.0

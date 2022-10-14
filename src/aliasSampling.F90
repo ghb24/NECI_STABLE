@@ -2,13 +2,12 @@
 module aliasSampling
     ! This module contains the utility to use alias table lookup on lists,
     ! requiring to precompute biases but making the lookup O(1)
-    use constants
-    use util_mod, only: near_zero, stop_all, binary_search_int, operator(.isclose.)
+    use constants, only: dp, int64, eps
+    use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
-    use shared_memory_mpi
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use shared_array
+    use util_mod, only: stop_all, near_zero, binary_search_int, operator(.isclose.)
     implicit none
 
     private
@@ -285,7 +284,7 @@ contains
         ! floating point errors can lead to very small negative values of bias here
         ! this would allow for picking elements which have probability 0 (-> biasTable entry 0)
         ! -> ensure that bias>=0
-        bias = max(sizeArr * r + 1.0_dp - real(pos, dp), 0.0_dp)
+        bias = max(sizeArr * r + 1 - pos, 0.0_dp)
 
         if (bias < this%biasTable%ptr(pos)) then
             ind = pos
@@ -387,7 +386,7 @@ contains
         ! empty samplers don't return anything - since probs defaults to null(), this check is safe
         if (.not. associated(this%probs%ptr)) then
             tgt = 0
-            prob = 1.0
+            prob = 1.0_dp
             return
         end if
         ! get the drawn number from the alias table
@@ -442,7 +441,7 @@ contains
 
         ! the probability of drawing anything from an empty sampler is 0
         if (.not. associated(this%probs%ptr)) then
-            prob = 0.0
+            prob = 0.0_dp
         else
             prob = this%probs%ptr(tgt)
         end if
@@ -703,7 +702,7 @@ contains
 
         ! all entries in the array use the same shared memory window, just different
         ! portions of it
-        total_size = entry_size * product(int(dims, kind=int64))
+        total_size = int(entry_size, int64) * product(int(dims, kind=int64))
         call this%allProbs%shared_alloc(total_size, name//'_Probs')
         call this%allBiasTable%shared_alloc(total_size, name//'_Bias')
         call this%allAliasTable%shared_alloc(total_size, name//'_Alias')
@@ -713,7 +712,7 @@ contains
             do j = 1, dims(2)
                 do i = 1, dims(1)
                     ! from where to where this entry has memory access in the shared resources
-                    window_end = window_start + entry_size - 1
+                    window_end = window_start + int(entry_size, int64) - 1_int64
 
                     ! set this entry's pointers
                     this%samplerArray(i, j, k)%probs%ptr => this%allProbs%ptr(window_start:window_end)

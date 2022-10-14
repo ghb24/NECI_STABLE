@@ -38,7 +38,7 @@ module real_time_procs
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
                          iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &
                          InitialSpawnedSlots, iLutRef, inum_runs, max_cyc_spawn, core_run, &
-                         tSearchTau, tFillingStochRDMonFly, fcimc_iter_data, &
+                         tFillingStochRDMonFly, fcimc_iter_data, &
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
@@ -46,15 +46,17 @@ module real_time_procs
     use core_space_util, only: cs_replicas
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
                              init_perturbation_annihilation, apply_perturbation_array
-    use util_mod, only: int_fmt
+    use util_mod, only: int_fmt, stop_all, neci_flush
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
-                        tRealSpawnCutoff, RealSpawnCutoff, tau, RealCoeffExcitThresh, &
+                        tRealSpawnCutoff, RealSpawnCutoff, RealCoeffExcitThresh, &
                         DiagSft, tTruncInitiator, OccupiedThresh, tReadPops, InitiatorWalkNo, &
                         tSpinProject
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
-    use tau_search, only: log_spawn_magnitude
+    use tau_main, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
+        tau, assign_value_to_tau
+    use tau_search_conventional, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use global_det_data, only: global_determinant_data
 ! RT_M_Merge: Disabled rdms
@@ -400,7 +402,7 @@ contains
         if (abs(real_time_info%damping) < EPS .and. .not. t_rotated_time) then
             if (any(fac > 1.0_dp)) then
                 if (any(fac > 2.0_dp)) then
-                    if (tSearchTau) then
+                    if ((tau_search_method /= possible_tau_search_methods%OFF) .or. t_scale_tau_to_death) then
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
@@ -477,7 +479,7 @@ contains
             ! and also about the fac restrictions.. for now but it here anyway..
             if (any(fac > 1.0_dp)) then
                 if (any(fac > 2.0_dp)) then
-                    if (tSearchTau) then
+                    if ((tau_search_method /= possible_tau_search_methods%OFF) .or. t_scale_tau_to_death) then
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
@@ -764,8 +766,9 @@ contains
 
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+            if ((tau_search_method == possible_tau_search_methods%CONVENTIONAL) .and. (.not. tFillingStochRDMonFly)) then
                 call log_spawn_magnitude(ic, ex, matel, prob)
+            end if
 
             ! Keep track of the biggest spawn this cycle
             max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)
@@ -838,8 +841,9 @@ contains
 
                 ! n.b. if we ever end up with |walkerweight| /= 1, then this
                 !      will need to ffed further through.
-                if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+                if ((tau_search_method == possible_tau_search_methods%CONVENTIONAL) .and. (.not. tFillingStochRDMonFly)) then
                     call log_spawn_magnitude(ic, ex, matel, prob)
+                end if
 
                 ! Keep track of the biggest spawn this cycle
                 max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)
@@ -1750,7 +1754,7 @@ contains
 
         ! the logging and reading are done before iter is updated
         real_time_info%time_angle = alphaCache(iter + 1)
-        tau = tauCache(iter + 1)
+        call assign_value_to_tau(tauCache(iter + 1), 'Update from cache.')
     end subroutine get_current_alpha_from_cache
 
 !------------------------------------------------------------------------------------------!

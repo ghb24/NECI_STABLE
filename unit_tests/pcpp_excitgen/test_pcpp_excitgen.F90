@@ -1,13 +1,20 @@
 #include "macros.h"
 program test_pcpp_excitgen
-    use constants
+    use constants, only: dp, n_int
     use Parallel_neci, only: MPIInit, MPIEnd
-    use fruit
-    use pcpp_excitgen
-    use unit_test_helper_excitgen
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+                     get_failed_count, run_test_case, assert_equals, assert_true
+    use util_mod, only: stop_all
+    use pcpp_excitgen, only: init_pcpp_excitgen, gen_rand_excit_pcpp, create_elec_map, calc_pgen_pcpp
+    use unit_test_helper_excitgen, only: FciDumpWriter_t, set_ref, free_ref, &
+                                         finalize_excitgen_test, init_excitgen_test, &
+                                         test_excitation_generator, calc_pgen, generate_random_integrals
     use orb_idx_mod, only: beta
+    use DetBitOps, only: encodeBitDet
     use procedure_pointers, only: generate_excitation
-    use FciMCData, only: projEDet
+    use SymExcitDataMod, only: scratchSize
+    use bit_rep_data, only: NIfTot
+    use SystemData, only: nel
     implicit none
 
     call MPIInit(.false.)
@@ -91,10 +98,6 @@ contains
     end subroutine random_fcidump
 
     function calc_pgen_local(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        use constants
-        use SymExcitDataMod, only: scratchSize
-        use bit_rep_data, only: NIfTot
-        use SystemData, only: nel
         implicit none
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)

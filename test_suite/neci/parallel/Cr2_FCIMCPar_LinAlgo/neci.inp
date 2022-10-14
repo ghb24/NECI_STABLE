@@ -14,6 +14,11 @@ seed -7
 nmcyc 13500
 totalwalkers 50000
 shiftdamp 0.1
+tau-values \
+    start refdet-connections
+tau-search \
+    algorithm conventional \
+    stop-condition OFF
 diagshift 0
 memoryfacpart 1.3
 memoryfacspawn 0.2
@@ -21,7 +26,6 @@ truncinitiator
 addtoinitiator 2
 stepsshift 10
 startsinglepart
-tau-cnt-threshold 50
 load-balance-blocks off
 endcalc
 

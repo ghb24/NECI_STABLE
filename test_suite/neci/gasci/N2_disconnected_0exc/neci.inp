@@ -5,13 +5,12 @@ System read
     nobrillouintheorem
     freeformat
     spin-restrict 0
-    GAS-CI disconnected
-    GAS-SPEC LOCAL \
-    3 \
-    2 2 2 \
-    2 2 2 \
-    2 2 2 \
-    1 2 3 1 2 3
+    nonuniformrandexcits GAS-CI disconnected
+    GAS-SPEC LOCAL 3
+        2 2 2
+        2 2 2
+        2 2 2
+        1 2 3 1 2 3
 endsys
 
 calc
@@ -36,9 +35,13 @@ calc
     allrealcoeff
     realspawncutoff .30
     jump-shift
-    tau 0.01 search
-    max-tau .02
-    maxwalkerbloom 1
+    tau-values  \
+        start user-defined 0.01 \
+        max 0.02
+    tau-search \
+        algorithm conventional \
+        stop-condition var-shift \
+        maxwalkerbloom 1
     memoryfacspawn 10.00
     memoryfacpart 5.00
     time 200
