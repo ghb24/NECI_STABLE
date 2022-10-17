@@ -42,7 +42,8 @@ contains
         type(CDF_Sampler_t) :: res
         debug_function_name("construct_CDF_sampler_t")
         real(dp), allocatable :: p(:)
-        ASSERT(sum(w) > 0._dp)
+        ASSERT(all(w > 0._dp))
+        ASSERT(.not. near_zero(sum(w)))
         p = w / sum(w)
         res = CDF_Sampler_t(p, cumsum(p))
     end function
