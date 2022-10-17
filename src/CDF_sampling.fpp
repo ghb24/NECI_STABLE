@@ -11,7 +11,7 @@ module CDF_sampling_mod
     !! a calculation use the alias sampling.
     !! This is done for example in PCHB.
     use constants, only: int32, int64, sp, dp
-    use util_mod, only: binary_search_first_ge, stop_all, cumsum
+    use util_mod, only: binary_search_first_ge, stop_all, cumsum, near_zero
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
     better_implicit_none
     private
