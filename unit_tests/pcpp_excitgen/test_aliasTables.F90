@@ -1,13 +1,14 @@
 ! Do unit tests for the aliasSampling module
+#include "macros.h"
 program test_aliasTables
-    use constants, only: dp, EPS
-    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
-                     get_failed_count, run_test_case, assert_true
-    use util_mod, only: stop_all
-    use aliasSampling, only: aliasSampler_t, aliasTable_t
+    use constants, only: dp, stdout
+    use fruit, only: assert_true, init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count
+    use aliasSampling, only: aliasTable_t, aliasSampler_t
     use Parallel_neci, only: MPIInit, MPIEnd
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
-    implicit none
+    use util_mod, only: stop_all, near_zero, operator(.isclose.)
+    better_implicit_none
 
     call init_fruit()
     call aliasSampling_test_driver()
@@ -32,6 +33,8 @@ contains
         ! one for the aliasSampler class - this is a wrapper for the aliasTable class that
         ! also knows the original probability distribtuion
         call test_aliasSampler()
+
+        call test_CDF_Sampler()
         call MPIEnd(.false.)
     end subroutine aliasSampling_test_driver
 
@@ -57,26 +60,23 @@ contains
             hist(r) = hist(r) + 1
         end do
 
-        diff = get_diff(hist, huge_number, w)
+        diff = get_diff(hist, w)
     end function genrand_aliasTable
 
     !------------------------------------------------------------------------------------------!
 
-    function get_diff(hist, nSamples, w) result(diff)
-        integer, intent(in) :: hist(:), nSamples
+    pure function get_diff(hist, w) result(diff)
+        integer, intent(in) :: hist(:)
         real(dp), intent(in) :: w(:)
+        integer :: nSamples
+        character(*), parameter :: this_routine = 'get_diff'
         real(dp) :: diff
-        integer :: i
         ! compare the drawn numbers with the distribtuion
-        diff = 0
         if (size(w) /= size(hist)) then
-            print *, "Error: size mismatch in getDiff"
-            return
+            call stop_all(this_routine, "Error: size mismatch in getDiff")
         end if
-        do i = 1, size(hist)
-            diff = diff + abs(hist(i) / real(nSamples) - w(i))
-        end do
-
+        nSamples = sum(hist)
+        diff = sum(abs(hist / real(nSamples, dp) - w))
     end function get_diff
 
     !------------------------------------------------------------------------------------------!
@@ -109,12 +109,15 @@ contains
     subroutine test_aliasSampler()
         ! we already know that the sampling is correct, just check that the sampler has the
         ! right probabilities
+        use timing_neci, only: timer, set_timer, halt_timer, get_total_time
+
         type(aliasSampler_t) :: sampler
-        integer, parameter :: huge_number = 1000000
-        integer, parameter :: tSize = 1000
-        real(dp), parameter :: diff_tol = 3e-2
+        integer, parameter :: huge_number = 100000000
+        integer, parameter :: tSize = 400
+        real(dp), parameter :: diff_tol = 3e-3_dp
         real(dp) :: w(tSize), p, probs(tSize)
         integer :: hist(tSize)
+        type(timer) :: const_sample_timer
         integer :: r
         integer :: i
         real(dp) :: diff
@@ -122,19 +125,93 @@ contains
         call create_rand_probs(w)
         call sampler%setupSampler(w)
 
+        call assert_true(all(w.isclose.sampler%getProb([(i, i=1, tSize)])))
+
         hist = 0
+        call set_timer(const_sample_timer)
         do i = 1, huge_number
             call sampler%sample(r, p)
             hist(r) = hist(r) + 1
             probs(r) = p
         end do
+        call halt_timer(const_sample_timer)
+        write(stdout, *) 'Full Alias sample', get_total_time(const_sample_timer)
 
-        diff = get_diff(hist, huge_number, w)
+        diff = get_diff(hist, w)
+        ! is the sampling reasonable?
+
+        call assert_true(diff < diff_tol)
+        ! are the probabilities claimed by the sampler the ones we put in?
+        call assert_true(near_zero(sum(abs(probs - w))))
+
+    end subroutine test_aliasSampler
+
+    subroutine test_CDF_Sampler()
+        use timing_neci, only: timer, set_timer, halt_timer, get_total_time
+        use CDF_sampling_mod, only: CDF_Sampler_t
+
+        type(aliasSampler_t) :: alias_sampler
+
+        integer, parameter :: huge_number = 10000000
+        integer, parameter :: tSize = 10
+        type(timer) :: full_sampler, const_sample_timer
+        real(dp), parameter :: diff_tol = 3e-3_dp
+        real(dp) :: renorm
+        integer, allocatable :: contain(:), exclude(:)
+        real(dp) :: w(tSize), p, probs(tSize)
+        integer :: hist(tSize)
+        integer :: r
+        integer :: i
+        real(dp) :: diff
+
+        call create_rand_probs(w)
+        contain = [(i, i=1, tSize / 2)]
+        exclude = [integer::]
+
+        call alias_sampler%setupSampler(w)
+        call assert_true(all(w.isclose.alias_sampler%getProb([(i, i=1, tSize)])))
+
+        hist = 0
+        call set_timer(full_sampler)
+        do i = 1, huge_number
+            call alias_sampler%sample(r, p)
+            hist(r) = hist(r) + 1
+            probs(r) = p
+        end do
+        call halt_timer(full_sampler)
+        write(stdout, *) 'Full Alias sample', get_total_time(full_sampler)
+
+        diff = get_diff(hist(contain), w(contain) / sum(w(contain)))
+
         ! is the sampling reasonable?
         call assert_true(diff < diff_tol)
         ! are the probabilities claimed by the sampler the ones we put in?
-        call assert_true(sum(abs(probs - w)) < eps)
-    end subroutine test_aliasSampler
+
+        hist = 0
+        call set_timer(const_sample_timer)
+        do i = 1, huge_number
+            renorm = sum(w(contain))
+            block
+                integer :: pos
+                call alias_sampler%constrained_sample(contain, renorm, pos, r, p)
+                call assert_true(contain(pos) == r)
+            end block
+            hist(r) = hist(r) + 1
+            probs(r) = p
+        end do
+        call halt_timer(const_sample_timer)
+        write(stdout, *) 'constrained Alias sample', get_total_time(const_sample_timer)
+
+        diff = get_diff(hist(contain), w(contain) / sum(w(contain)))
+
+        ! is the sampling reasonable?
+        call assert_true(diff < diff_tol)
+        ! are the probabilities claimed by the sampler the ones we put in?
+
+        call alias_sampler%setupSampler(w)
+        call assert_true(all(w.isclose.alias_sampler%getProb([(i, i=1, tSize)])))
+
+    end subroutine
 
     !------------------------------------------------------------------------------------------!
 

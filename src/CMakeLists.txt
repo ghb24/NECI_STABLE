@@ -431,6 +431,8 @@ set( FYPP_SRC_FILES
     gasci_discarding.fpp
     gasci_general.fpp
     gasci_pchb.fpp
+    gasci_pc_select_particles.fpp
+    CDF_sampling.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp
     orb_idx.fpp

@@ -472,7 +472,7 @@ module sort_mod
     end interface
 
 contains
-    subroutine sort (arr, %(extra_arrs)s%(custom_comparisons)snskip, par)
+    pure subroutine sort (arr, %(extra_arrs)s%(custom_comparisons)snskip, par)
 
         ! Perform a quicksort on an array of integers, arr(n). Uses the
         ! sample code in NumericalRecipies as a base.
