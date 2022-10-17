@@ -1173,19 +1173,14 @@ contains
         end block
 
 
-        ! This block and the additional declaration of new_n_max
-        ! is just necessary because of shitty intel compilers (Ifort 18).
-        ! If you can remove it, I am happy.
-        block
-            GAS_spec = FlexibleGASSpec_t(&
-                    supergroups=sorted_supergroup, &
-                    N=N, &
-                    GAS_table=GAS_table, &
-                    GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
-                    splitted_orbitals=splitted_orbitals, &
-                    lookup_is_connected=size(sorted_supergroup, 2) > 1, &
-                    exchange_recoupling=recoupling_)
-        end block
+        GAS_spec = FlexibleGASSpec_t(&
+                supergroups=sorted_supergroup, &
+                N=N, &
+                GAS_table=GAS_table, &
+                GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
+                splitted_orbitals=splitted_orbitals, &
+                lookup_is_connected=size(sorted_supergroup, 2) > 1, &
+                exchange_recoupling=recoupling_)
 
         @:pure_ASSERT(GAS_spec%is_valid())
 
