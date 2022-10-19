@@ -280,7 +280,7 @@ function(add_ford_documentation target configuration)
         COMMAND
             ${custom_Python3} -m pip install lxml --quiet
         COMMAND
-            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford
+            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford --quiet
         COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
