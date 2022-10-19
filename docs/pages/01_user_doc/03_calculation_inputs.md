@@ -737,6 +737,7 @@ and ends with the `endcalc` keyword.
         This defines the algorithm of the \(\Delta \tau\)-search.
 
         Has to be followed by one of the following sub-keywords:
+
         -   **conventional**<br>
             Adjusts \(\Delta \tau\) such that:
             \begin{equation}
@@ -750,7 +751,8 @@ and ends with the `endcalc` keyword.
             \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\).
             \begin{equation}
                 \label{Eq:histogramming_tau_search}
-                \Delta \tau = k_{\text{maxbloom}} \cdot \left( \argmin_{t} \Big| c - \Int{p(x)}{x, 0, t} \Big| \right)^{-1}
+                \Delta \tau = k_{\text{maxbloom}} \cdot \left( \text{argmin}_{t} \Big| c - \int_0^t p(x)\,\mathrm{d}x \Big| \right)^{-1} \quad.
+            \end{equation}
             \end{equation}
             Where \(p\) is the probability distribution of \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\)
             which is obtained numerically by binning.
@@ -823,9 +825,9 @@ and ends with the `endcalc` keyword.
 
 ##### Example inputs for \(\Delta \tau\)
 
-The following input start with \(\Delta \tau = \SI{0.002}{\hbar \per \hartree} \cdot \I\)
-and keeps its value between \(\SI{0.001}{\hbar \per \hartree} \cdot \I\)
-and \(\SI{0.003}{\hbar \per \hartree} \cdot \I\).
+The following input start with \(\Delta \tau = 0.002 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}} \)
+and keeps its value between \( 0.001 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}}\)
+and \(0.003 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}}\).
 The conventional \(\Delta \tau\)-search that is
 stopped if there was no change of \(\Delta \tau\) for 1000 iterations.
 
