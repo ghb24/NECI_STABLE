@@ -38,7 +38,8 @@ module gasci_pchb
     use procedure_pointers, only: generate_single_excit_t
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
-    use FciMCData, only: pSingles, excit_gen_store_type, pParallel, projEDet
+    use FciMCData, only: pSingles, excit_gen_store_type, pParallel, &
+        projEDet, GAS_PCHB_init_time
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use shared_ragged_array, only: shared_ragged_array_int32_t
     use parallel_neci, only: iProcIndex_intra
@@ -878,6 +879,8 @@ contains
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
 
+        call set_timer(GAS_PCHB_init_time)
+
         if (used_singles_generator == possible_GAS_singles%DISCARDING_UNIFORM) then
             write(stdout, *) 'GAS discarding singles activated'
             allocate(this%singles_generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
@@ -897,6 +900,8 @@ contains
 
         call this%doubles_generator%init(&
             GAS_spec, use_lookup, create_lookup, PCHB_particle_selection)
+
+        call halt_timer(GAS_PCHB_init_time)
     end subroutine
 
 

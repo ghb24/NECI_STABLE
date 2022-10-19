@@ -433,6 +433,8 @@ contains
         hash_test_time%timer_name = 'HashTestTime'
         hii_test_time%timer_name = 'HiiTestTime'
         init_flag_time%timer_name = 'InitFlagTime'
+        GAS_PCHB_init_time%timer_name = 'GAS_PCHB_init_time'
+
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
