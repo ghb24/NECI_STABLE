@@ -1666,9 +1666,9 @@ contains
                             else if (w == 'PARTICLE-SELECTION') then
                                 w = to_upper(tokens%next())
                                 select case (w)
-                                case('PC-WEIGHTED-FAST')
+                                case('PC-WEIGHTED-APPROX')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
-                                case('PC-WEIGHTED-OCC')
+                                case('PC-WEIGHTED')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
                                 case('UNIFORM')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
