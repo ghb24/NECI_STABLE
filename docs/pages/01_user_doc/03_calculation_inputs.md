@@ -212,9 +212,9 @@ considered. The block starts with the `system` keyword and ends with the
 
         An example input is:
 
-            nonuniformrandexcits PCHB \
-                    SINGLES ON-FLY-HEAT-BATH \
-                    PARTICLE-SELECTION PC-WEIGHTED
+            nonuniformrandexcits pchb \
+                    singles on-the-fly-heat-bath \
+                    particle-selection pc-weighted
 
     -   **guga-pchb**<br>
         Uses the pre-computed alias tables for the spin-adapted GUGA implementation.
@@ -298,8 +298,8 @@ considered. The block starts with the `system` keyword and ends with the
             An example input is:
 
                 nonuniformrandexcits GAS-CI PCHB \
-                        SINGLES ON-FLY-HEAT-BATH \
-                        PARTICLE-SELECTION PC-WEIGHTED
+                        singles on-the-fly-heat-bath \
+                        particle-selection pc-weighted
 
         -   **DISCARDING**<br>
             Use a Full CI excitation generator and just discard excitations
@@ -333,7 +333,7 @@ considered. The block starts with the `system` keyword and ends with the
     Perform a *Generalized Active Spaces* (GAS) calculation and specify
     the GAS spaces.[@Weser2021] It is necessary to select the actual implementation
     with the `GAS-CI` keyword. It is possible to use *local*,
-    *cumulative*, or *flexible constraints on the particle number. Local constraints
+    *cumulative*, or *flexible* constraints on the particle number. Local constraints
     define the minimum and maximum particle number per GAS space.
     Cumulative constraints define cumulative minima and maxima of the
     cumulative particle number.
