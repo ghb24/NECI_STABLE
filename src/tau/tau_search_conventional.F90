@@ -122,6 +122,8 @@ contains
 
         t_consider_par_bias = consider_par_bias
 
+        write(*, *) 't_consider_par_bias = ', t_consider_par_bias
+
     end subroutine init_tau_search_conventional
 
     subroutine finalize_tau_search_conventional()
