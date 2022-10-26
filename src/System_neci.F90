@@ -1592,7 +1592,7 @@ contains
                         t_pcpp_excitgen = .true.
 
                     case ("PCHB")
-                        ! the precomputed heat-bath excitation generator (uniform singles)
+                        ! the precomputed heat-bath excitation generator
                         t_pchb_excitgen = .true.
                         do while (tokens%remaining_items() > 0)
                             w = to_upper(tokens%next())
