@@ -352,9 +352,9 @@ contains
         real(dp) :: r, matel
         ! we get random matrix elements from the cauchy-schwartz inequalities, so
         ! only <ij|ij> are random -> random 2d matrix
-        real(dp) :: umatRand(n_spat_orb, n_spat_orb)
+        real(dp), allocatable :: umatRand(:, :)
+        integer :: norb ! n_spin_orb or n_spat_orb
 
-        ! @jph uhf option
         uhf_ = .false.
         hermitian_ = .true.
         ! UHF FCIDUMPs have six sectors:
@@ -365,9 +365,13 @@ contains
         if(present(uhf)) uhf_ = uhf
         if(present(hermitian)) hermitian_ = hermitian
 
+        norb = n_spat_orb
+        if(uhf_) norb = 2*norb
+        allocate(umatRand(norb, norb))
+
         umatRand = 0.0_dp
-        do i = 1, n_spat_orb
-            do j = 1, n_spat_orb
+        do i = 1, norb
+            do j = 1, norb
                 r = genrand_real2_dSFMT()
                 if (r < sparse) &
                     umatRand(i, j) = r * r
@@ -378,7 +382,7 @@ contains
             end do
         end do
 
-        ! write the canonical FCIDUMP header
+        ! write the canonical FCIDUMP header (norb here is num spatial orbitals)
         write(iunit, *) "&FCI NORB=", n_spat_orb, ",NELEC=", n_el, "MS2=", total_ms%val, ","
         write(iunit, "(A)", advance="no") "ORBSYM="
         do i = 1, n_spat_orb
@@ -388,31 +392,62 @@ contains
         write(iunit, *) "ISYM=1,"
         write(iunit, *) "&END"
         ! generate random 4-index integrals with a given sparsity
-        do i = 1, n_spat_orb
-            j_end = i
-            if (.not.hermitian_) j_end = n_spat_orb
-            do j = 1, j_end
-                do k = i, n_spat_orb
-                    l_end = k
-                    if (.not.hermitian_) l_end = n_spat_orb
-                    do l = 1, l_end
-                        matel = sqrt(umatRand(i, j) * umatRand(k, l))
-                        if (matel > eps) write(iunit, *) matel, i, j, k, l
+        ! then
+        ! generate random 2-index integrals with a given sparsity
+        if(uhf_) then
+            ! three 4-index sectors, so three calls to write_4index
+            write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0 ! delimiter
+            write_4index(n_spat_orb, norb, 1, n_spat_orb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
+            write_4index(n_spat_orb, norb, n_spat_orb, norb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
+            write_4index(1, n_spat_orb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
+            write_4index(n_spat_orb, norb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
+            ! then would come the nuclear repulsion
+        else ! .not.uhf_
+            write_4index(1, norb, 1, norb, 1, norb, 1, norb, hermitian_)
+            write_2index(1, n_spat_orb, hermitian_)
+        endif
+
+    contains
+        subroutine write_4index(i_start, i_end, k_start, k_end, hermitian)
+            ! i_end corresponds to electron 1, j_end to electron 2
+            integer, intent(in) :: i_start, i_end, k_start, k_end
+            logical, intent(in) :: hermitian
+            do i = i_start, i_end
+                j_end = i
+                if (.not.hermitian_) j_end = i_end
+                do j = 1, j_end
+                    do k = i, k_end
+                        l_end = k
+                        if (.not.hermitian_) l_end = k_end
+                        do l = 1, l_end
+                            matel = sqrt(umatRand(i, j) * umatRand(k, l))
+                            if (matel > eps) write(iunit, *) matel, i, j, k, l
+                        end do
                     end do
                 end do
             end do
-        end do
-        ! generate random 2-index integrals with a given sparsity
-        do i = 1, n_spat_orb
-            j_end = i
-            if (.not.hermitian_) j_end = n_spat_orb
-            do j = 1, j_end
-                r = genrand_real2_dSFMT()
-                if (r < sparseT) then
-                    write(iunit, *) r, i, j, 0, 0
-                end if
+        end subroutine write_4index
+
+        subroutine write_2index(i_start, i_end, hermitian)
+            integer, intent(in) :: i_start, i_end
+            logical, intent(in) :: hermitian
+            do i = i_start, i_end
+                j_end = i
+                if (.not.hermitian_) j_end = i_end
+                do j = 1, j_end
+                    r = genrand_real2_dSFMT()
+                    if (r < sparseT) then
+                        write(iunit, *) r, i, j, 0, 0
+                    end if
+                end do
             end do
-        end do
+        end subroutine write_2index
+
     end subroutine generate_random_integrals
 
     !------------------------------------------------------------------------------------------!
