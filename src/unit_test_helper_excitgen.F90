@@ -337,7 +337,7 @@ contains
 
     ! generate an FCIDUMP file with random numbers with a given sparsity and write to iunit
     subroutine generate_random_integrals(iunit, n_el, n_spat_orb, sparse, sparseT, &
-            total_ms, uhf, nonhermitian)
+            total_ms, uhf, hermitian)
         integer, intent(in) :: iunit, n_el, n_spat_orb
         real(dp), intent(in) :: sparse, sparseT
         type(SpinProj_t), intent(in) :: total_ms
@@ -396,20 +396,20 @@ contains
         ! generate random 2-index integrals with a given sparsity
         if(uhf_) then
             ! three 4-index sectors, so three calls to write_4index
-            write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
+            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0 ! delimiter
-            write_4index(n_spat_orb, norb, 1, n_spat_orb, hermitian_)
+            call write_4index(n_spat_orb, norb, 1, n_spat_orb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            write_4index(n_spat_orb, norb, n_spat_orb, norb, hermitian_)
+            call write_4index(n_spat_orb, norb, n_spat_orb, norb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            write_4index(1, n_spat_orb, hermitian_)
+            call write_2index(1, n_spat_orb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            write_4index(n_spat_orb, norb, hermitian_)
+            call write_2index(n_spat_orb, norb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
             ! then would come the nuclear repulsion
         else ! .not.uhf_
-            write_4index(1, norb, 1, norb, 1, norb, 1, norb, hermitian_)
-            write_2index(1, n_spat_orb, hermitian_)
+            call write_4index(1, norb, 1, norb, hermitian_)
+            call write_2index(1, n_spat_orb, hermitian_)
         endif
 
     contains
@@ -417,13 +417,17 @@ contains
             ! i_end corresponds to electron 1, j_end to electron 2
             integer, intent(in) :: i_start, i_end, k_start, k_end
             logical, intent(in) :: hermitian
+            integer :: k_start_
             do i = i_start, i_end
                 j_end = i
-                if (.not.hermitian_) j_end = i_end
+                if (.not.hermitian) j_end = i_end
                 do j = 1, j_end
-                    do k = i, k_end
+                    ! if the Hamiltonian *is* Hermitian, we may flip these indices
+                    k_start_ = i
+                    if(.not.hermitian) k_start_ = k_start
+                    do k = k_start, k_end
                         l_end = k
-                        if (.not.hermitian_) l_end = k_end
+                        if (.not.hermitian) l_end = k_end
                         do l = 1, l_end
                             matel = sqrt(umatRand(i, j) * umatRand(k, l))
                             if (matel > eps) write(iunit, *) matel, i, j, k, l
@@ -438,8 +442,8 @@ contains
             logical, intent(in) :: hermitian
             do i = i_start, i_end
                 j_end = i
-                if (.not.hermitian_) j_end = i_end
-                do j = 1, j_end
+                if (.not.hermitian) j_end = i_end
+                do j = i_start, j_end
                     r = genrand_real2_dSFMT()
                     if (r < sparseT) then
                         write(iunit, *) r, i, j, 0, 0
