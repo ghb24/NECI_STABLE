@@ -425,7 +425,7 @@ contains
                     ! if the Hamiltonian *is* Hermitian, we may flip these indices
                     k_start_ = i
                     if(.not.hermitian) k_start_ = k_start
-                    do k = k_start, k_end
+                    do k = k_start_, k_end
                         l_end = k
                         if (.not.hermitian) l_end = k_end
                         do l = 1, l_end
