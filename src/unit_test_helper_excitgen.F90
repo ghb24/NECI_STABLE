@@ -355,7 +355,7 @@ contains
         real(dp), allocatable :: umatRand(:, :)
         integer :: norb ! n_spin_orb or n_spat_orb
 
-        def_default(hermitian_, hermitian, .false.)
+        def_default(hermitian_, hermitian, .true.)
         ! UHF FCIDUMPs have six sectors:
         ! two-body integrals: up-up, down-down, up-down
         ! one-body integrals: up, down
