@@ -127,7 +127,7 @@ contains
         if (ic == 1) then
             pgen = pSingles * singles_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
         else if (ic == 2) then
-            pGen = (1.0 - pSingles) * doubles_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            pgen = (1.0 - pSingles) * doubles_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
         else
             pgen = 0.0_dp
         end if
