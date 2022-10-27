@@ -355,30 +355,29 @@ contains
         real(dp), allocatable :: umatRand(:, :)
         integer :: norb ! n_spin_orb or n_spat_orb
 
-        uhf_ = .false.
-        hermitian_ = .true.
+        def_default(hermitian_, hermitian, .false.)
         ! UHF FCIDUMPs have six sectors:
         ! two-body integrals: up-up, down-down, up-down
         ! one-body integrals: up, down
         ! nuclear repulsion
         ! delimiter: 0.0000000000000000E+00   0   0   0   0
-        if(present(uhf)) uhf_ = uhf
-        if(present(hermitian)) hermitian_ = hermitian
+        def_default(uhf_, uhf, .false.)
 
-        norb = n_spat_orb
-        if(uhf_) norb = 2*norb
-        allocate(umatRand(norb, norb))
+        norb = merge(2*n_spat_orb, n_spat_orb, uhf_)
+        allocate(umatRand(norb, norb), source=0.0_dp)
 
-        umatRand = 0.0_dp
         do i = 1, norb
             do j = 1, norb
                 r = genrand_real2_dSFMT()
-                if (r < sparse) &
+                if (r < sparse) then
                     umatRand(i, j) = r * r
-                    if (.not.hermitian_) then
-                        r = genrand_real2_dSFMT()
-                        umatRand(j,i) = r * r
+                    if (hermitian_) then
+                        umatRand(j, i) = umatRand(i, j)
+                    else
+                        ! have the conjugate be similar
+                        umatRand(j, i) = (1 + genrand_real2_dSFMT() * 0.1) * umatRand(i, j)
                     endif
+                end if
             end do
         end do
 
@@ -407,7 +406,7 @@ contains
             call write_2index(n_spat_orb, norb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
             ! then would come the nuclear repulsion
-        else ! .not.uhf_
+        else ! .not. uhf_
             call write_4index(1, norb, 1, norb, hermitian_)
             call write_2index(1, n_spat_orb, hermitian_)
         endif
@@ -419,15 +418,13 @@ contains
             logical, intent(in) :: hermitian
             integer :: k_start_
             do i = i_start, i_end
-                j_end = i
-                if (.not.hermitian) j_end = i_end
+                ! j_end = i if hermitian, else i_end
+                j_end = merge(i, i_end, hermitian)
                 do j = 1, j_end
                     ! if the Hamiltonian *is* Hermitian, we may flip these indices
-                    k_start_ = i
-                    if(.not.hermitian) k_start_ = k_start
+                    k_start_ = merge(i, k_start, hermitian)
                     do k = k_start_, k_end
-                        l_end = k
-                        if (.not.hermitian) l_end = k_end
+                        l_end = merge(k, k_end, hermitian)
                         do l = 1, l_end
                             matel = sqrt(umatRand(i, j) * umatRand(k, l))
                             if (matel > eps) write(iunit, *) matel, i, j, k, l
@@ -441,8 +438,7 @@ contains
             integer, intent(in) :: i_start, i_end
             logical, intent(in) :: hermitian
             do i = i_start, i_end
-                j_end = i
-                if (.not.hermitian) j_end = i_end
+                j_end = merge(i, i_end, hermitian)
                 do j = i_start, j_end
                     r = genrand_real2_dSFMT()
                     if (r < sparseT) then
