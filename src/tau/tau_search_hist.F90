@@ -17,8 +17,8 @@ module tau_search_hist
 
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel
 
-    use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
-                             MPISumAll, MPISUM, mpireduce, MPI_MIN
+    use Parallel_neci, only: MPIAllReduce, MPI_MIN, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
+                             MPISumAll, MPISUM, mpireduce
 
     use MPI_wrapper, only: iprocindex, root
 
@@ -32,7 +32,7 @@ module tau_search_hist
 
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
-    use util_mod, only: operator(.isclose.), near_zero, clamp
+    use util_mod, only: operator(.isclose.), near_zero, clamp, stop_all
     use LoggingData, only: t_log_ija, ija_bins_sing, all_ija_bins_sing, ija_thresh, &
                            ija_bins_para, all_ija_bins, ija_bins_anti, &
                            ija_orbs_sing, all_ija_orbs_sing, &
@@ -72,9 +72,10 @@ module tau_search_hist
     real(dp) :: frq_ratio_cutoff = 0.999_dp
 
     ! i need bin arrays for all types of possible spawns:
-    integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
-                            frequency_bins_anti(:), frequency_bins_doubles(:), &
-                            frequency_bins(:), frequency_bins_triples(:)
+    integer(int64), allocatable :: &
+        frequency_bins_singles(:), frequency_bins_para(:), &
+        frequency_bins_anti(:), frequency_bins_doubles(:), &
+        frequency_bins(:), frequency_bins_triples(:)
 
     integer(TagIntType) :: mem_tag_histograms = 0
 
@@ -340,9 +341,9 @@ contains
             allocate(frequency_bins_anti(n_frequency_bins), &
                      frequency_bins_para(n_frequency_bins), &
                      frequency_bins_singles(n_frequency_bins), &
-                     stat=ierr, source=0)
+                     stat=ierr, source=0_int64)
 
-            call LogMemAlloc('frequency_bins', n_frequency_bins * 3, 4, &
+            call LogMemAlloc('frequency_bins', n_frequency_bins * 3, int(sizeof(frequency_bins_anti(1))), &
                              this_routine, mem_tag_histograms, ierr)
 
         else if (tGen_sym_guga_mol .or. &
@@ -351,7 +352,7 @@ contains
 
             ! i always use the singles histogram dont I? i think so..
             allocate(frequency_bins_singles(n_frequency_bins), &
-                     frequency_bins_doubles(n_frequency_bins), source=0)
+                     frequency_bins_doubles(n_frequency_bins), source=0_int64)
 
         else
             ! just to be save also use my new flags..
@@ -359,24 +360,24 @@ contains
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body) .or. &
                 (t_new_real_space_hubbard .and. .not. t_trans_corr_hop)) then
                 ! only one histogram is used!
-                allocate(frequency_bins(n_frequency_bins), stat=ierr, source=0)
+                allocate(frequency_bins(n_frequency_bins), stat=ierr, source=0_int64)
 
-                call LogMemAlloc('frequency_bins', n_frequency_bins, 4, &
+                call LogMemAlloc('frequency_bins', n_frequency_bins, int(sizeof(frequency_bins(1))), &
                                  this_routine, mem_tag_histograms, ierr)
 
             else
 
                 ! i always use the singles histogram dont I? i think so..
                 allocate(frequency_bins_singles(n_frequency_bins), &
-                         frequency_bins_doubles(n_frequency_bins), source=0, stat=ierr)
-                call LogMemAlloc('frequency_bins', n_frequency_bins * 2, 4, &
+                         frequency_bins_doubles(n_frequency_bins), source=0_int64, stat=ierr)
+                call LogMemAlloc('frequency_bins', n_frequency_bins * 2, int(sizeof(frequency_bins(1))), &
                                  this_routine, mem_tag_histograms, ierr)
             end if
         end if
 
         if (t_mol_3_body) then
             ! when doing integral-based triples, we are here
-            allocate(frequency_bins_triples(n_frequency_bins), source=0)
+            allocate(frequency_bins_triples(n_frequency_bins), source=0_int64)
         end if
 
         if (t_log_ija) then
@@ -676,14 +677,14 @@ contains
         max_death_cpt = mpi_tmp
         ! again, only count deaths if any occured
         if(abs(max_death_cpt) > EPS) then
-           tau_death = 1.0_dp / max_death_cpt
-           if (tau_death < tau_new) then
-              if (tau_death < min_tau) then
-                 root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
-                 min_tau = tau_death
-              end if
-              tau_new = tau_death
-           end if
+            tau_death = 1.0_dp / max_death_cpt
+            if (tau_death < tau_new) then
+                if (tau_death < min_tau) then
+                    root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                    min_tau = tau_death
+                end if
+                tau_new = tau_death
+            end if
         end if
 
         ! If the calculated tau is less than the current tau, we should ALWAYS
@@ -1215,8 +1216,8 @@ contains
         use MPI_wrapper, only: root
 
         character(255) :: filename, exname
-        integer :: all_frequency_bins_spec(n_frequency_bins)
-        integer :: all_frequency_bins(n_frequency_bins)
+        integer(int64) :: all_frequency_bins_spec(n_frequency_bins)
+        integer(int64) :: all_frequency_bins(n_frequency_bins)
         integer :: iunit, i
         ! sashas tip: why do i not just use a real as summation?
         real(dp) :: sum_all
@@ -1727,7 +1728,7 @@ contains
                                     zero_loc, above_max_loc, below_thresh_loc)
             implicit none
             character(255), intent(in) :: histname
-            integer, intent(in) :: frequency_bins_loc(:)
+            integer(int64), intent(in) :: frequency_bins_loc(:)
             real(dp), intent(in) :: gamma_loc, min_loc
             integer(int64), intent(in) :: zero_loc
             integer, intent(in) :: above_max_loc, below_thresh_loc
@@ -1829,13 +1830,13 @@ contains
     subroutine integrate_frequency_histogram_spec(spec_frequency_bins, ratio)
         ! specific histogram integration routine which sums up the inputted
         ! frequency_bins
-        integer, intent(in) :: spec_frequency_bins(n_frequency_bins)
+        integer(int64), intent(in) :: spec_frequency_bins(n_frequency_bins)
         real(dp), intent(out) :: ratio
         character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
 
-        integer :: all_frequency_bins(n_frequency_bins)
-        integer :: i, threshold
-        integer :: n_elements, cnt
+        integer(int64) :: all_frequency_bins(n_frequency_bins)
+        integer(int64) :: i, threshold
+        integer(int64) :: n_elements, cnt
         real(dp) :: test_ratio, all_test_ratio
         logical :: mpi_ltmp
 
@@ -1858,9 +1859,9 @@ contains
 
             else
 
-                threshold = int(frq_ratio_cutoff * real(n_elements, dp))
-                cnt = 0
-                i = 0
+                threshold = int(frq_ratio_cutoff * n_elements, kind=int64)
+                cnt = 0_int64
+                i = 0_int64
                 do while (cnt < threshold)
                     i = i + 1
                     cnt = cnt + spec_frequency_bins(i)
@@ -1917,7 +1918,7 @@ contains
             return
         end if
 
-        threshold = int(frq_ratio_cutoff * real(n_elements, dp))
+        threshold = int(frq_ratio_cutoff * n_elements, kind=int64)
 
         cnt = 0
         i = 0

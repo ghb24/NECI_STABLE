@@ -12,7 +12,7 @@ MODULE SymExcit3
     use SymExcitDataMod, only: SpinOrbSymLabel
     use get_excit, only: make_double
     use sort_mod, only: sort
-    use util_mod, only: operator(.implies.)
+    use util_mod, only: operator(.implies.), stop_all
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     IMPLICIT NONE
 

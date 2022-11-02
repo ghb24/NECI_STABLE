@@ -11,7 +11,7 @@ module initial_trial_states
 #ifndef CMPLX_
     use matrix_util, only: eig, print_matrix
 #endif
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), stop_all
 
     implicit none
 

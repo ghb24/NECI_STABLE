@@ -262,6 +262,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          use SystemData, only: Symmetry,BasisFN,SymmetrySize
          use constants, only: int64
          use sym_mod, only: symprod, BINARYSEARCHSYM, WRITESYM
+         use util_mod, only: stop_all
 
          IMPLICIT NONE
          INTEGER nPairs
@@ -841,6 +842,7 @@ C.. And the doubles
          use SymData, only: SymLabelList,SymPairProds
          use SymData, only: tAbelianFastExcitGen
          use constants, only: maxExcit
+         use util_mod, only: stop_all
 
          IMPLICIT NONE
          INTEGER NEXCITTYPES
@@ -1191,6 +1193,7 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
       use SymData, only: SymLabelCounts,SymStatePairs,SymClass
       use SymData, only: SymLabelList,SymPairProds
       use constants, only: maxExcit
+      use util_mod, only: stop_all
 
       IMPLICIT NONE
       INTEGER NEXCITTYPES
@@ -1730,6 +1733,7 @@ C.. a double
          use SymData, only: SymLabelCounts,SymStatePairs,SymClass
          use SymData, only: SymLabelList,SymPairProds
          use constants, only: maxExcit
+         use util_mod, only: stop_all
 
          IMPLICIT NONE
          INTEGER nEl,nI(nEl)

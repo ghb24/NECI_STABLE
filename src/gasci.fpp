@@ -2,7 +2,6 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
 module gasci
@@ -35,14 +34,14 @@ module gasci
     type :: possible_GAS_exc_gen_t
         type(GAS_exc_gen_t) :: &
             DISCONNECTED = GAS_exc_gen_t(1), &
-            GENERAL = GAS_exc_gen_t(2), &
+            ON_FLY_HEAT_BATH = GAS_exc_gen_t(2), &
             DISCARDING = GAS_exc_gen_t(3), &
-            GENERAL_PCHB = GAS_exc_gen_t(4)
+            PCHB = GAS_exc_gen_t(4)
     end type
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
 
-    type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+    type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
     type(GAS_exc_gen_t), allocatable :: user_input_GAS_exc_gen
 
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
@@ -84,9 +83,7 @@ module gasci
         procedure :: max_GAS_size => get_max_GAS_size
         procedure :: recoupling
 
-        generic :: GAS_size => get_GAS_size_i
-        generic :: GAS_size => get_GAS_size_idx
-        generic :: GAS_size => get_GAS_size_all
+        generic :: GAS_size => get_GAS_size_i, get_GAS_size_idx, get_GAS_size_all
         procedure, private :: get_GAS_size_i
         procedure, private :: get_GAS_size_idx
         procedure, private :: get_GAS_size_all
@@ -94,8 +91,7 @@ module gasci
         procedure :: get_iGAS
         procedure :: get_orb_idx
         procedure :: count_per_GAS
-        generic :: is_allowed => is_allowed_single
-        generic :: is_allowed => is_allowed_double
+        generic :: is_allowed => is_allowed_single, is_allowed_double
         procedure, private :: is_allowed_single
         procedure, private :: is_allowed_double
     end type
@@ -159,14 +155,10 @@ module gasci
         procedure :: write_to => Local_write_to
         procedure :: get_possible_spaces => Local_get_possible_spaces
 
-        generic :: get_min => get_min_i
-        generic :: get_min => get_min_all
-        procedure, private :: get_min_i
-        procedure, private :: get_min_all
-        generic :: get_max => get_max_i
-        generic :: get_max => get_max_all
-        procedure, private :: get_max_i
-        procedure, private :: get_max_all
+        generic :: get_min => get_min_i, get_min_all
+        procedure, private :: get_min_i, get_min_all
+        generic :: get_max => get_max_i, get_max_all
+        procedure, private :: get_max_i, get_max_all
     end type
 
     interface LocalGASSpec_t
@@ -186,12 +178,10 @@ module gasci
         procedure :: write_to => Cumul_write_to
         procedure :: get_possible_spaces => Cumul_get_possible_spaces
 
-        generic :: get_cmin => get_cmin_i
-        generic :: get_cmin => get_cmin_all
+        generic :: get_cmin => get_cmin_i, get_cmin_all
         procedure, private :: get_cmin_i
         procedure, private :: get_cmin_all
-        generic :: get_cmax => get_cmax_i
-        generic :: get_cmax => get_cmax_all
+        generic :: get_cmax => get_cmax_i, get_cmax_all
         procedure, private :: get_cmax_i
         procedure, private :: get_cmax_all
     end type
@@ -331,11 +321,11 @@ contains
         character(len=:), allocatable :: res
         if (impl == possible_GAS_exc_gen%DISCONNECTED) then
             res = 'Heat-bath on-the-fly GAS implementation for disconnected spaces'
-        else if (impl == possible_GAS_exc_gen%GENERAL) then
+        else if (impl == possible_GAS_exc_gen%ON_FLY_HEAT_BATH) then
             res = 'Heat-bath on-the-fly GAS implementation'
         else if (impl == possible_GAS_exc_gen%DISCARDING) then
             res = 'Discarding GAS implementation'
-        else if (impl == possible_GAS_exc_gen%GENERAL_PCHB) then
+        else if (impl == possible_GAS_exc_gen%PCHB) then
             res = 'PCHB GAS implementation'
         end if
     end function

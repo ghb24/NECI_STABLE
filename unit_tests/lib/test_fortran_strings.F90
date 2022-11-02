@@ -1,5 +1,5 @@
 module test_fortran_strings_mod
-    use fruit
+    use fruit, only: assert_true, assert_false, run_test_case
     use constants, only: dp
     use fortran_strings, only: split, Token_t, can_be_real, can_be_int, str, &
         to_upper, to_lower
@@ -88,8 +88,9 @@ end module test_fortran_strings_mod
 
 program test_fortran_strings_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use test_fortran_strings_mod, only: test_driver
 
     implicit none

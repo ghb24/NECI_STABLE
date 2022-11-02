@@ -4,7 +4,7 @@ module guga_pchb_class
     use aliasSampling, only: AliasSampler_1D_t
     use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm
     use bit_rep_data, only: IlutBits, GugaBits
-    use SystemData, only: nel, G1, t_pchb_weighted_singles, &
+    use SystemData, only: nel, G1, t_guga_pchb_weighted_singles, &
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
@@ -429,7 +429,7 @@ contains
         ic = get_excit_level_from_excitInfo(excitInfo)
 
         if (ic == 1) then
-            if (t_pchb_weighted_singles) then
+            if (t_guga_pchb_weighted_singles) then
                 call decode_bit_det(nI, ilutI)
                 call decode_bit_det(nJ, ilutJ)
                 pgen = calc_pgen_mol_guga_single( &

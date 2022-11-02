@@ -32,10 +32,11 @@ module sparse_arrays
     use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
                               CSF_Info_t
-    use util_mod, only: binary_search, near_zero
+    use util_mod, only: binary_search_ilut, near_zero
     use guga_data, only: tag_excitations, ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
+    use util_mod, only: stop_all
 
     implicit none
 

@@ -16,7 +16,7 @@ module rdm_explicit
 
     use guga_bitRepOps, only: encode_matrix_element, convert_ilut_toGUGA, CSF_Info_t
     use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs
-    use util_mod, only: near_zero
+    use util_mod, only: stop_all, near_zero
 
     implicit none
 

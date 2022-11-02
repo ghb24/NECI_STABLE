@@ -9,6 +9,7 @@ module LMat_freeze
     use SystemData, only: ECore
     use Parallel_neci
     use MPI_wrapper
+    use mpi, only: MPI_DOUBLE_PRECISION
     implicit none
 
     private

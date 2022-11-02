@@ -7,11 +7,7 @@
          use SystemData, only: BasisFN
          use global_utilities
          use HElem, only: HElement_t_size
-!         use DetCalcData, only: NMRKS
-!         use DetBitOps, only: count_open_orbs,EncodeBitDet,DetBitEQ
-!         use DetBitOps, only: FindBitExcitLevel
-!         use Bit_Reps
-!         use HPHFRandExcitMod, only: FindExcitBitDetSym
+         use util_mod, only: stop_all
          IMPLICIT NONE
 !         INTEGER(n_int) :: BitRep(0:NIfTot),BitRepSym(0:NIfTot)
 !         INTEGER(n_int) :: TempBitRep(0:NIfTot),BitRepHF(0:NIfTot)

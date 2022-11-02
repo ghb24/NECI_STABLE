@@ -1,5 +1,5 @@
 module test_gasci_general_pchb
-    use fruit
+    use fruit, only: assert_equals, assert_true, assert_false
     use constants, only: dp, int64, n_int, maxExcit
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use util_mod, only: factrl, swap, cumsum
@@ -8,7 +8,8 @@ module test_gasci_general_pchb
     use excitation_types, only: Excitation_t
 
     use gasci, only: LocalGASSpec_t
-    use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles
+    use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
+        PCHB_particle_selections
     use excitation_generators, only: ExcitationGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
@@ -38,6 +39,7 @@ contains
         pSingles = 0.2_dp
         pDoubles = 1.0_dp - pSingles
 
+
         do n_interspace_exc = 0, 1
             GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
@@ -46,7 +48,8 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
-                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM)
+                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
+                                    PCHB_particle_selection=PCHB_particle_selections%UNIFORM)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -58,6 +61,51 @@ contains
             call finalize_excitgen_test()
         end do
 
+
+        do n_interspace_exc = 0, 1
+            GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
+                                 spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+            call assert_true(GAS_spec%is_valid())
+            call assert_true(GAS_spec%contains_conf(det_I))
+
+            call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+            call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
+                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
+                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED)
+            call run_excit_gen_tester( &
+                exc_generator, 'general implementation, Li2 like system', &
+                opt_nI=det_I, &
+                opt_n_dets=n_iters, &
+                problem_filter=is_problematic,&
+                successful=successful)
+            call exc_generator%finalize()
+            call assert_true(successful)
+            call finalize_excitgen_test()
+        end do
+
+        do n_interspace_exc = 0, 1
+            GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
+                                 spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+            call assert_true(GAS_spec%is_valid())
+            call assert_true(GAS_spec%contains_conf(det_I))
+
+            call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+            call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
+                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
+                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED_APPROX)
+            call run_excit_gen_tester( &
+                exc_generator, 'general implementation, Li2 like system', &
+                opt_nI=det_I, &
+                opt_n_dets=n_iters, &
+                problem_filter=is_problematic,&
+                successful=successful)
+            call exc_generator%finalize()
+            call assert_true(successful)
+            call finalize_excitgen_test()
+        end do
+
+
+
     contains
 
         subroutine random_fcidump(iunit)
@@ -68,7 +116,7 @@ contains
 
             call generate_random_integrals(&
                 iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
-                sparse=1.0_dp, sparseT=1.0_dp, total_ms=sum(calc_spin_raw(det_I)))
+                sparse=0.5_dp, sparseT=0.5_dp, total_ms=sum(calc_spin_raw(det_I)))
         end subroutine
 
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
@@ -85,8 +133,9 @@ end module
 
 program test_gasci_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_general_pchb, only: test_pgen
 

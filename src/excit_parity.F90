@@ -7,6 +7,7 @@ module get_excit
     use DeterminantData, only: write_det
     use sym_general_mod, only: SymAllowedExcit
     use sym_mod, only: MomPbcSym
+    use util_mod, only: stop_all
     implicit none
 
 contains
@@ -82,8 +83,8 @@ contains
         integer :: i, k, elecs(2), srcs(2), tgts(2), pos_moved
 
         ! Get the source/target terms in order!
-        elecs = (/min(elec1, elec2), max(elec1, elec2)/)
-        tgts = (/min(tgt1, tgt2), max(tgt1, tgt2)/)
+        elecs = [min(elec1, elec2), max(elec1, elec2)]
+        tgts = [min(tgt1, tgt2), max(tgt1, tgt2)]
 
         ! Fill in the excitation matrix
         srcs = nI(elecs)

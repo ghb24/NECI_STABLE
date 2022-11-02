@@ -6,6 +6,7 @@ module exact_diag
     use FciMCData, only: hamiltonian
     use SystemData, only: t_non_hermitian, tGUGA, nSpatOrbs
     use guga_bitRepOps, only: CSF_Info_t
+    use util_mod, only: stop_all, neci_flush
 
     implicit none
 

@@ -40,6 +40,7 @@ module timing_neci
 ! ========================================================================
     use constants, only: dp
     use mpi, only: MPI_WTIME
+    use error_handling_neci, only: neci_flush, stop_all, warning_neci
     implicit none
     save
     private
@@ -61,15 +62,15 @@ module timing_neci
     type timer_object
         character(25) :: timer_name
         integer :: ncalls = 0
-        real(dp) :: time_cpu = 0.0     ! For timing of the current call to the procedure.
-        real(dp) :: sum_time_cpu = 0.0    ! Sum of time spent in the procedure.
+        real(dp) :: time_cpu = 0.0_dp     ! For timing of the current call to the procedure.
+        real(dp) :: sum_time_cpu = 0.0_dp    ! Sum of time spent in the procedure.
         logical :: timing_on = .false.   ! true whilst the timer is active.
     end type timer_object
 
     type(timer_object), allocatable, target :: timers(:)
 
 ! For total calculation time.
-    real(dp) :: global_time = 0.0
+    real(dp) :: global_time = 0.0_dp
 ! If global_timing_on is true, then handle the total time differently in the timing output,
 ! as then have requested timing output without halting the global timer.
     logical :: global_timing_on = .false.
@@ -93,8 +94,8 @@ contains
             do i = 1, itimer
                 ! Have already done one run if itimer>0.  Clear existing timing info.
                 timers(i)%ncalls = 0
-                timers(i)%time_cpu = 0.0
-                timers(i)%sum_time_cpu = 0.0
+                timers(i)%time_cpu = 0.0_dp
+                timers(i)%sum_time_cpu = 0.0_dp
                 timers(i)%timing_on = .false.
             end do
         end if
@@ -240,7 +241,7 @@ contains
         if (time_at_all) then
             if (.not. associated(proc_timer%store)) then
                 call warning_neci('get_total_time.', 'proc_timer not intialised: '//adjustl(proc_timer%timer_name))
-                get_total_time = -1000.0 ! Helpfully return insane value, so it is obvious something went wrong. ;-)
+                get_total_time = -1000.0_dp ! Helpfully return insane value, so it is obvious something went wrong. ;-)
             else
                 get_total_time = proc_timer%store%sum_time_cpu
                 if (present(t_elapsed)) then
@@ -281,7 +282,7 @@ contains
             ! zero to single-precision.  This forces the procedure times to be printed
             ! out, if required, even if they are 0.0000, by avoiding issues with
             ! maxloc as the elements of the sum_times array are set to zero.
-            sum_times = timers(:)%sum_time_cpu + real(1.e-4, dp)
+            sum_times = timers(:)%sum_time_cpu + 1.e-4_dp
 
             if (present(iunit)) io = iunit
             if (present(ntimer_objects)) then

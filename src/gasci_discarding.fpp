@@ -3,16 +3,18 @@
 
 module gasci_discarding
     use constants, only: n_int, dp, maxExcit
+    use util_mod, only: stop_all
     use SystemData, only: nel
     use FciMCData, only: excit_gen_store_type
     use bit_rep_data, only: NIfTot
     use sort_mod, only: sort
     use SymExcitDataMod, only: ScratchSize
 
-    use pchb_excitgen, only: PCHB_FCI_excit_generator_t
+    use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_singles
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, DoubleExcitationGenerator_t
     use gasci, only: GASSpec_t
     use gasci_util, only: GAS_gen_all_excits => gen_all_excits
+    use gasci_pchb, only: PCHB_ParticleSelection_t
     implicit none
 
     private
@@ -81,17 +83,16 @@ contains
     end function
 
 
-    subroutine init(this, GAS_spec)
+    subroutine init(this, GAS_spec, PCHB_particle_selection)
         class(GAS_DiscardingGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
-        unused_var(this)
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         this%GAS_spec = GAS_spec
-        call this%FCI_generator%init()
+        call this%FCI_generator%init(PCHB_particle_selection, FCI_PCHB_singles)
     end subroutine
 
     subroutine finalize(this)
         class(GAS_DiscardingGenerator_t), intent(inout) :: this
-        unused_var(this)
         call this%FCI_generator%finalize()
     end subroutine
 

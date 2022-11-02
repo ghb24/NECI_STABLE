@@ -1,5 +1,5 @@
 module test_gasci_mod
-    use fruit
+    use fruit, only: assert_equals, assert_true, assert_false
     use constants, only: dp, n_int
     use bit_rep_data, only: NIfTot
     use SystemData, only: nEl
@@ -107,8 +107,9 @@ end module test_gasci_mod
 
 program test_gasci_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_mod, only: test_igas, test_is_connected, test_is_valid, &
         test_contains_det, test_particles_per_GAS, test_get_orb_idx

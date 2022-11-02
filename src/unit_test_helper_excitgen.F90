@@ -12,7 +12,7 @@ module unit_test_helper_excitgen
                           tReadInt, t_pcpp_excitgen
     use sort_mod
     use System, only: SysInit, SetSysDefaults, SysCleanup
-    use Parallel_neci, only: MPIInit, MPIEnd
+    use Parallel_neci, only: MPIInit, MPIEnd, mpi_comm_rank, mpi_comm_world
     use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
     use OneEInts, only: Tmat2D
     use bit_rep_data, only: NIfTot, nifd, extract_sign
@@ -26,10 +26,13 @@ module unit_test_helper_excitgen
     use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
     use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
     use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, stop_all
     use orb_idx_mod, only: SpinProj_t
     implicit none
-
+    private
+    public :: test_excitation_generator, generate_uniform_integrals, FciDumpWriter_t, &
+        init_excitgen_test, generate_random_integrals, set_ref, free_ref, calc_pgen, &
+        finalize_excitgen_test, InputWriter_t, Writer_t, write_file, delete_file
     abstract interface
         function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
             use constants
