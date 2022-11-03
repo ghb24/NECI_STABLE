@@ -20,7 +20,7 @@ description of each paragraph. Then come recommended options, marked in
 given in black.
 
 Keywords which are purely for debugging purposes and only interesting
-for developers are markes as **\textcolor{green}{green}**.
+for developers are marked in **\textcolor{green}{green}**.
 
 Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`)
 Line continuation is achieved with `\`. (A deprecated line continuation string found in legacy inputs is `+++`.)
@@ -475,7 +475,7 @@ considered. The block starts with the `system` keyword and ends with the
     account 3-body interactions for all other purposes.
 
 
--   **evolve-adjoint**<br>
+-   **adjoint-replicas**<br>
     For multiple replicas (mneci, system-replicas >=2) or a dneci run,
     evolves the left eigenvector for the even replicas, while still
     evolving the right eigenvector for the odd replicas.
@@ -601,7 +601,7 @@ and ends with the `endcalc` keyword.
  \(\zeta^2 / 4\) to achieve critical damping. Both parameters have to
  be \(<1.0\) and \(\eta < \zeta\).
 
--   **\textcolor{blue}{stepsSft \(n\)}**<br>
+-   **\textcolor{blue}{stepsshift \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
     \(n\). Defaults to \(10\).
 
@@ -801,6 +801,7 @@ and ends with the `endcalc` keyword.
     -   **[off]**<br>
         Switch the tau-search explicitly off.
         (Equivalent to not having the `tau-search` keyword at all.)
+        Note that this keyword is incompatible with other options (e.g. `maxWalkerBloom`).
 
     -   **[scale-tau-to-death]**<br>
         Optional keyword. Off by default.
@@ -924,7 +925,7 @@ and is stopped after 10000 iterations.
     Makes any determinant that has a half-time of at least \(age\)
     iterations an initiator. \(age\) is optional and defaults to \(1\).
 
--   **superInitiator [\(n\)]**<br>
+-   **superInitiators [\(n\)]**<br>
     Create a list of \(n\) superinitiators, from which all connected
     determinants are set to be initiators. The superinitiators are
     chosen according to population. \(n\) is optional and defaults to
@@ -1010,7 +1011,7 @@ and is stopped after 10000 iterations.
 
 #### Adaptive shift options
 
--   **auto-adpative-shift [\(t\) \(\alpha\) \(c\)]**<br>
+-   **auto-adaptive-shift [\(t\) \(\alpha\) \(c\)]**<br>
     Scale the shift per determinant based on the acceptance rate on a
     determinant. Has three optional arguments. The first is the
     threshold value \(t\) which is the minimal number of spawning
@@ -1028,11 +1029,6 @@ and is stopped after 10000 iterations.
     applied at \(\sigma\) with a default of \(0\) and \(f_2\) is the
     shift fraction to be applied at the initiator threshold, defaults to
     \(1\). Every initiator is applied the full shift.
-
--   **exp-adaptive-shift [\(\alpha\)]**<br>
-    Scales the shift expoentially with the population of a determinant.
-    The optional argument \(\alpha\) is the exponent of scaling, the
-    default is \(2\).
 
 -   **core-adaptive-shift**<br>
     By default, determinants in the corespace are always applied the
@@ -1221,7 +1217,7 @@ and is stopped after 10000 iterations.
     few walkers on relatively many processors, a large factor might be
     needed. Defaults to \(3\).
 
--   **prone-walkers**<br>
+-   **prone-determinants**<br>
     Instead of terminating when running out of memory, randomly delete
     determinants with low population and few spawns.
 
@@ -1389,7 +1385,7 @@ terminated with the `end-kp-fciqmc` keyword.
     list, \(B\) is the number of Krylov vectors, and \(x\) is the value
     input with this option.
 
--   **num-walker-per-site-init \(x\)**<br>
+-   **num-walkers-per-site-init \(x\)**<br>
     For finite-temperature jobs, \(x\) specifies the number of walkers
     to place on a determinant when it is chosen to be occupied.
 
@@ -1547,7 +1543,7 @@ keyword.
 -   **\textcolor{blue}{endlog}**<br>
  Terminates the LOGGING block.
 
--   **\textcolor{blue}{hdf5-pops}**\
+-   **\textcolor{blue}{hdf5-pops}**<br>
  Sets the format to read and write the wave function to HDF5.
     Requires building with the `ENABLE-HDF5` cmake option.
 
@@ -1603,7 +1599,7 @@ keyword.
     shift over the energy of a determinant. Only has an effect if
     `auto-adaptive-shift` is used.
 
--   **fval-pops-hist**<br>
+-   **fval-pop-hist**<br>
     Create a histogram of the scaling factor used for the auto-adaptive
     shift over the population of a determinant. Only has an effect if
     `auto-adaptive-shift` is used.

@@ -4,9 +4,6 @@ datafile = "FCIMCStats"
 outdir = "plots/"
 set terminal png # size 500,500
 
-# want to plot cols 5, 11(?), 12, 24, 25, maybe 2?
-# maybe some output instructions?
-
 # col 5 Total Walkers
 outfile = outdir."check_totWalkers.png"
 set output outfile
@@ -45,7 +42,6 @@ p "FCIMCStats" u 1:23 w lp
 # Comparison plot
 outfile = outdir."check_shift_energy.png"
 set output outfile
-# set xrange [400000:1000000]
 set yrange [:*<0]
 p "FCIMCStats" u 1:2 w lp # , "FCIMCStats" u 1:9 w lp
 MAXY=GPVAL_Y_MAX
@@ -59,5 +55,4 @@ set output outfile
 set xlabel "Step"
 set ylabel "Energy Estimate"
 set title "Shift and Projected Energies"
-# p "FCIMCStats" u 1:2 w lp t "Shift", "FCIMCStats" u 1:($25/$24) w lp t "col 25/col 24", "FCIMCStats" u 1:11 w lp t "Proj.E"
 p "FCIMCStats" u 1:2 w lp t "Shift", "FCIMCStats" u 1:11 w lp t "Proj.E"
