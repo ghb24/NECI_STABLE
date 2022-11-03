@@ -212,9 +212,9 @@ considered. The block starts with the `system` keyword and ends with the
 
         An example input is:
 
-            nonuniformrandexcits PCHB \
-                    SINGLES ON-FLY-HEAT-BATH \
-                    PARTICLE-SELECTION PC-WEIGHTED
+            nonuniformrandexcits pchb \
+                    singles on-the-fly-heat-bath \
+                    particle-selection pc-weighted
 
     -   **guga-pchb**<br>
         Uses the pre-computed alias tables for the spin-adapted GUGA implementation.
@@ -298,8 +298,8 @@ considered. The block starts with the `system` keyword and ends with the
             An example input is:
 
                 nonuniformrandexcits GAS-CI PCHB \
-                        SINGLES ON-FLY-HEAT-BATH \
-                        PARTICLE-SELECTION PC-WEIGHTED
+                        singles on-the-fly-heat-bath \
+                        particle-selection pc-weighted
 
         -   **DISCARDING**<br>
             Use a Full CI excitation generator and just discard excitations
@@ -332,16 +332,20 @@ considered. The block starts with the `system` keyword and ends with the
 -   **GAS-SPEC**<br>
     Perform a *Generalized Active Spaces* (GAS) calculation and specify
     the GAS spaces.[@Weser2021] It is necessary to select the actual implementation
-    with the `GAS-CI` keyword. It is possible to use *local* or
-    *cumulative* constraints on the particle number. Local constraints
+    with the `GAS-CI` keyword. It is possible to use *local*,
+    *cumulative*, or *flexible* constraints on the particle number. Local constraints
     define the minimum and maximum particle number per GAS space.
     Cumulative constraints define cumulative minima and maxima of the
-    cumulative particle number. The specification is first `LOCAL` or
+    cumulative particle number.
+    The flexible constraints allow the user to list the allowed
+    supergroups, i.e. the allowed distribution of particles
+    among the GAS spaces.  The specification is first `LOCAL` or
     `CUMULATIVE` to define the kind of constraints followed by the
     number of GAS spaces \(n_\text{GAS}\). The next items are
     \(n_\text{GAS}\) rows with 3 numbers which are the number of spatial
     orbitals and (cumulative) minimum and maximum number of particles
-    per GAS space \(n_i, N_i^\text{min}, N_i^\text{max}\). Finally the last row
+    per GAS space \(n_i, N_i^\text{min}, N_i^\text{max}\).
+    Finally the last row
     denotes for each spatial orbital to which GAS space it
     belongs. Instead of `1 1 1 1 1` one can write `5*1`.
     Two benzenes with single inter-space excitation
@@ -368,6 +372,19 @@ considered. The block starts with the `system` keyword and ends with the
 
     In the given example the local and cumulative constraints are
     equivalent, but they are not always!
+
+    The flexible constraints start with the keyword `FLEXIBLE`
+    and require the number of GAS spaces and supergroups \(n_{\text{GAS}} \quad n_{\text{sg}}\).
+    The next \(n_{\text{sg}}\) rows list the allowed supergroups.
+    Again the last row denotes for each spatial orbital to which GAS space it
+    belongs.
+    The previous example of two benzene with single excitations would be
+
+        GAS-SPEC FLEXIBLE 2 3
+                6 6
+                5 7
+                7 5
+                6*1 6*2
 
     It is possible to switch off the spin recoupling between
     different GAS spaces by appending `NO-RECOUPLING`.
@@ -720,6 +737,7 @@ and ends with the `endcalc` keyword.
         This defines the algorithm of the \(\Delta \tau\)-search.
 
         Has to be followed by one of the following sub-keywords:
+
         -   **conventional**<br>
             Adjusts \(\Delta \tau\) such that:
             \begin{equation}
@@ -733,7 +751,8 @@ and ends with the `endcalc` keyword.
             \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\).
             \begin{equation}
                 \label{Eq:histogramming_tau_search}
-                \Delta \tau = k_{\text{maxbloom}} \cdot \left( \argmin_{t} \Big| c - \Int{p(x)}{x, 0, t} \Big| \right)^{-1}
+                \Delta \tau = k_{\text{maxbloom}} \cdot \left( \text{argmin}_{t} \Big| c - \int_0^t p(x)\,\mathrm{d}x \Big| \right)^{-1} \quad.
+            \end{equation}
             \end{equation}
             Where \(p\) is the probability distribution of \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\)
             which is obtained numerically by binning.
@@ -807,9 +826,9 @@ and ends with the `endcalc` keyword.
 
 ##### Example inputs for \(\Delta \tau\)
 
-The following input start with \(\Delta \tau = \SI{0.002}{\hbar \per \hartree} \cdot \I\)
-and keeps its value between \(\SI{0.001}{\hbar \per \hartree} \cdot \I\)
-and \(\SI{0.003}{\hbar \per \hartree} \cdot \I\).
+The following input start with \(\Delta \tau = 0.002 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}} \)
+and keeps its value between \( 0.001 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}}\)
+and \(0.003 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}}\).
 The conventional \(\Delta \tau\)-search that is
 stopped if there was no change of \(\Delta \tau\) for 1000 iterations.
 
