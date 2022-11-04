@@ -1,7 +1,7 @@
 module test_pchb_excitgen_mod
     use fruit, only: assert_true
     use constants, only: dp, maxExcit
-    use gasci_pchb, only: PCHB_particle_selections
+    use gasci_pc_select_particles, only: PCHB_particle_selections
     use pchb_excitgen, only: PCHB_FCI_excit_generator_t, possible_PCHB_singles
     use FciMCData, only: pSingles, pDoubles, pParallel
     use SystemData, only: nEl
