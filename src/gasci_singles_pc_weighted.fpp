@@ -17,18 +17,19 @@ module gasci_singles_pc_weighted
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use orb_idx_mod, only: calc_spin_raw, operator(==)
+    use OneEInts, only: GetTMatEl
     better_implicit_none
     private
-    public :: PC_UniformSingles_t, PC_singles_weighted_t, &
-        possible_PC_singles_weighted, PC_weighted_singles, &
-        Base_PC_SinglesLocalised_t
+    public :: PC_singles_weighted_t, possible_PC_singles_weighted, PC_weighted_singles, &
+        Base_PC_SinglesLocalised_t, PC_UniformSingles_t, PC_SinglesHOnly_t
 
     type, extends(EnumBase_t) :: PC_singles_weighted_t
     end type
 
     type :: possible_PC_singles_weighted_t
         type(PC_singles_weighted_t) :: &
-            UNIFORM = PC_singles_weighted_t(1)
+            UNIFORM = PC_singles_weighted_t(1), &
+            H_ONLY = PC_singles_weighted_t(2)
     end type
 
     type(possible_PC_singles_weighted_t), parameter :: &
@@ -53,18 +54,17 @@ module gasci_singles_pc_weighted
         logical, public :: create_lookup = .false.
     contains
         private
-        procedure, public :: init => PC_SinglesLocalised_init
-        procedure, public :: gen_exc => PC_SinglesLocalised_gen_exc
-        procedure, public :: get_pgen => PC_SinglesLocalised_get_pgen
-        procedure, public :: finalize => PC_SinglesLocalised_finalize
-        procedure(get_weight_t), deferred :: get_weight
+        procedure, public :: init
+        procedure, public :: gen_exc
+        procedure, public :: get_pgen
+        procedure, public :: finalize
+        procedure(get_weight_t), nopass, deferred :: get_weight
     end type
 
     abstract interface
-        real(dp) pure function get_weight_t(this, exc)
-            import :: Base_PC_SinglesLocalised_t, SingleExc_t, dp
+        real(dp) elemental function get_weight_t(exc)
+            import :: SingleExc_t, dp
             implicit none
-            class(Base_PC_SinglesLocalised_t), intent(in) :: this
             type(SingleExc_t), intent(in) :: exc
         end function
     end interface
@@ -72,17 +72,23 @@ module gasci_singles_pc_weighted
     type, extends(Base_PC_SinglesLocalised_t) :: PC_UniformSingles_t
     contains
         private
-        procedure :: get_weight => Uniform_get_weight
+        procedure, nopass :: get_weight => Uniform_get_weight
+    end type
+
+    type, extends(Base_PC_SinglesLocalised_t) :: PC_SinglesHOnly_t
+    contains
+        private
+        procedure, nopass :: get_weight => PC_hOnly_get_weight
     end type
 
 
 contains
 
-    subroutine PC_SinglesLocalised_init(this, GAS_spec, use_lookup, create_lookup)
+    subroutine init(this, GAS_spec, use_lookup, create_lookup)
         class(GASSpec_t), intent(in) :: GAS_spec
         class(Base_PC_SinglesLocalised_t), intent(inout) :: this
         logical, intent(in) :: use_lookup, create_lookup
-        routine_name("PC_SinglesLocalised_init")
+        routine_name("init")
         real(dp), allocatable :: weights(:)
         integer, allocatable :: supergroups(:, :)
         integer :: n_supergroups, nBI
@@ -139,7 +145,7 @@ contains
             end function
     end subroutine
 
-    subroutine PC_SinglesLocalised_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+    subroutine gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                      ex, tParity, pGen, hel, store, part_type)
         class(Base_PC_SinglesLocalised_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
@@ -183,9 +189,9 @@ contains
             clr_orb(ilutJ, src)
             set_orb(ilutJ, tgt)
         end if
-    end subroutine PC_SinglesLocalised_gen_exc
+    end subroutine gen_exc
 
-    subroutine PC_SinglesLocalised_finalize(this)
+    subroutine finalize(this)
         class(Base_PC_SinglesLocalised_t), intent(inout) :: this
 
         call this%sampler%finalize()
@@ -195,13 +201,13 @@ contains
         end if
     end subroutine
 
-    function PC_SinglesLocalised_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(p_gen)
+    function get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(p_gen)
         class(Base_PC_SinglesLocalised_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        debug_function_name("PC_SinglesLocalised_get_pgen")
+        debug_function_name("get_pgen")
         real(dp) :: p_gen
         integer :: i_sg
 
@@ -214,11 +220,17 @@ contains
     end function
 
 
-    pure function Uniform_get_weight(this, exc) result(w)
-        class(PC_UniformSingles_t), intent(in) :: this
+    elemental function Uniform_get_weight(exc) result(w)
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: w
-        @:unused_var(this, exc)
+        @:unused_var(exc)
         w = 1._dp
+    end function
+
+
+    elemental function PC_hOnly_get_weight(exc) result(w)
+        type(SingleExc_t), intent(in) :: exc
+        real(dp) :: w
+        w = abs(GetTMATEl(exc%val(1), exc%val(2)))
     end function
 end module gasci_singles_pc_weighted

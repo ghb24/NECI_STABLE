@@ -1614,6 +1614,8 @@ contains
                                     select case(w)
                                     case('UNIFORM')
                                         PC_weighted_singles = possible_PC_singles_weighted%UNIFORM
+                                    case('H-ONLY')
+                                        PC_weighted_singles = possible_PC_singles_weighted%H_ONLY
                                     case default
                                         call Stop_All(t_r, trim(w)//" not a valid PC-WEIGHTED singles generator")
                                     end select
@@ -1676,6 +1678,8 @@ contains
                                     select case(w)
                                     case('UNIFORM')
                                         PC_weighted_singles = possible_PC_singles_weighted%UNIFORM
+                                    case('H-ONLY')
+                                        PC_weighted_singles = possible_PC_singles_weighted%H_ONLY
                                     case default
                                         call Stop_All(t_r, trim(w)//" not a valid PC-WEIGHTED singles generator")
                                     end select

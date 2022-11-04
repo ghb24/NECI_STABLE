@@ -14,8 +14,8 @@ module pchb_excitgen
     use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t
     use gasci_pc_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
     use gasci_singles_pc_weighted, only: &
-        Base_PC_SinglesLocalised_t, PC_UniformSingles_t, &
-        possible_PC_singles_weighted, PC_weighted_singles
+        Base_PC_SinglesLocalised_t, possible_PC_singles_weighted, PC_weighted_singles, &
+        PC_UniformSingles_t, PC_SinglesHOnly_t
     better_implicit_none
 
     private
@@ -77,6 +77,10 @@ contains
             if (PC_weighted_singles == possible_PC_singles_weighted%UNIFORM) then
                 write(stdout, *) 'FCI PCHB precomputed weighted singles with uniform weight'
                 allocate(PC_UniformSingles_t :: this%singles_generator)
+            else if (PC_weighted_singles == possible_PC_singles_weighted%H_ONLY) then
+                write(stdout, *) 'GAS precomputed weighted singles with |h_{I, A}| weight,'
+                write(stdout, *) 'i.e. only the one electron term is considered'
+                allocate(PC_SinglesHOnly_t :: this%singles_generator)
             else
                 call stop_all(this_routine, "Invalid choise for PC weighted Singles.")
             end if
