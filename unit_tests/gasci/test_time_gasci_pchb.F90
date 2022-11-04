@@ -69,7 +69,7 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(Li2_FCIDUMP, 'FCIDUMP'))
             call GAS_PCHB%init(GAS_spec, use_lookup=.false., create_lookup=.false., recoupling=.true., &
-                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM)
+                                    used_singles_generator=possible_GAS_singles%BITMASK_UNIFORM)
             call run_excit_gen_tester( &
                 GAS_PCHB, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -147,7 +147,7 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(FePor_FCIDUMP, 'FCIDUMP'))
             call GAS_PCHB%init(GAS_spec, use_lookup=.false., create_lookup=.false., recoupling=.true., &
-                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM)
+                                    used_singles_generator=possible_GAS_singles%BITMASK_UNIFORM)
             call run_excit_gen_tester( &
                 GAS_PCHB, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &

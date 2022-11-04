@@ -19,7 +19,9 @@ module gasci_singles_pc_weighted
     use orb_idx_mod, only: calc_spin_raw, operator(==)
     better_implicit_none
     private
-    public :: PC_UniformSingles_t, PC_singles_weighted_t, possible_PC_singles_weighted
+    public :: PC_UniformSingles_t, PC_singles_weighted_t, &
+        possible_PC_singles_weighted, PC_weighted_singles, &
+        Base_PC_SinglesLocalised_t
 
     type, extends(EnumBase_t) :: PC_singles_weighted_t
     end type
@@ -31,6 +33,8 @@ module gasci_singles_pc_weighted
 
     type(possible_PC_singles_weighted_t), parameter :: &
         possible_PC_singles_weighted = possible_PC_singles_weighted_t()
+
+    type(PC_singles_weighted_t) :: PC_weighted_singles = possible_PC_singles_weighted%UNIFORM
 
     type, abstract, extends(SingleExcitationGenerator_t) :: Base_PC_SinglesLocalised_t
         type(AliasSampler_2D_t) :: sampler

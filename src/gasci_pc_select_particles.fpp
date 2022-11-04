@@ -10,14 +10,30 @@ module gasci_pc_select_particles
     use FciMCData, only: pParallel
     use sets_mod, only: is_set, operator(.in.)
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
-    use util_mod, only: stop_all, operator(.isclose.), swap, binary_search_int
+    use util_mod, only: stop_all, operator(.isclose.), swap, binary_search_int, EnumBase_t
     use UMatCache, only: numBasisIndices
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use sets_mod, only: empty_int
     better_implicit_none
+    private
     public :: ParticleSelector_t, PC_WeightedParticlesOcc_t, &
-        UniformParticles_t, PC_FastWeightedParticles_t
+        UniformParticles_t, PC_FastWeightedParticles_t, &
+        PCHB_particle_selections, PCHB_ParticleSelection_t
+
+    type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
+    end type
+
+    type :: possible_PCHB_ParticleSelection_t
+        type(PCHB_ParticleSelection_t) :: &
+            UNIFORM = PCHB_ParticleSelection_t(1), &
+            PC_WEIGHTED = PCHB_ParticleSelection_t(2), &
+            PC_WEIGHTED_APPROX = PCHB_ParticleSelection_t(3)
+    end type
+
+    type(possible_PCHB_ParticleSelection_t), parameter :: &
+        PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
+
 
     type, abstract :: ParticleSelector_t
     contains

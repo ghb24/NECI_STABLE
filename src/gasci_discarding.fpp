@@ -14,7 +14,7 @@ module gasci_discarding
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, DoubleExcitationGenerator_t
     use gasci, only: GASSpec_t
     use gasci_util, only: GAS_gen_all_excits => gen_all_excits
-    use gasci_pchb, only: PCHB_ParticleSelection_t
+    use gasci_pc_select_particles, only: PCHB_ParticleSelection_t
     implicit none
 
     private

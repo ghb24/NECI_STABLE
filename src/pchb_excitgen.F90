@@ -1,6 +1,6 @@
 #include "macros.h"
 module pchb_excitgen
-    use constants, only: n_int, dp, maxExcit
+    use constants, only: n_int, dp, maxExcit, stdout
     use SystemData, only: nel, nBasis
     use util_mod, only: operator(.div.), EnumBase_t, stop_all
     use bit_rep_data, only: NIfTot
@@ -11,8 +11,11 @@ module pchb_excitgen
     use gasci, only: GASSpec_t, LocalGASSpec_t
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, get_pgen_sd, gen_exc_sd, gen_all_excits_sd
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t, &
-        PCHB_ParticleSelection_t, PCHB_particle_selections
+    use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t
+    use gasci_pc_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
+    use gasci_singles_pc_weighted, only: &
+        Base_PC_SinglesLocalised_t, PC_UniformSingles_t, &
+        possible_PC_singles_weighted, PC_weighted_singles
     better_implicit_none
 
     private
@@ -42,7 +45,8 @@ module pchb_excitgen
     type :: possible_PCHB_singles_t
         type(PCHB_used_singles_t) :: &
             ON_FLY_HEAT_BATH = PCHB_used_singles_t(1), &
-            UNIFORM = PCHB_used_singles_t(2)
+            UNIFORM = PCHB_used_singles_t(2), &
+            PC_WEIGHTED = PCHB_used_singles_t(3)
     end type
 
     type(possible_PCHB_singles_t), parameter :: possible_PCHB_singles = possible_PCHB_singles_t()
@@ -69,6 +73,19 @@ contains
             allocate(WeightedSingles_t :: this%singles_generator)
         else if (PCHB_singles == possible_PCHB_singles%UNIFORM) then
             allocate(UniformSingles_t :: this%singles_generator)
+        else if (PCHB_singles == possible_PCHB_singles%PC_WEIGHTED) then
+            if (PC_weighted_singles == possible_PC_singles_weighted%UNIFORM) then
+                write(stdout, *) 'FCI PCHB precomputed weighted singles with uniform weight'
+                allocate(PC_UniformSingles_t :: this%singles_generator)
+            else
+                call stop_all(this_routine, "Invalid choise for PC weighted Singles.")
+            end if
+            select type(generator => this%singles_generator)
+            class is(Base_PC_SinglesLocalised_t)
+                call generator%init(&
+                    CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
+                    use_lookup=.false., create_lookup=.false.)
+            end select
         else
             call stop_all(this_routine, "Invalid PCHB_singles in FCI PCHB init.")
         end if

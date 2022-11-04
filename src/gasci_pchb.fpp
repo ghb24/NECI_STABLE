@@ -58,9 +58,11 @@ module gasci_pchb
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pc_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
-        PC_FastWeightedParticles_t, UniformParticles_t
+        PC_FastWeightedParticles_t, UniformParticles_t, &
+        PCHB_particle_selections, PCHB_ParticleSelection_t
     use gasci_singles_pc_weighted, only: &
-        PC_UniformSingles_t, PC_singles_weighted_t, possible_PC_singles_weighted
+        Base_PC_SinglesLocalised_t, PC_UniformSingles_t, &
+        possible_PC_singles_weighted, PC_weighted_singles
     use exc_gen_class_wrappers, only: UniformSingles_t
 
     use display_matrices, only: write_matrix
@@ -74,8 +76,7 @@ module gasci_pchb
     public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
         GAS_doubles_PCHB_ExcGenerator_t, &
         possible_GAS_singles, GAS_PCHB_singles_generator, &
-        GAS_PCHB_particle_selection, PCHB_particle_selections, &
-        PCHB_ParticleSelection_t
+        GAS_PCHB_particle_selection
 
     logical, parameter :: use_supergroup_lookup = .true.
 
@@ -133,26 +134,13 @@ module gasci_pchb
         type(GAS_used_singles_t) :: &
             ON_FLY_HEAT_BATH = GAS_used_singles_t(1), &
             DISCARDING_UNIFORM = GAS_used_singles_t(2), &
-            PC_UNIFORM = GAS_used_singles_t(3)
+            BITMASK_UNIFORM = GAS_used_singles_t(3), &
+            PC_WEIGHTED = GAS_used_singles_t(4)
     end type
 
     type(possible_GAS_singles_t), parameter :: possible_GAS_singles = possible_GAS_singles_t()
 
-    type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
-
-
-    type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
-    end type
-
-    type :: possible_PCHB_ParticleSelection_t
-        type(PCHB_ParticleSelection_t) :: &
-            UNIFORM = PCHB_ParticleSelection_t(1), &
-            PC_WEIGHTED = PCHB_ParticleSelection_t(2), &
-            PC_WEIGHTED_APPROX = PCHB_ParticleSelection_t(3)
-    end type
-
-    type(possible_PCHB_ParticleSelection_t), parameter :: &
-        PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
+    type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%BITMASK_UNIFORM
 
     type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
 
@@ -880,13 +868,14 @@ contains
         logical, intent(in) :: use_lookup, create_lookup
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
+        routine_name("GAS_PCHB_init")
 
         call set_timer(GAS_PCHB_init_time)
 
         if (used_singles_generator == possible_GAS_singles%DISCARDING_UNIFORM) then
             write(stdout, *) 'GAS discarding singles activated'
             allocate(this%singles_generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
-        else if (used_singles_generator == possible_GAS_singles%PC_UNIFORM) then
+        else if (used_singles_generator == possible_GAS_singles%BITMASK_UNIFORM) then
             write(stdout, *) 'GAS precomputed singles activated'
             allocate(GAS_singles_PC_uniform_ExcGenerator_t :: this%singles_generator)
             select type(generator => this%singles_generator)
@@ -898,6 +887,21 @@ contains
         else if (used_singles_generator == possible_GAS_singles%ON_FLY_HEAT_BATH) then
             write(stdout, *) 'GAS heat bath on the fly singles activated'
             allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
+        else if (used_singles_generator == possible_GAS_singles%PC_WEIGHTED) then
+            if (PC_weighted_singles == possible_PC_singles_weighted%UNIFORM) then
+                write(stdout, *) 'GAS precomputed weighted singles with uniform weight'
+                allocate(PC_UniformSingles_t :: this%singles_generator)
+            else
+                call stop_all(this_routine, "Invalid choise for PC weighted Singles.")
+            end if
+            select type(generator => this%singles_generator)
+            class is(Base_PC_SinglesLocalised_t)
+                ! NOTE: only one of the excitation generators should manage the
+                !   supergroup lookup!
+                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+            end select
+        else
+            call stop_all(this_routine, "Invalid choise for singles.")
         end if
 
         call this%doubles_generator%init(&

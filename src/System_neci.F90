@@ -49,6 +49,8 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
          user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
     use gasci_util, only: t_output_GAS_sizes
+    use gasci_singles_pc_weighted, only: &
+        possible_PC_singles_weighted, PC_weighted_singles
 
     use growing_buffers, only: buffer_int_1D_t
     IMPLICIT NONE
@@ -1607,6 +1609,14 @@ contains
                                     FCI_PCHB_singles = possible_PCHB_singles%UNIFORM
                                 case('ON-THE-FLY-HEAT-BATH')
                                     FCI_PCHB_singles = possible_PCHB_singles%ON_FLY_HEAT_BATH
+                                case('PC-WEIGHTED')
+                                    w = to_upper(tokens%next())
+                                    select case(w)
+                                    case('UNIFORM')
+                                        PC_weighted_singles = possible_PC_singles_weighted%UNIFORM
+                                    case default
+                                        call Stop_All(t_r, trim(w)//" not a valid PC-WEIGHTED singles generator")
+                                    end select
                                 case default
                                     call Stop_All(t_r, trim(w)//" not a valid PCHB singles generator")
                                 end select
@@ -1614,7 +1624,7 @@ contains
                             else if (w == 'PARTICLE-SELECTION') then
                             block
                                 use pchb_excitgen, only: FCI_PCHB_particle_selection
-                                use gasci_pchb, only: PCHB_particle_selections
+                                use gasci_pc_select_particles, only: PCHB_particle_selections
 
                                 w = to_upper(tokens%next())
                                 select case (w)
@@ -1636,7 +1646,8 @@ contains
                 case ("GAS-CI")
                 block
                     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
-                        PCHB_particle_selections, GAS_PCHB_particle_selection
+                        GAS_PCHB_particle_selection
+                    use gasci_pc_select_particles, only: PCHB_particle_selections
 
                     w = to_upper(tokens%next())
                     select case (w)
@@ -1657,9 +1668,17 @@ contains
                                 case('DISCARDING-UNIFORM')
                                     GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
                                 case('PC-UNIFORM')
-                                    GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
+                                    GAS_PCHB_singles_generator = possible_GAS_singles%BITMASK_UNIFORM
                                 case('ON-THE-FLY-HEAT-BATH')
                                     GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
+                                case('PC-WEIGHTED')
+                                    w = to_upper(tokens%next())
+                                    select case(w)
+                                    case('UNIFORM')
+                                        PC_weighted_singles = possible_PC_singles_weighted%UNIFORM
+                                    case default
+                                        call Stop_All(t_r, trim(w)//" not a valid PC-WEIGHTED singles generator")
+                                    end select
                                 case default
                                     call Stop_All(t_r, trim(w)//" not a valid GAS singles generator")
                                 end select
