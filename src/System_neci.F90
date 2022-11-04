@@ -47,9 +47,10 @@ MODULE System
     use tau_main, only: tau, assign_value_to_tau
 
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
-         user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t
+         user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
     use gasci_util, only: t_output_GAS_sizes
 
+    use growing_buffers, only: buffer_int_1D_t
     IMPLICIT NONE
 
 contains
@@ -1665,9 +1666,9 @@ contains
                             else if (w == 'PARTICLE-SELECTION') then
                                 w = to_upper(tokens%next())
                                 select case (w)
-                                case('PC-WEIGHTED-FAST')
+                                case('PC-WEIGHTED-APPROX')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
-                                case('PC-WEIGHTED-OCC')
+                                case('PC-WEIGHTED')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
                                 case('UNIFORM')
                                     GAS_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
@@ -1858,73 +1859,56 @@ contains
                 tGAS = .true.
                 block
                     logical :: recoupling
-                    integer :: nGAS, iGAS
-                    integer :: i_orb, n_spat_orbs
+                    integer :: nGAS, iGAS, i_sg, n_sg
+                    integer :: i_orb
                     ! n_orbs are the number of spatial orbitals per GAS space
                     ! cn_min, cn_max are cumulated particle numbers per GAS space
                     integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
-                                            spat_GAS_orbs(:), beta_orbs(:)
+                                            spat_GAS_orbs(:), beta_orbs(:), supergroups(:, :)
                     w = to_upper(tokens%next())
                     if (w == 'LOCAL') then
                         allocate(LocalGASSpec_t :: GAS_specification)
                     else if (w == 'CUMULATIVE') then
                         allocate(CumulGASSpec_t :: GAS_specification)
+                    else if (w == 'FLEXIBLE') then
+                        allocate(FlexibleGASSpec_t :: GAS_specification)
                     else
                         call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
                     end if
 
-                    nGAS = to_int(tokens%next())
-                    allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
-                    do iGAS = 1, nGAS
-                        if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                            n_orbs(iGAS) = to_int(tokens%next())
-                            cn_min(iGAS) = to_int(tokens%next())
-                            cn_max(iGAS) = to_int(tokens%next())
-                        else
-                            call stop_all(t_r, 'Error in GAS spec.')
-                        end if
-                    end do
+                    select type(GAS_specification)
+                    type is (FlexibleGASSpec_t)
+                        nGAS = to_int(tokens%next())
+                        n_sg = to_int(tokens%next())
+                        allocate(supergroups(nGAS, n_sg), source=0)
+                        do i_sg = 1, n_sg
+                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                                do iGAS = 1, nGAS
+                                    supergroups(iGAS, i_sg) = to_int(tokens%next())
+                                end do
+                            else
+                                call stop_all(t_r, 'Error in GAS spec.')
+                            end if
+                        end do
+                    class default
+                        nGAS = to_int(tokens%next())
+                        allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
+                        do iGAS = 1, nGAS
+                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                                n_orbs(iGAS) = to_int(tokens%next())
+                                cn_min(iGAS) = to_int(tokens%next())
+                                cn_max(iGAS) = to_int(tokens%next())
+                            else
+                                call stop_all(t_r, 'Error in GAS spec.')
+                            end if
+                        end do
+                    end select
 
-                    n_spat_orbs = sum(n_orbs)
-                    allocate(spat_GAS_orbs(n_spat_orbs), source=0)
 
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                        block
-                            use fortran_strings, only: operator(.in.), Token_t, split
-                            integer :: times, iGAS
-                            type(Token_t), allocatable :: splitted(:)
-
-                            i_orb = 1
-                            do while (i_orb  <= n_spat_orbs)
-                                w = to_upper(tokens%next())
-                                if ('*' .in. w) then
-                                    splitted = split(w, '*')
-                                    read(splitted(1)%str, *) times
-                                    read(splitted(2)%str, *) iGAS
-                                else
-                                    read(w, *) iGAS
-                                    times = 1
-                                end if
-                                spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
-                                i_orb = i_orb + times
-                            end do
-                        end block
+                        call read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
                     else
                         call stop_all(t_r, 'Error in GAS spec.')
-                    end if
-
-                    if (tokens%remaining_items() > 0) then
-                        w = to_upper(tokens%next())
-                        select case (w)
-                        case ('RECOUPLING')
-                            recoupling = .true.
-                        case ('NO-RECOUPLING')
-                            recoupling = .false.
-                        case default
-                            call Stop_All(t_r, "Only RECOUPLING or NO-RECOUPLING allowed.")
-                        end select
-                    else
-                        recoupling = .true.
                     end if
 
                     select type(GAS_specification)
@@ -1932,14 +1916,13 @@ contains
                         GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
                     type is(LocalGASSpec_t)
                         GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
+                    type is(FlexibleGASSpec_t)
+                        GAS_specification = FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling)
+                        call GAS_specification%write_to(6)
                     class default
                         call stop_all(t_r, "Invalid type for GAS specification.")
                     end select
 
-                    beta_orbs = [(i, i=1, n_spat_orbs * 2, 2)]
-                    if (.not. all(n_orbs == GAS_specification%count_per_GAS(beta_orbs))) then
-                        call stop_all(t_r, "Inconsistent GAS specification")
-                    end if
                 end block
 
 
@@ -3565,6 +3548,45 @@ contains
 
         return
     end function
+
+    subroutine read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
+        use fortran_strings, only: operator(.in.), Token_t, split, can_be_int
+        use input_parser_mod, only: TokenIterator_t
+        type(TokenIterator_t), intent(inout) :: tokens
+        integer, allocatable, intent(out) :: spat_GAS_orbs(:)
+        logical, intent(out) :: recoupling
+        integer :: times, iGAS, i
+        type(Token_t), allocatable :: splitted(:)
+        type(buffer_int_1D_t) :: buffer
+        character(len=100) :: w
+        routine_name("read_spat_GAS_orbs")
+
+        call buffer%init()
+        recoupling = .true.
+        do while (tokens%remaining_items() > 0)
+            w = to_upper(tokens%next())
+            if ('*' .in. w) then
+                splitted = split(w, '*')
+                times = to_int(splitted(1)%str)
+                iGAS = to_int(splitted(2)%str)
+            else if (can_be_int(w)) then
+                times = 1
+                iGAS = to_int(w)
+            else if (w == 'RECOUPLING') then
+                recoupling = .true.
+                exit
+            else if (w == 'NO-RECOUPLING') then
+                recoupling = .false.
+                exit
+            else
+                call stop_all(this_routine, "Error in reading GAS orbitals.")
+            end if
+            do i = 1, times
+                call buffer%push_back(iGAS)
+            end do
+        end do
+        call buffer%dump_reset(spat_GAS_orbs)
+    end subroutine
 
 END MODULE System
 

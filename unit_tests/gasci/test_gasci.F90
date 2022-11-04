@@ -13,7 +13,7 @@ module test_gasci_mod
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, excite, dyn_excite
     use util_mod, only: cumsum
 
-    use gasci, only: LocalGASSpec_t
+    use gasci, only: LocalGASSpec_t, FlexibleGASSpec_t
 
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
@@ -41,18 +41,20 @@ contains
 
 
     subroutine test_particles_per_GAS()
-        type(LocalGASSpec_t) :: GAS_spec
-        GAS_spec = LocalGASSpec_t(n_min=[2, 2],  n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
+        block
+            type(LocalGASSpec_t) :: GAS_spec
+            GAS_spec = LocalGASSpec_t(n_min=[2, 2],  n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
 
-        associate(expected => [2, 2], &
-                  calculated => GAS_spec%count_per_GAS([1, 2, 5, 6]))
-            call assert_equals(expected, calculated, size(expected))
-        end associate
+            associate(expected => [2, 2], &
+                      calculated => GAS_spec%count_per_GAS([1, 2, 5, 6]))
+                call assert_equals(expected, calculated, size(expected))
+            end associate
 
-        associate(expected => [1, 3], &
-                  calculated => GAS_spec%count_per_GAS([1, 5, 6, 7]))
-            call assert_equals(expected, calculated, size(expected))
-        end associate
+            associate(expected => [1, 3], &
+                      calculated => GAS_spec%count_per_GAS([1, 5, 6, 7]))
+                call assert_equals(expected, calculated, size(expected))
+            end associate
+        end block
 
     end subroutine
 
@@ -66,6 +68,18 @@ contains
         call assert_false(GAS_spec%contains_conf([1, 2, 3, 5]))
         call assert_false(GAS_spec%contains_conf([5, 6, 7, 8]))
         call assert_false(GAS_spec%contains_conf([1, 6, 7, 8]))
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec
+            integer :: i
+            GAS_spec = FlexibleGASSpec_t(supergroups=reshape([[6, 6], [5, 7], [7, 5]], [2, 3]), &
+                                         spat_GAS_orbs=[(1, i = 1, 6), (2, i = 1, 6)])
+
+            call assert_true( GAS_spec%contains_conf([1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18]))
+            call assert_true( GAS_spec%contains_conf([1, 2, 3, 4, 6, 7, 13, 14, 15, 16, 17, 18]))
+            call assert_false( GAS_spec%contains_conf([1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 17, 18]))
+            call assert_false( GAS_spec%contains_conf([1, 2, 3, 4, 13, 14, 15, 16, 17, 18, 19, 20]))
+        end block
     end subroutine
 
     subroutine test_is_valid()
@@ -78,6 +92,16 @@ contains
         call assert_true(GAS_spec%is_valid())
         GAS_spec = LocalGASSpec_t(n_min=[1, 1], n_max=[3, 3], spat_GAS_orbs=[1, 1, 2, 2])
         call assert_true(GAS_spec%is_valid(n_basis=8))
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec
+            integer :: i
+            GAS_spec = FlexibleGASSpec_t(supergroups=reshape([[6, 6], [5, 7], [7, 5]], [2, 3]), &
+                                         spat_GAS_orbs=[(1, i = 1, 6), (2, i = 1, 6)])
+            call assert_true(GAS_spec%is_valid())
+            call assert_true(GAS_spec%is_valid(n_basis=12 * 2))
+            call assert_false(GAS_spec%is_valid(n_basis=1))
+        end block
     end subroutine
 
 
@@ -93,6 +117,18 @@ contains
         call assert_false(GAS_spec%is_connected())
         GAS_spec = LocalGASSpec_t(n_min=[2, 3], n_max=[2, 3], spat_GAS_orbs=GAS_table)
         call assert_false(GAS_spec%is_connected())
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec
+            integer :: i
+            GAS_spec = FlexibleGASSpec_t(supergroups=reshape([[6, 6], [5, 7], [7, 5]], [2, 3]), &
+                                         spat_GAS_orbs=[(1, i = 1, 6), (2, i = 1, 6)])
+            call assert_true(GAS_spec%is_connected())
+
+            GAS_spec = FlexibleGASSpec_t(supergroups=reshape([[6, 6]], [2, 1]), &
+                                         spat_GAS_orbs=[(1, i = 1, 6), (2, i = 1, 6)])
+            call assert_false(GAS_spec%is_connected())
+        end block
     end subroutine
 
     subroutine test_get_orb_idx
