@@ -59,6 +59,8 @@ module gasci_pchb
     use gasci_pc_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         PC_FastWeightedParticles_t, UniformParticles_t
+    use gasci_singles_pc_weighted, only: &
+        PC_UniformSingles_t, PC_singles_weighted_t, possible_PC_singles_weighted
     use exc_gen_class_wrappers, only: UniformSingles_t
 
     use display_matrices, only: write_matrix

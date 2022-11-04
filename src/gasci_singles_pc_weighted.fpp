@@ -2,9 +2,9 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-module gasci_pc_singles_localised
+module gasci_singles_pc_weighted
     use constants, only: dp, int64, stdout, n_int, bits_n_int, maxExcit
-    use util_mod, only: operator(.div.), stop_all
+    use util_mod, only: operator(.div.), stop_all, EnumBase_t
     use bit_rep_data, only: NIfTot, nIfD
     use SymExcitDataMod, only: ScratchSize
     use SystemData, only: nEl
@@ -19,7 +19,18 @@ module gasci_pc_singles_localised
     use orb_idx_mod, only: calc_spin_raw, operator(==)
     better_implicit_none
     private
-    public :: Base_PC_SinglesLocalised_t
+    public :: PC_UniformSingles_t, PC_singles_weighted_t, possible_PC_singles_weighted
+
+    type, extends(EnumBase_t) :: PC_singles_weighted_t
+    end type
+
+    type :: possible_PC_singles_weighted_t
+        type(PC_singles_weighted_t) :: &
+            UNIFORM = PC_singles_weighted_t(1)
+    end type
+
+    type(possible_PC_singles_weighted_t), parameter :: &
+        possible_PC_singles_weighted = possible_PC_singles_weighted_t()
 
     type, abstract, extends(SingleExcitationGenerator_t) :: Base_PC_SinglesLocalised_t
         type(AliasSampler_2D_t) :: sampler
@@ -67,7 +78,7 @@ contains
         class(GASSpec_t), intent(in) :: GAS_spec
         class(Base_PC_SinglesLocalised_t), intent(inout) :: this
         logical, intent(in) :: use_lookup, create_lookup
-        debug_function_name("PC_SinglesLocalised_init")
+        routine_name("PC_SinglesLocalised_init")
         real(dp), allocatable :: weights(:)
         integer, allocatable :: supergroups(:, :)
         integer :: n_supergroups, nBI
@@ -206,4 +217,4 @@ contains
         @:unused_var(this, exc)
         w = 1._dp
     end function
-end module
+end module gasci_singles_pc_weighted

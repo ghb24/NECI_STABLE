@@ -434,7 +434,7 @@ set( FYPP_SRC_FILES
     gasci_pc_select_particles.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp
-    gasci_pc_singles.fpp
+    gasci_singles_pc_weighted.fpp
     CDF_sampling.fpp
     orb_idx.fpp
     excitation_types.fpp
