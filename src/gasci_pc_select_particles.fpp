@@ -159,7 +159,6 @@ contains
         logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = 'init'
 
-        real(dp), allocatable :: w(:)
         integer, allocatable :: supergroups(:, :)
         integer :: nBI
         integer :: i_sg
@@ -187,8 +186,6 @@ contains
 
         call this%I_sampler%shared_alloc(size(supergroups, 2), nBI, 'PC_particles_i')
         call this%J_sampler%shared_alloc([nBI, size(supergroups, 2)], nBI, 'PC_particles_j')
-        allocate(w(nBI))
-
         block
             integer :: I
             do i_sg = 1, size(supergroups, 2)
