@@ -6,6 +6,7 @@ module gasci_singles_pc_weighted
     use constants, only: dp, int64, stdout, n_int, bits_n_int, maxExcit
     use util_mod, only: operator(.div.), stop_all, EnumBase_t
     use bit_rep_data, only: NIfTot, nIfD
+    use bit_reps, only: decode_bit_det
     use SymExcitDataMod, only: ScratchSize
     use SystemData, only: nEl
     use excitation_generators, only: SingleExcitationGenerator_t
@@ -18,6 +19,7 @@ module gasci_singles_pc_weighted
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use orb_idx_mod, only: calc_spin_raw, operator(==)
     use OneEInts, only: GetTMatEl
+    use CDF_sampling_mod, only: CDF_Sampler_t
     better_implicit_none
     private
     public :: PC_singles_weighted_t, possible_PC_singles_weighted, PC_weighted_singles, &
@@ -158,8 +160,8 @@ contains
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: part_type
 
-        real(dp) :: p_src, p_tgt
         integer :: elec, src, tgt, i_sg
+        real(dp) :: p_src, p_tgt
 
         @:unused_var(exFlag, part_type)
 #ifdef WARNING_WORKAROUND_
@@ -177,7 +179,15 @@ contains
             i_sg = this%indexer%idx_nI(nI)
         end if
 
-        call this%sampler%sample(src, i_sg, tgt, p_tgt)
+        block
+            integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl), idx
+            type(CDF_Sampler_t) :: cdf_sampler
+            call decode_bit_det(unoccupied, not(ilutI))
+            cdf_sampler = CDF_Sampler_t(this%sampler%get_prob(src, i_sg, unoccupied))
+
+            call cdf_sampler%sample(idx, p_tgt)
+            tgt = unoccupied(idx)
+        end block
 
         pGen = p_src * p_tgt
         if (IsOcc(ilutI, tgt)) then
