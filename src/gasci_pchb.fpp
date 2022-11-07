@@ -567,7 +567,7 @@ contains
 
 
         ! first, pick two random elecs
-        call this%particle_selector%draw(nI, i_sg, elecs, src, pGen)
+        call this%particle_selector%draw(nI, ilutI, i_sg, elecs, src, pGen)
         if (src(1) == 0) then
             call invalidate()
             return

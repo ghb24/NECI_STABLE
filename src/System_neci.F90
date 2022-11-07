@@ -1610,6 +1610,7 @@ contains
                                 case('ON-THE-FLY-HEAT-BATH')
                                     FCI_PCHB_singles = possible_PCHB_singles%ON_FLY_HEAT_BATH
                                 case('PC-WEIGHTED')
+                                    FCI_PCHB_singles = possible_PCHB_singles%PC_WEIGHTED
                                     w = to_upper(tokens%next())
                                     select case(w)
                                     case('UNIFORM')
@@ -1674,6 +1675,7 @@ contains
                                 case('ON-THE-FLY-HEAT-BATH')
                                     GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
                                 case('PC-WEIGHTED')
+                                    GAS_PCHB_singles_generator = possible_GAS_singles%PC_WEIGHTED
                                     w = to_upper(tokens%next())
                                     select case(w)
                                     case('UNIFORM')

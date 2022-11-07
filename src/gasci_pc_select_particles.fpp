@@ -3,14 +3,16 @@
 #:include "algorithms.fpph"
 
 module gasci_pc_select_particles
-    use constants, only: dp, int64, stdout
+    use constants, only: dp, int64, stdout, n_int, bits_n_int
+    use bit_rep_data, only: nIfD
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: pParallel
     use sets_mod, only: is_set, operator(.in.)
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
-    use util_mod, only: stop_all, operator(.isclose.), swap, binary_search_int, EnumBase_t
+    use util_mod, only: stop_all, operator(.isclose.), swap, &
+        binary_search_int, EnumBase_t, operator(.div.)
     use UMatCache, only: numBasisIndices
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -59,11 +61,13 @@ module gasci_pc_select_particles
                 !! The particles.
         end function
 
-        subroutine Draw_t(this, nI, i_sg, elecs, srcs, p)
-            import :: dp, ParticleSelector_t, nEl
+        subroutine Draw_t(this, nI, ilutI, i_sg, elecs, srcs, p)
+            import :: dp, ParticleSelector_t, nEl, n_int, nIfD
             class(ParticleSelector_t), intent(in) :: this
             integer, intent(in) :: nI(nEl), i_sg
                 !! The determinant in nI-format and the supergroup index
+            integer(n_int), intent(in) :: ilutI(0 : nIfD)
+                !! The determinant in bitmask format
             integer, intent(out) :: srcs(2), elecs(2)
                 !! The chosen particles \(I, J\) and their index in `nI`.
                 !! It is guaranteed that `scrs(1) < srcs(2)`.
@@ -118,10 +122,12 @@ module gasci_pc_select_particles
     end type
 contains
 
-    subroutine draw_UniformParticles_t(this, nI, i_sg, elecs, srcs, p)
+    subroutine draw_UniformParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(UniformParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
             !! The determinant in nI-format and the supergroup index
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+            !! The determinant in bitmask format
         integer, intent(out) :: srcs(2), elecs(2)
             !! The chosen particles \(I, J\) and their index in `nI`.
             !! It is guaranteed that `scrs(1) < srcs(2)`.
@@ -130,7 +136,7 @@ contains
             !! This is the probability of drawing two particles from
             !! a given determinant \(D_i\) regardless of order.
         integer :: sym_prod, ispn, sum_ml
-        @:unused_var(this, i_sg)
+        @:unused_var(this, ilutI, i_sg)
         call pick_biased_elecs(nI, elecs, srcs, sym_prod, ispn, sum_ml, p)
     end subroutine
 
@@ -213,10 +219,12 @@ contains
         end block
     end subroutine
 
-    subroutine draw_PC_WeightedParticlesOcc_t(this, nI, i_sg, elecs, srcs, p)
+    subroutine draw_PC_WeightedParticlesOcc_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(PC_WeightedParticlesOcc_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
             !! The determinant in nI-format and the supergroup index
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+            !! The determinant in bitmask format
         integer, intent(out) :: srcs(2), elecs(2)
             !! The chosen particles \(I, J\) and their index in `nI`.
             !! It is guaranteed that `scrs(1) < srcs(2)`.
@@ -231,14 +239,16 @@ contains
 
         renorm_first = sum(this%i_sampler%get_prob(i_sg, nI))
         call this%i_sampler%constrained_sample(&
-            i_sg, nI, renorm_first, elecs(1), srcs(1), p_first(1))
-        @:ASSERT(srcs(1) .in. nI)
+            i_sg, ilutI, renorm_first, srcs(1), p_first(1))
+        elecs(1) = int(binary_search_int(nI, srcs(1)))
+        @:ASSERT(nI(elecs(1)) == srcs(1))
 
         renorm_second(1) = sum(this%J_sampler%get_prob(srcs(1), i_sg, nI))
 
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%j_sampler%constrained_sample(&
-            srcs(1), i_sg, nI, renorm_second(1), elecs(2), srcs(2), p_second(1))
+            srcs(1), i_sg, ilutI, renorm_second(1), srcs(2), p_second(1))
+        elecs(2) = int(binary_search_int(nI, srcs(2)))
         if (srcs(2) == 0) then
             elecs(:) = 0; srcs(:) = 0; p = 1._dp
             return
@@ -309,10 +319,12 @@ contains
     end function
 
 
-    subroutine draw_PC_FastWeightedParticles_t(this, nI, i_sg, elecs, srcs, p)
+    subroutine draw_PC_FastWeightedParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(PC_FastWeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
             !! The determinant in nI-format and the supergroup index
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+            !! The determinant in bitmask format
         integer, intent(out) :: srcs(2), elecs(2)
             !! The chosen particles \(I, J\) and their index in `nI`.
             !! It is guaranteed that `scrs(1) < srcs(2)`.
@@ -328,26 +340,26 @@ contains
 
         call this%j_sampler%sample(srcs(1), i_sg, srcs(2), p_J_I)
 
-        elecs(2) = int(binary_search_int(nI, srcs(2)))
-        if (elecs(2) == -1) then
+        if (.not. IsOcc(ilutI, srcs(2))) then
             elecs(:) = 0; srcs(:) = 0; p = 1._dp
-            return
+        else
+            elecs(2) = int(binary_search_int(nI, srcs(2)))
+            @:ASSERT((srcs(1) .in. nI) .and. (srcs(2) .in. nI))
+            @:ASSERT(srcs(1) /= srcs(2))
+            @:ASSERT(elecs(1) /= elecs(2))
+            @:ASSERT(all(nI(elecs) == srcs))
+
+
+            p_I_J = this%J_sampler%get_prob(srcs(2), i_sg, srcs(1))
+            p = (p_J_I + p_I_J) / nEl
+
+            if (srcs(1) > srcs(2)) then
+                call swap(srcs(1), srcs(2))
+                call swap(elecs(1), elecs(2))
+            end if
+
+            @:ASSERT(p .isclose. this%get_pgen(nI, i_sg, srcs(1), srcs(2)))
         end if
-        @:ASSERT((srcs(1) .in. nI) .and. (srcs(2) .in. nI))
-        @:ASSERT(srcs(1) /= srcs(2))
-        @:ASSERT(elecs(1) /= elecs(2))
-        @:ASSERT(all(nI(elecs) == srcs))
-
-
-        p_I_J = this%J_sampler%get_prob(srcs(2), i_sg, srcs(1))
-        p = (p_J_I + p_I_J) / nEl
-
-        if (srcs(1) > srcs(2)) then
-            call swap(srcs(1), srcs(2))
-            call swap(elecs(1), elecs(2))
-        end if
-
-        @:ASSERT(p .isclose. this%get_pgen(nI, i_sg, srcs(1), srcs(2)))
     end subroutine
 
     pure function get_pgen_PC_FastWeightedParticles_t(this, nI, i_sg, I, J) result(p)

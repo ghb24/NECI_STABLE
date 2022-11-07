@@ -78,7 +78,7 @@ contains
                 write(stdout, *) 'FCI PCHB precomputed weighted singles with uniform weight'
                 allocate(PC_UniformSingles_t :: this%singles_generator)
             else if (PC_weighted_singles == possible_PC_singles_weighted%H_ONLY) then
-                write(stdout, *) 'GAS precomputed weighted singles with |h_{I, A}| weight,'
+                write(stdout, *) 'Precomputed weighted singles with |h_{I, A}| weight,'
                 write(stdout, *) 'i.e. only the one electron term is considered'
                 allocate(PC_SinglesHOnly_t :: this%singles_generator)
             else
