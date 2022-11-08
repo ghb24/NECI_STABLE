@@ -28,6 +28,7 @@ contains
             real(dp) :: p
             integer :: val
             sampler = CDF_Sampler_t([real(dp)::])
+            call assert_true(sampler%size() == 0)
 
             do i = 1, 10
                 call sampler%sample(val, p)
@@ -35,6 +36,20 @@ contains
                 call assert_true(p .isclose. 1.0_dp)
             end do
         end block check_empty_set
+
+        check_zero_probs: block
+            real(dp), parameter :: probs(10) = 0._dp
+            real(dp) :: p
+            integer :: val
+            sampler = CDF_Sampler_t(probs)
+            call assert_true(sampler%size() == size(probs))
+
+            do i = 1, 10
+                call sampler%sample(val, p)
+                call assert_true(val == 0)
+                call assert_true(p .isclose. 1.0_dp)
+            end do
+        end block check_zero_probs
 
         check_actual_sampling: block
             integer, parameter :: sample_iterations(4) = [100, 1000, 10000, 1000000], number_probs = 10
