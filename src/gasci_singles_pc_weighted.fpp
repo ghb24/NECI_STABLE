@@ -44,7 +44,12 @@ module gasci_singles_pc_weighted
             !! p(A | I, i_sg)
             !! The probability of picking the hole A after having picked particle I
             !! in the supergroup i_sg.
-
+        real(dp), allocatable :: weights(:, :, :)
+            !! The weights w_{A, I, i_sg} for the excitation of I -> A.
+            !! They are made independent of the determinant by various approximations, which
+            !! are implemented in the inheriting classes by overwriting `get_weight`.
+            !! For example setting \( w_{A, I, i_sg} = | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
+            !! where \(R\) runs over all orbitals instead of only the occupied.
         class(GASSpec_t), allocatable :: GAS_spec
             !! The GAS specification
         type(SuperGroupIndexer_t), pointer :: indexer => null()
@@ -91,7 +96,6 @@ contains
         class(Base_PC_SinglesLocalised_t), intent(inout) :: this
         logical, intent(in) :: use_lookup, create_lookup
         routine_name("init")
-        real(dp), allocatable :: weights(:)
         integer, allocatable :: supergroups(:, :)
         integer :: n_supergroups, nBI
 
@@ -115,25 +119,23 @@ contains
         n_supergroups = size(supergroups, 2)
 
         call this%sampler%shared_alloc([nBi, n_supergroups], nBI, 'PC_singles')
-        allocate(weights(nBI))
+        allocate(this%weights(nBI, nBI, n_supergroups), source=0._dp)
         block
-            integer :: i_sg, I, A
+            integer :: i_sg, src, tgt
             type(SingleExc_t) :: exc
             do i_sg = 1, n_supergroups
-                do I = 1, nBi
-                    do A = 1, nBi
-                        exc = SingleExc_t(I, A)
+                do src = 1, nBi
+                    do tgt = 1, nBi
+                        exc = SingleExc_t(src, tgt)
                         if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
-                                .and. calc_spin_raw(I) == calc_spin_raw(A) &
-                                .and. I /= A &
+                                .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
+                                .and. src /= tgt &
                                 .and. symmetry_allowed(exc) &
                         ) then
-                            weights(A) = this%get_weight(exc)
-                        else
-                            weights(A) = 0._dp
+                            this%weights(tgt, src, i_sg) = this%get_weight(exc)
                         end if
                     end do
-                    call this%sampler%setup_entry(I, i_sg, weights)
+                    call this%sampler%setup_entry(src, i_sg, this%weights(:, src, i_sg))
                 end do
             end do
         end block
@@ -181,11 +183,24 @@ contains
 
         block
             integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl), idx
-            type(CDF_Sampler_t) :: cdf_sampler
+            type(CDF_Sampler_t) :: tgt_sampler, src_sampler
+            integer :: i
+            real(dp), allocatable :: weights(:, :)
             call decode_bit_det(unoccupied, not(ilutI))
-            cdf_sampler = CDF_Sampler_t(this%sampler%get_prob(src, i_sg, unoccupied))
 
-            call cdf_sampler%sample(idx, p_tgt)
+            weights = this%weights(unoccupied, nI, i_sg)
+            ! tgt_sampler = CDF_Sampler_t(this%sampler%get_prob(src, i_sg, unoccupied))
+            tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
+
+
+            ! write(*, *)
+            ! write(*, *) tgt_sampler%size(), size(this%weights(unoccupied, src, i_sg))
+            ! write(*, *) this%weights(unoccupied, src, i_sg) / sum(this%weights(unoccupied, src, i_sg))
+            ! write(*, *) weights(:, elec) / sum(weights(:, elec))
+            ! write(*, *) tgt_sampler%get_prob([(i, i = 1, tgt_sampler%size())])
+            ! write(*, *)
+
+            call tgt_sampler%sample(idx, p_tgt)
             tgt = unoccupied(idx)
         end block
 
