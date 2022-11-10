@@ -15,7 +15,7 @@ module pchb_excitgen
     use gasci_pc_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
     use gasci_singles_pc_weighted, only: &
         Base_PC_SinglesLocalised_t, possible_PC_singles_weighted, PC_weighted_singles, &
-        PC_UniformSingles_t, PC_SinglesHOnly_t
+        PC_UniformSingles_t, PC_SinglesHOnly_t, PC_HAndGTerm_t, PC_HAndGTermBothAbs_t
     better_implicit_none
 
     private
@@ -81,6 +81,14 @@ contains
                 write(stdout, *) 'Precomputed weighted singles with |h_{I, A}| weight,'
                 write(stdout, *) 'i.e. only the one electron term is considered'
                 allocate(PC_SinglesHOnly_t :: this%singles_generator)
+            else if (PC_weighted_singles == possible_PC_singles_weighted%H_AND_G_TERM) then
+                write(stdout, *) 'Precomputed weighted singles with'
+                write(stdout, *) '| h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
+                allocate(PC_HAndGTerm_t :: this%singles_generator)
+            else if (PC_weighted_singles == possible_PC_singles_weighted%H_AND_G_TERM_BOTH_ABS) then
+                write(stdout, *) 'Precomputed weighted singles with'
+                write(stdout, *) '| h_{I, A} | + | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
+                allocate(PC_HAndGTermBothAbs_t :: this%singles_generator)
             else
                 call stop_all(this_routine, "Invalid choise for PC weighted Singles.")
             end if

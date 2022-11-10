@@ -1612,14 +1612,10 @@ contains
                                 case('PC-WEIGHTED')
                                     FCI_PCHB_singles = possible_PCHB_singles%PC_WEIGHTED
                                     w = to_upper(tokens%next())
-                                    select case(w)
-                                    case('UNIFORM')
-                                        PC_weighted_singles = possible_PC_singles_weighted%UNIFORM
-                                    case('H-ONLY')
-                                        PC_weighted_singles = possible_PC_singles_weighted%H_ONLY
-                                    case default
-                                        call Stop_All(t_r, trim(w)//" not a valid PC-WEIGHTED singles generator")
-                                    end select
+                                    block
+                                        use gasci_singles_pc_weighted, only: from_keyword
+                                        PC_weighted_singles = from_keyword(w)
+                                    end block
                                 case default
                                     call Stop_All(t_r, trim(w)//" not a valid PCHB singles generator")
                                 end select
@@ -1677,14 +1673,10 @@ contains
                                 case('PC-WEIGHTED')
                                     GAS_PCHB_singles_generator = possible_GAS_singles%PC_WEIGHTED
                                     w = to_upper(tokens%next())
-                                    select case(w)
-                                    case('UNIFORM')
-                                        PC_weighted_singles = possible_PC_singles_weighted%UNIFORM
-                                    case('H-ONLY')
-                                        PC_weighted_singles = possible_PC_singles_weighted%H_ONLY
-                                    case default
-                                        call Stop_All(t_r, trim(w)//" not a valid PC-WEIGHTED singles generator")
-                                    end select
+                                    block
+                                        use gasci_singles_pc_weighted, only: from_keyword
+                                        PC_weighted_singles = from_keyword(w)
+                                    end block
                                 case default
                                     call Stop_All(t_r, trim(w)//" not a valid GAS singles generator")
                                 end select

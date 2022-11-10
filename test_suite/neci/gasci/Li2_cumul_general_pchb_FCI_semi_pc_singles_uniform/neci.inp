@@ -9,10 +9,9 @@ System read
     nonuniformrandexcits GAS-CI PCHB \
         singles pc-weighted uniform \
         particle-selection uniform
-    GAS-SPEC CUMULATIVE 2
-        5 2 4
-        5 6 6
-        1 1 1 1 1 2 2 2 2 2
+    GAS-SPEC LOCAL 1
+        10 6 6
+        10*1
 endsys
 
 calc
@@ -23,8 +22,6 @@ calc
 
 
     totalwalkers 10000
-    semi-stochastic 1000
-    pops-core 1000
 
     methods
         method vertex fcimc
@@ -32,7 +29,7 @@ calc
 
     diagshift .00
     shiftdamp .02
-    nmcyc 800
+    nmcyc 2000
     stepsshift 10
     proje-changeref 1.20
     truncinitiator
@@ -42,10 +39,10 @@ calc
     jump-shift
     tau-values  \
         start user-defined 0.01 \
-        max 0.02
+        # max 0.05
     tau-search \
         algorithm conventional \
-        stop-condition var-shift \
+        stop-condition off \
         maxwalkerbloom 1
 
 

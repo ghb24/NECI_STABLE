@@ -4,11 +4,11 @@
 
 module gasci_singles_pc_weighted
     use constants, only: dp, int64, stdout, n_int, bits_n_int, maxExcit
-    use util_mod, only: operator(.div.), stop_all, EnumBase_t
+    use util_mod, only: operator(.div.), stop_all, EnumBase_t, near_zero
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use SymExcitDataMod, only: ScratchSize
-    use SystemData, only: nEl
+    use SystemData, only: nEl, nBasis, G1
     use excitation_generators, only: SingleExcitationGenerator_t
     use FciMCData, only: excit_gen_store_type
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -19,11 +19,16 @@ module gasci_singles_pc_weighted
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use orb_idx_mod, only: calc_spin_raw, operator(==)
     use OneEInts, only: GetTMatEl
+    use UMatCache, only: GTID, get_umat_el
     use CDF_sampling_mod, only: CDF_Sampler_t
+
+    use matrix_util, only: print_matrix
+
     better_implicit_none
     private
     public :: PC_singles_weighted_t, possible_PC_singles_weighted, PC_weighted_singles, &
-        Base_PC_SinglesLocalised_t, PC_UniformSingles_t, PC_SinglesHOnly_t
+        Base_PC_SinglesLocalised_t, PC_UniformSingles_t, PC_SinglesHOnly_t, &
+        PC_HAndGTerm_t, PC_HAndGTermBothAbs_t, from_keyword
 
     type, extends(EnumBase_t) :: PC_singles_weighted_t
     end type
@@ -31,7 +36,12 @@ module gasci_singles_pc_weighted
     type :: possible_PC_singles_weighted_t
         type(PC_singles_weighted_t) :: &
             UNIFORM = PC_singles_weighted_t(1), &
-            H_ONLY = PC_singles_weighted_t(2)
+            H_ONLY = PC_singles_weighted_t(2), &
+                !! \( |h_{I, A}| \)
+            H_AND_G_TERM = PC_singles_weighted_t(3), &
+                !! \( | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
+            H_AND_G_TERM_BOTH_ABS = PC_singles_weighted_t(4)
+                !! \( | h_{I, A} | + | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
     end type
 
     type(possible_PC_singles_weighted_t), parameter :: &
@@ -88,8 +98,38 @@ module gasci_singles_pc_weighted
         procedure, nopass :: get_weight => PC_hOnly_get_weight
     end type
 
+    type, extends(Base_PC_SinglesLocalised_t) :: PC_HAndGTerm_t
+    contains
+        private
+        procedure, nopass :: get_weight => PC_HAndGTerm_get_weight
+    end type
+
+    type, extends(Base_PC_SinglesLocalised_t) :: PC_HAndGTermBothAbs_t
+    contains
+        private
+        procedure, nopass :: get_weight => PC_HAndGTermBothAbs_get_weight
+    end type
+
 
 contains
+
+    pure function from_keyword(w) result(res)
+        character(*), intent(in) :: w
+        type(PC_singles_weighted_t) :: res
+        routine_name("from_keyword")
+        select case(w)
+        case('UNIFORM')
+            res = possible_PC_singles_weighted%UNIFORM
+        case('H-ONLY')
+            res = possible_PC_singles_weighted%H_ONLY
+        case('H-AND-G-TERM')
+            res = possible_PC_singles_weighted%H_AND_G_TERM
+        case('H-AND-G-TERM-BOTH-ABS')
+            res = possible_PC_singles_weighted%H_AND_G_TERM_BOTH_ABS
+        case default
+            call Stop_All(this_routine, trim(w)//" not a valid PC-WEIGHTED singles generator")
+        end select
+    end function
 
     subroutine init(this, GAS_spec, use_lookup, create_lookup)
         class(GASSpec_t), intent(in) :: GAS_spec
@@ -171,49 +211,54 @@ contains
 #endif
         ic = 1
 
-        elec = int(genrand_real2_dSFMT() * nel) + 1
-        src = nI(elec)
-        p_src = 1._dp / real(nEl, dp)
-
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
 
+
+
         block
             integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl), idx
             type(CDF_Sampler_t) :: tgt_sampler, src_sampler
-            integer :: i
             real(dp), allocatable :: weights(:, :)
+
             call decode_bit_det(unoccupied, not(ilutI))
 
             weights = this%weights(unoccupied, nI, i_sg)
-            ! tgt_sampler = CDF_Sampler_t(this%sampler%get_prob(src, i_sg, unoccupied))
+
+            src_sampler = CDF_Sampler_t(sum(weights, dim=1))
+
+            call src_sampler%sample(elec, p_src)
+            if (elec == 0) then
+                call make_invalid()
+                return
+            end if
+            src = nI(elec)
+
+
             tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
 
-
-            ! write(*, *)
-            ! write(*, *) tgt_sampler%size(), size(this%weights(unoccupied, src, i_sg))
-            ! write(*, *) this%weights(unoccupied, src, i_sg) / sum(this%weights(unoccupied, src, i_sg))
-            ! write(*, *) weights(:, elec) / sum(weights(:, elec))
-            ! write(*, *) tgt_sampler%get_prob([(i, i = 1, tgt_sampler%size())])
-            ! write(*, *)
-
             call tgt_sampler%sample(idx, p_tgt)
+            if (idx == 0) then
+                call make_invalid()
+                return
+            end if
             tgt = unoccupied(idx)
         end block
 
         pGen = p_src * p_tgt
-        if (IsOcc(ilutI, tgt)) then
-            nJ(1) = 0
-            ilutJ = 0_n_int
-        else
-            call make_single(nI, nJ, elec, tgt, ex, tParity)
-            ilutJ = ilutI
-            clr_orb(ilutJ, src)
-            set_orb(ilutJ, tgt)
-        end if
+        call make_single(nI, nJ, elec, tgt, ex, tParity)
+        ilutJ = ilutI
+        clr_orb(ilutJ, src)
+        set_orb(ilutJ, tgt)
+        contains
+
+            subroutine make_invalid()
+                nJ(1) = 0
+                ilutJ = 0_n_int
+            end subroutine
     end subroutine gen_exc
 
     subroutine finalize(this)
@@ -256,6 +301,62 @@ contains
     elemental function PC_hOnly_get_weight(exc) result(w)
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: w
-        w = abs(GetTMATEl(exc%val(1), exc%val(2)))
+        w = abs(h(exc%val(1), exc%val(2)))
     end function
+
+
+    elemental function PC_HAndGTerm_get_weight(exc) result(w)
+        type(SingleExc_t), intent(in) :: exc
+        real(dp) :: w
+        integer :: R
+        real(dp) :: two_el_term
+        associate(I => exc%val(1), A => exc%val(2))
+            two_el_term = 0._dp
+            do R = 1, nBasis
+                two_el_term = two_el_term + g(I, A, R, R) - G(I, R, R, A)
+            end do
+            w = abs(h(I, A) + two_el_term)
+        end associate
+    end function
+
+
+    elemental function PC_HAndGTermBothAbs_get_weight(exc) result(w)
+        type(SingleExc_t), intent(in) :: exc
+        real(dp) :: w
+        integer :: R
+        real(dp) :: two_el_term
+        associate(I => exc%val(1), A => exc%val(2))
+            two_el_term = 0._dp
+            do R = 1, nBasis
+                two_el_term = two_el_term + abs(g(I, A, R, R) - G(I, R, R, A))
+            end do
+            w = abs(h(I, A)) + two_el_term
+        end associate
+    end function
+
+
+    real(dp) elemental function h(I, A)
+        !! Return the 1el integral \( h_{I, A) \)
+        !!
+        !! I and A are **spin** indices.
+        !! Follows the definition of the purple book.
+        integer, intent(in) :: I, A
+        h = GetTMATEl(I, A)
+    end function
+
+
+    real(dp) elemental function g(I, A, J, B)
+        integer, intent(in) :: I, A, J, B
+        !! Return the 2el integral \( g_{I, A, J, B} \)
+        !!
+        !! I, A, J, and B are **spin** indices.
+        !! Order follows the definition of the purple book.
+        if (calc_spin_raw(I) == calc_spin_raw(A) .and. calc_spin_raw(J) == calc_spin_raw(B)) then
+            g = get_umat_el(gtID(I), gtID(A), gtID(J), gtID(B))
+        else
+            g = 0._dp
+        end if
+    end function
+
+
 end module gasci_singles_pc_weighted
