@@ -44,7 +44,7 @@ contains
         call assert_true(GAS_spec%contains_conf(det_I))
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call exc_generator%init(GAS_spec, PCHB_particle_selections%UNIFORM)
+        call exc_generator%init(GAS_spec)
 
         call run_excit_gen_tester( &
             exc_generator, 'discarding GASCI implementation, random fcidump', &

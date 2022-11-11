@@ -6,12 +6,15 @@ System read
     freeformat
     spin-restrict 0
     FCIDUMP-name Li2.FciDmp
+    # This should basically resemble the old
+    # Singles uniform
     nonuniformrandexcits GAS-CI PCHB \
-        singles pc-weighted uniform \
+        singles PC-weighted uniform weighted \
         particle-selection uniform
-    GAS-SPEC LOCAL 1
-        10 6 6
-        10*1
+    GAS-SPEC CUMULATIVE 2
+        5 2 4
+        5 6 6
+        1 1 1 1 1 2 2 2 2 2
 endsys
 
 calc
@@ -22,6 +25,8 @@ calc
 
 
     totalwalkers 10000
+    semi-stochastic 1000
+    pops-core 1000
 
     methods
         method vertex fcimc
@@ -29,7 +34,7 @@ calc
 
     diagshift .00
     shiftdamp .02
-    nmcyc 2000
+    nmcyc 800
     stepsshift 10
     proje-changeref 1.20
     truncinitiator
@@ -39,10 +44,10 @@ calc
     jump-shift
     tau-values  \
         start user-defined 0.01 \
-        # max 0.05
+        max 0.02
     tau-search \
         algorithm conventional \
-        stop-condition off \
+        stop-condition var-shift \
         maxwalkerbloom 1
 
 

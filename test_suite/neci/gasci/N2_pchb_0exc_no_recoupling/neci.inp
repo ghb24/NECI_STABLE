@@ -5,7 +5,9 @@ System read
     nobrillouintheorem
     freeformat
     spin-restrict 0
-    nonuniformrandexcits GAS-CI PCHB
+    nonuniformrandexcits GAS-CI PCHB \
+        singles uniform \
+        particle-selection pc-weighted
     GAS-SPEC LOCAL 3
         2 2 2
         2 2 2

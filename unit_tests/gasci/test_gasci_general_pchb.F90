@@ -9,7 +9,8 @@ module test_gasci_general_pchb
 
     use gasci, only: LocalGASSpec_t
     use gasci_pc_select_particles, only: PCHB_particle_selections
-    use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles
+    use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
+        GAS_PCHB_options_t
     use excitation_generators, only: ExcitationGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
@@ -47,9 +48,13 @@ contains
             call assert_true(GAS_spec%contains_conf(det_I))
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-            call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
-                                    used_singles_generator=possible_GAS_singles%BITMASK_UNIFORM, &
-                                    PCHB_particle_selection=PCHB_particle_selections%UNIFORM)
+            call exc_generator%init(&
+                GAS_spec, use_lookup=.false., create_lookup=.false., &
+                options=GAS_PCHB_options_t(&
+                    PCHB_particle_selections%UNIFORM, &
+                    possible_GAS_singles%BITMASK_UNIFORM &
+                ) &
+            )
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -69,9 +74,13 @@ contains
             call assert_true(GAS_spec%contains_conf(det_I))
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-            call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
-                                    used_singles_generator=possible_GAS_singles%BITMASK_UNIFORM, &
-                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED)
+            call exc_generator%init(&
+                GAS_spec, use_lookup=.false., create_lookup=.false., &
+                options=GAS_PCHB_options_t(&
+                    PCHB_particle_selections%PC_WEIGHTED, &
+                    possible_GAS_singles%BITMASK_UNIFORM &
+                ) &
+            )
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -90,9 +99,13 @@ contains
             call assert_true(GAS_spec%contains_conf(det_I))
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-            call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
-                                    used_singles_generator=possible_GAS_singles%BITMASK_UNIFORM, &
-                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED_APPROX)
+            call exc_generator%init(&
+                GAS_spec, use_lookup=.false., create_lookup=.false., &
+                options=GAS_PCHB_options_t(&
+                    PCHB_particle_selections%PC_WEIGHTED_APPROX, &
+                    possible_GAS_singles%BITMASK_UNIFORM &
+                ) &
+            )
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &

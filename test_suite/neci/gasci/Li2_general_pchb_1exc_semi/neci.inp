@@ -7,7 +7,8 @@ System read
     spin-restrict 0
     FCIDUMP-name Li2.FciDmp
     nonuniformrandexcits GAS-CI PCHB \
-        SINGLES ON-THE-FLY-HEAT-BATH
+        singles on-the-fly-heat-bath \
+        particle-selection pc-weighted
     GAS-SPEC LOCAL 2
         5 2 4
         5 2 4
