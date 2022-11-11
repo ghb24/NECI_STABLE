@@ -26,30 +26,61 @@ module gasci_singles_pc_weighted
 
     better_implicit_none
     private
-    public :: PC_singles_weighted_t, possible_PC_singles_weighted, PC_weighted_singles, &
-        Base_PC_SinglesLocalised_t, PC_UniformSingles_t, PC_SinglesHOnly_t, &
-        PC_HAndGTerm_t, PC_HAndGTermBothAbs_t, from_keyword
+    public :: PC_SinglesOptions_t, Base_PC_Weighted_t, do_allocation, &
+        weighting_from_keyword, drawing_from_keyword, print_options, &
+        possible_pc_singles_drawing, possible_pc_singles_weighting
 
-    type, extends(EnumBase_t) :: PC_singles_weighted_t
+    type, extends(EnumBase_t) :: PC_singles_weighting_t
     end type
 
-    type :: possible_PC_singles_weighted_t
-        type(PC_singles_weighted_t) :: &
-            UNIFORM = PC_singles_weighted_t(1), &
-            H_ONLY = PC_singles_weighted_t(2), &
+    type :: possible_PC_singles_weighting_t
+        type(PC_singles_weighting_t) :: &
+            UNDEFINED = PC_singles_weighting_t(-1), &
+            UNIFORM = PC_singles_weighting_t(1), &
+            H_ONLY = PC_singles_weighting_t(2), &
                 !! \( |h_{I, A}| \)
-            H_AND_G_TERM = PC_singles_weighted_t(3), &
+            H_AND_G_TERM = PC_singles_weighting_t(3), &
                 !! \( | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
-            H_AND_G_TERM_BOTH_ABS = PC_singles_weighted_t(4)
+            H_AND_G_TERM_BOTH_ABS = PC_singles_weighting_t(4)
                 !! \( | h_{I, A} | + | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
     end type
 
-    type(possible_PC_singles_weighted_t), parameter :: &
-        possible_PC_singles_weighted = possible_PC_singles_weighted_t()
+    type(possible_PC_singles_weighting_t), parameter :: &
+        possible_PC_singles_weighting = possible_PC_singles_weighting_t()
 
-    type(PC_singles_weighted_t) :: PC_weighted_singles = possible_PC_singles_weighted%UNIFORM
+    type, extends(EnumBase_t) :: PC_singles_drawing_t
+    end type
 
-    type, abstract, extends(SingleExcitationGenerator_t) :: Base_PC_SinglesLocalised_t
+    type :: possible_PC_singles_drawing_t
+        type(PC_singles_drawing_t) :: &
+            UNDEFINED = PC_singles_drawing_t(-1), &
+            FULLY_WEIGHTED = PC_singles_drawing_t(1), &
+                !! We draw from \( p(I)|_{D_i} \) and then \( p(A | I)_{A \notin D_i} \)
+                !! and both probabilites come from the weighting scheme given in
+                !! `possible_PC_singles_weighting_t`.
+                !! We guarantee that \(I\) is occupied and \(A\) is unoccupied.
+            WEIGHTED = PC_singles_drawing_t(2), &
+                !! We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from
+                !! \( p(A | I)_{A \notin D_i} \).
+                !! I.e. only the second electron comes from the weighting scheme given in
+                !! `possible_PC_singles_weighting_t`.
+                !! We guarantee that \(I\) is occupied and \(A\) is unoccupied.
+            APPROX = PC_singles_drawing_t(3)
+                !! We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from \( p(A | I) \).
+                !! I.e. only the second electron comes from the weighting scheme given in
+                !! `possible_PC_singles_weighting_t`
+                !! We only guarantee that \(I\) is occupied.
+    end type
+
+    type :: PC_SinglesOptions_t
+        type(PC_singles_weighting_t) :: weighting
+        type(PC_singles_drawing_t) :: drawing
+    end type
+
+    type(possible_PC_singles_drawing_t), parameter :: &
+        possible_PC_singles_drawing = possible_PC_singles_drawing_t()
+
+    type, abstract, extends(SingleExcitationGenerator_t) :: Base_PC_Weighted_t
         type(AliasSampler_2D_t) :: sampler
             !! p(A | I, i_sg)
             !! The probability of picking the hole A after having picked particle I
@@ -72,72 +103,182 @@ module gasci_singles_pc_weighted
     contains
         private
         procedure, public :: init
-        procedure, public :: gen_exc
-        procedure, public :: get_pgen
         procedure, public :: finalize
-        procedure(get_weight_t), nopass, deferred :: get_weight
     end type
 
     abstract interface
-        real(dp) elemental function get_weight_t(exc)
+        real(dp) pure function get_weight_t(exc)
             import :: SingleExc_t, dp
             implicit none
             type(SingleExc_t), intent(in) :: exc
         end function
     end interface
 
-    type, extends(Base_PC_SinglesLocalised_t) :: PC_UniformSingles_t
+    type, extends(Base_PC_Weighted_t) :: PC_SinglesFullyWeighted_t
     contains
         private
-        procedure, nopass :: get_weight => Uniform_get_weight
+        procedure, public :: gen_exc => PC_SinglesFullyWeighted_gen_exc
+        procedure, public :: get_pgen => PC_SinglesFullyWeighted_get_pgen
     end type
 
-    type, extends(Base_PC_SinglesLocalised_t) :: PC_SinglesHOnly_t
+    type, extends(Base_PC_Weighted_t) :: PC_SinglesWeighted_t
     contains
         private
-        procedure, nopass :: get_weight => PC_hOnly_get_weight
+        procedure, public :: gen_exc => PC_SinglesWeighted_gen_exc
+        procedure, public :: get_pgen => PC_SinglesWeighted_get_pgen
     end type
 
-    type, extends(Base_PC_SinglesLocalised_t) :: PC_HAndGTerm_t
+    type, extends(Base_PC_Weighted_t) :: PC_SinglesApprox_t
     contains
         private
-        procedure, nopass :: get_weight => PC_HAndGTerm_get_weight
+        procedure, public :: gen_exc => PC_SinglesApprox_gen_exc
+        procedure, public :: get_pgen => PC_SinglesApprox_get_pgen
     end type
-
-    type, extends(Base_PC_SinglesLocalised_t) :: PC_HAndGTermBothAbs_t
-    contains
-        private
-        procedure, nopass :: get_weight => PC_HAndGTermBothAbs_get_weight
-    end type
-
 
 contains
 
-    pure function from_keyword(w) result(res)
+    subroutine do_allocation(generator, PC_singles_drawing)
+        class(SingleExcitationGenerator_t), allocatable, intent(inout) :: generator
+        type(PC_singles_drawing_t), intent(in) :: PC_singles_drawing
+        routine_name("do_allocation")
+        if (allocated(generator)) then
+            call generator%finalize()
+            deallocate(generator)
+        end if
+        if (PC_singles_drawing == possible_PC_singles_drawing%FULLY_WEIGHTED) then
+            allocate(PC_SinglesFullyWeighted_t :: generator)
+        else if (PC_singles_drawing == possible_PC_singles_drawing%WEIGHTED) then
+            allocate(PC_SinglesWeighted_t :: generator)
+        else if (PC_singles_drawing == possible_PC_singles_drawing%APPROX) then
+            allocate(PC_SinglesApprox_t :: generator)
+        else
+            call stop_all(this_routine, "Invalid choise for PC singles drawer.")
+        end if
+    end subroutine
+
+    subroutine print_weighting_option(weighting, iunit)
+        type(PC_singles_weighting_t), intent(in) :: weighting
+        integer, intent(in) :: iunit
+        routine_name("print_weighting_option")
+        associate(vals => possible_PC_singles_weighting)
+            if (weighting == vals%UNIFORM) then
+                write(iunit, *) 'GAS precomputed weighted singles with uniform weight'
+            else if (weighting == vals%H_ONLY) then
+                write(iunit, *) 'GAS precomputed weighted singles with |h_{I, A}| weight,'
+                write(iunit, *) 'i.e. only the one electron term is considered'
+            else if (weighting == vals%H_AND_G_TERM) then
+                write(iunit, *) 'Precomputed weighted singles with'
+                write(iunit, *) '| h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
+            else if (weighting == vals%H_AND_G_TERM_BOTH_ABS) then
+                write(iunit, *) 'Precomputed weighted singles with'
+                write(iunit, *) '| h_{I, A} | +  | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
+            else
+                call stop_all(this_routine, "Invalid choise for PC singles weighting.")
+            end if
+        end associate
+    end subroutine
+
+    subroutine print_drawing_option(drawing, iunit)
+        type(PC_singles_drawing_t), intent(in) :: drawing
+        integer, intent(in) :: iunit
+        routine_name("print_drawing_option")
+        associate(vals => possible_PC_singles_drawing)
+            if (drawing == vals%FULLY_WEIGHTED) then
+                write(iunit, *) 'We draw from \( p(I)|_{D_i} \) and then \( p(A | I)_{A \notin D_i} \) '
+                write(iunit, *) 'and both probabilites come from the precomputed weighting for singles '
+                write(iunit, *) 'We guarantee that \(I\) is occupied and \(A\) is unoccupied.'
+            else if (drawing == vals%WEIGHTED) then
+                write(iunit, *) 'We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from'
+                write(iunit, *) '\( p(A | I)_{A \notin D_i} \).'
+                write(iunit, *) 'I.e. only the second electron comes from the weighting scheme given in'
+                write(iunit, *) '`possible_PC_singles_weighting_t`.'
+                write(iunit, *) 'We guarantee that \(I\) is occupied and \(A\) is unoccupied.'
+            else if (drawing == vals%APPROX) then
+                write(iunit, *) 'We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from \( p(A | I) \).'
+                write(iunit, *) 'I.e. only the second electron comes from the weighting scheme given in'
+                write(iunit, *) '`possible_PC_singles_weighting_t`'
+                write(iunit, *) 'We only guarantee that \(I\) is occupied.'
+            else
+                call stop_all(this_routine, "Invalid choise for PC singles drawing.")
+            end if
+        end associate
+    end subroutine
+
+    subroutine print_options(options, iunit)
+        type(PC_SinglesOptions_t), intent(in) :: options
+        integer, intent(in) :: iunit
+        write(iunit, *)
+        call print_weighting_option(options%weighting, iunit)
+        write(iunit, *)
+        call print_drawing_option(options%drawing, iunit)
+        write(iunit, *)
+    end subroutine
+
+
+
+    pure function weighting_from_keyword(w) result(res)
+        !! Parse a given keyword into the possible weighting schemes
         character(*), intent(in) :: w
-        type(PC_singles_weighted_t) :: res
+        type(PC_singles_weighting_t) :: res
         routine_name("from_keyword")
         select case(w)
         case('UNIFORM')
-            res = possible_PC_singles_weighted%UNIFORM
+            res = possible_PC_singles_weighting%UNIFORM
         case('H-ONLY')
-            res = possible_PC_singles_weighted%H_ONLY
+            res = possible_PC_singles_weighting%H_ONLY
         case('H-AND-G-TERM')
-            res = possible_PC_singles_weighted%H_AND_G_TERM
+            res = possible_PC_singles_weighting%H_AND_G_TERM
         case('H-AND-G-TERM-BOTH-ABS')
-            res = possible_PC_singles_weighted%H_AND_G_TERM_BOTH_ABS
+            res = possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS
         case default
-            call Stop_All(this_routine, trim(w)//" not a valid PC-WEIGHTED singles generator")
+            call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles weighting scheme")
         end select
     end function
 
-    subroutine init(this, GAS_spec, use_lookup, create_lookup)
+
+    pure function drawing_from_keyword(w) result(res)
+        !! Parse a given keyword into the possible drawing schemes.
+        character(*), intent(in) :: w
+        type(PC_singles_drawing_t) :: res
+        routine_name("from_keyword")
+        select case(w)
+        case('FULLY-WEIGHTED')
+            res = possible_PC_singles_drawing%FULLY_WEIGHTED
+        case('WEIGHTED')
+            res = possible_PC_singles_drawing%WEIGHTED
+        case('APPROX')
+            res = possible_PC_singles_drawing%APPROX
+        case default
+            call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles drawing scheme")
+        end select
+    end function
+
+    subroutine init(this, GAS_spec, singles_PC_weighted, use_lookup, create_lookup)
+        class(Base_PC_Weighted_t), intent(inout) :: this
+        type(PC_singles_weighting_t), intent(in) :: singles_PC_weighted
         class(GASSpec_t), intent(in) :: GAS_spec
-        class(Base_PC_SinglesLocalised_t), intent(inout) :: this
         logical, intent(in) :: use_lookup, create_lookup
         routine_name("init")
         integer, allocatable :: supergroups(:, :)
         integer :: n_supergroups, nBI
+        procedure(get_weight_t), pointer :: get_weight
+
+        if (singles_PC_weighted == possible_PC_singles_weighting%UNIFORM) then
+            write(stdout, *) 'GAS precomputed weighted singles with uniform weight'
+            get_weight => get_weight_uniform
+        else if (singles_PC_weighted == possible_PC_singles_weighting%H_ONLY) then
+            write(stdout, *) 'GAS precomputed weighted singles with |h_{I, A}| weight,'
+            write(stdout, *) 'i.e. only the one electron term is considered'
+            get_weight => get_weight_h_only
+        else if (singles_PC_weighted == possible_PC_singles_weighting%H_AND_G_TERM) then
+            write(stdout, *) 'Precomputed weighted singles with'
+            write(stdout, *) '| h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
+            get_weight => get_weight_h_and_g
+        else if (singles_PC_weighted == possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS) then
+            write(stdout, *) 'Precomputed weighted singles with'
+            write(stdout, *) '| h_{I, A} | +  | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
+            get_weight => get_weight_h_and_g_both_abs
+        end if
 
         this%GAS_spec = GAS_spec
         allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
@@ -172,7 +313,7 @@ contains
                                 .and. src /= tgt &
                                 .and. symmetry_allowed(exc) &
                         ) then
-                            this%weights(tgt, src, i_sg) = this%get_weight(exc)
+                            this%weights(tgt, src, i_sg) = get_weight(exc)
                         end if
                     end do
                     call this%sampler%setup_entry(src, i_sg, this%weights(:, src, i_sg))
@@ -189,9 +330,9 @@ contains
             end function
     end subroutine
 
-    subroutine gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+    subroutine PC_SinglesFullyWeighted_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                      ex, tParity, pGen, hel, store, part_type)
-        class(Base_PC_SinglesLocalised_t), intent(inout) :: this
+        class(PC_SinglesFullyWeighted_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -217,19 +358,15 @@ contains
             i_sg = this%indexer%idx_nI(nI)
         end if
 
-
-
         block
             integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl), idx
             type(CDF_Sampler_t) :: tgt_sampler, src_sampler
             real(dp), allocatable :: weights(:, :)
 
             call decode_bit_det(unoccupied, not(ilutI))
-
             weights = this%weights(unoccupied, nI, i_sg)
 
             src_sampler = CDF_Sampler_t(sum(weights, dim=1))
-
             call src_sampler%sample(elec, p_src)
             if (elec == 0) then
                 call make_invalid()
@@ -239,7 +376,6 @@ contains
 
 
             tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
-
             call tgt_sampler%sample(idx, p_tgt)
             if (idx == 0) then
                 call make_invalid()
@@ -259,20 +395,11 @@ contains
                 nJ(1) = 0
                 ilutJ = 0_n_int
             end subroutine
-    end subroutine gen_exc
+    end subroutine PC_SinglesFullyWeighted_gen_exc
 
-    subroutine finalize(this)
-        class(Base_PC_SinglesLocalised_t), intent(inout) :: this
 
-        call this%sampler%finalize()
-        deallocate(this%indexer)
-        if (this%create_lookup) then
-            nullify(lookup_supergroup_indexer)
-        end if
-    end subroutine
-
-    function get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(p_gen)
-        class(Base_PC_SinglesLocalised_t), intent(inout) :: this
+    function PC_SinglesFullyWeighted_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(p_gen)
+        class(PC_SinglesFullyWeighted_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
@@ -281,16 +408,198 @@ contains
         real(dp) :: p_gen
         integer :: i_sg
 
+        integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl)
+
         @:ASSERT(ic == 1)
-        @:unused_var(ClassCount2, ClassCountUnocc2, ilutI)
+        @:unused_var(ClassCount2, ClassCountUnocc2)
         i_sg = this%indexer%idx_nI(nI)
+        call decode_bit_det(unoccupied, not(ilutI))
+        associate (src => ex(1, 1), tgt => ex(2, 1))
+            p_gen = this%weights(tgt, src, i_sg) / sum(this%weights(unoccupied, nI, i_sg))
+        end associate
+    end function PC_SinglesFullyWeighted_get_pgen
+
+
+    subroutine PC_SinglesWeighted_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                     ex, tParity, pGen, hel, store, part_type)
+        class(PC_SinglesWeighted_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+
+        integer :: elec, src, tgt, i_sg
+        real(dp) :: p_src, p_tgt
+
+        @:unused_var(exFlag, part_type)
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif
+        ic = 1
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
+
+        elec = int(genrand_real2_dSFMT() * nel) + 1
+        src = nI(elec)
+        p_src = 1._dp / real(nEl, dp)
+
+        block
+            integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl), idx
+            type(CDF_Sampler_t) :: tgt_sampler
+
+            call decode_bit_det(unoccupied, not(ilutI))
+
+            tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
+            call tgt_sampler%sample(idx, p_tgt)
+            if (idx == 0) then
+                call make_invalid()
+                return
+            end if
+            tgt = unoccupied(idx)
+        end block
+
+        pGen = p_src * p_tgt
+        call make_single(nI, nJ, elec, tgt, ex, tParity)
+        ilutJ = ilutI
+        clr_orb(ilutJ, src)
+        set_orb(ilutJ, tgt)
+        contains
+
+            subroutine make_invalid()
+                nJ(1) = 0
+                ilutJ = 0_n_int
+            end subroutine
+    end subroutine PC_SinglesWeighted_gen_exc
+
+
+    function PC_SinglesWeighted_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(p_gen)
+        class(PC_SinglesWeighted_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        debug_function_name("get_pgen")
+        real(dp) :: p_gen
+        integer :: i_sg
+        real(dp) :: p_src, p_tgt
+
+        integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl)
+
+        @:ASSERT(ic == 1)
+        @:unused_var(ClassCount2, ClassCountUnocc2)
+        i_sg = this%indexer%idx_nI(nI)
+        call decode_bit_det(unoccupied, not(ilutI))
+        p_src = 1._dp / real(nEl, dp)
+        associate (src => ex(1, 1), tgt => ex(2, 1))
+            p_tgt = this%weights(tgt, src, i_sg) / sum(this%weights(unoccupied, src, i_sg))
+        end associate
+        p_gen = p_src * p_tgt
+    end function PC_SinglesWeighted_get_pgen
+
+
+    subroutine PC_SinglesApprox_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                     ex, tParity, pGen, hel, store, part_type)
+        class(PC_SinglesApprox_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+
+        integer :: elec, src, tgt, i_sg
+        real(dp) :: p_src, p_tgt
+
+        @:unused_var(exFlag, part_type)
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif
+        ic = 1
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
+
+        elec = int(genrand_real2_dSFMT() * nEl) + 1
+        src = nI(elec)
+        p_src = 1._dp / real(nEl, dp)
+
+        call this%sampler%sample(src, i_sg, tgt, p_tgt)
+        if (tgt == 0) then
+            call make_invalid()
+            return
+        else if (IsOcc(ilutI, tgt)) then
+            call make_invalid()
+            return
+        end if
+        pGen = p_src * p_tgt
+        call make_single(nI, nJ, elec, tgt, ex, tParity)
+        ilutJ = ilutI
+        clr_orb(ilutJ, src)
+        set_orb(ilutJ, tgt)
+
+        contains
+
+            subroutine make_invalid()
+                nJ(1) = 0
+                ilutJ = 0_n_int
+            end subroutine
+    end subroutine PC_SinglesApprox_gen_exc
+
+
+    function PC_SinglesApprox_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(p_gen)
+        class(PC_SinglesApprox_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        debug_function_name("get_pgen")
+        real(dp) :: p_gen
+        integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl)
+        integer :: i_sg
+
+        @:ASSERT(ic == 1)
+        @:unused_var(ClassCount2, ClassCountUnocc2)
+        i_sg = this%indexer%idx_nI(nI)
+        call decode_bit_det(unoccupied, not(ilutI))
         associate (src => ex(1, 1), tgt => ex(2, 1))
             p_gen = 1._dp / real(nEl, dp) * this%sampler%get_prob(src, i_sg, tgt)
         end associate
-    end function
+    end function PC_SinglesApprox_get_pgen
 
 
-    elemental function Uniform_get_weight(exc) result(w)
+    subroutine finalize(this)
+        class(Base_PC_Weighted_t), intent(inout) :: this
+
+        call this%sampler%finalize()
+
+        if (allocated(this%weights)) then
+            ! Yes, we assume that either all, or none is allocated
+            ! at the same time. It is good if the code breaks if
+            ! that assumption is wrong.
+            deallocate(this%indexer, this%weights, this%GAS_spec)
+        end if
+        if (this%create_lookup) then
+            nullify(lookup_supergroup_indexer)
+        end if
+    end subroutine
+
+
+    pure function get_weight_uniform(exc) result(w)
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: w
         @:unused_var(exc)
@@ -298,14 +607,14 @@ contains
     end function
 
 
-    elemental function PC_hOnly_get_weight(exc) result(w)
+    pure function get_weight_h_only(exc) result(w)
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: w
         w = abs(h(exc%val(1), exc%val(2)))
     end function
 
 
-    elemental function PC_HAndGTerm_get_weight(exc) result(w)
+    pure function get_weight_h_and_g(exc) result(w)
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: w
         integer :: R
@@ -320,7 +629,7 @@ contains
     end function
 
 
-    elemental function PC_HAndGTermBothAbs_get_weight(exc) result(w)
+    pure function get_weight_h_and_g_both_abs(exc) result(w)
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: w
         integer :: R
@@ -357,6 +666,5 @@ contains
             g = 0._dp
         end if
     end function
-
 
 end module gasci_singles_pc_weighted

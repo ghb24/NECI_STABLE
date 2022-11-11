@@ -26,6 +26,7 @@
 
 module gasci_pchb
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
+    use fortran_strings, only: to_upper
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
         operator(.div.), operator(.implies.), EnumBase_t, &
@@ -60,9 +61,10 @@ module gasci_pchb
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         PC_FastWeightedParticles_t, UniformParticles_t, &
         PCHB_particle_selections, PCHB_ParticleSelection_t
-    use gasci_singles_pc_weighted, only: &
-        Base_PC_SinglesLocalised_t, possible_PC_singles_weighted, PC_weighted_singles, &
-        PC_UniformSingles_t, PC_SinglesHOnly_t, PC_HAndGTerm_t, PC_HAndGTermBothAbs_t
+    use gasci_singles_pc_weighted, only: PC_SinglesOptions_t, &
+        Base_PC_Weighted_t, do_allocation, print_options, &
+        possible_PC_singles_weighting, possible_PC_singles_drawing
+
     use exc_gen_class_wrappers, only: UniformSingles_t
 
     use display_matrices, only: write_matrix
@@ -74,11 +76,42 @@ module gasci_pchb
 
     private
     public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
-        GAS_doubles_PCHB_ExcGenerator_t, &
-        possible_GAS_singles, GAS_PCHB_singles_generator, &
-        GAS_PCHB_particle_selection
+        GAS_doubles_PCHB_ExcGenerator_t, possible_GAS_singles, &
+        GAS_PCHB_options_t, GAS_PCHB_options, singles_from_keyword
+
 
     logical, parameter :: use_supergroup_lookup = .true.
+
+
+    type, extends(EnumBase_t) :: GAS_used_singles_t
+    end type
+
+    type :: possible_GAS_singles_t
+        type(GAS_used_singles_t) :: &
+            ON_FLY_HEAT_BATH = GAS_used_singles_t(1), &
+            DISCARDING_UNIFORM = GAS_used_singles_t(2), &
+            BITMASK_UNIFORM = GAS_used_singles_t(3), &
+            PC_WEIGHTED = GAS_used_singles_t(4)
+    end type
+
+    type(possible_GAS_singles_t), parameter :: possible_GAS_singles = possible_GAS_singles_t()
+
+    type :: GAS_PCHB_options_t
+        type(PCHB_ParticleSelection_t) :: particle_selection
+        type(GAS_used_singles_t) :: singles
+        type(PC_SinglesOptions_t) :: PC_singles_options = PC_SinglesOptions_t(&
+            possible_PC_singles_weighting%UNDEFINED, possible_PC_singles_drawing%UNDEFINED)
+            !! Only relevant if `singles == possible_PCHB_singles%PC_WEIGHTED`
+    end type
+
+    type(GAS_PCHB_options_t) :: GAS_PCHB_options = GAS_PCHB_options_t( &
+        PCHB_particle_selections%PC_WEIGHTED_APPROX, &
+        possible_GAS_singles%PC_WEIGHTED, &
+        PC_SinglesOptions_t(&
+            possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS, &
+            possible_PC_singles_drawing%APPROX &
+        ) &
+    )
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
@@ -126,23 +159,6 @@ module gasci_pchb
         procedure, public :: gen_all_excits => GAS_discarding_singles_gen_all_excits
     end type
 
-
-    type, extends(EnumBase_t) :: GAS_used_singles_t
-    end type
-
-    type :: possible_GAS_singles_t
-        type(GAS_used_singles_t) :: &
-            ON_FLY_HEAT_BATH = GAS_used_singles_t(1), &
-            DISCARDING_UNIFORM = GAS_used_singles_t(2), &
-            BITMASK_UNIFORM = GAS_used_singles_t(3), &
-            PC_WEIGHTED = GAS_used_singles_t(4)
-    end type
-
-    type(possible_GAS_singles_t), parameter :: possible_GAS_singles = possible_GAS_singles_t()
-
-    type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%BITMASK_UNIFORM
-
-    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
 
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
@@ -192,6 +208,26 @@ module gasci_pchb
     end interface
 
 contains
+
+    pure function singles_from_keyword(w) result(res)
+        !! Parse a given keyword into the possible weighting schemes
+        character(*), intent(in) :: w
+        type(GAS_used_singles_t) :: res
+        routine_name("singles_from_keyword")
+        select case(to_upper(w))
+        case('UNIFORM')
+            res = possible_GAS_singles%BITMASK_UNIFORM
+        case('ON-THE-FLY-HEAT-BATH')
+            res = possible_GAS_singles%ON_FLY_HEAT_BATH
+        case('DISCARDING-UNIFORM')
+            res = possible_GAS_singles%DISCARDING_UNIFORM
+        case('PC-WEIGHTED')
+            res = possible_GAS_singles%PC_WEIGHTED
+        case default
+            call stop_all(this_routine, trim(w)//" not a valid singles generator for FCI PCHB.")
+        end select
+    end function
+
 
     subroutine GAS_singles_uniform_init(this, GAS_spec, use_lookup, create_lookup)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
@@ -861,21 +897,19 @@ contains
     !>  @param[in] use_lookup Use a lookup for the supergroup indexing.
     !>  @param[in] singles_generator A **fully** initialized singles_generator
     !>                  whose cleanup happens outside. Has to be a target.
-    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, &
-            used_singles_generator, PCHB_particle_selection)
+    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, options)
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
-        type(GAS_used_singles_t), intent(in) :: used_singles_generator
-        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
+        type(GAS_PCHB_options_t), intent(in) :: options
         routine_name("GAS_PCHB_init")
 
         call set_timer(GAS_PCHB_init_time)
 
-        if (used_singles_generator == possible_GAS_singles%DISCARDING_UNIFORM) then
+        if (options%singles == possible_GAS_singles%DISCARDING_UNIFORM) then
             write(stdout, *) 'GAS discarding singles activated'
             allocate(this%singles_generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
-        else if (used_singles_generator == possible_GAS_singles%BITMASK_UNIFORM) then
+        else if (options%singles == possible_GAS_singles%BITMASK_UNIFORM) then
             write(stdout, *) 'GAS precomputed singles activated'
             allocate(GAS_singles_PC_uniform_ExcGenerator_t :: this%singles_generator)
             select type(generator => this%singles_generator)
@@ -884,40 +918,25 @@ contains
                 !   supergroup lookup!
                 call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
             end select
-        else if (used_singles_generator == possible_GAS_singles%ON_FLY_HEAT_BATH) then
+        else if (options%singles == possible_GAS_singles%ON_FLY_HEAT_BATH) then
             write(stdout, *) 'GAS heat bath on the fly singles activated'
             allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
-        else if (used_singles_generator == possible_GAS_singles%PC_WEIGHTED) then
-            if (PC_weighted_singles == possible_PC_singles_weighted%UNIFORM) then
-                write(stdout, *) 'GAS precomputed weighted singles with uniform weight'
-                allocate(PC_UniformSingles_t :: this%singles_generator)
-            else if (PC_weighted_singles == possible_PC_singles_weighted%H_ONLY) then
-                write(stdout, *) 'GAS precomputed weighted singles with |h_{I, A}| weight,'
-                write(stdout, *) 'i.e. only the one electron term is considered'
-                allocate(PC_SinglesHOnly_t :: this%singles_generator)
-            else if (PC_weighted_singles == possible_PC_singles_weighted%H_AND_G_TERM) then
-                write(stdout, *) 'Precomputed weighted singles with'
-                write(stdout, *) '| h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
-                allocate(PC_HAndGTerm_t :: this%singles_generator)
-            else if (PC_weighted_singles == possible_PC_singles_weighted%H_AND_G_TERM_BOTH_ABS) then
-                write(stdout, *) 'Precomputed weighted singles with'
-                write(stdout, *) '| h_{I, A} | + | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
-                allocate(PC_HAndGTermBothAbs_t :: this%singles_generator)
-            else
-                call stop_all(this_routine, "Invalid choise for PC weighted Singles.")
-            end if
+        else if (options%singles == possible_GAS_singles%PC_WEIGHTED) then
+            call print_options(options%PC_singles_options, stdout)
+            call do_allocation(this%singles_generator, options%PC_singles_options%drawing)
             select type(generator => this%singles_generator)
-            class is(Base_PC_SinglesLocalised_t)
+            class is(Base_PC_Weighted_t)
                 ! NOTE: only one of the excitation generators should manage the
                 !   supergroup lookup!
-                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+                call generator%init(GAS_spec, options%PC_singles_options%weighting, &
+                                    use_lookup, create_lookup=.false.)
             end select
         else
             call stop_all(this_routine, "Invalid choise for singles.")
         end if
 
         call this%doubles_generator%init(&
-            GAS_spec, use_lookup, create_lookup, PCHB_particle_selection)
+            GAS_spec, use_lookup, create_lookup, options%particle_selection)
 
         call halt_timer(GAS_PCHB_init_time)
     end subroutine

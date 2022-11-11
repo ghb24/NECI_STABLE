@@ -39,13 +39,13 @@ module tau_search_conventional
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
-    use pchb_excitgen, only: FCI_PCHB_particle_selection
-
     use gasci, only: possible_GAS_exc_gen, GAS_exc_gen
 
-    use gasci_pchb, only: GAS_PCHB_particle_selection
-
     use gasci_pc_select_particles, only: PCHB_particle_selections
+
+    use gasci_pchb, only: GAS_PCHB_options
+
+    use pchb_excitgen, only: FCI_PCHB_options
 
     implicit none
     private
@@ -94,12 +94,12 @@ contains
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
         else if ((t_pchb_excitgen .and. .not. tGUGA) &
-                .and. (FCI_PCHB_particle_selection == PCHB_particle_selections%UNIFORM)) then
+                .and. (FCI_PCHB_options%particle_selection == PCHB_particle_selections%UNIFORM)) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else if (tGAS &
             .and. (GAS_exc_gen /= possible_GAS_exc_gen%PCHB &
-                    .or. GAS_PCHB_particle_selection == PCHB_particle_selections%UNIFORM)) then
+                    .or. GAS_PCHB_options%particle_selection == PCHB_particle_selections%UNIFORM)) then
             consider_par_bias = .true.
         else
             consider_par_bias = .false.

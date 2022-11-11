@@ -21,7 +21,7 @@ module gasci_pc_select_particles
     private
     public :: ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
-        PCHB_particle_selections, PCHB_ParticleSelection_t
+        PCHB_particle_selections, PCHB_ParticleSelection_t, from_keyword
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
     end type
@@ -120,7 +120,26 @@ module gasci_pc_select_particles
         procedure, public :: draw => draw_PC_FastWeightedParticles_t
         procedure, public :: get_pgen => get_pgen_PC_FastWeightedParticles_t
     end type
+
 contains
+
+    pure function from_keyword(w) result(res)
+        !! Parse a given keyword into the possible particle selection schemes
+        character(*), intent(in) :: w
+        type(PCHB_ParticleSelection_t) :: res
+        routine_name("from_keyword")
+        select case(w)
+        case('UNIFORM')
+            res = PCHB_particle_selections%UNIFORM
+        case('PC-WEIGHTED')
+            res = PCHB_particle_selections%PC_WEIGHTED
+        case('PC-WEIGHTED-APPROX')
+            res = PCHB_particle_selections%PC_WEIGHTED_APPROX
+        case default
+
+            call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles weighting scheme")
+        end select
+    end function
 
     subroutine draw_UniformParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(UniformParticles_t), intent(in) :: this
