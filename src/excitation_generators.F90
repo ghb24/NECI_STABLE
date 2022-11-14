@@ -65,12 +65,12 @@ module excitation_generators
             integer, intent(in) :: nI(nEl)
             integer, intent(out) :: n_excits
             integer(n_int), allocatable, intent(out) :: det_list(:,:)
-        end subroutine
+        end subroutine BoundGenAllExcits_t
 
         subroutine BoundFinalize_t(this)
             import :: ExcitationGenerator_t
             class(ExcitationGenerator_t), intent(inout) :: this
-        end subroutine
+        end subroutine BoundFinalize_t
 
         real(dp) function BoundGetPgen_t(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
             import :: ExcitationGenerator_t, n_int, dp, ScratchSize, maxExcit, NifTot, nEl
@@ -79,7 +79,7 @@ module excitation_generators
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(in) :: ex(2, maxExcit), ic
             integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        end function
+        end function BoundGetPgen_t
     end interface
 contains
 

@@ -66,7 +66,7 @@ module gasci_pchb
     use excitation_generators, only: &
             ExcitationGenerator_t, SingleExcitationGenerator_t, &
             DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, gen_all_excits_sd
-    implicit none
+    better_implicit_none
 
     private
     public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &

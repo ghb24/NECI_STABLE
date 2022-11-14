@@ -1,4 +1,6 @@
 #include "macros.h"
+#:include "macros.fpph"
+#:include "algorithms.fpph"
 
 module gasci_pchb_uhf
     !! same as gasci_pchb but with spin-orbitals
@@ -23,7 +25,15 @@ module gasci_pchb_uhf
                                 doubleExcitationGenerator_t, get_pgen_sd
     use constants, only: n_int
     use dSFMT_interface, only: genrand_real2_dSFMT
-    implicit none
+    better_implicit_none
+
+    private
+    ! @jph
+    ! public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
+    !     GAS_doubles_PCHB_ExcGenerator_t, &
+    !     possible_GAS_singles, GAS_PCHB_singles_generator, &
+    !     GAS_PCHB_particle_selection, PCHB_particle_selections, &
+    !     PCHB_ParticleSelection_t
 
     type, extends(ExcitationGenerator_t) :: GAS_PCHB_UHF_ExcGenerator_t
         !! full GAS PCHB excitation generator, working on spin orbitals
@@ -33,7 +43,7 @@ module gasci_pchb_uhf
         ! @jph make allocatable
         ! allocatable to allow choice of singles generator at runtime
         ! class(SingleExcitationGenerator_t), allocatable :: singles_generator
-        type(SingleExcitationGenerator_t) :: singles_generator
+        class(SingleExcitationGenerator_t) :: singles_generator
 
     contains
         private

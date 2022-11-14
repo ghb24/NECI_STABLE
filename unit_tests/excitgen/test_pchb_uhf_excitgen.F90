@@ -9,11 +9,17 @@ module test_pchb_uhf_excitgen
     use unit_test_helper_excitgen, only: generate_random_integrals, &
                                     init_excitgen_test, finalize_excitgen_test, &
                                     FciDumpWriter_t, test_excitation_generator
+    ! TODO: I suspect (but am not confident) the imports here will be removed
+    use gasci_pchb, only: PCHB_particle_selections, possible_PCHB_singles
     implicit none
     private
     public :: pchb_uhf_test_driver
     ! @jph
 contains
+    ! @jph need:
+    ! - [x] PCHB_particle_selections
+    ! - [x] PCHB_FCI_excit_generator_t
+    ! - [x] possible_PCHB_singles
 
     subroutine pchb_uhf_test_driver()
         integer, parameter :: n_iters = 5 * 10**7

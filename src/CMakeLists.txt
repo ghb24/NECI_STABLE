@@ -111,7 +111,7 @@ set( SRC_FILES
     Parallel_Calc.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
-    # pchb_uhf_excitgen.F90
+    pchb_uhf_excitgen.F90
     perturbations.F90
     Popsfile.F90
     Popsfile_impls.F90
@@ -432,7 +432,7 @@ set( FYPP_SRC_FILES
     gasci_discarding.fpp
     gasci_general.fpp
     gasci_pchb.fpp
-    # gasci_pchb_uhf.fpp
+    gasci_pchb_uhf.fpp
     gasci_pc_select_particles.fpp
     CDF_sampling.fpp
     gasci_supergroup_index.fpp
