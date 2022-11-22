@@ -1,10 +1,13 @@
+#:include "macros.fpph"
+#:include "algorithms.fpph"
+
 ! Module to collect and average the CI coefficients
 module sdt_amplitudes
 
   use bit_reps, only: extract_sign, decode_bit_det, encode_sign, niftot, nifd
   use constants, only: dp, lenof_sign, n_int, int64, stdout
   use DetBitOps, only: get_bit_excitmat, EncodeBitDet, GetBitExcitation!, FindBitExcitLevel
-  use util_mod, only: near_zero
+  use util_mod, only: near_zero, lex_leq
   use FciMCData, only: TotWalkers, iLutRef, CurrentDets, AllNoatHf, projedet, &
                        ll_node
   use hash, only: hash_table_lookup, add_hash_table_entry, init_hash_table, &
@@ -13,8 +16,23 @@ module sdt_amplitudes
   use SystemData, only: nel, nbasis, symmax
   use Parallel_neci, only: iProcIndex, MPIcollection
   use MPI_wrapper, only: root
+!  use sdt_util, only: sorting_singles
+  use sort_mod, only: sort
 
   implicit none
+
+  type :: t_singles
+    integer :: a,i
+    double precision :: x
+  end type
+  type :: t_doubles
+    integer :: a,b,i,j
+    double precision :: x
+  end type
+  type :: t_triples
+    integer :: a,b,c,i,j,k
+    double precision :: x
+  end type
 
   integer(n_int), allocatable :: ciCoeff_storage(:,:), root_ciCoeff_storage(:,:)
   integer :: hash_table_ciCoeff_size, first_free_entry, nCyc, root_first_free_entry
@@ -23,10 +41,61 @@ module sdt_amplitudes
   character (len=90) :: fileCICoeffTest, filecoefTestSrt0, filecoefTestSrt1
   character (len=90) :: filecoefTestSrt2, filecoefTestSrt3, filecoefTestSrt4
   character (len=90) :: filecoefTestSrt5, filecoefTestSrt6
+  character (len=90) :: filecoefTestProva
   integer(n_int), allocatable  :: totex_coeff(:,:)
 
 contains
 
+   logical elemental function sing_a(p1, p2)
+       type(t_singles), intent(in) :: p1, p2
+       sing_a = p1%a <= p2%a
+   end function
+   logical elemental function sing_i(p1, p2)
+       type(t_singles), intent(in) :: p1, p2
+       sing_i = p1%i <= p2%i
+   end function
+
+   logical elemental function doub_a(p1, p2)
+       type(t_doubles), intent(in) :: p1, p2
+       doub_a = p1%a <= p2%a
+   end function
+   logical elemental function doub_b(p1, p2)
+       type(t_doubles), intent(in) :: p1, p2
+       doub_b = p1%b <= p2%b
+   end function
+   logical elemental function doub_i(p1, p2)
+       type(t_doubles), intent(in) :: p1, p2
+       doub_i = p1%i <= p2%i
+   end function
+   logical elemental function doub_j(p1, p2)
+       type(t_doubles), intent(in) :: p1, p2
+       doub_j = p1%j <= p2%j
+   end function
+
+   logical elemental function trip_a(p1, p2)
+       type(t_triples), intent(in) :: p1, p2
+       trip_a = p1%a <= p2%a
+   end function
+   logical elemental function trip_b(p1, p2)
+       type(t_triples), intent(in) :: p1, p2
+       trip_b = p1%b <= p2%b
+   end function
+   logical elemental function trip_c(p1, p2)
+       type(t_triples), intent(in) :: p1, p2
+       trip_c = p1%c <= p2%c
+   end function
+   logical elemental function trip_i(p1, p2)
+       type(t_triples), intent(in) :: p1, p2
+       trip_i = p1%i <= p2%i
+   end function
+   logical elemental function trip_j(p1, p2)
+       type(t_triples), intent(in) :: p1, p2
+       trip_j = p1%j <= p2%j
+   end function
+   logical elemental function trip_k(p1, p2)
+       type(t_triples), intent(in) :: p1, p2
+       trip_k = p1%k <= p2%k
+   end function
 
   subroutine init_ciCoeff
     nCyc = 0
@@ -107,7 +176,6 @@ contains
     use SymExcitDataMod, only:  OrbClassCount
     use GenRandSymExcitNUMod , only : ClassCountInd
     use util_mod, only: swap
-    use sort_mod, only: sort
 
     integer :: i, ic, ex(2,4),icI, Nind,h1,h2,h3
     real(dp) :: sign_tmp(lenof_sign)
@@ -279,7 +347,7 @@ contains
                                            ex(2,1),ex(1,2),ex(2,2)
                  if(.not. near_zero(sign_tmp(1))) then
                    totex_coeff(icI,2) = totex_coeff(icI,2) + 1
-                   write(42,'(G20.12,4I5)') signCI*(sign_tmp(1)/(AllNoatHf(1)*nCyc)),&
+                   write(42,'(G20.12,4I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
                                indCoef(1,1),indCoef(2,1),indCoef(1,2),indCoef(2,2)
                  endif
                case(3)
@@ -333,26 +401,15 @@ contains
 
   ! it lists the averaged CI coeffs sorting the indices in
   ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
-  subroutine sorting
-
-  type :: t_singles
-    integer :: a,i
-    double precision :: x
-  end type
-  type :: t_doubles
-    integer :: a,b,i,j
-    double precision :: x
-  end type
-  type :: t_triples
-    integer :: a,b,c,i,j,k
-    double precision :: x
-  end type
+ subroutine sorting
 
   integer :: hI,Nind,z
   integer :: a,b,c,j,i,k
+  integer, allocatable :: idx(:), M(:,:)
   type(t_singles),allocatable :: singles(:), singles_tmp(:)
   type(t_doubles),allocatable :: doubles(:), doubles_tmp(:)
   type(t_triples),allocatable :: triples(:), triples_tmp(:)
+
 
   do Nind=1,n_store_ci_level
     write(fileCICoeffTest, '( "ci_coeff_",I1,"_test" )') Nind
@@ -383,7 +440,7 @@ contains
      endif
      if (z<0) exit
     enddo
-    close (40+Nind, status='delete')
+!    close (40+Nind, status='delete')
 
 
    ! sorting singles
@@ -406,6 +463,20 @@ contains
       enddo
     enddo
    close (140+Nind)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! PROVA SORTING WITH quicksort for singles
+    @:sort(t_singles, singles, rank=1, along=1, comp=sing_a)
+    @:sort(t_singles, singles, rank=1, along=1, comp=sing_i)
+
+      write(filecoefTestProva, '("ci_coeff_",I1,"_qcksort" )') Nind
+      open (unit=240+Nind,file=filecoefTestProva,status='replace')
+      do hI = 1,totex_coeff(Nind,2)
+      write(240+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
+                                       singles(hI)%a
+      enddo
+    close (240+Nind)
+! FINE PROVA SORTING WITH quicksort
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
    ! sorting doubles
@@ -446,6 +517,22 @@ contains
       enddo
     enddo
    close (140+Nind)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! PROVA SORTING WITH quicksort for doubles
+    @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_a)
+    @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_b)
+    @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_i)
+    @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_j)
+
+      write(filecoefTestProva, '("ci_coeff_",I1,"_qcksort" )') Nind
+      open (unit=240+Nind,file=filecoefTestProva,status='replace')
+      do hI = 1,totex_coeff(Nind,2)
+       write(240+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
+                        doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
+      enddo
+    close (240+Nind)
+! FINE PROVA SORTING WITH quicksort
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
    ! sorting triples
@@ -505,6 +592,25 @@ contains
      enddo
     enddo
    close (140+Nind)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! PROVA SORTING WITH quicksort for triples
+    @:sort(t_triples, triples, rank=1, along=1, comp=trip_c)
+    @:sort(t_triples, triples, rank=1, along=1, comp=trip_b)
+    @:sort(t_triples, triples, rank=1, along=1, comp=trip_a)
+    @:sort(t_triples, triples, rank=1, along=1, comp=trip_i)
+    @:sort(t_triples, triples, rank=1, along=1, comp=trip_j)
+    @:sort(t_triples, triples, rank=1, along=1, comp=trip_k)
+
+      write(filecoefTestProva, '("ci_coeff_",I1,"_qcksort" )') Nind
+      open (unit=240+Nind,file=filecoefTestProva,status='replace')
+      do hI = 1,totex_coeff(Nind,2)
+      write(240+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
+                       triples(hI)%a,triples(hI)%j,triples(hI)%b,&
+                                     triples(hI)%k,triples(hI)%c
+      enddo
+    close (240+Nind)
+! FINE PROVA SORTING WITH quicksort
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    endif
 
   if(Nind.eq.1) deallocate(singles)
@@ -516,6 +622,6 @@ contains
 
   enddo ! do Nind=1,n_store_ci_level
 
-  end subroutine sorting
+ end subroutine sorting
 
 end module sdt_amplitudes

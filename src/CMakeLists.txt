@@ -139,7 +139,6 @@ set( SRC_FILES
     RotateOrbs.F90
     RPA.F90
     scrtransf.F
-    sdt_amplitudes.F90
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
@@ -446,6 +445,7 @@ set( FYPP_SRC_FILES
     sets_mod.fpp
     shared_ragged_array.fpp
     SD_spin_purification.fpp
+    sdt_amplitudes.fpp
 )
 
 set( TEMPLATED_SRC_FILES
