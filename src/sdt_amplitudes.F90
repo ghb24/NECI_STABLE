@@ -135,6 +135,7 @@ contains
       ! loop to find all the alpha/beta occ/unocc orbs !
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       NorbTot(:)=0
+      NorbTot(0)=0
       do iSym = 1, symmax
         Norb(iSym) =  OrbClassCount(ClassCountInd(1/2,iSym,0)) * 2
         NorbTot(iSym) = Norb(iSym) + NorbTot(iSym-1)
