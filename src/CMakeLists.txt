@@ -433,7 +433,7 @@ set( FYPP_SRC_FILES
     gasci_discarding.fpp
     gasci_general.fpp
     gasci_pchb_general.fpp
-    gasci_pchb.fpp
+    gasci_pchb_rhf.fpp
     # @jph
     # gasci_pchb_uhf.fpp
     gasci_pc_select_particles.fpp

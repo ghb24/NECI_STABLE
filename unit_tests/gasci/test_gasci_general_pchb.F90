@@ -8,7 +8,7 @@ module test_gasci_general_pchb
     use excitation_types, only: Excitation_t
 
     use gasci, only: LocalGASSpec_t
-    use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
+    use gasci_pchb_rhf, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
         PCHB_particle_selections
     use excitation_generators, only: ExcitationGenerator_t
 

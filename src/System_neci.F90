@@ -1614,7 +1614,7 @@ contains
                             else if (w == 'PARTICLE-SELECTION') then
                             block
                                 use pchb_excitgen, only: FCI_PCHB_particle_selection
-                                use gasci_pchb, only: PCHB_particle_selections
+                                use gasci_pchb_general, only: PCHB_particle_selections
 
                                 w = to_upper(tokens%next())
                                 select case (w)
@@ -1635,7 +1635,7 @@ contains
 
                 case ("GAS-CI")
                 block
-                    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
+                    use gasci_pchb_general, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
                         PCHB_particle_selections, GAS_PCHB_particle_selection
 
                     w = to_upper(tokens%next())

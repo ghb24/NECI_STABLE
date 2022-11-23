@@ -5,7 +5,7 @@ module pchb_uhf_excit
     ! @jph
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t
     ! @jph not completely confident about importing this one vs writing it myself
-    use gasci_pchb, only: PCHB_ParticleSelection_t
+    use gasci_pchb_rhf, only: PCHB_ParticleSelection_t
     better_implicit_none
     private
     public :: PCHB_UHF_FCI_excit_generator_t

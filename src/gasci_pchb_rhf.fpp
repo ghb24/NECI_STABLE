@@ -24,7 +24,7 @@
 !
 ! The details of calculating i_sg can be found in gasci_supergroup_index.f90
 
-module gasci_pchb
+module gasci_pchb_rhf
     ! @jph remove unused modules (not sure how to determine?)
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
@@ -68,19 +68,19 @@ module gasci_pchb
             DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, gen_all_excits_sd
 
     ! @jph use gasci_pchb_general, only: ...
-    use gasci_pchb_general
+    ! TODO fix the use here as other files import it
+    use gasci_pchb_general, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
+                PCHB_particle_selections, PCHB_ParticleSelection_t, &
+                GAS_used_singles_t, GAS_singles_PC_uniform_ExcGenerator_t, &
+                GAS_singles_DiscardingGenerator_t, gas_pchb_particle_selection
     better_implicit_none
 
     ! @jph
     public
     ! private
-    ! public: ...
-    ! private
+    ! TODO make public section again once the GAS_PCHB_generator has been moved/abstracted
     ! public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
-    !     GAS_doubles_PCHB_ExcGenerator_t, &
-    !     possible_GAS_singles, GAS_PCHB_singles_generator, &
-    !     GAS_PCHB_particle_selection, PCHB_particle_selections, &
-    !     PCHB_ParticleSelection_t
+    !           GAS_doubles_PCHB_ExcGenerator_t
 
     logical, parameter :: use_supergroup_lookup = .true.
 
@@ -91,7 +91,7 @@ module gasci_pchb
     integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
 
 
-    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
+
 
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
@@ -640,4 +640,4 @@ contains
         call gen_all_excits_sd(nI, n_excits, det_list, &
                                this%singles_generator, this%doubles_generator)
     end subroutine GAS_PCHB_gen_all_excits
-end module gasci_pchb
+end module gasci_pchb_rhf

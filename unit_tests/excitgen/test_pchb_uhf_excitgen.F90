@@ -10,7 +10,7 @@ module test_pchb_uhf_excitgen
                                     init_excitgen_test, finalize_excitgen_test, &
                                     FciDumpWriter_t, test_excitation_generator
     ! TODO: I suspect (but am not confident) the imports here will be removed
-    use gasci_pchb, only: PCHB_particle_selections, possible_PCHB_singles
+    use gasci_pchb_rhf, only: PCHB_particle_selections, possible_PCHB_singles
     implicit none
     private
     public :: pchb_uhf_test_driver

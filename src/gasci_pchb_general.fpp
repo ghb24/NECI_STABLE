@@ -61,18 +61,21 @@ module gasci_pchb_general
     ! - [x] discarding uniform
     ! - [x] test compilation / testing
     ! - [ ] clean public/private
-    ! - [ ] clean use statements
     ! - [ ] abstract doubles generator
     ! - [ ] move GAS_PCHB_ExcGenerator_t but with abstract doubles exc gentor
     ! - [ ] test compilation / testing
-    ! - [ ] UHF PCHB implementation, largely copied from UHF implementation
+    ! - [ ] UHF PCHB unit tests
+    ! - [ ] UHF PCHB implementation, largely copied from RHF implementation
     !           (which now inherits pchb_general)
+    ! - [ ] do the same with the pchb_excitgen files
+    ! - [ ] clean use statements
     ! NOTE pchb hole selection is different between the two
 
-    ! @jph
-    ! private
-    ! public: ...
-    public
+    private
+    public :: possible_GAS_singles, GAS_PCHB_singles_generator, &
+            PCHB_particle_selections, PCHB_ParticleSelection_t, &
+            GAS_used_singles_t, GAS_singles_PC_uniform_ExcGenerator_t, &
+            GAS_singles_DiscardingGenerator_t, GAS_PCHB_particle_selection
 
     !> The precomputed GAS uniform excitation generator
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_PC_uniform_ExcGenerator_t
@@ -146,6 +149,9 @@ module gasci_pchb_general
     interface GAS_singles_DiscardingGenerator_t
         module procedure construct_GAS_singles_DiscardingGenerator_t
     end interface
+
+    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
+
 
 contains
     ! @jph TODO implementation
