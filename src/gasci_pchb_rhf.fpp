@@ -72,17 +72,22 @@ module gasci_pchb_rhf
     use gasci_pchb_general, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
                 PCHB_particle_selections, PCHB_ParticleSelection_t, &
                 GAS_used_singles_t, GAS_singles_PC_uniform_ExcGenerator_t, &
-                GAS_singles_DiscardingGenerator_t, gas_pchb_particle_selection
+                GAS_singles_DiscardingGenerator_t, gas_pchb_particle_selection, &
+                use_supergroup_lookup
     better_implicit_none
 
     ! @jph
     public
     ! private
-    ! TODO make public section again once the GAS_PCHB_generator has been moved/abstracted
-    ! public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
-    !           GAS_doubles_PCHB_ExcGenerator_t
+    ! ! TODO make public section again once the GAS_PCHB_generator has been moved/abstracted
+    ! public :: GAS_PCHB_ExcGenerator_t, GAS_doubles_PCHB_ExcGenerator_t
 
-    logical, parameter :: use_supergroup_lookup = .true.
+    ! ! @jph get rid of all of this (seems to break compilation anyway...)
+    ! public :: possible_GAS_singles, GAS_PCHB_singles_generator, &
+    !           PCHB_particle_selections, PCHB_ParticleSelection_t, &
+    !           GAS_used_singles_t, GAS_singles_PC_uniform_ExcGenerator_t, &
+    !           GAS_singles_DiscardingGenerator_t, GAS_PCHB_particle_selection, &
+    !           use_supergroup_lookup
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
