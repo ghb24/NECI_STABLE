@@ -7,7 +7,7 @@ module sdt_amplitudes
   use bit_reps, only: extract_sign, decode_bit_det, encode_sign, niftot, nifd
   use constants, only: dp, lenof_sign, n_int, int64, stdout
   use DetBitOps, only: get_bit_excitmat, EncodeBitDet, GetBitExcitation!, FindBitExcitLevel
-  use util_mod, only: near_zero, lex_leq
+  use util_mod, only: near_zero
   use FciMCData, only: TotWalkers, iLutRef, CurrentDets, AllNoatHf, projedet, &
                        ll_node
   use hash, only: hash_table_lookup, add_hash_table_entry, init_hash_table, &
@@ -16,7 +16,6 @@ module sdt_amplitudes
   use SystemData, only: nel, nbasis, symmax
   use Parallel_neci, only: iProcIndex, MPIcollection
   use MPI_wrapper, only: root
-!  use sdt_util, only: sorting_singles
   use sort_mod, only: sort
 
   implicit none
@@ -37,11 +36,7 @@ module sdt_amplitudes
   integer(n_int), allocatable :: ciCoeff_storage(:,:), root_ciCoeff_storage(:,:)
   integer :: hash_table_ciCoeff_size, first_free_entry, nCyc, root_first_free_entry
   type(ll_node), pointer :: hash_table_ciCoeff(:)
-  character (len=90) :: fileCICoeffAv, fileCIcoeffSort
-  character (len=90) :: fileCICoeffTest, filecoefTestSrt0, filecoefTestSrt1
-  character (len=90) :: filecoefTestSrt2, filecoefTestSrt3, filecoefTestSrt4
-  character (len=90) :: filecoefTestSrt5, filecoefTestSrt6
-  character (len=90) :: filecoefTestProva
+  character (len=90) :: fileCICoeffAv, fileCIcoeffSort, fileCICoeffTest
   integer(n_int), allocatable  :: totex_coeff(:,:)
 
 contains
@@ -177,7 +172,7 @@ contains
     use GenRandSymExcitNUMod , only : ClassCountInd
     use util_mod, only: swap
 
-    integer :: i, ic, ex(2,4),icI, Nind,h1,h2,h3
+    integer  :: i, ic, ex(2,4),icI
     real(dp) :: sign_tmp(lenof_sign)
     logical  :: tPar
     integer  :: h,j,k,z,p,ial(symmax),ibe(symmax),Itot(nbasis),iSym,totEl,totOrb
@@ -281,16 +276,14 @@ contains
          do i = 1, root_first_free_entry
             signCI=1
             ic = n_store_ci_level+1
-            ! call to get the excitation level of the CI coefficient
+            ! gets the excitation level of the CI coefficient
             call get_bit_excitmat(iLutRef(:,1),root_ciCoeff_storage(:,i),ex,ic)
 !            ic = FindBitExcitLevel(ilutRef(:,1),root_ciCoeff_storage(:,i))
             if(icI.eq.ic) then
-              ! call to get the numerical value of the CI coefficient
-              ! (i.e. the number of walkers not yet averaged)
+              ! gets the value of the CI coefficient (i.e. the number of walkers)
               call extract_sign(root_ciCoeff_storage(:,i),sign_tmp)
               ex(1,1) = ic
-              ! call to get the sign of the CI coefficient
-              ! if tPar is true, there is an odd number of permutations
+              ! gets the sign of the CI coef (tPar=true if odd number of permutations)
               call GetBitExcitation(ilutRef(:,1),root_ciCoeff_storage(:,i),ex,tPar)
               if(tPar) sign_tmp = -sign_tmp
 
@@ -404,221 +397,75 @@ contains
  subroutine sorting
 
   integer :: hI,Nind,z
-  integer :: a,b,c,j,i,k
+!  integer :: a,b,c,i,j,k
   integer, allocatable :: idx(:), M(:,:)
-  type(t_singles),allocatable :: singles(:), singles_tmp(:)
-  type(t_doubles),allocatable :: doubles(:), doubles_tmp(:)
-  type(t_triples),allocatable :: triples(:), triples_tmp(:)
+  type(t_singles),allocatable :: singles(:)
+  type(t_doubles),allocatable :: doubles(:)
+  type(t_triples),allocatable :: triples(:)
 
 
   do Nind=1,n_store_ci_level
     write(fileCICoeffTest, '( "ci_coeff_",I1,"_test" )') Nind
     open (unit=40+Nind,file=fileCICoeffTest,status='old', action='read')
-    write(filecoefTestSrt0, '("ci_coeff_",I1 )') Nind
-    open (unit=140+Nind,file=filecoefTestSrt0,status='replace')
+    write(fileCIcoeffSort, '("ci_coeff_",I1 )') Nind
+    open (unit=140+Nind,file=fileCIcoeffSort,status='replace')
 
-    if(Nind.eq.1) allocate(singles(totex_coeff(1,2)))
-    if(Nind.eq.2) allocate(doubles(totex_coeff(2,2)))
-    if(Nind.eq.3) allocate(triples(totex_coeff(3,2)))
-    if(Nind.eq.1) allocate(singles_tmp(totex_coeff(1,2)))
-    if(Nind.eq.2) allocate(doubles_tmp(totex_coeff(2,2)))
-    if(Nind.eq.3) allocate(triples_tmp(totex_coeff(3,2)))
+    if(Nind.eq.1) allocate(singles(totex_coeff(Nind,2)))
+    if(Nind.eq.2) allocate(doubles(totex_coeff(Nind,2)))
+    if(Nind.eq.3) allocate(triples(totex_coeff(Nind,2)))
 
-    hI=0
-    do
-     hI = hI + 1
-     if(Nind.eq.1) then
-       read(40+Nind,*,IOSTAT=z) singles(hI)%x,singles(hI)%i,&
-                                singles(hI)%a
-     else if(Nind.eq.2) then
-       read(40+Nind,*,IOSTAT=z) doubles(hI)%x,doubles(hI)%i,&
-                  doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
-     else if(Nind.eq.3) then
-       read(40+Nind,*,IOSTAT=z) triples(hI)%x,triples(hI)%i,&
-                  triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                triples(hI)%k,triples(hI)%c
-     endif
-     if (z<0) exit
-    enddo
-!    close (40+Nind, status='delete')
-
-
-   ! sorting singles
-   if(Nind.eq.1) then
-    z=0
-    do a = 1,nbasis-nel
-      do hI = 1,totex_coeff(Nind,2)
-       if(singles(hI)%a.eq.a) then
-        z = z + 1
-        singles_tmp(z) = singles(hI)
-       endif
-      enddo
-    enddo
-    do i = 1,nel
-      do hI = 1,totex_coeff(Nind,2)
-       if(singles_tmp(hI)%i.eq.i) then
-        write(140+Nind,'(G20.12,2I5)') singles_tmp(hI)%x,singles_tmp(hI)%i,&
-                                       singles_tmp(hI)%a
-       endif
-      enddo
-    enddo
-   close (140+Nind)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! PROVA SORTING WITH quicksort for singles
-    @:sort(t_singles, singles, rank=1, along=1, comp=sing_a)
-    @:sort(t_singles, singles, rank=1, along=1, comp=sing_i)
-
-      write(filecoefTestProva, '("ci_coeff_",I1,"_qcksort" )') Nind
-      open (unit=240+Nind,file=filecoefTestProva,status='replace')
-      do hI = 1,totex_coeff(Nind,2)
-      write(240+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
-                                       singles(hI)%a
-      enddo
-    close (240+Nind)
-! FINE PROVA SORTING WITH quicksort
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-   ! sorting doubles
-   else if(Nind.eq.2) then
-    z=0
-    do a = 1,nbasis-nel-1
-     do hI = 1,totex_coeff(Nind,2)
-      if(doubles(hI)%a.eq.a) then
-        z = z + 1
-        doubles_tmp(z) = doubles(hI)
-       endif
-     enddo
-    enddo
-    z=0
-    do b = 2,nbasis-nel
-      do hI = 1,totex_coeff(Nind,2)
-      if(doubles_tmp(hI)%b.eq.b) then
-        z = z + 1
-        doubles(z) = doubles_tmp(hI)
-        endif
-      enddo
-    enddo
-    z=0
-    do i = 1,nel-1
-      do hI = 1,totex_coeff(Nind,2)
-      if(doubles(hI)%i.eq.i) then
-        z = z + 1
-        doubles_tmp(z) = doubles(hI)
-        endif
-      enddo
-    enddo
-    do j = 2,nel
-      do hI = 1,totex_coeff(Nind,2)
-      if(doubles_tmp(hI)%j.eq.j) then
-       write(140+Nind,'(G20.12,4I5)') doubles_tmp(hI)%x,doubles_tmp(hI)%i,&
-                    doubles_tmp(hI)%a,doubles_tmp(hI)%j,doubles_tmp(hI)%b
-        endif
-      enddo
-    enddo
-   close (140+Nind)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! PROVA SORTING WITH quicksort for doubles
-    @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_a)
-    @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_b)
-    @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_i)
-    @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_j)
-
-      write(filecoefTestProva, '("ci_coeff_",I1,"_qcksort" )') Nind
-      open (unit=240+Nind,file=filecoefTestProva,status='replace')
-      do hI = 1,totex_coeff(Nind,2)
-       write(240+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
-                        doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
-      enddo
-    close (240+Nind)
-! FINE PROVA SORTING WITH quicksort
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-   ! sorting triples
-   else if(Nind.eq.3) then
-    z=0
-    do c = 3,nbasis-nel
-      do hI = 1,totex_coeff(Nind,2)
-      if(triples(hI)%c.eq.c) then
-       z = z + 1
-       triples_tmp(z) = triples(hI)
+    do hI=1,totex_coeff(Nind,2)
+      if(Nind.eq.1) then
+        read(40+Nind,*) singles(hI)%x,singles(hI)%i,singles(hI)%a
+      else if(Nind.eq.2) then
+        read(40+Nind,*) doubles(hI)%x,doubles(hI)%i,doubles(hI)%a,&
+                        doubles(hI)%j,doubles(hI)%b
+      else if(Nind.eq.3) then
+        read(40+Nind,*) triples(hI)%x,triples(hI)%i,triples(hI)%a,&
+                        triples(hI)%j,triples(hI)%b,triples(hI)%k,&
+                        triples(hI)%c
       endif
-     enddo
     enddo
-    z=0
-    do b = 2,nbasis-nel-1
-      do hI = 1,totex_coeff(Nind,2)
-      if(triples_tmp(hI)%b.eq.b) then
-       z=z+1
-       triples(z) = triples_tmp(hI)
-      endif
-     enddo
-    enddo
-    z=0
-    do a = 1,nbasis-nel-2
-      do hI = 1,totex_coeff(Nind,2)
-      if(triples(hI)%a.eq.a) then
-       z=z+1
-       triples_tmp(z) = triples(hI)
-      endif
-     enddo
-    enddo
-    z=0
-    do i = 1,nel-2
-      do hI = 1,totex_coeff(Nind,2)
-      if(triples_tmp(hI)%i.eq.i) then
-       z=z+1
-       triples(z) = triples_tmp(hI)
-       endif
-      enddo
-    enddo
-    z=0
-    do j = 2,nel-1
-      do hI = 1,totex_coeff(Nind,2)
-      if(triples(hI)%j.eq.j) then
-       z=z+1
-       triples_tmp(z) = triples(hI)
-      endif
-     enddo
-    enddo
-    do k = 3,nel
-      do hI = 1,totex_coeff(Nind,2)
-      if(triples_tmp(hI)%k.eq.k) then
-       write(140+Nind,'(G20.12,6I5)') triples_tmp(hI)%x,triples_tmp(hI)%i,&
-                    triples_tmp(hI)%a,triples_tmp(hI)%j,triples_tmp(hI)%b,&
-                                      triples_tmp(hI)%k,triples_tmp(hI)%c
-      endif
-     enddo
-    enddo
-   close (140+Nind)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! PROVA SORTING WITH quicksort for triples
-    @:sort(t_triples, triples, rank=1, along=1, comp=trip_c)
-    @:sort(t_triples, triples, rank=1, along=1, comp=trip_b)
-    @:sort(t_triples, triples, rank=1, along=1, comp=trip_a)
-    @:sort(t_triples, triples, rank=1, along=1, comp=trip_i)
-    @:sort(t_triples, triples, rank=1, along=1, comp=trip_j)
-    @:sort(t_triples, triples, rank=1, along=1, comp=trip_k)
+    close (40+Nind, status='delete')
 
-      write(filecoefTestProva, '("ci_coeff_",I1,"_qcksort" )') Nind
-      open (unit=240+Nind,file=filecoefTestProva,status='replace')
+    select case(Nind) ! sorting and writing CI coefficients
+    case(1)  ! singles
+      @:sort(t_singles, singles, rank=1, along=1, comp=sing_a)
+      @:sort(t_singles, singles, rank=1, along=1, comp=sing_i)
       do hI = 1,totex_coeff(Nind,2)
-      write(240+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                       triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                     triples(hI)%k,triples(hI)%c
+        write(140+Nind,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
+                                         singles(hI)%a
       enddo
-    close (240+Nind)
-! FINE PROVA SORTING WITH quicksort
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   endif
+      close (140+Nind)
+      deallocate(singles)
 
-  if(Nind.eq.1) deallocate(singles)
-  if(Nind.eq.2) deallocate(doubles)
-  if(Nind.eq.3) deallocate(triples)
-  if(Nind.eq.1) deallocate(singles_tmp)
-  if(Nind.eq.2) deallocate(doubles_tmp)
-  if(Nind.eq.3) deallocate(triples_tmp)
+    case(2)  ! doubles
+      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_a)
+      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_b)
+      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_i)
+      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_j)
+      do hI = 1,totex_coeff(Nind,2)
+         write(140+Nind,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
+                          doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
+      enddo
+      close (140+Nind)
+      deallocate(doubles)
+
+    case(3)  ! triples
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_c)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_b)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_a)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_i)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_j)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_k)
+      do hI = 1,totex_coeff(Nind,2)
+        write(140+Nind,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
+                         triples(hI)%a,triples(hI)%j,triples(hI)%b,&
+                                       triples(hI)%k,triples(hI)%c
+      enddo
+      close (140+Nind)
+      deallocate(triples)
+    end select
 
   enddo ! do Nind=1,n_store_ci_level
 
