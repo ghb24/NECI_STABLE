@@ -19,7 +19,7 @@ module excitation_generators
     private
     public :: ExcitationGenerator_t, &
         SingleExcitationGenerator_t, DoubleExcitationGenerator_t, TripleExcitationGenerator_t, &
-        gen_exc_sd, get_pgen_sd, gen_all_excits_sd
+        gen_exc_sd, get_pgen_sd, gen_all_excits_sd, ClassicAbInitExcitationGenerator_t
 
     type, abstract :: ExcitationGenerator_t
     contains
@@ -40,6 +40,25 @@ module excitation_generators
     end type
 
     type, abstract, extends(ExcitationGenerator_t) :: TripleExcitationGenerator_t
+    end type
+
+    type, abstract, extends(ExcitationGenerator_t) :: ClassicAbInitExcitationGenerator_t
+        !! this abstract excitation generator covers all ab initio Hamiltonians
+        !! in the typical sense (i.e. up to double excitations)
+        private
+        ! class(GAS_doubles_PCHB_ExcGenerator_t), allocatable :: doubles_generator
+        ! @jph make allocatable to be defined at run time
+        class(DoubleExcitationGenerator_t), public, allocatable :: doubles_generator
+        ! NOTE: Change into class(SingleExcitationGenerator_t), allocatable
+        !   if you want to change singles_generators at runtime.
+        class(SingleExcitationGenerator_t), public, allocatable :: singles_generator
+    contains
+        private
+        procedure, public :: gen_exc => abinit_PCHB_gen_exc
+        procedure, public :: get_pgen => abinit_PCHB_get_pgen
+        procedure, public :: gen_all_excits => abinit_PCHB_gen_all_excits
+        procedure, public :: finalize => abinit_PCHB_finalize
+        ! @jph TODO make abstract classic ab init excitation generator
     end type
 
     abstract interface
@@ -171,4 +190,55 @@ contains
         unused_var(this)
         call gen_excits(nI, n_excits, det_list, ex_flag=2)
     end subroutine
+
+    !!! ClassicAbInitExcitationGenerator_t methods !!!
+    subroutine abinit_PCHB_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+        ex, tParity, pGen, hel, store, part_type)
+        class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+
+        call gen_exc_sd(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+        ex, tParity, pGen, hel, store, part_type, &
+        this%singles_generator, this%doubles_generator)
+    end subroutine abinit_PCHB_gen_exc
+
+    real(dp) function abinit_PCHB_get_pgen(&
+            this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) &
+                result(pgen)
+        class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        pgen = get_pgen_sd(&
+                        nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, &
+                        this%singles_generator, this%doubles_generator)
+    end function abinit_PCHB_get_pgen
+
+
+    subroutine abinit_PCHB_gen_all_excits(this, nI, n_excits, det_list)
+        class(ClassicAbInitExcitationGenerator_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(out) :: n_excits
+        integer(n_int), allocatable, intent(out) :: det_list(:,:)
+        call gen_all_excits_sd(nI, n_excits, det_list, &
+                               this%singles_generator, this%doubles_generator)
+    end subroutine abinit_PCHB_gen_all_excits
+
+    subroutine abinit_PCHB_finalize(this)
+        class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
+        call this%doubles_generator%finalize()
+        call this%singles_generator%finalize()
+        deallocate(this%singles_generator)
+        deallocate(this%doubles_generator)
+    end subroutine abinit_PCHB_finalize
+
 end module

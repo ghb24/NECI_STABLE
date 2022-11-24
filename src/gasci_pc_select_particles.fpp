@@ -4,6 +4,7 @@
 
 module gasci_pc_select_particles
     use constants, only: dp, int64, stdout
+    use util_mod, only: EnumBase_t
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -17,7 +18,9 @@ module gasci_pc_select_particles
     use sets_mod, only: empty_int
     better_implicit_none
     public :: ParticleSelector_t, PC_WeightedParticlesOcc_t, &
-        UniformParticles_t, PC_FastWeightedParticles_t
+        UniformParticles_t, PC_FastWeightedParticles_t, &
+        PCHB_ParticleSelection_t, PCHB_particle_selections, &
+        GAS_PCHB_particle_selection
 
     type, abstract :: ParticleSelector_t
     contains
@@ -100,6 +103,25 @@ module gasci_pc_select_particles
         procedure, public :: draw => draw_PC_FastWeightedParticles_t
         procedure, public :: get_pgen => get_pgen_PC_FastWeightedParticles_t
     end type
+
+    ! PCHB particle selections
+
+    type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
+    end type
+
+    type :: possible_PCHB_ParticleSelection_t
+        type(PCHB_ParticleSelection_t) :: &
+            UNIFORM = PCHB_ParticleSelection_t(1), &
+            PC_WEIGHTED = PCHB_ParticleSelection_t(2), &
+            PC_WEIGHTED_APPROX = PCHB_ParticleSelection_t(3)
+    end type
+
+    type(possible_PCHB_ParticleSelection_t), parameter :: &
+        PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
+
+    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
+
+
 contains
 
     subroutine draw_UniformParticles_t(this, nI, i_sg, elecs, srcs, p)

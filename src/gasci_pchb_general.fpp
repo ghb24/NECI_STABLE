@@ -1,15 +1,12 @@
-!! this module covers the parts of the code shared by both the modules
-!! gasci_pchb and gasci_pchb_uhf
 #include "macros.h"
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
 module gasci_pchb_general
-    ! use constants, only: dp, n_int
-    ! use excitation_generators, only: SingleExcitationGenerator_t
-    ! use gasci, only: GASSpec_t
-    ! use gasci_supergroup_index, only: SuperGroupIndexer_t
-    ! use util_mod, only: EnumBase_t
+    !! precomputed heat bath implementation for GASCI. This modules implements
+    !! the excitation generator which builds on either gasci_pchb and gasci_pchb_uhf
+    !! depending on if we are working in spin or spatial orbitals.
+
     ! @jph remove unused modules (not sure how to determine?)
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
@@ -45,13 +42,17 @@ module gasci_pchb_general
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pc_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
-        PC_FastWeightedParticles_t, UniformParticles_t
+        PC_FastWeightedParticles_t, UniformParticles_t, &
+        PCHB_ParticleSelection_t
 
     use display_matrices, only: write_matrix
 
     use excitation_generators, only: &
             ExcitationGenerator_t, SingleExcitationGenerator_t, &
-            DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, gen_all_excits_sd
+            DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, &
+            gen_all_excits_sd, ClassicAbInitExcitationGenerator_t
+
+    use gasci_pchb_rhf, only: GAS_doubles_PCHB_ExcGenerator_t
     better_implicit_none
 
     ! @jph
@@ -59,12 +60,25 @@ module gasci_pchb_general
 
     private
     public :: possible_GAS_singles, GAS_PCHB_singles_generator, &
-              PCHB_particle_selections, PCHB_ParticleSelection_t, &
-              GAS_used_singles_t, GAS_singles_PC_uniform_ExcGenerator_t, &
-              GAS_singles_DiscardingGenerator_t, GAS_PCHB_particle_selection, &
-              use_supergroup_lookup
+              PCHB_ParticleSelection_t, GAS_used_singles_t, &
+              GAS_singles_PC_uniform_ExcGenerator_t, &
+              GAS_singles_DiscardingGenerator_t, use_supergroup_lookup, &
+              GAS_PCHB_ExcGenerator_t
 
     logical, parameter :: use_supergroup_lookup = .true.
+
+    type, extends(ClassicAbInitExcitationGenerator_t) :: GAS_PCHB_ExcGenerator_t
+        ! already has inherited doubles and singles generators
+        ! @jph TODO at the moment only RHF implemented(!)
+        ! type(GAS_doubles_PCHB_ExcGenerator_t) :: doubles_generator
+        ! NOTE: Change into class(SingleExcitationGenerator_t), allocatable
+        !   if you want to change singles_generators at runtime.
+        ! class(SingleExcitationGenerator_t), allocatable :: singles_generator
+    contains
+        private
+        procedure, public :: init => GAS_PCHB_init
+    end type
+
 
     !> The precomputed GAS uniform excitation generator
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_PC_uniform_ExcGenerator_t
@@ -121,25 +135,12 @@ module gasci_pchb_general
 
     type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
 
-    type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
-    end type
-
-    type :: possible_PCHB_ParticleSelection_t
-        type(PCHB_ParticleSelection_t) :: &
-            UNIFORM = PCHB_ParticleSelection_t(1), &
-            PC_WEIGHTED = PCHB_ParticleSelection_t(2), &
-            PC_WEIGHTED_APPROX = PCHB_ParticleSelection_t(3)
-    end type
-
-    type(possible_PCHB_ParticleSelection_t), parameter :: &
-        PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
 
 
     interface GAS_singles_DiscardingGenerator_t
         module procedure construct_GAS_singles_DiscardingGenerator_t
     end interface
 
-    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
 
 
 contains
@@ -393,6 +394,55 @@ contains
 
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
     end subroutine GAS_discarding_singles_gen_all_excits
+
+
+    !> @brief
+    !> Initialize the PCHB excitation generator. The doubles generator is implemented
+    !>  and fixed. A singles generator is required.
+    !>
+    !>  @param[in] GAS_spec The GAS specifications for the excitation generator.
+    !>  @param[in] use_lookup Use a lookup for the supergroup indexing.
+    !>  @param[in] singles_generator A **fully** initialized singles_generator
+    !>                  whose cleanup happens outside. Has to be a target.
+    ! @jph TODO add flexibility for UHF
+    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, &
+        used_singles_generator, PCHB_particle_selection)
+        class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GASSpec_t), intent(in) :: GAS_spec
+        logical, intent(in) :: use_lookup, create_lookup
+        type(GAS_used_singles_t), intent(in) :: used_singles_generator
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
+
+        call set_timer(GAS_PCHB_init_time)
+
+        if (used_singles_generator == possible_GAS_singles%DISCARDING_UNIFORM) then
+            write(stdout, *) 'GAS discarding singles activated'
+            allocate(this%singles_generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
+        else if (used_singles_generator == possible_GAS_singles%PC_UNIFORM) then
+            write(stdout, *) 'GAS precomputed singles activated'
+            allocate(GAS_singles_PC_uniform_ExcGenerator_t :: this%singles_generator)
+            select type(generator => this%singles_generator)
+            type is(GAS_singles_PC_uniform_ExcGenerator_t)
+                ! NOTE: only one of the excitation generators should manage the
+                !   supergroup lookup!
+                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+            end select
+        else if (used_singles_generator == possible_GAS_singles%ON_FLY_HEAT_BATH) then
+            write(stdout, *) 'GAS heat bath on the fly singles activated'
+            allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
+        end if
+
+        ! @jph at the moment only RHF
+        allocate(GAS_doubles_PCHB_ExcGenerator_t :: this%doubles_generator)
+        select type(generator => this%doubles_generator)
+        type is(GAS_doubles_PCHB_ExcGenerator_t)
+            ! @jph
+            ! NOTE: only RHF doubles excit implemented thus far
+            call generator%init(&
+                GAS_spec, use_lookup, create_lookup, PCHB_particle_selection)
+        end select
+        call halt_timer(GAS_PCHB_init_time)
+    end subroutine GAS_PCHB_init
 
 
 end module gasci_pchb_general

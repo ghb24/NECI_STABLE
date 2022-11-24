@@ -11,8 +11,9 @@ module exc_gen_classes
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
     use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name
     use gasci_discarding, only: GAS_DiscardingGenerator_t
-    use gasci_pchb_rhf, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
-        GAS_PCHB_singles_generator, GAS_PCHB_particle_selection
+    use gasci_pchb_general, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
+        GAS_PCHB_singles_generator
+    use gasci_pc_select_particles, only: GAS_PCHB_particle_selection
     use gasci_general, only: GAS_heat_bath_ExcGenerator_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
     use gasci_util, only: write_GAS_info

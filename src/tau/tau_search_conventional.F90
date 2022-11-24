@@ -43,7 +43,7 @@ module tau_search_conventional
 
     use gasci, only: possible_GAS_exc_gen, GAS_exc_gen
 
-    use gasci_pchb_rhf, only: GAS_PCHB_particle_selection, PCHB_particle_selections
+    use gasci_pc_select_particles, only: GAS_PCHB_particle_selection, PCHB_particle_selections
 
     implicit none
     private
