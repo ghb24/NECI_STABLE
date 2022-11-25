@@ -2,60 +2,67 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
+! The main idea of the precomputed Heat bath sampling (PCHB) is taken from
+!    J. Li, M. Otten, A. A. Holmes, S. Sharma, and C. J. Umrigar, J. Comput. Phys. 149, 214110 (2018).
+! and described there.
+! The main "ingredient" are precomputed probability distributions p(ab | ij) to draw a, b holes
+! when i, j electrons were chosen.
+! This requires #{i, j | i < j} probability distributions.
+!
+! The improved version to use spatial orbital indices to save memory is described in
+!    Guther K. et al., J. Chem. Phys. 153, 034107 (2020).
+! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx) to draw a, b holes
+! when i, j electrons were chosen for three distinc spin cases given by s_idx.
+! This gives #{i, j | i < j} * 3 probability distributions.
+! NOTE: This is only relevant for RHF-type calculations (see gasci_pchb_rhf.fpp)
+!
+! The generalization to GAS spaces is available in a preprint (should be available in JCTC soon as well)
+!    https://chemrxiv.org/engage/chemrxiv/article-details/61447e60b1d4a605d589af2e
+! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx, i_sg) to draw a, b holes
+! when i, j electrons were chosen for three distinc spin cases given by s_idx and a supergroup index i_sg
+! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
+! Depending on the supergroup and GAS constraints certain excitations can be forbidden by setting p to zero.
+!
+! The details of calculating i_sg can be found in gasci_supergroup_index.f90
+
 module gasci_pchb_general
     !! precomputed heat bath implementation for GASCI. This modules implements
     !! the excitation generator which builds on either gasci_pchb and gasci_pchb_uhf
     !! depending on if we are working in spin or spatial orbitals.
 
-    ! @jph remove unused modules (not sure how to determine?)
-    use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
+    ! note: these two are used discreetly by macros (bad style)
+    ! constants : bits_n_int
+    ! orb_idx_mod : operator(==)
+    use constants, only: n_int, dp, maxExcit, stdout, int32, bits_n_int
+    use orb_idx_mod, only: calc_spin_raw, operator(==)
     use exc_gen_class_wrappers, only: UniformSingles_t
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
-        operator(.div.), operator(.implies.), EnumBase_t, &
-        operator(.isclose.), swap, stop_all
+    use util_mod, only: operator(.implies.), EnumBase_t, stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use get_excit, only: make_double, exciteIlut
-    use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
-    use sltcnd_mod, only: sltcnd_excit
-    use procedure_pointers, only: generate_single_excit_t
-    use aliasSampling, only: AliasSampler_3D_t
-    use UMatCache, only: gtID, numBasisIndices
-    use FciMCData, only: pSingles, excit_gen_store_type, pParallel, &
-        projEDet, GAS_PCHB_init_time
-    use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
-    use shared_ragged_array, only: shared_ragged_array_int32_t
-    use parallel_neci, only: iProcIndex_intra
+    use SymExcitDataMod, only: ScratchSize
+    use excitation_types, only: SingleExc_t
+    use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
+    use excit_gens_int_weighted, only: pick_biased_elecs
     use get_excit, only: make_single
     use timing_neci, only: timer, set_timer, halt_timer
 
-    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
+    use SystemData, only: nEl
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use sort_mod, only: sort
-    use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
 
     use gasci, only: GASSpec_t
     use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use gasci_pc_select_particles, only: &
-        ParticleSelector_t, PC_WeightedParticlesOcc_t, &
-        PC_FastWeightedParticles_t, UniformParticles_t, &
-        PCHB_ParticleSelection_t
+    use gasci_pc_select_particles, only: PCHB_ParticleSelection_t
 
-    use display_matrices, only: write_matrix
+    use excitation_generators, only: ClassicAbInitExcitationGenerator_t, &
+            ExcitationGenerator_t, SingleExcitationGenerator_t
 
-    use excitation_generators, only: &
-            ExcitationGenerator_t, SingleExcitationGenerator_t, &
-            DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, &
-            gen_all_excits_sd, ClassicAbInitExcitationGenerator_t
 
-    use gasci_pchb_rhf, only: GAS_doubles_PCHB_ExcGenerator_t
+    use gasci_pchb_rhf, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
     better_implicit_none
 
-    ! @jph
     ! NOTE pchb hole selection is different between the two (RHF, UHF)
 
     private
@@ -144,8 +151,6 @@ module gasci_pchb_general
 
 
 contains
-    ! @jph TODO implementation
-
     subroutine GAS_singles_uniform_init(this, GAS_spec, use_lookup, create_lookup)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
@@ -406,12 +411,15 @@ contains
     !>                  whose cleanup happens outside. Has to be a target.
     ! @jph TODO add flexibility for UHF
     subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, &
-        used_singles_generator, PCHB_particle_selection)
+        used_singles_generator, PCHB_particle_selection, is_uhf)
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
+        logical, intent(in), optional :: is_uhf
+        logical :: is_uhf_
+        @:def_default(is_uhf_, is_uhf, .false.)
 
         call set_timer(GAS_PCHB_init_time)
 
@@ -432,15 +440,17 @@ contains
             allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
         end if
 
-        ! @jph at the moment only RHF
-        allocate(GAS_doubles_PCHB_ExcGenerator_t :: this%doubles_generator)
-        select type(generator => this%doubles_generator)
-        type is(GAS_doubles_PCHB_ExcGenerator_t)
-            ! @jph
-            ! NOTE: only RHF doubles excit implemented thus far
-            call generator%init(&
-                GAS_spec, use_lookup, create_lookup, PCHB_particle_selection)
-        end select
+        ! @jph at the moment only RHF -- implement UHF
+        if (is_uhf_) then
+            write(stdout, *) 'UHF PCHB not yet implemented :('
+        else
+            allocate(GAS_doubles_RHF_PCHB_ExcGenerator_t :: this%doubles_generator)
+            select type(generator => this%doubles_generator)
+            type is(GAS_doubles_RHF_PCHB_ExcGenerator_t)
+                call generator%init(&
+                    GAS_spec, use_lookup, create_lookup, PCHB_particle_selection)
+            end select
+        end if
         call halt_timer(GAS_PCHB_init_time)
     end subroutine GAS_PCHB_init
 

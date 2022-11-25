@@ -46,8 +46,6 @@ module excitation_generators
         !! this abstract excitation generator covers all ab initio Hamiltonians
         !! in the typical sense (i.e. up to double excitations)
         private
-        ! class(GAS_doubles_PCHB_ExcGenerator_t), allocatable :: doubles_generator
-        ! @jph make allocatable to be defined at run time
         class(DoubleExcitationGenerator_t), public, allocatable :: doubles_generator
         ! NOTE: Change into class(SingleExcitationGenerator_t), allocatable
         !   if you want to change singles_generators at runtime.
@@ -58,7 +56,6 @@ module excitation_generators
         procedure, public :: get_pgen => abinit_PCHB_get_pgen
         procedure, public :: gen_all_excits => abinit_PCHB_gen_all_excits
         procedure, public :: finalize => abinit_PCHB_finalize
-        ! @jph TODO make abstract classic ab init excitation generator
     end type
 
     abstract interface

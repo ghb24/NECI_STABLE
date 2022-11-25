@@ -2,78 +2,35 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-! The main idea of the precomputed Heat bath sampling (PCHB) is taken from
-!    J. Li, M. Otten, A. A. Holmes, S. Sharma, and C. J. Umrigar, J. Comput. Phys. 149, 214110 (2018).
-! and described there.
-! The main "ingredient" are precomputed probability distributions p(ab | ij) to draw a, b holes
-! when i, j electrons were chosen.
-! This requires #{i, j | i < j} probability distributions.
-!
-! The improved version to use spatial orbital indices to save memory is described in
-!    Guther K. et al., J. Chem. Phys. 153, 034107 (2020).
-! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx) to draw a, b holes
-! when i, j electrons were chosen for three distinc spin cases given by s_idx.
-! This gives #{i, j | i < j} * 3 probability distributions.
-!
-! The generalization to GAS spaces is available in a preprint (should be available in JCTC soon as well)
-!    https://chemrxiv.org/engage/chemrxiv/article-details/61447e60b1d4a605d589af2e
-! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx, i_sg) to draw a, b holes
-! when i, j electrons were chosen for three distinc spin cases given by s_idx and a supergroup index i_sg
-! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
-! Depending on the supergroup and GAS constraints certain excitations can be forbidden by setting p to zero.
-!
-! The details of calculating i_sg can be found in gasci_supergroup_index.f90
-
 module gasci_pchb_rhf
-    ! @jph remove unused modules (not sure how to determine?)
+    !! precomputed heat bath implementation for GASCI using spatial orbitals
+    !! this module should not be called by any other besides gasci_pchb_general
     use constants, only: n_int, dp, int64, maxExcit, stdout
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
-        operator(.div.), operator(.implies.), EnumBase_t, &
-        operator(.isclose.), swap, stop_all
+        operator(.implies.), operator(.isclose.), swap, stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
+    use excitation_types, only: DoubleExc_t, excite
     use sltcnd_mod, only: sltcnd_excit
-    use procedure_pointers, only: generate_single_excit_t
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
-    use FciMCData, only: pSingles, excit_gen_store_type, pParallel, &
-        projEDet, GAS_PCHB_init_time
-    use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
-    use shared_ragged_array, only: shared_ragged_array_int32_t
-    use parallel_neci, only: iProcIndex_intra
-    use get_excit, only: make_single
-    use timing_neci, only: timer, set_timer, halt_timer
-
-    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
-    use bit_rep_data, only: NIfTot, nIfD
-    use bit_reps, only: decode_bit_det
-    use sort_mod, only: sort
-    use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
-
+    use FciMCData, only: excit_gen_store_type, projEDet
+    use excit_gens_int_weighted, only: pick_biased_elecs
+    use SystemData, only: nEl
+    use bit_rep_data, only: NIfTot
     use gasci, only: GASSpec_t
-    use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pc_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         PC_FastWeightedParticles_t, UniformParticles_t, &
         PCHB_ParticleSelection_t, PCHB_particle_selections
-
-    use display_matrices, only: write_matrix
-
-    use excitation_generators, only: &
-            SingleExcitationGenerator_t, &
-            DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, gen_all_excits_sd
+    use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
 
-    ! @jph
-    public
-    ! private
-    ! ! TODO make public section again once the GAS_PCHB_generator has been moved/abstracted
-    ! public :: GAS_PCHB_ExcGenerator_t, GAS_doubles_PCHB_ExcGenerator_t
+    private
+    public :: GAS_doubles_RHF_PCHB_ExcGenerator_t
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
@@ -85,7 +42,7 @@ module gasci_pchb_rhf
 
 
     !> The GAS PCHB excitation generator for doubles
-    type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
+    type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_RHF_PCHB_ExcGenerator_t
         private
         !> Use a lookup for the supergroup index in global_det_data
         logical, public :: use_lookup = .false.
@@ -124,7 +81,7 @@ contains
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
     subroutine GAS_doubles_PCHB_init(this, GAS_spec, &
             use_lookup, create_lookup, PCHB_particle_selection)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
@@ -175,7 +132,7 @@ contains
     !>  @brief
     !>  Deallocate the sampler and the mapping ab -> (a,b)
     subroutine GAS_doubles_PCHB_finalize(this)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
 
         call this%pchb_samplers%finalize()
         call this%particle_selector%finalize()
@@ -206,7 +163,7 @@ contains
     subroutine GAS_doubles_PCHB_gen_exc(&
                     this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                     ex, tParity, pGen, hel, store, part_type)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -334,7 +291,7 @@ contains
     !>
     !>  @return pgen  probability of generating this double with the pchb double excitgen
     function GAS_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
@@ -377,7 +334,7 @@ contains
 
 
     subroutine GAS_doubles_PCHB_compute_samplers(this, nBI, PCHB_particle_selection)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: i, j, ij, ijMax
@@ -516,7 +473,7 @@ contains
 
 
     subroutine GAS_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)

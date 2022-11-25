@@ -11,7 +11,7 @@ module pchb_excitgen
     use gasci, only: GASSpec_t, LocalGASSpec_t
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, get_pgen_sd, gen_exc_sd, gen_all_excits_sd
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_pchb_rhf, only: GAS_doubles_PCHB_ExcGenerator_t
+    use gasci_pchb_rhf, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
         ! @jph TODO should no longer need this once this is abstracted(!)
     use gasci_pc_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
     better_implicit_none
@@ -23,7 +23,7 @@ module pchb_excitgen
 
     type, extends(ExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
         private
-        type(GAS_doubles_PCHB_ExcGenerator_t) :: doubles_generator
+        type(GAS_doubles_RHF_PCHB_ExcGenerator_t) :: doubles_generator
         class(SingleExcitationGenerator_t), allocatable :: singles_generator
     contains
         private
