@@ -21,11 +21,17 @@ module test_gasci_general_pchb
     use SystemData, only: nEl
     implicit none
     private
-    public :: test_pgen
+    public :: test_pgen_rhf_hermitian
 
 contains
 
-    subroutine test_pgen()
+    ! @jph more tests here, at least:
+    ! - [x] rhf hermitian
+    ! - [ ] uhf hermitian
+    ! - [ ] rhf nonhermitian
+    ! - [ ] uhf nonhermitian
+
+    subroutine test_pgen_rhf_hermitian()
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
@@ -34,6 +40,7 @@ contains
         logical :: successful
         integer :: n_interspace_exc
         integer, parameter :: n_iters=10**7
+        logical :: is_uhf = .false.
 
         pParallel = 0.05_dp
         pSingles = 0.2_dp
@@ -49,7 +56,8 @@ contains
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
-                                    PCHB_particle_selection=PCHB_particle_selections%UNIFORM)
+                                    PCHB_particle_selection=PCHB_particle_selections%UNIFORM, &
+                                    is_uhf=.false.)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -71,7 +79,8 @@ contains
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
-                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED)
+                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED, &
+                                    is_uhf=is_uhf)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -92,7 +101,8 @@ contains
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
-                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED_APPROX)
+                                    PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED_APPROX, &
+                                    is_uhf=is_uhf)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -126,7 +136,7 @@ contains
                 (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
-    end subroutine test_pgen
+    end subroutine test_pgen_rhf_hermitian
 
 end module
 
@@ -137,7 +147,7 @@ program test_gasci_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen
+    use test_gasci_general_pchb, only: test_pgen_rhf_hermitian
 
 
     implicit none
@@ -163,6 +173,6 @@ program test_gasci_program
 contains
 
     subroutine test_gasci_driver()
-        call run_test_case(test_pgen, "test_pgen")
+        call run_test_case(test_pgen_rhf_hermitian, "test_pgen")
     end subroutine
 end program test_gasci_program

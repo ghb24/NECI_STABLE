@@ -18,11 +18,15 @@ module test_pchb_excitgen_mod
 
 contains
 
+    ! @jph more tests here
+
     subroutine pchb_test_driver()
+        ! @jph TODO at the moment only hermitian, rhf
         integer, parameter :: n_iters = 5 * 10**7
         type(PCHB_FCI_excit_generator_t) :: exc_generator
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10], n_spat_orb = 10
         logical :: successful
+        logical :: is_uhf = .false.
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
@@ -30,7 +34,8 @@ contains
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
-        call exc_generator%init(PCHB_particle_selections%UNIFORM, possible_PCHB_singles%UNIFORM)
+        call exc_generator%init(PCHB_particle_selections%UNIFORM, possible_PCHB_singles%UNIFORM, &
+                                is_uhf=is_uhf)
 
         call run_excit_gen_tester( &
             exc_generator, 'PCHB FCI', &

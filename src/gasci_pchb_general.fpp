@@ -61,6 +61,7 @@ module gasci_pchb_general
 
 
     use gasci_pchb_rhf, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
+    ! use gasci_pchb_uhf, only: ...
     better_implicit_none
 
     ! NOTE pchb hole selection is different between the two (RHF, UHF)
@@ -417,9 +418,7 @@ contains
         logical, intent(in) :: use_lookup, create_lookup
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        logical, intent(in), optional :: is_uhf
-        logical :: is_uhf_
-        @:def_default(is_uhf_, is_uhf, .false.)
+        logical, intent(in):: is_uhf
 
         call set_timer(GAS_PCHB_init_time)
 
@@ -441,8 +440,8 @@ contains
         end if
 
         ! @jph at the moment only RHF -- implement UHF
-        if (is_uhf_) then
-            write(stdout, *) 'UHF PCHB not yet implemented :('
+        if (is_uhf) then
+            call stop_all('gas init', 'UHF PCHB not yet implemented :(')
         else
             allocate(GAS_doubles_RHF_PCHB_ExcGenerator_t :: this%doubles_generator)
             select type(generator => this%doubles_generator)

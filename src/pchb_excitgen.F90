@@ -1,18 +1,13 @@
 #include "macros.h"
 module pchb_excitgen
-    use constants, only: n_int, dp, maxExcit
-    use SystemData, only: nel, nBasis
+    use SystemData, only: nEl, nBasis
     use util_mod, only: operator(.div.), EnumBase_t, stop_all
-    use bit_rep_data, only: NIfTot
-    use FciMCData, only: pSingles, excit_gen_store_type, pDoubles
-    use SymExcitDataMod, only: ScratchSize
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
 
     use gasci, only: GASSpec_t, LocalGASSpec_t
-    use excitation_generators, only: ClassicAbInitExcitationGenerator_t, SingleExcitationGenerator_t
+    use excitation_generators, only: ClassicAbInitExcitationGenerator_t
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use gasci_pchb_rhf, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
-        ! @jph TODO should no longer need this once this is abstracted(!)
     use gasci_pc_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
     better_implicit_none
 
@@ -49,16 +44,14 @@ contains
         class(PCHB_FCI_excit_generator_t), intent(inout) :: this
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         type(PCHB_used_singles_t), intent(in) :: PCHB_singles
-        logical, intent(in), optional :: is_uhf
-        logical :: is_uhf_
+        logical, intent(in) :: is_uhf
         character(*), parameter :: this_routine = 'pchb_excitgen::init'
 
-        def_default(is_uhf_, is_uhf, .false.)
         ! CAS is implemented as a special case of GAS with only one GAS space.
         ! Since a GAS specification with one GAS space is trivially disconnected, there
         ! is no point to use the lookup.
-        ! @jph TODO implement RHF
-        if (is_uhf_) then
+        ! @jph TODO implement UHF
+        if (is_uhf) then
             call stop_all(this_routine, 'UHF PCHB not yet implemented :(')
         else
             allocate(GAS_doubles_RHF_PCHB_ExcGenerator_t :: this%doubles_generator)
