@@ -23,24 +23,43 @@ module test_gasci_general_pchb
     private
     public :: test_pgen_rhf_hermitian
 
+    type :: random_fcidump_writer_t
+        logical :: uhf
+        logical :: hermitian
+    contains
+        private
+        procedure, public :: random_fcidump_member
+    end type random_fcidump_writer_t
+
+
 contains
 
-    ! @jph more tests here, at least:
+    ! @jph more tests here, at least (these can be done through one function):
     ! - [x] rhf hermitian
     ! - [ ] uhf hermitian
     ! - [ ] rhf nonhermitian
     ! - [ ] uhf nonhermitian
 
+    subroutine test_pgen_general(uhf, hermitian)
+        logical :: uhf, hermitian
+        ! dumpwriter = random_fcidump_writer_t(uhf=uhf, hermitian=hermitian)
+        ! @jph
+
+    end subroutine test_pgen_general
+
     subroutine test_pgen_rhf_hermitian()
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
+        type(random_fcidump_writer_t) :: dumpwriter
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
         integer :: n_interspace_exc
         integer, parameter :: n_iters=10**7
         logical :: is_uhf = .false.
+
+        dumpwriter = random_fcidump_writer_t(uhf=is_uhf, hermitian=.true.)
 
         pParallel = 0.05_dp
         pSingles = 0.2_dp
@@ -57,7 +76,7 @@ contains
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
                                     PCHB_particle_selection=PCHB_particle_selections%UNIFORM, &
-                                    is_uhf=.false.)
+                                    is_uhf=is_uhf)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -114,20 +133,13 @@ contains
             call finalize_excitgen_test()
         end do
 
-
-
     contains
 
         subroutine random_fcidump(iunit)
             integer, intent(in) :: iunit
-            integer :: n_spat_orb, iGAS
-
-            n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
-
-            call generate_random_integrals(&
-                iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
-                sparse=0.5_dp, sparseT=0.5_dp, total_ms=sum(calc_spin_raw(det_I)))
-        end subroutine
+            ! dumpwriter comes from the host subroutine
+            call dumpwriter%random_fcidump_member(iunit, GAS_spec, det_I)
+        end subroutine random_fcidump
 
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
@@ -137,6 +149,26 @@ contains
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
     end subroutine test_pgen_rhf_hermitian
+
+    subroutine random_fcidump_member(this, iunit, GAS_spec, det_I)
+        ! uhf, hermitian
+        ! @jph TODO the uhf, hermitian cannot stay here if it is to work with the way the tests work right now
+        class(random_fcidump_writer_t), intent(inout) :: this
+        type(LocalGASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: det_I(:)
+        integer, intent(in) :: iunit
+        integer :: n_spat_orb, iGAS
+
+        ! @ jph *temporary*
+        logical :: uhf = .false., hermitian = .true.
+
+        n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
+
+        call generate_random_integrals(&
+            iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
+            sparse=0.5_dp, sparseT=0.5_dp, total_ms=sum(calc_spin_raw(det_I)), &
+            uhf=this%uhf, hermitian=this%hermitian)
+    end subroutine
 
 end module
 
