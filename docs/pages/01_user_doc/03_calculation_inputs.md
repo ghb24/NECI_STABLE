@@ -1537,6 +1537,21 @@ keyword.
     With this keyword the user can explicitly say that they want to sample RDMs without
     replica.
 
+-   **ci-coefficients [\(n\) \(excitation\)]**<br>
+    Enables the collection of CI coefficients and their average over a number of iterations.
+    The outputs are printed in separate ASCII files named `ci_coeff_*_av`.
+    Additional files named `ci_coeff_*` are printed in a sorted manner that can directly be fed into
+    Molpro [@MOLPRO-JCP] for tailored Coupled/Distinguishable Cluster calculations
+    [@Vitale2020]-[@Vitale2022].
+    The optional argument \textit{n} is the number of iterations for averaging the CI coefficients
+    and defaults to 1000.
+    The optional \textit{excitation} keyword is the excitation level of the CI coefficients to be
+    collected and defaults to 2 (e.g. \textit{excitation} = 2, only singles and doubles are
+    collected).
+    Only collections of CI coefficients up to triples (\textit{excitation} = 3) are available.
+    The semi-stochastic approach is recommended, in order to reach a lower stochastic error
+    for equal time averaging of the CI coefficients.
+
 
 
 #### Semi-stochastic output options
