@@ -21,7 +21,8 @@ module test_gasci_general_pchb
     use SystemData, only: nEl
     implicit none
     private
-    public :: test_pgen_rhf_hermitian
+    public :: test_pgen_rhf_hermitian, test_pgen_uhf_hermitian, &
+              test_pgen_rhf_nonhermitian, test_pgen_uhf_nonhermitian
 
     type :: random_fcidump_writer_t
         logical :: uhf
@@ -34,21 +35,25 @@ module test_gasci_general_pchb
 
 contains
 
-    ! @jph more tests here, at least (these can be done through one function):
-    ! - [x] rhf hermitian
-    ! - [ ] uhf hermitian
-    ! - [ ] rhf nonhermitian
-    ! - [ ] uhf nonhermitian
+    subroutine test_pgen_rhf_hermitian()
+        call test_pgen_general(.false., .true.)
+    end subroutine test_pgen_rhf_hermitian
+
+    subroutine test_pgen_uhf_hermitian()
+        call test_pgen_general(.true., .true.)
+    end subroutine test_pgen_uhf_hermitian
+
+    subroutine test_pgen_rhf_nonhermitian()
+        call test_pgen_general(.false., .false.)
+    end subroutine test_pgen_rhf_nonhermitian
+
+    subroutine test_pgen_uhf_nonhermitian()
+        call test_pgen_general(.true., .false.)
+    end subroutine test_pgen_uhf_nonhermitian
 
     subroutine test_pgen_general(uhf, hermitian)
-        logical :: uhf, hermitian
-        ! dumpwriter = random_fcidump_writer_t(uhf=uhf, hermitian=hermitian)
-        ! @jph
-
-    end subroutine test_pgen_general
-
-    subroutine test_pgen_rhf_hermitian()
         use FciMCData, only: pSingles, pDoubles, pParallel
+        logical, intent(in) :: uhf, hermitian
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
         type(random_fcidump_writer_t) :: dumpwriter
@@ -57,9 +62,8 @@ contains
         logical :: successful
         integer :: n_interspace_exc
         integer, parameter :: n_iters=10**7
-        logical :: is_uhf = .false.
 
-        dumpwriter = random_fcidump_writer_t(uhf=is_uhf, hermitian=.true.)
+        dumpwriter = random_fcidump_writer_t(uhf=uhf, hermitian=hermitian)
 
         pParallel = 0.05_dp
         pSingles = 0.2_dp
@@ -76,7 +80,7 @@ contains
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
                                     PCHB_particle_selection=PCHB_particle_selections%UNIFORM, &
-                                    is_uhf=is_uhf)
+                                    is_uhf=uhf)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -99,7 +103,7 @@ contains
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
                                     PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED, &
-                                    is_uhf=is_uhf)
+                                    is_uhf=uhf)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -121,7 +125,7 @@ contains
             call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM, &
                                     PCHB_particle_selection=PCHB_particle_selections%PC_WEIGHTED_APPROX, &
-                                    is_uhf=is_uhf)
+                                    is_uhf=uhf)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -148,7 +152,7 @@ contains
                 (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
-    end subroutine test_pgen_rhf_hermitian
+    end subroutine test_pgen_general
 
     subroutine random_fcidump_member(this, iunit, GAS_spec, det_I)
         ! uhf, hermitian
@@ -179,7 +183,10 @@ program test_gasci_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen_rhf_hermitian
+    use test_gasci_general_pchb, only: test_pgen_rhf_hermitian, &
+                                       test_pgen_uhf_hermitian, &
+                                       test_pgen_rhf_nonhermitian, &
+                                       test_pgen_uhf_nonhermitian
 
 
     implicit none
@@ -205,6 +212,9 @@ program test_gasci_program
 contains
 
     subroutine test_gasci_driver()
-        call run_test_case(test_pgen_rhf_hermitian, "test_pgen")
+        call run_test_case(test_pgen_rhf_hermitian, "test_pgen_rhf_hermitian")
+        call run_test_case(test_pgen_uhf_hermitian, "test_pgen_uhf_hermitian")
+        call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
+        call run_test_case(test_pgen_uhf_nonhermitian, "test_pgen_uhf_nonhermitian")
     end subroutine
 end program test_gasci_program
