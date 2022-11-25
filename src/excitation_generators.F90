@@ -52,10 +52,10 @@ module excitation_generators
         class(SingleExcitationGenerator_t), public, allocatable :: singles_generator
     contains
         private
-        procedure, public :: gen_exc => abinit_PCHB_gen_exc
-        procedure, public :: get_pgen => abinit_PCHB_get_pgen
-        procedure, public :: gen_all_excits => abinit_PCHB_gen_all_excits
-        procedure, public :: finalize => abinit_PCHB_finalize
+        procedure, public :: gen_exc => abinit_gen_exc
+        procedure, public :: get_pgen => abinit_get_pgen
+        procedure, public :: gen_all_excits => abinit_gen_all_excits
+        procedure, public :: finalize => abinit_finalize
     end type
 
     abstract interface
@@ -189,7 +189,7 @@ contains
     end subroutine
 
     !!! ClassicAbInitExcitationGenerator_t methods !!!
-    subroutine abinit_PCHB_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+    subroutine abinit_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
         ex, tParity, pGen, hel, store, part_type)
         class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
@@ -205,9 +205,9 @@ contains
         call gen_exc_sd(nI, ilutI, nJ, ilutJ, exFlag, ic, &
         ex, tParity, pGen, hel, store, part_type, &
         this%singles_generator, this%doubles_generator)
-    end subroutine abinit_PCHB_gen_exc
+    end subroutine abinit_gen_exc
 
-    real(dp) function abinit_PCHB_get_pgen(&
+    real(dp) function abinit_get_pgen(&
             this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) &
                 result(pgen)
         class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
@@ -218,24 +218,24 @@ contains
         pgen = get_pgen_sd(&
                         nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, &
                         this%singles_generator, this%doubles_generator)
-    end function abinit_PCHB_get_pgen
+    end function abinit_get_pgen
 
 
-    subroutine abinit_PCHB_gen_all_excits(this, nI, n_excits, det_list)
+    subroutine abinit_gen_all_excits(this, nI, n_excits, det_list)
         class(ClassicAbInitExcitationGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
         call gen_all_excits_sd(nI, n_excits, det_list, &
                                this%singles_generator, this%doubles_generator)
-    end subroutine abinit_PCHB_gen_all_excits
+    end subroutine abinit_gen_all_excits
 
-    subroutine abinit_PCHB_finalize(this)
+    subroutine abinit_finalize(this)
         class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
         call this%doubles_generator%finalize()
         call this%singles_generator%finalize()
         deallocate(this%singles_generator)
         deallocate(this%doubles_generator)
-    end subroutine abinit_PCHB_finalize
+    end subroutine abinit_finalize
 
 end module

@@ -4,7 +4,6 @@
 
 module gasci_pchb_rhf
     !! precomputed heat bath implementation for GASCI using spatial orbitals
-    !! this module should not be called by any other besides gasci_pchb_general
     use constants, only: n_int, dp, int64, maxExcit, stdout
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
         operator(.implies.), operator(.isclose.), swap, stop_all
@@ -37,9 +36,6 @@ module gasci_pchb_rhf
     ! 2 - opp spin case without exchange
     ! 3 - opp spin case with exchange
     integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
-
-
-
 
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_RHF_PCHB_ExcGenerator_t
