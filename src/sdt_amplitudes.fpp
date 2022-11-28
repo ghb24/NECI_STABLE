@@ -170,7 +170,7 @@ contains
 
     integer  :: i,ic,ex(2,4),icI,signCI
     integer  :: indCoef(2,n_store_ci_level),Itot(nbasis)
-    real(dp) :: sign_tmp(lenof_sign)
+    real(dp) :: sign_tmp(lenof_sign), ref_coef
     logical  :: tPar
 
     if(iProcIndex.eq.root) then
@@ -219,35 +219,34 @@ contains
                select case(icI) ! writing averaged CI coefficients
                case(0)  ! reference
                   write(stdout,"(A44,F14.3)") 'Instantaneous number of walkers on HF     = ', AllNoatHF
-                  AllNoatHF = -sign_tmp/nCyc
-                  write(stdout,"(A44,F14.3)") 'Averaged number of walkers on HF          = ', AllNoatHF
+                  ref_coef = -sign_tmp(1)
+                  write(stdout,"(A44,F14.3)") 'Averaged number of walkers on HF          = ', -sign_tmp/nCyc
                   write(stdout,"(A44,I10)") 'Total entries of CI coefficients          = ', root_first_free_entry
                case(1)  ! singles
                  totEntCoeff(icI,1) = totEntCoeff(icI,1) + 1        ! total entries for singles
-                 write(31,'(G20.12,2I5)') sign_tmp/(AllNoatHf(1)*nCyc), &
-                                          ex(1,1),ex(2,1)
+                 write(31,'(G20.12,2I5)') sign_tmp/ref_coef,ex(1,1),ex(2,1)
                  if(.not. near_zero(sign_tmp(1))) then
                    totEntCoeff(icI,2) = totEntCoeff(icI,2) + 1      ! total entries for singles without zeros
-                   write(41,'(G20.12,2I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
+                   write(41,'(G20.12,2I5)') signCI*(sign_tmp/ref_coef),&
                                             indCoef(1,1),indCoef(2,1)
                  endif
                case(2)  ! doubles
                  totEntCoeff(icI,1) = totEntCoeff(icI,1) + 1        ! total entries for doubles
-                 write(32,'(G20.12,4I5)') sign_tmp/(AllNoatHf(1)*nCyc),ex(1,1),&
+                 write(32,'(G20.12,4I5)') sign_tmp/ref_coef,ex(1,1),&
                                           ex(2,1),ex(1,2),ex(2,2)
                  if(.not. near_zero(sign_tmp(1))) then
                    totEntCoeff(icI,2) = totEntCoeff(icI,2) + 1      ! total entries for doubles without zeros
-                   write(42,'(G20.12,4I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
+                   write(42,'(G20.12,4I5)') signCI*(sign_tmp/ref_coef),&
                                indCoef(1,1),indCoef(2,1),indCoef(1,2),indCoef(2,2)
                  endif
                case(3)  ! triples
                  totEntCoeff(icI,1) = totEntCoeff(icI,1) + 1        ! total entries for triples
-                 write(33,'(G20.12,6I5)') sign_tmp/(AllNoatHf(1)*nCyc),ex(1,1),&
+                 write(33,'(G20.12,6I5)') sign_tmp/ref_coef,ex(1,1),&
                                           ex(2,1),ex(1,2),ex(2,2),ex(1,3),ex(2,3)
                  if(.not. near_zero(sign_tmp(1))) then
                    totEntCoeff(icI,2) = totEntCoeff(icI,2) + 1      ! total entries for triples without zeros
-                   write(43,'(G20.12,6I5)') signCI*(sign_tmp/(AllNoatHf(1)*nCyc)),&
-                     indCoef(1,1),indCoef(2,1),indCoef(1,2),indCoef(2,2),indCoef(1,3),indCoef(2,3)
+                   write(43,'(G20.12,6I5)') signCI*(sign_tmp/ref_coef),indCoef(1,1),&
+                   indCoef(2,1),indCoef(1,2),indCoef(2,2),indCoef(1,3),indCoef(2,3)
                  endif
                end select
             end if
