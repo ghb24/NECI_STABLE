@@ -136,7 +136,8 @@ contains
         @:safe_deallocate(this%tgtOrbs)
         @:safe_deallocate(this%pExch)
 
-        @:safe_deallocate(this%indexer)
+        ! @:safe_
+        deallocate(this%indexer) ! pointer, so allocated(...) does not work
 
         if (this%create_lookup) then
             nullify(lookup_supergroup_indexer)
@@ -476,9 +477,5 @@ contains
 
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
     end subroutine GAS_doubles_PCHB_gen_all_excits
-
-
-
-
 
 end module gasci_pchb_rhf
