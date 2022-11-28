@@ -156,15 +156,11 @@ contains
 
     subroutine random_fcidump_member(this, iunit, GAS_spec, det_I)
         ! uhf, hermitian
-        ! @jph TODO the uhf, hermitian cannot stay here if it is to work with the way the tests work right now
         class(random_fcidump_writer_t), intent(inout) :: this
         type(LocalGASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
         integer, intent(in) :: iunit
         integer :: n_spat_orb, iGAS
-
-        ! @ jph *temporary*
-        logical :: uhf = .false., hermitian = .true.
 
         n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
 
@@ -216,5 +212,5 @@ contains
         call run_test_case(test_pgen_uhf_hermitian, "test_pgen_uhf_hermitian")
         call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
         call run_test_case(test_pgen_uhf_nonhermitian, "test_pgen_uhf_nonhermitian")
-    end subroutine
+    end subroutine test_gasci_driver
 end program test_gasci_program
