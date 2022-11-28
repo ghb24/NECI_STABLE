@@ -1543,12 +1543,13 @@ keyword.
     Additional files named `ci_coeff_*` are printed in a sorted manner that can directly be fed into
     Molpro [@MOLPRO-JCP] for tailored Coupled/Distinguishable Cluster calculations
     [@Vitale2020]-[@Vitale2022].
-    The optional argument \textit{n} is the number of iterations for averaging the CI coefficients
-    and defaults to 1000.
-    The optional \textit{excitation} keyword is the excitation level of the CI coefficients to be
-    collected and defaults to 2 (e.g. \textit{excitation} = 2, only singles and doubles are
-    collected).
-    Only collections of CI coefficients up to triples (\textit{excitation} = 3) are available.
+    The optional argument \textit{n} is the number of iterations for averaging the CI coefficients.
+    The latter can start only after the NECI run reaches the preset number of walkers.
+    \textit{n} defaults to 1000 and takes place in the last iterations (e.g. NMCYC = 10000,
+    then the CI coefficients collection would start at iteration 9001).
+    The second optional argument is the \textit{excitation} level of the CI coefficients
+    to be collected and defaults to 2 (i.e., only singles and doubles are collected).
+    CI coefficients up to triples (i.e. setting \textit{excitation} = 3) are available.
     The semi-stochastic approach is recommended, in order to reach a lower stochastic error
     for equal time averaging of the CI coefficients.
 
