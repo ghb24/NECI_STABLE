@@ -23,6 +23,7 @@ module gasci_pchb_uhf
     ! unit_tests/pcpp_excitgen/test_aliasTables.F90 (don't need to change)
     !==========================================================================!
     use constants, only: dp, n_int, maxExcit
+    use util_mod, only: operator(.isclose.)
     use FciMCData, only: excit_gen_store_type
     use SystemData, only: nEl
     use SymExcitDataMod, only: ScratchSize
@@ -137,14 +138,29 @@ contains
 #ifdef WARNING_WORKAROUND_
         hel = h_cast(0._dp) ! macro
 #endif
-        ! if (this%use_lookup) then
-        !     ! i_sg = this%
-        !     ! @jph
-        ! else
-        !     ! @jph
-        ! end if
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+        else
+            i_sg = this%indexer%idx_nI
+        end if
+
+        ! pick two random electrons
+        call this%particle_selector%draw(nI, i_sg, elecs, src, pgen)
+        if (src(1) == 0) then
+            call invalidate()
+            return
+        end if
 
         ! @jph stub
+
+    contains
+
+        subroutine invalidate()
+            nJ = 0
+            ilutJ = 0_n_int
+            ex(1, 1 : 2) = src
+            ex(2, 1 : 2) = orbs
+        end subroutine invalidate
 
     end subroutine GAS_doubles_PCHB_uhf_gen_exc
 
