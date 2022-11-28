@@ -9,6 +9,7 @@ module test_gasci_general_pchb
 
     use gasci, only: LocalGASSpec_t
     use gasci_pchb_general, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles
+        ! SUT
     use gasci_pc_select_particles, only: PCHB_particle_selections
     use excitation_generators, only: ExcitationGenerator_t
 
@@ -63,6 +64,9 @@ contains
         integer :: n_interspace_exc
         integer, parameter :: n_iters=10**7
 
+        character(len=128) :: message
+        write(message, *) "Failed for uhf=", uhf, ", hermitian=", hermitian
+
         dumpwriter = random_fcidump_writer_t(uhf=uhf, hermitian=hermitian)
 
         pParallel = 0.05_dp
@@ -88,7 +92,7 @@ contains
                 problem_filter=is_problematic,&
                 successful=successful)
             call exc_generator%finalize()
-            call assert_true(successful)
+            call assert_true(successful, trim(message))
             call finalize_excitgen_test()
         end do
 
@@ -111,7 +115,7 @@ contains
                 problem_filter=is_problematic,&
                 successful=successful)
             call exc_generator%finalize()
-            call assert_true(successful)
+            call assert_true(successful, trim(message))
             call finalize_excitgen_test()
         end do
 
@@ -133,7 +137,7 @@ contains
                 problem_filter=is_problematic,&
                 successful=successful)
             call exc_generator%finalize()
-            call assert_true(successful)
+            call assert_true(successful, trim(message))
             call finalize_excitgen_test()
         end do
 

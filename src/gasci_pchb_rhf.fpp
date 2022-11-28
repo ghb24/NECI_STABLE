@@ -63,7 +63,7 @@ module gasci_pchb_rhf
         procedure, public :: gen_all_excits => GAS_doubles_PCHB_gen_all_excits
 
         procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
-    end type
+    end type GAS_doubles_RHF_PCHB_ExcGenerator_t
 
 contains
 

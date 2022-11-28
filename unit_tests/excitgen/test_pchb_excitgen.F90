@@ -48,6 +48,9 @@ contains
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10], n_spat_orb = 10
         logical :: successful
 
+        character(len=128) :: message
+        write(message, *) "Failed for uhf=", uhf, ", hermitian=", hermitian
+
         pParallel = 0.05_dp
         pSingles = 0.3_dp
         pDoubles = 1.0_dp - pSingles
@@ -63,7 +66,7 @@ contains
             problem_filter=is_problematic, &
             successful=successful)
 
-        call assert_true(successful)
+        call assert_true(successful, trim(message))
         call exc_generator%finalize()
         call finalize_excitgen_test()
 
