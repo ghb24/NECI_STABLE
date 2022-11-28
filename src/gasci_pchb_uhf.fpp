@@ -22,28 +22,25 @@ module gasci_pchb_uhf
     ! unit_tests/pcpp_excitgen/test_pchb_excitgen.F90
     ! unit_tests/pcpp_excitgen/test_aliasTables.F90 (don't need to change)
     !==========================================================================!
-    use constants, only: dp, n_int, maxExcit
-    use util_mod, only: operator(.isclose.)
+    use constants, only: dp, n_int, maxExcit, stdout
+    use util_mod, only: operator(.isclose.), fuseIndex, stop_all
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
+    use UMatCache, only: GTID, numBasisIndices
     use SystemData, only: nEl
     use SymExcitDataMod, only: ScratchSize
     use bit_rep_data, only: nIfTot
     use excitation_generators, only: doubleExcitationGenerator_t
     use FciMCData, only:
-    use aliasSampling, only: AliasSampler_3D_t
+    use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use gasci_pc_select_particles, only: ParticleSelector_t
+    use gasci_pc_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t
     use gasci, only: GASSpec_t
     better_implicit_none
 
     private
     ! @jph
     public :: GAS_doubles_UHF_PCHB_ExcGenerator_t
-    ! public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
-    !     GAS_doubles_PCHB_ExcGenerator_t, &
-    !     possible_GAS_singles, GAS_PCHB_singles_generator, &
-    !     GAS_PCHB_particle_selection, PCHB_particle_selections, &
-    !     PCHB_ParticleSelection_t
 
 
     type, extends(doubleExcitationGenerator_t) :: GAS_doubles_UHF_PCHB_ExcGenerator_t
@@ -51,14 +48,14 @@ module gasci_pchb_uhf
         logical, public :: use_lookup = .false.
             !! use a lookup for the supergroup index
         logical, public :: create_lookup
-            !! create adn manage the supergroup index
-        type(AliasSampler_3D_t) :: pchb_samplers
-            !! the shape is (fused_number_of_double_excitations, 3, n_supergroup)
+            !! create and manage the supergroup index
+        type(AliasSampler_2D_t) :: pchb_samplers
+            !! the shape is (fused_number_of_two_particles, n_supergroup)
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
         class(ParticleSelector_t), allocatable :: particle_selector
         class(GASSpec_t), allocatable :: GAS_spec
-        real(dp), allocatable :: pExch(:, :)
+        ! real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
     contains
         private
@@ -75,13 +72,55 @@ contains
 
 ! @jph TODO implementation for doubles
 
-    subroutine GAS_doubles_PCHB_UHF_init(this)
+    subroutine GAS_doubles_PCHB_UHF_init(this, GAS_spec, use_lookup, &
+                            create_lookup, PCHB_particle_selection)
         !! initalises the UHF PCHB doubles excitation generator
         !!
         !! more specifically, sets up a lookup table for ab -> (a,b) and
-        !! sets up the alias table for picking ab given ij with prob~Hijab
-        ! @jph stub
-        class(GAS_doubles_UHF_PCHB_ExcGenerator_t) :: this
+        !! sets up the alias table for picking ab given ij with prob ~ Hijab
+        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GASSpec_t), intent(in) :: GAS_spec
+        logical, intent(in) :: use_lookup, create_lookup
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
+        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_UHF_init'
+
+        integer :: ab, a, b, abMax, nBI
+
+        this%GAS_spec = GAS_spec
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        this%create_lookup = create_lookup
+        this%use_lookup = use_lookup
+
+        if (this%create_lookup) then
+            if (associated(lookup_supergroup_indexer)) then
+                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
+            else
+                write(stdout, *) 'GAS PCHB (UHF) doubles is creating and managing the supergroup lookup'
+                lookup_supergroup_indexer => this%indexer
+            end if
+        end if
+        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
+
+        write(stdout, *) "Allocating PCHB excitation generator objects"
+        ! number of *spin* orbs
+        nBI = numBasisIndices(this%GAS_spec%n_spin_orbs())
+        ! initialize the mapping ab -> (a, b)
+        abMax = fuseIndex(nBI, nBI)
+        allocate(this%tgtOrbs(2, 0:abMax), source=0)
+        do a = 1, nBI
+            do b = 1, a
+                ab = fuseIndex(a, b)
+                this%tgtOrbs(1, ab) = b
+                this%tgtOrbs(2, ab) = a
+            end do
+        end do
+
+        ! set up the alias table
+        call this%compute_samplers(nBI, PCHB_particle_selection)
+
+        write(stdout, *) "Finished excitation generator initialization"
+
+        ! @jph review above
 
     end subroutine GAS_doubles_PCHB_UHF_init
 
@@ -92,7 +131,7 @@ contains
         call this%particle_selector%finalize()
         @:safe_deallocate(this%particle_selector)
         @:safe_deallocate(this%tgtOrbs)
-        @:safe_deallocate(this%pExch)
+        ! @:safe_deallocate(this%pExch)
         deallocate(this%indexer) ! pointer, so allocated(...) does not work
 
         if (this%create_lookup) nullify(lookup_supergroup_indexer)
@@ -129,8 +168,12 @@ contains
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_uhf_gen_exc'
 
         integer :: i_sg ! supergroup index
-        integer :: src ! particles (I, J)
-        integer :: elecs(2) ! particle indeices in nI
+        integer :: src(2) ! particles (I, J)
+        integer :: elecs(2) ! particle indices in nI
+        integer :: orbs(2)
+
+        integer :: ij
+        logical :: invalid
 
 
         @:unused_var(exFlag, part_type)
@@ -141,7 +184,7 @@ contains
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
         else
-            i_sg = this%indexer%idx_nI
+            i_sg = this%indexer%idx_nI(nI)
         end if
 
         ! pick two random electrons
@@ -150,6 +193,11 @@ contains
             call invalidate()
             return
         end if
+
+        @:ASSERT(pgen .isclose. this%particle_selector%get_pgen(nI, i_sg, src(1), src(2)))
+
+        invalid = .false.
+        ij = fuseIndex(gtId(src(1)), gtId(src(2)))
 
         ! @jph stub
 
@@ -186,8 +234,10 @@ contains
 
     end subroutine GAS_doubles_PCHB_uhf_gen_all_excits
 
-    subroutine GAS_doubles_PCHB_uhf_compute_samplers(this)
-        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(in) :: this
+    subroutine GAS_doubles_PCHB_uhf_compute_samplers(this, nBI, PCHB_particle_selection)
+        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nBI
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         ! @jph stub
 
     end subroutine GAS_doubles_PCHB_uhf_compute_samplers

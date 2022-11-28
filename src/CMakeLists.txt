@@ -111,8 +111,6 @@ set( SRC_FILES
     Parallel_Calc.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
-    # @jph
-    # pchb_uhf_excitgen.F90
     perturbations.F90
     Popsfile.F90
     Popsfile_impls.F90
@@ -219,7 +217,7 @@ set( SRC_FILES
     exc_gen_class_wrappers.F90
     exc_gen_classes.F90
 
-    lib/cons_neci.F90
+    lib/constants.F90
     lib/dSFMT.cpp
     lib/dSFMT_interface.F90
     lib/environment_report.F90

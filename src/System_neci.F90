@@ -533,8 +533,10 @@ contains
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
             case ("UHF")
-! This keyword is required if we are doing an open shell calculation
-! but do not want to include singles in the energy calculations.
+            ! indicates UHF type FCIDUMP
+            ! Note, this keyword is required if we are doing an open shell calculation
+            ! but do not want to include singles in the energy calculations
+            ! (e.g. by nobrillouintheorem)
                 tUHF = .true.
             case ("RS")
                 FUEGRS = to_realdp(tokens%next())

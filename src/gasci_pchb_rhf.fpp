@@ -95,7 +95,7 @@ contains
             if (associated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
-                write(stdout, *) 'GAS PCHB doubles is creating and managing the supergroup lookup'
+                write(stdout, *) 'GAS PCHB (RHF) doubles is creating and managing the supergroup lookup'
                 lookup_supergroup_indexer => this%indexer
             end if
         end if
