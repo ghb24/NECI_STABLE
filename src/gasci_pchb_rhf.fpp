@@ -132,11 +132,11 @@ contains
 
         call this%pchb_samplers%finalize()
         call this%particle_selector%finalize()
-        deallocate(this%particle_selector)
-        deallocate(this%tgtOrbs)
-        deallocate(this%pExch)
+        @:safe_deallocate(this%particle_selector)
+        @:safe_deallocate(this%tgtOrbs)
+        @:safe_deallocate(this%pExch)
 
-        deallocate(this%indexer)
+        @:safe_deallocate(this%indexer)
 
         if (this%create_lookup) then
             nullify(lookup_supergroup_indexer)
