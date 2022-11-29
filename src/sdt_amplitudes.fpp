@@ -21,22 +21,22 @@ module sdt_amplitudes
   implicit none
 
   type :: t_singles
-    integer :: a,i
     double precision :: x
+    integer :: i,a
   end type
   type :: t_doubles
-    integer :: a,b,i,j
     double precision :: x
+    integer :: i,a,j,b
   end type
   type :: t_triples
-    integer :: a,b,c,i,j,k
     double precision :: x
+    integer :: i,a,j,b,k,c
   end type
 
   integer(n_int), allocatable :: ciCoeff_storage(:,:), root_ciCoeff_storage(:,:)
   integer :: hash_table_ciCoeff_size, first_free_entry, nCyc, root_first_free_entry
   type(ll_node), pointer :: hash_table_ciCoeff(:)
-  character (len=90) :: fileCICoeffAv, fileCIcoeffSort, fileCICoeffTmp
+  character (len=90) :: fileCICoeffAv, fileCIcoeffSort
   integer(n_int), allocatable  :: totEntCoeff(:,:)
 
 contains
@@ -168,8 +168,7 @@ contains
   ! it prints averaged CI coeffs collected during the calcualtion
   subroutine print_averaged_ci_coeff
 
-    integer  :: i,ic,ex(2,4),icI,signCI
-    integer  :: indCoef(2,n_store_ci_level),Itot(nbasis)
+    integer  :: i,ic,ex(2,4),icI
     real(dp) :: sign_tmp(lenof_sign), ref_coef
     logical  :: tPar
 
@@ -190,15 +189,11 @@ contains
 
     if(iProcIndex.eq.root) then
 
-      call alphaBetaOrbs(Itot)
-
       totEntCoeff(:,:) = 0
       do icI = 0, n_store_ci_level
          if(icI.ne.0) then
            write(fileCICoeffAv, '( "ci_coeff_",I1,"_av" )') icI
            open (unit=30+icI,file=fileCICoeffAv,status='replace')
-           write(fileCICoeffTmp, '( "ci_coeff_",I1,"_tmp" )') icI
-           open (unit=40+icI,file=fileCICoeffTmp,status='replace')
          endif
          ! loop over the total entries of CI coefficients
          do i = 1, root_first_free_entry
@@ -214,8 +209,6 @@ contains
               call GetBitExcitation(ilutRef(:,1),root_ciCoeff_storage(:,i),ex,tPar)
               if(tPar) sign_tmp = -sign_tmp
 
-              call indPreSort(icI,ex,Itot,indCoef,signCI)
-
                select case(icI) ! writing averaged CI coefficients
                case(0)  ! reference
                   write(stdout,"(A44,F14.3)") 'Instantaneous number of walkers on HF     = ', AllNoatHF
@@ -224,39 +217,32 @@ contains
                   write(stdout,"(A44,I10)") 'Total entries of CI coefficients          = ', root_first_free_entry
                case(1)  ! singles
                  totEntCoeff(icI,1) = totEntCoeff(icI,1) + 1        ! total entries for singles
-                 write(31,'(G20.12,2I5)') sign_tmp/ref_coef,ex(1,1),ex(2,1)
                  if(.not. near_zero(sign_tmp(1))) then
                    totEntCoeff(icI,2) = totEntCoeff(icI,2) + 1      ! total entries for singles without zeros
-                   write(41,'(G20.12,2I5)') signCI*(sign_tmp/ref_coef),&
-                                            indCoef(1,1),indCoef(2,1)
+                   write(31,'(G20.12,2I5)') sign_tmp/ref_coef,ex(1,1),ex(2,1)
                  endif
                case(2)  ! doubles
                  totEntCoeff(icI,1) = totEntCoeff(icI,1) + 1        ! total entries for doubles
-                 write(32,'(G20.12,4I5)') sign_tmp/ref_coef,ex(1,1),&
-                                          ex(2,1),ex(1,2),ex(2,2)
                  if(.not. near_zero(sign_tmp(1))) then
                    totEntCoeff(icI,2) = totEntCoeff(icI,2) + 1      ! total entries for doubles without zeros
-                   write(42,'(G20.12,4I5)') signCI*(sign_tmp/ref_coef),&
-                               indCoef(1,1),indCoef(2,1),indCoef(1,2),indCoef(2,2)
+                   write(32,'(G20.12,4I5)') sign_tmp/ref_coef,ex(1,1),&
+                                            ex(2,1),ex(1,2),ex(2,2)
                  endif
                case(3)  ! triples
                  totEntCoeff(icI,1) = totEntCoeff(icI,1) + 1        ! total entries for triples
-                 write(33,'(G20.12,6I5)') sign_tmp/ref_coef,ex(1,1),&
-                                          ex(2,1),ex(1,2),ex(2,2),ex(1,3),ex(2,3)
                  if(.not. near_zero(sign_tmp(1))) then
                    totEntCoeff(icI,2) = totEntCoeff(icI,2) + 1      ! total entries for triples without zeros
-                   write(43,'(G20.12,6I5)') signCI*(sign_tmp/ref_coef),indCoef(1,1),&
-                   indCoef(2,1),indCoef(1,2),indCoef(2,2),indCoef(1,3),indCoef(2,3)
+                   write(33,'(G20.12,6I5)') sign_tmp/ref_coef,ex(1,1),&
+                                            ex(2,1),ex(1,2),ex(2,2),ex(1,3),ex(2,3)
                  endif
                end select
             end if
          enddo
          if(iCI.ne.0) then
            close(30+icI)
-           close(40+icI)
            write(stdout,"(A28,I1,A14,I11)") ' total entries for ci_coeff_',icI,' =', totEntCoeff(iCI,1)
            if(totEntCoeff(iCI,1).ne.totEntCoeff(iCI,2)) then
-             write(stdout,"(A25,I1,A18,I11)") ' -total entries ci_coeff_',icI,&
+             write(stdout,"(A25,I1,A17,I11)") ' -total entries ci_coeff_',icI,&
                                               ' without zeros  =', totEntCoeff(iCI,2)
            endif
          endif
@@ -274,12 +260,97 @@ contains
   end subroutine print_averaged_ci_coeff
 
 
-  subroutine fin_ciCoeff
-    call clear_hash_table(hash_table_ciCoeff)
-    deallocate(hash_table_ciCoeff)
-    deallocate(ciCoeff_storage)
-    deallocate(totEntCoeff)
-  end subroutine fin_ciCoeff
+  ! it lists the averaged CI coeffs sorting the indices in
+  ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
+ subroutine sorting
+
+  integer  :: i,hI,iCI,signCI,ex(2,n_store_ci_level),Itot(nbasis)
+  real(dp) :: x
+  type(t_singles),allocatable :: singles(:)
+  type(t_doubles),allocatable :: doubles(:)
+  type(t_triples),allocatable :: triples(:)
+
+
+  call alphaBetaOrbs(Itot)
+
+  do iCI=1,n_store_ci_level
+    write(fileCICoeffAv, '( "ci_coeff_",I1,"_av" )') iCI
+    open (unit=30+iCI,file=fileCICoeffAv,status='old', action='read')
+    write(fileCIcoeffSort, '("ci_coeff_",I1 )') iCI
+    open (unit=140+iCI,file=fileCIcoeffSort,status='replace')
+
+    if(iCI.eq.1) allocate(singles(totEntCoeff(iCI,2)))
+    if(iCI.eq.2) allocate(doubles(totEntCoeff(iCI,2)))
+    if(iCI.eq.3) allocate(triples(totEntCoeff(iCI,2)))
+
+    do hI=1,totEntCoeff(iCI,2)
+      read(30+iCI,*) x,(ex(1,i),ex(2,i),i=1,icI)
+
+      call indPreSort(icI,Itot,ex,signCI)
+
+      if(iCI.eq.1) then
+        singles(hI)%x = signCI*x
+        singles(hI)%i = ex(1,1)
+        singles(hI)%a = ex(2,1)
+      else if(iCI.eq.2) then
+        doubles(hI)%x = signCI*x
+        doubles(hI)%i = ex(1,1)
+        doubles(hI)%a = ex(2,1)
+        doubles(hI)%j = ex(1,2)
+        doubles(hI)%b = ex(2,2)
+      else if(iCI.eq.3) then
+        triples(hI)%x = signCI*x
+        triples(hI)%i = ex(1,1)
+        triples(hI)%a = ex(2,1)
+        triples(hI)%j = ex(1,2)
+        triples(hI)%b = ex(2,2)
+        triples(hI)%k = ex(1,3)
+        triples(hI)%c = ex(2,3)
+      endif
+    enddo
+
+    select case(iCI) ! sorting and writing CI coefficients
+    case(1)  ! singles
+      @:sort(t_singles, singles, rank=1, along=1, comp=sing_a)
+      @:sort(t_singles, singles, rank=1, along=1, comp=sing_i)
+      do hI = 1,totEntCoeff(iCI,2)
+        write(140+iCI,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
+                                      singles(hI)%a
+      enddo
+      close (140+iCI)
+      deallocate(singles)
+
+    case(2)  ! doubles
+      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_a)
+      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_b)
+      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_i)
+      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_j)
+      do hI = 1,totEntCoeff(iCI,2)
+         write(140+iCI,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
+                         doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
+      enddo
+      close (140+iCI)
+      deallocate(doubles)
+
+    case(3)  ! triples
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_c)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_b)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_a)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_i)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_j)
+      @:sort(t_triples, triples, rank=1, along=1, comp=trip_k)
+      do hI = 1,totEntCoeff(iCI,2)
+        write(140+iCI,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
+                        triples(hI)%a,triples(hI)%j,triples(hI)%b,&
+                                      triples(hI)%k,triples(hI)%c
+      enddo
+      close (140+iCI)
+      deallocate(triples)
+    end select
+
+  enddo ! do iCI=1,n_store_ci_level
+
+ end subroutine sorting
 
 
   ! it finds all the alpha/beta occ/unocc orbs
@@ -362,26 +433,26 @@ contains
 
 
   ! PreSorting routine which converts the indices into Molpro standard
-  subroutine indPreSort(icI,ex,Itot,indCoef,signCI)
+  subroutine indPreSort(icI,Itot,ex,signCI)
 
     use util_mod, only: swap
 
-    integer, intent(in)  :: icI,ex(2,4),Itot(nbasis)
-    integer, intent(out) :: indCoef(2,n_store_ci_level)
-    integer, intent(inout) :: signCI
+    integer, intent(in)  :: icI,Itot(nbasis)
+    integer, intent(out) :: signCI
+    integer, intent(inout) :: ex(2,n_store_ci_level)
     integer  :: j,k,p
 
     ! indices conversion
     do k=1,icI
       do p=1,nel
           if(ex(1,k).eq.Itot(p)) then
-            indCoef(1,k)=p
+            ex(1,k)=p
             exit
          endif
       enddo
       do p=nel+1,nbasis
          if(ex(2,k).eq.Itot(p)) then
-            indCoef(2,k)=p-nel
+            ex(2,k)=p-nel
             exit
           endif
       enddo
@@ -391,8 +462,8 @@ contains
     do p=1,2
       do k=2,icI
         do j=k,2,-1
-          if (indCoef(p,j).lt.indCoef(p,j-1)) then
-            call swap(indCoef(p,j),indCoef(p,j-1))
+          if (ex(p,j).lt.ex(p,j-1)) then
+            call swap(ex(p,j),ex(p,j-1))
             signCI=-signCI
           else
             exit
@@ -404,80 +475,11 @@ contains
   end subroutine indPreSort
 
 
-  ! it lists the averaged CI coeffs sorting the indices in
-  ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
- subroutine sorting
-
-  integer :: hI,iCI
-!  integer :: a,b,c,i,j,k
-  type(t_singles),allocatable :: singles(:)
-  type(t_doubles),allocatable :: doubles(:)
-  type(t_triples),allocatable :: triples(:)
-
-
-  do iCI=1,n_store_ci_level
-    write(fileCICoeffTmp, '( "ci_coeff_",I1,"_tmp" )') iCI
-    open (unit=40+iCI,file=fileCICoeffTmp,status='old', action='read')
-    write(fileCIcoeffSort, '("ci_coeff_",I1 )') iCI
-    open (unit=140+iCI,file=fileCIcoeffSort,status='replace')
-
-    select case(iCI) ! reading, sorting and writing CI coefficients
-    case(1)  ! singles
-      allocate(singles(totEntCoeff(iCI,2)))
-      do hI=1,totEntCoeff(iCI,2)
-        read(40+iCI,*) singles(hI)%x,singles(hI)%i,singles(hI)%a
-      enddo
-      @:sort(t_singles, singles, rank=1, along=1, comp=sing_a)
-      @:sort(t_singles, singles, rank=1, along=1, comp=sing_i)
-      do hI = 1,totEntCoeff(iCI,2)
-        write(140+iCI,'(G20.12,2I5)') singles(hI)%x,singles(hI)%i,&
-                                      singles(hI)%a
-      enddo
-      close (140+iCI)
-      deallocate(singles)
-
-    case(2)  ! doubles
-      allocate(doubles(totEntCoeff(iCI,2)))
-      do hI=1,totEntCoeff(iCI,2)
-        read(40+iCI,*) doubles(hI)%x,doubles(hI)%i,doubles(hI)%a,&
-                       doubles(hI)%j,doubles(hI)%b
-      enddo
-      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_a)
-      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_b)
-      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_i)
-      @:sort(t_doubles, doubles, rank=1, along=1, comp=doub_j)
-      do hI = 1,totEntCoeff(iCI,2)
-         write(140+iCI,'(G20.12,4I5)') doubles(hI)%x,doubles(hI)%i,&
-                         doubles(hI)%a,doubles(hI)%j,doubles(hI)%b
-      enddo
-      close (140+iCI)
-      deallocate(doubles)
-
-    case(3)  ! triples
-      allocate(triples(totEntCoeff(iCI,2)))
-      do hI=1,totEntCoeff(iCI,2)
-        read(40+iCI,*) triples(hI)%x,triples(hI)%i,triples(hI)%a,&
-         triples(hI)%j,triples(hI)%b,triples(hI)%k,triples(hI)%c
-      enddo
-      @:sort(t_triples, triples, rank=1, along=1, comp=trip_c)
-      @:sort(t_triples, triples, rank=1, along=1, comp=trip_b)
-      @:sort(t_triples, triples, rank=1, along=1, comp=trip_a)
-      @:sort(t_triples, triples, rank=1, along=1, comp=trip_i)
-      @:sort(t_triples, triples, rank=1, along=1, comp=trip_j)
-      @:sort(t_triples, triples, rank=1, along=1, comp=trip_k)
-      do hI = 1,totEntCoeff(iCI,2)
-        write(140+iCI,'(G20.12,6I5)') triples(hI)%x,triples(hI)%i,&
-                        triples(hI)%a,triples(hI)%j,triples(hI)%b,&
-                                      triples(hI)%k,triples(hI)%c
-      enddo
-      close (140+iCI)
-      deallocate(triples)
-    end select
-
-    close (40+iCI, status='delete')
-
-  enddo ! do iCI=1,n_store_ci_level
-
- end subroutine sorting
+  subroutine fin_ciCoeff
+    call clear_hash_table(hash_table_ciCoeff)
+    deallocate(hash_table_ciCoeff)
+    deallocate(ciCoeff_storage)
+    deallocate(totEntCoeff)
+  end subroutine fin_ciCoeff
 
 end module sdt_amplitudes
