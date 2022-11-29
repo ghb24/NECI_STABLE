@@ -22,26 +22,29 @@ module gasci_pchb_uhf
     ! unit_tests/pcpp_excitgen/test_pchb_excitgen.F90
     ! unit_tests/pcpp_excitgen/test_aliasTables.F90 (don't need to change)
     !==========================================================================!
-    use constants, only: dp, n_int, maxExcit, stdout
+    use constants, only: dp, n_int, maxExcit, stdout, int64
     use util_mod, only: operator(.isclose.), fuseIndex, stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
     use UMatCache, only: GTID, numBasisIndices
     use SystemData, only: nEl
     use SymExcitDataMod, only: ScratchSize
+    use sltcnd_mod, only: sltcnd_excit
     use bit_rep_data, only: nIfTot
     use excitation_generators, only: doubleExcitationGenerator_t
-    use FciMCData, only:
+    use FciMCData, only: ProjEDet, excit_gen_store_type
+    use excitation_types, only: DoubleExc_t
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use gasci_pc_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t
+    use gasci_pc_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
+                                  PCHB_particle_selections, PC_WeightedParticlesOcc_t, &
+                                  PC_FastWeightedParticles_t, UniformParticles_t
     use gasci, only: GASSpec_t
     better_implicit_none
 
     private
     ! @jph
     public :: GAS_doubles_UHF_PCHB_ExcGenerator_t
-
 
     type, extends(doubleExcitationGenerator_t) :: GAS_doubles_UHF_PCHB_ExcGenerator_t
         private
@@ -235,11 +238,90 @@ contains
     end subroutine GAS_doubles_PCHB_uhf_gen_all_excits
 
     subroutine GAS_doubles_PCHB_uhf_compute_samplers(this, nBI, PCHB_particle_selection)
+        !! computes and stores values for the alias (spin-independent) sampling table
         class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        ! @jph stub
+        integer :: i, j, ij, ijMax
+        integer :: a, b, ab, abMax
+        integer :: ex(2, 2)
+        integer(int64) :: memCost
+            !! n_supergroup * num_fused_indices * bytes_per_sampler
+        real(dp), allocatable :: w(:), IJ_weights(:, :, :)
+            ! @jph don't think I understand what exactly these weights are
+        integer, allocatable :: supergroups(:, :)
+        integer :: i_sg, i_exch
+        character(*), parameter :: this_routine = "GAS_doubles_PCHB_uhf_compute_samplers"
+        ! possible supergroups
+        supergroups = this%indexer%get_supergroups()
 
+        ! number of possible spin orbital pairs
+        ijMax = fuseIndex(nBI, nBI)
+        abMax = ijMax
+
+        memCost = size(supergroups, 2, kind=int64) &
+                  * int(ijMax, int64) &
+                  * int(abMax, int64) * 8_int64
+                  ! @jph not sure why there appears * 3 twice in RHF version
+
+        write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
+        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+        write(stdout, *) "Generating samplers for PCHB excitation generator"
+        write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
+
+        call this%pchb_samplers%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'PCHB_UHF')
+        allocate(w(abMax))
+        allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
+
+        do i_sg = 1, size(supergroups, 2)
+            if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
+            do i = 1, nBI
+                ex(1, 1) = i ! already a spin orbital
+                ! a,b are ordered, so we can assume j <= i
+                do j = 1, i
+                    ex(1, 2) = j
+                    w(:) = 0._dp
+                    ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
+                    ! weights to prepare the sampler
+                    do a = 1, nBI
+                        ex(2, 2) = a
+                        do b = 1, a
+                            ex(2, 1) = b
+                            ab = fuseIndex(a, b)
+                            w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
+                        end do ! b
+                    end do ! a
+                    ij = fuseIndex(i, j)
+                    call this%pchb_samplers%setup_entry(ij, i_sg, w)
+
+                    associate(I => ex(1, 1), J => ex(1, 2))
+                        IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
+                        IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                    end associate
+                end do ! j
+            end do ! i
+        end do ! i_sg
+
+
+        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED) then
+            allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
+            select type(particle_selector => this%particle_selector)
+            type is(PC_WeightedParticlesOcc_t)
+                call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_APPROX) then
+            allocate(PC_FastWeightedParticles_t :: this%particle_selector)
+            select type(particle_selector => this%particle_selector)
+            type is(PC_FastWeightedParticles_t)
+                call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == PCHB_particle_selections%UNIFORM) then
+            allocate(UniformParticles_t :: this%particle_selector)
+        else
+            call stop_all(this_routine, 'not yet implemented')
+        end if
+
+        ! @jph review above and compare with paper -- not sure I understand
     end subroutine GAS_doubles_PCHB_uhf_compute_samplers
 
 

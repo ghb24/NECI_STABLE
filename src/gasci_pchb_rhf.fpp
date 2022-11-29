@@ -331,6 +331,7 @@ contains
 
 
     subroutine GAS_doubles_PCHB_compute_samplers(this, nBI, PCHB_particle_selection)
+        !! computes and stores values for the alias sampling table
         class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
@@ -362,7 +363,7 @@ contains
         write(stdout, *) "The number of supergroups is", size(supergroups, 2)
         write(stdout, *) "Generating samplers for PCHB excitation generator"
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
-        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax, 'PCHB')
+        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax, 'PCHB_RHF')
         ! weights per pair
         allocate(w(abMax))
         allocate(IJ_weights(nBI * 2, nBI * 2, size(supergroups, 2)), source=0._dp)
@@ -412,6 +413,7 @@ contains
                             IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
                         end associate
                         if (i /= j) then
+                            ! sum over alpha and beta of the same orbital
                             if (i_exch == SAME_SPIN) then
                                 associate(I => ex(1, 1) - 1, J => ex(1, 2) - 1)
                                     IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
