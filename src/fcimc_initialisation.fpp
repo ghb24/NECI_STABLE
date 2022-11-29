@@ -221,7 +221,7 @@ module fcimc_initialisation
         SemiStoch_Davidson_Time, Trial_Init_Time, InitSpace_Init_Time, kp_generate_time, Stats_Comms_Time, &
         subspace_hamil_time, exact_subspace_h_time, subspace_spin_time, var_e_time, precond_e_time, &
         proj_e_time, rescale_time, death_time, hash_test_time, hii_test_time, &
-        init_flag_time, iter_data_fciqmc, ll_node
+        init_flag_time, iter_data_fciqmc, ll_node, GAS_PCHB_init_time
 
     use FciMCData, only: all_norms, tDetermSpawnedTo, core_run, &
         tSinglePartPhase, VaryShiftIter, con_send_buf, &
@@ -435,6 +435,8 @@ contains
         hash_test_time%timer_name = 'HashTestTime'
         hii_test_time%timer_name = 'HiiTestTime'
         init_flag_time%timer_name = 'InitFlagTime'
+        GAS_PCHB_init_time%timer_name = 'GAS_PCHB_init_time'
+
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate

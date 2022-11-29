@@ -261,6 +261,10 @@ contains
                    n_store_ci_level = to_int(tokens%next())
                 end if
 
+            case ("PRINT-HDF5-RDMS")
+                ! output density matrices as HDF5 files
+                t_print_hdf5_rdms = .true.
+
             case ("PRINT-MOLCAS-RDMS")
                 ! output density matrices also in Molcas format in the GUGA RDM
                 ! implementation

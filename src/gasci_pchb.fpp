@@ -28,7 +28,8 @@ module gasci_pchb
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
-        operator(.div.), operator(.implies.), EnumBase_t, stop_all
+        operator(.div.), operator(.implies.), EnumBase_t, &
+        operator(.isclose.), swap, stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
@@ -37,13 +38,12 @@ module gasci_pchb
     use procedure_pointers, only: generate_single_excit_t
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
-    use FciMCData, only: pSingles, excit_gen_store_type, pParallel, projEDet
-    use excit_gens_int_weighted, only: pick_biased_elecs
+    use FciMCData, only: pSingles, excit_gen_store_type, pParallel, &
+        projEDet, GAS_PCHB_init_time
+    use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use shared_ragged_array, only: shared_ragged_array_int32_t
-    use growing_buffers, only: buffer_int32_1D_t
     use parallel_neci, only: iProcIndex_intra
     use get_excit, only: make_single
-    use growing_buffers, only: buffer_int_2D_t
     use timing_neci, only: timer, set_timer, halt_timer
 
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
@@ -56,7 +56,12 @@ module gasci_pchb
     use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_pc_select_particles, only: &
+        ParticleSelector_t, PC_WeightedParticlesOcc_t, &
+        PC_FastWeightedParticles_t, UniformParticles_t
     use exc_gen_class_wrappers, only: UniformSingles_t
+
+    use display_matrices, only: write_matrix
 
     use excitation_generators, only: &
             ExcitationGenerator_t, SingleExcitationGenerator_t, &
@@ -64,8 +69,11 @@ module gasci_pchb
     implicit none
 
     private
-    public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_doubles_PCHB_ExcGenerator_t, &
-        possible_GAS_singles, GAS_PCHB_singles_generator
+    public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, &
+        GAS_doubles_PCHB_ExcGenerator_t, &
+        possible_GAS_singles, GAS_PCHB_singles_generator, &
+        GAS_PCHB_particle_selection, PCHB_particle_selections, &
+        PCHB_ParticleSelection_t
 
     logical, parameter :: use_supergroup_lookup = .true.
 
@@ -130,6 +138,22 @@ module gasci_pchb
 
     type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
 
+
+    type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
+    end type
+
+    type :: possible_PCHB_ParticleSelection_t
+        type(PCHB_ParticleSelection_t) :: &
+            UNIFORM = PCHB_ParticleSelection_t(1), &
+            PC_WEIGHTED = PCHB_ParticleSelection_t(2), &
+            PC_WEIGHTED_APPROX = PCHB_ParticleSelection_t(3)
+    end type
+
+    type(possible_PCHB_ParticleSelection_t), parameter :: &
+        PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
+
+    type(PCHB_ParticleSelection_t) :: GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
+
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
         private
@@ -143,6 +167,7 @@ module gasci_pchb
 
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
+        class(ParticleSelector_t), allocatable :: particle_selector
         class(GASSpec_t), allocatable :: GAS_spec
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
@@ -390,7 +415,7 @@ contains
 
         integer :: src_copy(maxExcit)
 
-        ASSERT(this%GAS_spec%contains_conf(nI))
+        @:ASSERT(this%GAS_spec%contains_conf(nI))
 
         call this%FCI_singles_generator%gen_exc(&
                     nI, ilutI, nJ, ilutJ, exFlag, ic, &
@@ -435,10 +460,12 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine GAS_doubles_PCHB_init(this, GAS_spec, use_lookup, create_lookup)
+    subroutine GAS_doubles_PCHB_init(this, GAS_spec, &
+            use_lookup, create_lookup, PCHB_particle_selection)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
         integer :: ab, a, b, abMax
@@ -474,7 +501,7 @@ contains
         end do
 
         ! setup the alias table
-        call this%compute_samplers(nBI)
+        call this%compute_samplers(nBI, PCHB_particle_selection)
 
         write(stdout, *) "Finished excitation generator initialization"
 
@@ -489,6 +516,8 @@ contains
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
 
         call this%pchb_samplers%finalize()
+        call this%particle_selector%finalize()
+        deallocate(this%particle_selector)
         deallocate(this%tgtOrbs)
         deallocate(this%pExch)
 
@@ -525,8 +554,9 @@ contains
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: part_type
+        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_gen_exc'
 
-        integer :: elecs(2), src(2), sym_prod, ispn, sum_ml, ij
+        integer :: elecs(2), src(2), ij
         integer :: orbs(2), ab
         real(dp) :: pGenHoles
         logical :: invalid
@@ -539,15 +569,22 @@ contains
         hel = h_cast(0.0_dp)
 #endif
 
-        ! first, pick two random elecs
-        call pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pGen)
-        if (src(1) > src(2)) call swap(src(1), src(2))
-
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
+
+
+        ! first, pick two random elecs
+        call this%particle_selector%draw(nI, i_sg, elecs, src, pGen)
+        if (src(1) == 0) then
+            call invalidate()
+            return
+        end if
+
+
+        @:ASSERT(pGen .isclose. this%particle_selector%get_pgen(nI, i_sg, src(1), src(2)))
 
         invalid = .false.
         ! use the sampler for this electron pair -> order of src electrons does not matter
@@ -574,39 +611,57 @@ contains
         end if
         ! get a pair of orbitals using the precomputed weights
         call this%pchb_samplers%sample(ij, samplerIndex, int(i_sg), ab, pGenHoles)
-        ! split the index ab (using a table containing mapping ab -> (a,b))
-        orbs = this%tgtOrbs(:, ab)
-        ! convert orbs to spin-orbs with the same spin
-        orbs = 2 * orbs - spin
+        @:ASSERT(ab /= 0 .implies. (pGenHoles .isclose.  this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab)))
 
-        ! check if the picked orbs are a valid choice - if they are the same, match one
-        ! occupied orbital or are zero (maybe because there are no allowed picks for
-        ! the given source) abort
-        invalid = (any(orbs == 0) .or. any(orbs(1) == nI) &
-                   .or. any(orbs(2) == nI)) .or. (orbs(1) == orbs(2))
+
+        if (ab == 0) then
+            invalid = .true.
+            orbs = 0
+        else
+            ! split the index ab (using a table containing mapping ab -> (a,b))
+            orbs = this%tgtOrbs(:, ab)
+            ! convert orbs to spin-orbs with the same spin
+            orbs = 2 * orbs - spin
+            @:ASSERT(all(orbs /= 0) .implies. orbs(1) /= orbs(2))
+            invalid = any(orbs == 0) .or. any(orbs(1) == nI) .or. any(orbs(2) == nI)
+        end if
+
         ! unfortunately, there is a super-rare case when, due to floating point error,
         ! an excitation with pGen=0 is created. Those are invalid, too
-        if (near_zero(pGenHoles)) then
+        if (.not. invalid .and. near_zero(pGenHoles)) then
             invalid = .true.
             ! Yes, print. Those events are signficant enough to be always noted in the output
             print *, "WARNING: Generated excitation with probability of 0"
         end if
 
-        pGen = pGen * pGenHoles
         if (invalid) then
             ! if 0 is returned, there are no excitations for the chosen elecs
             ! -> return nulldet
-            nJ = 0
-            ilutJ = 0_n_int
-            ex(2, 1 : 2) = orbs
-            ex(1, 1 : 2) = src
+            call invalidate()
         else
             ! else, construct the det from the chosen orbs/elecs
 
             call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
 
             ilutJ = exciteIlut(ilutI, src, orbs)
+
+            pGen = pGen * pGenHoles
+
+            block
+                integer :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+                @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
+            end block
+
         end if
+
+        contains
+
+        subroutine invalidate()
+            nJ = 0
+            ilutJ = 0_n_int
+            ex(1, 1 : 2) = src
+            ex(2, 1 : 2) = orbs
+        end subroutine
     end subroutine
 
 
@@ -630,46 +685,47 @@ contains
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         @:ASSERT(ic == 2)
 
-        i_sg = this%indexer%idx_nI(nI)
-        ! spatial orbitals of the excitation
-        nex = gtID(ex(:, : 2))
+        nex = gtID(ex(:, : ic))
         ij = fuseIndex(nex(1, 1), nex(1, 2))
+        ab = fuseIndex(nex(2, 1), nex(2, 2))
+        i_sg = this%indexer%idx_nI(nI)
+
+        pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
+
         ! the probability of picking the two electrons: they are chosen uniformly
         ! check which sampler was used
         if (is_beta(ex(1, 1)) .eqv. is_beta(ex(1, 2))) then
-            pgen = pParallel / par_elec_pairs
             ! same-spin case
             samplerIndex = SAME_SPIN
         else
-            pgen = (1.0_dp - pParallel) / AB_elec_pairs
             ! excitations without spin-exchange OR to the same spatial orb
             if ((is_beta(ex(1, 1)) .eqv. is_beta(ex(2, 1))) .or. (nex(2, 1) == nex(2, 2))) then
                 ! opp spin case without exchange
                 samplerIndex = OPP_SPIN_NO_EXCH
-                pgen = pgen * (1 - this%pExch(ij, i_sg))
+                pGen = pGen * (1.0_dp - this%pExch(ij, i_sg))
             else
                 ! opp spin case with exchange
                 samplerIndex = OPP_SPIN_EXCH
-                pgen = pgen * this%pExch(ij, i_sg)
+                pGen = pGen * this%pExch(ij, i_sg)
             end if
         end if
 
-        ! look up the probability for this excitation in the sampler
-        ab = fuseIndex(nex(2, 1), nex(2, 2))
         pgen = pgen * this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab)
     end function
 
 
-    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI)
+    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI, PCHB_particle_selection)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: i, j, ij, ijMax
         integer :: a, b, ab, abMax
         integer :: ex(2, 2)
         integer(int64) :: memCost
-        real(dp), allocatable :: w(:), pNoExch(:)
+        real(dp), allocatable :: w(:), pNoExch(:), IJ_weights(:, :, :)
         integer, allocatable :: supergroups(:, :)
         integer :: i_sg, i_exch
+        character(*), parameter :: this_routine = "GAS_doubles_PCHB_compute_samplers"
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
 
@@ -693,6 +749,7 @@ contains
         call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax, 'PCHB')
         ! weights per pair
         allocate(w(abMax))
+        allocate(IJ_weights(nBI * 2, nBI * 2, size(supergroups, 2)), source=0._dp)
         ! initialize the three samplers
         do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
@@ -701,36 +758,57 @@ contains
                 ! allocate: all samplers have the same size
                 do i = 1, nBI
                     ! map i to alpha spin (arbitrary choice)
-                    ex(1, 1) = 2 * i
+                    ex(1, 1) = to_spin_orb(i, is_alpha=.true.)
                     ! as we order a,b, we can assume j <= i
                     do j = 1, i
                         w(:) = 0.0_dp
                         ! for samplerIndex == 1, j is alpha, else, j is beta
-                        ex(1, 2) = map_orb(j, [SAME_SPIN])
+                        ex(1, 2) = to_spin_orb(j, i_exch == SAME_SPIN)
                         ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
                         ! weights to prepare the sampler
                         do a = 1, nBI
                             ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
-                            ex(2, 2) = map_orb(a, [SAME_SPIN, OPP_SPIN_NO_EXCH])
+                            ex(2, 2) = to_spin_orb(a, any(i_exch == [SAME_SPIN, OPP_SPIN_NO_EXCH]))
                             do b = 1, a
-                                ! exception: for sampler 3, a!=b
-                                if (i_exch == OPP_SPIN_EXCH .and. a == b) cycle
                                 ab = fuseIndex(a, b)
                                 ! ex(2,:) is in ascending order
                                 ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
-                                ex(2, 1) = map_orb(b, [SAME_SPIN, OPP_SPIN_EXCH])
-                                ! use the actual matrix elements as weights
-                                if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
-                                    w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
-                                else
+                                ex(2, 1) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
+
+                                ! exception: for sampler 3, a!=b
+                                if (i_exch == OPP_SPIN_EXCH .and. a == b &
+                                        .or. any(ex(1, 1) == ex(2, :)) .or. any(ex(1, 2) == ex(2, :)) &
+                                        .or. .not. this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
                                     w(ab) = 0._dp
+                                else
+                                    w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
                                 end if
                             end do
                         end do
                         ij = fuseIndex(i, j)
+
                         call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, w)
                         if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
                         if (i_exch == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
+
+                        associate(I => ex(1, 1), J => ex(1, 2))
+                            IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
+                            IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                        end associate
+                        if (i /= j) then
+                            if (i_exch == SAME_SPIN) then
+                                associate(I => ex(1, 1) - 1, J => ex(1, 2) - 1)
+                                    IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
+                                    IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                                end associate
+                            else
+                                associate(I => ex(1, 1) - 1, J => ex(1, 2) + 1)
+                                    IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
+                                    IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                                end associate
+                            end if
+                        end if
+
                     end do
                 end do
             end do
@@ -741,22 +819,37 @@ contains
                 this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
             end where
         end do
+
+
+        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED) then
+            allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
+            select type(particle_selector => this%particle_selector)
+            type is(PC_WeightedParticlesOcc_t)
+                call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_APPROX) then
+            allocate(PC_FastWeightedParticles_t :: this%particle_selector)
+            select type(particle_selector => this%particle_selector)
+            type is(PC_FastWeightedParticles_t)
+                call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == PCHB_particle_selections%UNIFORM) then
+            allocate(UniformParticles_t :: this%particle_selector)
+        else
+            call stop_all(this_routine, 'not yet implemented')
+        end if
+
     contains
-        function map_orb(orb, alphaSamplers) result(sorb)
+        elemental function to_spin_orb(orb, is_alpha) result(sorb)
             ! map spatial orbital to the spin orbital matching the current samplerIndex
             ! Input: orb - spatial orbital to be mapped
-            !        alphaSamplers - list of samplerIndex values for which the mapping shall be to alpha
             ! Output: sorb - corresponding spin orbital
             integer, intent(in) :: orb
-            integer, intent(in) :: alphaSamplers(:)
+            logical, intent(in) :: is_alpha
             integer :: sorb
 
-            if (any(i_exch == alphaSamplers)) then
-                sorb = 2 * orb
-            else
-                sorb = 2 * orb - 1
-            end if
-        end function map_orb
+            sorb = merge(2 * orb, 2 * orb - 1, is_alpha)
+        end function to_spin_orb
     end subroutine
 
 
@@ -778,11 +871,15 @@ contains
     !>  @param[in] use_lookup Use a lookup for the supergroup indexing.
     !>  @param[in] singles_generator A **fully** initialized singles_generator
     !>                  whose cleanup happens outside. Has to be a target.
-    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, used_singles_generator)
+    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, &
+            used_singles_generator, PCHB_particle_selection)
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
+
+        call set_timer(GAS_PCHB_init_time)
 
         if (used_singles_generator == possible_GAS_singles%DISCARDING_UNIFORM) then
             write(stdout, *) 'GAS discarding singles activated'
@@ -801,7 +898,10 @@ contains
             allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
         end if
 
-        call this%doubles_generator%init(GAS_spec, use_lookup, create_lookup)
+        call this%doubles_generator%init(&
+            GAS_spec, use_lookup, create_lookup, PCHB_particle_selection)
+
+        call halt_timer(GAS_PCHB_init_time)
     end subroutine
 
 

@@ -23,7 +23,7 @@ module hist
                         any_run_is_initiator
     use searching, only: BinSearchParts2
     use Determinants, only: write_det
-    use util_mod, only: stop_all, binary_search, operator(.div.), &
+    use util_mod, only: stop_all, binary_search_ilut, operator(.div.), &
         get_free_unit, choose_i64
     use hist_data, only: hist_excit_tofrom, tag_hist_excit, HistogramEnergy, &
         HistMinInd, BinRange, excit_tofrom_unit, Histogram, InstHist, &
@@ -348,7 +348,7 @@ contains
                 call extract_sign(recv_dets(:, i), sgn1)
 
                 ! And the generated, connected particle
-                pos = binary_search(CurrentDets(:, 1:TotWalkers), &
+                pos = binary_search_ilut(CurrentDets(:, 1:TotWalkers), &
                                     recv_dets(:, i), NIfD + 1)
                 if (pos > 0) then
                     call extract_sign(CurrentDets(:, pos), sgn2)
@@ -589,7 +589,7 @@ contains
                         end if
 
                         ! --> sminus is an allowed result of applying S-S+
-                        pos = binary_search(ilut_list(:, 1:n_states), &
+                        pos = binary_search_ilut(ilut_list(:, 1:n_states), &
                                             ilut_srch, NIfD + 1)
                         if (pos > 0) then
 

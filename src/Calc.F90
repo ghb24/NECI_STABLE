@@ -1217,10 +1217,10 @@ contains
                 hash_shift = to_int(tokens%next())
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
-                NMCyc = to_int(tokens%next())
+                NMCyc = nint(to_realdp(tokens%next()))
             case("EQ-CYC")
                 ! This is the number of MC cycles to perform after equilibration
-                eq_cyc = to_int(tokens%next())
+                eq_cyc = nint(to_realdp(tokens%next()))
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of
 !walkers on the determinant

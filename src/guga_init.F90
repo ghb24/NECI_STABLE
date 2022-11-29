@@ -10,7 +10,7 @@ module guga_init
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
                           treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_tJ_model, t_guga_pchb, t_pchb_weighted_singles
+                          t_tJ_model, t_guga_pchb, t_guga_pchb_weighted_singles
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         tSpinProject, &
@@ -97,7 +97,7 @@ contains
 
         else if (t_guga_pchb) then
 
-            if (t_pchb_weighted_singles) then
+            if (t_guga_pchb_weighted_singles) then
                 pickOrbitals_single => pickOrbs_sym_uniform_mol_single
             else
                 pickOrbitals_single => pick_orbitals_pure_uniform_singles

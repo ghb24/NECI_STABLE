@@ -55,7 +55,7 @@ module util_mod
         append_ext, get_unique_filename, neci_flush, print_cstr_local, &
         stats_out
     public :: arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.), &
-        find_next_comb, binary_search, binary_search_custom, binary_search_first_ge, &
+        find_next_comb, binary_search_ilut, binary_search_custom, binary_search_first_ge, &
         cumsum, pairswap, swap, lex_leq, lex_geq, &
         get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
         getSpinIndex, binary_search_int, binary_search_real, clamp
@@ -63,6 +63,12 @@ module util_mod
 
     public :: EnumBase_t
 
+
+    interface binary_search_int
+    #:for kind in field_types['integer']
+        module procedure binary_search_int_${kind}$
+    #:endfor
+    end interface
 
     interface operator(.implies.)
         module procedure implies
@@ -581,7 +587,7 @@ contains
                 integer(int64) :: prev
                 prev = choose_i64_${kind}$(n - 1, r - 1, signal_overflow)
             ! Note that the recursion stops at n = 66
-                res = (prev * int(n, int64)) .div. k
+                res = (prev * n) .div. k
                 check_for_overflow: if (prev < 0 .or. res < 0) then
                     if (present(signal_overflow)) then
                         if (signal_overflow) then
@@ -641,7 +647,7 @@ contains
                 integer(int128) :: prev
                 prev = choose_i128_${kind}$(n - 1, r - 1, signal_overflow)
             ! Note that the recursion stops at n = 66
-                res = (prev * int(n, kind=int128)) .div. k
+                res = (prev * n) .div. k
                 check_for_overflow: if (prev < 0 .or. res < 0) then
                     if (present(signal_overflow)) then
                         if (signal_overflow) then
@@ -786,7 +792,7 @@ contains
     ! NOTE: This can only be used for binary searching determinant bit
     !       strings now. We can template it if it wants to be more general
     !       in the future if needed.
-    function binary_search(arr, val, cf_len) result(pos)
+    function binary_search_ilut(arr, val, cf_len) result(pos)
 
         integer(kind=n_int), intent(in) :: arr(:, :)
         integer(kind=n_int), intent(in) :: val(:)
@@ -854,48 +860,46 @@ contains
             endif
         endif
 
-    end function binary_search
+    end function binary_search_ilut
 
-    pure function binary_search_int(arr, val) result(pos)
-        ! W.D.: also write a binary search for "normal" lists of ints
-        integer, intent(in) :: arr(:)
-        integer, intent(in) :: val
-        integer :: pos
+    #:for kind in field_types['integer']
+        pure function binary_search_int_${kind}$(arr, val) result(pos)
+            integer(${kind}$), intent(in) :: arr(:)
+            integer(${kind}$), intent(in) :: val
+            integer(int64) :: pos
 
-        integer :: hi, lo
+            integer(int64) :: hi, lo
 
-        lo = lbound(arr, 1)
-        hi = ubound(arr, 1)
+            lo = 1
+            hi = size(arr)
 
-        if(hi < lo) then
-            pos = -lo
-            return
-        end if
-
-        do while(hi /= lo)
-            pos = int(real(hi + lo, dp) / 2.0_dp)
-
-            if(arr(pos) == val) then
-                exit
-            else if(val > arr(pos)) then
-                lo = pos + 1
-            else
-                hi = pos
+            if(hi < lo) then
+                pos = -lo
+                return
             end if
-        end do
 
-        if(hi == lo) then
-            if(arr(hi) == val) then
-                pos = hi
-            else if(val > arr(hi)) then
-                pos = -hi - 1
+            do while(hi /= lo)
+                pos = int((hi + lo) / 2.0_dp, kind=int64)
 
-            else
-                pos = -hi
+                if(arr(pos) == val) then
+                    exit
+                else if(val > arr(pos)) then
+                    lo = pos + 1
+                else
+                    hi = pos
+                end if
+            end do
+
+            if(hi == lo) then
+                if(arr(hi) == val) then
+                    pos = hi
+                else
+                    pos = -1
+                end if
             end if
-        end if
 
-    end function binary_search_int
+        end function binary_search_int_${kind}$
+    #:endfor
 
     function binary_search_real(arr, val, thresh) &
         result(pos)

@@ -255,5 +255,6 @@ module LoggingData
 ! The user knows that RDMs are biased for single replica runs
     logical :: tUserKnowsBiasedRDMS = .false.
 
+    logical :: t_print_hdf5_rdms = .false.
 
 end module LoggingData
