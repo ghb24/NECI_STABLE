@@ -9,7 +9,7 @@ module test_gasci_general_pchb
 
     use gasci, only: LocalGASSpec_t
     use gasci_pc_select_particles, only: PCHB_particle_selections
-    use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
+    use gasci_pchb_general, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
         GAS_PCHB_options_t
     use excitation_generators, only: ExcitationGenerator_t
 
@@ -22,19 +22,52 @@ module test_gasci_general_pchb
     use SystemData, only: nEl
     implicit none
     private
-    public :: test_pgen
+    public :: test_pgen_RHF_hermitian, test_pgen_UHF_hermitian, &
+              test_pgen_RHF_nonhermitian, test_pgen_UHF_nonhermitian
+
+    type :: random_fcidump_writer_t
+        logical :: UHF
+        logical :: hermitian
+    contains
+        private
+        procedure, public :: random_fcidump_member
+    end type random_fcidump_writer_t
+
 
 contains
 
-    subroutine test_pgen()
+    subroutine test_pgen_RHF_hermitian()
+        call test_pgen_general(.false., .true.)
+    end subroutine test_pgen_RHF_hermitian
+
+    subroutine test_pgen_UHF_hermitian()
+        call test_pgen_general(.true., .true.)
+    end subroutine test_pgen_UHF_hermitian
+
+    subroutine test_pgen_RHF_nonhermitian()
+        call test_pgen_general(.false., .false.)
+    end subroutine test_pgen_RHF_nonhermitian
+
+    subroutine test_pgen_UHF_nonhermitian()
+        call test_pgen_general(.true., .false.)
+    end subroutine test_pgen_UHF_nonhermitian
+
+    subroutine test_pgen_general(UHF, hermitian)
         use FciMCData, only: pSingles, pDoubles, pParallel
+        logical, intent(in) :: UHF, hermitian
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
+        type(random_fcidump_writer_t) :: dumpwriter
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
         integer :: n_interspace_exc
         integer, parameter :: n_iters=10**7
+
+        character(len=128) :: message
+        write(message, *) "Failed for UHF=", UHF, ", hermitian=", hermitian
+
+        dumpwriter = random_fcidump_writer_t(UHF=UHF, hermitian=hermitian)
 
         pParallel = 0.05_dp
         pSingles = 0.2_dp
@@ -49,10 +82,11 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(&
-                GAS_spec, use_lookup=.false., create_lookup=.false., &
+                GAS_spec, &
                 options=GAS_PCHB_options_t(&
                     PCHB_particle_selections%UNIFORM, &
-                    possible_GAS_singles%BITMASK_UNIFORM &
+                    possible_GAS_singles%BITMASK_UNIFORM, &
+                    UHF=UHF &
                 ) &
             )
             call run_excit_gen_tester( &
@@ -62,7 +96,7 @@ contains
                 problem_filter=is_problematic,&
                 successful=successful)
             call exc_generator%finalize()
-            call assert_true(successful)
+            call assert_true(successful, trim(message))
             call finalize_excitgen_test()
         end do
 
@@ -75,10 +109,11 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(&
-                GAS_spec, use_lookup=.false., create_lookup=.false., &
+                GAS_spec, &
                 options=GAS_PCHB_options_t(&
                     PCHB_particle_selections%PC_WEIGHTED, &
-                    possible_GAS_singles%BITMASK_UNIFORM &
+                    possible_GAS_singles%BITMASK_UNIFORM, &
+                    UHF=UHF &
                 ) &
             )
             call run_excit_gen_tester( &
@@ -88,7 +123,7 @@ contains
                 problem_filter=is_problematic,&
                 successful=successful)
             call exc_generator%finalize()
-            call assert_true(successful)
+            call assert_true(successful, trim(message))
             call finalize_excitgen_test()
         end do
 
@@ -100,10 +135,11 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             call exc_generator%init(&
-                GAS_spec, use_lookup=.false., create_lookup=.false., &
+                GAS_spec, &
                 options=GAS_PCHB_options_t(&
                     PCHB_particle_selections%PC_WEIGHTED_APPROX, &
-                    possible_GAS_singles%BITMASK_UNIFORM &
+                    possible_GAS_singles%BITMASK_UNIFORM,  &
+                    UHF=UHF &
                 ) &
             )
             call run_excit_gen_tester( &
@@ -113,24 +149,17 @@ contains
                 problem_filter=is_problematic,&
                 successful=successful)
             call exc_generator%finalize()
-            call assert_true(successful)
+            call assert_true(successful, trim(message))
             call finalize_excitgen_test()
         end do
-
-
 
     contains
 
         subroutine random_fcidump(iunit)
             integer, intent(in) :: iunit
-            integer :: n_spat_orb, iGAS
-
-            n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
-
-            call generate_random_integrals(&
-                iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
-                sparse=0.5_dp, sparseT=0.5_dp, total_ms=sum(calc_spin_raw(det_I)))
-        end subroutine
+            ! dumpwriter comes from the host subroutine
+            call dumpwriter%random_fcidump_member(iunit, GAS_spec, det_I)
+        end subroutine random_fcidump
 
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
@@ -139,7 +168,23 @@ contains
                 (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
-    end subroutine test_pgen
+    end subroutine test_pgen_general
+
+    subroutine random_fcidump_member(this, iunit, GAS_spec, det_I)
+        ! UHF, hermitian
+        class(random_fcidump_writer_t), intent(inout) :: this
+        type(LocalGASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: det_I(:)
+        integer, intent(in) :: iunit
+        integer :: n_spat_orb, iGAS
+
+        n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
+
+        call generate_random_integrals(&
+            iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
+            sparse=0.5_dp, sparseT=0.5_dp, total_ms=sum(calc_spin_raw(det_I)), &
+            UHF=this%UHF, hermitian=this%hermitian)
+    end subroutine
 
 end module
 
@@ -150,7 +195,10 @@ program test_gasci_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen
+    use test_gasci_general_pchb, only: test_pgen_RHF_hermitian, &
+                                       test_pgen_UHF_hermitian, &
+                                       test_pgen_RHF_nonhermitian, &
+                                       test_pgen_UHF_nonhermitian
 
 
     implicit none
@@ -176,6 +224,9 @@ program test_gasci_program
 contains
 
     subroutine test_gasci_driver()
-        call run_test_case(test_pgen, "test_pgen")
-    end subroutine
+        call run_test_case(test_pgen_RHF_hermitian, "test_pgen_RHF_hermitian")
+        call run_test_case(test_pgen_UHF_hermitian, "test_pgen_UHF_hermitian")
+        call run_test_case(test_pgen_RHF_nonhermitian, "test_pgen_RHF_nonhermitian")
+        call run_test_case(test_pgen_UHF_nonhermitian, "test_pgen_UHF_nonhermitian")
+    end subroutine test_gasci_driver
 end program test_gasci_program

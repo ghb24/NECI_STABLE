@@ -66,7 +66,7 @@ add_subdirectory( guga )
 
 add_subdirectory( impurity_excit_gen )
 
-add_subdirectory( pcpp_excitgen)
+add_subdirectory( excitgen)
 
 add_subdirectory( gdata_io )
 

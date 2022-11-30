@@ -5,6 +5,7 @@
 module gasci_pc_select_particles
     use constants, only: dp, int64, stdout, n_int, bits_n_int
     use bit_rep_data, only: nIfD
+    use util_mod, only: EnumBase_t
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use dSFMT_interface, only: genrand_real2_dSFMT

@@ -49,7 +49,14 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
          user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
     use gasci_util, only: t_output_GAS_sizes
-    use pchb_excitgen, only: FCI_PCHB_singles_from_kw => singles_from_keyword
+    use gasci_pchb_general, only: GAS_PCHB_options, possible_GAS_singles, &
+        GAS_PCHB_singles_from_keyword => singles_from_keyword
+    use gasci_pc_select_particles, only: select_particles_from_keyword => from_keyword
+    use gasci_singles_pc_weighted, only: &
+        singles_weighting_from_keyword => weighting_from_keyword, &
+        singles_drawing_from_keyword => drawing_from_keyword
+    use pchb_excitgen, only: FCI_PCHB_singles_from_kw => singles_from_keyword, &
+        FCI_PCHB_options, possible_PCHB_singles
 
     use growing_buffers, only: buffer_int_1D_t
     IMPLICIT NONE
@@ -288,7 +295,7 @@ contains
         type(TokenIterator_t) :: tokens
         character(*), parameter :: t_r = 'SysReadInput'
         character(*), parameter :: this_routine = 'SysReadInput'
-        integer :: temp_n_orbs
+        integer :: temp_n_orbs, buf(1000), n_orb
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
@@ -534,8 +541,10 @@ contains
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
             case ("UHF")
-! This keyword is required if we are doing an open shell calculation
-! but do not want to include singles in the energy calculations.
+            ! indicates UHF type FCIDUMP
+            ! Note, this keyword is required if we are doing an open shell calculation
+            ! but do not want to include singles in the energy calculations
+            ! (e.g. by nobrillouintheorem)
                 tUHF = .true.
             case ("RS")
                 FUEGRS = to_realdp(tokens%next())
@@ -1594,12 +1603,6 @@ contains
                         t_pcpp_excitgen = .true.
 
                     case ("PCHB")
-                    block
-                        use gasci_pc_select_particles, only: from_keyword
-                        use gasci_singles_pc_weighted, only: &
-                            weighting_from_keyword, drawing_from_keyword
-
-                        use pchb_excitgen, only: FCI_PCHB_options, possible_PCHB_singles
                         t_pchb_excitgen = .true.
                         do while (tokens%remaining_items() > 0)
                             w = to_upper(tokens%next())
@@ -1608,63 +1611,52 @@ contains
                                 FCI_PCHB_options%singles = FCI_PCHB_singles_from_kw(w)
                                 if (FCI_PCHB_options%singles == possible_PCHB_singles%PC_WEIGHTED) then
                                     w = to_upper(tokens%next())
-                                    FCI_PCHB_options%PC_singles_options%weighting = weighting_from_keyword(w)
+                                    FCI_PCHB_options%PC_singles_options%weighting = singles_weighting_from_keyword(w)
                                     w = to_upper(tokens%next())
-                                    FCI_PCHB_options%PC_singles_options%drawing = drawing_from_keyword(w)
+                                    FCI_PCHB_options%PC_singles_options%drawing = singles_drawing_from_keyword(w)
                                 end if
                             else if (w == 'PARTICLE-SELECTION') then
                                 w = to_upper(tokens%next())
-                                FCI_PCHB_options%particle_selection = from_keyword(w)
+                                FCI_PCHB_options%particle_selection = select_particles_from_keyword(w)
                             else
                                 call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
                             end if
                         end do
-                    end block
 
-                case ("GAS-CI")
-                block
-                    w = to_upper(tokens%next())
-                    select case (w)
-                    case ('ON-THE-FLY-HEAT-BATH')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
-                    case ('DISCONNECTED')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                    case ('DISCARDING')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                    case ('PCHB')
-                    block
-                        use gasci_pc_select_particles, only: from_keyword
-                        use gasci_singles_pc_weighted, only: &
-                            weighting_from_keyword, drawing_from_keyword
-
-                        use gasci_pchb, only: GAS_PCHB_options, possible_GAS_singles, &
-                            singles_from_keyword
+                    case ("GAS-CI")
+                        w = to_upper(tokens%next())
+                        select case (w)
+                        case ('ON-THE-FLY-HEAT-BATH')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
+                        case ('DISCONNECTED')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                        case ('DISCARDING')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                        case ('PCHB')
 
 
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
-                        do while (tokens%remaining_items() > 0)
-                            w = to_upper(tokens%next())
-                            if (w == 'SINGLES') then
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+                            do while (tokens%remaining_items() > 0)
                                 w = to_upper(tokens%next())
-                                GAS_PCHB_options%singles = singles_from_keyword(w)
-                                if (GAS_PCHB_options%singles == possible_GAS_singles%PC_WEIGHTED) then
+                                if (w == 'SINGLES') then
                                     w = to_upper(tokens%next())
-                                    GAS_PCHB_options%PC_singles_options%weighting = weighting_from_keyword(w)
+                                    GAS_PCHB_options%singles = GAS_PCHB_singles_from_keyword(w)
+                                    if (GAS_PCHB_options%singles == possible_GAS_singles%PC_WEIGHTED) then
+                                        w = to_upper(tokens%next())
+                                        GAS_PCHB_options%PC_singles_options%weighting = singles_weighting_from_keyword(w)
+                                        w = to_upper(tokens%next())
+                                        GAS_PCHB_options%PC_singles_options%drawing = singles_drawing_from_keyword(w)
+                                    end if
+                                else if (w == 'PARTICLE-SELECTION') then
                                     w = to_upper(tokens%next())
-                                    GAS_PCHB_options%PC_singles_options%drawing = drawing_from_keyword(w)
+                                    GAS_PCHB_options%particle_selection = select_particles_from_keyword(w)
+                                else
+                                    call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
                                 end if
-                            else if (w == 'PARTICLE-SELECTION') then
-                                w = to_upper(tokens%next())
-                                GAS_PCHB_options%particle_selection = from_keyword(w)
-                            else
-                                call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
-                            end if
-                        end do
-                    end block
-                    case default
-                        call Stop_All(t_r, trim(w)//" not a valid keyword")
-                    end select
-                end block
+                            end do
+                        case default
+                            call Stop_All(t_r, trim(w)//" not a valid keyword")
+                        end select
 
 
                     case ("GUGA-PCHB")
@@ -1817,16 +1809,12 @@ contains
                 ! ordering given in the FCIDUMP file - only has an
                 ! effect when reading an FCIDUMP file, has no effect for
                 ! hubbard/heisenberg/ueg systems etc
-                block
-                  integer :: buf(1000)
-                  integer :: n_orb
-                  n_orb = 0
-                  do while (tokens%remaining_items() > 0)
-                      n_orb = n_orb + 1
-                      buf(n_orb) = to_int(tokens%next())
-                  end do
-                  call load_orb_perm(buf(1:n_orb))
-                end block
+                n_orb = 0
+                do while (tokens%remaining_items() > 0)
+                    n_orb = n_orb + 1
+                    buf(n_orb) = to_int(tokens%next())
+                end do
+                call load_orb_perm(buf(1:n_orb))
 
             case ("GIOVANNIS-BROKEN-INIT")
                 ! Giovanni's scheme for initialising determinants with the correct
@@ -1916,8 +1904,6 @@ contains
                 allocate(SD_spin_purification, source=possible_purification_methods%FULL_S2)
                 spin_pure_J = to_realdp(tokens%next())
                 if (tokens%remaining_items() > 0) then
-                block
-                    character(len=100) :: w
                     w = to_upper(tokens%next())
                     select case(w)
                     case ("ONLY-LADDER-OPERATOR")
@@ -1927,7 +1913,6 @@ contains
                     case default
                         call stop_all(t_r, "Wrong alternative purification method.")
                     end select
-                end block
                 end if
 
             case ("ENDSYS")

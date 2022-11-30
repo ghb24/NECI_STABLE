@@ -217,7 +217,7 @@ set( SRC_FILES
     exc_gen_class_wrappers.F90
     exc_gen_classes.F90
 
-    lib/cons_neci.F90
+    lib/constants.F90
     lib/dSFMT.cpp
     lib/dSFMT_interface.F90
     lib/environment_report.F90
@@ -430,7 +430,9 @@ set( FYPP_SRC_FILES
     gasci_disconnected.fpp
     gasci_discarding.fpp
     gasci_general.fpp
-    gasci_pchb.fpp
+    gasci_pchb_general.fpp
+    gasci_pchb_rhf.fpp
+    # gasci_pchb_uhf.fpp
     gasci_pc_select_particles.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp

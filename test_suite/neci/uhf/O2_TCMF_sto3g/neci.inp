@@ -1,0 +1,50 @@
+# @jph - also produce FCIDUMP
+title
+
+    system read
+        electron 12 # valence only
+        nobrillouintheorem
+        spin-restrict -2
+        ### these are the keywords we are testing  ###
+        nonuniformrandexcits pchb
+        nonhermitian
+        uhf
+        molpromimic
+        ##############################################
+    endsys
+
+    calc
+        seed 7
+        load-balance-blocks off
+
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 1.e3
+        nmcyc 15000
+        definedet 1-10 11 13
+
+        startsinglepart 100
+        tau-values \
+            start user-defined 0.01
+        tau-search \
+            algorithm conventional \
+            stop-condition var-shift
+
+        shiftdamp 0.1
+        stepsshift 10
+
+        truncinitiator
+        addtoinitiator 3
+
+        semi-stochastic 2
+        allrealcoeff
+        pops-core 2
+
+        memoryfacspawn 50
+    endcalc
+
+    logging
+        binarypops
+    endlog
+end

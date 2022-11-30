@@ -4,7 +4,7 @@
 module gasci_discarding
     use constants, only: n_int, dp, maxExcit
     use util_mod, only: stop_all
-    use SystemData, only: nel
+    use SystemData, only: nel, tUHF
     use FciMCData, only: excit_gen_store_type
     use bit_rep_data, only: NIfTot
     use sort_mod, only: sort
@@ -90,9 +90,13 @@ contains
         class(GAS_DiscardingGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         this%GAS_spec = GAS_spec
-        call this%FCI_generator%init(FCI_PCHB_options_t(&
-            PCHB_particle_selections%PC_WEIGHTED, &
-            possible_PCHB_singles%UNIFORM))
+        call this%FCI_generator%init(&
+            FCI_PCHB_options_t(&
+                PCHB_particle_selections%PC_WEIGHTED, &
+                possible_PCHB_singles%UNIFORM, &
+                tUHF &
+            ) &
+        )
     end subroutine
 
     subroutine finalize(this)

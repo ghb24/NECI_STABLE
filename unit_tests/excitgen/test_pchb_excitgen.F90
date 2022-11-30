@@ -1,5 +1,5 @@
 module test_pchb_excitgen_mod
-    use fruit, only: assert_true
+    use fruit, only: assert_true, run_test_case
     use constants, only: dp, maxExcit
     use gasci_pc_select_particles, only: PCHB_particle_selections
     use pchb_excitgen, only: PCHB_FCI_excit_generator_t, possible_PCHB_singles, &
@@ -20,10 +20,37 @@ module test_pchb_excitgen_mod
 contains
 
     subroutine pchb_test_driver()
+        call run_test_case(test_pgen_rhf_hermitian, "test_pgen_rhf_hermitian")
+        call run_test_case(test_pgen_uhf_hermitian, "test_pgen_uhf_hermitian")
+        call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
+        call run_test_case(test_pgen_uhf_nonhermitian, "test_pgen_uhf_nonhermitian")
+    end subroutine pchb_test_driver
+
+    subroutine test_pgen_rhf_hermitian()
+        call pchb_test_general(.false., .true.)
+    end subroutine test_pgen_rhf_hermitian
+
+    subroutine test_pgen_uhf_hermitian()
+        call pchb_test_general(.true., .true.)
+    end subroutine test_pgen_uhf_hermitian
+
+    subroutine test_pgen_rhf_nonhermitian()
+        call pchb_test_general(.false., .false.)
+    end subroutine test_pgen_rhf_nonhermitian
+
+    subroutine test_pgen_uhf_nonhermitian()
+        call pchb_test_general(.true., .false.)
+    end subroutine test_pgen_uhf_nonhermitian
+
+    subroutine pchb_test_general(uhf, hermitian)
+        logical, intent(in) :: uhf, hermitian
         integer, parameter :: n_iters = 5 * 10**7
         type(PCHB_FCI_excit_generator_t) :: exc_generator
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10], n_spat_orb = 10
         logical :: successful
+
+        character(len=128) :: message
+        write(message, *) "Failed for uhf=", uhf, ", hermitian=", hermitian
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
@@ -31,7 +58,7 @@ contains
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
-        call exc_generator%init(FCI_PCHB_options_t(PCHB_particle_selections%UNIFORM, possible_PCHB_singles%UNIFORM))
+        call exc_generator%init(FCI_PCHB_options_t(PCHB_particle_selections%UNIFORM, possible_PCHB_singles%UNIFORM, UHF=UHF))
 
         call run_excit_gen_tester( &
             exc_generator, 'PCHB FCI', &
@@ -39,7 +66,7 @@ contains
             problem_filter=is_problematic, &
             successful=successful)
 
-        call assert_true(successful)
+        call assert_true(successful, trim(message))
         call exc_generator%finalize()
         call finalize_excitgen_test()
 
@@ -47,11 +74,8 @@ contains
 
         subroutine random_fcidump(iunit)
             integer, intent(in) :: iunit
-
-            call generate_random_integrals( &
-                iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
-                sparse=0.7_dp, sparseT=0.7_dp, total_ms=sum(calc_spin_raw(det_I)))
-        end subroutine
+            call random_fcidump_general(iunit, uhf, hermitian, det_I, n_spat_orb)
+        end subroutine random_fcidump
 
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
@@ -59,9 +83,20 @@ contains
             is_problematic = &
                 (abs(1._dp - pgen_diagnostic) >= 0.1_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
-        end function
+        end function is_problematic
 
-    end subroutine pchb_test_driver
+    end subroutine pchb_test_general
+
+    subroutine random_fcidump_general(iunit, is_uhf, is_hermitian, det_I, n_spat_orb)
+        integer, intent(in) :: iunit
+        logical, intent(in) :: is_uhf, is_hermitian
+        integer, intent(in) :: det_I(:), n_spat_orb
+
+        call generate_random_integrals( &
+            iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
+            sparse=0.7_dp, sparseT=0.7_dp, total_ms=sum(calc_spin_raw(det_I)), &
+            uhf=is_uhf, hermitian=is_hermitian)
+    end subroutine random_fcidump_general
 
 end module
 
