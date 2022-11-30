@@ -432,6 +432,7 @@ set( FYPP_SRC_FILES
     gasci_general.fpp
     gasci_pchb_general.fpp
     gasci_pchb_rhf.fpp
+    gasci_singles_main_mod.fpp
     # gasci_pchb_uhf.fpp
     gasci_pc_select_particles.fpp
     gasci_supergroup_index.fpp

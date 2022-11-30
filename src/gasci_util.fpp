@@ -51,6 +51,7 @@ contains
         class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
         integer, allocatable :: singles_exc_list(:, :)
+            !! Dimension is (nEl, n_configurations)
         character(*), parameter :: this_routine = 'get_available_singles'
 
         integer, allocatable :: possible_holes(:)
