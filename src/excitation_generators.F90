@@ -47,8 +47,6 @@ module excitation_generators
         !! in the typical sense (i.e. up to double excitations)
         private
         class(DoubleExcitationGenerator_t), public, allocatable :: doubles_generator
-        ! NOTE: Change into class(SingleExcitationGenerator_t), allocatable
-        !   if you want to change singles_generators at runtime.
         class(SingleExcitationGenerator_t), public, allocatable :: singles_generator
     contains
         private
@@ -203,8 +201,8 @@ contains
         integer, intent(in), optional :: part_type
 
         call gen_exc_sd(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-        ex, tParity, pGen, hel, store, part_type, &
-        this%singles_generator, this%doubles_generator)
+            ex, tParity, pGen, hel, store, part_type, &
+            this%singles_generator, this%doubles_generator)
     end subroutine abinit_gen_exc
 
     real(dp) function abinit_get_pgen(&

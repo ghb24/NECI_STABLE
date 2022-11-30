@@ -20,7 +20,8 @@ if( CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 10 )
 endif()
 
 # Treat errors as warnings
-set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-Werror")
+# set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-Werror")
+set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "")
 
 # Treat 32bit/64bit compilation differently
 
