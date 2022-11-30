@@ -236,10 +236,10 @@ contains
 
         TDebug = .false.  ! Set debugging flag
 
-        if ((t_store_ci_coeff) .and. (n_store_ci_level.gt.3)) then
+        if (t_store_ci_coeff .and. n_store_ci_level.gt.3) then
            call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not implemented for &
                                        &excitation levels higher than 3')
-        else if ((t_store_ci_coeff) .and. (tHPHF)) then
+        else if (t_store_ci_coeff .and. tHPHF) then
            call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not working with HPHF')
         endif
 

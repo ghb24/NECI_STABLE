@@ -1,3 +1,4 @@
+#include "macros.h"
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
@@ -19,7 +20,9 @@ module sdt_amplitudes
     use sort_mod, only: sort
     use fortran_strings, only: str
 
-    implicit none
+    better_implicit_none
+    private
+    public :: init_ciCoeff, print_averaged_ci_coeff, storeCiCoeffs
 
     type :: singles_t
         real(dp) :: x
@@ -37,7 +40,6 @@ module sdt_amplitudes
     integer(n_int), allocatable :: ciCoeff_storage(:, :), root_ciCoeff_storage(:, :)
     integer :: first_free_entry, nCyc, root_first_free_entry
     type(ll_node), pointer :: hash_table_ciCoeff(:)
-    character(len=90) :: fileCICoeffAv, fileCIcoeffSort
     integer(n_int), allocatable  :: totEntCoeff(:, :)
 
 contains
@@ -219,7 +221,7 @@ contains
             if (iCI == 2) allocate (doubles(totEntCoeff(iCI, 2)))
             if (iCI == 3) allocate (triples(totEntCoeff(iCI, 2)))
 
-            do hI = 1, totEntCoeff(iCI, 2)
+            do hI = 1_n_int, totEntCoeff(iCI, 2)
                 read (unit_CIav, *) x, (ex(1, i), ex(2, i), i=1, icI)
 
                 call indPreSort(icI, Itot, ex, signCI)
@@ -308,28 +310,6 @@ contains
             trip_comp = lex_leq(idx_1, idx_2)          
         end associate   
     end function
-!    logical elemental function trip_comp(p1, p2)
-!        type(triples_t), intent(in) :: p1, p2
-!        if (p1%k /= p2%k) then
-!            trip_comp = p1%k <= p2%k
-!            return
-!        else if (p1%j /= p2%j) then
-!            trip_comp = p1%j <= p2%j
-!            return
-!        else if (p1%i /= p2%i) then
-!            trip_comp = p1%i <= p2%i
-!            return
-!        else if (p1%a /= p2%a) then
-!            trip_comp = p1%a <= p2%a
-!            return
-!        else if (p1%b /= p2%b) then
-!            trip_comp = p1%b <= p2%b
-!            return
-!        else if (p1%c /= p2%c) then
-!            trip_comp = p1%c <= p2%c
-!            return
-!        end if
-!    end function 
 
     end subroutine sorting
 
