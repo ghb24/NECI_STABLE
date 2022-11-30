@@ -20,12 +20,20 @@ module gasci_singles_main_mod
     use fortran_strings, only: to_upper
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
+
+    use gasci_singles_pc_weighted, only: PC_WeightedSinglesOptions_t, Base_PC_Weighted_t, do_allocation, &
+        weighting_from_keyword, drawing_from_keyword, print_options, &
+        possible_pc_singles_drawing, possible_pc_singles_weighting
     better_implicit_none
 
     private
     public :: GAS_used_singles_t, possible_GAS_singles, singles_from_keyword, &
         GAS_singles_PC_uniform_ExcGenerator_t, GAS_singles_DiscardingGenerator_t, &
-        GAS_singles_heat_bath_ExcGen_t
+        GAS_singles_heat_bath_ExcGen_t, PCHB_SinglesOptions_t
+    ! Reexpose the stuff from gasci_singles_pc_weighted
+    public :: PC_WeightedSinglesOptions_t, Base_PC_Weighted_t, do_allocation, &
+        weighting_from_keyword, drawing_from_keyword, print_options, &
+        possible_pc_singles_drawing, possible_pc_singles_weighting
 
 
     type, extends(EnumBase_t) :: GAS_used_singles_t
@@ -40,6 +48,12 @@ module gasci_singles_main_mod
     end type
 
     type(possible_GAS_singles_t), parameter :: possible_GAS_singles = possible_GAS_singles_t()
+
+    type :: PCHB_SinglesOptions_t
+        type(GAS_used_singles_t) :: algorithm
+        type(PC_WeightedSinglesOptions_t) :: PC_weighted_options = PC_WeightedSinglesOptions_t(&
+            possible_PC_singles_weighting%UNDEFINED, possible_PC_singles_drawing%UNDEFINED)
+    end type
 
     !> The precomputed GAS uniform excitation generator
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_PC_uniform_ExcGenerator_t
@@ -85,11 +99,6 @@ module gasci_singles_main_mod
     interface GAS_singles_DiscardingGenerator_t
         module procedure construct_GAS_singles_DiscardingGenerator_t
     end interface
-
-
-
-
-
 
 contains
 

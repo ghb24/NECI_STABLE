@@ -26,7 +26,7 @@ module gasci_singles_pc_weighted
 
     better_implicit_none
     private
-    public :: PC_SinglesOptions_t, Base_PC_Weighted_t, do_allocation, &
+    public :: PC_WeightedSinglesOptions_t, Base_PC_Weighted_t, do_allocation, &
         weighting_from_keyword, drawing_from_keyword, print_options, &
         possible_pc_singles_drawing, possible_pc_singles_weighting
 
@@ -72,7 +72,7 @@ module gasci_singles_pc_weighted
                 !! We only guarantee that \(I\) is occupied.
     end type
 
-    type :: PC_SinglesOptions_t
+    type :: PC_WeightedSinglesOptions_t
         type(PC_singles_weighting_t) :: weighting
         type(PC_singles_drawing_t) :: drawing
     end type
@@ -205,7 +205,7 @@ contains
     end subroutine
 
     subroutine print_options(options, iunit)
-        type(PC_SinglesOptions_t), intent(in) :: options
+        type(PC_WeightedSinglesOptions_t), intent(in) :: options
         integer, intent(in) :: iunit
         write(iunit, *)
         call print_weighting_option(options%weighting, iunit)

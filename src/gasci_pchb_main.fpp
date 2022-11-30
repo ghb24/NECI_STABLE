@@ -25,24 +25,25 @@
 !
 ! The details of calculating i_sg can be found in gasci_supergroup_index.f90
 
-module gasci_pchb_general
+module gasci_pchb_main
     !! Precomputed Heat Bath Implementation for GASCI. This modules implements
     !! the excitation generator which builds on either gasci_pchb and gasci_pchb_uhf
     !! depending on if we are working in spin or spatial orbitals.
 
     use constants, only: stdout
-    use util_mod, only: stop_all
+    use util_mod, only: stop_all, EnumBase_t
     use timing_neci, only: set_timer, halt_timer
     use FciMCData, only: GAS_PCHB_init_time
 
     use gasci, only: GASSpec_t
-    use gasci_pc_select_particles, only: PCHB_particle_selections, PCHB_ParticleSelection_t
     use gasci_singles_main_mod, only: GAS_used_singles_t, possible_GAS_singles, &
         GAS_singles_PC_uniform_ExcGenerator_t, GAS_singles_DiscardingGenerator_t, &
-        GAS_singles_heat_bath_ExcGen_t
-    use gasci_singles_pc_weighted, only: PC_SinglesOptions_t, &
-        Base_PC_Weighted_t, do_allocation, print_options, &
-        possible_PC_singles_weighting, possible_PC_singles_drawing
+        GAS_singles_heat_bath_ExcGen_t, &
+        PCHB_SinglesOptions_t, Base_PC_Weighted_t, do_allocation, print_options, &
+        possible_PC_singles_weighting, possible_PC_singles_drawing, &
+        PC_WeightedSinglesOptions_t
+    use gasci_pchb_doubles_main_mod, only: PCHB_DoublesOptions_t, PCHB_particle_selections,&
+        possible_PCHB_hole_selection
 
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t
 
@@ -55,23 +56,27 @@ module gasci_pchb_general
     public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, GAS_PCHB_options
 
     type :: GAS_PCHB_options_t
-        type(PCHB_ParticleSelection_t) :: particle_selection
-        type(GAS_used_singles_t) :: singles
+        type(PCHB_DoublesOptions_t) :: doubles
+        type(PCHB_SinglesOptions_t) :: singles
         logical :: UHF
             !! Do a spin-projection resolved calculation.
-        type(PC_SinglesOptions_t) :: PC_singles_options = PC_SinglesOptions_t(&
-            possible_PC_singles_weighting%UNDEFINED, possible_PC_singles_drawing%UNDEFINED)
-            !! Only relevant if `singles == possible_PCHB_singles%PC_WEIGHTED`
-        logical :: use_lookup= .false.
+        logical :: use_lookup = .false.
             !! Use and/or create/manage the supergroup lookup.
+    contains
+        procedure :: assert_validity
     end type
 
     type(GAS_PCHB_options_t) :: GAS_PCHB_options = GAS_PCHB_options_t( &
-        PCHB_particle_selections%PC_WEIGHTED_APPROX, &
-        possible_GAS_singles%PC_WEIGHTED, &
-        PC_singles_options=PC_SinglesOptions_t(&
-            possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS, &
-            possible_PC_singles_drawing%APPROX &
+        PCHB_SinglesOptions_t(&
+            possible_GAS_singles%PC_WEIGHTED, &
+            PC_WeightedSinglesOptions_t(&
+                possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS, &
+                possible_PC_singles_drawing%APPROX &
+            ) &
+        ), &
+        PCHB_DoublesOptions_t( &
+            PCHB_particle_selections%PC_WEIGHTED_APPROX, &
+            possible_PCHB_hole_selection%RHF_FAST_WEIGHTED &
         ), &
         UHF=.false., &
         use_lookup=.true. &
@@ -99,10 +104,12 @@ contains
 
         call set_timer(GAS_PCHB_init_time)
 
-        if (options%singles == possible_GAS_singles%DISCARDING_UNIFORM) then
+        call options%assert_validity()
+
+        if (options%singles%algorithm == possible_GAS_singles%DISCARDING_UNIFORM) then
             write(stdout, *) 'GAS discarding singles activated'
             allocate(this%singles_generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
-        else if (options%singles == possible_GAS_singles%BITMASK_UNIFORM) then
+        else if (options%singles%algorithm == possible_GAS_singles%BITMASK_UNIFORM) then
             write(stdout, *) 'GAS precomputed singles activated'
             allocate(GAS_singles_PC_uniform_ExcGenerator_t :: this%singles_generator)
             select type(generator => this%singles_generator)
@@ -111,10 +118,10 @@ contains
                 !   supergroup lookup!
                 call generator%init(GAS_spec, options%use_lookup, create_lookup=.false.)
             end select
-        else if (options%singles == possible_GAS_singles%ON_FLY_HEAT_BATH) then
+        else if (options%singles%algorithm == possible_GAS_singles%ON_FLY_HEAT_BATH) then
             write(stdout, *) 'GAS heat bath on the fly singles activated'
             allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
-        else if (options%singles == possible_GAS_singles%PC_WEIGHTED) then
+        else if (options%singles%algorithm == possible_GAS_singles%PC_WEIGHTED) then
             call print_options(options%PC_singles_options, stdout)
             call do_allocation(this%singles_generator, options%PC_singles_options%drawing)
             select type(generator => this%singles_generator)
@@ -138,11 +145,32 @@ contains
             type is(GAS_doubles_RHF_PCHB_ExcGenerator_t)
                 call generator%init(&
                     GAS_spec, options%use_lookup, options%use_lookup, &
-                    options%particle_selection)
+                    options%doubles%particle_selection)
             end select
         end if
         call halt_timer(GAS_PCHB_init_time)
     end subroutine GAS_PCHB_init
 
+    subroutine assert_validity(this)
+        class(GAS_PCHB_options_t), intent(in) :: this
+        routine_name("assert_validity")
 
-end module gasci_pchb_general
+        if (this%singles == possible_GAS_singles%PC_WEIGHTED &
+           .neqv. (this%PC_singles_options%weighting /= possible_PC_singles_weighting%UNDEFINED &
+                    .and. this%PC_singles_options%drawing /= possible_PC_singles_drawing%UNDEFINED)) then
+            if (this%singles == possible_GAS_singles%PC_WEIGHTED) then
+                call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
+            else
+                call stop_all(this_routine, "PC_weighted options require PC-WEIGHTED singles. ")
+            end if
+        end if
+
+        ! TODO(@jph): here you have to continue
+        ! if (this%UHF .neqv. ...)
+        ! end if
+
+
+    end subroutine
+
+
+end module gasci_pchb_main

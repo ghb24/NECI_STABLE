@@ -9,7 +9,7 @@ module pchb_excitgen
     use gasci, only: GASSpec_t, LocalGASSpec_t
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_singles_pc_weighted, only: PC_SinglesOptions_t, possible_PC_singles_drawing, &
+    use gasci_singles_pc_weighted, only: PC_WeightedSinglesOptions_t, possible_PC_singles_drawing, &
         possible_PC_singles_weighting, Base_PC_Weighted_t, do_allocation, print_options
     use gasci_pchb_rhf, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
     use gasci_pc_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
@@ -44,7 +44,7 @@ module pchb_excitgen
         type(PCHB_used_singles_t) :: singles
         logical :: UHF
             !! Do a spin-projection resolved calculation.
-        type(PC_SinglesOptions_t) :: PC_singles_options = PC_SinglesOptions_t(&
+        type(PC_WeightedSinglesOptions_t) :: PC_singles_options = PC_WeightedSinglesOptions_t(&
             possible_PC_singles_weighting%UNDEFINED, possible_PC_singles_drawing%UNDEFINED)
             !! Only relevant if `singles == possible_PCHB_singles%PC_WEIGHTED`
     end type
@@ -53,7 +53,7 @@ module pchb_excitgen
         PCHB_particle_selections%PC_WEIGHTED_APPROX, &
         possible_PCHB_singles%PC_WEIGHTED, &
         UHF=.false., &
-        PC_singles_options=PC_SinglesOptions_t(&
+        PC_singles_options=PC_WeightedSinglesOptions_t(&
             possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS, &
             possible_PC_singles_drawing%APPROX &
         ) &
