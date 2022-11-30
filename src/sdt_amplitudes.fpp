@@ -7,7 +7,7 @@ module sdt_amplitudes
 
     use bit_reps, only: extract_sign, decode_bit_det, encode_sign, niftot, nifd
     use constants, only: dp, lenof_sign, n_int, int64, stdout
-    use DetBitOps, only: get_bit_excitmat, EncodeBitDet, GetBitExcitation!, FindBitExcitLevel
+    use DetBitOps, only: get_bit_excitmat, EncodeBitDet, GetBitExcitation
     use util_mod, only: near_zero
     use FciMCData, only: TotWalkers, iLutRef, CurrentDets, AllNoatHF, projedet, &
                          ll_node
@@ -159,20 +159,20 @@ contains
                         case (1)  ! singles
                             totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for singles
                             if (.not. near_zero(sign_tmp(1))) then
-                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1      ! total entries for singles without zeros
+                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for singles without zeros
                                 write (unit_CIav, '(G20.12,2I5)') sign_tmp/ref_coef, ex(1, 1), ex(2, 1)
                             end if
                         case (2)  ! doubles
                             totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for doubles
                             if (.not. near_zero(sign_tmp(1))) then
-                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1      ! total entries for doubles without zeros
+                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for doubles without zeros
                                 write (unit_CIav, '(G20.12,4I5)') sign_tmp/ref_coef, ex(1, 1), &
                                     ex(2, 1), ex(1, 2), ex(2, 2)
                             end if
                         case (3)  ! triples
                             totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for triples
                             if (.not. near_zero(sign_tmp(1))) then
-                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1      ! total entries for triples without zeros
+                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for triples without zeros
                                 write (unit_CIav, '(G20.12,6I5)') sign_tmp/ref_coef, ex(1, 1), &
                                     ex(2, 1), ex(1, 2), ex(2, 2), ex(1, 3), ex(2, 3)
                             end if
@@ -204,8 +204,9 @@ contains
     ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
     subroutine sorting
         use util_mod, only: lex_leq
-        integer  :: i, hI, iCI, signCI, ex(2, n_store_ci_level), Itot(nbasis)
+        integer  :: i, iCI, signCI, ex(2, n_store_ci_level), Itot(nbasis)
         integer  :: unit_CIav, unit_CIsrt
+        integer(n_int) :: hI
         real(dp) :: x
         type(singles_t), allocatable :: singles(:)
         type(doubles_t), allocatable :: doubles(:)
@@ -221,7 +222,7 @@ contains
             if (iCI == 2) allocate (doubles(totEntCoeff(iCI, 2)))
             if (iCI == 3) allocate (triples(totEntCoeff(iCI, 2)))
 
-            do hI = 1_n_int, totEntCoeff(iCI, 2)
+            do hI = 1, totEntCoeff(iCI, 2)
                 read (unit_CIav, *) x, (ex(1, i), ex(2, i), i=1, icI)
 
                 call indPreSort(icI, Itot, ex, signCI)
@@ -321,14 +322,13 @@ contains
 
         integer, intent(out) :: Itot(nbasis)
         integer  :: i, j, k, z, ial(symmax), ibe(symmax), iSym, totEl, totOrb
-        integer  :: Norb(symmax), NorbTot(symmax)
+        integer  :: NorbTot(symmax)
 
         NorbTot(:) = 0
         i = 1
         do iSym = 1, symmax
             i = i + 1
-            Norb(iSym) = OrbClassCount(ClassCountInd(1/2, iSym, 0))*2
-            NorbTot(i) = Norb(iSym) + NorbTot(i - 1)
+            NorbTot(i) = OrbClassCount(ClassCountInd(1, iSym, 0))*2 + NorbTot(i - 1)
         end do
         ! loop to find all the occupied alpha spin orbitals
         totEl = 0
