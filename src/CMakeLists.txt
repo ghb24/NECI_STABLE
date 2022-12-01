@@ -433,7 +433,8 @@ set( FYPP_SRC_FILES
     gasci_pchb_doubles_main.fpp
     gasci_pchb_doubles_rhf_fastweighted.fpp
     gasci_pchb_doubles_select_particles.fpp
-    gasci_pchb_doubles_uhf_fastweighted.fpp
+    # gasci_pchb_doubles_uhf_fastweighted.fpp
+    gasci_pchb_doubles_uhf_fullyweighted.fpp
     gasci_pchb_main.fpp
     gasci_singles_main.fpp
     gasci_singles_pc_weighted.fpp

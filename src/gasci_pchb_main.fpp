@@ -37,20 +37,15 @@ module gasci_pchb_main
     use SystemData, only: tUHF
 
     use gasci, only: GASSpec_t
-    use gasci_singles_main, only: GAS_used_singles_t, possible_GAS_singles, &
-        GAS_singles_PC_uniform_ExcGenerator_t, GAS_singles_DiscardingGenerator_t, &
-        GAS_singles_heat_bath_ExcGen_t, &
-        PCHB_SinglesOptions_t, PC_Weighted_t, do_allocation, print_options, &
+    use gasci_singles_main, only: possible_GAS_singles, PCHB_SinglesOptions_t, &
         possible_PC_singles_weighting, possible_PC_singles_drawing, &
         PC_WeightedSinglesOptions_t, singles_allocate_and_init => allocate_and_init
-    ! use gasci_singles_main, only: allocate_and_init
-    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_particle_selections,&
-        possible_PCHB_hole_selection
+    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, &
+        doubles_allocate_and_init => allocate_and_init, &
+        possible_PCHB_hole_selection, PCHB_particle_selections
 
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t
 
-
-    use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
     better_implicit_none
 
 
@@ -101,7 +96,6 @@ contains
             !!  The GAS specifications for the excitation generator.
         class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_PCHB_options_t), intent(in) :: options
-        routine_name("GAS_PCHB_init")
 
         call set_timer(GAS_PCHB_init_time)
 
@@ -109,18 +103,8 @@ contains
 
         call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, this%singles_generator)
 
-        ! @jph at the moment only RHF -- implement UHF
-        if (options%UHF) then
-            call stop_all(this_routine, 'UHF PCHB not yet implemented :(')
-        else
-            allocate(GAS_doubles_RHF_PCHB_ExcGenerator_t :: this%doubles_generator)
-            select type(generator => this%doubles_generator)
-            type is(GAS_doubles_RHF_PCHB_ExcGenerator_t)
-                call generator%init(&
-                    GAS_spec, options%use_lookup, options%use_lookup, &
-                    options%doubles%particle_selection)
-            end select
-        end if
+        call doubles_allocate_and_init(GAS_spec, options%doubles, options%use_lookup, this%doubles_generator)
+
         call halt_timer(GAS_PCHB_init_time)
     end subroutine GAS_PCHB_init
 
@@ -142,9 +126,9 @@ contains
             call stop_all(this_routine, "UHF requires spin-resolved PCHB")
         end if
 
-        if (this%UHF &
-            .neqv. (this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FAST_WEIGHTED &
-                    .or. this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FULLY_WEIGHTED)) then
+        if (.not. (this%UHF &
+                    .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FAST_WEIGHTED &
+                                .or. this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FULLY_WEIGHTED))) then
             call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")
         end if
 

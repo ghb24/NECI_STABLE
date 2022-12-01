@@ -22,7 +22,7 @@ module gasci_pchb_doubles_select_particles
     private
     public :: ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
-        PCHB_particle_selections, PCHB_ParticleSelection_t, from_keyword
+        PCHB_particle_selections, PCHB_ParticleSelection_t, from_keyword, allocate_and_init
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
     end type
@@ -137,10 +137,35 @@ contains
         case('PC-WEIGHTED-APPROX')
             res = PCHB_particle_selections%PC_WEIGHTED_APPROX
         case default
-
             call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles weighting scheme")
         end select
     end function
+
+    subroutine allocate_and_init(PCHB_particle_selection, GAS_spec, IJ_weights, use_lookup, particle_selector)
+        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
+        class(GASSpec_t), intent(in) :: GAS_spec
+        real(dp), intent(in) :: IJ_weights(:, :, :)
+        logical, intent(in) :: use_lookup
+        class(ParticleSelector_t), allocatable, intent(inout) :: particle_selector
+        routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
+        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED) then
+            allocate(PC_WeightedParticlesOcc_t :: particle_selector)
+            select type(particle_selector)
+            type is(PC_WeightedParticlesOcc_t)
+                call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_APPROX) then
+            allocate(PC_FastWeightedParticles_t :: particle_selector)
+            select type(particle_selector)
+            type is(PC_FastWeightedParticles_t)
+                call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == PCHB_particle_selections%UNIFORM) then
+            allocate(UniformParticles_t :: particle_selector)
+        else
+            call stop_all(this_routine, 'Invalid particle selection.')
+        end if
+    end subroutine
 
     subroutine draw_UniformParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(UniformParticles_t), intent(in) :: this
