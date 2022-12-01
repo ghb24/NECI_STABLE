@@ -1,8 +1,8 @@
 #:include "macros.fpph"
 #include "macros.h"
-module gasci_pchb_doubles_main_mod
+module gasci_pchb_doubles_main
     use util_mod, only: EnumBase_t
-    use gasci_pc_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
     better_implicit_none
 
     private
@@ -31,4 +31,4 @@ module gasci_pchb_doubles_main_mod
 
 contains
 
-end module gasci_pchb_doubles_main_mod
+end module gasci_pchb_doubles_main

@@ -427,16 +427,16 @@ set( FYPP_SRC_FILES
     HPHFIntegrals.fpp
     sltcnd.fpp
     gasci.fpp
-    gasci_disconnected.fpp
     gasci_discarding.fpp
-    gasci_general.fpp
+    gasci_disconnected.fpp
+    gasci_on_the_fly_heat_bath.fpp
+    gasci_pchb_doubles_main.fpp
+    gasci_pchb_doubles_rhf_fastweighted.fpp
+    gasci_pchb_doubles_select_particles.fpp
+    gasci_pchb_doubles_uhf_fastweighted.fpp
     gasci_pchb_main.fpp
-    gasci_pchb_doubles_main_mod.fpp
-    gasci_pchb_select_particles.fpp
-    gasci_pchb_rhf_fastweighted.fpp
-    gasci_singles_main_mod.fpp
+    gasci_singles_main.fpp
     gasci_singles_pc_weighted.fpp
-    # gasci_pchb_uhf.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp
     CDF_sampling.fpp

@@ -10,9 +10,9 @@ module pchb_excitgen
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use gasci_singles_pc_weighted, only: PC_WeightedSinglesOptions_t, possible_PC_singles_drawing, &
-        possible_PC_singles_weighting, Base_PC_Weighted_t, do_allocation, print_options
-    use gasci_pchb_rhf, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
-    use gasci_pc_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
+        possible_PC_singles_weighting, PC_Weighted_t, do_allocation, print_options
+    use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
     better_implicit_none
 
     private
@@ -110,7 +110,7 @@ contains
             call print_options(options%PC_singles_options, stdout)
             call do_allocation(this%singles_generator, options%PC_singles_options%drawing)
             select type(generator => this%singles_generator)
-            class is(Base_PC_Weighted_t)
+            class is(PC_Weighted_t)
                 call generator%init(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
                                     options%PC_singles_options%weighting, &
                                     use_lookup=.false., create_lookup=.false.)

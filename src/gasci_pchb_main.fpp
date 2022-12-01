@@ -31,24 +31,26 @@ module gasci_pchb_main
     !! depending on if we are working in spin or spatial orbitals.
 
     use constants, only: stdout
-    use util_mod, only: stop_all, EnumBase_t
+    use util_mod, only: stop_all, EnumBase_t, operator(.implies.)
     use timing_neci, only: set_timer, halt_timer
     use FciMCData, only: GAS_PCHB_init_time
+    use SystemData, only: tUHF
 
     use gasci, only: GASSpec_t
-    use gasci_singles_main_mod, only: GAS_used_singles_t, possible_GAS_singles, &
+    use gasci_singles_main, only: GAS_used_singles_t, possible_GAS_singles, &
         GAS_singles_PC_uniform_ExcGenerator_t, GAS_singles_DiscardingGenerator_t, &
         GAS_singles_heat_bath_ExcGen_t, &
-        PCHB_SinglesOptions_t, Base_PC_Weighted_t, do_allocation, print_options, &
+        PCHB_SinglesOptions_t, PC_Weighted_t, do_allocation, print_options, &
         possible_PC_singles_weighting, possible_PC_singles_drawing, &
-        PC_WeightedSinglesOptions_t
-    use gasci_pchb_doubles_main_mod, only: PCHB_DoublesOptions_t, PCHB_particle_selections,&
+        PC_WeightedSinglesOptions_t, singles_allocate_and_init => allocate_and_init
+    ! use gasci_singles_main, only: allocate_and_init
+    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_particle_selections,&
         possible_PCHB_hole_selection
 
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t
 
 
-    use gasci_pchb_rhf, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
+    use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
     better_implicit_none
 
 
@@ -56,8 +58,8 @@ module gasci_pchb_main
     public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, GAS_PCHB_options
 
     type :: GAS_PCHB_options_t
-        type(PCHB_DoublesOptions_t) :: doubles
         type(PCHB_SinglesOptions_t) :: singles
+        type(PCHB_DoublesOptions_t) :: doubles
         logical :: UHF
             !! Do a spin-projection resolved calculation.
         logical :: use_lookup = .false.
@@ -92,7 +94,6 @@ module gasci_pchb_main
 contains
 
 
-
     subroutine GAS_PCHB_init(this, GAS_spec, options)
         !! Initialize the PCHB excitation generator.
         !!
@@ -106,39 +107,11 @@ contains
 
         call options%assert_validity()
 
-        if (options%singles%algorithm == possible_GAS_singles%DISCARDING_UNIFORM) then
-            write(stdout, *) 'GAS discarding singles activated'
-            allocate(this%singles_generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
-        else if (options%singles%algorithm == possible_GAS_singles%BITMASK_UNIFORM) then
-            write(stdout, *) 'GAS precomputed singles activated'
-            allocate(GAS_singles_PC_uniform_ExcGenerator_t :: this%singles_generator)
-            select type(generator => this%singles_generator)
-            type is(GAS_singles_PC_uniform_ExcGenerator_t)
-                ! NOTE: only one of the excitation generators should manage the
-                !   supergroup lookup!
-                call generator%init(GAS_spec, options%use_lookup, create_lookup=.false.)
-            end select
-        else if (options%singles%algorithm == possible_GAS_singles%ON_FLY_HEAT_BATH) then
-            write(stdout, *) 'GAS heat bath on the fly singles activated'
-            allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
-        else if (options%singles%algorithm == possible_GAS_singles%PC_WEIGHTED) then
-            call print_options(options%PC_singles_options, stdout)
-            call do_allocation(this%singles_generator, options%PC_singles_options%drawing)
-            select type(generator => this%singles_generator)
-            class is(Base_PC_Weighted_t)
-                ! NOTE: only one of the excitation generators should manage the
-                !   supergroup lookup!
-                call generator%init(GAS_spec, options%PC_singles_options%weighting, &
-                                    options%use_lookup, create_lookup=.false.)
-            end select
-        else
-            call stop_all(this_routine, "Invalid choise for singles.")
-        end if
-
+        call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, this%singles_generator)
 
         ! @jph at the moment only RHF -- implement UHF
         if (options%UHF) then
-            call stop_all('gas init', 'UHF PCHB not yet implemented :(')
+            call stop_all(this_routine, 'UHF PCHB not yet implemented :(')
         else
             allocate(GAS_doubles_RHF_PCHB_ExcGenerator_t :: this%doubles_generator)
             select type(generator => this%doubles_generator)
@@ -155,20 +128,25 @@ contains
         class(GAS_PCHB_options_t), intent(in) :: this
         routine_name("assert_validity")
 
-        if (this%singles == possible_GAS_singles%PC_WEIGHTED &
-           .neqv. (this%PC_singles_options%weighting /= possible_PC_singles_weighting%UNDEFINED &
-                    .and. this%PC_singles_options%drawing /= possible_PC_singles_drawing%UNDEFINED)) then
-            if (this%singles == possible_GAS_singles%PC_WEIGHTED) then
+        if (this%singles%algorithm == possible_GAS_singles%PC_WEIGHTED &
+           .neqv. (this%singles%PC_weighted%weighting /= possible_PC_singles_weighting%UNDEFINED &
+                    .and. this%singles%PC_weighted%drawing /= possible_PC_singles_drawing%UNDEFINED)) then
+            if (this%singles%algorithm == possible_GAS_singles%PC_WEIGHTED) then
                 call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
             else
                 call stop_all(this_routine, "PC_weighted options require PC-WEIGHTED singles. ")
             end if
         end if
 
-        ! TODO(@jph): here you have to continue
-        ! if (this%UHF .neqv. ...)
-        ! end if
+        if (.not. (tUHF .implies. this%UHF)) then
+            call stop_all(this_routine, "UHF requires spin-resolved PCHB")
+        end if
 
+        if (this%UHF &
+            .neqv. (this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FAST_WEIGHTED &
+                    .or. this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FULLY_WEIGHTED)) then
+            call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")
+        end if
 
     end subroutine
 

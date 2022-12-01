@@ -26,7 +26,7 @@ module gasci_singles_pc_weighted
 
     better_implicit_none
     private
-    public :: PC_WeightedSinglesOptions_t, Base_PC_Weighted_t, do_allocation, &
+    public :: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
         weighting_from_keyword, drawing_from_keyword, print_options, &
         possible_pc_singles_drawing, possible_pc_singles_weighting
 
@@ -80,7 +80,7 @@ module gasci_singles_pc_weighted
     type(possible_PC_singles_drawing_t), parameter :: &
         possible_PC_singles_drawing = possible_PC_singles_drawing_t()
 
-    type, abstract, extends(SingleExcitationGenerator_t) :: Base_PC_Weighted_t
+    type, abstract, extends(SingleExcitationGenerator_t) :: PC_Weighted_t
         type(AliasSampler_2D_t) :: sampler
             !! p(A | I, i_sg)
             !! The probability of picking the hole A after having picked particle I
@@ -114,21 +114,21 @@ module gasci_singles_pc_weighted
         end function
     end interface
 
-    type, extends(Base_PC_Weighted_t) :: PC_SinglesFullyWeighted_t
+    type, extends(PC_Weighted_t) :: PC_SinglesFullyWeighted_t
     contains
         private
         procedure, public :: gen_exc => PC_SinglesFullyWeighted_gen_exc
         procedure, public :: get_pgen => PC_SinglesFullyWeighted_get_pgen
     end type
 
-    type, extends(Base_PC_Weighted_t) :: PC_SinglesWeighted_t
+    type, extends(PC_Weighted_t) :: PC_SinglesWeighted_t
     contains
         private
         procedure, public :: gen_exc => PC_SinglesWeighted_gen_exc
         procedure, public :: get_pgen => PC_SinglesWeighted_get_pgen
     end type
 
-    type, extends(Base_PC_Weighted_t) :: PC_SinglesApprox_t
+    type, extends(PC_Weighted_t) :: PC_SinglesApprox_t
     contains
         private
         procedure, public :: gen_exc => PC_SinglesApprox_gen_exc
@@ -254,7 +254,7 @@ contains
     end function
 
     subroutine init(this, GAS_spec, singles_PC_weighted, use_lookup, create_lookup)
-        class(Base_PC_Weighted_t), intent(inout) :: this
+        class(PC_Weighted_t), intent(inout) :: this
         type(PC_singles_weighting_t), intent(in) :: singles_PC_weighted
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
@@ -583,7 +583,7 @@ contains
 
 
     subroutine finalize(this)
-        class(Base_PC_Weighted_t), intent(inout) :: this
+        class(PC_Weighted_t), intent(inout) :: this
 
         call this%sampler%finalize()
 

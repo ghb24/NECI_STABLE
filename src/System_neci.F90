@@ -49,12 +49,12 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
          user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
     use gasci_util, only: t_output_GAS_sizes
-    use gasci_pchb_general, only: GAS_PCHB_options, possible_GAS_singles, &
-        GAS_PCHB_singles_from_keyword => singles_from_keyword
-    use gasci_pc_select_particles, only: select_particles_from_keyword => from_keyword
-    use gasci_singles_pc_weighted, only: &
+    use gasci_pchb_main, only: GAS_PCHB_options
+    use gasci_singles_main, only: possible_GAS_singles, &
+        GAS_PCHB_singles_from_keyword => singles_from_keyword, &
         singles_weighting_from_keyword => weighting_from_keyword, &
         singles_drawing_from_keyword => drawing_from_keyword
+    use gasci_pchb_doubles_select_particles, only: select_particles_from_keyword => from_keyword
     use pchb_excitgen, only: FCI_PCHB_singles_from_kw => singles_from_keyword, &
         FCI_PCHB_options, possible_PCHB_singles
 
@@ -1640,16 +1640,16 @@ contains
                                 w = to_upper(tokens%next())
                                 if (w == 'SINGLES') then
                                     w = to_upper(tokens%next())
-                                    GAS_PCHB_options%singles = GAS_PCHB_singles_from_keyword(w)
-                                    if (GAS_PCHB_options%singles == possible_GAS_singles%PC_WEIGHTED) then
+                                    GAS_PCHB_options%singles%algorithm = GAS_PCHB_singles_from_keyword(w)
+                                    if (GAS_PCHB_options%singles%algorithm == possible_GAS_singles%PC_WEIGHTED) then
                                         w = to_upper(tokens%next())
-                                        GAS_PCHB_options%PC_singles_options%weighting = singles_weighting_from_keyword(w)
+                                        GAS_PCHB_options%singles%PC_weighted%weighting = singles_weighting_from_keyword(w)
                                         w = to_upper(tokens%next())
-                                        GAS_PCHB_options%PC_singles_options%drawing = singles_drawing_from_keyword(w)
+                                        GAS_PCHB_options%singles%PC_weighted%drawing = singles_drawing_from_keyword(w)
                                     end if
                                 else if (w == 'PARTICLE-SELECTION') then
                                     w = to_upper(tokens%next())
-                                    GAS_PCHB_options%particle_selection = select_particles_from_keyword(w)
+                                    GAS_PCHB_options%doubles%particle_selection = select_particles_from_keyword(w)
                                 else
                                     call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
                                 end if

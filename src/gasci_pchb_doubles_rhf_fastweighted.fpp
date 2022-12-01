@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-module gasci_pchb_rhf
+module gasci_pchb_doubles_rhf_fastweighted
     !! precomputed heat bath implementation for GASCI using spatial orbitals
     use constants, only: n_int, dp, int64, maxExcit, stdout
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
@@ -21,7 +21,7 @@ module gasci_pchb_rhf
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use gasci_pc_select_particles, only: &
+    use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         PC_FastWeightedParticles_t, UniformParticles_t, &
         PCHB_ParticleSelection_t, PCHB_particle_selections
@@ -480,4 +480,4 @@ contains
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
     end subroutine GAS_doubles_PCHB_gen_all_excits
 
-end module gasci_pchb_rhf
+end module gasci_pchb_doubles_rhf_fastweighted

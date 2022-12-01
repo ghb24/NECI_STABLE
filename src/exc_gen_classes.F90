@@ -9,12 +9,12 @@ module exc_gen_classes
     use Determinants, only: DefDet
 
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
-    use gasci_general, only: GAS_heat_bath_ExcGenerator_t
+    use gasci_on_the_fly_heat_bath, only: GAS_heat_bath_ExcGenerator_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
     use gasci_util, only: write_GAS_info
     use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name
     use gasci_discarding, only: GAS_DiscardingGenerator_t
-    use gasci_pchb_general, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options
+    use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options
 
     implicit none
     private

@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-module gasci_pchb_select_particles
+module gasci_pchb_doubles_select_particles
     use constants, only: dp, int64, stdout, n_int, bits_n_int
     use bit_rep_data, only: nIfD
     use util_mod, only: EnumBase_t

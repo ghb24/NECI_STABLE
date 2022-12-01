@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-module gasci_pchb_uhf
+module gasci_pchb_doubles_uhf_fastweighted
     !! same as gasci_pchb but with spin-orbitals
     !! useful for UHF-format FCIDUMP files
     !! only implements generators that work on spin-orbitals
@@ -36,7 +36,7 @@ module gasci_pchb_uhf
     use excitation_types, only: DoubleExc_t
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use gasci_pc_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
+    use gasci_pchb_doubles_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
                                   PCHB_particle_selections, PC_WeightedParticlesOcc_t, &
                                   PC_FastWeightedParticles_t, UniformParticles_t
     use gasci, only: GASSpec_t
@@ -325,4 +325,4 @@ contains
     end subroutine GAS_doubles_PCHB_uhf_compute_samplers
 
 
-end module gasci_pchb_uhf
+end module gasci_pchb_doubles_uhf_fastweighted

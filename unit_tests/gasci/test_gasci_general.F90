@@ -7,7 +7,7 @@ module test_gasci_general_mod
     use excitation_types, only: Excitation_t
 
     use gasci, only: LocalGASSpec_t
-    use gasci_general, only: GAS_heat_bath_ExcGenerator_t
+    use gasci_on_the_fly_heat_bath, only: GAS_heat_bath_ExcGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: &

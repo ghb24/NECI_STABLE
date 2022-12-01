@@ -1,6 +1,6 @@
 #:include "macros.fpph"
 #include "macros.h"
-module gasci_singles_main_mod
+module gasci_singles_main
     use util_mod, only: EnumBase_t, stop_all, operator(.implies.)
     use SystemData, only: nEl
     use excitation_generators, only: SingleExcitationGenerator_t
@@ -10,7 +10,7 @@ module gasci_singles_main_mod
     use SymExcitDataMod, only: ScratchSize
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
-    use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
+    use gasci_on_the_fly_heat_bath, only: GAS_singles_heat_bath_ExcGen_t
     use get_excit, only: make_single
     use orb_idx_mod, only: calc_spin_raw, operator(==)
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -21,7 +21,7 @@ module gasci_singles_main_mod
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
 
-    use gasci_singles_pc_weighted, only: PC_WeightedSinglesOptions_t, Base_PC_Weighted_t, do_allocation, &
+    use gasci_singles_pc_weighted, only: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
         weighting_from_keyword, drawing_from_keyword, print_options, &
         possible_pc_singles_drawing, possible_pc_singles_weighting
     better_implicit_none
@@ -29,9 +29,9 @@ module gasci_singles_main_mod
     private
     public :: GAS_used_singles_t, possible_GAS_singles, singles_from_keyword, &
         GAS_singles_PC_uniform_ExcGenerator_t, GAS_singles_DiscardingGenerator_t, &
-        GAS_singles_heat_bath_ExcGen_t, PCHB_SinglesOptions_t
+        GAS_singles_heat_bath_ExcGen_t, PCHB_SinglesOptions_t, allocate_and_init
     ! Reexpose the stuff from gasci_singles_pc_weighted
-    public :: PC_WeightedSinglesOptions_t, Base_PC_Weighted_t, do_allocation, &
+    public :: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
         weighting_from_keyword, drawing_from_keyword, print_options, &
         possible_pc_singles_drawing, possible_pc_singles_weighting
 
@@ -51,7 +51,7 @@ module gasci_singles_main_mod
 
     type :: PCHB_SinglesOptions_t
         type(GAS_used_singles_t) :: algorithm
-        type(PC_WeightedSinglesOptions_t) :: PC_weighted_options = PC_WeightedSinglesOptions_t(&
+        type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
             possible_PC_singles_weighting%UNDEFINED, possible_PC_singles_drawing%UNDEFINED)
     end type
 
@@ -101,6 +101,47 @@ module gasci_singles_main_mod
     end interface
 
 contains
+
+
+    subroutine allocate_and_init(GAS_spec, options, use_lookup, generator)
+        class(GASSpec_t), intent(in) :: GAS_spec
+        type(PCHB_SinglesOptions_t), intent(in) :: options
+        logical, intent(in) :: use_lookup
+            !! Use the supergroup lookup
+        class(SingleExcitationGenerator_t), allocatable, intent(inout) :: generator
+        routine_name("gasci_singles_main::allocate_and_init")
+        call generator%finalize()
+        if (options%algorithm == possible_GAS_singles%DISCARDING_UNIFORM) then
+            write(stdout, *) 'GAS discarding singles activated'
+            allocate(generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
+        else if (options%algorithm == possible_GAS_singles%BITMASK_UNIFORM) then
+            write(stdout, *) 'GAS precomputed singles activated'
+            allocate(GAS_singles_PC_uniform_ExcGenerator_t :: generator)
+            select type(generator => generator)
+            type is(GAS_singles_PC_uniform_ExcGenerator_t)
+                ! NOTE: only one of the excitation generators should manage the
+                !   supergroup lookup!
+                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+            end select
+        else if (options%algorithm == possible_GAS_singles%ON_FLY_HEAT_BATH) then
+            write(stdout, *) 'GAS heat bath on the fly singles activated'
+            allocate(generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
+        else if (options%algorithm == possible_GAS_singles%PC_WEIGHTED) then
+            call print_options(options%PC_weighted, stdout)
+            call do_allocation(generator, options%PC_weighted%drawing)
+            select type(generator)
+            class is(PC_Weighted_t)
+                ! NOTE: only one of the excitation generators should manage the
+                !   supergroup lookup!
+                call generator%init(GAS_spec, options%PC_weighted%weighting, &
+                                    use_lookup, create_lookup=.false.)
+            end select
+        else
+            call stop_all(this_routine, "Invalid choice for singles.")
+        end if
+    end subroutine
+
+
 
     pure function singles_from_keyword(w) result(res)
         !! Parse a given keyword into the possible weighting schemes
@@ -370,4 +411,4 @@ contains
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
     end subroutine GAS_discarding_singles_gen_all_excits
 
-end module gasci_singles_main_mod
+end module gasci_singles_main

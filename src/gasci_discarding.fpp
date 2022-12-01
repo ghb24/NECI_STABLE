@@ -15,7 +15,8 @@ module gasci_discarding
         SingleExcitationGenerator_t, DoubleExcitationGenerator_t
     use gasci, only: GASSpec_t
     use gasci_util, only: GAS_gen_all_excits => gen_all_excits
-    use gasci_pc_select_particles, only: PCHB_ParticleSelection_t
+    use gasci_pchb_doubles_main, only: PCHB_ParticleSelection_t, PCHB_particle_selections
+    use pchb_excitgen, only: possible_PCHB_singles
     implicit none
 
     private
@@ -85,8 +86,6 @@ contains
 
 
     subroutine init(this, GAS_spec)
-        use gasci_pc_select_particles, only: PCHB_particle_selections
-        use pchb_excitgen, only: possible_PCHB_singles
         class(GAS_DiscardingGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         this%GAS_spec = GAS_spec
