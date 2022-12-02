@@ -204,7 +204,7 @@ contains
     ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
     subroutine sorting
         use util_mod, only: lex_leq
-        integer  :: i, iCI, signCI, ex(2, n_store_ci_level), Itot(nbasis)
+        integer  :: i, iCI, signCI, ex(2, n_store_ci_level), idxAlphaBetaOrbs(nbasis)
         integer  :: unit_CIav, unit_CIsrt
         integer(n_int) :: hI
         real(dp) :: x
@@ -212,7 +212,7 @@ contains
         type(doubles_t), allocatable :: doubles(:)
         type(triples_t), allocatable :: triples(:)
 
-        call alphaBetaOrbs(Itot)
+        idxAlphaBetaOrbs =  findAlphaBetaOrbs(symmax, nbasis)
 
         iCIloop: do iCI = 1, n_store_ci_level
             open (newunit=unit_CIav, file='ci_coeff_'//str(iCI)//'_av', status='old', action='read')
@@ -225,7 +225,7 @@ contains
             do hI = 1, totEntCoeff(iCI, 2)
                 read (unit_CIav, *) x, (ex(1, i), ex(2, i), i=1, icI)
 
-                call indPreSort(icI, Itot, ex, signCI)
+                call indPreSort(icI, idxAlphaBetaOrbs, ex, signCI)
 
                 select case (iCI) ! assign CI coefficients
                 case (1)  ! singles
@@ -314,89 +314,90 @@ contains
 
     end subroutine sorting
 
-    ! it finds all the alpha/beta occ/unocc orbs
-    subroutine alphaBetaOrbs(Itot)
-
+    ! it finds all the alpha/beta occ/unocc orbs and save the
+    ! relative indices in an array
+    function findAlphaBetaOrbs(symmax, nbasis)  result(idxAlphaBetaOrbs)
         use SymExcitDataMod, only: OrbClassCount
         use GenRandSymExcitNUMod, only: ClassCountInd
+        integer, intent(in) :: symmax, nbasis
+        integer :: idxAlphaBetaOrbs(nbasis)
 
-        integer, intent(out) :: Itot(nbasis)
-        integer  :: i, j, k, z, ial(symmax), ibe(symmax), iSym, totEl, totOrb
-        integer  :: NorbTot(symmax)
+        integer :: i, z, iSym, totEl, totOrbs
+        integer :: alphaOrbs(symmax), betaOrbs(symmax), spinOrbs(symmax+1)
+        logical :: checkOccOrb
 
-        NorbTot(:) = 0
+        spinOrbs(:) = 0
         i = 1
         do iSym = 1, symmax
             i = i + 1
-            NorbTot(i) = OrbClassCount(ClassCountInd(1, iSym, 0))*2 + NorbTot(i - 1)
+!            spinOrbs(i) = OrbClassCount(ClassCountInd(1, iSym-1, 0))*2 + spinOrbs(i - 1)
+            spinOrbs(i) = OrbClassCount(ClassCountInd(1/2, iSym, 0))*2 + spinOrbs(i - 1)
         end do
         ! loop to find all the occupied alpha spin orbitals
         totEl = 0
         do iSym = 1, symmax
-            ial(iSym) = 0
+            alphaOrbs(iSym) = 0
             do z = 1, nel
-                if (projEDet(z, 1) > NorbTot(iSym) .and. projEDet(z, 1) <= NorbTot(iSym + 1)) then
+                if (projEDet(z, 1) > spinOrbs(iSym) .and. projEDet(z, 1) <= spinOrbs(iSym + 1)) then
                     if (MOD(projEDet(z, 1), 2) == 1) then
-                        ial(iSym) = ial(iSym) + 1
-                        Itot(totEl + ial(iSym)) = projEDet(z, 1)
+                        alphaOrbs(iSym) = alphaOrbs(iSym) + 1
+                        idxAlphaBetaOrbs(totEl + alphaOrbs(iSym)) = projEDet(z, 1)
                     end if
                 end if
             end do
-            totEl = totEl + ial(iSym)
-            ibe(iSym) = 0
+            totEl = totEl + alphaOrbs(iSym)
+            betaOrbs(iSym) = 0
             ! loop to find all the occupied beta spin orbitals
             do z = 1, nel
-                if (projEDet(z, 1) > NorbTot(iSym) .and. projEDet(z, 1) <= NorbTot(iSym + 1)) then
+                if (projEDet(z, 1) > spinOrbs(iSym) .and. projEDet(z, 1) <= spinOrbs(iSym + 1)) then
                     if (MOD(projEDet(z, 1), 2) == 0) then
-                        ibe(iSym) = ibe(iSym) + 1
-                        Itot(totEl + ibe(iSym)) = projEDet(z, 1)
+                        betaOrbs(iSym) = betaOrbs(iSym) + 1
+                        idxAlphaBetaOrbs(totEl + betaOrbs(iSym)) = projEDet(z, 1)
                     end if
                 end if
             end do
-            totEl = totEl + ibe(iSym)
+            totEl = totEl + betaOrbs(iSym)
         end do
         if (totEl /= nel) write (stdout, *) 'WARNING: not matching number of electrons!'
         ! loop to find all the non-occupied alpha spin orbitals
-        totOrb = 0
+        totOrbs = 0
         do iSym = 1, symmax
-            ial(iSym) = 0
-            do k = NorbTot(iSym) + 1, NorbTot(iSym + 1)
-                j = 0
+            alphaOrbs(iSym) = 0
+            do i = spinOrbs(iSym) + 1, spinOrbs(iSym + 1)
+                checkOccOrb = .false.
                 do z = 1, nel
-                    if (k == projEDet(z, 1)) j = 2
+                    if (i == projEDet(z, 1)) checkOccOrb = .true.
                 end do
-                if (j == 2) cycle
-                if (MOD(k, 2) == 1) then
-                    ial(iSym) = ial(iSym) + 1
-                    Itot(nel + totOrb + ial(iSym)) = k
+                if (MOD(i, 2) == 1 .and. .not.checkOccOrb) then
+                    alphaOrbs(iSym) = alphaOrbs(iSym) + 1
+                    idxAlphaBetaOrbs(nel + totOrbs + alphaOrbs(iSym)) = i
                 end if
             end do
-            totOrb = totOrb + ial(iSym)
-            ibe(iSym) = 0
+            totOrbs = totOrbs + alphaOrbs(iSym)
+            betaOrbs(iSym) = 0
             ! loop to find all the non-occupied beta spin orbitals
-            do k = NorbTot(iSym) + 1, NorbTot(iSym + 1)
-                j = 0
+            do i = spinOrbs(iSym) + 1, spinOrbs(iSym + 1)
+                checkOccOrb = .false.
                 do z = 1, nel
-                    if (k == projEDet(z, 1)) j = 2
+                    if (i == projEDet(z, 1)) checkOccOrb = .true.
                 end do
-                if (j == 2) cycle
-                if (MOD(k, 2) == 0) then
-                    ibe(iSym) = ibe(iSym) + 1
-                    Itot(nel + totOrb + ibe(iSym)) = k
+                if (MOD(i, 2) == 0 .and. .not.checkOccOrb) then
+                    betaOrbs(iSym) = betaOrbs(iSym) + 1
+                    idxAlphaBetaOrbs(nel + totOrbs + betaOrbs(iSym)) = i
                 end if
             end do
-            totOrb = totOrb + ibe(iSym)
+            totOrbs = totOrbs + betaOrbs(iSym)
         end do
-        if (nel + totOrb /= nbasis) write (stdout, *) 'WARNING: not matching number of orbitals!'
+        if (nel + totOrbs /= nbasis) write (stdout, *) 'WARNING: not matching number of orbitals!'
 
-    end subroutine alphaBetaOrbs
+    end function findAlphaBetaOrbs
 
     ! PreSorting routine which converts the indices into Molpro standard
-    subroutine indPreSort(icI, Itot, ex, signCI)
+    subroutine indPreSort(icI, idxAlphaBetaOrbs, ex, signCI)
 
         use util_mod, only: swap
 
-        integer, intent(in)  :: icI, Itot(nbasis)
+        integer, intent(in)  :: icI, idxAlphaBetaOrbs(nbasis)
         integer, intent(out) :: signCI
         integer, intent(inout) :: ex(2, n_store_ci_level)
         integer  :: j, k, p
@@ -404,13 +405,13 @@ contains
         ! indices conversion
         do k = 1, icI
             do p = 1, nel
-                if (ex(1, k) == Itot(p)) then
+                if (ex(1, k) == idxAlphaBetaOrbs(p)) then
                     ex(1, k) = p
                     exit
                 end if
             end do
             do p = nel + 1, nbasis
-                if (ex(2, k) == Itot(p)) then
+                if (ex(2, k) == idxAlphaBetaOrbs(p)) then
                     ex(2, k) = p - nel
                     exit
                 end if
