@@ -7,7 +7,7 @@ module gasci_pchb_doubles_main
     use gasci, only: GASSpec_t
     use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
     use gasci_pchb_doubles_UHF_fullyweighted, only: GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t,  PCHB_particle_selections
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t,  possible_particle_selections
     better_implicit_none
 
     private
@@ -15,7 +15,7 @@ module gasci_pchb_doubles_main
     public :: PCHB_HoleSelection_t, possible_PCHB_hole_selection, &
         PCHB_DoublesOptions_t, allocate_and_init
     ! reexpose stuff from doubles particle selection
-    public :: PCHB_ParticleSelection_t, PCHB_particle_selections
+    public :: PCHB_ParticleSelection_t, possible_particle_selections
 
     type, extends(EnumBase_t) :: PCHB_HoleSelection_t
     end type

@@ -585,16 +585,13 @@ contains
     subroutine finalize(this)
         class(PC_Weighted_t), intent(inout) :: this
 
-        call this%sampler%finalize()
-
         if (allocated(this%weights)) then
             ! Yes, we assume that either all, or none is allocated
             ! at the same time. It is good if the code breaks if
             ! that assumption is wrong.
             deallocate(this%indexer, this%weights, this%GAS_spec)
-        end if
-        if (this%create_lookup) then
-            nullify(lookup_supergroup_indexer)
+            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            call this%sampler%finalize()
         end if
     end subroutine
 

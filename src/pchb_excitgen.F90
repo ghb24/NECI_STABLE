@@ -12,7 +12,7 @@ module pchb_excitgen
     use gasci_singles_pc_weighted, only: PC_WeightedSinglesOptions_t, possible_PC_singles_drawing, &
         possible_PC_singles_weighting, PC_Weighted_t, do_allocation, print_options
     use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selections
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, possible_particle_selections
     better_implicit_none
 
     private
@@ -20,6 +20,9 @@ module pchb_excitgen
     public :: PCHB_FCI_excit_generator_t, &
         FCI_PCHB_options_t, FCI_PCHB_options, &
         possible_PCHB_singles, singles_from_keyword
+    ! Reexpose the particle selection
+    public :: PCHB_ParticleSelection_t, possible_particle_selections
+
 
     type, extends(ClassicAbInitExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
     contains
@@ -50,7 +53,7 @@ module pchb_excitgen
     end type
 
     type(FCI_PCHB_options_t) :: FCI_PCHB_options = FCI_PCHB_options_t(&
-        PCHB_particle_selections%PC_WEIGHTED_APPROX, &
+        possible_particle_selections%PC_WEIGHTED_APPROX, &
         possible_PCHB_singles%PC_WEIGHTED, &
         UHF=.false., &
         PC_singles_options=PC_WeightedSinglesOptions_t(&

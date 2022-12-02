@@ -1,4 +1,4 @@
-module test_gasci_general_mod
+module test_gasci_on_the_fly_heat_bath
     use fruit, only: assert_equals, assert_true, assert_false
     use constants, only: dp, maxExcit
     use util_mod, only: operator(.div.), near_zero
@@ -74,7 +74,7 @@ contains
         end function
     end subroutine test_pgen
 
-end module test_gasci_general_mod
+end module test_gasci_on_the_fly_heat_bath
 
 program test_gasci_program
 
@@ -82,7 +82,7 @@ program test_gasci_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_mod, only: test_pgen
+    use test_gasci_on_the_fly_heat_bath, only: test_pgen
 
 
     implicit none

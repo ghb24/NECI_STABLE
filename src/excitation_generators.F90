@@ -27,6 +27,10 @@ module excitation_generators
         procedure(BoundGetPgen_t), public, deferred :: get_pgen
         procedure(BoundGenAllExcits_t), public, deferred :: gen_all_excits
         procedure(BoundFinalize_t), public, deferred :: finalize
+            !! This procedure finalizes.
+            !! It has to be implemented in such a way, that one can
+            !! call it on uninitialized instances and in particular
+            !! it should be idempotent.
     end type
 
     type, abstract, extends(ExcitationGenerator_t) :: SingleExcitationGenerator_t
@@ -230,10 +234,12 @@ contains
 
     subroutine abinit_finalize(this)
         class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
-        call this%doubles_generator%finalize()
-        call this%singles_generator%finalize()
-        deallocate(this%singles_generator)
-        deallocate(this%doubles_generator)
+        if (allocated(this%doubles_generator)) then
+            call this%doubles_generator%finalize()
+            call this%singles_generator%finalize()
+            ! Yes, we assume that either both or none are allocated
+            deallocate(this%singles_generator, this%doubles_generator)
+        end if
     end subroutine abinit_finalize
 
 end module

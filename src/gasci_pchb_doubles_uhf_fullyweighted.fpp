@@ -27,7 +27,7 @@ module gasci_pchb_doubles_UHF_fullyweighted
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         PC_FastWeightedParticles_t, UniformParticles_t, &
-        PCHB_ParticleSelection_t, PCHB_particle_selections, &
+        PCHB_ParticleSelection_t, possible_particle_selections, &
         allocate_and_init
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
@@ -114,16 +114,14 @@ contains
         class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(inout) :: this
 
         if (allocated(this%particle_selector)) then
-            ! We assume that all components are allocated or deallocated at the same time.
+            ! Yes, we assume, that either all or none are allocated
             call this%A_sampler%finalize()
             call this%B_sampler%finalize()
             call this%particle_selector%finalize()
             deallocate(this%particle_selector, this%GAS_spec, this%indexer)
+            if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
 
-        if (this%create_lookup) then
-            nullify(lookup_supergroup_indexer)
-        end if
     end subroutine GAS_doubles_PCHB_finalize
 
 

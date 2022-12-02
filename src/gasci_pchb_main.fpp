@@ -42,7 +42,7 @@ module gasci_pchb_main
         PC_WeightedSinglesOptions_t, singles_allocate_and_init => allocate_and_init
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, &
         doubles_allocate_and_init => allocate_and_init, &
-        possible_PCHB_hole_selection, PCHB_particle_selections
+        possible_PCHB_hole_selection, possible_particle_selections
 
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t
 
@@ -72,7 +72,7 @@ module gasci_pchb_main
             ) &
         ), &
         PCHB_DoublesOptions_t( &
-            PCHB_particle_selections%PC_WEIGHTED_APPROX, &
+            possible_particle_selections%PC_WEIGHTED_APPROX, &
             possible_PCHB_hole_selection%RHF_FAST_WEIGHTED &
         ), &
         UHF=.false., &
@@ -112,14 +112,10 @@ contains
         class(GAS_PCHB_options_t), intent(in) :: this
         routine_name("assert_validity")
 
-        if (this%singles%algorithm == possible_GAS_singles%PC_WEIGHTED &
-           .neqv. (this%singles%PC_weighted%weighting /= possible_PC_singles_weighting%UNDEFINED &
-                    .and. this%singles%PC_weighted%drawing /= possible_PC_singles_drawing%UNDEFINED)) then
-            if (this%singles%algorithm == possible_GAS_singles%PC_WEIGHTED) then
-                call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
-            else
-                call stop_all(this_routine, "PC_weighted options require PC-WEIGHTED singles. ")
-            end if
+        if (.not. (this%singles%algorithm == possible_GAS_singles%PC_WEIGHTED &
+               .implies. (this%singles%PC_weighted%weighting /= possible_PC_singles_weighting%UNDEFINED &
+                        .and. this%singles%PC_weighted%drawing /= possible_PC_singles_drawing%UNDEFINED))) then
+            call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
         end if
 
         if (.not. (tUHF .implies. this%UHF)) then

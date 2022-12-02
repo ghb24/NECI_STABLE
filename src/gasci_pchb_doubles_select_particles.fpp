@@ -22,7 +22,7 @@ module gasci_pchb_doubles_select_particles
     private
     public :: ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
-        PCHB_particle_selections, PCHB_ParticleSelection_t, from_keyword, allocate_and_init
+        possible_particle_selections, PCHB_ParticleSelection_t, from_keyword, allocate_and_init
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
     end type
@@ -35,7 +35,7 @@ module gasci_pchb_doubles_select_particles
     end type
 
     type(possible_PCHB_ParticleSelection_t), parameter :: &
-        PCHB_particle_selections = possible_PCHB_ParticleSelection_t()
+        possible_particle_selections = possible_PCHB_ParticleSelection_t()
 
 
     type, abstract :: ParticleSelector_t
@@ -131,11 +131,11 @@ contains
         routine_name("from_keyword")
         select case(w)
         case('UNIFORM')
-            res = PCHB_particle_selections%UNIFORM
+            res = possible_particle_selections%UNIFORM
         case('PC-WEIGHTED')
-            res = PCHB_particle_selections%PC_WEIGHTED
+            res = possible_particle_selections%PC_WEIGHTED
         case('PC-WEIGHTED-APPROX')
-            res = PCHB_particle_selections%PC_WEIGHTED_APPROX
+            res = possible_particle_selections%PC_WEIGHTED_APPROX
         case default
             call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles weighting scheme")
         end select
@@ -148,19 +148,19 @@ contains
         logical, intent(in) :: use_lookup
         class(ParticleSelector_t), allocatable, intent(inout) :: particle_selector
         routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
-        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED) then
+        if (PCHB_particle_selection == possible_particle_selections%PC_WEIGHTED) then
             allocate(PC_WeightedParticlesOcc_t :: particle_selector)
             select type(particle_selector)
             type is(PC_WeightedParticlesOcc_t)
                 call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_APPROX) then
+        else if (PCHB_particle_selection == possible_particle_selections%PC_WEIGHTED_APPROX) then
             allocate(PC_FastWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FastWeightedParticles_t)
                 call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selections%UNIFORM) then
+        else if (PCHB_particle_selection == possible_particle_selections%UNIFORM) then
             allocate(UniformParticles_t :: particle_selector)
         else
             call stop_all(this_routine, 'Invalid particle selection.')
@@ -437,11 +437,12 @@ contains
     subroutine finalize_PC_WeightedParticles_t(this)
         class(PC_WeightedParticles_t), intent(inout) :: this
 
-        call this%I_sampler%finalize()
-        call this%J_sampler%finalize()
-        deallocate(this%indexer)
-        if (this%create_lookup) then
-            nullify(lookup_supergroup_indexer)
+        if (allocated(this%GAS_spec)) then
+            call this%I_sampler%finalize()
+            call this%J_sampler%finalize()
+            ! Yes, we assume, that either all or none are allocated
+            deallocate(this%indexer, this%GAS_spec)
+            if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine
 end module

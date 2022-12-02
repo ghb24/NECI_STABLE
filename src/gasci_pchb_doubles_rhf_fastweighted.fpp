@@ -24,7 +24,7 @@ module gasci_pchb_doubles_rhf_fastweighted
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         PC_FastWeightedParticles_t, UniformParticles_t, &
-        PCHB_ParticleSelection_t, PCHB_particle_selections
+        PCHB_ParticleSelection_t, possible_particle_selections
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
 
@@ -130,17 +130,14 @@ contains
     subroutine GAS_doubles_PCHB_finalize(this)
         class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
 
-        call this%pchb_samplers%finalize()
-        call this%particle_selector%finalize()
-        @:safe_deallocate(this%particle_selector)
-        @:safe_deallocate(this%tgtOrbs)
-        @:safe_deallocate(this%pExch)
-
-        ! @:safe_
-        deallocate(this%indexer) ! pointer, so allocated(...) does not work
-
-        if (this%create_lookup) then
-            nullify(lookup_supergroup_indexer)
+        if (allocated(this%particle_selector)) then
+            call this%pchb_samplers%finalize()
+            call this%particle_selector%finalize()
+            ! Yes we assume that either all or none are allocated.
+            deallocate(this%particle_selector, this%tgtOrbs, this%pExch, this%indexer)
+            if (this%create_lookup) then
+                nullify(lookup_supergroup_indexer)
+            end if
         end if
     end subroutine GAS_doubles_PCHB_finalize
 
@@ -439,19 +436,19 @@ contains
         end do
 
 
-        if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED) then
+        if (PCHB_particle_selection == possible_particle_selections%PC_WEIGHTED) then
             allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_WeightedParticlesOcc_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selections%PC_WEIGHTED_APPROX) then
+        else if (PCHB_particle_selection == possible_particle_selections%PC_WEIGHTED_APPROX) then
             allocate(PC_FastWeightedParticles_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_FastWeightedParticles_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selections%UNIFORM) then
+        else if (PCHB_particle_selection == possible_particle_selections%UNIFORM) then
             allocate(UniformParticles_t :: this%particle_selector)
         else
             call stop_all(this_routine, 'not yet implemented')

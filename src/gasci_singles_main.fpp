@@ -110,7 +110,11 @@ contains
             !! Use the supergroup lookup
         class(SingleExcitationGenerator_t), allocatable, intent(inout) :: generator
         routine_name("gasci_singles_main::allocate_and_init")
-        call generator%finalize()
+
+        if (allocated(generator)) then
+            call generator%finalize()
+            deallocate(generator)
+        end if
         if (options%algorithm == possible_GAS_singles%DISCARDING_UNIFORM) then
             write(stdout, *) 'GAS discarding singles activated'
             allocate(generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
@@ -229,11 +233,9 @@ contains
     subroutine GAS_singles_uniform_finalize(this)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
 
-        deallocate(this%allowed_holes)
-        deallocate(this%indexer)
-
-        if (this%create_lookup) then
-            nullify(lookup_supergroup_indexer)
+        if (allocated(this%allowed_holes)) then
+            deallocate(this%allowed_holes, this%indexer)
+            if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine GAS_singles_uniform_finalize
 

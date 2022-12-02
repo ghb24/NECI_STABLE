@@ -15,7 +15,7 @@ module gasci_discarding
         SingleExcitationGenerator_t, DoubleExcitationGenerator_t
     use gasci, only: GASSpec_t
     use gasci_util, only: GAS_gen_all_excits => gen_all_excits
-    use gasci_pchb_doubles_main, only: PCHB_ParticleSelection_t, PCHB_particle_selections
+    use gasci_pchb_doubles_main, only: PCHB_ParticleSelection_t, possible_particle_selections
     use pchb_excitgen, only: possible_PCHB_singles
     implicit none
 
@@ -91,7 +91,7 @@ contains
         this%GAS_spec = GAS_spec
         call this%FCI_generator%init(&
             FCI_PCHB_options_t(&
-                PCHB_particle_selections%PC_WEIGHTED, &
+                possible_particle_selections%PC_WEIGHTED, &
                 possible_PCHB_singles%UNIFORM, &
                 tUHF &
             ) &

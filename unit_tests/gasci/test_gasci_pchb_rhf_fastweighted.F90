@@ -1,4 +1,4 @@
-module test_gasci_general_pchb
+module test_gasci_pchb_rhf_fastweighted
     use fruit, only: assert_equals, assert_true, assert_false
     use constants, only: dp, int64, n_int, maxExcit
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
@@ -8,9 +8,12 @@ module test_gasci_general_pchb
     use excitation_types, only: Excitation_t
 
     use gasci, only: LocalGASSpec_t
-    use gasci_pc_select_particles, only: PCHB_particle_selections
-    use gasci_pchb_general, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles, &
-        GAS_PCHB_options_t
+    use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t
+    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, &
+        possible_PCHB_hole_selection, possible_particle_selections
+    use gasci_singles_main, only: possible_GAS_singles, &
+        PCHB_SinglesOptions_t
+
     use excitation_generators, only: ExcitationGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
@@ -22,8 +25,9 @@ module test_gasci_general_pchb
     use SystemData, only: nEl
     implicit none
     private
-    public :: test_pgen_RHF_hermitian, test_pgen_UHF_hermitian, &
-              test_pgen_RHF_nonhermitian, test_pgen_UHF_nonhermitian
+    public :: test_pgen_RHF_hermitian
+            ! test_pgen_UHF_hermitian, &
+            !   test_pgen_RHF_nonhermitian, test_pgen_UHF_nonhermitian
 
     type :: random_fcidump_writer_t
         logical :: UHF
@@ -40,17 +44,17 @@ contains
         call test_pgen_general(.false., .true.)
     end subroutine test_pgen_RHF_hermitian
 
-    subroutine test_pgen_UHF_hermitian()
-        call test_pgen_general(.true., .true.)
-    end subroutine test_pgen_UHF_hermitian
-
-    subroutine test_pgen_RHF_nonhermitian()
-        call test_pgen_general(.false., .false.)
-    end subroutine test_pgen_RHF_nonhermitian
-
-    subroutine test_pgen_UHF_nonhermitian()
-        call test_pgen_general(.true., .false.)
-    end subroutine test_pgen_UHF_nonhermitian
+    ! subroutine test_pgen_UHF_hermitian()
+    !     call test_pgen_general(.true., .true.)
+    ! end subroutine test_pgen_UHF_hermitian
+    !
+    ! subroutine test_pgen_RHF_nonhermitian()
+    !     call test_pgen_general(.false., .false.)
+    ! end subroutine test_pgen_RHF_nonhermitian
+    !
+    ! subroutine test_pgen_UHF_nonhermitian()
+    !     call test_pgen_general(.true., .false.)
+    ! end subroutine test_pgen_UHF_nonhermitian
 
     subroutine test_pgen_general(UHF, hermitian)
         use FciMCData, only: pSingles, pDoubles, pParallel
@@ -84,11 +88,20 @@ contains
             call exc_generator%init(&
                 GAS_spec, &
                 options=GAS_PCHB_options_t(&
-                    PCHB_particle_selections%UNIFORM, &
-                    possible_GAS_singles%BITMASK_UNIFORM, &
-                    UHF=UHF &
+                    PCHB_SinglesOptions_t(&
+                        possible_GAS_singles%BITMASK_UNIFORM &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        possible_particle_selections%UNIFORM, &
+                        possible_PCHB_hole_selection%RHF_FAST_WEIGHTED &
+                    ), &
+                    UHF=UHF, &
+                    use_lookup=.false. &
                 ) &
             )
+
+
+
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -111,9 +124,15 @@ contains
             call exc_generator%init(&
                 GAS_spec, &
                 options=GAS_PCHB_options_t(&
-                    PCHB_particle_selections%PC_WEIGHTED, &
-                    possible_GAS_singles%BITMASK_UNIFORM, &
-                    UHF=UHF &
+                    PCHB_SinglesOptions_t(&
+                        possible_GAS_singles%BITMASK_UNIFORM &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        possible_particle_selections%PC_WEIGHTED, &
+                        possible_PCHB_hole_selection%RHF_FAST_WEIGHTED &
+                    ), &
+                    UHF=UHF, &
+                    use_lookup=.false. &
                 ) &
             )
             call run_excit_gen_tester( &
@@ -137,9 +156,15 @@ contains
             call exc_generator%init(&
                 GAS_spec, &
                 options=GAS_PCHB_options_t(&
-                    PCHB_particle_selections%PC_WEIGHTED_APPROX, &
-                    possible_GAS_singles%BITMASK_UNIFORM,  &
-                    UHF=UHF &
+                    PCHB_SinglesOptions_t(&
+                        possible_GAS_singles%BITMASK_UNIFORM &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        possible_particle_selections%PC_WEIGHTED_APPROX, &
+                        possible_PCHB_hole_selection%RHF_FAST_WEIGHTED &
+                    ), &
+                    UHF=UHF, &
+                    use_lookup=.false. &
                 ) &
             )
             call run_excit_gen_tester( &
@@ -195,10 +220,7 @@ program test_gasci_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen_RHF_hermitian, &
-                                       test_pgen_UHF_hermitian, &
-                                       test_pgen_RHF_nonhermitian, &
-                                       test_pgen_UHF_nonhermitian
+    use test_gasci_pchb_rhf_fastweighted, only: test_pgen_RHF_hermitian
 
 
     implicit none
