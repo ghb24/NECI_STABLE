@@ -21,25 +21,25 @@ module gasci_singles_main
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
 
-    use gasci_singles_pc_weighted, only: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
+    use gasci_singles_pc_weighted, only: PC_Weighted_t, do_allocation, &
         weighting_from_keyword, drawing_from_keyword, print_options, &
-        possible_pc_singles_drawing, possible_pc_singles_weighting
+        PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t
     better_implicit_none
 
     private
-    public :: GAS_used_singles_t, possible_GAS_singles, singles_from_keyword, &
+    public :: GAS_used_singles_t, singles_from_keyword, &
         GAS_singles_PC_uniform_ExcGenerator_t, GAS_singles_DiscardingGenerator_t, &
-        GAS_singles_heat_bath_ExcGen_t, PCHB_SinglesOptions_t, allocate_and_init
+        GAS_singles_heat_bath_ExcGen_t, allocate_and_init, &
+        GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals
     ! Reexpose the stuff from gasci_singles_pc_weighted
     public :: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
-        weighting_from_keyword, drawing_from_keyword, print_options, &
-        possible_pc_singles_drawing, possible_pc_singles_weighting
+        weighting_from_keyword, drawing_from_keyword, print_options
 
 
     type, extends(EnumBase_t) :: GAS_used_singles_t
     end type
 
-    type :: possible_GAS_singles_t
+    type :: GAS_used_singles_vals_t
         type(GAS_used_singles_t) :: &
             ON_FLY_HEAT_BATH = GAS_used_singles_t(1), &
             DISCARDING_UNIFORM = GAS_used_singles_t(2), &
@@ -47,13 +47,21 @@ module gasci_singles_main
             PC_WEIGHTED = GAS_used_singles_t(4)
     end type
 
-    type(possible_GAS_singles_t), parameter :: possible_GAS_singles = possible_GAS_singles_t()
+    type(GAS_used_singles_vals_t), parameter :: GAS_used_singles_vals = GAS_used_singles_vals_t()
 
-    type :: PCHB_SinglesOptions_t
+    type :: GAS_PCHB_SinglesOptions_vals_t
+        type(GAS_used_singles_vals_t) :: algorithm = GAS_used_singles_vals_t()
+        type(PC_WeightedSinglesOptions_vals_t) :: PC_weighted = PC_WeightedSinglesOptions_vals_t()
+    end type
+
+    type(GAS_PCHB_SinglesOptions_vals_t), parameter :: GAS_PCHB_singles_options_vals = GAS_PCHB_SinglesOptions_vals_t()
+
+    type :: GAS_PCHB_SinglesOptions_t
         type(GAS_used_singles_t) :: algorithm
         type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
-            possible_PC_singles_weighting%UNDEFINED, possible_PC_singles_drawing%UNDEFINED)
+            GAS_PCHB_singles_options_vals%PC_weighted%weighting%UNDEFINED, GAS_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
     end type
+
 
     !> The precomputed GAS uniform excitation generator
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_PC_uniform_ExcGenerator_t
@@ -105,7 +113,7 @@ contains
 
     subroutine allocate_and_init(GAS_spec, options, use_lookup, generator)
         class(GASSpec_t), intent(in) :: GAS_spec
-        type(PCHB_SinglesOptions_t), intent(in) :: options
+        type(GAS_PCHB_SinglesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
             !! Use the supergroup lookup
         class(SingleExcitationGenerator_t), allocatable, intent(inout) :: generator
@@ -115,10 +123,10 @@ contains
             call generator%finalize()
             deallocate(generator)
         end if
-        if (options%algorithm == possible_GAS_singles%DISCARDING_UNIFORM) then
+        if (options%algorithm == GAS_used_singles_vals%DISCARDING_UNIFORM) then
             write(stdout, *) 'GAS discarding singles activated'
             allocate(generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
-        else if (options%algorithm == possible_GAS_singles%BITMASK_UNIFORM) then
+        else if (options%algorithm == GAS_used_singles_vals%BITMASK_UNIFORM) then
             write(stdout, *) 'GAS precomputed singles activated'
             allocate(GAS_singles_PC_uniform_ExcGenerator_t :: generator)
             select type(generator => generator)
@@ -127,10 +135,10 @@ contains
                 !   supergroup lookup!
                 call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
             end select
-        else if (options%algorithm == possible_GAS_singles%ON_FLY_HEAT_BATH) then
+        else if (options%algorithm == GAS_used_singles_vals%ON_FLY_HEAT_BATH) then
             write(stdout, *) 'GAS heat bath on the fly singles activated'
             allocate(generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
-        else if (options%algorithm == possible_GAS_singles%PC_WEIGHTED) then
+        else if (options%algorithm == GAS_used_singles_vals%PC_WEIGHTED) then
             call print_options(options%PC_weighted, stdout)
             call do_allocation(generator, options%PC_weighted%drawing)
             select type(generator)
@@ -154,13 +162,13 @@ contains
         routine_name("singles_from_keyword")
         select case(to_upper(w))
         case('UNIFORM')
-            res = possible_GAS_singles%BITMASK_UNIFORM
+            res = GAS_used_singles_vals%BITMASK_UNIFORM
         case('ON-THE-FLY-HEAT-BATH')
-            res = possible_GAS_singles%ON_FLY_HEAT_BATH
+            res = GAS_used_singles_vals%ON_FLY_HEAT_BATH
         case('DISCARDING-UNIFORM')
-            res = possible_GAS_singles%DISCARDING_UNIFORM
+            res = GAS_used_singles_vals%DISCARDING_UNIFORM
         case('PC-WEIGHTED')
-            res = possible_GAS_singles%PC_WEIGHTED
+            res = GAS_used_singles_vals%PC_WEIGHTED
         case default
             call stop_all(this_routine, trim(w)//" not a valid singles generator for FCI PCHB.")
         end select

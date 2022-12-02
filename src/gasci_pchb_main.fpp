@@ -37,12 +37,13 @@ module gasci_pchb_main
     use SystemData, only: tUHF
 
     use gasci, only: GASSpec_t
-    use gasci_singles_main, only: possible_GAS_singles, PCHB_SinglesOptions_t, &
-        possible_PC_singles_weighting, possible_PC_singles_drawing, &
-        PC_WeightedSinglesOptions_t, singles_allocate_and_init => allocate_and_init
+    use gasci_singles_main, only: &
+        GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals, &
+        PC_WeightedSinglesOptions_t, &
+        singles_allocate_and_init => allocate_and_init
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, &
-        doubles_allocate_and_init => allocate_and_init, &
-        possible_PCHB_hole_selection, possible_particle_selections
+        PCHB_DoublesOptions_vals_t, &
+        doubles_allocate_and_init => allocate_and_init
 
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t
 
@@ -50,10 +51,13 @@ module gasci_pchb_main
 
 
     private
-    public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, GAS_PCHB_options
+    public :: GAS_PCHB_ExcGenerator_t, &
+        GAS_PCHB_options_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_options_vals, &
+        GAS_PCHB_options
+
 
     type :: GAS_PCHB_options_t
-        type(PCHB_SinglesOptions_t) :: singles
+        type(GAS_PCHB_SinglesOptions_t) :: singles
         type(PCHB_DoublesOptions_t) :: doubles
         logical :: UHF
             !! Do a spin-projection resolved calculation.
@@ -63,17 +67,24 @@ module gasci_pchb_main
         procedure :: assert_validity
     end type
 
+    type :: GAS_PCHB_options_vals_t
+        type(GAS_PCHB_SinglesOptions_vals_t) :: singles = GAS_PCHB_SinglesOptions_vals_t()
+        type(PCHB_DoublesOptions_vals_t) :: doubles = PCHB_DoublesOptions_vals_t()
+    end type
+
+    type(GAS_PCHB_options_vals_t), parameter :: GAS_PCHB_options_vals = GAS_PCHB_options_vals_t()
+
     type(GAS_PCHB_options_t) :: GAS_PCHB_options = GAS_PCHB_options_t( &
-        PCHB_SinglesOptions_t(&
-            possible_GAS_singles%PC_WEIGHTED, &
+        GAS_PCHB_SinglesOptions_t(&
+            GAS_PCHB_options_vals%singles%algorithm%PC_weighted, &
             PC_WeightedSinglesOptions_t(&
-                possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS, &
-                possible_PC_singles_drawing%APPROX &
+                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
+                GAS_PCHB_options_vals%singles%PC_weighted%drawing%APPROX &
             ) &
         ), &
         PCHB_DoublesOptions_t( &
-            possible_particle_selections%PC_WEIGHTED_APPROX, &
-            possible_PCHB_hole_selection%RHF_FAST_WEIGHTED &
+            GAS_PCHB_options_vals%doubles%particle_selection%PC_WEIGHTED_APPROX, &
+            GAS_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
         ), &
         UHF=.false., &
         use_lookup=.true. &
@@ -102,7 +113,6 @@ contains
         call options%assert_validity()
 
         call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, this%singles_generator)
-
         call doubles_allocate_and_init(GAS_spec, options%doubles, options%use_lookup, this%doubles_generator)
 
         call halt_timer(GAS_PCHB_init_time)
@@ -112,21 +122,25 @@ contains
         class(GAS_PCHB_options_t), intent(in) :: this
         routine_name("assert_validity")
 
-        if (.not. (this%singles%algorithm == possible_GAS_singles%PC_WEIGHTED &
-               .implies. (this%singles%PC_weighted%weighting /= possible_PC_singles_weighting%UNDEFINED &
-                        .and. this%singles%PC_weighted%drawing /= possible_PC_singles_drawing%UNDEFINED))) then
+        associate(singles => GAS_PCHB_options_vals%singles)
+        if (.not. (this%singles%algorithm == singles%algorithm%PC_WEIGHTED &
+               .implies. (this%singles%PC_weighted%weighting /= singles%PC_weighted%weighting%UNDEFINED &
+                        .and. this%singles%PC_weighted%drawing /= singles%PC_weighted%drawing%UNDEFINED))) then
             call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
         end if
+        end associate
 
         if (.not. (tUHF .implies. this%UHF)) then
             call stop_all(this_routine, "UHF requires spin-resolved PCHB")
         end if
 
+        associate(doubles => GAS_PCHB_options_vals%doubles)
         if (.not. (this%UHF &
-                    .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FAST_WEIGHTED &
-                                .or. this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FULLY_WEIGHTED))) then
+                    .implies. (this%doubles%hole_selection == doubles%hole_selection%UHF_FAST_WEIGHTED &
+                                .or. this%doubles%hole_selection == doubles%hole_selection%UHF_FULLY_WEIGHTED))) then
             call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")
         end if
+        end associate
 
     end subroutine
 

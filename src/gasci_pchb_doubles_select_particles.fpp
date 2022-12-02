@@ -22,7 +22,10 @@ module gasci_pchb_doubles_select_particles
     private
     public :: ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
-        possible_particle_selections, PCHB_ParticleSelection_t, from_keyword, allocate_and_init
+        possible_particle_selections, PCHB_ParticleSelection_t, from_keyword, allocate_and_init, &
+        possible_PCHB_ParticleSelection_t
+
+
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
     end type

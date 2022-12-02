@@ -45,7 +45,7 @@ module tau_search_conventional
 
     use gasci_pchb_main, only: GAS_PCHB_options
 
-    use pchb_excitgen, only: FCI_PCHB_options
+    use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
 
     implicit none
     private
@@ -94,7 +94,7 @@ contains
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
         else if ((t_pchb_excitgen .and. .not. tGUGA) &
-                .and. (FCI_PCHB_options%particle_selection == possible_particle_selections%UNIFORM)) then
+                .and. (FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM)) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else if (tGAS &

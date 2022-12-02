@@ -26,14 +26,17 @@ module gasci_singles_pc_weighted
 
     better_implicit_none
     private
-    public :: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
-        weighting_from_keyword, drawing_from_keyword, print_options, &
-        possible_pc_singles_drawing, possible_pc_singles_weighting
+    public :: do_allocation, print_options, &
+        weighting_from_keyword, drawing_from_keyword, &
+        PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t, &
+        PC_Weighted_t, &
+        PC_singles_drawing_vals, PC_singles_weighting_vals
+
 
     type, extends(EnumBase_t) :: PC_singles_weighting_t
     end type
 
-    type :: possible_PC_singles_weighting_t
+    type :: PC_singles_weighting_vals_t
         type(PC_singles_weighting_t) :: &
             UNDEFINED = PC_singles_weighting_t(-1), &
             UNIFORM = PC_singles_weighting_t(1), &
@@ -45,13 +48,10 @@ module gasci_singles_pc_weighted
                 !! \( | h_{I, A} | + | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
     end type
 
-    type(possible_PC_singles_weighting_t), parameter :: &
-        possible_PC_singles_weighting = possible_PC_singles_weighting_t()
-
     type, extends(EnumBase_t) :: PC_singles_drawing_t
     end type
 
-    type :: possible_PC_singles_drawing_t
+    type :: PC_singles_drawing_vals_t
         type(PC_singles_drawing_t) :: &
             UNDEFINED = PC_singles_drawing_t(-1), &
             FULLY_WEIGHTED = PC_singles_drawing_t(1), &
@@ -72,13 +72,21 @@ module gasci_singles_pc_weighted
                 !! We only guarantee that \(I\) is occupied.
     end type
 
+    type(PC_singles_drawing_vals_t), parameter :: &
+        PC_singles_drawing_vals = PC_singles_drawing_vals_t()
+
+    type(PC_singles_weighting_vals_t), parameter :: &
+        PC_singles_weighting_vals = PC_singles_weighting_vals_t()
+
     type :: PC_WeightedSinglesOptions_t
         type(PC_singles_weighting_t) :: weighting
         type(PC_singles_drawing_t) :: drawing
     end type
 
-    type(possible_PC_singles_drawing_t), parameter :: &
-        possible_PC_singles_drawing = possible_PC_singles_drawing_t()
+    type :: PC_WeightedSinglesOptions_vals_t
+        type(PC_singles_weighting_vals_t) :: weighting = PC_singles_weighting_vals_t()
+        type(PC_singles_drawing_vals_t) :: drawing = PC_singles_drawing_vals_t()
+    end type
 
     type, abstract, extends(SingleExcitationGenerator_t) :: PC_Weighted_t
         type(AliasSampler_2D_t) :: sampler
@@ -145,11 +153,11 @@ contains
             call generator%finalize()
             deallocate(generator)
         end if
-        if (PC_singles_drawing == possible_PC_singles_drawing%FULLY_WEIGHTED) then
+        if (PC_singles_drawing == PC_singles_drawing_vals%FULLY_WEIGHTED) then
             allocate(PC_SinglesFullyWeighted_t :: generator)
-        else if (PC_singles_drawing == possible_PC_singles_drawing%WEIGHTED) then
+        else if (PC_singles_drawing == PC_singles_drawing_vals%WEIGHTED) then
             allocate(PC_SinglesWeighted_t :: generator)
-        else if (PC_singles_drawing == possible_PC_singles_drawing%APPROX) then
+        else if (PC_singles_drawing == PC_singles_drawing_vals%APPROX) then
             allocate(PC_SinglesApprox_t :: generator)
         else
             call stop_all(this_routine, "Invalid choise for PC singles drawer.")
@@ -160,7 +168,7 @@ contains
         type(PC_singles_weighting_t), intent(in) :: weighting
         integer, intent(in) :: iunit
         routine_name("print_weighting_option")
-        associate(vals => possible_PC_singles_weighting)
+        associate(vals => PC_singles_weighting_vals)
             if (weighting == vals%UNIFORM) then
                 write(iunit, *) 'GAS precomputed weighted singles with uniform weight'
             else if (weighting == vals%H_ONLY) then
@@ -182,7 +190,7 @@ contains
         type(PC_singles_drawing_t), intent(in) :: drawing
         integer, intent(in) :: iunit
         routine_name("print_drawing_option")
-        associate(vals => possible_PC_singles_drawing)
+        associate(vals => PC_singles_drawing_vals)
             if (drawing == vals%FULLY_WEIGHTED) then
                 write(iunit, *) 'We draw from \( p(I)|_{D_i} \) and then \( p(A | I)_{A \notin D_i} \) '
                 write(iunit, *) 'and both probabilites come from the precomputed weighting for singles '
@@ -223,13 +231,13 @@ contains
         routine_name("from_keyword")
         select case(w)
         case('UNIFORM')
-            res = possible_PC_singles_weighting%UNIFORM
+            res = PC_singles_weighting_vals%UNIFORM
         case('H-ONLY')
-            res = possible_PC_singles_weighting%H_ONLY
+            res = PC_singles_weighting_vals%H_ONLY
         case('H-AND-G-TERM')
-            res = possible_PC_singles_weighting%H_AND_G_TERM
+            res = PC_singles_weighting_vals%H_AND_G_TERM
         case('H-AND-G-TERM-BOTH-ABS')
-            res = possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS
+            res = PC_singles_weighting_vals%H_AND_G_TERM_BOTH_ABS
         case default
             call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles weighting scheme")
         end select
@@ -243,11 +251,11 @@ contains
         routine_name("from_keyword")
         select case(w)
         case('FULLY-WEIGHTED')
-            res = possible_PC_singles_drawing%FULLY_WEIGHTED
+            res = PC_singles_drawing_vals%FULLY_WEIGHTED
         case('WEIGHTED')
-            res = possible_PC_singles_drawing%WEIGHTED
+            res = PC_singles_drawing_vals%WEIGHTED
         case('APPROX')
-            res = possible_PC_singles_drawing%APPROX
+            res = PC_singles_drawing_vals%APPROX
         case default
             call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles drawing scheme")
         end select
@@ -263,18 +271,18 @@ contains
         integer :: n_supergroups, nBI
         procedure(get_weight_t), pointer :: get_weight
 
-        if (singles_PC_weighted == possible_PC_singles_weighting%UNIFORM) then
+        if (singles_PC_weighted == PC_singles_weighting_vals%UNIFORM) then
             write(stdout, *) 'GAS precomputed weighted singles with uniform weight'
             get_weight => get_weight_uniform
-        else if (singles_PC_weighted == possible_PC_singles_weighting%H_ONLY) then
+        else if (singles_PC_weighted == PC_singles_weighting_vals%H_ONLY) then
             write(stdout, *) 'GAS precomputed weighted singles with |h_{I, A}| weight,'
             write(stdout, *) 'i.e. only the one electron term is considered'
             get_weight => get_weight_h_only
-        else if (singles_PC_weighted == possible_PC_singles_weighting%H_AND_G_TERM) then
+        else if (singles_PC_weighted == PC_singles_weighting_vals%H_AND_G_TERM) then
             write(stdout, *) 'Precomputed weighted singles with'
             write(stdout, *) '| h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
             get_weight => get_weight_h_and_g
-        else if (singles_PC_weighted == possible_PC_singles_weighting%H_AND_G_TERM_BOTH_ABS) then
+        else if (singles_PC_weighted == PC_singles_weighting_vals%H_AND_G_TERM_BOTH_ABS) then
             write(stdout, *) 'Precomputed weighted singles with'
             write(stdout, *) '| h_{I, A} | +  | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
             get_weight => get_weight_h_and_g_both_abs

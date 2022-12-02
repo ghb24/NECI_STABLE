@@ -11,8 +11,8 @@ module test_gasci_pchb_rhf_fastweighted
     use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, &
         possible_PCHB_hole_selection, possible_particle_selections
-    use gasci_singles_main, only: possible_GAS_singles, &
-        PCHB_SinglesOptions_t
+    use gasci_singles_main, only: GAS_used_singles_vals, &
+        GAS_PCHB_SinglesOptions_t
 
     use excitation_generators, only: ExcitationGenerator_t
 
@@ -88,8 +88,8 @@ contains
             call exc_generator%init(&
                 GAS_spec, &
                 options=GAS_PCHB_options_t(&
-                    PCHB_SinglesOptions_t(&
-                        possible_GAS_singles%BITMASK_UNIFORM &
+                    GAS_PCHB_SinglesOptions_t(&
+                        GAS_used_singles_vals%BITMASK_UNIFORM &
                     ), &
                     PCHB_DoublesOptions_t( &
                         possible_particle_selections%UNIFORM, &
@@ -124,8 +124,8 @@ contains
             call exc_generator%init(&
                 GAS_spec, &
                 options=GAS_PCHB_options_t(&
-                    PCHB_SinglesOptions_t(&
-                        possible_GAS_singles%BITMASK_UNIFORM &
+                    GAS_PCHB_SinglesOptions_t(&
+                        GAS_used_singles_vals%BITMASK_UNIFORM &
                     ), &
                     PCHB_DoublesOptions_t( &
                         possible_particle_selections%PC_WEIGHTED, &
@@ -156,8 +156,8 @@ contains
             call exc_generator%init(&
                 GAS_spec, &
                 options=GAS_PCHB_options_t(&
-                    PCHB_SinglesOptions_t(&
-                        possible_GAS_singles%BITMASK_UNIFORM &
+                    GAS_PCHB_SinglesOptions_t(&
+                        GAS_used_singles_vals%BITMASK_UNIFORM &
                     ), &
                     PCHB_DoublesOptions_t( &
                         possible_particle_selections%PC_WEIGHTED_APPROX, &

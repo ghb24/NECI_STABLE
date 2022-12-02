@@ -10,13 +10,12 @@ module gasci_discarding
     use sort_mod, only: sort
     use SymExcitDataMod, only: ScratchSize
 
-    use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_options_t
+    use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_options_t, &
+        FCI_PCHB_options_vals, FCI_PCHB_SinglesOptions_t, PCHB_DoublesOptions_t
     use excitation_generators, only: ExcitationGenerator_t, &
         SingleExcitationGenerator_t, DoubleExcitationGenerator_t
     use gasci, only: GASSpec_t
     use gasci_util, only: GAS_gen_all_excits => gen_all_excits
-    use gasci_pchb_doubles_main, only: PCHB_ParticleSelection_t, possible_particle_selections
-    use pchb_excitgen, only: possible_PCHB_singles
     implicit none
 
     private
@@ -91,9 +90,14 @@ contains
         this%GAS_spec = GAS_spec
         call this%FCI_generator%init(&
             FCI_PCHB_options_t(&
-                possible_particle_selections%PC_WEIGHTED, &
-                possible_PCHB_singles%UNIFORM, &
-                tUHF &
+                FCI_PCHB_SinglesOptions_t(&
+                    FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
+                ), &
+                PCHB_DoublesOptions_t( &
+                    FCI_PCHB_options_vals%doubles%particle_selection%PC_WEIGHTED, &
+                    FCI_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
+                ), &
+                UHF=tUHF &
             ) &
         )
     end subroutine

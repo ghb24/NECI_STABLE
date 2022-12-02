@@ -4,18 +4,21 @@
 module gasci_pchb_doubles_main
     use util_mod, only: EnumBase_t, stop_all
     use excitation_generators, only: DoubleExcitationGenerator_t
+    use fortran_strings, only: to_upper
     use gasci, only: GASSpec_t
     use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
     use gasci_pchb_doubles_UHF_fullyweighted, only: GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t,  possible_particle_selections
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t,  possible_particle_selections, &
+        select_particles_from_keyword => from_keyword, possible_PCHB_ParticleSelection_t
     better_implicit_none
 
     private
 
     public :: PCHB_HoleSelection_t, possible_PCHB_hole_selection, &
-        PCHB_DoublesOptions_t, allocate_and_init
+        PCHB_DoublesOptions_t, allocate_and_init, select_holes_from_keyword, &
+        PCHB_DoublesOptions_vals_t, doubles_options_vals
     ! reexpose stuff from doubles particle selection
-    public :: PCHB_ParticleSelection_t, possible_particle_selections
+    public :: PCHB_ParticleSelection_t, possible_particle_selections, select_particles_from_keyword
 
     type, extends(EnumBase_t) :: PCHB_HoleSelection_t
     end type
@@ -34,6 +37,13 @@ module gasci_pchb_doubles_main
         type(PCHB_ParticleSelection_t) :: particle_selection
         type(PCHB_HoleSelection_t) :: hole_selection
     end type
+
+    type :: PCHB_DoublesOptions_vals_t
+        type(possible_PCHB_ParticleSelection_t) :: particle_selection = possible_PCHB_ParticleSelection_t()
+        type(possible_PCHB_HoleSelection_t) :: hole_selection = possible_PCHB_HoleSelection_t()
+    end type
+
+    type(PCHB_DoublesOptions_vals_t), parameter :: doubles_options_vals = PCHB_DoublesOptions_vals_t()
 
 contains
 
@@ -68,5 +78,20 @@ contains
             call stop_all(this_routine, "Error. Should never be here.")
         end select
     end subroutine
+
+    pure function select_holes_from_keyword(w) result(res)
+        !! Parse a given keyword into the possible weighting schemes
+        character(*), intent(in) :: w
+        type(PCHB_HoleSelection_t) :: res
+        routine_name("gasci_pchb_doubles_main::select_holes_from_keyword")
+        select case(to_upper(w))
+        case('RHF-FAST-WEIGHTED')
+            res = possible_PCHB_hole_selection%RHF_FAST_WEIGHTED
+        case('UHF-FULLY-WEIGHTED')
+            res = possible_PCHB_hole_selection%UHF_FULLY_WEIGHTED
+        case default
+            call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
+        end select
+    end function
 
 end module gasci_pchb_doubles_main
