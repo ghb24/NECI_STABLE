@@ -119,14 +119,11 @@ contains
 
         if (iProcIndex == root) then
             write (stdout, *) ''
-            write (stdout, *) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
-            write (stdout, *) ''
-            write (stdout, *) '*** CI COEFFICIENTS COLLECTION ***'
-            write (stdout, *) ''
-            write (stdout, "(A44,I10)") 'Maximum excitation level of the CI coeffs = ', n_store_ci_level
-            write (stdout, "(A44,I10)") 'Number of iterations set for average      = ', n_iter_ci_coeff
+            write (stdout, *) '=============== CI coefficients collection ==============='
+            write (stdout, "(A45,I10)") 'Maximum excitation level of the CI coeffs = ', n_store_ci_level
+            write (stdout, "(A45,I10)") 'Number of iterations set for average      = ', n_iter_ci_coeff
             if (nCyc /= n_iter_ci_coeff) then
-                write (stdout, "(A44,I10)") ' -> actual iterations used for average    = ', nCyc
+                write (stdout, "(A45,I10)") ' -> actual iterations used for average    = ', nCyc
             end if
         end if
 
@@ -152,10 +149,10 @@ contains
 
                         select case (icI) ! writing averaged CI coefficients
                         case (0)  ! reference
-                            write (stdout, "(A44,F14.3)") 'Instantaneous number of walkers on HF     = ', AllNoatHF
+                            write (stdout, "(A45,F14.3)") 'Instantaneous number of walkers on HF     = ', AllNoatHF
                             ref_coef = -sign_tmp(1)
-                            write (stdout, "(A44,F14.3)") 'Averaged number of walkers on HF          = ', -sign_tmp/nCyc
-                            write (stdout, "(A44,I10)") 'Total entries of CI coefficients          = ', root_first_free_entry
+                            write (stdout, "(A45,F14.3)") 'Averaged number of walkers on HF          = ', -sign_tmp/nCyc
+                            write (stdout, "(A45,I10)") 'Total entries of CI coefficients          = ', root_first_free_entry
                         case (1)  ! singles
                             totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for singles
                             if (.not. near_zero(sign_tmp(1))) then
@@ -181,20 +178,20 @@ contains
                 end do
                 if (iCI /= 0) then
                     close (unit_CIav)
-                    write (stdout, "(A28,I1,A14,I11)") ' total entries for ci_coeff_', icI, ' =', totEntCoeff(iCI, 1)
+                    write (stdout, "(A29,I1,A14,I11)") 'total entries for ci_coeff_', icI, ' =', totEntCoeff(iCI, 1)
                     if (totEntCoeff(iCI, 1) /= totEntCoeff(iCI, 2)) then
-                        write (stdout, "(A25,I1,A17,I11)") ' -total entries ci_coeff_', icI, &
+                        write (stdout, "(A26,I1,A17,I11)") '-total entries ci_coeff_', icI, &
                             ' without zeros  =', totEntCoeff(iCI, 2)
                     end if
                 end if
             end do iCILoop0
 
-            write (stdout, *) ' sorting CI coefficients...'
+            write (stdout, *) 'Sorting CI coefficients...'
             call sorting()
 
             write (stdout, *) '-> CI coefficients written in ASCII files ci_coeff_*'
+            write (stdout, *) '=========================================================='
             write (stdout, *) ''
-            write (stdout, *) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
         end if ifRoot
 
         call fin_ciCoeff()
@@ -246,7 +243,7 @@ contains
                 @:sort(singles_t, singles, rank=1, along=1, comp=sing_i)
                 do hI = 1, totEntCoeff(iCI, 2)
                     write (unit_CIsrt, '(G20.12,2I5)') singles(hI)%x, singles(hI)%i, &
-                        singles(hI)%a
+                                                       singles(hI)%a
                 end do
                 close (unit_CIsrt)
                 deallocate (singles)
@@ -258,7 +255,7 @@ contains
                 @:sort(doubles_t, doubles, rank=1, along=1, comp=doub_j)
                 do hI = 1, totEntCoeff(iCI, 2)
                     write (unit_CIsrt, '(G20.12,4I5)') doubles(hI)%x, doubles(hI)%i, &
-                        doubles(hI)%a, doubles(hI)%j, doubles(hI)%b
+                                        doubles(hI)%a, doubles(hI)%j, doubles(hI)%b
                 end do
                 close (unit_CIsrt)
                 deallocate (doubles)
@@ -267,8 +264,8 @@ contains
                 @:sort(triples_t, triples, rank=1, along=1, comp=trip_comp)
                 do hI = 1, totEntCoeff(iCI, 2)
                     write (unit_CIsrt, '(G20.12,6I5)') triples(hI)%x, triples(hI)%i, &
-                        triples(hI)%a, triples(hI)%j, triples(hI)%b, &
-                        triples(hI)%k, triples(hI)%c
+                                        triples(hI)%a, triples(hI)%j, triples(hI)%b, &
+                                        triples(hI)%k, triples(hI)%c
                 end do
                 close (unit_CIsrt)
                 deallocate (triples)
@@ -323,22 +320,21 @@ contains
         integer :: idxAlphaBetaOrbs(nbasis)
 
         integer :: i, z, iSym, totEl, totOrbs
-        integer :: alphaOrbs(symmax), betaOrbs(symmax), spinOrbs(symmax+1)
+        integer :: alphaOrbs(symmax), betaOrbs(symmax), orbsSym(symmax+1)
         logical :: checkOccOrb
 
-        spinOrbs(:) = 0
+        orbsSym(:) = 0
         i = 1
-        do iSym = 1, symmax
+        do iSym = 0, symmax-1
             i = i + 1
-!            spinOrbs(i) = OrbClassCount(ClassCountInd(1, iSym-1, 0))*2 + spinOrbs(i - 1)
-            spinOrbs(i) = OrbClassCount(ClassCountInd(1/2, iSym, 0))*2 + spinOrbs(i - 1)
+            orbsSym(i) = OrbClassCount(ClassCountInd(1, iSym, 0))*2 + orbsSym(i - 1)
         end do
         ! loop to find all the occupied alpha spin orbitals
         totEl = 0
         do iSym = 1, symmax
             alphaOrbs(iSym) = 0
             do z = 1, nel
-                if (projEDet(z, 1) > spinOrbs(iSym) .and. projEDet(z, 1) <= spinOrbs(iSym + 1)) then
+                if (projEDet(z, 1) > orbsSym(iSym) .and. projEDet(z, 1) <= orbsSym(iSym + 1)) then
                     if (MOD(projEDet(z, 1), 2) == 1) then
                         alphaOrbs(iSym) = alphaOrbs(iSym) + 1
                         idxAlphaBetaOrbs(totEl + alphaOrbs(iSym)) = projEDet(z, 1)
@@ -349,7 +345,7 @@ contains
             betaOrbs(iSym) = 0
             ! loop to find all the occupied beta spin orbitals
             do z = 1, nel
-                if (projEDet(z, 1) > spinOrbs(iSym) .and. projEDet(z, 1) <= spinOrbs(iSym + 1)) then
+                if (projEDet(z, 1) > orbsSym(iSym) .and. projEDet(z, 1) <= orbsSym(iSym + 1)) then
                     if (MOD(projEDet(z, 1), 2) == 0) then
                         betaOrbs(iSym) = betaOrbs(iSym) + 1
                         idxAlphaBetaOrbs(totEl + betaOrbs(iSym)) = projEDet(z, 1)
@@ -363,7 +359,7 @@ contains
         totOrbs = 0
         do iSym = 1, symmax
             alphaOrbs(iSym) = 0
-            do i = spinOrbs(iSym) + 1, spinOrbs(iSym + 1)
+            do i = orbsSym(iSym) + 1, orbsSym(iSym + 1)
                 checkOccOrb = .false.
                 do z = 1, nel
                     if (i == projEDet(z, 1)) checkOccOrb = .true.
@@ -376,7 +372,7 @@ contains
             totOrbs = totOrbs + alphaOrbs(iSym)
             betaOrbs(iSym) = 0
             ! loop to find all the non-occupied beta spin orbitals
-            do i = spinOrbs(iSym) + 1, spinOrbs(iSym + 1)
+            do i = orbsSym(iSym) + 1, orbsSym(iSym + 1)
                 checkOccOrb = .false.
                 do z = 1, nel
                     if (i == projEDet(z, 1)) checkOccOrb = .true.
