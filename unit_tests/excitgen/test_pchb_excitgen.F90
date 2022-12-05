@@ -1,8 +1,10 @@
 module test_pchb_excitgen_mod
     use fruit, only: assert_true, run_test_case
     use constants, only: dp, maxExcit
-    use pchb_excitgen, only: PCHB_FCI_excit_generator_t, possible_PCHB_singles, &
-        FCI_PCHB_options_t, possible_particle_selections
+    use pchb_excitgen, only: PCHB_FCI_excit_generator_t, &
+        FCI_PCHB_options_t, FCI_PCHB_options_vals, &
+        FCI_PCHB_SinglesOptions_t, PCHB_DoublesOptions_t
+
     use FciMCData, only: pSingles, pDoubles, pParallel
     use SystemData, only: nEl
     use sltcnd_mod, only: dyn_sltcnd_excit_old
@@ -58,7 +60,18 @@ contains
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
-        call exc_generator%init(FCI_PCHB_options_t(possible_particle_selections%UNIFORM, possible_PCHB_singles%UNIFORM, UHF=UHF))
+        call exc_generator%init(&
+            FCI_PCHB_options_t(&
+                FCI_PCHB_SinglesOptions_t(&
+                    FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
+                ), &
+                PCHB_DoublesOptions_t( &
+                    FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
+                    FCI_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
+                ), &
+                UHF=.false. &
+            ) &
+        )
 
         call run_excit_gen_tester( &
             exc_generator, 'PCHB FCI', &
