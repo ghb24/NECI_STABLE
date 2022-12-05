@@ -83,7 +83,7 @@ module gasci_pchb_main
             ) &
         ), &
         PCHB_DoublesOptions_t( &
-            GAS_PCHB_options_vals%doubles%particle_selection%PC_WEIGHTED_APPROX, &
+            GAS_PCHB_options_vals%doubles%particle_selection%FAST_WEIGHTED, &
             GAS_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
         ), &
         UHF=.false., &

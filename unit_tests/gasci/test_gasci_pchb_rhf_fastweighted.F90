@@ -61,10 +61,11 @@ contains
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
         type(random_fcidump_writer_t) :: dumpwriter
+        type(GAS_PCHB_options_t), allocatable :: settings(:)
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer :: n_interspace_exc
+        integer :: n_interspace_exc, i
         integer, parameter :: n_iters=10**7
 
         character(len=128) :: message
@@ -76,17 +77,7 @@ contains
         pSingles = 0.2_dp
         pDoubles = 1.0_dp - pSingles
 
-
-        do n_interspace_exc = 0, 1
-            GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
-                                 spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
-            call assert_true(GAS_spec%is_valid())
-            call assert_true(GAS_spec%contains_conf(det_I))
-
-            call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-            call exc_generator%init(&
-                GAS_spec, &
-                options=GAS_PCHB_options_t(&
+        allocate(settings(3), source=GAS_PCHB_options_t(&
                     GAS_PCHB_SinglesOptions_t(&
                         GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                     ), &
@@ -97,85 +88,38 @@ contains
                     UHF=UHF, &
                     use_lookup=.false. &
                 ) &
-            )
+        )
+        associate(ps => GAS_PCHB_options_vals%doubles%particle_selection)
+        associate(selections => [ps%UNIFORM, ps%FULLY_WEIGHTED, ps%FAST_WEIGHTED])
+            settings(:)%doubles%particle_selection = selections
+        end associate
+        end associate
 
+        over_settings: do i = 1, size(settings)
+            over_interspace_excitations: do n_interspace_exc = 0, 1
 
+                GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
+                                     spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+                call assert_true(GAS_spec%is_valid())
+                call assert_true(GAS_spec%contains_conf(det_I))
 
-            call run_excit_gen_tester( &
-                exc_generator, 'general implementation, Li2 like system', &
-                opt_nI=det_I, &
-                opt_n_dets=n_iters, &
-                problem_filter=is_problematic,&
-                successful=successful)
-            call exc_generator%finalize()
-            call assert_true(successful, trim(message))
-            call finalize_excitgen_test()
-        end do
+                call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+                call exc_generator%init(&
+                    GAS_spec, options=settings(i) &
+                )
 
+                call run_excit_gen_tester( &
+                    exc_generator, 'general implementation, Li2 like system', &
+                    opt_nI=det_I, &
+                    opt_n_dets=n_iters, &
+                    problem_filter=is_problematic,&
+                    successful=successful)
+                call exc_generator%finalize()
+                call assert_true(successful, trim(message))
+                call finalize_excitgen_test()
 
-        do n_interspace_exc = 0, 1
-            GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
-                                 spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
-            call assert_true(GAS_spec%is_valid())
-            call assert_true(GAS_spec%contains_conf(det_I))
-
-            call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-            call exc_generator%init(&
-                GAS_spec, &
-                options=GAS_PCHB_options_t(&
-                    GAS_PCHB_SinglesOptions_t(&
-                        GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
-                    ), &
-                    PCHB_DoublesOptions_t( &
-                        GAS_PCHB_options_vals%doubles%particle_selection%PC_WEIGHTED, &
-                        GAS_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
-                    ), &
-                    UHF=UHF, &
-                    use_lookup=.false. &
-                ) &
-            )
-            call run_excit_gen_tester( &
-                exc_generator, 'general implementation, Li2 like system', &
-                opt_nI=det_I, &
-                opt_n_dets=n_iters, &
-                problem_filter=is_problematic,&
-                successful=successful)
-            call exc_generator%finalize()
-            call assert_true(successful, trim(message))
-            call finalize_excitgen_test()
-        end do
-
-        do n_interspace_exc = 0, 1
-            GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
-                                 spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
-            call assert_true(GAS_spec%is_valid())
-            call assert_true(GAS_spec%contains_conf(det_I))
-
-            call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-            call exc_generator%init(&
-                GAS_spec, &
-                options=GAS_PCHB_options_t(&
-                    GAS_PCHB_SinglesOptions_t(&
-                        GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
-                    ), &
-                    PCHB_DoublesOptions_t( &
-                        GAS_PCHB_options_vals%doubles%particle_selection%PC_WEIGHTED_APPROX, &
-                        GAS_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
-                    ), &
-                    UHF=UHF, &
-                    use_lookup=.false. &
-                ) &
-            )
-            call run_excit_gen_tester( &
-                exc_generator, 'general implementation, Li2 like system', &
-                opt_nI=det_I, &
-                opt_n_dets=n_iters, &
-                problem_filter=is_problematic,&
-                successful=successful)
-            call exc_generator%finalize()
-            call assert_true(successful, trim(message))
-            call finalize_excitgen_test()
-        end do
+            end do over_interspace_excitations
+        end do over_settings
 
     contains
 

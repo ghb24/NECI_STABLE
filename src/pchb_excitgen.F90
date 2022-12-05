@@ -95,7 +95,7 @@ module pchb_excitgen
             ) &
         ), &
         PCHB_DoublesOptions_t( &
-            FCI_PCHB_options_vals%doubles%particle_selection%PC_WEIGHTED_APPROX, &
+            FCI_PCHB_options_vals%doubles%particle_selection%FAST_WEIGHTED, &
             FCI_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
         ), &
         UHF=.false. &

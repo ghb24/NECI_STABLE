@@ -436,13 +436,13 @@ contains
         end do
 
 
-        if (PCHB_particle_selection == PCHB_particle_selection_vals%PC_WEIGHTED) then
+        if (PCHB_particle_selection == PCHB_particle_selection_vals%FULLY_WEIGHTED) then
             allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_WeightedParticlesOcc_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%PC_WEIGHTED_APPROX) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%FAST_WEIGHTED) then
             allocate(PC_FastWeightedParticles_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_FastWeightedParticles_t)
