@@ -22,42 +22,44 @@ module gasci_singles_main
     use bit_reps, only: decode_bit_det
 
     use gasci_singles_pc_weighted, only: PC_Weighted_t, do_allocation, &
-        weighting_from_keyword, drawing_from_keyword, print_options, &
+        print_options, &
         PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t
     better_implicit_none
 
     private
-    public :: GAS_used_singles_t, singles_from_keyword, &
+    public :: GAS_PCHB_SinglesAlgorithm_t, &
         GAS_singles_PC_uniform_ExcGenerator_t, GAS_singles_DiscardingGenerator_t, &
         GAS_singles_heat_bath_ExcGen_t, allocate_and_init, &
         GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals
     ! Reexpose the stuff from gasci_singles_pc_weighted
     public :: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
-        weighting_from_keyword, drawing_from_keyword, print_options
+        print_options
 
 
-    type, extends(EnumBase_t) :: GAS_used_singles_t
+    type, extends(EnumBase_t) :: GAS_PCHB_SinglesAlgorithm_t
     end type
 
-    type :: GAS_used_singles_vals_t
-        type(GAS_used_singles_t) :: &
-            ON_FLY_HEAT_BATH = GAS_used_singles_t(1), &
-            DISCARDING_UNIFORM = GAS_used_singles_t(2), &
-            BITMASK_UNIFORM = GAS_used_singles_t(3), &
-            PC_WEIGHTED = GAS_used_singles_t(4)
+    type :: GAS_PCHB_SinglesAlgorithm_vals_t
+        type(GAS_PCHB_SinglesAlgorithm_t) :: &
+            ON_FLY_HEAT_BATH = GAS_PCHB_SinglesAlgorithm_t(1), &
+            DISCARDING_UNIFORM = GAS_PCHB_SinglesAlgorithm_t(2), &
+            BITMASK_UNIFORM = GAS_PCHB_SinglesAlgorithm_t(3), &
+            PC_WEIGHTED = GAS_PCHB_SinglesAlgorithm_t(4)
+        contains
+            procedure, nopass :: from_str => singles_from_keyword
     end type
 
-    type(GAS_used_singles_vals_t), parameter :: GAS_used_singles_vals = GAS_used_singles_vals_t()
+    type(GAS_PCHB_SinglesAlgorithm_vals_t), parameter :: GAS_used_singles_vals = GAS_PCHB_SinglesAlgorithm_vals_t()
 
     type :: GAS_PCHB_SinglesOptions_vals_t
-        type(GAS_used_singles_vals_t) :: algorithm = GAS_used_singles_vals_t()
+        type(GAS_PCHB_SinglesAlgorithm_vals_t) :: algorithm = GAS_PCHB_SinglesAlgorithm_vals_t()
         type(PC_WeightedSinglesOptions_vals_t) :: PC_weighted = PC_WeightedSinglesOptions_vals_t()
     end type
 
     type(GAS_PCHB_SinglesOptions_vals_t), parameter :: GAS_PCHB_singles_options_vals = GAS_PCHB_SinglesOptions_vals_t()
 
     type :: GAS_PCHB_SinglesOptions_t
-        type(GAS_used_singles_t) :: algorithm
+        type(GAS_PCHB_SinglesAlgorithm_t) :: algorithm
         type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
             GAS_PCHB_singles_options_vals%PC_weighted%weighting%UNDEFINED, GAS_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
     end type
@@ -158,7 +160,7 @@ contains
     pure function singles_from_keyword(w) result(res)
         !! Parse a given keyword into the possible weighting schemes
         character(*), intent(in) :: w
-        type(GAS_used_singles_t) :: res
+        type(GAS_PCHB_SinglesAlgorithm_t) :: res
         routine_name("singles_from_keyword")
         select case(to_upper(w))
         case('UNIFORM')

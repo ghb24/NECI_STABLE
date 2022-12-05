@@ -8,30 +8,32 @@ module gasci_pchb_doubles_main
     use gasci, only: GASSpec_t
     use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
     use gasci_pchb_doubles_UHF_fullyweighted, only: GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t,  possible_particle_selections, &
-        select_particles_from_keyword => from_keyword, possible_PCHB_ParticleSelection_t
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t,  PCHB_particle_selection_vals, &
+        PCHB_ParticleSelection_vals_t
     better_implicit_none
 
     private
 
     public :: PCHB_HoleSelection_t, possible_PCHB_hole_selection, &
-        PCHB_DoublesOptions_t, allocate_and_init, select_holes_from_keyword, &
+        PCHB_DoublesOptions_t, allocate_and_init, &
         PCHB_DoublesOptions_vals_t, doubles_options_vals
     ! reexpose stuff from doubles particle selection
-    public :: PCHB_ParticleSelection_t, possible_particle_selections, select_particles_from_keyword
+    public :: PCHB_ParticleSelection_t, PCHB_particle_selection_vals
 
     type, extends(EnumBase_t) :: PCHB_HoleSelection_t
     end type
 
-    type :: possible_PCHB_HoleSelection_t
+    type :: PCHB_HoleSelection_vals_t
         type(PCHB_HoleSelection_t) :: &
             RHF_FAST_WEIGHTED = PCHB_HoleSelection_t(1), &
             RHF_FULLY_WEIGHTED = PCHB_HoleSelection_t(2), &
             UHF_FAST_WEIGHTED = PCHB_HoleSelection_t(3), &
             UHF_FULLY_WEIGHTED = PCHB_HoleSelection_t(4)
+        contains
+            procedure, nopass :: from_str => select_holes_from_keyword
     end type
 
-    type(possible_PCHB_HoleSelection_t), parameter :: possible_PCHB_hole_selection = possible_PCHB_HoleSelection_t()
+    type(PCHB_HoleSelection_vals_t), parameter :: possible_PCHB_hole_selection = PCHB_HoleSelection_vals_t()
 
     type :: PCHB_DoublesOptions_t
         type(PCHB_ParticleSelection_t) :: particle_selection
@@ -39,8 +41,8 @@ module gasci_pchb_doubles_main
     end type
 
     type :: PCHB_DoublesOptions_vals_t
-        type(possible_PCHB_ParticleSelection_t) :: particle_selection = possible_PCHB_ParticleSelection_t()
-        type(possible_PCHB_HoleSelection_t) :: hole_selection = possible_PCHB_HoleSelection_t()
+        type(PCHB_ParticleSelection_vals_t) :: particle_selection = PCHB_ParticleSelection_vals_t()
+        type(PCHB_HoleSelection_vals_t) :: hole_selection = PCHB_HoleSelection_vals_t()
     end type
 
     type(PCHB_DoublesOptions_vals_t), parameter :: doubles_options_vals = PCHB_DoublesOptions_vals_t()

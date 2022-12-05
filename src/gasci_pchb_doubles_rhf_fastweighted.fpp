@@ -24,7 +24,7 @@ module gasci_pchb_doubles_rhf_fastweighted
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         PC_FastWeightedParticles_t, UniformParticles_t, &
-        PCHB_ParticleSelection_t, possible_particle_selections
+        PCHB_ParticleSelection_t, PCHB_particle_selection_vals
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
 
@@ -436,19 +436,19 @@ contains
         end do
 
 
-        if (PCHB_particle_selection == possible_particle_selections%PC_WEIGHTED) then
+        if (PCHB_particle_selection == PCHB_particle_selection_vals%PC_WEIGHTED) then
             allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_WeightedParticlesOcc_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == possible_particle_selections%PC_WEIGHTED_APPROX) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%PC_WEIGHTED_APPROX) then
             allocate(PC_FastWeightedParticles_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
             type is(PC_FastWeightedParticles_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == possible_particle_selections%UNIFORM) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIFORM) then
             allocate(UniformParticles_t :: this%particle_selector)
         else
             call stop_all(this_routine, 'not yet implemented')

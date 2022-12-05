@@ -41,7 +41,7 @@ module tau_search_conventional
 
     use gasci, only: possible_GAS_exc_gen, GAS_exc_gen
 
-    use gasci_pchb_doubles_select_particles, only: possible_particle_selections
+    use gasci_pchb_doubles_select_particles, only: PCHB_particle_selection_vals
 
     use gasci_pchb_main, only: GAS_PCHB_options
 
@@ -99,7 +99,7 @@ contains
             consider_par_bias = .true.
         else if (tGAS &
             .and. (GAS_exc_gen /= possible_GAS_exc_gen%PCHB &
-                    .or. GAS_PCHB_options%doubles%particle_selection == possible_particle_selections%UNIFORM)) then
+                    .or. GAS_PCHB_options%doubles%particle_selection == PCHB_particle_selection_vals%UNIFORM)) then
             consider_par_bias = .true.
         else
             consider_par_bias = .false.

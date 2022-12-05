@@ -50,13 +50,7 @@ MODULE System
          user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
     use gasci_util, only: t_output_GAS_sizes
     use gasci_pchb_main, only: GAS_PCHB_options, GAS_PCHB_options_vals
-    use gasci_singles_main, only:  &
-        GAS_PCHB_singles_from_keyword => singles_from_keyword, &
-        singles_weighting_from_keyword => weighting_from_keyword, &
-        singles_drawing_from_keyword => drawing_from_keyword
-    use gasci_pchb_doubles_main, only: select_particles_from_keyword, select_holes_from_keyword
-    use pchb_excitgen, only: FCI_PCHB_singles_from_kw => singles_from_keyword, &
-        FCI_PCHB_options, FCI_PCHB_options_vals
+    use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
 
     use growing_buffers, only: buffer_int_1D_t
     IMPLICIT NONE
@@ -1607,17 +1601,17 @@ contains
                         do while (tokens%remaining_items() > 0)
                             select case(to_upper(tokens%next()))
                             case ('SINGLES')
-                                FCI_PCHB_options%singles%algorithm = FCI_PCHB_singles_from_kw(tokens%next())
+                                FCI_PCHB_options%singles%algorithm = FCI_PCHB_options_vals%singles%algorithm%from_str(tokens%next())
                                 if (FCI_PCHB_options%singles%algorithm == FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
-                                    FCI_PCHB_options%singles%PC_weighted%weighting = singles_weighting_from_keyword(tokens%next())
-                                    FCI_PCHB_options%singles%PC_weighted%drawing = singles_drawing_from_keyword(tokens%next())
+                                    FCI_PCHB_options%singles%PC_weighted%weighting = FCI_PCHB_options_vals%singles%PC_weighted%weighting%from_str(tokens%next())
+                                    FCI_PCHB_options%singles%PC_weighted%drawing = FCI_PCHB_options_vals%singles%PC_weighted%drawing%from_str(tokens%next())
                                 end if
                             case ('DOUBLES')
                                 select case(to_upper(tokens%next()))
                                 case ('PARTICLE-SELECTION')
-                                    FCI_PCHB_options%doubles%particle_selection = select_particles_from_keyword(tokens%next())
+                                    FCI_PCHB_options%doubles%particle_selection = FCI_PCHB_options_vals%doubles%particle_selection%from_str(tokens%next())
                                 case ('HOLE-SELECTION')
-                                    FCI_PCHB_options%doubles%hole_selection = select_holes_from_keyword(tokens%next())
+                                    FCI_PCHB_options%doubles%hole_selection = FCI_PCHB_options_vals%doubles%hole_selection%from_str(tokens%next())
                                 case default
                                     call stop_all(t_r, "Only PARTICLE-SELECTION or HOLE-SELECTION allowed as optional next keyword after PCHB Doubles.")
                                 end select
@@ -1641,15 +1635,22 @@ contains
                                 w = to_upper(tokens%next())
                                 select case (w)
                                 case ("SINGLES")
-                                    GAS_PCHB_options%singles%algorithm = GAS_PCHB_singles_from_keyword(tokens%next())
+                                    GAS_PCHB_options%singles%algorithm = GAS_PCHB_options_vals%singles%algorithm%from_str(tokens%next())
                                     if (GAS_PCHB_options%singles%algorithm == GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
-                                        GAS_PCHB_options%singles%PC_weighted%weighting = singles_weighting_from_keyword(tokens%next())
-                                        GAS_PCHB_options%singles%PC_weighted%drawing = singles_drawing_from_keyword(tokens%next())
+                                        GAS_PCHB_options%singles%PC_weighted%weighting = GAS_PCHB_options_vals%singles%PC_WEIGHTED%weighting%from_str(tokens%next())
+                                        GAS_PCHB_options%singles%PC_weighted%drawing = GAS_PCHB_options_vals%singles%PC_WEIGHTED%drawing%from_str(tokens%next())
                                     end if
-                                case ("PARTICLE-SELECTION")
-                                    GAS_PCHB_options%doubles%particle_selection = select_particles_from_keyword(tokens%next())
+                                case ("DOUBLES")
+                                    select case(to_upper(tokens%next()))
+                                    case ('PARTICLE-SELECTION')
+                                        GAS_PCHB_options%doubles%particle_selection = GAS_PCHB_options_vals%doubles%particle_selection%from_str(tokens%next())
+                                    case ('HOLE-SELECTION')
+                                        GAS_PCHB_options%doubles%hole_selection = GAS_PCHB_options_vals%doubles%hole_selection%from_str(tokens%next())
+                                    case default
+                                        call stop_all(t_r, "Only PARTICLE-SELECTION or HOLE-SELECTION allowed as optional next keyword after PCHB Doubles.")
+                                    end select
                                 case default
-                                    call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
+                                    call stop_all(t_r, "Only SINGLES or DOUBLES allowed as optional next keyword after PCHB")
                                 end select
                             end do
                         case default

@@ -17,16 +17,16 @@ module pchb_excitgen
         PC_singles_weighting_vals, PC_Weighted_t, do_allocation, print_options
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
         doubles_allocate_and_init => allocate_and_init, &
-        possible_PCHB_hole_selection, possible_particle_selections
+        possible_PCHB_hole_selection, PCHB_particle_selection_vals
     use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, possible_particle_selections
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selection_vals
     better_implicit_none
 
     private
 
     public :: PCHB_FCI_excit_generator_t, &
         FCI_PCHB_options_t, FCI_PCHB_Options_vals_t, FCI_PCHB_options_vals, &
-        FCI_PCHB_options, singles_from_keyword
+        FCI_PCHB_options
     public :: FCI_PCHB_SinglesOptions_t
     ! Reexpose
     public :: PCHB_DoublesOptions_t
@@ -46,6 +46,8 @@ module pchb_excitgen
             ON_FLY_HEAT_BATH = FCI_PCHB_singles_algorithm_t(1), &
             UNIFORM = FCI_PCHB_singles_algorithm_t(2), &
             PC_WEIGHTED = FCI_PCHB_singles_algorithm_t(3)
+        contains
+            procedure, nopass :: from_str => singles_from_keyword
     end type
 
     type(FCI_PCHB_singles_algorithm_vals_t), parameter :: &

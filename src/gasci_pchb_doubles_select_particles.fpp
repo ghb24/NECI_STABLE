@@ -23,23 +23,26 @@ module gasci_pchb_doubles_select_particles
     private
     public :: ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
-        possible_particle_selections, PCHB_ParticleSelection_t, from_keyword, allocate_and_init, &
-        possible_PCHB_ParticleSelection_t
+        PCHB_particle_selection_vals, PCHB_ParticleSelection_t, allocate_and_init, &
+        PCHB_ParticleSelection_vals_t
 
 
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
     end type
 
-    type :: possible_PCHB_ParticleSelection_t
+    type :: PCHB_ParticleSelection_vals_t
         type(PCHB_ParticleSelection_t) :: &
             UNIFORM = PCHB_ParticleSelection_t(1), &
             PC_WEIGHTED = PCHB_ParticleSelection_t(2), &
             PC_WEIGHTED_APPROX = PCHB_ParticleSelection_t(3)
+
+    contains
+        procedure, nopass :: from_str => from_keyword
     end type
 
-    type(possible_PCHB_ParticleSelection_t), parameter :: &
-        possible_particle_selections = possible_PCHB_ParticleSelection_t()
+    type(PCHB_ParticleSelection_vals_t), parameter :: &
+        PCHB_particle_selection_vals = PCHB_ParticleSelection_vals_t()
 
 
     type, abstract :: ParticleSelector_t
@@ -135,11 +138,11 @@ contains
         routine_name("from_keyword")
         select case(to_upper(w))
         case('UNIFORM')
-            res = possible_particle_selections%UNIFORM
+            res = PCHB_particle_selection_vals%UNIFORM
         case('PC-WEIGHTED')
-            res = possible_particle_selections%PC_WEIGHTED
+            res = PCHB_particle_selection_vals%PC_WEIGHTED
         case('PC-WEIGHTED-APPROX')
-            res = possible_particle_selections%PC_WEIGHTED_APPROX
+            res = PCHB_particle_selection_vals%PC_WEIGHTED_APPROX
         case default
             call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles weighting scheme")
         end select
@@ -152,19 +155,19 @@ contains
         logical, intent(in) :: use_lookup
         class(ParticleSelector_t), allocatable, intent(inout) :: particle_selector
         routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
-        if (PCHB_particle_selection == possible_particle_selections%PC_WEIGHTED) then
+        if (PCHB_particle_selection == PCHB_particle_selection_vals%PC_WEIGHTED) then
             allocate(PC_WeightedParticlesOcc_t :: particle_selector)
             select type(particle_selector)
             type is(PC_WeightedParticlesOcc_t)
                 call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == possible_particle_selections%PC_WEIGHTED_APPROX) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%PC_WEIGHTED_APPROX) then
             allocate(PC_FastWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FastWeightedParticles_t)
                 call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == possible_particle_selections%UNIFORM) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIFORM) then
             allocate(UniformParticles_t :: particle_selector)
         else
             call stop_all(this_routine, 'Invalid particle selection.')

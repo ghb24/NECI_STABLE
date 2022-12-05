@@ -27,7 +27,6 @@ module gasci_singles_pc_weighted
     better_implicit_none
     private
     public :: do_allocation, print_options, &
-        weighting_from_keyword, drawing_from_keyword, &
         PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t, &
         PC_Weighted_t, &
         PC_singles_drawing_vals, PC_singles_weighting_vals
@@ -46,6 +45,8 @@ module gasci_singles_pc_weighted
                 !! \( | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
             H_AND_G_TERM_BOTH_ABS = PC_singles_weighting_t(4)
                 !! \( | h_{I, A} | + | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
+        contains
+            procedure, nopass :: from_str => weighting_from_keyword
     end type
 
     type, extends(EnumBase_t) :: PC_singles_drawing_t
@@ -70,6 +71,8 @@ module gasci_singles_pc_weighted
                 !! I.e. only the second electron comes from the weighting scheme given in
                 !! `possible_PC_singles_weighting_t`
                 !! We only guarantee that \(I\) is occupied.
+        contains
+            procedure, nopass :: from_str => drawing_from_keyword
     end type
 
     type(PC_singles_drawing_vals_t), parameter :: &

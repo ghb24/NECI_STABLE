@@ -27,7 +27,7 @@ module gasci_pchb_doubles_UHF_fullyweighted
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PC_WeightedParticlesOcc_t, &
         PC_FastWeightedParticles_t, UniformParticles_t, &
-        PCHB_ParticleSelection_t, possible_particle_selections, &
+        PCHB_ParticleSelection_t, PCHB_particle_selection_vals, &
         allocate_and_init
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
