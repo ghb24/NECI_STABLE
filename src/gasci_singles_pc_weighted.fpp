@@ -1,9 +1,9 @@
 #include "macros.h"
 #:include "macros.fpph"
-#:include "algorithms.fpph"
 
 module gasci_singles_pc_weighted
     use constants, only: dp, int64, stdout, n_int, bits_n_int, maxExcit
+    use fortran_strings, only: to_upper
     use util_mod, only: operator(.div.), stop_all, EnumBase_t, near_zero
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
@@ -229,7 +229,7 @@ contains
         character(*), intent(in) :: w
         type(PC_singles_weighting_t) :: res
         routine_name("from_keyword")
-        select case(w)
+        select case(to_upper(w))
         case('UNIFORM')
             res = PC_singles_weighting_vals%UNIFORM
         case('H-ONLY')
@@ -249,7 +249,7 @@ contains
         character(*), intent(in) :: w
         type(PC_singles_drawing_t) :: res
         routine_name("from_keyword")
-        select case(w)
+        select case(to_upper(w))
         case('FULLY-WEIGHTED')
             res = PC_singles_drawing_vals%FULLY_WEIGHTED
         case('WEIGHTED')

@@ -50,7 +50,7 @@ MODULE System
          user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
     use gasci_util, only: t_output_GAS_sizes
     use gasci_pchb_main, only: GAS_PCHB_options, GAS_PCHB_options_vals
-    use gasci_singles_main, only: GAS_used_singles_vals, &
+    use gasci_singles_main, only:  &
         GAS_PCHB_singles_from_keyword => singles_from_keyword, &
         singles_weighting_from_keyword => weighting_from_keyword, &
         singles_drawing_from_keyword => drawing_from_keyword
@@ -1607,10 +1607,10 @@ contains
                         do while (tokens%remaining_items() > 0)
                             select case(to_upper(tokens%next()))
                             case ('SINGLES')
-                                FCI_PCHB_options%singles = FCI_PCHB_singles_from_kw(tokens%next())
-                                if (FCI_PCHB_options%singles%algorithm == possible_PCHB_singles%PC_WEIGHTED) then
-                                    FCI_PCHB_options%PC_singles_options%weighting = singles_weighting_from_keyword(tokens%next())
-                                    FCI_PCHB_options%PC_singles_options%drawing = singles_drawing_from_keyword(tokens%next())
+                                FCI_PCHB_options%singles%algorithm = FCI_PCHB_singles_from_kw(tokens%next())
+                                if (FCI_PCHB_options%singles%algorithm == FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
+                                    FCI_PCHB_options%singles%PC_weighted%weighting = singles_weighting_from_keyword(tokens%next())
+                                    FCI_PCHB_options%singles%PC_weighted%drawing = singles_drawing_from_keyword(tokens%next())
                                 end if
                             case ('DOUBLES')
                                 select case(to_upper(tokens%next()))
@@ -1636,26 +1636,21 @@ contains
                         case ('DISCARDING')
                             user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
                         case ('PCHB')
-
-
                             user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
                             do while (tokens%remaining_items() > 0)
                                 w = to_upper(tokens%next())
-                                if (w == 'SINGLES') then
-                                    w = to_upper(tokens%next())
-                                    GAS_PCHB_options%singles%algorithm = GAS_PCHB_singles_from_keyword(w)
-                                    if (GAS_PCHB_options%singles%algorithm == GAS_used_singles_vals%PC_WEIGHTED) then
-                                        w = to_upper(tokens%next())
-                                        GAS_PCHB_options%singles%PC_weighted%weighting = singles_weighting_from_keyword(w)
-                                        w = to_upper(tokens%next())
-                                        GAS_PCHB_options%singles%PC_weighted%drawing = singles_drawing_from_keyword(w)
+                                select case (w)
+                                case ("SINGLES")
+                                    GAS_PCHB_options%singles%algorithm = GAS_PCHB_singles_from_keyword(tokens%next())
+                                    if (GAS_PCHB_options%singles%algorithm == GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
+                                        GAS_PCHB_options%singles%PC_weighted%weighting = singles_weighting_from_keyword(tokens%next())
+                                        GAS_PCHB_options%singles%PC_weighted%drawing = singles_drawing_from_keyword(tokens%next())
                                     end if
-                                else if (w == 'PARTICLE-SELECTION') then
-                                    w = to_upper(tokens%next())
-                                    GAS_PCHB_options%doubles%particle_selection = select_particles_from_keyword(w)
-                                else
+                                case ("PARTICLE-SELECTION")
+                                    GAS_PCHB_options%doubles%particle_selection = select_particles_from_keyword(tokens%next())
+                                case default
                                     call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
-                                end if
+                                end select
                             end do
                         case default
                             call Stop_All(t_r, trim(w)//" not a valid keyword")

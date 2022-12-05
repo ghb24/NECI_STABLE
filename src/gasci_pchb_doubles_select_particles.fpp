@@ -4,6 +4,7 @@
 
 module gasci_pchb_doubles_select_particles
     use constants, only: dp, int64, stdout, n_int, bits_n_int
+    use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD
     use util_mod, only: EnumBase_t
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
@@ -132,7 +133,7 @@ contains
         character(*), intent(in) :: w
         type(PCHB_ParticleSelection_t) :: res
         routine_name("from_keyword")
-        select case(w)
+        select case(to_upper(w))
         case('UNIFORM')
             res = possible_particle_selections%UNIFORM
         case('PC-WEIGHTED')

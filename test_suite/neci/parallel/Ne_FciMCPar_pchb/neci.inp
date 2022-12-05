@@ -2,7 +2,10 @@ title
 
 system read
     electrons 10
-    nonuniformrandexcits pchb
+    nonuniformrandexcits pchb \
+        singles uniform \
+        doubles particle-selection pc-weighted \
+        doubles hole-selection rhf-fast-weighted
 endsys
 
 calc
