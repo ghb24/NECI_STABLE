@@ -10,7 +10,7 @@ System read
     # Singles uniform
     nonuniformrandexcits GAS-CI PCHB \
         singles PC-weighted uniform weighted \
-        particle-selection uniform
+        doubles particle-selection uniform
     GAS-SPEC CUMULATIVE 2
         5 2 4
         5 6 6

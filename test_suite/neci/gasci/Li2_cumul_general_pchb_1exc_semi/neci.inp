@@ -8,7 +8,7 @@ System read
     FCIDUMP-name Li2.FciDmp
     nonuniformrandexcits GAS-CI PCHB \
         SINGLES UNIFORM \
-        PARTICLE-SELECTION UNIFORM
+        DOUBLES PARTICLE-SELECTION UNIFORM
     GAS-SPEC CUMULATIVE 2
         5 2 4
         5 6 6

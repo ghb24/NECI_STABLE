@@ -7,7 +7,7 @@ System read
     spin-restrict 0
     nonuniformrandexcits GAS-CI PCHB \
         singles uniform \
-        particle-selection pc-weighted
+        doubles particle-selection fully-weighted
     GAS-SPEC LOCAL 3
         2 2 2
         2 2 2
