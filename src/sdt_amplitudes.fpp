@@ -22,7 +22,7 @@ module sdt_amplitudes
 
     better_implicit_none
     private
-    public :: init_ciCoeff, print_averaged_ci_coeff, storeCiCoeffs
+    public :: init_ciCoeff, output_ci_coeff, storeCiCoeffs
 
     type :: singles_t
         real(dp) :: x
@@ -41,6 +41,12 @@ module sdt_amplitudes
     integer :: first_free_entry, nCyc, root_first_free_entry
     type(ll_node), pointer :: hash_table_ciCoeff(:)
     integer(n_int), allocatable  :: totEntCoeff(:, :)
+
+    interface sorting
+        module procedure sorting_singles_t
+        module procedure sorting_doubles_t
+        module procedure sorting_triples_t
+    end interface
 
 contains
 
@@ -97,6 +103,7 @@ contains
 
             ! tSuccess is false, then add a new entry to the CI coeffs storage
         else
+            ! it counts the number of entries of different CI coeffs
             first_free_entry = first_free_entry + 1
             ! encode the determinant into bit representation (ilut)
             call EncodeBitDet(nIEx, ilut)
@@ -110,97 +117,103 @@ contains
         end if
     end subroutine cache_sign
 
-    ! it prints averaged CI coeffs collected during the calcualtion
-    subroutine print_averaged_ci_coeff
 
-        integer  :: i, ic, ex(2, 4), icI, unit_CIav
-        real(dp) :: sign_tmp(lenof_sign), ref_coef
-        logical  :: tPar
+    ! output of the CI coefficients collection
+    subroutine output_ci_coeff
 
         if (iProcIndex == root) then
             write (stdout, *) ''
             write (stdout, *) '=============== CI coefficients collection ==============='
-            write (stdout, "(A45,I10)") 'Maximum excitation level of the CI coeffs = ', n_store_ci_level
-            write (stdout, "(A45,I10)") 'Number of iterations set for average      = ', n_iter_ci_coeff
+            write (stdout, "(A45,I10)") 'Maximum excitation level of the CI coeff. : ', n_store_ci_level
+            write (stdout, "(A45,I10)") 'Number of iterations set for average      : ', n_iter_ci_coeff
             if (nCyc /= n_iter_ci_coeff) then
-                write (stdout, "(A45,I10)") ' -> actual iterations used for average    = ', nCyc
+                write (stdout, "(A45,I10)") ' -> actual iterations used for average    : ', nCyc
             end if
         end if
 
+        ! it gathers all the CI coeff from different processes in one single array (root_ciCoeff_storage)
         call MPIcollection(NIfTot, first_free_entry, ciCoeff_storage, root_first_free_entry, root_ciCoeff_storage)
 
-        ifRoot: if (iProcIndex == root) then
-
-            totEntCoeff(:, :) = 0
-            iCILoop0: do icI = 0, n_store_ci_level
-                if (icI /= 0) open (newunit=unit_CIav, file='ci_coeff_'//str(iCI)//'_av', status='replace')
-                ! loop over the total entries of CI coefficients
-                do i = 1, root_first_free_entry
-                    ic = n_store_ci_level + 1
-                    ! gets the excitation level of the CI coefficient
-                    call get_bit_excitmat(iLutRef(:, 1), root_ciCoeff_storage(:, i), ex, ic)
-                    if (icI == ic) then
-                        ! gets the value of the CI coefficient (i.e. the number of walkers)
-                        call extract_sign(root_ciCoeff_storage(:, i), sign_tmp)
-                        ex(1, 1) = ic
-                        ! gets the sign of the CI coef (tPar=true if odd number of permutations)
-                        call GetBitExcitation(ilutRef(:, 1), root_ciCoeff_storage(:, i), ex, tPar)
-                        if (tPar) sign_tmp = -sign_tmp
-
-                        select case (icI) ! writing averaged CI coefficients
-                        case (0)  ! reference
-                            write (stdout, "(A45,F14.3)") 'Instantaneous number of walkers on HF     = ', AllNoatHF
-                            ref_coef = -sign_tmp(1)
-                            write (stdout, "(A45,F14.3)") 'Averaged number of walkers on HF          = ', -sign_tmp/nCyc
-                            write (stdout, "(A45,I10)") 'Total entries of CI coefficients          = ', root_first_free_entry
-                        case (1)  ! singles
-                            totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for singles
-                            if (.not. near_zero(sign_tmp(1))) then
-                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for singles without zeros
-                                write (unit_CIav, '(G20.12,2I5)') sign_tmp/ref_coef, ex(1, 1), ex(2, 1)
-                            end if
-                        case (2)  ! doubles
-                            totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for doubles
-                            if (.not. near_zero(sign_tmp(1))) then
-                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for doubles without zeros
-                                write (unit_CIav, '(G20.12,4I5)') sign_tmp/ref_coef, ex(1, 1), &
-                                    ex(2, 1), ex(1, 2), ex(2, 2)
-                            end if
-                        case (3)  ! triples
-                            totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for triples
-                            if (.not. near_zero(sign_tmp(1))) then
-                                totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for triples without zeros
-                                write (unit_CIav, '(G20.12,6I5)') sign_tmp/ref_coef, ex(1, 1), &
-                                    ex(2, 1), ex(1, 2), ex(2, 2), ex(1, 3), ex(2, 3)
-                            end if
-                        end select
-                    end if
-                end do
-                if (iCI /= 0) then
-                    close (unit_CIav)
-                    write (stdout, "(A29,I1,A14,I11)") 'total entries for ci_coeff_', icI, ' =', totEntCoeff(iCI, 1)
-                    if (totEntCoeff(iCI, 1) /= totEntCoeff(iCI, 2)) then
-                        write (stdout, "(A26,I1,A17,I11)") '-total entries ci_coeff_', icI, &
-                            ' without zeros  =', totEntCoeff(iCI, 2)
-                    end if
-                end if
-            end do iCILoop0
+        if (iProcIndex == root) then
+            call print_averaged_ci_coeff()
 
             write (stdout, *) 'Sorting CI coefficients...'
-            call sorting()
+            call sorted_ci_coeff()
 
             write (stdout, *) '-> CI coefficients written in ASCII files ci_coeff_*'
             write (stdout, *) '=========================================================='
             write (stdout, *) ''
-        end if ifRoot
+        end if
 
         call fin_ciCoeff()
+
+    end subroutine output_ci_coeff
+
+    ! it prints averaged CI coeffs collected during the calcualtion
+    subroutine print_averaged_ci_coeff
+        integer  :: i, ic, ex(2, 4), icI, unit_CIav
+        real(dp) :: sign_tmp(lenof_sign), ref_coef
+        logical  :: tPar
+
+        totEntCoeff(:, :) = 0
+        iCILoop0: do icI = 0, n_store_ci_level
+            if (icI /= 0) open (newunit=unit_CIav, file='ci_coeff_'//str(iCI)//'_av', status='replace')
+            ! loop over the total entries of CI coefficients
+            do i = 1, root_first_free_entry
+                ic = n_store_ci_level + 1
+                ! gets the excitation level of the CI coefficient
+                call get_bit_excitmat(iLutRef(:, 1), root_ciCoeff_storage(:, i), ex, ic)
+                if (icI == ic) then
+                    ! gets the value of the CI coefficient (i.e. the number of walkers)
+                    call extract_sign(root_ciCoeff_storage(:, i), sign_tmp)
+                    ex(1, 1) = ic
+                    ! gets the sign of the CI coef (tPar=true if odd number of permutations)
+                    call GetBitExcitation(ilutRef(:, 1), root_ciCoeff_storage(:, i), ex, tPar)
+                    if (tPar) sign_tmp = -sign_tmp
+
+                    select case (icI) ! writing averaged CI coefficients
+                    case (0)  ! reference
+                        write (stdout, "(A45,F14.3)") 'Instantaneous number of walkers on HF     : ', AllNoatHF
+                        ref_coef = -sign_tmp(1)
+                        write (stdout, "(A45,F14.3)") 'Averaged number of walkers on HF          : ', -sign_tmp/nCyc
+                        write (stdout, "(A45,I10)") 'Total entries of CI coefficients          : ', root_first_free_entry
+                    case (1)  ! singles
+                        totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for singles
+                        if (.not. near_zero(sign_tmp(1))) then
+                            totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for singles without zeros
+                            write (unit_CIav, '(G20.12,2I5)') sign_tmp/ref_coef, ex(1, 1), ex(2, 1)
+                        end if
+                    case (2)  ! doubles
+                        totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for doubles
+                        if (.not. near_zero(sign_tmp(1))) then
+                            totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for doubles without zeros
+                            write (unit_CIav, '(G20.12,4I5)') sign_tmp/ref_coef, ex(1, 1), ex(2, 1), &
+                                                                                 ex(1, 2), ex(2, 2)
+                        end if
+                    case (3)  ! triples
+                        totEntCoeff(icI, 1) = totEntCoeff(icI, 1) + 1        ! total entries for triples
+                        if (.not. near_zero(sign_tmp(1))) then
+                            totEntCoeff(icI, 2) = totEntCoeff(icI, 2) + 1    ! total entries for triples without zeros
+                            write (unit_CIav, '(G20.12,6I5)') sign_tmp/ref_coef, ex(1, 1), ex(2, 1), &
+                                                             ex(1, 2), ex(2, 2), ex(1, 3), ex(2, 3)
+                        end if
+                    end select
+                end if
+            end do
+            if (iCI /= 0) then
+                close (unit_CIav)
+                write (stdout, "(A29,I1,A14,I11)") 'total entries for ci_coeff_', icI, ' :', totEntCoeff(iCI, 1)
+                if (totEntCoeff(iCI, 1) /= totEntCoeff(iCI, 2)) then
+                    write (stdout, "(A26,I1,A17,I11)") '-total entries ci_coeff_', icI, &
+                        ' without zeros  :', totEntCoeff(iCI, 2)
+                end if
+            end if
+        end do iCILoop0
     end subroutine print_averaged_ci_coeff
 
     ! it lists the averaged CI coeffs sorting the indices in
     ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
-    subroutine sorting
-        use util_mod, only: lex_leq
+    subroutine sorted_ci_coeff
         integer  :: h, iCI, signCI, ex(2, n_store_ci_level), idxAlphaBetaOrbs(nbasis)
         integer  :: unit_CIav, unit_CIsrt
         integer(n_int) :: hI
@@ -209,7 +222,7 @@ contains
         type(doubles_t), allocatable :: doubles(:)
         type(triples_t), allocatable :: triples(:)
 
-        idxAlphaBetaOrbs =  findAlphaBetaOrbs(symmax, nbasis)
+        idxAlphaBetaOrbs = findAlphaBetaOrbs(symmax, nbasis)
 
         iCIloop: do iCI = 1, n_store_ci_level
             open (newunit=unit_CIav, file='ci_coeff_'//str(iCI)//'_av', status='old', action='read')
@@ -239,8 +252,8 @@ contains
 
             select case (iCI) ! sorting and writing CI coefficients
             case (1)  ! singles
-                @:sort(singles_t, singles, rank=1, along=1, comp=singles_comp)
-                do hI = 1, totEntCoeff(iCI, 2)
+                call sorting(singles)
+                do hI = 1, size(singles)
                     write (unit_CIsrt, '(G20.12,2I5)') singles(hI)%x, singles(hI)%i, &
                                                        singles(hI)%a
                 end do
@@ -248,8 +261,8 @@ contains
                 deallocate (singles)
 
             case (2)  ! doubles
-                @:sort(doubles_t, doubles, rank=1, along=1, comp=doubles_comp)
-                do hI = 1, totEntCoeff(iCI, 2)
+                call sorting(doubles)
+                do hI = 1, size(doubles)
                     write (unit_CIsrt, '(G20.12,4I5)') doubles(hI)%x, doubles(hI)%i, &
                                         doubles(hI)%a, doubles(hI)%j, doubles(hI)%b
                 end do
@@ -257,8 +270,8 @@ contains
                 deallocate (doubles)
 
             case (3)  ! triples
-                @:sort(triples_t, triples, rank=1, along=1, comp=triples_comp)
-                do hI = 1, totEntCoeff(iCI, 2)
+                call sorting(triples)
+                do hI = 1, size(triples)
                     write (unit_CIsrt, '(G20.12,6I5)') triples(hI)%x, triples(hI)%i, &
                                         triples(hI)%a, triples(hI)%j, triples(hI)%b, &
                                         triples(hI)%k, triples(hI)%c
@@ -266,39 +279,53 @@ contains
                 close (unit_CIsrt)
                 deallocate (triples)
             end select
-
         end do iCIloop
+    end subroutine sorted_ci_coeff
 
+    subroutine sorting_singles_t(singles)
+        use util_mod, only: lex_leq
+        type(singles_t), intent(inout) :: singles(:)
+            @:sort(singles_t, singles, rank=1, along=1, comp=singles_comp)
     contains
+        logical elemental function singles_comp(p1, p2)
+            type(singles_t), intent(in) :: p1, p2
+            associate(idx_1 => [p1%i, p1%a], idx_2 => [p2%i, p2%a])
+                singles_comp = lex_leq(idx_1, idx_2)
+            end associate
+        end function
+    end subroutine
 
-    logical elemental function singles_comp(p1, p2)
-        type(singles_t), intent(in) :: p1, p2
-        associate(idx_1 => [p1%i, p1%a], &
-                  idx_2 => [p2%i, p2%a])
-            singles_comp = lex_leq(idx_1, idx_2)
-        end associate
-    end function
+    subroutine sorting_doubles_t(doubles)
+        use util_mod, only: lex_leq
+        type(doubles_t), intent(inout) :: doubles(:)
+            @:sort(doubles_t, doubles, rank=1, along=1, comp=doubles_comp)
+    contains
+        logical elemental function doubles_comp(p1, p2)
+            type(doubles_t), intent(in) :: p1, p2
+            associate(idx_1 => [p1%j, p1%i, p1%b, p1%a], &
+                      idx_2 => [p2%j, p2%i, p2%b, p2%a])
+                doubles_comp = lex_leq(idx_1, idx_2)
+            end associate
+        end function
+    end subroutine
 
-    logical elemental function doubles_comp(p1, p2)
-        type(doubles_t), intent(in) :: p1, p2
-        associate(idx_1 => [p1%j, p1%i, p1%b, p1%a], &
-                  idx_2 => [p2%j, p2%i, p2%b, p2%a])
-            doubles_comp = lex_leq(idx_1, idx_2)
-        end associate
-    end function
+    subroutine sorting_triples_t(triples)
+        use util_mod, only: lex_leq
+        type(triples_t), intent(inout) :: triples(:)
+            @:sort(triples_t, triples, rank=1, along=1, comp=triples_comp)
+    contains
+        logical elemental function triples_comp(p1, p2)
+            type(triples_t), intent(in) :: p1, p2
+            associate(idx_1 => [p1%k, p1%j, p1%i, p1%a, p1%b, p1%c], &
+                      idx_2 => [p2%k, p2%j, p2%i, p2%a, p2%b, p2%c])
+                triples_comp = lex_leq(idx_1, idx_2)
+            end associate
+        end function
+    end subroutine
 
-    logical elemental function triples_comp(p1, p2)
-        type(triples_t), intent(in) :: p1, p2
-        associate(idx_1 => [p1%k, p1%j, p1%i, p1%a, p1%b, p1%c], &
-                  idx_2 => [p2%k, p2%j, p2%i, p2%a, p2%b, p2%c])
-            triples_comp = lex_leq(idx_1, idx_2)
-        end associate
-    end function
 
-    end subroutine sorting
-
-    ! it finds all the alpha/beta occ/unocc orbs and save the
-    ! relative indices in an array
+    ! it finds all the alpha/beta occ/unocc orbs
+    ! and save the relative indices in an array
     function findAlphaBetaOrbs(symmax, nbasis)  result(idxAlphaBetaOrbs)
         use SymExcitDataMod, only: OrbClassCount
         use GenRandSymExcitNUMod, only: ClassCountInd
@@ -406,6 +433,7 @@ contains
                 do j = k, 2, -1
                     if (ex(p, j) < ex(p, j - 1)) then
                         call swap(ex(p, j), ex(p, j - 1))
+                        ! minus sign for odd number of permutations
                         signCI = -signCI
                     else
                         exit

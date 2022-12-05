@@ -53,7 +53,7 @@ module FciMCParMod
                            AccumPopsExpirePercent, t_print_core_vec, &
                            t_store_ci_coeff, t_start_ci_coeff, n_iter_ci_coeff, n_store_ci_level
 
-    use sdt_amplitudes, only : print_averaged_ci_coeff, storeCiCoeffs
+    use sdt_amplitudes, only : output_ci_coeff, storeCiCoeffs
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -870,7 +870,7 @@ contains
         write(stdout, *) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
         if(t_store_ci_coeff) then
-           call print_averaged_ci_coeff()
+           call output_ci_coeff()
         end if
 
         if (allocated(input_tau_search_method)) then
