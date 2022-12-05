@@ -201,7 +201,7 @@ contains
     ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
     subroutine sorting
         use util_mod, only: lex_leq
-        integer  :: i, iCI, signCI, ex(2, n_store_ci_level), idxAlphaBetaOrbs(nbasis)
+        integer  :: h, iCI, signCI, ex(2, n_store_ci_level), idxAlphaBetaOrbs(nbasis)
         integer  :: unit_CIav, unit_CIsrt
         integer(n_int) :: hI
         real(dp) :: x
@@ -219,8 +219,8 @@ contains
             if (iCI == 2) allocate (doubles(totEntCoeff(iCI, 2)))
             if (iCI == 3) allocate (triples(totEntCoeff(iCI, 2)))
 
-            do hI = 1, totEntCoeff(iCI, 2)
-                read (unit_CIav, *) x, (ex(1, i), ex(2, i), i=1, icI)
+            do hI = 1_n_int, totEntCoeff(iCI, 2)
+                read (unit_CIav, *) x, (ex(1, h), ex(2, h), h=1, icI)
 
                 call indPreSort(icI, idxAlphaBetaOrbs, ex, signCI)
 
@@ -239,8 +239,7 @@ contains
 
             select case (iCI) ! sorting and writing CI coefficients
             case (1)  ! singles
-                @:sort(singles_t, singles, rank=1, along=1, comp=sing_a)
-                @:sort(singles_t, singles, rank=1, along=1, comp=sing_i)
+                @:sort(singles_t, singles, rank=1, along=1, comp=singles_comp)
                 do hI = 1, totEntCoeff(iCI, 2)
                     write (unit_CIsrt, '(G20.12,2I5)') singles(hI)%x, singles(hI)%i, &
                                                        singles(hI)%a
@@ -249,10 +248,7 @@ contains
                 deallocate (singles)
 
             case (2)  ! doubles
-                @:sort(doubles_t, doubles, rank=1, along=1, comp=doub_a)
-                @:sort(doubles_t, doubles, rank=1, along=1, comp=doub_b)
-                @:sort(doubles_t, doubles, rank=1, along=1, comp=doub_i)
-                @:sort(doubles_t, doubles, rank=1, along=1, comp=doub_j)
+                @:sort(doubles_t, doubles, rank=1, along=1, comp=doubles_comp)
                 do hI = 1, totEntCoeff(iCI, 2)
                     write (unit_CIsrt, '(G20.12,4I5)') doubles(hI)%x, doubles(hI)%i, &
                                         doubles(hI)%a, doubles(hI)%j, doubles(hI)%b
@@ -261,7 +257,7 @@ contains
                 deallocate (doubles)
 
             case (3)  ! triples
-                @:sort(triples_t, triples, rank=1, along=1, comp=trip_comp)
+                @:sort(triples_t, triples, rank=1, along=1, comp=triples_comp)
                 do hI = 1, totEntCoeff(iCI, 2)
                     write (unit_CIsrt, '(G20.12,6I5)') triples(hI)%x, triples(hI)%i, &
                                         triples(hI)%a, triples(hI)%j, triples(hI)%b, &
@@ -275,38 +271,28 @@ contains
 
     contains
 
-    logical elemental function sing_a(p1, p2)
+    logical elemental function singles_comp(p1, p2)
         type(singles_t), intent(in) :: p1, p2
-        sing_a = p1%a <= p2%a
-    end function
-    logical elemental function sing_i(p1, p2)
-        type(singles_t), intent(in) :: p1, p2
-        sing_i = p1%i <= p2%i
+        associate(idx_1 => [p1%i, p1%a], &
+                  idx_2 => [p2%i, p2%a])
+            singles_comp = lex_leq(idx_1, idx_2)
+        end associate
     end function
 
-    logical elemental function doub_a(p1, p2)
+    logical elemental function doubles_comp(p1, p2)
         type(doubles_t), intent(in) :: p1, p2
-        doub_a = p1%a <= p2%a
-    end function
-    logical elemental function doub_b(p1, p2)
-        type(doubles_t), intent(in) :: p1, p2
-        doub_b = p1%b <= p2%b
-    end function
-    logical elemental function doub_i(p1, p2)
-        type(doubles_t), intent(in) :: p1, p2
-        doub_i = p1%i <= p2%i
-    end function
-    logical elemental function doub_j(p1, p2)
-        type(doubles_t), intent(in) :: p1, p2
-        doub_j = p1%j <= p2%j
+        associate(idx_1 => [p1%j, p1%i, p1%b, p1%a], &
+                  idx_2 => [p2%j, p2%i, p2%b, p2%a])
+            doubles_comp = lex_leq(idx_1, idx_2)
+        end associate
     end function
 
-    logical elemental function trip_comp(p1, p2)
+    logical elemental function triples_comp(p1, p2)
         type(triples_t), intent(in) :: p1, p2
-        associate(idx_1 => [p1%k, p1%j, p1%i, p1%a, p1%b, p1%c], &             
+        associate(idx_1 => [p1%k, p1%j, p1%i, p1%a, p1%b, p1%c], &
                   idx_2 => [p2%k, p2%j, p2%i, p2%a, p2%b, p2%c])
-            trip_comp = lex_leq(idx_1, idx_2)          
-        end associate   
+            triples_comp = lex_leq(idx_1, idx_2)
+        end associate
     end function
 
     end subroutine sorting
@@ -325,9 +311,9 @@ contains
 
         orbsSym(:) = 0
         i = 1
-        do iSym = 1, symmax
+        do iSym = 0, symmax-1
             i = i + 1
-            orbsSym(i) = OrbClassCount(ClassCountInd(1, iSym-1, 0))*2 + orbsSym(i - 1)
+            orbsSym(i) = OrbClassCount(ClassCountInd(1, iSym, 0))*2 + orbsSym(i - 1)
         end do
         ! loop to find all the occupied alpha spin orbitals
         totEl = 0
