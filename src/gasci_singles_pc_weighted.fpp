@@ -66,7 +66,7 @@ module gasci_singles_pc_weighted
                 !! I.e. only the second electron comes from the weighting scheme given in
                 !! `possible_PC_singles_weighting_t`.
                 !! We guarantee that \(I\) is occupied and \(A\) is unoccupied.
-            APPROX = PC_singles_drawing_t(3)
+            FAST_WEIGHTED = PC_singles_drawing_t(3)
                 !! We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from \( p(A | I) \).
                 !! I.e. only the second electron comes from the weighting scheme given in
                 !! `possible_PC_singles_weighting_t`
@@ -160,7 +160,7 @@ contains
             allocate(PC_SinglesFullyWeighted_t :: generator)
         else if (PC_singles_drawing == PC_singles_drawing_vals%WEIGHTED) then
             allocate(PC_SinglesWeighted_t :: generator)
-        else if (PC_singles_drawing == PC_singles_drawing_vals%APPROX) then
+        else if (PC_singles_drawing == PC_singles_drawing_vals%FAST_WEIGHTED) then
             allocate(PC_SinglesApprox_t :: generator)
         else
             call stop_all(this_routine, "Invalid choise for PC singles drawer.")
@@ -204,7 +204,7 @@ contains
                 write(iunit, *) 'I.e. only the second electron comes from the weighting scheme given in'
                 write(iunit, *) '`possible_PC_singles_weighting_t`.'
                 write(iunit, *) 'We guarantee that \(I\) is occupied and \(A\) is unoccupied.'
-            else if (drawing == vals%APPROX) then
+            else if (drawing == vals%FAST_WEIGHTED) then
                 write(iunit, *) 'We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from \( p(A | I) \).'
                 write(iunit, *) 'I.e. only the second electron comes from the weighting scheme given in'
                 write(iunit, *) '`possible_PC_singles_weighting_t`'
@@ -257,8 +257,8 @@ contains
             res = PC_singles_drawing_vals%FULLY_WEIGHTED
         case('WEIGHTED')
             res = PC_singles_drawing_vals%WEIGHTED
-        case('APPROX')
-            res = PC_singles_drawing_vals%APPROX
+        case('FAST-WEIGHTED')
+            res = PC_singles_drawing_vals%FAST_WEIGHTED
         case default
             call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles drawing scheme")
         end select

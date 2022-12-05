@@ -144,12 +144,12 @@ contains
         select case(to_upper(w))
         case('UNIFORM')
             res = PCHB_particle_selection_vals%UNIFORM
-        case('PC-WEIGHTED')
+        case('FULLY-WEIGHTED')
             res = PCHB_particle_selection_vals%FULLY_WEIGHTED
-        case('PC-WEIGHTED-APPROX')
+        case('FAST-WEIGHTED')
             res = PCHB_particle_selection_vals%FAST_WEIGHTED
         case default
-            call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles weighting scheme")
+            call stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
         end select
     end function
 

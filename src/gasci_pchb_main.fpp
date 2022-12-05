@@ -79,7 +79,7 @@ module gasci_pchb_main
             GAS_PCHB_options_vals%singles%algorithm%PC_weighted, &
             PC_WeightedSinglesOptions_t(&
                 GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                GAS_PCHB_options_vals%singles%PC_weighted%drawing%APPROX &
+                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FAST_WEIGHTED &
             ) &
         ), &
         PCHB_DoublesOptions_t( &

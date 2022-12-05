@@ -91,7 +91,7 @@ module pchb_excitgen
             FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
             PC_WeightedSinglesOptions_t(&
                 FCI_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                FCI_PCHB_options_vals%singles%PC_weighted%drawing%APPROX &
+                FCI_PCHB_options_vals%singles%PC_weighted%drawing%FAST_WEIGHTED &
             ) &
         ), &
         PCHB_DoublesOptions_t( &

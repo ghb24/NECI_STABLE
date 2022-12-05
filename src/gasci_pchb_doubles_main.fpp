@@ -33,7 +33,8 @@ module gasci_pchb_doubles_main
             procedure, nopass :: from_str => select_holes_from_keyword
     end type
 
-    type(PCHB_HoleSelection_vals_t), parameter :: possible_PCHB_hole_selection = PCHB_HoleSelection_vals_t()
+    type(PCHB_HoleSelection_vals_t), parameter :: &
+        possible_PCHB_hole_selection = PCHB_HoleSelection_vals_t()
 
     type :: PCHB_DoublesOptions_t
         type(PCHB_ParticleSelection_t) :: particle_selection
@@ -86,6 +87,7 @@ contains
         character(*), intent(in) :: w
         type(PCHB_HoleSelection_t) :: res
         routine_name("gasci_pchb_doubles_main::select_holes_from_keyword")
+
         select case(to_upper(w))
         case('RHF-FAST-WEIGHTED')
             res = possible_PCHB_hole_selection%RHF_FAST_WEIGHTED
