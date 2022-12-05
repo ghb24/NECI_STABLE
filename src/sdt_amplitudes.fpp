@@ -325,9 +325,9 @@ contains
 
         orbsSym(:) = 0
         i = 1
-        do iSym = 0, symmax-1
+        do iSym = 1, symmax
             i = i + 1
-            orbsSym(i) = OrbClassCount(ClassCountInd(1, iSym, 0))*2 + orbsSym(i - 1)
+            orbsSym(i) = OrbClassCount(ClassCountInd(1, iSym-1, 0))*2 + orbsSym(i - 1)
         end do
         ! loop to find all the occupied alpha spin orbitals
         totEl = 0
