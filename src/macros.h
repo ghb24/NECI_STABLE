@@ -13,7 +13,7 @@
 
 ! Is the specified orbital occupied or not?
 ! TODO: Use ilut_int/ilut_off here?
-#define IsOcc(ilut,orb) btest(ilut((orb-1) .div. bits_n_int), mod(orb-1,bits_n_int))
+#define IsOcc(ilut,orb) btest(ilut((orb-1) / bits_n_int), mod(orb-1,bits_n_int))
 #define IsNotOcc(ilut,orb) (.not.IsOcc(ilut,orb))
 #define IsUnoccDet(sgn) all(abs(sgn) < 1.e-12_dp)
 

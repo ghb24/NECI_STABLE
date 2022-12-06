@@ -14,6 +14,7 @@ module gasci_pchb_doubles_UHF_fullyweighted
     use SymExcitDataMod, only: pDoubNew, ScratchSize
     use excitation_types, only: DoubleExc_t, excite
     use sltcnd_mod, only: sltcnd_excit
+    use CDF_sampling_mod, only: CDF_Sampler_t
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: excit_gen_store_type, projEDet
@@ -59,6 +60,10 @@ module gasci_pchb_doubles_UHF_fullyweighted
             !! where IJ is a fused index I < J, A is the first hole and `i_sg` is the supergroup.
         class(GASSpec_t), allocatable :: GAS_spec
         type(SuperGroupIndexer_t), pointer :: indexer => null()
+        logical :: hole_excess
+            !! If there are more holes than particles we can
+            !! speed up the calculation by normalizing via the complement.
+            !! \( \sum_{A \notin D_i} p(A) = 1 - \sum_{I \in D_i} p(I) \)
     contains
         private
         procedure, public :: init => GAS_doubles_PCHB_init
@@ -104,6 +109,8 @@ contains
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
 
         call this%compute_samplers(PCHB_particle_selection)
+
+        this%hole_excess = nBasis > nEl * 2
 
         write(stdout, *) "Finished excitation generator initialization"
     end subroutine GAS_doubles_PCHB_init
@@ -160,7 +167,6 @@ contains
             i_sg = this%indexer%idx_nI(nI)
         end if
 
-
         ! first, pick two random elecs
         call this%particle_selector%draw(nI, ilutI, i_sg, elecs, src, p_IJ)
         if (src(1) == 0) then
@@ -176,13 +182,42 @@ contains
 
         renorm_first = sum(this%A_sampler%get_prob(IJ, i_sg, unoccupied))
 
+        if (near_zero(renorm_first)) then
+            call invalidate()
+            return
+        end if
+
+
         call this%A_sampler%constrained_sample(&
             IJ, i_sg, ilut_unoccupied, renorm_first, tgt(1), p_first(1))
 
         renorm_second(1) = sum(this%B_sampler%get_prob(tgt(1), IJ, i_sg, unoccupied))
 
-        call this%B_sampler%constrained_sample(&
-            tgt(1), IJ, i_sg, ilut_unoccupied, renorm_second(1), tgt(2), p_second(1))
+        if (renorm_second(1) > 1e-1) then
+            call this%B_sampler%constrained_sample(&
+                tgt(1), IJ, i_sg, ilut_unoccupied, &
+                renorm_second(1), tgt(2), p_second(1))
+        else if (near_zero(renorm_second(1))) then
+            call invalidate()
+            return
+        else
+            ! This is a rare event.
+            ! We have small but non-zero weight for the second electron.
+            ! The redrawing algorithm might get stuck and we need to
+            ! construct cumulative distribution sampling.
+            block
+                type(CDF_Sampler_t) :: B_sampler
+                integer :: idx_unoccupied
+                B_sampler = CDF_Sampler_t(&
+                    this%B_sampler%get_prob(tgt(1), IJ, i_sg, unoccupied))
+                call B_sampler%sample(idx_unoccupied, p_second(1))
+                if (idx_unoccupied == 0) then
+                    call invalidate()
+                    return
+                end if
+                tgt(2) = unoccupied(idx_unoccupied)
+            end block
+        end if
 
         ! We could have picked them the other way round.
         ! Account for that.
@@ -194,6 +229,7 @@ contains
             tgt(2), IJ, i_sg, unoccupied, renorm_second(2), tgt(1))
 
         pGen = p_IJ * sum(p_first * p_second)
+
 
         invalid = .false.
         if (invalid) then
