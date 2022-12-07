@@ -1523,7 +1523,8 @@ contains
     SUBROUTINE InitFCIMCCalcPar()
         INTEGER :: ierr, iunithead
         logical :: formpops, binpops, tStartedFromCoreGround
-        INTEGER :: error, MemoryAlloc, PopsVersion
+        integer(int64) :: MemoryAlloc
+        INTEGER :: error, PopsVersion
         character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
         real(dp) :: ExpectedMemWalk, read_tau, read_psingles, read_pparallel, read_ptriples
