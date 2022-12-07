@@ -35,7 +35,7 @@ module CDF_sampling_mod
     end type
 
     interface CDF_Sampler_t
-        module procedure construct_CDF_sampler_t
+        module procedure construct_CDF_sampler_t, construct_CDF_sampler_with_total_t
     end interface
 
 contains
@@ -49,13 +49,27 @@ contains
         real(dp), intent(in) :: w(:)
         type(CDF_Sampler_t) :: res
         debug_function_name("construct_CDF_sampler_t")
+        res = CDF_Sampler_t(w, sum(w))
+    end function
+
+
+    function construct_CDF_sampler_with_total_t(w, total) result(res)
+        !! Construct a CDF sampler from given weights.
+        !!
+        !! The weights do not have to be normalized.
+        !! If all weights are zero, or the array is empty,
+        !! the sampler will return the (non-existent) index 0 with probability 1.
+        real(dp), intent(in) :: w(:), total
+        type(CDF_Sampler_t) :: res
+        debug_function_name("construct_CDF_sampler_t")
         res%my_size = size(w)
-        ASSERT(all(w >= 0._dp))
-        if (near_zero(sum(w))) then
+        @:ASSERT(all(w >= 0._dp))
+        if (near_zero(total)) then
             ! allocate as empty sets
             allocate(res%p(0), res%cum_p(0))
         else
-            res%p = w / sum(w)
+            @:ASSERT(sum(res%p) .isclose. total)
+            res%p = w / total
             res%cum_p = cumsum(res%p)
         end if
     end function
@@ -71,7 +85,7 @@ contains
         class(CDF_Sampler_t), intent(in) :: this
         integer, intent(in) :: val
         debug_function_name("get_p")
-        ASSERT(1 <= val .and. val <= size(this%p))
+        @:ASSERT(1 <= val .and. val <= size(this%p))
         if (this%all_zero()) then
             get_prob = 0.0
         else
