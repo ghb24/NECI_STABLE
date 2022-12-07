@@ -151,7 +151,6 @@ contains
 
         integer :: elecs(2), src(2), tgt(2), IJ
         real(dp) :: p_IJ, p_first(2), p_second(2), renorm_first, renorm_second(2)
-        logical :: invalid
         integer :: unoccupied(nBasis - nEl)
         integer(n_int) :: ilut_unoccupied(0 : nIfD)
         integer :: i_sg
@@ -180,19 +179,15 @@ contains
         call decode_bit_det(unoccupied, ilut_unoccupied)
         IJ = fuseIndex(src(1), src(2))
 
-        renorm_first = sum(this%A_sampler%get_prob(IJ, i_sg, unoccupied))
-
+        renorm_first = 1._dp - sum(this%A_sampler%get_prob(IJ, i_sg, nI))
         if (near_zero(renorm_first)) then
             call invalidate()
             return
         end if
-
-
         call this%A_sampler%constrained_sample(&
             IJ, i_sg, ilut_unoccupied, renorm_first, tgt(1), p_first(1))
 
-        renorm_second(1) = sum(this%B_sampler%get_prob(tgt(1), IJ, i_sg, unoccupied))
-
+        renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(tgt(1), IJ, i_sg, nI))
         if (renorm_second(1) > 1e-1) then
             call this%B_sampler%constrained_sample(&
                 tgt(1), IJ, i_sg, ilut_unoccupied, &
@@ -209,7 +204,7 @@ contains
                 type(CDF_Sampler_t) :: B_sampler
                 integer :: idx_unoccupied
                 B_sampler = CDF_Sampler_t(&
-                    this%B_sampler%get_prob(tgt(1), IJ, i_sg, unoccupied))
+                    this%B_sampler%get_prob(tgt(1), IJ, i_sg, unoccupied), renorm_second(1))
                 call B_sampler%sample(idx_unoccupied, p_second(1))
                 if (idx_unoccupied == 0) then
                     call invalidate()
@@ -224,28 +219,18 @@ contains
         ! The renormalization for the first hole is the same
         p_first(2) = this%A_sampler%constrained_getProb(&
             IJ, i_sg, unoccupied, renorm_first, tgt(2))
-        renorm_second(2) = sum(this%B_sampler%get_prob(tgt(2), IJ, i_sg, unoccupied))
+        renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(tgt(2), IJ, i_sg, nI))
         p_second(2) = this%B_sampler%constrained_getProb(&
             tgt(2), IJ, i_sg, unoccupied, renorm_second(2), tgt(1))
 
         pGen = p_IJ * sum(p_first * p_second)
 
-
-        invalid = .false.
-        if (invalid) then
-            ! if 0 is returned, there are no excitations for the chosen elecs
-            ! -> return nulldet
-            call invalidate()
-        else
-            call make_double(nI, nJ, elecs(1), elecs(2), tgt(1), tgt(2), ex, tParity)
-
-            ilutJ = exciteIlut(ilutI, src, tgt)
-
-            block
-                integer :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-                @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
-            end block
-        end if
+        call make_double(nI, nJ, elecs(1), elecs(2), tgt(1), tgt(2), ex, tParity)
+        ilutJ = exciteIlut(ilutI, src, tgt)
+        block
+            integer :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+            @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
+        end block
 
     contains
 
