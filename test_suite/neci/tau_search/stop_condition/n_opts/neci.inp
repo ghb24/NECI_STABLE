@@ -7,7 +7,9 @@ System read
     spin-restrict 0
     FCIDUMP-name Li2.FciDmp
     nonuniformrandexcits GAS-CI PCHB \
-        SINGLES PC-UNIFORM
+        singles uniform \
+        doubles particle-selection fully-weighted \
+        doubles hole-selection rhf-fast-weighted
     GAS-SPEC CUMULATIVE 2
         5 2 4
         5 6 6

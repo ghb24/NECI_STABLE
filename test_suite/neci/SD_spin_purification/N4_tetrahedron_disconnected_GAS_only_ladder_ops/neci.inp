@@ -7,7 +7,10 @@ System read
     spin-restrict -8
     freeformat
     sd-spin-purification 5d-4 ONLY-LADDER-OPERATOR
-    nonuniformrandexcits GAS-CI PCHB
+    nonuniformrandexcits GAS-CI PCHB \
+        singles uniform \
+        doubles particle-selection fully-weighted \
+        doubles hole-selection rhf-fast-weighted
     GAS-SPEC LOCAL 4
         3 3 3
         3 3 3
