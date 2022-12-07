@@ -151,7 +151,7 @@ contains
             !! determinant to excite from
             !! unused in this generator
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            !! determint from which to excite, ilus format
+            !! determint from which to excite, ilut format
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
             !! the excited determinant upon return
             !! excitation order (for doubles generator, always == 2)

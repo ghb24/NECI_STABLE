@@ -27,8 +27,8 @@
 
 module gasci_pchb_main
     !! Precomputed Heat Bath Implementation for GASCI. This modules implements
-    !! the excitation generator which builds on either gasci_pchb and gasci_pchb_uhf
-    !! depending on if we are working in spin or spatial orbitals.
+    !! the excitation generator GASCI PCHB either resolve in spin- or spatial-
+    !! orbitals.
 
     use constants, only: stdout
     use util_mod, only: stop_all, EnumBase_t, operator(.implies.)
