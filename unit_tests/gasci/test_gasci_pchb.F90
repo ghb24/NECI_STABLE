@@ -100,6 +100,21 @@ contains
                     ), &
                     UHF=UHF, &
                     use_lookup=.false. &
+            ), &
+            GAS_PCHB_options_t(&
+                    GAS_PCHB_SinglesOptions_t(&
+                        GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                        PC_WeightedSinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
+                            GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULLY_WEIGHTED &
+                        ) &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
+                        GAS_PCHB_options_vals%doubles%hole_selection%UHF_FULLY_WEIGHTED &
+                    ), &
+                    UHF=UHF, &
+                    use_lookup=.false. &
             ) &
         ]
 
