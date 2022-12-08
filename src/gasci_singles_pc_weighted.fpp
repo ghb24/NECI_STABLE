@@ -17,6 +17,7 @@ module gasci_singles_pc_weighted
     use get_excit, only: make_single
     use excitation_types, only: SingleExc_t
     use gasci, only: GASSpec_t
+    use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use orb_idx_mod, only: calc_spin_raw, operator(==)
     use OneEInts, only: GetTMatEl
@@ -119,6 +120,7 @@ module gasci_singles_pc_weighted
         private
         procedure, public :: init
         procedure, public :: finalize
+        procedure, public :: gen_all_excits => gen_all_excits_PC_Weighted_t
     end type
 
     abstract interface
@@ -726,5 +728,15 @@ contains
             g = 0._dp
         end if
     end function
+
+
+    subroutine gen_all_excits_PC_Weighted_t(this, nI, n_excits, det_list)
+        class(PC_Weighted_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(out) :: n_excits
+        integer(n_int), allocatable, intent(out) :: det_list(:,:)
+
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
+    end subroutine
 
 end module gasci_singles_pc_weighted

@@ -19,6 +19,7 @@ module excitation_generators
     private
     public :: ExcitationGenerator_t, &
         SingleExcitationGenerator_t, DoubleExcitationGenerator_t, TripleExcitationGenerator_t, &
+        FCISingleExcitationGenerator_t, FCIDoubleExcitationGenerator_t, &
         gen_exc_sd, get_pgen_sd, gen_all_excits_sd, ClassicAbInitExcitationGenerator_t
 
     type, abstract :: ExcitationGenerator_t
@@ -34,11 +35,17 @@ module excitation_generators
     end type
 
     type, abstract, extends(ExcitationGenerator_t) :: SingleExcitationGenerator_t
+    end type
+
+    type, abstract, extends(SingleExcitationGenerator_t) :: FCISingleExcitationGenerator_t
     contains
         procedure, public :: gen_all_excits => FCI_singles_gen_all_excits
     end type
 
     type, abstract, extends(ExcitationGenerator_t) :: DoubleExcitationGenerator_t
+    end type
+
+    type, abstract, extends(DoubleExcitationGenerator_t) :: FCIDoubleExcitationGenerator_t
     contains
         procedure, public :: gen_all_excits => FCI_doubles_gen_all_excits
     end type
@@ -173,7 +180,7 @@ contains
     end subroutine
 
     subroutine FCI_singles_gen_all_excits(this, nI, n_excits, det_list)
-        class(SingleExcitationGenerator_t), intent(in) :: this
+        class(FCISingleExcitationGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
@@ -182,7 +189,7 @@ contains
     end subroutine
 
     subroutine FCI_doubles_gen_all_excits(this, nI, n_excits, det_list)
-        class(DoubleExcitationGenerator_t), intent(in) :: this
+        class(FCIDoubleExcitationGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)

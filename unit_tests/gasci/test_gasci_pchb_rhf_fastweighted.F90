@@ -1,5 +1,6 @@
 module test_gasci_pchb_rhf_fastweighted
     use fruit, only: assert_equals, assert_true, assert_false
+    use fortran_strings, only: str
     use constants, only: dp, int64, n_int, maxExcit
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use util_mod, only: factrl, swap, cumsum
@@ -11,7 +12,7 @@ module test_gasci_pchb_rhf_fastweighted
     use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
         GAS_PCHB_options_vals
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t
-    use gasci_singles_main, only: GAS_PCHB_SinglesOptions_t
+    use gasci_singles_main, only: GAS_PCHB_SinglesOptions_t, PC_WeightedSinglesOptions_t
 
     use excitation_generators, only: ExcitationGenerator_t
 
@@ -67,17 +68,14 @@ contains
         logical :: successful
         integer :: n_interspace_exc, i
         integer, parameter :: n_iters=10**7
-
-        character(len=128) :: message
-        write(message, *) "Failed for UHF=", UHF, ", hermitian=", hermitian
-
         dumpwriter = random_fcidump_writer_t(UHF=UHF, hermitian=hermitian)
 
         pParallel = 0.05_dp
         pSingles = 0.2_dp
         pDoubles = 1.0_dp - pSingles
 
-        allocate(settings(3), source=GAS_PCHB_options_t(&
+        settings = [&
+            GAS_PCHB_options_t(&
                     GAS_PCHB_SinglesOptions_t(&
                         GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                     ), &
@@ -87,17 +85,26 @@ contains
                     ), &
                     UHF=UHF, &
                     use_lookup=.false. &
-                ) &
-        )
-        associate(ps => GAS_PCHB_options_vals%doubles%particle_selection)
-        associate(selections => [ps%UNIFORM, ps%FULLY_WEIGHTED, ps%FAST_WEIGHTED])
-            settings(:)%doubles%particle_selection = selections
-        end associate
-        end associate
+            ), &
+            GAS_PCHB_options_t(&
+                    GAS_PCHB_SinglesOptions_t(&
+                        GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                        PC_WeightedSinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
+                            GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                        ) &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
+                        GAS_PCHB_options_vals%doubles%hole_selection%UHF_FULLY_WEIGHTED &
+                    ), &
+                    UHF=UHF, &
+                    use_lookup=.false. &
+            ) &
+        ]
 
         over_settings: do i = 1, size(settings)
             over_interspace_excitations: do n_interspace_exc = 0, 1
-
                 GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
                                      spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
                 call assert_true(GAS_spec%is_valid())
@@ -115,7 +122,7 @@ contains
                     problem_filter=is_problematic,&
                     successful=successful)
                 call exc_generator%finalize()
-                call assert_true(successful, trim(message))
+                call assert_true(successful, "Failed for UHF = "//str(UHF)//", hermitian= "//str(hermitian))
                 call finalize_excitgen_test()
 
             end do over_interspace_excitations
