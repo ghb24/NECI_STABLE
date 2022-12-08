@@ -21,8 +21,8 @@ module gasci_singles_main
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
 
-    use gasci_singles_pc_weighted, only: PC_Weighted_t, do_allocation, &
-        print_options, &
+    use gasci_singles_pc_weighted, only: PC_Weighted_t, &
+        do_allocation, print_options, &
         PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t
     better_implicit_none
 

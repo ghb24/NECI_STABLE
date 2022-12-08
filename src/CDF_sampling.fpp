@@ -11,7 +11,7 @@ module CDF_sampling_mod
     !! a calculation use the alias sampling.
     !! This is done for example in PCHB.
     use constants, only: dp
-    use util_mod, only: binary_search_first_ge, stop_all, cumsum, near_zero
+    use util_mod, only: binary_search_first_ge, stop_all, cumsum, near_zero, stop_all, operator(.isclose.)
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
     better_implicit_none
     private
@@ -48,7 +48,6 @@ contains
         !! the sampler will return the (non-existent) index 0 with probability 1.
         real(dp), intent(in) :: w(:)
         type(CDF_Sampler_t) :: res
-        debug_function_name("construct_CDF_sampler_t")
         res = CDF_Sampler_t(w, sum(w))
     end function
 
@@ -61,7 +60,7 @@ contains
         !! the sampler will return the (non-existent) index 0 with probability 1.
         real(dp), intent(in) :: w(:), total
         type(CDF_Sampler_t) :: res
-        debug_function_name("construct_CDF_sampler_t")
+        debug_function_name("construct_CDF_sampler_with_total_t")
         res%my_size = size(w)
         @:ASSERT(all(w >= 0._dp))
         if (near_zero(total)) then
@@ -85,7 +84,7 @@ contains
         class(CDF_Sampler_t), intent(in) :: this
         integer, intent(in) :: val
         debug_function_name("get_p")
-        @:ASSERT(1 <= val .and. val <= size(this%p))
+        @:pure_ASSERT(1 <= val .and. val <= size(this%p))
         if (this%all_zero()) then
             get_prob = 0.0
         else

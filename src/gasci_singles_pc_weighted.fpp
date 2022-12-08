@@ -4,7 +4,8 @@
 module gasci_singles_pc_weighted
     use constants, only: dp, int64, stdout, n_int, bits_n_int, maxExcit
     use fortran_strings, only: to_upper
-    use util_mod, only: operator(.div.), stop_all, EnumBase_t, near_zero
+    use util_mod, only: operator(.div.), stop_all, EnumBase_t, near_zero, &
+        binary_search_int
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use SymExcitDataMod, only: ScratchSize
@@ -12,7 +13,7 @@ module gasci_singles_pc_weighted
     use excitation_generators, only: SingleExcitationGenerator_t
     use FciMCData, only: excit_gen_store_type
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use aliasSampling, only: AliasSampler_2D_t
+    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, redrawing_cutoff
     use get_excit, only: make_single
     use excitation_types, only: SingleExc_t
     use gasci, only: GASSpec_t
@@ -92,7 +93,10 @@ module gasci_singles_pc_weighted
     end type
 
     type, abstract, extends(SingleExcitationGenerator_t) :: PC_Weighted_t
-        type(AliasSampler_2D_t) :: sampler
+        type(AliasSampler_1D_t) :: I_sampler
+            !! p(I | i_sg)
+            !! The probability of picking particle `I` in the supergroup i_sg.
+        type(AliasSampler_2D_t) :: A_sampler
             !! p(A | I, i_sg)
             !! The probability of picking the hole A after having picked particle I
             !! in the supergroup i_sg.
@@ -139,11 +143,11 @@ module gasci_singles_pc_weighted
         procedure, public :: get_pgen => PC_SinglesWeighted_get_pgen
     end type
 
-    type, extends(PC_Weighted_t) :: PC_SinglesApprox_t
+    type, extends(PC_Weighted_t) :: PC_SinglesFastWeighted_t
     contains
         private
-        procedure, public :: gen_exc => PC_SinglesApprox_gen_exc
-        procedure, public :: get_pgen => PC_SinglesApprox_get_pgen
+        procedure, public :: gen_exc => PC_SinglesFastWeighted_gen_exc
+        procedure, public :: get_pgen => PC_SinglesFastWeighted_get_pgen
     end type
 
 contains
@@ -161,7 +165,7 @@ contains
         else if (PC_singles_drawing == PC_singles_drawing_vals%WEIGHTED) then
             allocate(PC_SinglesWeighted_t :: generator)
         else if (PC_singles_drawing == PC_singles_drawing_vals%FAST_WEIGHTED) then
-            allocate(PC_SinglesApprox_t :: generator)
+            allocate(PC_SinglesFastWeighted_t :: generator)
         else
             call stop_all(this_routine, "Invalid choise for PC singles drawer.")
         end if
@@ -310,7 +314,8 @@ contains
         supergroups = this%indexer%get_supergroups()
         n_supergroups = size(supergroups, 2)
 
-        call this%sampler%shared_alloc([nBi, n_supergroups], nBI, 'PC_singles')
+        call this%I_sampler%shared_alloc(n_supergroups, nBI, 'PC_singles_I')
+        call this%A_sampler%shared_alloc([nBi, n_supergroups], nBI, 'PC_singles_A')
         allocate(this%weights(nBI, nBI, n_supergroups), source=0._dp)
         block
             integer :: i_sg, src, tgt
@@ -327,8 +332,9 @@ contains
                             this%weights(tgt, src, i_sg) = get_weight(exc)
                         end if
                     end do
-                    call this%sampler%setup_entry(src, i_sg, this%weights(:, src, i_sg))
+                    call this%A_sampler%setup_entry(src, i_sg, this%weights(:, src, i_sg))
                 end do
+                call this%I_sampler%setup_entry(i_sg, sum(this%weights(:, :, i_sg), dim=1))
             end do
         end block
 
@@ -369,37 +375,61 @@ contains
             i_sg = this%indexer%idx_nI(nI)
         end if
 
-        block
-            integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl), idx
-            type(CDF_Sampler_t) :: tgt_sampler, src_sampler
-            real(dp), allocatable :: weights(:, :)
-
-            call decode_bit_det(unoccupied, not(ilutI))
-            weights = this%weights(unoccupied, nI, i_sg)
-
-            src_sampler = CDF_Sampler_t(sum(weights, dim=1))
-            call src_sampler%sample(elec, p_src)
-            if (elec == 0) then
+        select_particle: block
+            real(dp) :: renorm_src, weights(nEl)
+            weights(:) = this%I_sampler%get_prob(i_sg, nI)
+            renorm_src = sum(weights)
+            if (renorm_src > redrawing_cutoff) then
+                call this%I_sampler%constrained_sample(i_sg, ilutI, renorm_src, src, p_src)
+                elec = int(binary_search_int(nI, src))
+            else if (near_zero(renorm_src)) then
                 call make_invalid()
                 return
+            else
+            block
+                type(CDF_Sampler_t) :: src_sampler
+                src_sampler = CDF_Sampler_t(weights, renorm_src)
+                call src_sampler%sample(elec, p_src)
+                if (elec == 0) then
+                    call make_invalid()
+                    return
+                end if
+                src = nI(elec)
+            end block
             end if
-            src = nI(elec)
+        end block select_particle
 
-
-            tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
-            call tgt_sampler%sample(idx, p_tgt)
-            if (idx == 0) then
+        select_hole: block
+            real(dp) :: renorm_tgt
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
+            if (renorm_tgt > redrawing_cutoff) then
+                call this%A_sampler%constrained_sample(&
+                    src, i_sg, not(ilutI(0 : nIfD)), renorm_tgt, tgt, p_tgt)
+            else if (near_zero(renorm_tgt)) then
                 call make_invalid()
                 return
+            else
+            block
+                integer :: unoccupied(nBasis - nEl), idx
+                type(CDF_Sampler_t) :: tgt_sampler
+                call decode_bit_det(unoccupied, not(ilutI(0 : nIfD)))
+                tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
+                call tgt_sampler%sample(idx, p_tgt)
+                if (idx == 0) then
+                    call make_invalid()
+                    return
+                end if
+                tgt = unoccupied(idx)
+            end block
             end if
-            tgt = unoccupied(idx)
-        end block
+        end block select_hole
 
         pGen = p_src * p_tgt
         call make_single(nI, nJ, elec, tgt, ex, tParity)
         ilutJ = ilutI
         clr_orb(ilutJ, src)
         set_orb(ilutJ, tgt)
+
         contains
 
             subroutine make_invalid()
@@ -419,14 +449,17 @@ contains
         real(dp) :: p_gen
         integer :: i_sg
 
-        integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl)
+        integer :: unoccupied(nBasis - nEl)
 
         @:ASSERT(ic == 1)
         @:unused_var(ClassCount2, ClassCountUnocc2)
         i_sg = this%indexer%idx_nI(nI)
         call decode_bit_det(unoccupied, not(ilutI))
         associate (src => ex(1, 1), tgt => ex(2, 1))
-            p_gen = this%weights(tgt, src, i_sg) / sum(this%weights(unoccupied, nI, i_sg))
+            p_gen = this%I_sampler%get_prob(i_sg, src) &
+                        / sum(this%I_sampler%get_prob(i_sg, nI)) &
+                    * this%A_sampler%get_prob(src, i_sg, tgt) &
+                        / sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
         end associate
     end function PC_SinglesFullyWeighted_get_pgen
 
@@ -459,24 +492,36 @@ contains
             i_sg = this%indexer%idx_nI(nI)
         end if
 
-        elec = int(genrand_real2_dSFMT() * nel) + 1
-        src = nI(elec)
-        p_src = 1._dp / real(nEl, dp)
+        select_particle: block
+            elec = int(genrand_real2_dSFMT() * nel) + 1
+            src = nI(elec)
+            p_src = 1._dp / real(nEl, dp)
+        end block select_particle
 
-        block
-            integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl), idx
-            type(CDF_Sampler_t) :: tgt_sampler
-
-            call decode_bit_det(unoccupied, not(ilutI))
-
-            tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
-            call tgt_sampler%sample(idx, p_tgt)
-            if (idx == 0) then
+        select_hole: block
+            real(dp) :: renorm_tgt
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
+            if (renorm_tgt > redrawing_cutoff) then
+                call this%A_sampler%constrained_sample(&
+                    src, i_sg, not(ilutI(0 : nIfD)), renorm_tgt, tgt, p_tgt)
+            else if (near_zero(renorm_tgt)) then
                 call make_invalid()
                 return
+            else
+            block
+                integer :: unoccupied(nBasis - nEl), idx
+                type(CDF_Sampler_t) :: tgt_sampler
+                call decode_bit_det(unoccupied, not(ilutI(0 : nIfD)))
+                tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
+                call tgt_sampler%sample(idx, p_tgt)
+                if (idx == 0) then
+                    call make_invalid()
+                    return
+                end if
+                tgt = unoccupied(idx)
+            end block
             end if
-            tgt = unoccupied(idx)
-        end block
+        end block select_hole
 
         pGen = p_src * p_tgt
         call make_single(nI, nJ, elec, tgt, ex, tParity)
@@ -517,9 +562,9 @@ contains
     end function PC_SinglesWeighted_get_pgen
 
 
-    subroutine PC_SinglesApprox_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+    subroutine PC_SinglesFastWeighted_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                      ex, tParity, pGen, hel, store, part_type)
-        class(PC_SinglesApprox_t), intent(inout) :: this
+        class(PC_SinglesFastWeighted_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -545,18 +590,23 @@ contains
             i_sg = this%indexer%idx_nI(nI)
         end if
 
-        elec = int(genrand_real2_dSFMT() * nEl) + 1
-        src = nI(elec)
-        p_src = 1._dp / real(nEl, dp)
+        select_particle: block
+            elec = int(genrand_real2_dSFMT() * nEl) + 1
+            src = nI(elec)
+            p_src = 1._dp / real(nEl, dp)
+        end block select_particle
 
-        call this%sampler%sample(src, i_sg, tgt, p_tgt)
-        if (tgt == 0) then
-            call make_invalid()
-            return
-        else if (IsOcc(ilutI, tgt)) then
-            call make_invalid()
-            return
-        end if
+        select_hole: block
+            call this%A_sampler%sample(src, i_sg, tgt, p_tgt)
+            if (tgt == 0) then
+                call make_invalid()
+                return
+            else if (IsOcc(ilutI, tgt)) then
+                call make_invalid()
+                return
+            end if
+        end block select_hole
+
         pGen = p_src * p_tgt
         call make_single(nI, nJ, elec, tgt, ex, tParity)
         ilutJ = ilutI
@@ -569,11 +619,11 @@ contains
                 nJ(1) = 0
                 ilutJ = 0_n_int
             end subroutine
-    end subroutine PC_SinglesApprox_gen_exc
+    end subroutine PC_SinglesFastWeighted_gen_exc
 
 
-    function PC_SinglesApprox_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(p_gen)
-        class(PC_SinglesApprox_t), intent(inout) :: this
+    function PC_SinglesFastWeighted_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(p_gen)
+        class(PC_SinglesFastWeighted_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
@@ -588,9 +638,9 @@ contains
         i_sg = this%indexer%idx_nI(nI)
         call decode_bit_det(unoccupied, not(ilutI))
         associate (src => ex(1, 1), tgt => ex(2, 1))
-            p_gen = 1._dp / real(nEl, dp) * this%sampler%get_prob(src, i_sg, tgt)
+            p_gen = 1._dp / real(nEl, dp) * this%A_sampler%get_prob(src, i_sg, tgt)
         end associate
-    end function PC_SinglesApprox_get_pgen
+    end function PC_SinglesFastWeighted_get_pgen
 
 
     subroutine finalize(this)
@@ -600,9 +650,10 @@ contains
             ! Yes, we assume that either all, or none is allocated
             ! at the same time. It is good if the code breaks if
             ! that assumption is wrong.
+            call this%I_sampler%finalize()
+            call this%A_sampler%finalize()
             deallocate(this%indexer, this%weights, this%GAS_spec)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
-            call this%sampler%finalize()
         end if
     end subroutine
 
@@ -665,11 +716,12 @@ contains
     real(dp) elemental function g(I, A, J, B)
         integer, intent(in) :: I, A, J, B
         !! Return the 2el integral \( g_{I, A, J, B} \)
-        !!
+
         !! I, A, J, and B are **spin** indices.
-        !! Order follows the definition of the purple book.
+        !! Order follows the definition of the purple book (chemist's notation).
+        !! \( g_{I, A, J, B} = < I J | 1 / r | A B > \)
         if (calc_spin_raw(I) == calc_spin_raw(A) .and. calc_spin_raw(J) == calc_spin_raw(B)) then
-            g = get_umat_el(gtID(I), gtID(A), gtID(J), gtID(B))
+            g = get_umat_el(gtID(I), gtID(J), gtID(A), gtID(B))
         else
             g = 0._dp
         end if

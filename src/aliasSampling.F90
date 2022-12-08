@@ -12,7 +12,7 @@ module aliasSampling
 
     private
     public :: aliasSampler_t, AliasSampler_1D_t, AliasSampler_2D_t, AliasSampler_3D_t, &
-        clear_sampler_array, aliasTable_t
+        clear_sampler_array, aliasTable_t, redrawing_cutoff
 
     ! type for tables: contains everything you need to get a random number
     ! with given biases
@@ -133,7 +133,13 @@ module aliasSampling
         procedure :: constrained_getProb => constrained_get_prob_1D
     end type AliasSampler_1D_t
 
-
+    real(dp), parameter :: redrawing_cutoff = 0.1_dp
+        !! If we draw from constrained subsets of a precomputed probability distributions
+        !! we can use two different algorithms:
+        !!  1. We just redraw until we sample an element from our subset
+        !!  2. We reconstruct probability distributions for our narrower subset.
+        !! If the sum of probabilities of our subset is larger than `redrawing_cutoff`,
+        !! we take the first method, otherwise the second.
 
 contains
 

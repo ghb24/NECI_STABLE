@@ -37,7 +37,7 @@ module gasci_pchb_doubles_uhf_fastweighted
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
-                                  PCHB_particle_selection_vals, PC_WeightedParticlesOcc_t, &
+                                  PCHB_particle_selection_vals, PC_FullyWeightedParticles_t, &
                                   PC_FastWeightedParticles_t, UniformParticles_t
     use gasci, only: GASSpec_t
     better_implicit_none
@@ -304,9 +304,9 @@ contains
 
 
         if (PCHB_particle_selection == PCHB_particle_selection_vals%FULLY_WEIGHTED) then
-            allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
+            allocate(PC_FullyWeightedParticles_t :: this%particle_selector)
             select type(particle_selector => this%particle_selector)
-            type is(PC_WeightedParticlesOcc_t)
+            type is(PC_FullyWeightedParticles_t)
                 call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
             end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%FAST_WEIGHTED) then

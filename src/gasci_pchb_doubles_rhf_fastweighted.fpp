@@ -22,9 +22,7 @@ module gasci_pchb_doubles_rhf_fastweighted
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
-        ParticleSelector_t, PC_WeightedParticlesOcc_t, &
-        PC_FastWeightedParticles_t, UniformParticles_t, &
-        PCHB_ParticleSelection_t, PCHB_particle_selection_vals
+        allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
 
@@ -436,23 +434,7 @@ contains
         end do
 
 
-        if (PCHB_particle_selection == PCHB_particle_selection_vals%FULLY_WEIGHTED) then
-            allocate(PC_WeightedParticlesOcc_t :: this%particle_selector)
-            select type(particle_selector => this%particle_selector)
-            type is(PC_WeightedParticlesOcc_t)
-                call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
-            end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%FAST_WEIGHTED) then
-            allocate(PC_FastWeightedParticles_t :: this%particle_selector)
-            select type(particle_selector => this%particle_selector)
-            type is(PC_FastWeightedParticles_t)
-                call particle_selector%init(this%GAS_spec, IJ_weights, this%use_lookup, .false.)
-            end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIFORM) then
-            allocate(UniformParticles_t :: this%particle_selector)
-        else
-            call stop_all(this_routine, 'not yet implemented')
-        end if
+        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, IJ_weights, this%use_lookup, this%particle_selector)
 
     contains
         elemental function to_spin_orb(orb, is_alpha) result(sorb)

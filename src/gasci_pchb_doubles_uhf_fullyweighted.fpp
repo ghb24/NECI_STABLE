@@ -26,7 +26,7 @@ module gasci_pchb_doubles_UHF_fullyweighted
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
-        ParticleSelector_t, PC_WeightedParticlesOcc_t, &
+        ParticleSelector_t, PC_FullyWeightedParticles_t, &
         PC_FastWeightedParticles_t, UniformParticles_t, &
         PCHB_ParticleSelection_t, PCHB_particle_selection_vals, &
         allocate_and_init
@@ -197,7 +197,8 @@ contains
             return
         else
             ! This is a rare event.
-            ! We have small but non-zero weight for the second electron.
+            ! We have small but non-zero weight for the subset from which we draw
+            ! the second hole.
             ! The redrawing algorithm might get stuck and we need to
             ! construct cumulative distribution sampling.
             block
