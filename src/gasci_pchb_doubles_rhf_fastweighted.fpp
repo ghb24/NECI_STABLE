@@ -337,7 +337,6 @@ contains
         real(dp), allocatable :: w(:), pNoExch(:), IJ_weights(:, :, :)
         integer, allocatable :: supergroups(:, :)
         integer :: i_sg, i_exch
-        character(*), parameter :: this_routine = "GAS_doubles_PCHB_compute_samplers"
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
 
