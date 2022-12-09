@@ -1,6 +1,7 @@
 #include "macros.h"
 #:include "macros.fpph"
 #:include "algorithms.fpph"
+#:set CI_amplitudes = ['singles_t', 'doubles_t', 'triples_t']
 
 ! Module to collect and average the CI coefficients
 module sdt_amplitudes
@@ -22,17 +23,22 @@ module sdt_amplitudes
 
     better_implicit_none
     private
-    public :: init_ciCoeff, output_ci_coeff, storeCiCoeffs
+    public :: init_ciCoeff, storeCiCoeffs, output_ci_coeff
 
-    type :: singles_t
+    type, abstract :: CI_coefficients_t
+    end type
+
+    type, extends(CI_coefficients_t) :: singles_t
         real(dp) :: x
         integer :: i, a
     end type
-    type :: doubles_t
+
+    type, extends(CI_coefficients_t) :: doubles_t
         real(dp) :: x
         integer :: i, a, j, b
     end type
-    type :: triples_t
+
+    type, extends(CI_coefficients_t) :: triples_t
         real(dp) :: x
         integer :: i, a, j, b, k, c
     end type
@@ -43,9 +49,15 @@ module sdt_amplitudes
     integer(n_int), allocatable  :: totEntCoeff(:, :)
 
     interface sorting
-        module procedure sorting_singles_t
-        module procedure sorting_doubles_t
-        module procedure sorting_triples_t
+        #:for CI_exct_level in CI_amplitudes
+            module procedure sorting_${CI_exct_level}$
+        #:endfor
+    end interface
+
+    interface write_ci_coeff
+        #:for CI_exct_level in CI_amplitudes
+            module procedure write_ci_coeff_${CI_exct_level}$
+        #:endfor
     end interface
 
 contains
@@ -59,6 +71,7 @@ contains
         allocate (ciCoeff_storage(0:NIfTot, hash_table_ciCoeff_size))
         allocate (totEntCoeff(n_store_ci_level, 2))
     end subroutine init_ciCoeff
+
 
     subroutine storeCiCoeffs
         integer :: ic, ex(2, 4), nIEx(nel)
@@ -138,7 +151,7 @@ contains
             call print_averaged_ci_coeff()
 
             write (stdout, *) 'Sorting CI coefficients...'
-            call sorted_ci_coeff()
+            call molpro_ci_coeff()
 
             write (stdout, *) '-> CI coefficients written in ASCII files ci_coeff_*'
             write (stdout, *) '=========================================================='
@@ -211,76 +224,71 @@ contains
         end do iCILoop0
     end subroutine print_averaged_ci_coeff
 
-    ! it lists the averaged CI coeffs sorting the indices in
-    ! this way: OCC(alpha), OCC(beta), VIR(alpha), VIR(beta)
-    subroutine sorted_ci_coeff
-        integer  :: h, iCI, signCI, ex(2, n_store_ci_level), idxAlphaBetaOrbs(nbasis)
-        integer  :: unit_CIav, unit_CIsrt
-        integer(n_int) :: hI
-        real(dp) :: x
-        type(singles_t), allocatable :: singles(:)
-        type(doubles_t), allocatable :: doubles(:)
-        type(triples_t), allocatable :: triples(:)
+    ! reads the averaged CI coeff., sorts them with converted indices
+    ! (OCC(alpha), OCC(beta), VIR(alpha), VIR(beta) ) and writes them
+    subroutine molpro_ci_coeff
+        integer  :: iCI, idxAlphaBetaOrbs(nbasis)
+        class(CI_coefficients_t), allocatable :: CI_coeff(:)
 
         idxAlphaBetaOrbs = findAlphaBetaOrbs(symmax, nbasis)
 
-        iCIloop: do iCI = 1, n_store_ci_level
-            open (newunit=unit_CIav, file='ci_coeff_'//str(iCI)//'_av', status='old', action='read')
-            open (newunit=unit_CIsrt, file='ci_coeff_'//str(iCI), status='replace')
+        do iCI = 1, n_store_ci_level
+            call read_ci_coeff(iCI, idxAlphaBetaOrbs, CI_coeff)
+            call dyn_sorting(CI_coeff)
+            call dyn_write_ci_coeff(iCI, CI_coeff)
+        end do
+    end subroutine molpro_ci_coeff
 
-            if (iCI == 1) allocate (singles(totEntCoeff(iCI, 2)))
-            if (iCI == 2) allocate (doubles(totEntCoeff(iCI, 2)))
-            if (iCI == 3) allocate (triples(totEntCoeff(iCI, 2)))
+    subroutine read_ci_coeff(iCI, idxAlphaBetaOrbs, CI_coeff)
+        integer, intent(in) :: iCI, idxAlphaBetaOrbs(nbasis)
+        class(CI_coefficients_t), allocatable, intent(inout) :: CI_coeff(:)
+        integer :: h, ex(2, n_store_ci_level), signCI, unit_CIav
+        integer(n_int) :: hI
+        real(dp) :: x
 
-            do hI = 1_n_int, totEntCoeff(iCI, 2)
-                read (unit_CIav, *) x, (ex(1, h), ex(2, h), h=1, icI)
+        if (iCI == 1) allocate (singles_t :: CI_coeff(totEntCoeff(iCI, 2)) )
+        if (iCI == 2) allocate (doubles_t :: CI_coeff(totEntCoeff(iCI, 2)) )
+        if (iCI == 3) allocate (triples_t :: CI_coeff(totEntCoeff(iCI, 2)) )
 
-                call indPreSort(icI, idxAlphaBetaOrbs, ex, signCI)
+        open (newunit=unit_CIav, file='ci_coeff_'//str(iCI)//'_av', &
+              status='old', action='read')
+        do hI = 1_n_int, totEntCoeff(iCI, 2)
+            read (unit_CIav, *) x, (ex(1, h), ex(2, h), h=1, icI)
 
-                select case (iCI) ! assign CI coefficients
-                case (1)  ! singles
-                    singles(hI) = singles_t(signCI*x, i=ex(1, 1), a=ex(2, 1))
-                case (2)  ! doubles
-                    doubles(hI) = doubles_t(signCI*x, i=ex(1, 1), a=ex(2, 1),&
-                                  j=ex(1, 2), b=ex(2, 2))
-                case (3)  ! triples
-                    triples(hI) = triples_t(signCI*x, i=ex(1, 1), a=ex(2, 1),&
-                                  j=ex(1, 2), b=ex(2, 2), k=ex(1, 3), c=ex(2, 3))
+            call idxPreSort(iCI, idxAlphaBetaOrbs, ex, signCI)
+
+            if (iCI == 1) then
+                select type (CI_coeff)
+                type is (singles_t)
+                    CI_coeff(hI) = singles_t(signCI*x, i=ex(1, 1), a=ex(2, 1))
                 end select
-            end do
-            close (unit_CIav)
+            else if (iCI == 2) then
+                select type (CI_coeff)
+                type is (doubles_t)
+                    CI_coeff(hI) = doubles_t(signCI*x, i=ex(1, 1), a=ex(2, 1),&
+                                                       j=ex(1, 2), b=ex(2, 2))
+                end select
+            else if (iCI == 3) then
+                select type (CI_coeff)
+                type is (triples_t)
+                    CI_coeff(hI) = triples_t(signCI*x, i=ex(1, 1), a=ex(2, 1),&
+                               j=ex(1, 2), b=ex(2, 2), k=ex(1, 3), c=ex(2, 3))
+                end select
+            end if
+        end do
+        close (unit_CIav)
+    end subroutine read_ci_coeff
 
-            select case (iCI) ! sorting and writing CI coefficients
-            case (1)  ! singles
-                call sorting(singles)
-                do hI = 1, size(singles)
-                    write (unit_CIsrt, '(G20.12,2I5)') singles(hI)%x, singles(hI)%i, &
-                                                       singles(hI)%a
-                end do
-                close (unit_CIsrt)
-                deallocate (singles)
+    subroutine dyn_sorting(CI_coeff)
+        class(CI_coefficients_t), intent(inout) :: CI_coeff(:)
 
-            case (2)  ! doubles
-                call sorting(doubles)
-                do hI = 1, size(doubles)
-                    write (unit_CIsrt, '(G20.12,4I5)') doubles(hI)%x, doubles(hI)%i, &
-                                        doubles(hI)%a, doubles(hI)%j, doubles(hI)%b
-                end do
-                close (unit_CIsrt)
-                deallocate (doubles)
-
-            case (3)  ! triples
-                call sorting(triples)
-                do hI = 1, size(triples)
-                    write (unit_CIsrt, '(G20.12,6I5)') triples(hI)%x, triples(hI)%i, &
-                                        triples(hI)%a, triples(hI)%j, triples(hI)%b, &
-                                        triples(hI)%k, triples(hI)%c
-                end do
-                close (unit_CIsrt)
-                deallocate (triples)
-            end select
-        end do iCIloop
-    end subroutine sorted_ci_coeff
+        select type (CI_coeff)
+        #:for CI_exct_level in CI_amplitudes
+        type is(${CI_exct_level}$)
+            call sorting(CI_coeff)
+        #:endfor
+        end select
+    end subroutine dyn_sorting
 
     subroutine sorting_singles_t(singles)
         use util_mod, only: lex_leq
@@ -293,7 +301,7 @@ contains
                 singles_comp = lex_leq(idx_1, idx_2)
             end associate
         end function
-    end subroutine
+    end subroutine sorting_singles_t
 
     subroutine sorting_doubles_t(doubles)
         use util_mod, only: lex_leq
@@ -307,7 +315,7 @@ contains
                 doubles_comp = lex_leq(idx_1, idx_2)
             end associate
         end function
-    end subroutine
+    end subroutine sorting_doubles_t
 
     subroutine sorting_triples_t(triples)
         use util_mod, only: lex_leq
@@ -321,11 +329,73 @@ contains
                 triples_comp = lex_leq(idx_1, idx_2)
             end associate
         end function
-    end subroutine
+    end subroutine sorting_triples_t
 
+    subroutine dyn_write_ci_coeff(iCI, CI_coeff)
+        integer, intent(in) :: iCI
+        class(CI_coefficients_t), allocatable, intent(inout) :: CI_coeff(:)
 
-    ! it finds all the alpha/beta occ/unocc orbs
-    ! and save the relative indices in an array
+        if (iCI == 1) then
+            select type (CI_coeff)
+            type is(singles_t)
+                call write_ci_coeff(iCI, CI_coeff)
+            end select
+        else if (iCI == 2) then
+            select type (CI_coeff)
+            type is(doubles_t)
+                call write_ci_coeff(iCI, CI_coeff)
+            end select
+        else if (iCI == 3) then
+            select type (CI_coeff)
+            type is(triples_t)
+                call write_ci_coeff(iCI, CI_coeff)
+            end select
+        end if
+        deallocate (CI_coeff)
+    end subroutine dyn_write_ci_coeff
+
+    subroutine write_ci_coeff_singles_t(iCI, CI_coeff)
+        integer, intent(in) :: iCI
+        type(singles_t), intent(in) :: CI_coeff(:)
+        integer :: h, unit_CIsrt
+
+        open (newunit=unit_CIsrt, file='ci_coeff_'//str(iCI), status='replace')
+            do h = 1, size(CI_coeff)
+                write (unit_CIsrt, '(G20.12,2I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
+                                                   CI_coeff(h)%a
+            end do
+        close (unit_CIsrt)
+    end subroutine write_ci_coeff_singles_t
+
+    subroutine write_ci_coeff_doubles_t(iCI, CI_coeff)
+        integer, intent(in) :: iCI
+        type(doubles_t), intent(in) :: CI_coeff(:)
+        integer :: h, unit_CIsrt
+
+        open (newunit=unit_CIsrt, file='ci_coeff_'//str(iCI), status='replace')
+            do h = 1, size(CI_coeff)
+                write (unit_CIsrt, '(G20.12,4I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
+                                    CI_coeff(h)%a, CI_coeff(h)%j, CI_coeff(h)%b
+            end do
+        close (unit_CIsrt)
+    end subroutine write_ci_coeff_doubles_t
+
+    subroutine write_ci_coeff_triples_t(iCI, CI_coeff)
+        integer, intent(in) :: iCI
+        type(triples_t), intent(in) :: CI_coeff(:)
+        integer :: h, unit_CIsrt
+
+        open (newunit=unit_CIsrt, file='ci_coeff_'//str(iCI), status='replace')
+            do h = 1, size(CI_coeff)
+                write (unit_CIsrt, '(G20.12,6I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
+                                    CI_coeff(h)%a, CI_coeff(h)%j, CI_coeff(h)%b, &
+                                    CI_coeff(h)%k, CI_coeff(h)%c
+            end do
+        close (unit_CIsrt)
+    end subroutine write_ci_coeff_triples_t
+
+    ! it finds all the alpha/beta occ/unocc orbs in the reference
+    ! determinant and saves the relative indices in an array
     function findAlphaBetaOrbs(symmax, nbasis)  result(idxAlphaBetaOrbs)
         use SymExcitDataMod, only: OrbClassCount
         use GenRandSymExcitNUMod, only: ClassCountInd
@@ -398,14 +468,11 @@ contains
             totOrbs = totOrbs + betaOrbs(iSym)
         end do
         if (nel + totOrbs /= nbasis) write (stdout, *) 'WARNING: not matching number of orbitals!'
-
     end function findAlphaBetaOrbs
 
     ! PreSorting routine which converts the indices into Molpro standard
-    subroutine indPreSort(icI, idxAlphaBetaOrbs, ex, signCI)
-
+    subroutine idxPreSort(icI, idxAlphaBetaOrbs, ex, signCI)
         use util_mod, only: swap
-
         integer, intent(in)  :: icI, idxAlphaBetaOrbs(nbasis)
         integer, intent(out) :: signCI
         integer, intent(inout) :: ex(2, n_store_ci_level)
@@ -441,8 +508,7 @@ contains
                 end do
             end do
         end do
-
-    end subroutine indPreSort
+    end subroutine idxPreSort
 
     subroutine fin_ciCoeff
         call clear_hash_table(hash_table_ciCoeff)
