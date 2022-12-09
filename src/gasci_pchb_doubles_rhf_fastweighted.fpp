@@ -242,7 +242,7 @@ contains
         if (.not. invalid .and. near_zero(pGenHoles)) then
             invalid = .true.
             ! Yes, print. Those events are signficant enough to be always noted in the output
-            write(stdout, *), "WARNING: Generated excitation with probability of 0"
+            write(stdout, *) "WARNING: Generated excitation with probability of 0"
         end if
 
         if (invalid) then
