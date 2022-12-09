@@ -103,8 +103,7 @@ module gasci_singles_pc_weighted
             !! in the supergroup i_sg.
         real(dp), allocatable :: weights(:, :, :)
             !! The weights w_{A, I, i_sg} for the excitation of I -> A.
-            !! They are made independent of the determinant by various approximations, which
-            !! are implemented in the inheriting classes by overwriting `get_weight`.
+            !! They are made independent of the determinant by various approximations:
             !! For example setting \( w_{A, I, i_sg} = | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
             !! where \(R\) runs over all orbitals instead of only the occupied.
         class(GASSpec_t), allocatable :: GAS_spec
