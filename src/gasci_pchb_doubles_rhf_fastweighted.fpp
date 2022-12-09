@@ -234,7 +234,7 @@ contains
             ! convert orbs to spin-orbs with the same spin
             orbs = 2 * orbs - spin
             @:ASSERT(all(orbs /= 0) .implies. orbs(1) /= orbs(2))
-            invalid = any(orbs == 0) .or. any(orbs(1) == nI) .or. any(orbs(2) == nI)
+            invalid = any(orbs == 0) .or. any(orbs == nI)
         end if
 
         ! unfortunately, there is a super-rare case when, due to floating point error,
@@ -242,7 +242,7 @@ contains
         if (.not. invalid .and. near_zero(pGenHoles)) then
             invalid = .true.
             ! Yes, print. Those events are signficant enough to be always noted in the output
-            write(stdout, *), "WARNING: Generated excitation with probability of 0"
+            write(stdout, *) "WARNING: Generated excitation with probability of 0"
         end if
 
         if (invalid) then

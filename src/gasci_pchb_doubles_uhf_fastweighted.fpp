@@ -23,7 +23,9 @@ module gasci_pchb_doubles_uhf_fastweighted
     ! unit_tests/pcpp_excitgen/test_aliasTables.F90 (don't need to change)
     !==========================================================================!
     use constants, only: dp, n_int, maxExcit, stdout, int64
-    use util_mod, only: operator(.isclose.), fuseIndex, stop_all
+    use util_mod, only: operator(.isclose.), fuseIndex, stop_all, operator(.implies.)
+    use util_mod_epsilon_close, only: near_zero
+    use get_excit, only: make_double, exciteIlut
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
     use UMatCache, only: GTID, numBasisIndices
@@ -43,14 +45,13 @@ module gasci_pchb_doubles_uhf_fastweighted
     better_implicit_none
 
     private
-    ! @jph
     public :: GAS_doubles_UHF_PCHB_ExcGenerator_t
 
     type, extends(doubleExcitationGenerator_t) :: GAS_doubles_UHF_PCHB_ExcGenerator_t
         private
         logical, public :: use_lookup = .false.
             !! use a lookup for the supergroup index
-        logical, public :: create_lookup
+        logical, public :: create_lookup = .false.
             !! create and manage the supergroup index
         type(AliasSampler_2D_t) :: pchb_samplers
             !! the shape is (fused_number_of_two_particles, n_supergroup)
@@ -173,10 +174,13 @@ contains
         integer :: i_sg ! supergroup index
         integer :: src(2) ! particles (I, J)
         integer :: elecs(2) ! particle indices in nI
-        integer :: orbs(2)
+        integer :: tgt(2)
 
         integer :: ij
         logical :: invalid
+
+        integer :: ab
+        real(dp) :: pGenHoles
 
 
         @:unused_var(exFlag, part_type)
@@ -202,7 +206,46 @@ contains
         invalid = .false.
         ij = fuseIndex(gtId(src(1)), gtId(src(2)))
 
-        ! @jph stub
+        ! get a pair of orbitals using the precomputed weights
+        call this%pchb_samplers%sample(ij, i_sg, ab, pGenHoles)
+        @:ASSERT(ab /= 0 .implies. (pGenHoles .isclose. this%pchb_samplers%get_prob(ij, i_sg, ab)))
+
+        if (ab == 0) then
+            invalid = .true.
+            tgt = 0
+        else
+            ! split ab -> a,b
+            tgt = this%tgtOrbs(:,ab)
+            @:ASSERT(all(tgt /= 0) .implies. tgt(1) /= tgt(2))
+            invalid = any(tgt == 0) .or any(tgt == nI)
+        end if
+
+        ! as in the spatially-resolved case, there is a very rare case where (due
+        ! to floating point erro) an excitation with pgen=0 is created. Invalidate.
+        if (.not. invalid .and. near_zero(pGenHoles)) then
+            invalid = .true.
+            ! Yes, print. Those events are signficant enough to be always noted in the output
+            write(stdout, *), "WARNING: Generated excitation with probability of 0"
+        end if
+
+        if (invalid) then
+            ! if 0 returned, no excitations -> nulldet
+            call invalidate()
+        else
+            ! construct the determinant given the selected orbitals and electrons
+            call make_double(nI, nJ, elecs(1), elecs(2), tgt(1), tgt(2), ex, tParity)
+
+            ilutJ = exciteIlut(ilutI, src, tgt)
+
+            pgen = pgen * pgenholes
+
+            block
+                integer :: classCount2(ScratchSize), classCountUnocc2(ScratchSize)
+                @:ASSERT(pGen .isclose. this%get_pgen(nI, ilutI, ex, ic, classCount2, classCountUnocc2))
+            end block
+        end if
+
+        ! @jph review above
 
     contains
 
@@ -210,7 +253,7 @@ contains
             nJ = 0
             ilutJ = 0_n_int
             ex(1, 1 : 2) = src
-            ex(2, 1 : 2) = orbs
+            ex(2, 1 : 2) = tgt
         end subroutine invalidate
 
     end subroutine GAS_doubles_PCHB_uhf_gen_exc
