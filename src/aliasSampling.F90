@@ -428,41 +428,28 @@ contains
         if (near_zero(renormalization)) then
             tgt = 0
             prob = 1.0
-        else
+            return
+        end if
+
+        if (renormalization < redrawing_cutoff) then
+        block
+            type(CDF_Sampler_t) :: cdf_sampler
+            cdf_sampler = CDF_Sampler_t(this%probs%ptr(contain), renormalization)
+            call cdf_sampler%sample(pos, prob)
+            tgt = contain(pos)
+            return
+        end block
+        end if
+
+        tgt = this%table%getRand()
+        pos = int(binary_search_int(contain, tgt))
+        do while (pos == -1)
             tgt = this%table%getRand()
             pos = int(binary_search_int(contain, tgt))
-            do while (pos == -1)
-                tgt = this%table%getRand()
-                pos = int(binary_search_int(contain, tgt))
-            end do
-            prob = this%probs%ptr(tgt) / renormalization
-            ASSERT(contain(pos) == tgt)
-        end if
+        end do
+        prob = this%probs%ptr(tgt) / renormalization
+        ASSERT(contain(pos) == tgt)
     end subroutine constrained_sample_nI
-
-    ! !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
-    ! !> @param[in] constraint pick only elements from constraint
-    ! !> @param[out] tgt  on return, this is a random number in the sampling range of this
-    ! !> @param[out] pos  the position of tgt in `contain`
-    ! !> @param[out] prob  on return, the probability of picking tgt from constraint
-    ! subroutine constrained_sample_bit(this, contain_ilut, renormalization, tgt, prob)
-    !     class(aliasSampler_t), intent(in) :: this
-    !     integer(n_int), intent(in) :: contain_ilut(0 : )
-    !     real(dp), intent(in) :: renormalization
-    !     integer, intent(out) :: tgt
-    !     real(dp), intent(out) :: prob
-    !
-    !     if (near_zero(renormalization)) then
-    !         tgt = 0
-    !         prob = 1.0
-    !     else
-    !         tgt = this%table%getRand()
-    !         do while (.not. IsOcc(contain_ilut, tgt))
-    !             tgt = this%table%getRand()
-    !         end do
-    !         prob = this%probs%ptr(tgt) / renormalization
-    !     end if
-    ! end subroutine constrained_sample_bit
 
 
     !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
