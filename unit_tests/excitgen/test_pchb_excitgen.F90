@@ -32,17 +32,17 @@ contains
         call pchb_test_general(.false., .true.)
     end subroutine test_pgen_rhf_hermitian
 
-    subroutine test_pgen_uhf_hermitian()
-        call pchb_test_general(.true., .true.)
-    end subroutine test_pgen_uhf_hermitian
-
-    subroutine test_pgen_rhf_nonhermitian()
-        call pchb_test_general(.false., .false.)
-    end subroutine test_pgen_rhf_nonhermitian
-
-    subroutine test_pgen_uhf_nonhermitian()
-        call pchb_test_general(.true., .false.)
-    end subroutine test_pgen_uhf_nonhermitian
+    ! subroutine test_pgen_uhf_hermitian()
+    !     call pchb_test_general(.true., .true.)
+    ! end subroutine test_pgen_uhf_hermitian
+    !
+    ! subroutine test_pgen_rhf_nonhermitian()
+    !     call pchb_test_general(.false., .false.)
+    ! end subroutine test_pgen_rhf_nonhermitian
+    !
+    ! subroutine test_pgen_uhf_nonhermitian()
+    !     call pchb_test_general(.true., .false.)
+    ! end subroutine test_pgen_uhf_nonhermitian
 
     subroutine pchb_test_general(uhf, hermitian)
         logical, intent(in) :: uhf, hermitian

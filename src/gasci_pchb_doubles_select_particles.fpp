@@ -315,16 +315,14 @@ contains
 
         renorm_first = sum(this%I_sampler%get_prob(i_sg, nI))
         call this%I_sampler%constrained_sample(&
-            i_sg, ilutI, renorm_first, srcs(1), p_first(1))
-        elecs(1) = int(binary_search_int(nI, srcs(1)))
+            i_sg, nI, ilutI, renorm_first, elecs(1), srcs(1), p_first(1))
         @:ASSERT(nI(elecs(1)) == srcs(1))
 
         renorm_second(1) = sum(this%J_sampler%get_prob(srcs(1), i_sg, nI))
 
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%J_sampler%constrained_sample(&
-            srcs(1), i_sg, ilutI, renorm_second(1), srcs(2), p_second(1))
-        elecs(2) = int(binary_search_int(nI, srcs(2)))
+            srcs(1), i_sg, nI, ilutI, renorm_second(1), elecs(2), srcs(2), p_second(1))
         if (srcs(2) == 0) then
             elecs(:) = 0; srcs(:) = 0; p = 1._dp
             return
@@ -416,9 +414,8 @@ contains
         renorm_second(1) = sum(this%J_sampler%get_prob(srcs(1), i_sg, nI))
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%J_sampler%constrained_sample(&
-            srcs(1), i_sg, ilutI, renorm_second(1), srcs(2), p_second(1))
+            srcs(1), i_sg, nI, ilutI, renorm_second(1), elecs(2), srcs(2), p_second(1))
 
-        elecs(2) = int(binary_search_int(nI, srcs(2)))
         @:ASSERT((srcs(1) .in. nI) .and. (srcs(2) .in. nI))
         @:ASSERT(srcs(1) /= srcs(2))
         @:ASSERT(elecs(1) /= elecs(2))

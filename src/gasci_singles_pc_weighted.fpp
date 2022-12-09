@@ -13,7 +13,7 @@ module gasci_singles_pc_weighted
     use excitation_generators, only: SingleExcitationGenerator_t
     use FciMCData, only: excit_gen_store_type
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, redrawing_cutoff
+    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
     use get_excit, only: make_single
     use excitation_types, only: SingleExc_t
     use gasci, only: GASSpec_t
@@ -378,51 +378,27 @@ contains
         end if
 
         select_particle: block
-            real(dp) :: renorm_src, weights(nEl)
-            weights(:) = this%I_sampler%get_prob(i_sg, nI)
-            renorm_src = sum(weights)
-            if (renorm_src > redrawing_cutoff) then
-                call this%I_sampler%constrained_sample(i_sg, ilutI, renorm_src, src, p_src)
-                elec = int(binary_search_int(nI, src))
-            else if (near_zero(renorm_src)) then
+            real(dp) :: renorm_src
+            renorm_src = sum(this%I_sampler%get_prob(i_sg, nI))
+            call this%I_sampler%constrained_sample(i_sg, nI, ilutI, renorm_src, elec, src, p_src)
+            if (src == 0) then
                 call make_invalid()
                 return
-            else
-            block
-                type(CDF_Sampler_t) :: src_sampler
-                src_sampler = CDF_Sampler_t(weights, renorm_src)
-                call src_sampler%sample(elec, p_src)
-                if (elec == 0) then
-                    call make_invalid()
-                    return
-                end if
-                src = nI(elec)
-            end block
             end if
         end block select_particle
 
         select_hole: block
             real(dp) :: renorm_tgt
+            integer :: dummy, unoccupied(nBasis - nEl)
+            integer(n_int) :: ilut_unoccupied(0 : nIfD)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
-            if (renorm_tgt > redrawing_cutoff) then
-                call this%A_sampler%constrained_sample(&
-                    src, i_sg, not(ilutI(0 : nIfD)), renorm_tgt, tgt, p_tgt)
-            else if (near_zero(renorm_tgt)) then
+            ilut_unoccupied = not(ilutI(0 : nIfD))
+            call decode_bit_det(unoccupied, ilut_unoccupied(0 : nIfD))
+            call this%A_sampler%constrained_sample(&
+                 src, i_sg, unoccupied, ilut_unoccupied, renorm_tgt, dummy, tgt, p_tgt)
+            if (tgt == 0) then
                 call make_invalid()
                 return
-            else
-            block
-                integer :: unoccupied(nBasis - nEl), idx
-                type(CDF_Sampler_t) :: tgt_sampler
-                call decode_bit_det(unoccupied, not(ilutI(0 : nIfD)))
-                tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
-                call tgt_sampler%sample(idx, p_tgt)
-                if (idx == 0) then
-                    call make_invalid()
-                    return
-                end if
-                tgt = unoccupied(idx)
-            end block
             end if
         end block select_hole
 
@@ -502,26 +478,16 @@ contains
 
         select_hole: block
             real(dp) :: renorm_tgt
+            integer :: dummy, unoccupied(nBasis - nEl)
+            integer(n_int) :: ilut_unoccupied(0 : nIfD)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
-            if (renorm_tgt > redrawing_cutoff) then
-                call this%A_sampler%constrained_sample(&
-                    src, i_sg, not(ilutI(0 : nIfD)), renorm_tgt, tgt, p_tgt)
-            else if (near_zero(renorm_tgt)) then
+            ilut_unoccupied = not(ilutI(0 : nIfD))
+            call decode_bit_det(unoccupied, ilut_unoccupied(0 : nIfD))
+            call this%A_sampler%constrained_sample(&
+                 src, i_sg, unoccupied, ilut_unoccupied, renorm_tgt, dummy, tgt, p_tgt)
+            if (tgt == 0) then
                 call make_invalid()
                 return
-            else
-            block
-                integer :: unoccupied(nBasis - nEl), idx
-                type(CDF_Sampler_t) :: tgt_sampler
-                call decode_bit_det(unoccupied, not(ilutI(0 : nIfD)))
-                tgt_sampler = CDF_Sampler_t(this%weights(unoccupied, src, i_sg))
-                call tgt_sampler%sample(idx, p_tgt)
-                if (idx == 0) then
-                    call make_invalid()
-                    return
-                end if
-                tgt = unoccupied(idx)
-            end block
             end if
         end block select_hole
 

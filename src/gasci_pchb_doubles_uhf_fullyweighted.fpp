@@ -180,39 +180,26 @@ contains
         IJ = fuseIndex(src(1), src(2))
 
         renorm_first = 1._dp - sum(this%A_sampler%get_prob(IJ, i_sg, nI))
-        if (near_zero(renorm_first)) then
+        block
+            integer :: dummy
+            call this%A_sampler%constrained_sample(&
+                IJ, i_sg, unoccupied, ilut_unoccupied, renorm_first, dummy, tgt(1), p_first(1))
+        end block
+        if (tgt(1) == 0) then
             call invalidate()
             return
         end if
-        call this%A_sampler%constrained_sample(&
-            IJ, i_sg, ilut_unoccupied, renorm_first, tgt(1), p_first(1))
 
         renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(tgt(1), IJ, i_sg, nI))
-        if (renorm_second(1) > 1e-1) then
+        block
+            integer :: dummy
             call this%B_sampler%constrained_sample(&
-                tgt(1), IJ, i_sg, ilut_unoccupied, &
-                renorm_second(1), tgt(2), p_second(1))
-        else if (near_zero(renorm_second(1))) then
+                tgt(1), IJ, i_sg, unoccupied, ilut_unoccupied, &
+                renorm_second(1), dummy, tgt(2), p_second(1))
+        end block
+        if (tgt(2) == 0) then
             call invalidate()
             return
-        else
-            ! This is a rare event.
-            ! We have small but non-zero weight for the subset from which we draw
-            ! the second hole.
-            ! The redrawing algorithm might get stuck and we need to
-            ! construct cumulative distribution sampling.
-            block
-                type(CDF_Sampler_t) :: B_sampler
-                integer :: idx_unoccupied
-                B_sampler = CDF_Sampler_t(&
-                    this%B_sampler%get_prob(tgt(1), IJ, i_sg, unoccupied), renorm_second(1))
-                call B_sampler%sample(idx_unoccupied, p_second(1))
-                if (idx_unoccupied == 0) then
-                    call invalidate()
-                    return
-                end if
-                tgt(2) = unoccupied(idx_unoccupied)
-            end block
         end if
 
         ! We could have picked them the other way round.
