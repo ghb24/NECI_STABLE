@@ -257,24 +257,16 @@ contains
 
             call idxPreSort(iCI, idxAlphaBetaOrbs, ex, signCI)
 
-            if (iCI == 1) then
-                select type (CI_coeff)
-                type is (singles_t)
-                    CI_coeff(hI) = singles_t(signCI*x, i=ex(1, 1), a=ex(2, 1))
-                end select
-            else if (iCI == 2) then
-                select type (CI_coeff)
-                type is (doubles_t)
-                    CI_coeff(hI) = doubles_t(signCI*x, i=ex(1, 1), a=ex(2, 1),&
-                                                       j=ex(1, 2), b=ex(2, 2))
-                end select
-            else if (iCI == 3) then
-                select type (CI_coeff)
-                type is (triples_t)
-                    CI_coeff(hI) = triples_t(signCI*x, i=ex(1, 1), a=ex(2, 1),&
-                               j=ex(1, 2), b=ex(2, 2), k=ex(1, 3), c=ex(2, 3))
-                end select
-            end if
+            select type (CI_coeff)
+            type is (singles_t)
+                CI_coeff(hI) = singles_t(signCI*x, i=ex(1, 1), a=ex(2, 1))
+            type is (doubles_t)
+                CI_coeff(hI) = doubles_t(signCI*x, i=ex(1, 1), a=ex(2, 1),&
+                                                   j=ex(1, 2), b=ex(2, 2))
+            type is (triples_t)
+                CI_coeff(hI) = triples_t(signCI*x, i=ex(1, 1), a=ex(2, 1),&
+                           j=ex(1, 2), b=ex(2, 2), k=ex(1, 3), c=ex(2, 3))
+            end select
         end do
         close (unit_CIav)
     end subroutine read_ci_coeff
@@ -334,64 +326,51 @@ contains
     subroutine dyn_write_ci_coeff(iCI, CI_coeff)
         integer, intent(in) :: iCI
         class(CI_coefficients_t), allocatable, intent(inout) :: CI_coeff(:)
+        integer :: unit_CIsrt
 
-        if (iCI == 1) then
+        open (newunit=unit_CIsrt, file='ci_coeff_'//str(iCI), status='replace')
             select type (CI_coeff)
-            type is(singles_t)
-                call write_ci_coeff(iCI, CI_coeff)
+            #:for CI_exct_level in CI_amplitudes
+            type is(${CI_exct_level}$)
+                call write_ci_coeff(unit_CIsrt, CI_coeff)
+            #:endfor
             end select
-        else if (iCI == 2) then
-            select type (CI_coeff)
-            type is(doubles_t)
-                call write_ci_coeff(iCI, CI_coeff)
-            end select
-        else if (iCI == 3) then
-            select type (CI_coeff)
-            type is(triples_t)
-                call write_ci_coeff(iCI, CI_coeff)
-            end select
-        end if
+        close (unit_CIsrt)
         deallocate (CI_coeff)
     end subroutine dyn_write_ci_coeff
 
-    subroutine write_ci_coeff_singles_t(iCI, CI_coeff)
-        integer, intent(in) :: iCI
+    subroutine write_ci_coeff_singles_t(unit_CIsrt, CI_coeff)
+        integer, intent(in) :: unit_CIsrt
         type(singles_t), intent(in) :: CI_coeff(:)
-        integer :: h, unit_CIsrt
+        integer :: h
 
-        open (newunit=unit_CIsrt, file='ci_coeff_'//str(iCI), status='replace')
-            do h = 1, size(CI_coeff)
-                write (unit_CIsrt, '(G20.12,2I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
-                                                   CI_coeff(h)%a
-            end do
-        close (unit_CIsrt)
+        do h = 1, size(CI_coeff)
+            write (unit_CIsrt, '(G20.12,2I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
+                                               CI_coeff(h)%a
+        end do
     end subroutine write_ci_coeff_singles_t
 
-    subroutine write_ci_coeff_doubles_t(iCI, CI_coeff)
-        integer, intent(in) :: iCI
+    subroutine write_ci_coeff_doubles_t(unit_CIsrt, CI_coeff)
+        integer, intent(in) :: unit_CIsrt
         type(doubles_t), intent(in) :: CI_coeff(:)
-        integer :: h, unit_CIsrt
+        integer :: h
 
-        open (newunit=unit_CIsrt, file='ci_coeff_'//str(iCI), status='replace')
-            do h = 1, size(CI_coeff)
-                write (unit_CIsrt, '(G20.12,4I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
-                                    CI_coeff(h)%a, CI_coeff(h)%j, CI_coeff(h)%b
-            end do
-        close (unit_CIsrt)
+        do h = 1, size(CI_coeff)
+            write (unit_CIsrt, '(G20.12,4I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
+                                CI_coeff(h)%a, CI_coeff(h)%j, CI_coeff(h)%b
+        end do
     end subroutine write_ci_coeff_doubles_t
 
-    subroutine write_ci_coeff_triples_t(iCI, CI_coeff)
-        integer, intent(in) :: iCI
+    subroutine write_ci_coeff_triples_t(unit_CIsrt, CI_coeff)
+        integer, intent(in) :: unit_CIsrt
         type(triples_t), intent(in) :: CI_coeff(:)
-        integer :: h, unit_CIsrt
+        integer :: h
 
-        open (newunit=unit_CIsrt, file='ci_coeff_'//str(iCI), status='replace')
-            do h = 1, size(CI_coeff)
-                write (unit_CIsrt, '(G20.12,6I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
-                                    CI_coeff(h)%a, CI_coeff(h)%j, CI_coeff(h)%b, &
-                                    CI_coeff(h)%k, CI_coeff(h)%c
-            end do
-        close (unit_CIsrt)
+        do h = 1, size(CI_coeff)
+            write (unit_CIsrt, '(G20.12,6I5)') CI_coeff(h)%x, CI_coeff(h)%i, &
+                                CI_coeff(h)%a, CI_coeff(h)%j, CI_coeff(h)%b, &
+                                CI_coeff(h)%k, CI_coeff(h)%c
+        end do
     end subroutine write_ci_coeff_triples_t
 
     ! it finds all the alpha/beta occ/unocc orbs in the reference
