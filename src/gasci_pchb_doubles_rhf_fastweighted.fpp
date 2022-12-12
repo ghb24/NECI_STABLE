@@ -234,7 +234,8 @@ contains
             ! convert orbs to spin-orbs with the same spin
             orbs = 2 * orbs - spin
             @:ASSERT(all(orbs /= 0) .implies. orbs(1) /= orbs(2))
-            invalid = any(orbs == 0) .or. any(orbs == nI)
+            ! note: nI is an array, not a scalar, so we need two `any` checks below
+            invalid = any(orbs == 0) .or. any(orbs(1) == nI) .or. any(orbs(2) == nI)
         end if
 
         ! unfortunately, there is a super-rare case when, due to floating point error,
