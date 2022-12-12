@@ -9,7 +9,7 @@ module sdt_amplitudes
     use bit_reps, only: extract_sign, decode_bit_det, encode_sign, niftot, nifd
     use constants, only: dp, lenof_sign, n_int, int64, stdout
     use DetBitOps, only: get_bit_excitmat, EncodeBitDet, GetBitExcitation
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, stop_all
     use FciMCData, only: TotWalkers, iLutRef, CurrentDets, AllNoatHF, projedet, &
                          ll_node
     use hash, only: hash_table_lookup, add_hash_table_entry, init_hash_table, &
@@ -215,10 +215,9 @@ contains
             end do
             if (iCI /= 0) then
                 close (unit_CIav)
-                write (stdout, "(A29,I1,A14,I11)") 'total entries for ci_coeff_', icI, ' :', totEntCoeff(iCI, 1)
+                write (stdout, "(A31,I1,A12,I11)") 'total entries CI coeff. with ', icI, 'excit.    :', totEntCoeff(iCI, 1)
                 if (totEntCoeff(iCI, 1) /= totEntCoeff(iCI, 2)) then
-                    write (stdout, "(A26,I1,A17,I11)") '-total entries ci_coeff_', icI, &
-                        ' without zeros  :', totEntCoeff(iCI, 2)
+                    write (stdout, "(A17,A27,I11)") '- without zeros', ':', totEntCoeff(iCI, 2)
                 end if
             end if
         end do iCILoop0
@@ -273,12 +272,15 @@ contains
 
     subroutine dyn_sorting(CI_coeff)
         class(CI_coefficients_t), intent(inout) :: CI_coeff(:)
+        character(*), parameter :: this_routine = 'dyn_sorting'
 
         select type (CI_coeff)
         #:for CI_exct_level in CI_amplitudes
         type is(${CI_exct_level}$)
             call sorting(CI_coeff)
         #:endfor
+        class default
+            call stop_all(this_routine, 'Invalid CI_coefficients_t.')
         end select
     end subroutine dyn_sorting
 
@@ -404,8 +406,8 @@ contains
                 end if
             end do
             totEl = totEl + alphaOrbs(iSym)
-            betaOrbs(iSym) = 0
             ! loop to find all the occupied beta spin orbitals
+            betaOrbs(iSym) = 0
             do z = 1, nel
                 if (projEDet(z, 1) > orbsSym(iSym) .and. projEDet(z, 1) <= orbsSym(iSym + 1)) then
                     if (MOD(projEDet(z, 1), 2) == 0) then
@@ -432,8 +434,8 @@ contains
                 end if
             end do
             totOrbs = totOrbs + alphaOrbs(iSym)
-            betaOrbs(iSym) = 0
             ! loop to find all the non-occupied beta spin orbitals
+            betaOrbs(iSym) = 0
             do i = orbsSym(iSym) + 1, orbsSym(iSym + 1)
                 checkOccOrb = .false.
                 do z = 1, nel

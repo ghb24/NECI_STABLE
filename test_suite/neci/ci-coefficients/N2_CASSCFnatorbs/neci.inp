@@ -1,0 +1,47 @@
+# read integrals from FCIDUMP
+system read
+    nobrillouintheorem
+    nonuniformrandexcits 4ind-weighted-2
+    electrons 10
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+
+    seed                  7
+    load-balance-interval 1000
+
+    definedet  1-10
+
+    nmcyc              2000
+    totalwalkers        1e4
+
+    diagshift           0.0
+    startsinglepart      10
+    truncinitiator
+    addtoinitiator        3
+    allrealcoeff
+    no-changeref
+    realspawncutoff     0.7
+    avgrowthrate
+    shiftdamp           0.1
+    stepsshift            1
+    memoryfacpart       5.0
+    memoryfacspawn     10.0
+    tau-values \
+        start user-defined 0.02 \
+        max 0.05
+    tau-search \
+        algorithm conventional \
+        stop-condition n-opts 5 \
+        maxwalkerbloom 1
+endcalc
+
+logging
+    ci-coefficients     500  3
+    highlypopwrite       50
+    popsfile             -1
+endlog
+end

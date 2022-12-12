@@ -123,6 +123,12 @@ min_nprocs = 4
 max_nprocs = 4
 tolerance = (1e-9, None, 'final_energy_1')
 
+[neci/ci-coefficients/*/]
+program = neci
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
+
 # Jobs to test the various spaces in use for semi-stochastic and trial
 # wavefunctions.
 # Specify non-default tolerances.
