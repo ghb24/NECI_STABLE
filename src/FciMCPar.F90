@@ -53,7 +53,7 @@ module FciMCParMod
                            AccumPopsExpirePercent, t_print_core_vec, &
                            t_store_ci_coeff, t_start_ci_coeff, n_iter_ci_coeff, n_store_ci_level
 
-    use sdt_amplitudes, only : output_ci_coeff, storeCiCoeffs
+    use sdt_amplitudes, only : output_ci_coeff, store_ci_coeff
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -236,11 +236,11 @@ contains
 
         TDebug = .false.  ! Set debugging flag
 
-        if (t_store_ci_coeff .and. n_store_ci_level.gt.3) then
-           call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not implemented for &
-                                       &excitation levels higher than 3')
+        if (t_store_ci_coeff .and. n_store_ci_level > 3) then
+            call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not implemented for &
+                                        &excitation levels higher than 3')
         else if (t_store_ci_coeff .and. tHPHF) then
-           call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not working with HPHF')
+            call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not working with HPHF')
         endif
 
         ! This is set here not in SetupParameters, as otherwise it would be
@@ -760,12 +760,12 @@ contains
                 CALL WriteHistogram()
             end if
 
-            if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter.ge.(NMCyc-n_iter_ci_coeff+1))) then
-                if(t_start_ci_coeff) write(stdout,'(A45,I9)') 'START CI COEFFICIENTS COLLECTION at iteration',iter
+            if (t_store_ci_coeff .and. all(.not. tSinglePartPhase) .and. iter >= NMCyc-n_iter_ci_coeff+1) then
+                if (t_start_ci_coeff) write(stdout,'(A45,I9)') 'START CI COEFFICIENTS COLLECTION at iteration',iter
                 t_start_ci_coeff = .false.
-                call storeCiCoeffs()
-            else if ((t_store_ci_coeff).and.(iter.eq.NMCyc)) then
-                t_store_ci_coeff=.false.
+                call store_ci_coeff()
+            else if (t_store_ci_coeff .and. iter == NMCyc ) then
+                t_store_ci_coeff = .false.
                 write(stdout,*) ''
                 write(stdout,*) '***CI COEFFICIENTS COLLECTION HAS NOT OCCURRED: NMCyc too small***'
                 write(stdout,*) ''

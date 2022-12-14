@@ -255,10 +255,10 @@ contains
                 ! collects ci coefficients of the wave function up to 3rd excitation level over a number of iter
                 t_store_ci_coeff = .true.
                 if (tokens%remaining_items() > 0) then
-                   n_iter_ci_coeff = to_int(tokens%next())
+                    n_iter_ci_coeff = to_int(tokens%next())
                 end if
                 if (tokens%remaining_items() > 0) then
-                   n_store_ci_level = to_int(tokens%next())
+                    n_store_ci_level = to_int(tokens%next())
                 end if
 
             case ("PRINT-HDF5-RDMS")
