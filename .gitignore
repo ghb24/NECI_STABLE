@@ -34,7 +34,7 @@ TwoRDM*
 OneRDM*
 spinfree-1-RDM*
 spinfree_TwoRDM*
-PSMAT* 
+PSMAT*
 PAMAT*
 DMAT*
 Inits_TwoRDM_*
@@ -89,3 +89,5 @@ neci_dev.pdf
 doc/*
 *pdf
 
+
+ci_coeff_*

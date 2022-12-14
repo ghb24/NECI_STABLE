@@ -15,7 +15,7 @@ calc
 
     definedet  1-10
 
-    nmcyc              2000
+    nmcyc              1000
     totalwalkers        1e4
 
     diagshift           0.0
