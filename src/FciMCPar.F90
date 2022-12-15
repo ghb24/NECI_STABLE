@@ -869,8 +869,8 @@ contains
         if (iProcIndex == 0) write(stdout, *) 'Time lost due to load imbalance: ', lt_imb
         write(stdout, *) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
-        if(t_store_ci_coeff) then
-           call output_ci_coeff()
+        if (t_store_ci_coeff) then
+            call output_ci_coeff()
         end if
 
         if (allocated(input_tau_search_method)) then

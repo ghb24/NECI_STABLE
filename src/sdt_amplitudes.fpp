@@ -233,7 +233,7 @@ contains
         do iCI = 1, n_store_ci_level
             call read_ci_coeff(iCI, idxAlphaBetaOrbs, CI_coeff)
             call dyn_sort_ci_coeff(CI_coeff)
-            call dyn_write_ci_coeff(iCI, CI_coeff)
+            call dyn_write_ci_coeff(CI_coeff)
         end do
     end subroutine molpro_ci_coeff
 
@@ -325,8 +325,7 @@ contains
         end function
     end subroutine sorting_triples_t
 
-    subroutine dyn_write_ci_coeff(iCI, CI_coeff)
-        integer, intent(in) :: iCI
+    subroutine dyn_write_ci_coeff(CI_coeff)
         class(CI_coefficients_t), allocatable, intent(inout) :: CI_coeff(:)
         integer :: unit_CIsrt
 

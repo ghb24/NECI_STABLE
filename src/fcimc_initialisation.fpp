@@ -1335,7 +1335,7 @@ contains
         end if
 
         if (t_store_ci_coeff) then
-           call init_ciCoeff()
+            call init_ciCoeff()
         end if
 
         ! [W.D.] I guess I want to initialize that before the tau-search,
