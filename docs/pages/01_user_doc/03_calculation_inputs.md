@@ -1616,6 +1616,24 @@ keyword.
     With this keyword the user can explicitly say that they want to sample RDMs without
     replica.
 
+-   **ci-coefficients [\(n\) \(excitation\)]**<br>
+    Enables the collection of CI coefficients and their average over a number of iterations.
+    The outputs are printed in separate ASCII files named `ci_coeff_*_av`.
+    Additional files named `ci_coeff_*` are printed in a sorted manner that can directly be fed into
+    Molpro [@MOLPRO-JCP] for tailored Coupled/Distinguishable Cluster calculations
+    [@Vitale2020]-[@Vitale2022].
+    The optional argument \textit{n} is the number of iterations for averaging the CI coefficients
+    and defaults to 1000.
+    This is done in the last iterations of the FCIQMC run (i.e. if NMCYC = 10000 and
+    \textit{n} = 1000, the CI coefficients collection will start at iteration 9001).
+    However, the collection can begin after the NECI run reaches the preset number of walkers,
+    but it should only take place when the projected correlation energy is already converged.
+    The second optional argument is the \textit{excitation} level of the CI coefficients
+    to be collected and defaults to 2 (i.e., only singles and doubles).
+    CI coefficients up to triples (i.e. setting \textit{excitation} = 3) are available.
+    The semi-stochastic approach is recommended, in order to reach a lower stochastic error
+    for equal time averaging of the CI coefficients.
+
 
 
 #### Semi-stochastic output options

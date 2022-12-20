@@ -448,6 +448,7 @@ set( FYPP_SRC_FILES
     sets_mod.fpp
     shared_ragged_array.fpp
     SD_spin_purification.fpp
+    sdt_amplitudes.fpp
 )
 
 set( TEMPLATED_SRC_FILES

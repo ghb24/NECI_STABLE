@@ -251,6 +251,16 @@ contains
             w = to_upper(tokens%next())
             select case (w)
 
+            case('CI-COEFFICIENTS')
+                ! collects ci coefficients of the wave function up to 3rd excitation level over a number of iter
+                t_store_ci_coeff = .true.
+                if (tokens%remaining_items() > 0) then
+                    n_iter_ci_coeff = to_int(tokens%next())
+                end if
+                if (tokens%remaining_items() > 0) then
+                    n_store_ci_level = to_int(tokens%next())
+                end if
+
             case ("PRINT-HDF5-RDMS")
                 ! output density matrices as HDF5 files
                 t_print_hdf5_rdms = .true.
