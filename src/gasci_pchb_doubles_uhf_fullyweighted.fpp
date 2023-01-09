@@ -4,7 +4,7 @@
 
 module gasci_pchb_doubles_UHF_fullyweighted
     !! precomputed heat bath implementation for GASCI using spin orbitals and fully weighting
-    use constants, only: n_int, dp, int64, maxExcit, stdout
+    use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
         operator(.implies.), operator(.isclose.), swap, stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -64,6 +64,12 @@ module gasci_pchb_doubles_UHF_fullyweighted
             !! If there are more holes than particles we can
             !! speed up the calculation by normalizing via the complement.
             !! \( \sum_{A \notin D_i} p(A) = 1 - \sum_{I \in D_i} p(I) \)
+        integer(n_int), private :: last_possible_occupied
+            !! The last element of the ilut array has some elements
+            !! which are not used, if the number of spinorbitals is not a multiple of
+            !! bitsize_n_int.
+            !! To correctly zero them this bitmask is 1 wherever a determinant
+            !! could be occupied in the last element, and 0 otherwise.
     contains
         private
         procedure, public :: init => GAS_doubles_PCHB_init
@@ -73,6 +79,7 @@ module gasci_pchb_doubles_UHF_fullyweighted
         procedure, public :: gen_all_excits => GAS_doubles_PCHB_gen_all_excits
 
         procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
+        procedure :: get_unoccupied
     end type GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
 
 contains
@@ -108,9 +115,17 @@ contains
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
 
-        call this%compute_samplers(PCHB_particle_selection)
-
         this%hole_excess = nBasis > nEl * 2
+
+        this%last_possible_occupied = 0_n_int
+        block
+            integer :: i
+            do i = 0, ilut_off(nBasis)
+                this%last_possible_occupied = ibset(this%last_possible_occupied, i)
+            end do
+        end block
+
+        call this%compute_samplers(PCHB_particle_selection)
 
         write(stdout, *) "Finished excitation generator initialization"
     end subroutine GAS_doubles_PCHB_init
@@ -175,8 +190,7 @@ contains
 
         @:ASSERT(p_IJ .isclose. this%particle_selector%get_pgen(nI, i_sg, src(1), src(2)))
 
-        ilut_unoccupied = not(ilutI(0 : nIfD))
-        call decode_bit_det(unoccupied, ilut_unoccupied)
+        call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
         IJ = fuseIndex(src(1), src(2))
 
         renorm_first = 1._dp - sum(this%A_sampler%get_prob(IJ, i_sg, nI))
@@ -254,13 +268,15 @@ contains
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         @:ASSERT(ic == 2)
 
-        call decode_bit_det(unoccupied, not(ilutI))
-
         IJ = fuseIndex(ex(1, 1), ex(1, 2))
         i_sg = this%indexer%idx_nI(nI)
 
         pgen_particle = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
 
+        block
+            integer(n_int) :: ilut_unoccupied(0 : nIfD)
+            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+        end block
         ! The renormalization for the first hole is the same, regardless of order.
         renorm_first = sum(this%A_sampler%get_prob(IJ, i_sg, unoccupied))
 
@@ -359,5 +375,17 @@ contains
 
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
     end subroutine GAS_doubles_PCHB_gen_all_excits
+
+
+    pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
+        !! Return a bitmask and enumeration of the unoccupied spin orbitals.
+        class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+        integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
+        integer, intent(out) :: unoccupied(nBasis - nEl)
+        ilut_unoccupied = not(ilutI)
+        ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
+        call decode_bit_det(unoccupied, ilut_unoccupied)
+    end subroutine
 
 end module gasci_pchb_doubles_UHF_fullyweighted

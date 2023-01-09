@@ -121,6 +121,7 @@ list(APPEND NECI_GLOBAL_DEFINES
 
     # Is this a debug build
     $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:DEBUG_>
+    $<$<STREQUAL:${CMAKE_BUILD_TYPE},FASTDEBUG>:DEBUG_>
 
     # Global defines that depend on options
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:SHARED_MEM_>

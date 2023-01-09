@@ -67,7 +67,7 @@ contains
             ! allocate as empty sets
             allocate(res%p(0), res%cum_p(0))
         else
-            @:ASSERT(sum(res%p) .isclose. total)
+            @:ASSERT(sum(w) .isclose. total, sum(w), total, w)
             res%p = w / total
             res%cum_p = cumsum(res%p)
         end if

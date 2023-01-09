@@ -115,11 +115,19 @@ module gasci_singles_pc_weighted
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
+
+        integer(n_int), private :: last_possible_occupied
+            !! The last element of the ilut array has some elements
+            !! which are not used, if the number of spinorbitals is not a multiple of
+            !! bitsize_n_int.
+            !! To correctly zero them this bitmask is 1 wherever a determinant
+            !! could be occupied in the last element, and 0 otherwise.
     contains
         private
         procedure, public :: init
         procedure, public :: finalize
         procedure, public :: gen_all_excits => gen_all_excits_PC_Weighted_t
+        procedure :: get_unoccupied
     end type
 
     abstract interface
@@ -315,6 +323,14 @@ contains
         supergroups = this%indexer%get_supergroups()
         n_supergroups = size(supergroups, 2)
 
+        this%last_possible_occupied = 0_n_int
+        block
+            integer :: i
+            do i = 0, ilut_off(nBasis)
+                this%last_possible_occupied = ibset(this%last_possible_occupied, i)
+            end do
+        end block
+
         call this%I_sampler%shared_alloc(n_supergroups, nBI, 'PC_singles_I')
         call this%A_sampler%shared_alloc([nBi, n_supergroups], nBI, 'PC_singles_A')
         allocate(this%weights(nBI, nBI, n_supergroups), source=0._dp)
@@ -346,6 +362,17 @@ contains
                 type(SingleExc_t), intent(in) :: exc
                 symmetry_allowed = SpinOrbSymLabel(exc%val(1)) == SpinOrbSymLabel(exc%val(2))
             end function
+    end subroutine
+
+    pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
+        !! Return a bitmask and enumeration of the unoccupied spin orbitals.
+        class(PC_Weighted_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+        integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
+        integer, intent(out) :: unoccupied(nBasis - nEl)
+        ilut_unoccupied = not(ilutI)
+        ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
+        call decode_bit_det(unoccupied, ilut_unoccupied)
     end subroutine
 
     subroutine PC_SinglesFullyWeighted_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
@@ -391,8 +418,8 @@ contains
             integer :: dummy, unoccupied(nBasis - nEl)
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
-            ilut_unoccupied = not(ilutI(0 : nIfD))
-            call decode_bit_det(unoccupied, ilut_unoccupied(0 : nIfD))
+            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+
             call this%A_sampler%constrained_sample(&
                  src, i_sg, unoccupied, ilut_unoccupied, renorm_tgt, dummy, tgt, p_tgt)
             if (tgt == 0) then
@@ -427,11 +454,12 @@ contains
         integer :: i_sg
 
         integer :: unoccupied(nBasis - nEl)
+        integer(n_int) :: ilut_unoccupied(0 : nIfD)
 
         @:ASSERT(ic == 1)
         @:unused_var(ClassCount2, ClassCountUnocc2)
         i_sg = this%indexer%idx_nI(nI)
-        call decode_bit_det(unoccupied, not(ilutI))
+        call this%get_unoccupied(ilutI, ilut_unoccupied, unoccupied)
         associate (src => ex(1, 1), tgt => ex(2, 1))
             p_gen = this%I_sampler%get_prob(i_sg, src) &
                         / sum(this%I_sampler%get_prob(i_sg, nI)) &
@@ -480,8 +508,8 @@ contains
             integer :: dummy, unoccupied(nBasis - nEl)
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
-            ilut_unoccupied = not(ilutI(0 : nIfD))
-            call decode_bit_det(unoccupied, ilut_unoccupied(0 : nIfD))
+            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+
             call this%A_sampler%constrained_sample(&
                  src, i_sg, unoccupied, ilut_unoccupied, renorm_tgt, dummy, tgt, p_tgt)
             if (tgt == 0) then
@@ -516,11 +544,12 @@ contains
         real(dp) :: p_src, p_tgt
 
         integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl)
+        integer(n_int) :: ilut_unoccupied(0 : nIfD)
 
         @:ASSERT(ic == 1)
         @:unused_var(ClassCount2, ClassCountUnocc2)
         i_sg = this%indexer%idx_nI(nI)
-        call decode_bit_det(unoccupied, not(ilutI))
+        call this%get_unoccupied(ilutI, ilut_unoccupied, unoccupied)
         p_src = 1._dp / real(nEl, dp)
         associate (src => ex(1, 1), tgt => ex(2, 1))
             p_tgt = this%weights(tgt, src, i_sg) / sum(this%weights(unoccupied, src, i_sg))
@@ -597,13 +626,11 @@ contains
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
         debug_function_name("get_pgen")
         real(dp) :: p_gen
-        integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl)
         integer :: i_sg
 
         @:ASSERT(ic == 1)
-        @:unused_var(ClassCount2, ClassCountUnocc2)
+        @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         i_sg = this%indexer%idx_nI(nI)
-        call decode_bit_det(unoccupied, not(ilutI))
         associate (src => ex(1, 1), tgt => ex(2, 1))
             p_gen = 1._dp / real(nEl, dp) * this%A_sampler%get_prob(src, i_sg, tgt)
         end associate
