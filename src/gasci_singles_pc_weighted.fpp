@@ -46,7 +46,7 @@ module gasci_singles_pc_weighted
             H_AND_G_TERM = PC_singles_weighting_t(3), &
                 !! \( | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
             H_AND_G_TERM_BOTH_ABS = PC_singles_weighting_t(4)
-                !! \( | h_{I, A} | + | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
+                !! \( | h_{I, A} | + \sum_{R} | g_{I, A, R, R} - g_{I, R, R, A} | \)
         contains
             procedure, nopass :: from_str => weighting_from_keyword
     end type
@@ -195,7 +195,7 @@ contains
                 write(iunit, *) '| h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
             else if (weighting == vals%H_AND_G_TERM_BOTH_ABS) then
                 write(iunit, *) 'Precomputed weighted singles with'
-                write(iunit, *) '| h_{I, A} | +  | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
+                write(iunit, *) '| h_{I, A} | + \sum_{R} | g_{I, A, R, R} - g_{I, R, R, A} | weight.'
             else
                 call stop_all(this_routine, "Invalid choise for PC singles weighting.")
             end if
@@ -288,19 +288,12 @@ contains
         procedure(get_weight_t), pointer :: get_weight
 
         if (singles_PC_weighted == PC_singles_weighting_vals%UNIFORM) then
-            write(stdout, *) 'GAS precomputed weighted singles with uniform weight'
             get_weight => get_weight_uniform
         else if (singles_PC_weighted == PC_singles_weighting_vals%H_ONLY) then
-            write(stdout, *) 'GAS precomputed weighted singles with |h_{I, A}| weight,'
-            write(stdout, *) 'i.e. only the one electron term is considered'
             get_weight => get_weight_h_only
         else if (singles_PC_weighted == PC_singles_weighting_vals%H_AND_G_TERM) then
-            write(stdout, *) 'Precomputed weighted singles with'
-            write(stdout, *) '| h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
             get_weight => get_weight_h_and_g
         else if (singles_PC_weighted == PC_singles_weighting_vals%H_AND_G_TERM_BOTH_ABS) then
-            write(stdout, *) 'Precomputed weighted singles with'
-            write(stdout, *) '| h_{I, A} | +  | \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | weight.'
             get_weight => get_weight_h_and_g_both_abs
         end if
 

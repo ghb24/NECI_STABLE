@@ -7,7 +7,7 @@ module aliasSampling
     use sets_mod, only: is_set, subset, operator(.in.)
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: stop_all, near_zero, binary_search_int, operator(.isclose.), operator(.div.)
+    use util_mod, only: stop_all, near_zero, binary_search_int, operator(.isclose.), operator(.div.), isclose
     use CDF_sampling_mod, only: CDF_Sampler_t
     implicit none
 
@@ -528,10 +528,13 @@ contains
 
         ASSERT(is_set(contain))
         ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
-        ASSERT(renorm .isclose. sum(this%getProb(contain)))
+        ASSERT(isclose(renorm, sum(this%getProb(contain)), atol=1e-10_dp))
+            !! This loosened threshhold might be a good idea if the renormalization
+            !! was calculated via the complement, i.e.
+            !! \Sum{ p_i } {i \in D_i} = 1 - \Sum{ p_i } {i \notin D_i}
 
-        ! the probability of drawing anything from an empty sampler is 0
         if (near_zero(renorm)) then
+            !! the probability of drawing anything from an empty sampler is 0
             prob = 0.0
         else
             prob = this%probs%ptr(tgt) / renorm
