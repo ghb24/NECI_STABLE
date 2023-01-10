@@ -281,8 +281,8 @@ contains
         renorm_first = sum(this%A_sampler%get_prob(IJ, i_sg, unoccupied))
 
         associate(A => ex(2, 1), B => ex(2, 2))
-            p_first(1) = this%A_sampler%constrained_getProb(IJ, i_sg, nI, renorm_first, A)
-            p_first(2) = this%A_sampler%constrained_getProb(IJ, i_sg, nI, renorm_first, B)
+            p_first(1) = this%A_sampler%constrained_getProb(IJ, i_sg, unoccupied, renorm_first, A)
+            p_first(2) = this%A_sampler%constrained_getProb(IJ, i_sg, unoccupied, renorm_first, B)
 
             renorm_second(1) = sum(this%B_sampler%get_prob(A, IJ, i_sg, unoccupied))
             p_second(1) = this%B_sampler%constrained_getProb(&
