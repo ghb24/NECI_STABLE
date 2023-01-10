@@ -278,17 +278,17 @@ contains
             call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
         end block
         ! The renormalization for the first hole is the same, regardless of order.
-        renorm_first = sum(this%A_sampler%get_prob(IJ, i_sg, unoccupied))
+        renorm_first = 1._dp - sum(this%A_sampler%get_prob(IJ, i_sg, nI))
 
         associate(A => ex(2, 1), B => ex(2, 2))
             p_first(1) = this%A_sampler%constrained_getProb(IJ, i_sg, unoccupied, renorm_first, A)
             p_first(2) = this%A_sampler%constrained_getProb(IJ, i_sg, unoccupied, renorm_first, B)
 
-            renorm_second(1) = sum(this%B_sampler%get_prob(A, IJ, i_sg, unoccupied))
+            renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(A, IJ, i_sg, nI))
             p_second(1) = this%B_sampler%constrained_getProb(&
                 A, IJ, i_sg, unoccupied, renorm_second(1), B)
 
-            renorm_second(2) = sum(this%B_sampler%get_prob(B, IJ, i_sg, unoccupied))
+            renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(B, IJ, i_sg, nI))
             p_second(2) = this%B_sampler%constrained_getProb(&
                 B, IJ, i_sg, unoccupied, renorm_second(2), A)
         end associate
