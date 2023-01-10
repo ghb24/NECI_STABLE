@@ -68,7 +68,8 @@ contains
             !> ID of group that dataset should be written into
             integer(hid_t), intent(in) :: grp_id
             !> Various filespace handles, rank of the tensor to be written
-            integer(hid_t) :: filespace, memspace, dset_id, plist_id, rank
+            integer(hid_t) :: filespace, memspace, dset_id, plist_id
+            integer :: rank
             !> dimension of dataset to be written, block size during writing and write offset
             integer(hsize_t) :: dimsf(${RANK}$), count(${RANK}$), offset(${RANK}$)
             !> HDF5 error code
@@ -169,7 +170,8 @@ contains
             !> ID of the group containing data set
             integer(hid_t), intent(in) :: grp_id
             !> Various filespace handles, rank of the tensor to be written
-            integer(hid_t) :: dset_id, filespace, memspace, plist_id, rank
+            integer(hid_t) :: dset_id, filespace, memspace, plist_id
+            integer :: rank
             !> dimension of dataset to be written, block size during writing and write offset
             integer(hsize_t) :: dimsf(${RANK}$), count(${RANK}$), offset(${RANK}$), &
                                 maxdimsf(${RANK}$)
