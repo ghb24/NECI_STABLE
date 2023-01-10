@@ -11,6 +11,8 @@ if [ "gfortran" == "$@" ]; then
 	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
 elif [ "gfortran-debug" == "$@" ]; then
 	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
+elif [ "gfortran-fastdebug" == "$@" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=FastDebug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
 elif [ "gfortran-debug-nohdf5" == "$@" ]; then
 	cmake -DENABLE_HDF5=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx ..
 elif [ "gfortran-doc" == "$@" ]; then
