@@ -7,7 +7,7 @@ module basic_float_math
     implicit none
 
     private
-    public :: isclose, operator(.isclose.), near_zero, conjgt
+    public :: isclose, operator(.isclose.), near_zero, conjgt, get_nan, is_nan
 
     interface operator(.isclose.)
     #:for type, kinds in primitive_types.items()
@@ -107,5 +107,26 @@ contains
             res = conjg(x)
         end function
     #:endfor
+
+    real(dp) pure function get_nan()
+        ! If all of the compilers supported ieee_arithmetic
+        ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
+        real(dp) :: a, b
+        a = 1
+        b = 1
+        get_nan = log(a - 2 * b)
+    end function
+
+    elemental logical function is_nan(r)
+        ! If all of the compilers supported ieee_arithmetic
+        ! --> could use ieee_is_nan (r)
+        real(dp), intent(in) :: r
+
+#ifdef GFORTRAN_
+        is_nan = isnan(r)
+#else
+        is_nan = r /= r
+#endif
+    end function
 
 end module

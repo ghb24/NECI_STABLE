@@ -41,7 +41,7 @@ module util_mod
     private
 #endif
 
-    public :: get_nan, isnan_neci, factrl, choose_i64, NECI_icopy, operator(.implies.), &
+    public :: factrl, choose_i64, NECI_icopy, operator(.implies.), &
         abs_l1, abs_sign, near_zero, operator(.isclose.), isclose, operator(.div.), &
         stochastic_round, stochastic_round_r
 #ifdef GFORTRAN_
@@ -513,28 +513,6 @@ contains
         ms = mod(orb, 2)
     end function getSpinIndex
 
-!--- Numerical utilities ---
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
-    real(dp) function get_nan()
-        real(dp) :: a, b
-        a = 1
-        b = 1
-        get_nan = log(a - 2 * b)
-    end function
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_is_nan (r)
-    elemental logical function isnan_neci(r)
-        real(dp), intent(in) :: r
-
-#ifdef GFORTRAN_
-        isnan_neci = isnan(r)
-#else
-        isnan_neci = r /= r
-#endif
-    end function
 
         !> @brief
         !> Calculate 1 + ... + n

@@ -19,6 +19,8 @@ module tau_search_conventional
 
     use util_mod, only: clamp
 
+    use basic_float_math, only: is_nan
+
     use tau_main, only: min_tau, max_tau, possible_tau_search_methods, &
             tau_search_method, tau_start_val, possible_tau_start, &
             tau, assign_value_to_tau, max_death_cpt, MaxWalkerBloom
@@ -297,8 +299,12 @@ contains
         t_s%gamma_sing = mpi_tmp
         call MPIAllReduce(t_s%gamma_doub, MPI_MAX, mpi_tmp)
         t_s%gamma_doub = mpi_tmp
-        call MPIAllReduce(t_s%gamma_trip, MPI_MAX, mpi_tmp)
-        t_s%gamma_trip = mpi_tmp
+        if (is_nan(t_s%gamma_trip)) then
+            t_s%gamma_trip = 0._dp
+        else
+            call MPIAllReduce(t_s%gamma_trip, MPI_MAX, mpi_tmp)
+            t_s%gamma_trip = mpi_tmp
+        end if
         if (tReltvy) then
             call MPIAllReduce(t_s%gamma_sing_spindiff1, MPI_MAX, mpi_tmp)
             t_s%gamma_sing_spindiff1 = mpi_tmp
