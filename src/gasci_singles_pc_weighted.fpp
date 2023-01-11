@@ -399,7 +399,7 @@ contains
         select_particle: block
             real(dp) :: renorm_src
             renorm_src = sum(this%I_sampler%get_prob(i_sg, nI))
-            call this%I_sampler%constrained_sample(i_sg, nI, ilutI, renorm_src, elec, src, p_src)
+            call this%I_sampler%constrained_sample(i_sg, nI, ilutI(0 : nIfD), renorm_src, elec, src, p_src)
             if (src == 0) then
                 call make_invalid()
                 return
