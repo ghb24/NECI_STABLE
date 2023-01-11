@@ -37,6 +37,7 @@ module sparse_arrays
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use util_mod, only: stop_all
+    use basic_float_math, only: conjgt
 
     implicit none
 
@@ -513,7 +514,7 @@ contains
                         end if
                         call calc_guga_matrix_element(&
                                 IlutJ, csf_j, IlutI, csf_i, excitInfo, tmp_mat_2, .true.)
-                        if (.not. near_zero(tmp_mat - tmp_mat_2)) then
+                        if (.not. near_zero(tmp_mat - conjgt(tmp_mat_2))) then
                             call stop_all(this_routine, "not hermititan!")
                         end if
 #endif

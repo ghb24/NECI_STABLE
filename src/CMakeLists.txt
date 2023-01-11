@@ -450,7 +450,7 @@ set( FYPP_SRC_FILES
     hist.fpp
     lib/parallel_hdf5_utils.fpp
     lib/util_mod.fpp
-    lib/util_mod_epsilon_close.fpp
+    lib/basic_float_math.fpp
     sets_mod.fpp
     shared_ragged_array.fpp
     SD_spin_purification.fpp

@@ -2,12 +2,12 @@
 #:set primitive_types = {'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
 #:set ZEROS = {'real': {'sp': '0._sp', 'dp': '0._dp'}, 'complex': {'sp': '(0._sp, 0._sp)', 'dp': '(0._dp, 0._dp)'}}
 
-module util_mod_epsilon_close
+module basic_float_math
     use constants, only : sp, dp, EPS
     implicit none
 
     private
-    public :: isclose, operator(.isclose.), near_zero
+    public :: isclose, operator(.isclose.), near_zero, conjgt
 
     interface operator(.isclose.)
     #:for type, kinds in primitive_types.items()
@@ -29,6 +29,14 @@ module util_mod_epsilon_close
     #:for type, kinds in primitive_types.items()
     #:for kind in kinds
         module procedure near_zero_${type}$_${kind}$
+    #:endfor
+    #:endfor
+    end interface
+
+    interface conjgt
+    #:for type, kinds in primitive_types.items()
+    #:for kind in kinds
+        module procedure conjgt_${type}$_${kind}$
     #:endfor
     #:endfor
     end interface
@@ -82,6 +90,22 @@ contains
             res = isclose(x, ${ZEROS[type][kind]}$, atol=epsilon_, rtol=0._dp)
         end function
     #:endfor
+    #:endfor
+
+    #:for kind in primitive_types['real']
+        elemental function conjgt_real_${kind}$(x) result(res)
+            real(${kind}$), intent(in) :: x
+            real(${kind}$) :: res
+            res = x
+        end function
+    #:endfor
+
+    #:for kind in primitive_types['complex']
+        elemental function conjgt_complex_${kind}$(x) result(res)
+            complex(${kind}$), intent(in) :: x
+            complex(${kind}$) :: res
+            res = conjg(x)
+        end function
     #:endfor
 
 end module

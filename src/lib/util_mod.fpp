@@ -13,7 +13,7 @@ module util_mod
     use util_mod_numerical, only: binary_search_first_ge, stats_out
     use util_mod_cpts, only: arr_2d_ptr, arr_2d_dims, ptr_abuse_1d, &
         ptr_abuse_scalar, ptr_abuse_2d
-    use util_mod_epsilon_close, only: near_zero, operator(.isclose.), isclose
+    use basic_float_math, only: near_zero, operator(.isclose.), isclose
     use constants, only: sp, dp, int32, int64, n_int, inum_runs, lenof_sign, &
         sizeof_int
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
