@@ -250,11 +250,11 @@ contains
             ! k-space hubbard model, where there are still no single
             ! excitations -> so reuse the quantities for the the singles
             ! instead of introducing yet more variables
-            if (.not. t_exclude_3_body_excits) then
+            if (t_exclude_3_body_excits .or. near_zero(pTriples)) then
+                tmp_gamma = 0.0_dp
+            else
                 tmp_prob = prob / pTriples
                 tmp_gamma = abs(matel) / tmp_prob
-            else
-                tmp_gamma = 0.0_dp
             end if
 
             if (tmp_gamma > t_s%gamma_trip) t_s%gamma_trip = tmp_gamma
