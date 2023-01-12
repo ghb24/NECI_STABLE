@@ -58,6 +58,8 @@ if ( HAVE_BUILD_HDF5 )
     # Create the external build projcet
 
 	set(HDF_DIR "${CMAKE_CURRENT_BINARY_DIR}/hdf5")
+        set(HDF_SRCDIR "${CMAKE_CURRENT_BINARY_DIR}/hdf5/local_source")
+        set(HDF_BUILDDIR "${CMAKE_CURRENT_BINARY_DIR}/hdf5/local_build")
     # Some systems use ${HDF_DIR}/lib, others use ${HDF_DIR}/lib64.
     # Make sure to consistently use one of them.
     set(HDF_LIB_DIR "lib")
@@ -65,16 +67,17 @@ if ( HAVE_BUILD_HDF5 )
 	ExternalProject_Add(
 		hdf5
 		# -- Download step ---
-		PREFIX ${HDF_DIR}-prefix
-		URL https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.20/src/hdf5-1.8.20.tar.gz
-		URL_MD5 7f2d3fd67106968eb45d133f5a22150f
+		PREFIX ${HDF_SRCDIR}-prefix
+		URL https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.12/hdf5-1.12.2/src/hdf5-1.12.2.tar.gz
+		URL_MD5 30172c75e436d7f2180e274071a4ca97
 
 		# -- Configure step --
-		SOURCE_DIR ${HDF_DIR}
-		CONFIGURE_COMMAND env ${_configure_override} ${HDF_DIR}/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${HDF_DIR} --libdir=${HDF_DIR}/${HDF_LIB_DIR}
+		SOURCE_DIR ${HDF_SRCDIR}
+		CONFIGURE_COMMAND env ${_configure_override} ${HDF_SRCDIR}/configure --enable-parallel --enable-fortran --prefix=${HDF_DIR} --libdir=${HDF_DIR}/${HDF_LIB_DIR}
 		# -- Build step ------
 		BUILD_COMMAND "" #make && make install
-		BUILD_IN_SOURCE 1
+		BUILD_IN_SOURCE 0
+		BINARY_DIR ${HDF_BUILDDIR} 
 		# -- install step ----
 		INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
 		# INSTALL_COMMAND "make install"
