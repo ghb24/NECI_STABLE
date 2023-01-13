@@ -159,6 +159,7 @@ module gasci_singles_pc_weighted
         procedure, public :: get_pgen => PC_SinglesFastWeighted_get_pgen
     end type
 
+    real(dp), parameter :: direct_calculation = 1e-5_dp
 contains
 
     subroutine do_allocation(generator, PC_singles_drawing)
@@ -500,8 +501,11 @@ contains
             real(dp) :: renorm_tgt
             integer :: dummy, unoccupied(nBasis - nEl)
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
-            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
             call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
+            if (renorm_tgt < direct_calculation) then
+                renorm_tgt = sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
+            end if
 
             call this%A_sampler%constrained_sample(&
                  src, i_sg, unoccupied, ilut_unoccupied, renorm_tgt, dummy, tgt, p_tgt)

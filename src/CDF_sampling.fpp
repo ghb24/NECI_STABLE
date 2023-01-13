@@ -62,14 +62,17 @@ contains
         type(CDF_Sampler_t) :: res
         debug_function_name("construct_CDF_sampler_with_total_t")
         res%my_size = size(w)
+
         @:ASSERT(all(w >= 0._dp))
+        @:ASSERT(sum(w) .isclose. total)
         if (near_zero(total)) then
             ! allocate as empty sets
             allocate(res%p(0), res%cum_p(0))
         else
             @:ASSERT(sum(w) .isclose. total, sum(w), total, w)
-            res%p = w / total
+            res%p = w(:) / total
             res%cum_p = cumsum(res%p)
+            @:ASSERT(res%cum_p(size(res%cum_p)) .isclose. 1._dp)
         end if
     end function
 

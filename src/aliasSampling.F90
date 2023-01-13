@@ -448,6 +448,7 @@ contains
             pos = int(binary_search_int(contain, tgt))
         end do
         prob = this%probs%ptr(tgt) / renormalization
+        ASSERT(prob .isclose. (this%probs%ptr(tgt) / sum(this%probs%ptr(contain))))
         ASSERT(contain(pos) == tgt)
     end subroutine constrained_sample_nI
 
@@ -491,6 +492,7 @@ contains
         end do
         pos = int(binary_search_int(contain, val))
         prob = this%probs%ptr(val) / renormalization
+        ASSERT(prob .isclose. (this%probs%ptr(val) / sum(this%probs%ptr(contain))))
     end subroutine constrained_sample_fast
 
     !------------------------------------------------------------------------------------------!

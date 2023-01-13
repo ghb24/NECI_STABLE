@@ -1265,13 +1265,13 @@ contains
     #:for kind in kinds
     pure function cumsum_${type}$_${kind}$(X) result(Y)
         ${type}$(${kind}$), intent(in) :: X(:)
-        ${type}$(${kind}$) :: Y(lbound(X, 1):ubound(X, 1))
+        ${type}$(${kind}$) :: Y(size(X))
 
         integer :: i
 
-        if(size(X) /= 0) then
-            Y(lbound(X, 1)) = X(lbound(X, 1))
-            do i = lbound(X, 1) + 1, ubound(X, 1)
+        if(size(X) > 0) then
+            Y(1) = X(1)
+            do i = 2, size(Y)
                 Y(i) = Y(i - 1) + X(i)
             end do
         end if

@@ -6,7 +6,7 @@ module gasci_pchb_doubles_UHF_fullyweighted
     !! precomputed heat bath implementation for GASCI using spin orbitals and fully weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
-        operator(.implies.), operator(.isclose.), swap, stop_all
+        operator(.implies.), operator(.isclose.), isclose, swap, stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use bit_reps, only: decode_bit_det
@@ -81,6 +81,13 @@ module gasci_pchb_doubles_UHF_fullyweighted
         procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
         procedure :: get_unoccupied
     end type GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
+
+    real(dp), parameter :: direct_calculation = 1e-5_dp
+        !! For weights of constrained subsets that are below `direct_calculation`
+        !! we calculate the weight not indirectly via the complement, but directly.
+        !! Theoretically we have
+        !! \Sum{ p_i}{i \in D_i} = 1 - \Sum{ p_i }{ i \notin D_i }
+        !! which for small LHS is not true for floating point numbers.
 
 contains
 
@@ -205,6 +212,14 @@ contains
         end if
 
         renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(tgt(1), IJ, i_sg, nI))
+        if (renorm_second(1) >= 1._dp .or. renorm_second(1) < direct_calculation) then
+            renorm_second(1) = sum(this%B_sampler%get_prob(tgt(1), IJ, i_sg, unoccupied))
+        end if
+        if (near_zero(renorm_second(1))) then
+            call invalidate()
+            return
+        end if
+
         block
             integer :: dummy
             call this%B_sampler%constrained_sample(&
@@ -222,6 +237,9 @@ contains
         p_first(2) = this%A_sampler%constrained_getProb(&
             IJ, i_sg, unoccupied, renorm_first, tgt(2))
         renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(tgt(2), IJ, i_sg, nI))
+        if (renorm_second(2) >= 1._dp .or. renorm_second(2) < direct_calculation) then
+            renorm_second(2) = sum(this%B_sampler%get_prob(tgt(2), IJ, i_sg, unoccupied))
+        end if
         p_second(2) = this%B_sampler%constrained_getProb(&
             tgt(2), IJ, i_sg, unoccupied, renorm_second(2), tgt(1))
 
@@ -231,7 +249,11 @@ contains
         ilutJ = exciteIlut(ilutI, src, tgt)
         block
             integer :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-            @:ASSERT(pgen .isclose. this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2))
+            @:ASSERT(isclose(pgen, this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2), atol=1e-10_dp), &
+                        pgen, &
+                        this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2), &
+                        abs(pgen - this%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)) &
+                    )
         end block
 
     contains
@@ -285,7 +307,7 @@ contains
             p_first(2) = this%A_sampler%constrained_getProb(IJ, i_sg, unoccupied, renorm_first, B)
 
             renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(A, IJ, i_sg, nI))
-            if (renorm_second(1) >= 1._dp) then
+            if (renorm_second(1) >= 1._dp .or. renorm_second(1) < direct_calculation) then
                 ! In this rare occasion it might be that the whole distribution
                 ! has zero probability, then renorm_second == 1 would be wrong.
                 ! We have to calculate exactly:
@@ -295,7 +317,7 @@ contains
                 A, IJ, i_sg, unoccupied, renorm_second(1), B)
 
             renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(B, IJ, i_sg, nI))
-            if (renorm_second(2) >= 1._dp) then
+            if (renorm_second(2) >= 1._dp .or. renorm_second(2) < direct_calculation) then
                 ! In this rare occasion it might be that the whole distribution
                 ! has zero probability, then renorm_second == 1 would be wrong.
                 ! We have to calculate exactly:
