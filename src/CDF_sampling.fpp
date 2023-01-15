@@ -40,7 +40,7 @@ module CDF_sampling_mod
 
 contains
 
-    function construct_CDF_sampler_t(w) result(res)
+    pure function construct_CDF_sampler_t(w) result(res)
         !! Construct a CDF sampler from given weights.
         !!
         !! The weights do not have to be normalized.
@@ -52,7 +52,7 @@ contains
     end function
 
 
-    function construct_CDF_sampler_with_total_t(w, total) result(res)
+    pure function construct_CDF_sampler_with_total_t(w, total) result(res)
         !! Construct a CDF sampler from given weights.
         !!
         !! The weights do not have to be normalized.
@@ -63,16 +63,16 @@ contains
         debug_function_name("construct_CDF_sampler_with_total_t")
         res%my_size = size(w)
 
-        @:ASSERT(all(w >= 0._dp))
-        @:ASSERT(sum(w) .isclose. total)
+        @:pure_ASSERT(all(w >= 0._dp))
+        @:pure_ASSERT(sum(w) .isclose. total)
         if (near_zero(total)) then
             ! allocate as empty sets
             allocate(res%p(0), res%cum_p(0))
         else
-            @:ASSERT(sum(w) .isclose. total, sum(w), total, w)
+            @:pure_ASSERT(sum(w) .isclose. total)
             res%p = w(:) / total
             res%cum_p = cumsum(res%p)
-            @:ASSERT(res%cum_p(size(res%cum_p)) .isclose. 1._dp)
+            @:pure_ASSERT(res%cum_p(size(res%cum_p)) .isclose. 1._dp)
         end if
     end function
 

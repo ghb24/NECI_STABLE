@@ -982,7 +982,13 @@ contains
         real(dp), intent(in) :: normalization
         real(dp), parameter :: threshhold = 1e-5_dp
         debug_function_name("do_direct_calculation")
-        ASSERT(0._dp <= normalization .and. normalization <= 1._dp)
+#ifdef DEBUG_
+        if (.not. (0._dp <= normalization .and. normalization <= 1._dp)) then
+            if (.not. ((normalization .isclose. 0._dp) .or. (normalization .isclose. 1._dp))) then
+                call stop_all(this_routine, "Invalid normalization")
+            end if
+        end if
+#endif
         do_direct_calculation = &
             normalization >= 1 & ! now we have `normalization == 1`; first case
             .or. normalization < threshhold ! Second case
