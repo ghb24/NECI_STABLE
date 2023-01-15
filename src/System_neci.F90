@@ -1603,7 +1603,6 @@ contains
                             case ('SINGLES')
                                 FCI_PCHB_options%singles%algorithm = FCI_PCHB_options_vals%singles%algorithm%from_str(tokens%next())
                                 if (FCI_PCHB_options%singles%algorithm == FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
-                                    FCI_PCHB_options%singles%PC_weighted%weighting = FCI_PCHB_options_vals%singles%PC_weighted%weighting%from_str(tokens%next())
                                     FCI_PCHB_options%singles%PC_weighted%drawing = FCI_PCHB_options_vals%singles%PC_weighted%drawing%from_str(tokens%next())
                                 end if
                             case ('DOUBLES')
@@ -1637,7 +1636,6 @@ contains
                                 case ("SINGLES")
                                     GAS_PCHB_options%singles%algorithm = GAS_PCHB_options_vals%singles%algorithm%from_str(tokens%next())
                                     if (GAS_PCHB_options%singles%algorithm == GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
-                                        GAS_PCHB_options%singles%PC_weighted%weighting = GAS_PCHB_options_vals%singles%PC_WEIGHTED%weighting%from_str(tokens%next())
                                         GAS_PCHB_options%singles%PC_weighted%drawing = GAS_PCHB_options_vals%singles%PC_WEIGHTED%drawing%from_str(tokens%next())
                                     end if
                                 case ("DOUBLES")

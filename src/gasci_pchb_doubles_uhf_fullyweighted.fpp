@@ -15,7 +15,7 @@ module gasci_pchb_doubles_UHF_fullyweighted
     use excitation_types, only: DoubleExc_t, excite
     use sltcnd_mod, only: sltcnd_excit
     use CDF_sampling_mod, only: CDF_Sampler_t
-    use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t
+    use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: excit_gen_store_type, projEDet
     use excit_gens_int_weighted, only: pick_biased_elecs
@@ -81,13 +81,6 @@ module gasci_pchb_doubles_UHF_fullyweighted
         procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
         procedure :: get_unoccupied
     end type GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
-
-    real(dp), parameter :: direct_calculation = 1e-5_dp
-        !! For weights of constrained subsets that are below `direct_calculation`
-        !! we calculate the weight not indirectly via the complement, but directly.
-        !! Theoretically we have
-        !! \Sum{ p_i}{i \in D_i} = 1 - \Sum{ p_i }{ i \notin D_i }
-        !! which for small LHS is not true for floating point numbers.
 
 contains
 
@@ -212,7 +205,7 @@ contains
         end if
 
         renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(tgt(1), IJ, i_sg, nI))
-        if (renorm_second(1) >= 1._dp .or. renorm_second(1) < direct_calculation) then
+        if (do_direct_calculation(renorm_second(1))) then
             renorm_second(1) = sum(this%B_sampler%get_prob(tgt(1), IJ, i_sg, unoccupied))
         end if
         if (near_zero(renorm_second(1))) then
@@ -237,7 +230,7 @@ contains
         p_first(2) = this%A_sampler%constrained_getProb(&
             IJ, i_sg, unoccupied, renorm_first, tgt(2))
         renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(tgt(2), IJ, i_sg, nI))
-        if (renorm_second(2) >= 1._dp .or. renorm_second(2) < direct_calculation) then
+        if (do_direct_calculation(renorm_second(2))) then
             renorm_second(2) = sum(this%B_sampler%get_prob(tgt(2), IJ, i_sg, unoccupied))
         end if
         p_second(2) = this%B_sampler%constrained_getProb(&
@@ -307,7 +300,7 @@ contains
             p_first(2) = this%A_sampler%constrained_getProb(IJ, i_sg, unoccupied, renorm_first, B)
 
             renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(A, IJ, i_sg, nI))
-            if (renorm_second(1) >= 1._dp .or. renorm_second(1) < direct_calculation) then
+            if (do_direct_calculation(renorm_second(1))) then
                 ! In this rare occasion it might be that the whole distribution
                 ! has zero probability, then renorm_second == 1 would be wrong.
                 ! We have to calculate exactly:
@@ -317,7 +310,7 @@ contains
                 A, IJ, i_sg, unoccupied, renorm_second(1), B)
 
             renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(B, IJ, i_sg, nI))
-            if (renorm_second(2) >= 1._dp .or. renorm_second(2) < direct_calculation) then
+            if (do_direct_calculation(renorm_second(2))) then
                 ! In this rare occasion it might be that the whole distribution
                 ! has zero probability, then renorm_second == 1 would be wrong.
                 ! We have to calculate exactly:

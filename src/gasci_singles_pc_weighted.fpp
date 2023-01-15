@@ -13,7 +13,7 @@ module gasci_singles_pc_weighted
     use excitation_generators, only: SingleExcitationGenerator_t
     use FciMCData, only: excit_gen_store_type
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
+    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
     use get_excit, only: make_single
     use excitation_types, only: SingleExc_t
     use gasci, only: GASSpec_t
@@ -158,8 +158,6 @@ module gasci_singles_pc_weighted
         procedure, public :: gen_exc => PC_SinglesFastWeighted_gen_exc
         procedure, public :: get_pgen => PC_SinglesFastWeighted_get_pgen
     end type
-
-    real(dp), parameter :: direct_calculation = 1e-5_dp
 contains
 
     subroutine do_allocation(generator, PC_singles_drawing)
@@ -503,7 +501,7 @@ contains
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
             call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
-            if (renorm_tgt < direct_calculation) then
+            if (do_direct_calculation(renorm_tgt)) then
                 renorm_tgt = sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
             end if
 

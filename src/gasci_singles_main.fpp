@@ -28,7 +28,7 @@ module gasci_singles_main
 
     private
     public :: GAS_PCHB_SinglesAlgorithm_t, &
-        GAS_singles_PC_uniform_ExcGenerator_t, GAS_singles_DiscardingGenerator_t, &
+        GAS_singles_PC_uniform_ExcGenerator_t, &
         GAS_singles_heat_bath_ExcGen_t, allocate_and_init, &
         GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals
     ! Reexpose the stuff from gasci_singles_pc_weighted
@@ -42,9 +42,8 @@ module gasci_singles_main
     type :: GAS_PCHB_SinglesAlgorithm_vals_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: &
             ON_FLY_HEAT_BATH = GAS_PCHB_SinglesAlgorithm_t(1), &
-            DISCARDING_UNIFORM = GAS_PCHB_SinglesAlgorithm_t(2), &
-            BITMASK_UNIFORM = GAS_PCHB_SinglesAlgorithm_t(3), &
-            PC_WEIGHTED = GAS_PCHB_SinglesAlgorithm_t(4)
+            BITMASK_UNIFORM = GAS_PCHB_SinglesAlgorithm_t(2), &
+            PC_WEIGHTED = GAS_PCHB_SinglesAlgorithm_t(3)
         contains
             procedure, nopass :: from_str => singles_from_keyword
     end type
@@ -92,24 +91,6 @@ module gasci_singles_main
         procedure, public :: gen_all_excits => GAS_singles_uniform_gen_all_excits
     end type
 
-
-    type, extends(SingleExcitationGenerator_t) :: GAS_singles_DiscardingGenerator_t
-        private
-        type(UniformSingles_t) :: FCI_singles_generator
-        class(GASSpec_t), allocatable :: GAS_spec
-    contains
-        private
-        procedure, public :: finalize => GAS_discarding_singles_finalize
-        procedure, public :: gen_exc => GAS_discarding_singles_gen_exc
-        procedure, public :: get_pgen => GAS_discarding_singles_get_pgen
-        procedure, public :: gen_all_excits => GAS_discarding_singles_gen_all_excits
-    end type
-
-
-    interface GAS_singles_DiscardingGenerator_t
-        module procedure construct_GAS_singles_DiscardingGenerator_t
-    end interface
-
 contains
 
 
@@ -125,10 +106,7 @@ contains
             call generator%finalize()
             deallocate(generator)
         end if
-        if (options%algorithm == GAS_used_singles_vals%DISCARDING_UNIFORM) then
-            write(stdout, *) 'GAS discarding singles activated'
-            allocate(generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
-        else if (options%algorithm == GAS_used_singles_vals%BITMASK_UNIFORM) then
+        if (options%algorithm == GAS_used_singles_vals%BITMASK_UNIFORM) then
             write(stdout, *) 'GAS precomputed singles activated'
             allocate(GAS_singles_PC_uniform_ExcGenerator_t :: generator)
             select type(generator => generator)
@@ -167,8 +145,6 @@ contains
             res = GAS_used_singles_vals%BITMASK_UNIFORM
         case('ON-THE-FLY-HEAT-BATH')
             res = GAS_used_singles_vals%ON_FLY_HEAT_BATH
-        case('DISCARDING-UNIFORM')
-            res = GAS_used_singles_vals%DISCARDING_UNIFORM
         case('PC-WEIGHTED')
             res = GAS_used_singles_vals%PC_WEIGHTED
         case default
@@ -357,70 +333,5 @@ contains
     end subroutine GAS_singles_uniform_gen_all_excits
 
 
-
-    pure function construct_GAS_singles_DiscardingGenerator_t(GAS_spec) result(res)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        type(GAS_singles_DiscardingGenerator_t) :: res
-        res%GAS_spec = GAS_spec
-        res%FCI_singles_generator = UniformSingles_t()
-    end function construct_GAS_singles_DiscardingGenerator_t
-
-    subroutine GAS_discarding_singles_finalize(this)
-        class(GAS_singles_DiscardingGenerator_t), intent(inout) :: this
-        call this%FCI_singles_generator%finalize()
-    end subroutine GAS_discarding_singles_finalize
-
-    subroutine GAS_discarding_singles_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                     ex, tParity, pGen, hel, store, part_type)
-        class(GAS_singles_DiscardingGenerator_t), intent(inout) :: this
-        integer, intent(in) :: nI(nel), exFlag
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        real(dp), intent(out) :: pGen
-        logical, intent(out) :: tParity
-        HElement_t(dp), intent(out) :: hel
-        type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: part_type
-        character(*), parameter :: this_routine = 'GAS_discarding_singles_gen_exc'
-
-        integer :: src_copy(maxExcit)
-
-        @:ASSERT(this%GAS_spec%contains_conf(nI))
-
-        call this%FCI_singles_generator%gen_exc(&
-                    nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                    ex, tParity, pGen, hel, store, part_type)
-        if (nJ(1) /= 0) then
-            if (.not. this%GAS_spec%contains_conf(nJ)) then
-                src_copy(:ic) = ex(1, :ic)
-                call sort(src_copy)
-                ex(1, :ic) = src_copy(:ic)
-                ex(2, :ic) = ex(2, :ic)
-                nJ(1) = 0
-                ilutJ = 0_n_int
-            end if
-        end if
-    end subroutine GAS_discarding_singles_gen_exc
-
-    function GAS_discarding_singles_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_singles_DiscardingGenerator_t), intent(inout) :: this
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2, maxExcit), ic
-        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        real(dp) :: pgen
-        pgen = this%FCI_singles_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-    end function GAS_discarding_singles_get_pgen
-
-
-    subroutine GAS_discarding_singles_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_singles_DiscardingGenerator_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-        integer, intent(out) :: n_excits
-        integer(n_int), allocatable, intent(out) :: det_list(:,:)
-
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
-    end subroutine GAS_discarding_singles_gen_all_excits
 
 end module gasci_singles_main

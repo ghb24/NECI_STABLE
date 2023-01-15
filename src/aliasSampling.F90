@@ -13,7 +13,7 @@ module aliasSampling
 
     private
     public :: aliasSampler_t, AliasSampler_1D_t, AliasSampler_2D_t, AliasSampler_3D_t, &
-        clear_sampler_array, aliasTable_t
+        clear_sampler_array, aliasTable_t, do_direct_calculation
 
     ! type for tables: contains everything you need to get a random number
     ! with given biases
@@ -955,6 +955,37 @@ contains
         real(dp) :: prob
 
         prob = this%samplerArray(i, j, k)%constrained_getProb(contain, renorm, tgt)
+    end function
+
+    elemental logical function do_direct_calculation(normalization)
+        !! Evaluate if a normalization has to be calculated directly.
+        !!
+        !! Sometimes we make the mathematically valid trick of
+        !! calculating a renormalization for a given subset
+        !! via one minus its complement.
+        !! \begin{equation}
+        !!  \sum_{i \in D} p_i = 1 - \sum_{i \notin D} p_i
+        !! \end{equation}
+        !! This is not always valid for two reasons:
+        !!
+        !! We assume that there are \(p_i\) with nonzero probabilities.
+        !! If \(1 - \sum_{i \notin D} p_i \) is 1, we might be in a situation
+        !! where all \( p_i \) are zero and assuming \( \sum_{i \in D} p_i = 1 \)
+        !! would be wrong.
+        !! This is the first case where we we have to directly calculate
+        !! \( \sum_{i \in D} p_i \).
+        !!
+        !! The other reason is floating point arithmetics, that might cause
+        !! the two sides to be slightly different.
+        !! Since they are renormalization factors and we divide by them,
+        !! these small errors blow up for small numbers.
+        real(dp), intent(in) :: normalization
+        real(dp), parameter :: threshhold = 1e-5_dp
+        debug_function_name("do_direct_calculation")
+        ASSERT(0._dp <= normalization .and. normalization <= 1._dp)
+        do_direct_calculation = &
+            normalization >= 1 & ! now we have `normalization == 1`; first case
+            .or. normalization < threshhold ! Second case
     end function
 
 end module aliasSampling

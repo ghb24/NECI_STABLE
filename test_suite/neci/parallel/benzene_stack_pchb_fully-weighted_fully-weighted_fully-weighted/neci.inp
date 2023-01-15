@@ -4,7 +4,7 @@ System read
     electrons  30
     nobrillouintheorem
     nonuniformrandexcits pchb \
-        singles pc-weighted h-and-g-term-both-abs fully-weighted \
+        singles pc-weighted fully-weighted \
         doubles particle-selection fully-weighted \
         doubles hole-selection uhf-fully-weighted
     freeformat
