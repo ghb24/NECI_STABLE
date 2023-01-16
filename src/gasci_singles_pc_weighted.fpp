@@ -362,7 +362,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
         integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
         integer, intent(out) :: unoccupied(nBasis - nEl)
-        ilut_unoccupied(0 : nIfD - 1) = not(ilutI(0 : nIfD - 1))
+        ilut_unoccupied = not(ilutI)
         ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
         call decode_bit_det(unoccupied, ilut_unoccupied)
     end subroutine
