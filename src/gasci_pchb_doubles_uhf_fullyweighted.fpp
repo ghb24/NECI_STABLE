@@ -301,9 +301,6 @@ contains
 
             renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(A, IJ, i_sg, nI))
             if (do_direct_calculation(renorm_second(1))) then
-                ! In this rare occasion it might be that the whole distribution
-                ! has zero probability, then renorm_second == 1 would be wrong.
-                ! We have to calculate exactly:
                 renorm_second(1) = sum(this%B_sampler%get_prob(A, IJ, i_sg, unoccupied))
             end if
             p_second(1) = this%B_sampler%constrained_getProb(&
@@ -311,9 +308,6 @@ contains
 
             renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(B, IJ, i_sg, nI))
             if (do_direct_calculation(renorm_second(2))) then
-                ! In this rare occasion it might be that the whole distribution
-                ! has zero probability, then renorm_second == 1 would be wrong.
-                ! We have to calculate exactly:
                 renorm_second(2) = sum(this%B_sampler%get_prob(B, IJ, i_sg, unoccupied))
             end if
             p_second(2) = this%B_sampler%constrained_getProb(&
