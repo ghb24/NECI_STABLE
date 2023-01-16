@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-module gasci_pchb_doubles_rhf_fastweighted
+module gasci_pchb_doubles_spatorb_fastweighted
     !! precomputed heat bath implementation for GASCI using spatial orbitals
     use constants, only: n_int, dp, int64, maxExcit, stdout
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
@@ -27,7 +27,7 @@ module gasci_pchb_doubles_rhf_fastweighted
     better_implicit_none
 
     private
-    public :: GAS_doubles_RHF_PCHB_ExcGenerator_t
+    public :: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
@@ -36,7 +36,7 @@ module gasci_pchb_doubles_rhf_fastweighted
     integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
 
     !> The GAS PCHB excitation generator for doubles
-    type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_RHF_PCHB_ExcGenerator_t
+    type, extends(DoubleExcitationGenerator_t) :: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
         private
         !> Use a lookup for the supergroup index in global_det_data
         logical, public :: use_lookup = .false.
@@ -61,7 +61,7 @@ module gasci_pchb_doubles_rhf_fastweighted
         procedure, public :: gen_all_excits => GAS_doubles_PCHB_gen_all_excits
 
         procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
-    end type GAS_doubles_RHF_PCHB_ExcGenerator_t
+    end type GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
 
 contains
 
@@ -75,7 +75,7 @@ contains
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
     subroutine GAS_doubles_PCHB_init(this, GAS_spec, &
             use_lookup, create_lookup, PCHB_particle_selection)
-        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
@@ -126,7 +126,7 @@ contains
     !>  @brief
     !>  Deallocate the sampler and the mapping ab -> (a,b)
     subroutine GAS_doubles_PCHB_finalize(this)
-        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
 
         if (allocated(this%particle_selector)) then
             call this%pchb_samplers%finalize()
@@ -155,7 +155,7 @@ contains
     subroutine GAS_doubles_PCHB_gen_exc(&
                     this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                     ex, tParity, pGen, hel, store, part_type)
-        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -284,7 +284,7 @@ contains
     !>
     !>  @return pgen  probability of generating this double with the pchb double excitgen
     function GAS_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
@@ -328,7 +328,7 @@ contains
 
     subroutine GAS_doubles_PCHB_compute_samplers(this, nBI, PCHB_particle_selection)
         !! computes and stores values for the alias sampling table
-        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: i, j, ij, ijMax
@@ -451,7 +451,7 @@ contains
 
 
     subroutine GAS_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_doubles_RHF_PCHB_ExcGenerator_t), intent(in) :: this
+        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
@@ -459,4 +459,4 @@ contains
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
     end subroutine GAS_doubles_PCHB_gen_all_excits
 
-end module gasci_pchb_doubles_rhf_fastweighted
+end module gasci_pchb_doubles_spatorb_fastweighted

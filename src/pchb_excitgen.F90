@@ -18,7 +18,6 @@ module pchb_excitgen
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
         doubles_allocate_and_init => allocate_and_init, &
         possible_PCHB_hole_selection, PCHB_particle_selection_vals
-    use gasci_pchb_doubles_rhf_fastweighted, only: GAS_doubles_RHF_PCHB_ExcGenerator_t
     use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selection_vals
     better_implicit_none
 
@@ -96,7 +95,7 @@ module pchb_excitgen
         ), &
         PCHB_DoublesOptions_t( &
             FCI_PCHB_options_vals%doubles%particle_selection%FAST_WEIGHTED, &
-            FCI_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
+            FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
         ), &
         UHF=.false. &
     )
@@ -193,8 +192,8 @@ contains
         end if
 
         if (.not. (this%UHF &
-                    .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FAST_WEIGHTED &
-                                .or. this%doubles%hole_selection == possible_PCHB_hole_selection%UHF_FULLY_WEIGHTED))) then
+                    .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED &
+                                .or. this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED))) then
             call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")
         end if
 

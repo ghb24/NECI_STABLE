@@ -81,7 +81,7 @@ contains
                     ), &
                     PCHB_DoublesOptions_t( &
                         GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                        GAS_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
+                        GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
                     ), &
                     UHF=UHF, &
                     use_lookup=.false. &
@@ -96,7 +96,7 @@ contains
                     ), &
                     PCHB_DoublesOptions_t( &
                         GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-                        GAS_PCHB_options_vals%doubles%hole_selection%UHF_FULLY_WEIGHTED &
+                        GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
                     ), &
                     UHF=UHF, &
                     use_lookup=.false. &
@@ -111,7 +111,7 @@ contains
                     ), &
                     PCHB_DoublesOptions_t( &
                         GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
-                        GAS_PCHB_options_vals%doubles%hole_selection%UHF_FULLY_WEIGHTED &
+                        GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
                     ), &
                     UHF=UHF, &
                     use_lookup=.false. &

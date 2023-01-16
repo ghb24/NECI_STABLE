@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-module gasci_pchb_doubles_UHF_fullyweighted
+module gasci_pchb_doubles_spinorb_fullyweighted
     !! precomputed heat bath implementation for GASCI using spin orbitals and fully weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
@@ -34,9 +34,9 @@ module gasci_pchb_doubles_UHF_fullyweighted
     better_implicit_none
 
     private
-    public :: GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
+    public :: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
 
-    type, extends(DoubleExcitationGenerator_t) :: GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
+    type, extends(DoubleExcitationGenerator_t) :: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
         !! The GAS PCHB excitation generator for doubles using spin orbitals
         !! and doing full weighting.
         !! This means that first a hole is chosen via \( p( A | I J) |_{A \notin D_i} )\
@@ -80,7 +80,7 @@ module gasci_pchb_doubles_UHF_fullyweighted
 
         procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
         procedure :: get_unoccupied
-    end type GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t
+    end type GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
 
 contains
 
@@ -94,7 +94,7 @@ contains
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
     subroutine GAS_doubles_PCHB_init(this, GAS_spec, &
             use_lookup, create_lookup, PCHB_particle_selection)
-        class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
@@ -133,7 +133,7 @@ contains
 
     subroutine GAS_doubles_PCHB_finalize(this)
         !! Finalize everything
-        class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
 
         if (allocated(this%particle_selector)) then
             ! Yes, we assume, that either all or none are allocated
@@ -152,7 +152,7 @@ contains
                     ex, tParity, pGen, hel, store, part_type)
         !>  Given the initial determinant (both as nI and ilut), create a random double
         !>  excitation using the hamiltonian matrix elements as weights
-        class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -267,7 +267,7 @@ contains
     !>
     !>  @return pgen  probability of generating this double with the pchb double excitgen
     function GAS_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
@@ -321,7 +321,7 @@ contains
 
     subroutine GAS_doubles_PCHB_compute_samplers(this, PCHB_particle_selection)
         !! computes and stores values for the alias sampling table
-        class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: I, J, IJ, IJ_max, A, B ! Uppercase because they are indexing spin orbitals
         integer :: ex(2, 2)
@@ -389,7 +389,7 @@ contains
 
 
     subroutine GAS_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(in) :: this
+        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
@@ -400,7 +400,7 @@ contains
 
     pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
         !! Return a bitmask and enumeration of the unoccupied spin orbitals.
-        class(GAS_PCHB_Doubles_UHF_FullyWeighted_ExcGenerator_t), intent(in) :: this
+        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(in) :: this
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
         integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
         integer, intent(out) :: unoccupied(nBasis - nEl)
@@ -409,4 +409,4 @@ contains
         call decode_bit_det(unoccupied, ilut_unoccupied)
     end subroutine
 
-end module gasci_pchb_doubles_UHF_fullyweighted
+end module gasci_pchb_doubles_spinorb_fullyweighted

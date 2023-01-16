@@ -84,7 +84,7 @@ module gasci_pchb_main
         ), &
         PCHB_DoublesOptions_t( &
             GAS_PCHB_options_vals%doubles%particle_selection%FAST_WEIGHTED, &
-            GAS_PCHB_options_vals%doubles%hole_selection%RHF_FAST_WEIGHTED &
+            GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
         ), &
         UHF=.false., &
         use_lookup=.true. &
@@ -136,8 +136,8 @@ contains
 
         associate(doubles => GAS_PCHB_options_vals%doubles)
         if (.not. (this%UHF &
-                    .implies. (this%doubles%hole_selection == doubles%hole_selection%UHF_FAST_WEIGHTED &
-                                .or. this%doubles%hole_selection == doubles%hole_selection%UHF_FULLY_WEIGHTED))) then
+                    .implies. (this%doubles%hole_selection == doubles%hole_selection%SPINORB_FAST_WEIGHTED &
+                                .or. this%doubles%hole_selection == doubles%hole_selection%SPINORB_FULLY_WEIGHTED))) then
             call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")
         end if
         end associate
