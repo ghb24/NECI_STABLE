@@ -5,7 +5,7 @@ system read
     nonuniformrandexcits pchb \
         singles on-the-fly-heat-bath \
         doubles particle-selection fully-weighted \
-        doubles hole-selection rhf-fast-weighted
+        doubles hole-selection spatial-orb-resolved-fast-weighted
     hphf 0
 endsys
 

@@ -6,7 +6,7 @@ System read
     nonuniformrandexcits pchb \
         singles pc-weighted fully-weighted \
         doubles particle-selection fully-weighted \
-        doubles hole-selection uhf-fully-weighted
+        doubles hole-selection spin-orb-resolved-fully-weighted
     freeformat
     FCIDUMP-name benzene_3.0_Ang.FciDmp
 endsys
