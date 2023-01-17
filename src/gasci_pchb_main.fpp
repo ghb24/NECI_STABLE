@@ -59,7 +59,7 @@ module gasci_pchb_main
     type :: GAS_PCHB_options_t
         type(GAS_PCHB_SinglesOptions_t) :: singles
         type(PCHB_DoublesOptions_t) :: doubles
-        logical :: UHF
+        logical :: spinorb_resolved
             !! Do a spin-projection resolved calculation.
         logical :: use_lookup = .false.
             !! Use and/or create/manage the supergroup lookup.
@@ -86,7 +86,7 @@ module gasci_pchb_main
             GAS_PCHB_options_vals%doubles%particle_selection%FAST_WEIGHTED, &
             GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
         ), &
-        UHF=.false., &
+        spinorb_resolved=.false., &
         use_lookup=.true. &
     )
 
@@ -130,12 +130,12 @@ contains
         end if
         end associate
 
-        if (.not. (tUHF .implies. this%UHF)) then
+        if (.not. (tUHF .implies. this%spinorb_resolved)) then
             call stop_all(this_routine, "UHF requires spin-resolved PCHB")
         end if
 
         associate(doubles => GAS_PCHB_options_vals%doubles)
-        if (.not. (this%UHF &
+        if (.not. (this%spinorb_resolved &
                     .implies. (this%doubles%hole_selection == doubles%hole_selection%SPINORB_FAST_WEIGHTED &
                                 .or. this%doubles%hole_selection == doubles%hole_selection%SPINORB_FULLY_WEIGHTED))) then
             call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")

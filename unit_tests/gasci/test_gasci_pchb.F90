@@ -83,7 +83,7 @@ contains
                         GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
                         GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
                     ), &
-                    UHF=UHF, &
+                    spinorb_resolved=UHF, &
                     use_lookup=.false. &
             ), &
             GAS_PCHB_options_t(&
@@ -98,7 +98,7 @@ contains
                         GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
                         GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
                     ), &
-                    UHF=UHF, &
+                    spinorb_resolved=UHF, &
                     use_lookup=.false. &
             ), &
             GAS_PCHB_options_t(&
@@ -113,7 +113,7 @@ contains
                         GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
                         GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
                     ), &
-                    UHF=UHF, &
+                    spinorb_resolved=UHF, &
                     use_lookup=.false. &
             ) &
         ]

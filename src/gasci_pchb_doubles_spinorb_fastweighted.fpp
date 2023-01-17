@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-module gasci_pchb_doubles_uhf_fastweighted
+module gasci_pchb_doubles_spinorb_fastweighted
     !! same as gasci_pchb but with spin-orbitals
     !! useful for UHF-format FCIDUMP files
     !! only implements generators that work on spin-orbitals
@@ -45,9 +45,9 @@ module gasci_pchb_doubles_uhf_fastweighted
     better_implicit_none
 
     private
-    public :: GAS_doubles_UHF_PCHB_ExcGenerator_t
+    public :: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
 
-    type, extends(doubleExcitationGenerator_t) :: GAS_doubles_UHF_PCHB_ExcGenerator_t
+    type, extends(DoubleExcitationGenerator_t) :: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
         private
         logical, public :: use_lookup = .false.
             !! use a lookup for the supergroup index
@@ -70,7 +70,7 @@ module gasci_pchb_doubles_uhf_fastweighted
         procedure, public :: gen_all_excits => GAS_doubles_PCHB_uhf_gen_all_excits
 
         procedure :: compute_samplers => GAS_doubles_PCHB_uhf_compute_samplers
-    end type GAS_doubles_UHF_PCHB_ExcGenerator_t
+    end type GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
 
 contains
 
@@ -82,7 +82,7 @@ contains
         !!
         !! more specifically, sets up a lookup table for ab -> (a,b) and
         !! sets up the alias table for picking ab given ij with prob ~ Hijab
-        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
@@ -130,7 +130,7 @@ contains
 
     subroutine GAS_doubles_PCHB_UHF_finalize(this)
         !! deallocates the sampler and mapper
-        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
 
         if (allocated(this%particle_selector)) then
             call this%pchb_samplers%finalize()
@@ -146,7 +146,7 @@ contains
                 ex, tParity, pGen, hel, store, part_type)
         !! given the initial determinant (both as nI and ilut), create a random
         !! doubles excitation using the Hamiltonian matrix elements as weights
-        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
             !! the exctitation generator
         integer, intent(in) :: nI(nel), exFlag
             !! determinant to excite from
@@ -260,7 +260,7 @@ contains
 
     real(dp) function GAS_doubles_PCHB_uhf_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
         ! @jph docs
-        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
@@ -272,7 +272,7 @@ contains
     end function GAS_doubles_PCHB_uhf_get_pgen
 
     subroutine GAS_doubles_PCHB_uhf_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(in) :: this
+        class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
@@ -282,7 +282,7 @@ contains
 
     subroutine GAS_doubles_PCHB_uhf_compute_samplers(this, nBI, PCHB_particle_selection)
         !! computes and stores values for the alias (spin-independent) sampling table
-        class(GAS_doubles_UHF_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: i, j, ij, ijMax
@@ -305,7 +305,6 @@ contains
         memCost = size(supergroups, 2, kind=int64) &
                   * int(ijMax, int64) &
                   * int(abMax, int64) * 8_int64
-                  ! @jph not sure why there appears * 3 twice in RHF version
 
         write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
         write(stdout, *) "The number of supergroups is", size(supergroups, 2)
@@ -368,4 +367,4 @@ contains
     end subroutine GAS_doubles_PCHB_uhf_compute_samplers
 
 
-end module gasci_pchb_doubles_uhf_fastweighted
+end module gasci_pchb_doubles_spinorb_fastweighted

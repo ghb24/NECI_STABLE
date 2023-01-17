@@ -1,6 +1,6 @@
 #include "macros.h"
 
-module pchb_uhf_excit
+module pchb_uhf_excitgen
     !! precomputed heat bath excitation generator, open shell ("UHF")
     ! @jph
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t
@@ -49,4 +49,4 @@ module pchb_uhf_excit
 
 contains
 
-end module pchb_uhf_excit
+end module pchb_uhf_excitgen

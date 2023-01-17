@@ -69,7 +69,7 @@ contains
                     FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
                     FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
                 ), &
-                UHF=.false. &
+                spinorb_resolved=.false. &
             ) &
         )
 
