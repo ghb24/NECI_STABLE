@@ -6,7 +6,7 @@ system read noorder
     nonuniformrandexcits pchb \
         singles uniform \
         doubles particle-selection fully-weighted \
-        doubles hole-selection rhf-fast-weighted
+        doubles hole-selection spatial-orb-resolved-fast-weighted
     molecular-transcorr 3-body
 endsys
 
