@@ -42,6 +42,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
                                   PCHB_particle_selection_vals, PC_FullyWeightedParticles_t, &
                                   PC_FastWeightedParticles_t, UniformParticles_t
     use gasci, only: GASSpec_t
+    use gasci_util, only: gen_all_excits
     better_implicit_none
 
     private
@@ -259,13 +260,25 @@ contains
     end subroutine GAS_doubles_PCHB_uhf_gen_exc
 
     real(dp) function GAS_doubles_PCHB_uhf_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        ! @jph docs
+        !! calculates the probability of drawing a given double excitation
+        !! parametrised by the excitation matrix ex
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
+            !! excitation matrix
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_uhf_get_pgen'
+
+        @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
+        ! double excitation, so ic==2
+        @:ASSERT(ic == 2)
+
+        i_sg = this%indexer%idx_nI(nI)
+
+        pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
+
+        ! not entirely sure what to do here
 
         ! @jph stub
 
@@ -276,7 +289,8 @@ contains
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
-        ! @jph stub
+
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
 
     end subroutine GAS_doubles_PCHB_uhf_gen_all_excits
 
