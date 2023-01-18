@@ -25,9 +25,10 @@ module test_gasci_pchb_rhf_fastweighted
     use SystemData, only: nEl
     implicit none
     private
-    public :: test_pgen_RHF_hermitian
+    public :: test_pgen_RHF_hermitian, &
+              test_pgen_RHF_nonhermitian
             ! test_pgen_UHF_hermitian, &
-            !   test_pgen_RHF_nonhermitian, test_pgen_UHF_nonhermitian
+            !   test_pgen_UHF_nonhermitian
 
     type :: random_fcidump_writer_t
         logical :: UHF
@@ -47,10 +48,10 @@ contains
     ! subroutine test_pgen_UHF_hermitian()
     !     call test_pgen_general(.true., .true.)
     ! end subroutine test_pgen_UHF_hermitian
-    !
-    ! subroutine test_pgen_RHF_nonhermitian()
-    !     call test_pgen_general(.false., .false.)
-    ! end subroutine test_pgen_RHF_nonhermitian
+
+    subroutine test_pgen_RHF_nonhermitian()
+        call test_pgen_general(.false., .false.)
+    end subroutine test_pgen_RHF_nonhermitian
     !
     ! subroutine test_pgen_UHF_nonhermitian()
     !     call test_pgen_general(.true., .false.)
@@ -58,6 +59,7 @@ contains
 
     subroutine test_pgen_general(UHF, hermitian)
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use SystemData, only: t_non_hermitian, tUHF
         logical, intent(in) :: UHF, hermitian
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
@@ -68,6 +70,10 @@ contains
         logical :: successful
         integer :: n_interspace_exc, i
         integer, parameter :: n_iters=10**7
+
+        t_non_hermitian = .not. hermitian
+        tUHF = UHF
+
         dumpwriter = random_fcidump_writer_t(UHF=UHF, hermitian=hermitian)
 
         pParallel = 0.05_dp
@@ -83,7 +89,6 @@ contains
                         GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
                         GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
                     ), &
-                    spinorb_resolved=UHF, &
                     use_lookup=.false. &
             ), &
             GAS_PCHB_options_t(&
@@ -98,7 +103,6 @@ contains
                         GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
                         GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
                     ), &
-                    spinorb_resolved=UHF, &
                     use_lookup=.false. &
             ), &
             GAS_PCHB_options_t(&
@@ -113,7 +117,6 @@ contains
                         GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
                         GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
                     ), &
-                    spinorb_resolved=UHF, &
                     use_lookup=.false. &
             ) &
         ]
@@ -130,6 +133,7 @@ contains
                     GAS_spec, options=settings(i) &
                 )
 
+                ! @jph test fail here
                 call run_excit_gen_tester( &
                     exc_generator, 'general implementation, Li2 like system', &
                     opt_nI=det_I, &
@@ -185,7 +189,8 @@ program test_gasci_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_pchb_rhf_fastweighted, only: test_pgen_RHF_hermitian
+    use test_gasci_pchb_rhf_fastweighted, only: test_pgen_RHF_hermitian, &
+                                                test_pgen_RHF_nonhermitian
 
 
     implicit none

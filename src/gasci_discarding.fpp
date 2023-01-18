@@ -96,8 +96,7 @@ contains
                 PCHB_DoublesOptions_t( &
                     FCI_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
                     FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
-                ), &
-                spinorb_resolved=tUHF &
+                ) &
             ) &
         )
     end subroutine

@@ -72,8 +72,6 @@ module pchb_excitgen
     type :: FCI_PCHB_Options_t
         type(FCI_PCHB_SinglesOptions_t) :: singles
         type(PCHB_DoublesOptions_t) :: doubles
-        logical :: spinorb_resolved
-            !! Do a spin-projection-resolved calculation.
     contains
         procedure :: assert_validity
     end type
@@ -96,8 +94,7 @@ module pchb_excitgen
         PCHB_DoublesOptions_t( &
             FCI_PCHB_options_vals%doubles%particle_selection%FAST_WEIGHTED, &
             FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
-        ), &
-        spinorb_resolved=.false. &
+        ) &
     )
 
 
@@ -187,11 +184,7 @@ contains
             call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
         end if
 
-        if (.not. (tUHF .implies. this%spinorb_resolved)) then
-            call stop_all(this_routine, "UHF requires spin-resolved PCHB")
-        end if
-
-        if (.not. (this%spinorb_resolved &
+        if (.not. (tUHF &
                     .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED &
                                 .or. this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED))) then
             call stop_all(this_routine, "Spin-resolved excitation generation requires spin-resolved hole generation.")
