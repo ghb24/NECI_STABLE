@@ -133,7 +133,6 @@ contains
                     GAS_spec, options=settings(i) &
                 )
 
-                ! @jph test fail here
                 call run_excit_gen_tester( &
                     exc_generator, 'general implementation, Li2 like system', &
                     opt_nI=det_I, &
@@ -141,7 +140,8 @@ contains
                     problem_filter=is_problematic,&
                     successful=successful)
                 call exc_generator%finalize()
-                call assert_true(successful, "Failed for UHF = "//str(UHF)//", hermitian= "//str(hermitian))
+                call assert_true(successful, "Failed for UHF="//str(UHF)// &
+                        ", hermitian="//str(hermitian)//", settings index="//str(i))
                 call finalize_excitgen_test()
 
             end do over_interspace_excitations
@@ -217,9 +217,9 @@ contains
 
     subroutine test_gasci_driver()
         call run_test_case(test_pgen_RHF_hermitian, "test_pgen_RHF_hermitian")
+        call run_test_case(test_pgen_RHF_nonhermitian, "test_pgen_RHF_nonhermitian")
         ! TODO(@jph): Good luck with that ;-)
         ! call run_test_case(test_pgen_UHF_hermitian, "test_pgen_UHF_hermitian")
-        ! call run_test_case(test_pgen_RHF_nonhermitian, "test_pgen_RHF_nonhermitian")
         ! call run_test_case(test_pgen_UHF_nonhermitian, "test_pgen_UHF_nonhermitian")
     end subroutine test_gasci_driver
 end program test_gasci_program

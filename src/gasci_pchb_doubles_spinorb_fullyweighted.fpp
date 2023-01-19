@@ -294,6 +294,9 @@ contains
         end block
         ! The renormalization for the first hole is the same, regardless of order.
         renorm_first = 1._dp - sum(this%A_sampler%get_prob(IJ, i_sg, nI))
+        if (do_direct_calculation(renorm_first)) then
+            renorm_first = sum(this%A_sampler%get_prob(IJ, i_sg, unoccupied))
+        end if
 
         associate(A => ex(2, 1), B => ex(2, 2))
             p_first(1) = this%A_sampler%constrained_getProb(IJ, i_sg, unoccupied, renorm_first, A)
