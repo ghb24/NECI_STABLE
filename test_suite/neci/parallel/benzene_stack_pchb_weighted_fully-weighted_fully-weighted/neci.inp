@@ -1,0 +1,54 @@
+Title
+
+System read
+    electrons  30
+    nobrillouintheorem
+    nonuniformrandexcits pchb \
+        singles pc-weighted weighted \
+        doubles particle-selection fully-weighted \
+        doubles hole-selection spin-orb-resolved-fully-weighted
+    freeformat
+    FCIDUMP-name benzene_3.0_Ang.FciDmp
+endsys
+
+calc
+    definedet 1-6   13-18   25-30   37-42    49-54
+
+    seed 7
+    load-balance-blocks off
+
+    totalwalkers 1e6
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    shiftdamp .02
+    stepsshift 10
+
+    tau-values \
+        start user-defined 5e-3
+
+    tau-search \
+        algorithm conventional \
+        stop-condition no-change 2000 \
+        maxwalkerbloom 1
+
+    nmcyc 1000
+
+    proje-changeref 1.20
+    truncinitiator
+    addtoinitiator  3
+    allrealcoeff
+    realspawncutoff .30
+    memoryfacspawn 10.00
+    memoryfacpart 5.00
+    startsinglepart 10
+
+endcalc
+
+logging
+    highlypopwrite 50
+    hdf5-pops
+endlog
+end
