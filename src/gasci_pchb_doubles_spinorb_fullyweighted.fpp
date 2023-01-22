@@ -194,6 +194,9 @@ contains
         IJ = fuseIndex(src(1), src(2))
 
         renorm_first = 1._dp - sum(this%A_sampler%get_prob(IJ, i_sg, nI))
+        if (do_direct_calculation(renorm_first)) then
+            renorm_first = sum(this%A_sampler%get_prob(IJ, i_sg, unoccupied))
+        end if
         block
             integer :: dummy
             call this%A_sampler%constrained_sample(&
