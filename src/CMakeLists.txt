@@ -437,7 +437,7 @@ set( FYPP_SRC_FILES
     gasci_pchb_doubles_select_particles.fpp
     gasci_pchb_doubles_spatorb_fastweighted.fpp
     gasci_pchb_doubles_spinorb_fullyweighted.fpp
-    # gasci_pchb_doubles_uhf_fastweighted.fpp
+    gasci_pchb_doubles_spinorb_fastweighted.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp
     CDF_sampling.fpp

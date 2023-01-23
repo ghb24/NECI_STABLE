@@ -3,7 +3,7 @@
 #:include "algorithms.fpph"
 
 module gasci_pchb_doubles_spinorb_fullyweighted
-    !! precomputed heat bath implementation for GASCI using spin orbitals and fully weighting
+    !! precomputed heat bath implementation for GASCI using spin orbitals and full weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
         operator(.implies.), operator(.isclose.), isclose, swap, stop_all

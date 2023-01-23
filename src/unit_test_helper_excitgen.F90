@@ -9,7 +9,7 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen
+                          tReadInt, t_pcpp_excitgen, tUHF, tMolpro
     use sort_mod
     use System, only: SysInit, SetSysDefaults, SysCleanup
     use Parallel_neci, only: MPIInit, MPIEnd, mpi_comm_rank, mpi_comm_world
@@ -252,7 +252,7 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine init_excitgen_test(ref_det, fcidump_writer)
-        ! mimick the initialization of an FCIQMC calculation to the point where we can generate
+        ! mimic the initialization of an FCIQMC calculation to the point where we can generate
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
         integer, intent(in) :: ref_det(:)
@@ -276,14 +276,18 @@ contains
 
         fcidump_name = "FCIDUMP"
         UMatEps = 1.0e-8
-        tStoreSpinOrbs = .false.
+        if (tUHF .and. tMolpro) then
+            tStoreSpinOrbs = .true.
+        else
+            tStoreSpinOrbs = .false.
+        end if
         tTransGTID = .false.
         tReadFreeFormat = .true.
 
         call dSFMT_init(seed)
 
-        call SetCalcDefaults()
-        call SetSysDefaults()
+        ! call SetCalcDefaults()
+        ! call SetSysDefaults()
         tReadInt = .true.
 
         call write_file(fcidump_writer)
@@ -397,13 +401,15 @@ contains
             ! three 4-index sectors, so three calls to write_4index
             call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0 ! delimiter
-            call write_4index(n_spat_orb, norb, 1, n_spat_orb, hermitian_)
+            ! we can keep using the spatial orbitals as indices because of the
+            ! partitioning of the dump file
+            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            call write_4index(n_spat_orb, norb, n_spat_orb, norb, hermitian_)
+            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
             call write_2index(1, n_spat_orb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            call write_2index(n_spat_orb, norb, hermitian_)
+            call write_2index(1, n_spat_orb, hermitian_)
             write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
             ! then would come the nuclear repulsion
         else ! .not. uhf_
