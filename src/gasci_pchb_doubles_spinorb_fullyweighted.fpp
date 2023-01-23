@@ -150,8 +150,8 @@ contains
     subroutine GAS_doubles_PCHB_gen_exc(&
                     this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                     ex, tParity, pGen, hel, store, part_type)
-        !>  Given the initial determinant (both as nI and ilut), create a random double
-        !>  excitation using the hamiltonian matrix elements as weights
+        !! Given the initial determinant (both as nI and ilut), create a random
+        !! double excitation using the hamiltonian matrix elements as weights
         class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)

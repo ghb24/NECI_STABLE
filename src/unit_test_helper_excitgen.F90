@@ -251,17 +251,22 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine init_excitgen_test(ref_det, fcidump_writer)
+    subroutine init_excitgen_test(ref_det, fcidump_writer, setdefaults)
         ! mimic the initialization of an FCIQMC calculation to the point where we can generate
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
         integer, intent(in) :: ref_det(:)
         type(FciDumpWriter_t), intent(in) :: fcidump_writer
+        logical, optional, intent(in) :: setdefaults
+            !! whether or not to set the default flags in this function
+        logical :: setdefaults_
         integer :: nBasisMax(5, 3), lms
         integer(int64) :: umatsize
         real(dp) :: ecore
         character(*), parameter :: this_routine = 'init_excitgen_test'
         integer, parameter :: seed = 25
+
+        def_default(setdefaults_, setdefaults, .true.)
 
         umatsize = 0
         nel = size(ref_det)
@@ -286,8 +291,10 @@ contains
 
         call dSFMT_init(seed)
 
-        ! call SetCalcDefaults()
-        ! call SetSysDefaults()
+        if (setdefaults_) then
+            call SetCalcDefaults()
+            call SetSysDefaults()
+        end if
         tReadInt = .true.
 
         call write_file(fcidump_writer)

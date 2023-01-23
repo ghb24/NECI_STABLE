@@ -175,7 +175,7 @@ contains
                 call assert_true(GAS_spec%is_valid())
                 call assert_true(GAS_spec%contains_conf(det_I))
 
-                call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+                call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'), setdefaults=.false.)
                 call exc_generator%init(&
                     GAS_spec, options=settings(i) &
                 )
