@@ -46,7 +46,6 @@ module gasci_pchb_doubles_spatorb_fastweighted
         !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)
         type(AliasSampler_3D_t) :: pchb_samplers
 
-
         type(SuperGroupIndexer_t), pointer :: indexer => null()
         class(ParticleSelector_t), allocatable :: particle_selector
         class(GASSpec_t), allocatable :: GAS_spec
