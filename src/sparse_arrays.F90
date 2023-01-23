@@ -320,14 +320,14 @@ contains
             disps(i) = disps(i - 1) + num_states(i - 1)
         end do
 
-        safe_realloc_e(sparse_ham, (num_states(iProcIndex)), ierr)
-        safe_realloc_e(SparseHamilTags, (2, num_states(iProcIndex)), ierr)
-        safe_realloc_e(hamiltonian_row, (num_states_tot), ierr)
-        call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag, ierr)
-        safe_realloc_e(hamil_diag, (num_states(iProcIndex)), ierr)
-        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex)), 8, t_r, HDiagTag, ierr)
-        safe_realloc_e(temp_store, (0:NIfTot, num_states_tot), ierr)
-        call LogMemAlloc('temp_store', num_states_tot * (NIfTot + 1), 8, t_r, TempStoreTag, ierr)
+        safe_realloc(sparse_ham, (num_states(iProcIndex)))
+        safe_realloc(SparseHamilTags, (2, num_states(iProcIndex)))
+        safe_realloc(hamiltonian_row, (num_states_tot))
+        call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag)
+        safe_realloc(hamil_diag, (num_states(iProcIndex)))
+        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex)), 8, t_r, HDiagTag)
+        safe_realloc(temp_store, (0:NIfTot, num_states_tot))
+        call LogMemAlloc('temp_store', num_states_tot * (NIfTot + 1), 8, t_r, TempStoreTag)
 
         ! Stick together the determinants from all processors, on all processors.
         call MPIAllGatherV(ilut_list(:, 1:num_states(iProcIndex)), temp_store, num_states, disps)
