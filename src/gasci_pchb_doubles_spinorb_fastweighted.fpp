@@ -74,7 +74,6 @@ module gasci_pchb_doubles_spinorb_fastweighted
         procedure, public :: gen_all_excits => GAS_doubles_PCHB_uhf_gen_all_excits
 
         procedure :: compute_samplers => GAS_doubles_PCHB_uhf_compute_samplers
-        ! @jph do we need a get_unoccupied?
     end type GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
 
 contains
@@ -274,10 +273,6 @@ contains
         integer :: i_sg, IJ, AB
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_uhf_get_pgen'
 
-        ! real(dp) :: p_first(2), p_second(2), pgen_particle
-        ! integer :: IJ, i_sg
-        ! integer :: unoccupied(nBasis - nEl)
-
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         ! double excitation, so ic==2
         @:ASSERT(ic == 2)
@@ -286,42 +281,8 @@ contains
         AB = fuseIndex(ex(2, 1), ex(2, 2))
         i_sg = this%indexer%idx_nI(nI)
 
-        ! @jph stub
-        ! don't need constrained_getProb and no renormalization
         pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
         pgen = pgen * this%AB_sampler%get_prob(IJ, i_sg, AB)
-
-        ! pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
-
-        ! @jph stub
-        ! ! block
-        ! !     integer(n_int) :: ilut_unoccupied(0 : nIfD)
-        ! !     call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
-        ! ! end block
-
-        ! associate(A => ex(2, 1), B => ex(2, 2)) ! hole indices
-        !     p_first(1) = this%A_sampler%getProb(IJ, i_sg, unoccupied, renorm_first, A)
-        !     p_first(2) = this%A_sampler%getProb(IJ, i_sg, unoccupied, renorm_first, B)
-
-        !     renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(A, IJ, i_sg, nI))
-        !     if (do_direct_calculation(renorm_second(1))) then
-        !         renorm_second(1) = sum(this%B_sampler%get_prob(A, IJ, i_sg, unoccupied))
-        !     end if
-        !     p_second(1) = this%B_sampler%getProb(&
-        !         A, IJ, i_sg, unoccupied, renorm_second(1), B)
-
-        !     renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(B, IJ, i_sg, nI))
-        !     if (do_direct_calculation(renorm_second(2))) then
-        !         renorm_second(2) = sum(this%B_sampler%get_prob(B, IJ, i_sg, unoccupied))
-        !     end if
-        !     p_second(2) = this%B_sampler%getProb(&
-        !         B, IJ, i_sg, unoccupied, renorm_second(2), A)
-        !     p_second(2) = this%B_sampler%
-        ! end associate
-
-        ! pgen = pgen_particle * sum(p_first * p_second)
-
-        ! @jph review above (first stab)
 
     end function GAS_doubles_PCHB_uhf_get_pgen
 
@@ -336,6 +297,7 @@ contains
     end subroutine GAS_doubles_PCHB_uhf_gen_all_excits
 
     subroutine GAS_doubles_PCHB_uhf_compute_samplers(this, nBI, PCHB_particle_selection)
+        ! @jph gas excitations src/gasci_pchb_doubles_spinorb_fullyweighted.fpp
         !! computes and stores values for the alias (spin-independent) sampling table
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
@@ -367,38 +329,42 @@ contains
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
 
         ! @jph
-        call this%AB_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'PCHB_UHF')
+        call this%AB_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'AB_PCHB_spinorb_sampler')
         allocate(w(abMax))
         allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
 
         do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
-            do i = 1, nBI
+            first_particle: do i = 1, nBI
                 ex(1, 1) = i ! already a spin orbital
-                ! a,b are ordered, so we can assume j <= i
-                do j = 1, i
+                ! a,b are ordered, so we can assume j < i
+                second_particle: do j = 1, i - 1
                     ex(1, 2) = j
                     w(:) = 0._dp
                     ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
                     ! weights to prepare the sampler
-                    do a = 1, nBI
-                        ex(2, 2) = a
-                        do b = 1, a
-                            ex(2, 1) = b
+                    first_hole: do a = 1, nBI
+                        if (any(a == [i, j])) cycle
+                        ex(2, 1) = a
+                        second_hole: do b = 1, a
+                            ex(2, 2) = b
                             ab = fuseIndex(a, b)
-                            w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
-                        end do ! b
-                    end do ! a
+                            if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
+                                w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
+                            else
+                                w(ab) = 0._dp
+                            end if
+                        end do second_hole ! b
+                    end do first_hole ! a
                     ij = fuseIndex(i, j)
-                    ! @jph
                     call this%AB_sampler%setup_entry(ij, i_sg, w)
 
                     associate(I => ex(1, 1), J => ex(1, 2))
-                        IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
-                        IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                        IJ_weights(I, J, i_sg) = sum(w)
+                        IJ_weights(J, I, i_sg) = sum(w)
                     end associate
-                end do ! j
-            end do ! i
+                end do second_particle ! j
+            end do first_particle ! i
         end do ! i_sg
 
 
