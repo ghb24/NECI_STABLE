@@ -221,7 +221,7 @@ contains
             ! split ab -> a,b
             tgt = this%tgtOrbs(:, ab)
             @:ASSERT(all(tgt /= 0) .implies. tgt(1) /= tgt(2))
-            invalid = any(tgt == 0) .or. any(tgt == nI)
+            invalid = any(tgt == 0) .or. any(tgt(1) == nI) .or. any(tgt(2) == nI)
         end if
 
         ! as in the spatially-resolved case, there is a very rare case where (due
@@ -271,7 +271,7 @@ contains
         integer, intent(in) :: ex(2, maxExcit), ic
             !! excitation matrix
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        integer :: i_sg, IJ
+        integer :: i_sg, IJ, AB
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_uhf_get_pgen'
 
         ! real(dp) :: p_first(2), p_second(2), pgen_particle
@@ -283,9 +283,13 @@ contains
         @:ASSERT(ic == 2)
 
         IJ = fuseIndex(ex(1, 1), ex(1, 2))
+        AB = fuseIndex(ex(2, 1), ex(2, 2))
         i_sg = this%indexer%idx_nI(nI)
 
-
+        ! @jph stub
+        ! don't need constrained_getProb and no renormalization
+        pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
+        pgen = pgen * this%AB_sampler%get_prob(IJ, i_sg, AB)
 
         ! pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
 
