@@ -4,22 +4,6 @@
 
 module gasci_pchb_doubles_spinorb_fastweighted
     !! spin-orbital-resolved GASCI-PCHB using the "fast weighted" scheme
-
-    ! @jph reformulate as notes instead of self-ramblings when completed and I
-    !    know what's going on
-    !==========================================================================!
-    ! key point is I can get rid of this line in gasci_pchb
-    ! integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
-    !   and any loops over `samplerIndex`
-    ! which simplifies the code, purportedly...
-    ! heavy lifting will be in this file, but I will need a pchb_uhf_excitgen too
-    ! not sure where I will put it but I will need to also specify to use this
-    ! excit gen when both PCHB and UHF are selected as input
-    ! also very important: unit tests
-    ! unit_tests/gasci/test_gasci_general_pchb.F90
-    ! unit_tests/pcpp_excitgen/test_pchb_excitgen.F90
-    ! unit_tests/pcpp_excitgen/test_aliasTables.F90 (don't need to change)
-    !==========================================================================!
     use constants, only: dp, n_int, maxExcit, stdout, int64
     use util_mod, only: operator(.isclose.), near_zero, fuseIndex, stop_all, operator(.implies.)
     use get_excit, only: make_double, exciteIlut
@@ -77,8 +61,6 @@ module gasci_pchb_doubles_spinorb_fastweighted
     end type GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
 
 contains
-
-! @jph TODO implementation for doubles
 
     subroutine GAS_doubles_PCHB_UHF_init(this, GAS_spec, use_lookup, &
                             create_lookup, PCHB_particle_selection)
@@ -146,7 +128,6 @@ contains
     subroutine GAS_doubles_PCHB_uhf_gen_exc(&
                 this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                 ex, tParity, pGen, hel, store, part_type)
-                ! @jph
         !! given the initial determinant (both as nI and ilut), create a random
         !! doubles excitation using the Hamiltonian matrix elements as weights
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
@@ -248,8 +229,6 @@ contains
             end block
         end if
 
-        ! @jph review above
-
     contains
 
         subroutine invalidate()
@@ -297,7 +276,6 @@ contains
     end subroutine GAS_doubles_PCHB_uhf_gen_all_excits
 
     subroutine GAS_doubles_PCHB_uhf_compute_samplers(this, nBI, PCHB_particle_selection)
-        ! @jph gas excitations src/gasci_pchb_doubles_spinorb_fullyweighted.fpp
         !! computes and stores values for the alias (spin-independent) sampling table
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
@@ -308,7 +286,6 @@ contains
         integer(int64) :: memCost
             !! n_supergroup * num_fused_indices * bytes_per_sampler
         real(dp), allocatable :: w(:), IJ_weights(:, :, :)
-            ! @jph don't think I understand what exactly these weights are
         integer, allocatable :: supergroups(:, :)
         integer :: i_sg
         character(*), parameter :: this_routine = "GAS_doubles_PCHB_uhf_compute_samplers"
@@ -328,7 +305,6 @@ contains
         write(stdout, *) "Generating samplers for PCHB excitation generator"
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
 
-        ! @jph
         call this%AB_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'AB_PCHB_spinorb_sampler')
         allocate(w(abMax))
         allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
@@ -386,7 +362,6 @@ contains
             call stop_all(this_routine, 'not yet implemented')
         end if
 
-        ! @jph review above and compare with paper -- not sure I understand
     end subroutine GAS_doubles_PCHB_uhf_compute_samplers
 
 

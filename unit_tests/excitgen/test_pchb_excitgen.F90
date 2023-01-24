@@ -22,27 +22,26 @@ contains
 
     subroutine pchb_test_driver()
         call run_test_case(test_pgen_rhf_hermitian, "test_pgen_rhf_hermitian")
-        ! TODO(@jph): Good luck with that ;-)
-        ! call run_test_case(test_pgen_uhf_hermitian, "test_pgen_uhf_hermitian")
-        ! call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
-        ! call run_test_case(test_pgen_uhf_nonhermitian, "test_pgen_uhf_nonhermitian")
+        call run_test_case(test_pgen_uhf_hermitian, "test_pgen_uhf_hermitian")
+        call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
+        call run_test_case(test_pgen_uhf_nonhermitian, "test_pgen_uhf_nonhermitian")
     end subroutine pchb_test_driver
 
     subroutine test_pgen_rhf_hermitian()
         call pchb_test_general(.false., .true.)
     end subroutine test_pgen_rhf_hermitian
 
-    ! subroutine test_pgen_uhf_hermitian()
-    !     call pchb_test_general(.true., .true.)
-    ! end subroutine test_pgen_uhf_hermitian
-    !
-    ! subroutine test_pgen_rhf_nonhermitian()
-    !     call pchb_test_general(.false., .false.)
-    ! end subroutine test_pgen_rhf_nonhermitian
-    !
-    ! subroutine test_pgen_uhf_nonhermitian()
-    !     call pchb_test_general(.true., .false.)
-    ! end subroutine test_pgen_uhf_nonhermitian
+    subroutine test_pgen_uhf_hermitian()
+        call pchb_test_general(.true., .true.)
+    end subroutine test_pgen_uhf_hermitian
+
+    subroutine test_pgen_rhf_nonhermitian()
+        call pchb_test_general(.false., .false.)
+    end subroutine test_pgen_rhf_nonhermitian
+
+    subroutine test_pgen_uhf_nonhermitian()
+        call pchb_test_general(.true., .false.)
+    end subroutine test_pgen_uhf_nonhermitian
 
     subroutine pchb_test_general(uhf, hermitian)
         logical, intent(in) :: uhf, hermitian
@@ -50,6 +49,7 @@ contains
         type(PCHB_FCI_excit_generator_t) :: exc_generator
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10], n_spat_orb = 10
         logical :: successful
+        type(FCI_PCHB_options_t) :: options
 
         character(len=128) :: message
         write(message, *) "Failed for uhf=", uhf, ", hermitian=", hermitian
@@ -60,17 +60,28 @@ contains
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
-        call exc_generator%init(&
-            FCI_PCHB_options_t(&
-                FCI_PCHB_SinglesOptions_t(&
-                    FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
-                ), &
-                PCHB_DoublesOptions_t( &
-                    FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                    FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
-                ) &
-            ) &
-        )
+        if (uhf) then
+            options = FCI_PCHB_options_t(&
+                            FCI_PCHB_SinglesOptions_t(&
+                                FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
+                            ), &
+                            PCHB_DoublesOptions_t( &
+                                FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
+                                FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                            ) &
+                        )
+        else
+            options = FCI_PCHB_options_t(&
+                            FCI_PCHB_SinglesOptions_t(&
+                                FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
+                            ), &
+                            PCHB_DoublesOptions_t( &
+                                FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
+                                FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                            ) &
+                        )
+        end if
+        call exc_generator%init(options)
 
         call run_excit_gen_tester( &
             exc_generator, 'PCHB FCI', &

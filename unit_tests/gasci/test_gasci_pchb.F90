@@ -76,7 +76,7 @@ contains
         call SetSysDefaults()
         t_non_hermitian = .not. hermitian
         tUHF = UHF
-        tMolpro = UHF ! @jph is this needed?
+        tMolpro = UHF
 
         dumpwriter = random_fcidump_writer_t(UHF=UHF, hermitian=hermitian)
 
@@ -265,10 +265,8 @@ program test_gasci_program
 contains
 
     subroutine test_gasci_driver()
-        ! @jph uncomment these
         ! call run_test_case(test_pgen_RHF_hermitian, "test_pgen_RHF_hermitian")
         ! call run_test_case(test_pgen_RHF_nonhermitian, "test_pgen_RHF_nonhermitian")
-        ! TODO(@jph): Good luck with that ;-)
         call run_test_case(test_pgen_UHF_hermitian, "test_pgen_UHF_hermitian")
         ! call run_test_case(test_pgen_UHF_nonhermitian, "test_pgen_UHF_nonhermitian")
     end subroutine test_gasci_driver
