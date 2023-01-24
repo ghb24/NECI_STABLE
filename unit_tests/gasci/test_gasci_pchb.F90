@@ -1,4 +1,4 @@
-module test_gasci_pchb_rhf_fastweighted
+module test_gasci_pchb
     use fruit, only: assert_equals, assert_true, assert_false
     use fortran_strings, only: str
     use constants, only: dp, int64, n_int, maxExcit
@@ -227,7 +227,7 @@ contains
             UHF=this%UHF, hermitian=this%hermitian)
     end subroutine
 
-end module
+end module test_gasci_pchb
 
 
 program test_gasci_program
@@ -236,10 +236,10 @@ program test_gasci_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_pchb_rhf_fastweighted, only: test_pgen_RHF_hermitian, &
-                                                test_pgen_RHF_nonhermitian, &
-                                                test_pgen_UHF_hermitian, &
-                                                test_pgen_UHF_nonhermitian
+    use test_gasci_pchb, only: test_pgen_RHF_hermitian, &
+                               test_pgen_RHF_nonhermitian, &
+                               test_pgen_UHF_hermitian, &
+                               test_pgen_UHF_nonhermitian
 
 
     implicit none
