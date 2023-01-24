@@ -44,21 +44,30 @@ contains
     end subroutine test_pgen_uhf_nonhermitian
 
     subroutine pchb_test_general(uhf, hermitian)
+        use System, only: SetSysDefaults
+        use Calc, only: SetCalcDefaults
+        use SystemData, only: t_non_hermitian, tUHF, tMolpro
         logical, intent(in) :: uhf, hermitian
         integer, parameter :: n_iters = 5 * 10**7
         type(PCHB_FCI_excit_generator_t) :: exc_generator
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10], n_spat_orb = 10
         logical :: successful
         type(FCI_PCHB_options_t) :: options
-
         character(len=128) :: message
+
+        call SetCalcDefaults()
+        call SetSysDefaults()
+        t_non_hermitian = .not. hermitian
+        tUHF = UHF
+        tMolpro = UHF
+
         write(message, *) "Failed for uhf=", uhf, ", hermitian=", hermitian
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
         pDoubles = 1.0_dp - pSingles
 
-        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'), setdefaults=.false.)
 
         if (uhf) then
             options = FCI_PCHB_options_t(&

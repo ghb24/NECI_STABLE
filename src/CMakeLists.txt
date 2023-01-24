@@ -455,6 +455,7 @@ set( FYPP_SRC_FILES
     shared_ragged_array.fpp
     SD_spin_purification.fpp
     sdt_amplitudes.fpp
+    # gasci_pchb_test_helper.F90
 )
 
 set( TEMPLATED_SRC_FILES
