@@ -26,9 +26,9 @@ module test_gasci_pchb_rhf_fastweighted
     implicit none
     private
     public :: test_pgen_RHF_hermitian, &
-              test_pgen_RHF_nonhermitian
-            ! test_pgen_UHF_hermitian, &
-            !   test_pgen_UHF_nonhermitian
+              test_pgen_RHF_nonhermitian, &
+              test_pgen_UHF_hermitian, &
+              test_pgen_UHF_nonhermitian
 
     type :: random_fcidump_writer_t
         logical :: UHF
@@ -45,21 +45,23 @@ contains
         call test_pgen_general(.false., .true.)
     end subroutine test_pgen_RHF_hermitian
 
-    ! subroutine test_pgen_UHF_hermitian()
-    !     call test_pgen_general(.true., .true.)
-    ! end subroutine test_pgen_UHF_hermitian
+    subroutine test_pgen_UHF_hermitian()
+        call test_pgen_general(.true., .true.)
+    end subroutine test_pgen_UHF_hermitian
 
     subroutine test_pgen_RHF_nonhermitian()
         call test_pgen_general(.false., .false.)
     end subroutine test_pgen_RHF_nonhermitian
-    !
-    ! subroutine test_pgen_UHF_nonhermitian()
-    !     call test_pgen_general(.true., .false.)
-    ! end subroutine test_pgen_UHF_nonhermitian
+
+    subroutine test_pgen_UHF_nonhermitian()
+        call test_pgen_general(.true., .false.)
+    end subroutine test_pgen_UHF_nonhermitian
 
     subroutine test_pgen_general(UHF, hermitian)
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use SystemData, only: t_non_hermitian, tUHF
+        use SystemData, only: t_non_hermitian, tUHF, tMolpro
+        use System, only: SetSysDefaults
+        use Calc, only: SetCalcDefaults
         logical, intent(in) :: UHF, hermitian
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
@@ -70,9 +72,11 @@ contains
         logical :: successful
         integer :: n_interspace_exc, i
         integer, parameter :: n_iters=10**7
-
+        call SetCalcDefaults()
+        call SetSysDefaults()
         t_non_hermitian = .not. hermitian
         tUHF = UHF
+        tMolpro = UHF ! @jph is this needed?
 
         dumpwriter = random_fcidump_writer_t(UHF=UHF, hermitian=hermitian)
 
@@ -80,46 +84,89 @@ contains
         pSingles = 0.2_dp
         pDoubles = 1.0_dp - pSingles
 
-        settings = [&
-            GAS_PCHB_options_t(&
-                    GAS_PCHB_SinglesOptions_t(&
-                        GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
-                    ), &
-                    PCHB_DoublesOptions_t( &
-                        GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                        GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
-                    ), &
-                    use_lookup=.false. &
-            ), &
-            GAS_PCHB_options_t(&
-                    GAS_PCHB_SinglesOptions_t(&
-                        GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
-                        PC_WeightedSinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                            GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
-                        ) &
-                    ), &
-                    PCHB_DoublesOptions_t( &
-                        GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-                        GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
-                    ), &
-                    use_lookup=.false. &
-            ), &
-            GAS_PCHB_options_t(&
-                    GAS_PCHB_SinglesOptions_t(&
-                        GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
-                        PC_WeightedSinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                            GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULLY_WEIGHTED &
-                        ) &
-                    ), &
-                    PCHB_DoublesOptions_t( &
-                        GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
-                        GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
-                    ), &
-                    use_lookup=.false. &
-            ) &
-        ]
+        if (UHF) then ! UHF cannot use spatorbs
+            settings = [&
+                GAS_PCHB_options_t(&
+                        GAS_PCHB_SinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
+                        ), &
+                        PCHB_DoublesOptions_t( &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_WEIGHTED &
+                        ), &
+                        use_lookup=.false. &
+                ), &
+                GAS_PCHB_options_t(&
+                        GAS_PCHB_SinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                            PC_WeightedSinglesOptions_t(&
+                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                            ) &
+                        ), &
+                        PCHB_DoublesOptions_t( &
+                            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                        ), &
+                        use_lookup=.false. &
+                ), &
+                GAS_PCHB_options_t(&
+                        GAS_PCHB_SinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                            PC_WeightedSinglesOptions_t(&
+                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULLY_WEIGHTED &
+                            ) &
+                        ), &
+                        PCHB_DoublesOptions_t( &
+                            GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                        ), &
+                        use_lookup=.false. &
+                ) &
+            ]
+        else ! RHF FCIDUMP
+            settings = [&
+                GAS_PCHB_options_t(&
+                        GAS_PCHB_SinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
+                        ), &
+                        PCHB_DoublesOptions_t( &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                        ), &
+                        use_lookup=.false. &
+                ), &
+                GAS_PCHB_options_t(&
+                        GAS_PCHB_SinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                            PC_WeightedSinglesOptions_t(&
+                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                            ) &
+                        ), &
+                        PCHB_DoublesOptions_t( &
+                            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                        ), &
+                        use_lookup=.false. &
+                ), &
+                GAS_PCHB_options_t(&
+                        GAS_PCHB_SinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                            PC_WeightedSinglesOptions_t(&
+                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULLY_WEIGHTED &
+                            ) &
+                        ), &
+                        PCHB_DoublesOptions_t( &
+                            GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                        ), &
+                        use_lookup=.false. &
+                ) &
+            ]
+        end if
 
         over_settings: do i = 1, size(settings)
             over_interspace_excitations: do n_interspace_exc = 0, 1
@@ -128,7 +175,7 @@ contains
                 call assert_true(GAS_spec%is_valid())
                 call assert_true(GAS_spec%contains_conf(det_I))
 
-                call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+                call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'), setdefaults=.false.)
                 call exc_generator%init(&
                     GAS_spec, options=settings(i) &
                 )
@@ -190,7 +237,9 @@ program test_gasci_program
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_pchb_rhf_fastweighted, only: test_pgen_RHF_hermitian, &
-                                                test_pgen_RHF_nonhermitian
+                                                test_pgen_RHF_nonhermitian, &
+                                                test_pgen_UHF_hermitian, &
+                                                test_pgen_UHF_nonhermitian
 
 
     implicit none
@@ -216,6 +265,7 @@ program test_gasci_program
 contains
 
     subroutine test_gasci_driver()
+        ! @jph uncomment these
         call run_test_case(test_pgen_RHF_hermitian, "test_pgen_RHF_hermitian")
         call run_test_case(test_pgen_RHF_nonhermitian, "test_pgen_RHF_nonhermitian")
         ! TODO(@jph): Good luck with that ;-)

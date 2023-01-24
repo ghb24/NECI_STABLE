@@ -8,6 +8,7 @@ module gasci_pchb_doubles_main
     use gasci, only: GASSpec_t
     use gasci_pchb_doubles_spatorb_fastweighted, only: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
     use gasci_pchb_doubles_spinorb_fullyweighted, only: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
+    use gasci_pchb_doubles_spinorb_fastweighted, only: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
     use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t,  PCHB_particle_selection_vals, &
         PCHB_ParticleSelection_vals_t
     better_implicit_none
@@ -63,7 +64,8 @@ contains
         else if (options%hole_selection == possible_PCHB_hole_selection%SPATORB_FULLY_WEIGHTED) then
             call stop_all(this_routine, "PCHB RHF fully weighted hole selection not yet implemented.")
         else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED) then
-            call stop_all(this_routine, "PCHB UHF fast weighted hole selection not yet implemented.")
+            ! allocate(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t :: generator)
+            call stop_all(this_routine, "PCHB spin-orbital-resolved fast weighted generator not yet implemented.")
         else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
             allocate(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t :: generator)
         else
@@ -75,6 +77,9 @@ contains
             call generator%init(&
                 GAS_spec, use_lookup, use_lookup, options%particle_selection)
         type is(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t)
+            call generator%init(&
+                GAS_spec, use_lookup, use_lookup, options%particle_selection)
+        type is(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t)
             call generator%init(&
                 GAS_spec, use_lookup, use_lookup, options%particle_selection)
         class default
@@ -93,6 +98,8 @@ contains
             res = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
         case('FULLY-WEIGHTED')
             res = possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED
+        ! case('SPIN-ORB-RESOLVED-FAST-WEIGHTED')
+        !     res = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
         case default
             call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
         end select

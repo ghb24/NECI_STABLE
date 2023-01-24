@@ -9,6 +9,9 @@ source /usr/share/Modules/3.2.10/init/sh
 export MODULEPATH="${MODULEPATH}:/usr/local/fkf/modules"
 module purge
 
+# for ninja:
+export PATH=/scratch/jenkins/.local/bin/:$PATH
+
 echo "Loading modules for: $@"
 
 if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then

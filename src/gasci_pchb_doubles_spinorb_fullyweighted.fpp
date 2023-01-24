@@ -3,7 +3,7 @@
 #:include "algorithms.fpph"
 
 module gasci_pchb_doubles_spinorb_fullyweighted
-    !! precomputed heat bath implementation for GASCI using spin orbitals and fully weighting
+    !! precomputed heat bath implementation for GASCI using spin orbitals and full weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
         operator(.implies.), operator(.isclose.), isclose, swap, stop_all
@@ -150,8 +150,8 @@ contains
     subroutine GAS_doubles_PCHB_gen_exc(&
                     this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                     ex, tParity, pGen, hel, store, part_type)
-        !>  Given the initial determinant (both as nI and ilut), create a random double
-        !>  excitation using the hamiltonian matrix elements as weights
+        !! Given the initial determinant (both as nI and ilut), create a random
+        !! double excitation using the hamiltonian matrix elements as weights
         class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)

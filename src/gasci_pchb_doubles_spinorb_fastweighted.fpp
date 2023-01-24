@@ -3,9 +3,7 @@
 #:include "algorithms.fpph"
 
 module gasci_pchb_doubles_spinorb_fastweighted
-    !! same as gasci_pchb but with spin-orbitals
-    !! useful for UHF-format FCIDUMP files
-    !! only implements generators that work on spin-orbitals
+    !! spin-orbital-resolved GASCI-PCHB using the "fast weighted" scheme
 
     ! @jph reformulate as notes instead of self-ramblings when completed and I
     !    know what's going on
@@ -23,13 +21,12 @@ module gasci_pchb_doubles_spinorb_fastweighted
     ! unit_tests/pcpp_excitgen/test_aliasTables.F90 (don't need to change)
     !==========================================================================!
     use constants, only: dp, n_int, maxExcit, stdout, int64
-    use util_mod, only: operator(.isclose.), fuseIndex, stop_all, operator(.implies.)
-    use util_mod_epsilon_close, only: near_zero
+    use util_mod, only: operator(.isclose.), near_zero, fuseIndex, stop_all, operator(.implies.)
     use get_excit, only: make_double, exciteIlut
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
     use UMatCache, only: GTID, numBasisIndices
-    use SystemData, only: nEl
+    use SystemData, only: nEl, nBasis
     use SymExcitDataMod, only: ScratchSize
     use sltcnd_mod, only: sltcnd_excit
     use bit_rep_data, only: nIfTot
@@ -49,18 +46,24 @@ module gasci_pchb_doubles_spinorb_fastweighted
     public :: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
 
     type, extends(DoubleExcitationGenerator_t) :: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
+        !! GAS PCHB excitation generator for doubles using spin orbitals, with
+        !! "fast weighting"
+        !! This means we choose holes via \(p(AB|IJ)\)
         private
         logical, public :: use_lookup = .false.
             !! use a lookup for the supergroup index
         logical, public :: create_lookup = .false.
             !! create and manage the supergroup index
-        type(AliasSampler_2D_t) :: pchb_samplers
-            !! the shape is (fused_number_of_two_particles, n_supergroup)
+
+        class(ParticleSelector_t), allocatable :: particle_selector
+            !! particle selector for getting I, J
+        type(AliasSampler_2D_t) :: AB_sampler
+            !! sampler for holes, dubbed \(AB\) (fused index)
+            !! It yields \( p(AB | IJ, i_{\text{sg}}) \)
+            !! where IJ is a fused index I < J and `i_sg` is the supergroup.
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
-        class(ParticleSelector_t), allocatable :: particle_selector
         class(GASSpec_t), allocatable :: GAS_spec
-        ! real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
     contains
         private
@@ -134,7 +137,7 @@ contains
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
 
         if (allocated(this%particle_selector)) then
-            call this%pchb_samplers%finalize()
+            call this%AB_sampler%finalize() ! @jph
             call this%particle_selector%finalize()
             ! Yes, we assume, that either all or none are allocated
             deallocate(this%particle_selector, this%tgtOrbs, this%indexer)
@@ -145,6 +148,7 @@ contains
     subroutine GAS_doubles_PCHB_uhf_gen_exc(&
                 this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                 ex, tParity, pGen, hel, store, part_type)
+                ! @jph
         !! given the initial determinant (both as nI and ilut), create a random
         !! doubles excitation using the Hamiltonian matrix elements as weights
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
@@ -208,8 +212,8 @@ contains
         ij = fuseIndex(gtId(src(1)), gtId(src(2)))
 
         ! get a pair of orbitals using the precomputed weights
-        call this%pchb_samplers%sample(ij, i_sg, ab, pGenHoles)
-        @:ASSERT(ab /= 0 .implies. (pGenHoles .isclose. this%pchb_samplers%get_prob(ij, i_sg, ab)))
+        call this%AB_sampler%sample(ij, i_sg, ab, pGenHoles) ! @jph almost certainly wrong here
+        @:ASSERT(ab /= 0 .implies. (pGenHoles .isclose. this%AB_sampler%get_prob(ij, i_sg, ab)))
 
         if (ab == 0) then
             invalid = .true.
@@ -218,7 +222,7 @@ contains
             ! split ab -> a,b
             tgt = this%tgtOrbs(:,ab)
             @:ASSERT(all(tgt /= 0) .implies. tgt(1) /= tgt(2))
-            invalid = any(tgt == 0) .or any(tgt == nI)
+            invalid = any(tgt == 0) .or. any(tgt == nI)
         end if
 
         ! as in the spatially-resolved case, there is a very rare case where (due
@@ -226,7 +230,7 @@ contains
         if (.not. invalid .and. near_zero(pGenHoles)) then
             invalid = .true.
             ! Yes, print. Those events are signficant enough to be always noted in the output
-            write(stdout, *), "WARNING: Generated excitation with probability of 0"
+            write(stdout, *) "WARNING: Generated excitation with probability of 0"
         end if
 
         if (invalid) then
@@ -268,19 +272,51 @@ contains
         integer, intent(in) :: ex(2, maxExcit), ic
             !! excitation matrix
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        integer :: i_sg, IJ
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_uhf_get_pgen'
+
+        ! real(dp) :: p_first(2), p_second(2), pgen_particle
+        ! integer :: IJ, i_sg
+        ! integer :: unoccupied(nBasis - nEl)
 
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         ! double excitation, so ic==2
         @:ASSERT(ic == 2)
 
+        IJ = fuseIndex(ex(1, 1), ex(1, 2))
         i_sg = this%indexer%idx_nI(nI)
 
         pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
 
-        ! not entirely sure what to do here
-
         ! @jph stub
+        ! ! block
+        ! !     integer(n_int) :: ilut_unoccupied(0 : nIfD)
+        ! !     call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+        ! ! end block
+
+        ! associate(A => ex(2, 1), B => ex(2, 2)) ! hole indices
+        !     p_first(1) = this%A_sampler%getProb(IJ, i_sg, unoccupied, renorm_first, A)
+        !     p_first(2) = this%A_sampler%getProb(IJ, i_sg, unoccupied, renorm_first, B)
+
+        !     renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(A, IJ, i_sg, nI))
+        !     if (do_direct_calculation(renorm_second(1))) then
+        !         renorm_second(1) = sum(this%B_sampler%get_prob(A, IJ, i_sg, unoccupied))
+        !     end if
+        !     p_second(1) = this%B_sampler%getProb(&
+        !         A, IJ, i_sg, unoccupied, renorm_second(1), B)
+
+        !     renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(B, IJ, i_sg, nI))
+        !     if (do_direct_calculation(renorm_second(2))) then
+        !         renorm_second(2) = sum(this%B_sampler%get_prob(B, IJ, i_sg, unoccupied))
+        !     end if
+        !     p_second(2) = this%B_sampler%getProb(&
+        !         B, IJ, i_sg, unoccupied, renorm_second(2), A)
+        !     p_second(2) = this%B_sampler%
+        ! end associate
+
+        ! pgen = pgen_particle * sum(p_first * p_second)
+
+        ! @jph review above (first stab)
 
     end function GAS_doubles_PCHB_uhf_get_pgen
 
@@ -325,7 +361,8 @@ contains
         write(stdout, *) "Generating samplers for PCHB excitation generator"
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
 
-        call this%pchb_samplers%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'PCHB_UHF')
+        ! @jph
+        call this%AB_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'PCHB_UHF')
         allocate(w(abMax))
         allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
 
@@ -348,7 +385,8 @@ contains
                         end do ! b
                     end do ! a
                     ij = fuseIndex(i, j)
-                    call this%pchb_samplers%setup_entry(ij, i_sg, w)
+                    ! @jph
+                    call this%AB_sampler%setup_entry(ij, i_sg, w)
 
                     associate(I => ex(1, 1), J => ex(1, 2))
                         IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
