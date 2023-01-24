@@ -8,7 +8,8 @@ System read
     FCIDUMP-name Li2.FciDmp
     nonuniformrandexcits GAS-CI PCHB \
         singles on-the-fly-heat-bath \
-        doubles particle-selection fully-weighted
+        doubles particle-selection fully-weighted \
+        doubles hole-selection  fast-weighted
     GAS-SPEC LOCAL 2
         5 2 4
         5 2 4
