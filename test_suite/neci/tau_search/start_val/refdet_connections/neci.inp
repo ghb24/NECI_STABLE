@@ -9,7 +9,7 @@ System read
     nonuniformrandexcits pchb \
         singles uniform \
         doubles particle-selection fully-weighted \
-        doubles hole-selection spatial-orb-resolved-fast-weighted
+        doubles hole-selection fast-weighted
 endsys
 
 calc

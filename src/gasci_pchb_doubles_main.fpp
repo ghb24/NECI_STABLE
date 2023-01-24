@@ -94,9 +94,9 @@ contains
         routine_name("gasci_pchb_doubles_main::select_holes_from_keyword")
 
         select case(to_upper(w))
-        case('SPATIAL-ORB-RESOLVED-FAST-WEIGHTED')
+        case('FAST-WEIGHTED')
             res = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
-        case('SPIN-ORB-RESOLVED-FULLY-WEIGHTED')
+        case('FULLY-WEIGHTED')
             res = possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED
         case('SPIN-ORB-RESOLVED-FAST-WEIGHTED')
             res = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED

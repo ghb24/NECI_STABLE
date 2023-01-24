@@ -10,7 +10,7 @@ System read
     nonuniformrandexcits GAS-CI PCHB \
         singles uniform \
         doubles particle-selection fully-weighted \
-        doubles hole-selection spatial-orb-resolved-fast-weighted
+        doubles hole-selection fast-weighted
     GAS-SPEC LOCAL 4
         3 3 3
         3 3 3

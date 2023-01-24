@@ -77,12 +77,12 @@ module gasci_pchb_main
             GAS_PCHB_options_vals%singles%algorithm%PC_weighted, &
             PC_WeightedSinglesOptions_t(&
                 GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FAST_WEIGHTED &
+                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
             ) &
         ), &
         PCHB_DoublesOptions_t( &
-            GAS_PCHB_options_vals%doubles%particle_selection%FAST_WEIGHTED, &
-            GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
+            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
         ), &
         use_lookup=.true. &
     )
