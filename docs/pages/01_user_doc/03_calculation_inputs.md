@@ -373,35 +373,38 @@ considered. The block starts with the `system` keyword and ends with the
             similar to the FCI precomputed heat bath excitation generator
             but automatically exclude GAS forbidden excitations.
             The keyword has two optional sub-keywords,
-            `SINGLES` and `PARTICLE-SELECTION`.
+            `SINGLES`, `DOUBLES` which allow to tailor the algorithm
+            for your system.
+            (The default choice is usually sufficiently fast.)
             With **SINGLES** one can select the single excitation algorithm:
+
+            -   **PC-WEIGHTED**<br>
+                Use precomputed weighted singles, which
+                is the default and recommended sampling scheme.
+                Read at Full CI PCHB for a deeper description.
+                It allows the same sampling schemes
+                `fully-weighted`, `weighted`, and `fast-weighted`.
 
             -   **PC-UNIFORM**<br>
                 This is the default. It chooses GAS allowed single
                 excitations uniformly.
 
-            -   **DISCARDING-UNIFORM**<br>
-                It chooses single excitations uniformly as in FCI and discards.
-
             -   **ON-THE-FLY-HEAT-BATH**<br>
                 It chooses GAS allowed electrons weighted by their matrix
                 element.
 
-            With **PARTICLE-SELECTION** one can select the particle selection
-            algorithm for double excitations. Read at the section of Full CI
-            PCHB about the details.
-
-            -   **PC-WEIGHTED**<br>
-
-            -   **PC-WEIGHTED-APPROX**<br>
-
-            -   **UNIFORM**<br>
+            With **doubles** one can select the particle- and hole-selection
+            algorithm for double excitations.
+            It is followed by `particle-selection` or `hole-selection`.
+            Read at Full CI PCHB for a deeper description.
+            It allows the same sampling schemes.
 
             An example input is:
 
                 nonuniformrandexcits GAS-CI PCHB \
-                        singles on-the-fly-heat-bath \
-                        particle-selection pc-weighted
+                        singles pc-weighted weighted \
+                        doubles particle-selection weighted \
+                        doubles hole-selection fully-weighted
 
         -   **DISCARDING**<br>
             Use a Full CI excitation generator and just discard excitations
