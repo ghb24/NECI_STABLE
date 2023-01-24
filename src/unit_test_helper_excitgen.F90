@@ -259,6 +259,8 @@ contains
         type(FciDumpWriter_t), intent(in) :: fcidump_writer
         logical, optional, intent(in) :: setdefaults
             !! whether or not to set the default flags in this function
+            !! IMO this should be done using test fixtures and not in this function,
+            !! but much of the existing tests rely on it being here
         logical :: setdefaults_
         integer :: nBasisMax(5, 3), lms
         integer(int64) :: umatsize

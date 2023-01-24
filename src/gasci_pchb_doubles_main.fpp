@@ -64,8 +64,8 @@ contains
         else if (options%hole_selection == possible_PCHB_hole_selection%SPATORB_FULLY_WEIGHTED) then
             call stop_all(this_routine, "PCHB RHF fully weighted hole selection not yet implemented.")
         else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED) then
-            ! allocate(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t :: generator)
-            call stop_all(this_routine, "PCHB spin-orbital-resolved fast weighted generator not yet implemented.")
+            allocate(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t :: generator)
+            ! call stop_all(this_routine, "PCHB spin-orbital-resolved fast weighted generator not yet implemented.")
         else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
             allocate(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t :: generator)
         else
@@ -98,8 +98,8 @@ contains
             res = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
         case('SPIN-ORB-RESOLVED-FULLY-WEIGHTED')
             res = possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED
-        ! case('SPIN-ORB-RESOLVED-FAST-WEIGHTED')
-        !     res = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+        case('SPIN-ORB-RESOLVED-FAST-WEIGHTED')
+            res = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
         case default
             call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
         end select

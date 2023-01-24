@@ -74,6 +74,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
         procedure, public :: gen_all_excits => GAS_doubles_PCHB_uhf_gen_all_excits
 
         procedure :: compute_samplers => GAS_doubles_PCHB_uhf_compute_samplers
+        ! @jph do we need a get_unoccupied?
     end type GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
 
 contains
@@ -82,7 +83,7 @@ contains
 
     subroutine GAS_doubles_PCHB_UHF_init(this, GAS_spec, use_lookup, &
                             create_lookup, PCHB_particle_selection)
-        !! initalises the UHF PCHB doubles excitation generator
+        !! initalises the spinorb-resolved PCHB doubles excitation generator
         !!
         !! more specifically, sets up a lookup table for ab -> (a,b) and
         !! sets up the alias table for picking ab given ij with prob ~ Hijab
@@ -128,8 +129,6 @@ contains
 
         write(stdout, *) "Finished excitation generator initialization"
 
-        ! @jph review above
-
     end subroutine GAS_doubles_PCHB_UHF_init
 
     subroutine GAS_doubles_PCHB_UHF_finalize(this)
@@ -137,10 +136,10 @@ contains
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
 
         if (allocated(this%particle_selector)) then
-            call this%AB_sampler%finalize() ! @jph
+            call this%AB_sampler%finalize()
             call this%particle_selector%finalize()
             ! Yes, we assume, that either all or none are allocated
-            deallocate(this%particle_selector, this%tgtOrbs, this%indexer)
+            deallocate(this%particle_selector, this%tgtOrbs, this%indexer, this%GAS_spec)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine GAS_doubles_PCHB_UHF_finalize
@@ -212,7 +211,7 @@ contains
         ij = fuseIndex(gtId(src(1)), gtId(src(2)))
 
         ! get a pair of orbitals using the precomputed weights
-        call this%AB_sampler%sample(ij, i_sg, ab, pGenHoles) ! @jph almost certainly wrong here
+        call this%AB_sampler%sample(ij, i_sg, ab, pGenHoles)
         @:ASSERT(ab /= 0 .implies. (pGenHoles .isclose. this%AB_sampler%get_prob(ij, i_sg, ab)))
 
         if (ab == 0) then
@@ -220,13 +219,13 @@ contains
             tgt = 0
         else
             ! split ab -> a,b
-            tgt = this%tgtOrbs(:,ab)
+            tgt = this%tgtOrbs(:, ab)
             @:ASSERT(all(tgt /= 0) .implies. tgt(1) /= tgt(2))
             invalid = any(tgt == 0) .or. any(tgt == nI)
         end if
 
         ! as in the spatially-resolved case, there is a very rare case where (due
-        ! to floating point erro) an excitation with pgen=0 is created. Invalidate.
+        ! to floating point error) an excitation with pgen=0 is created. Invalidate.
         if (.not. invalid .and. near_zero(pGenHoles)) then
             invalid = .true.
             ! Yes, print. Those events are signficant enough to be always noted in the output
@@ -286,7 +285,9 @@ contains
         IJ = fuseIndex(ex(1, 1), ex(1, 2))
         i_sg = this%indexer%idx_nI(nI)
 
-        pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
+
+
+        ! pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
 
         ! @jph stub
         ! ! block
