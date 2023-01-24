@@ -24,7 +24,7 @@ contains
         call run_test_case(test_pgen_rhf_hermitian, "test_pgen_rhf_hermitian")
         ! TODO(@jph): Good luck with that ;-)
         ! call run_test_case(test_pgen_uhf_hermitian, "test_pgen_uhf_hermitian")
-        ! call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
+        call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
         ! call run_test_case(test_pgen_uhf_nonhermitian, "test_pgen_uhf_nonhermitian")
     end subroutine pchb_test_driver
 
@@ -36,9 +36,9 @@ contains
     !     call pchb_test_general(.true., .true.)
     ! end subroutine test_pgen_uhf_hermitian
     !
-    ! subroutine test_pgen_rhf_nonhermitian()
-    !     call pchb_test_general(.false., .false.)
-    ! end subroutine test_pgen_rhf_nonhermitian
+    subroutine test_pgen_rhf_nonhermitian()
+        call pchb_test_general(.false., .false.)
+    end subroutine test_pgen_rhf_nonhermitian
     !
     ! subroutine test_pgen_uhf_nonhermitian()
     !     call pchb_test_general(.true., .false.)
