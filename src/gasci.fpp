@@ -286,10 +286,6 @@ contains
 
 
     !>  Query wether a determinant or CSF is contained in the GAS space.
-    !>
-    !>  It is **assumed** that the configuration is contained in the
-    !>  Full CI space and obeys e.g. the Pauli principle.
-    !>  The return value is not defined, if that is not the case!
     pure function contains_conf(this, nI) result(res)
         !> Specification of GAS spaces.
         class(GASSpec_t), intent(in) :: this
