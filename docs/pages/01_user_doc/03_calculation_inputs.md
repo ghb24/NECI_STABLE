@@ -217,7 +217,11 @@ considered. The block starts with the `system` keyword and ends with the
                 \begin{equation}
                     p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)
                 \end{equation}
-                it is guaranteed that \(I\) is occupied.
+                it is guaranteed that \(I\) is occupied. If also using option `uhf`, this will default
+                to using spin-orbitals (else spatial orbitals).
+
+            - `spin-orb-resolved-fast-weighted`:
+                As above, but force the use of spin-orbitals.
 
 
         -   **UNIFORM**<br>
