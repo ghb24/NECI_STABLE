@@ -4,7 +4,7 @@
 !               Failing that, we use stdin
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
-    use SystemData, only: tUHF, tGAS
+    use SystemData, only: tUHF, tGAS, t_pchb_excitgen
     use pchb_excitgen, only: FCI_PCHB_options
     use gasci_pchb_main, only: GAS_PCHB_options
     use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection

@@ -3,7 +3,7 @@
 
 module gasci_pchb_doubles_main
     use constants, only: stdout
-    ! use SystemData, only: tUHF
+    use SystemData, only: tUHF
     use util_mod, only: EnumBase_t, stop_all
     use excitation_generators, only: DoubleExcitationGenerator_t
     use fortran_strings, only: to_upper
@@ -63,7 +63,7 @@ contains
         routine_name("gasci_pchb_doubles_main::allocate_and_init")
 
         if (options%hole_selection == possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED) then
-            if(tUHF) call stop_all(this_routine, "spatial-orbital-resolved PCHB generator not compatible with UHF FCIDUMP.")
+            if (tUHF) call stop_all(this_routine, "spatial-orbital-resolved PCHB generator not compatible with UHF FCIDUMP.")
             write(stdout, *) "PCHB with spatial-orbital-resolved 'fast-weighting' selected."
             allocate(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t :: generator)
         else if (options%hole_selection == possible_PCHB_hole_selection%SPATORB_FULLY_WEIGHTED) then
