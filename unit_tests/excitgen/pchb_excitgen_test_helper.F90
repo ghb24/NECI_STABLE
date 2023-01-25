@@ -106,7 +106,7 @@ contains
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
             is_problematic = &
-                (abs(1._dp - pgen_diagnostic) >= 0.1_dp) &
+                (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function is_problematic
 
