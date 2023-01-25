@@ -69,7 +69,7 @@ contains
                             ), &
                             PCHB_DoublesOptions_t( &
                                 FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                                FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                                FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_WEIGHTED &
                             ) &
                         )
         else
