@@ -67,7 +67,6 @@ contains
             call stop_all(this_routine, "PCHB RHF fully weighted hole selection not yet implemented.")
         else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED) then
             allocate(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t :: generator)
-            ! call stop_all(this_routine, "PCHB spin-orbital-resolved fast weighted generator not yet implemented.")
         else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
             allocate(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t :: generator)
         else
@@ -89,19 +88,24 @@ contains
         end select
     end subroutine
 
-    pure function select_holes_from_keyword(w) result(res)
+    pure function select_holes_from_keyword(w, uhf) result(res)
         !! Parse a given keyword into the possible weighting schemes
         character(*), intent(in) :: w
+        logical, intent(in) :: uhf
         type(PCHB_HoleSelection_t) :: res
         routine_name("gasci_pchb_doubles_main::select_holes_from_keyword")
 
         select case(to_upper(w))
         case('FAST-WEIGHTED')
-            res = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+            if (uhf) then
+                res = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+            else
+                res = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+            end if
         case('FULLY-WEIGHTED')
             res = possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED
-        case('SPIN-ORB-RESOLVED-FAST-WEIGHTED')
-            res = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+        ! case('SPIN-ORB-RESOLVED-FAST-WEIGHTED')
+        !     res = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
         case default
             call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
         end select
