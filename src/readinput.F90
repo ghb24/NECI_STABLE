@@ -4,6 +4,10 @@
 !               Failing that, we use stdin
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
+    use SystemData, only: tUHF, tGAS
+    use pchb_excitgen, only: FCI_PCHB_options
+    use gasci_pchb_main, only: GAS_PCHB_options
+    use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection
     use util_mod, only: operator(.implies.), stop_all
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s, t_k_space_hubbard, t_trans_corr_2body
@@ -207,6 +211,28 @@ contains
             lms = sum(merge(1, -1, mod(DefDet, 2) == 0))
         else
             lms = 0
+        end if
+
+        if (t_pchb_excitgen) then
+            if (tGAS) then
+                if (GAS_PCHB_options%doubles%hole_selection &
+                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+                    if (tUHF) then
+                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+                    else
+                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+                    end if
+                end if ! indeterminate fast-weighted
+            else
+                if (FCI_PCHB_options%doubles%hole_selection &
+                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+                    if (tUHF) then
+                        FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+                    else
+                        FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+                    end if
+                end if ! indeterminate fast-weighted
+            end if ! tGAS
         end if
     end subroutine
 
