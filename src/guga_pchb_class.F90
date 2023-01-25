@@ -20,6 +20,7 @@ module guga_pchb_class
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
                                sym_label_list_spat, SpinOrbSymLabel
     use UMatCache, only: gtID
+    use MPI_wrapper, only: root
     use guga_excitations, only: assign_excitinfo_values_single, &
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
@@ -217,7 +218,7 @@ contains
                         call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
                     end do
                 end do
-                call this%alias_sampler%setup_entry(ij,w)
+                call this%alias_sampler%setup_entry(ij, root, w)
                 call this%set_info_entry(ij, excit_info)
 
             end do

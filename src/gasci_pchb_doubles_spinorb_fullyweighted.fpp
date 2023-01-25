@@ -22,6 +22,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use SystemData, only: nEl, nBasis
     use sets_mod, only: set, operator(.cap.)
     use bit_rep_data, only: NIfTot
+    use MPI_wrapper, only: root
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -378,10 +379,10 @@ contains
                                 w_B(B) = 0._dp
                             end if
                         end do second_hole
-                        call this%B_sampler%setup_entry(A, IJ, i_sg, w_B(1 : nBasis))
+                        call this%B_sampler%setup_entry(A, IJ, i_sg, root, w_B(1 : nBasis))
                         w_A(A) = sum(w_B)
                     end do first_hole
-                    call this%A_sampler%setup_entry(IJ, i_sg, w_A(1 : nBasis))
+                    call this%A_sampler%setup_entry(IJ, i_sg, root, w_A(1 : nBasis))
 
                     IJ_weights(I, J, i_sg) = sum(w_A)
                     IJ_weights(J, I, i_sg) = sum(w_A)

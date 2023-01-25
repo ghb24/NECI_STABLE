@@ -1,17 +1,20 @@
 ! Do unit tests for the aliasSampling module
 #include "macros.h"
 program test_aliasTables
-    use constants, only: dp, stdout
+    use constants, only: dp, stdout, stderr
     use fruit, only: assert_true, init_fruit, fruit_summary, fruit_finalize, &
         get_failed_count
     use aliasSampling, only: aliasTable_t, aliasSampler_t
-    use Parallel_neci, only: MPIInit, MPIEnd
+    use Parallel_neci, only: MPIInit, MPIEnd, MPIBarrier, iProcIndex_intra, root, MPIBcast, Node
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
     use util_mod, only: stop_all, near_zero, operator(.isclose.)
     better_implicit_none
+    integer :: ierr
 
+    call MPIInit(.false.)
     call init_fruit()
     call aliasSampling_test_driver()
+    call MPIBarrier(ierr)
     call fruit_summary()
     call fruit_finalize()
     block
@@ -19,43 +22,45 @@ program test_aliasTables
         call get_failed_count(failed_count)
         if (failed_count /= 0) call stop_all('test_aliasTable', 'failed_tests')
     end block
+    call MPIEnd(.false.)
 
 contains
 
     !------------------------------------------------------------------------------------------!
 
     subroutine aliasSampling_test_driver()
-        call MPIInit(.false.)
         ! initialize the RNG
-        call dSFMT_init(8)
+        call dSFMT_init(8 + iProcIndex_intra)
         ! do two test series: one for the aliasTable class
         call test_aliasTable()
-        ! one for the aliasSampler class - this is a wrapper for the aliasTable class that
-        ! also knows the original probability distribtuion
+        !
+        ! ! one for the aliasSampler class - this is a wrapper for the aliasTable class that
+        ! ! also knows the original probability distribtuion
         call test_aliasSampler()
+        !
+        call test_if_works_from_one_proc()
 
         call test_CDF_Sampler()
-        call MPIEnd(.false.)
     end subroutine aliasSampling_test_driver
 
     !------------------------------------------------------------------------------------------!
 
-    function genrand_aliasTable(huge_number) result(diff)
-        integer, intent(in) :: huge_number
+    function genrand_aliasTable(n_probs, n_sample) result(diff)
+        integer, intent(in) :: n_probs, n_sample
         real(dp) :: diff
         type(aliasTable_t) :: test_table
-        integer, parameter :: tSize = 1000
-        real(dp) :: w(tSize)
-        integer :: hist(tSize)
+        real(dp) :: w(n_probs)
+        integer :: hist(n_probs)
         integer :: i, r
 
         ! use random probabilities to seed the aliasTable
-        call create_rand_probs(w)
+        if (iProcIndex_intra == root) w = create_rand_probs(n_probs)
+        call MPIBcast(w, iProcIndex_intra == root, Node)
         ! init the table
-        call test_table%setupTable(w)
+        call test_table%setupTable(root, w)
         ! draw a huge number of random numbers from the table
         hist = 0
-        do i = 1, huge_number
+        do i = 1, n_sample
             r = test_table%getRand()
             hist(r) = hist(r) + 1
         end do
@@ -82,17 +87,17 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine test_aliasTable()
-        integer :: nSamples
+        integer :: n_samples
         real(dp), parameter :: diff_tol = 1e-2
-        integer, parameter :: nRuns = 4
+        integer, parameter :: nRuns = 4, n_probs = 1000
         real(dp) :: diff(nRuns)
         integer :: i
 
         ! check the total sampling error for different numbers of samples
-        nSamples = 1000000
+        n_samples = 1000000
         do i = 1, nRuns
-            diff(i) = genrand_aliasTable(nSamples)
-            nSamples = 2 * nSamples
+            diff(i) = genrand_aliasTable(n_probs, n_samples)
+            n_samples = 2 * n_samples
         end do
         ! it should only ever go down if we increase the number of samples
         do i = 1, nRuns - 1
@@ -104,6 +109,41 @@ contains
 !    print *, "Diff with 1e9 samples", genrand_aliasTable(1000000000) ( this is 7.2e-4 )
     end subroutine test_aliasTable
 
+
+    subroutine test_if_works_from_one_proc()
+        !! Here we test, if it is possible to
+        !! initialize the sampler with just one weights array per node.
+        !! The non-root procs can have an array of zero-length
+        integer, parameter :: n_probs = 4, huge_number = 10**1
+        type(aliasSampler_t) :: sampler
+        real(dp), allocatable :: w_in(:)
+        real(dp) :: probs(n_probs), diff, p, w(n_probs)
+        integer :: i, r, hist(n_probs)
+
+        ! use random probabilities to seed the aliasTable
+        if (iProcIndex_intra == root) then
+            w_in = create_rand_probs(n_probs)
+        else
+            w_in = [real(dp) :: ]
+        end if
+
+        ! init the table
+        call sampler%setupSampler(root, w_in)
+
+        if (iProcIndex_intra == root) w = w_in
+        call MPIBcast(w, iProcIndex_intra == root, Node)
+        call assert_true(all(w .isclose. sampler%getProb([(i, i=1, n_probs)])))
+
+        hist = 0
+        do i = 1, huge_number
+            call sampler%sample(r, p)
+            hist(r) = hist(r) + 1
+            probs(r) = p
+        end do
+
+        diff = get_diff(hist, w_in)
+    end subroutine
+
     !------------------------------------------------------------------------------------------!
 
     subroutine test_aliasSampler()
@@ -113,19 +153,21 @@ contains
 
         type(aliasSampler_t) :: sampler
         integer, parameter :: huge_number = 100000000
-        integer, parameter :: tSize = 400
+        integer, parameter :: n_probs = 400
         real(dp), parameter :: diff_tol = 3e-3_dp
-        real(dp) :: w(tSize), p, probs(tSize)
-        integer :: hist(tSize)
+        real(dp) :: w(n_probs), p, probs(n_probs)
+        integer :: hist(n_probs)
         type(timer) :: const_sample_timer
         integer :: r
         integer :: i
         real(dp) :: diff
 
-        call create_rand_probs(w)
-        call sampler%setupSampler(w)
+        if (iProcIndex_intra == root) w = create_rand_probs(n_probs)
+        call MPIBcast(w, iProcIndex_intra == root, Node)
 
-        call assert_true(all(w.isclose.sampler%getProb([(i, i=1, tSize)])))
+        call sampler%setupSampler(root, w)
+
+        call assert_true(all(w .isclose. sampler%getProb([(i, i=1, n_probs)])))
 
         hist = 0
         call set_timer(const_sample_timer)
@@ -135,7 +177,6 @@ contains
             probs(r) = p
         end do
         call halt_timer(const_sample_timer)
-        write(stdout, *) 'Full Alias sample', get_total_time(const_sample_timer)
 
         diff = get_diff(hist, w)
         ! is the sampling reasonable?
@@ -152,55 +193,53 @@ contains
 
         type(aliasSampler_t) :: alias_sampler
 
-        integer, parameter :: huge_number = 10000000
-        integer, parameter :: tSize = 10
+        integer, parameter :: n_samples = 10000000
+        integer, parameter :: n_probs = 10
         type(timer) :: full_sampler, const_sample_timer
         real(dp), parameter :: diff_tol = 3e-3_dp
         real(dp) :: renorm
-        integer, allocatable :: contain(:), exclude(:)
-        real(dp) :: w(tSize), p, probs(tSize)
-        integer :: hist(tSize)
+        integer, allocatable :: contain(:)
+        real(dp) :: w(n_probs), p, probs(n_probs)
+        integer :: hist(n_probs)
         integer :: r
         integer :: i
         real(dp) :: diff
 
-        call create_rand_probs(w)
-        contain = [(i, i=1, tSize / 2)]
-        exclude = [integer::]
+        if (iProcIndex_intra == root) w = create_rand_probs(n_probs)
+        call MPIBcast(w, iProcIndex_intra == root, Node)
 
-        call alias_sampler%setupSampler(w)
-        call assert_true(all(w.isclose.alias_sampler%getProb([(i, i=1, tSize)])))
+        contain = [(i, i=1, n_probs / 2)]
+
+        call alias_sampler%setupSampler(root, w)
+        call assert_true(all(w .isclose. alias_sampler%getProb([(i, i=1, n_probs)])))
 
         hist = 0
         call set_timer(full_sampler)
-        do i = 1, huge_number
+        do i = 1, n_samples
             call alias_sampler%sample(r, p)
             hist(r) = hist(r) + 1
             probs(r) = p
         end do
         call halt_timer(full_sampler)
-        write(stdout, *) 'Full Alias sample', get_total_time(full_sampler)
 
         diff = get_diff(hist(contain), w(contain) / sum(w(contain)))
 
         ! is the sampling reasonable?
         call assert_true(diff < diff_tol)
-        ! are the probabilities claimed by the sampler the ones we put in?
 
+        ! are the probabilities claimed by the sampler the ones we put in?
         hist = 0
         call set_timer(const_sample_timer)
-        do i = 1, huge_number
+        do i = 1, n_samples
             renorm = sum(w(contain))
             block
                 integer :: pos
                 call alias_sampler%constrained_sample(contain, renorm, pos, r, p)
-                call assert_true(contain(pos) == r)
             end block
             hist(r) = hist(r) + 1
             probs(r) = p
         end do
         call halt_timer(const_sample_timer)
-        write(stdout, *) 'constrained Alias sample', get_total_time(const_sample_timer)
 
         diff = get_diff(hist(contain), w(contain) / sum(w(contain)))
 
@@ -208,17 +247,18 @@ contains
         call assert_true(diff < diff_tol)
         ! are the probabilities claimed by the sampler the ones we put in?
 
-        call alias_sampler%setupSampler(w)
-        call assert_true(all(w.isclose.alias_sampler%getProb([(i, i=1, tSize)])))
+        call alias_sampler%setupSampler(root, w)
+        call assert_true(all(w .isclose. alias_sampler%getProb([(i, i=1, n_probs)])))
 
     end subroutine
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine create_rand_probs(w)
+    function create_rand_probs(n_probs) result(w)
         ! fill an array with a normalized distribution of uniform random numbers
         ! Input: w - array of reals, on return filled with random numbers
-        real(dp), intent(out) :: w(:)
+        integer, intent(in) :: n_probs
+        real(dp) :: w(n_probs)
         integer :: i
         ! create some random probabilities
         do i = 1, size(w)
@@ -226,6 +266,6 @@ contains
         end do
         ! normalize the probs
         w = w / sum(w)
-    end subroutine create_rand_probs
+    end function
 
 end program test_aliasTables

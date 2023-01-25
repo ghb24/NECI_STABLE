@@ -12,6 +12,7 @@ module pcpp_excitgen
     use UMatCache, only: gtID
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
+    use MPI_wrapper, only: root
     use util_mod, only: binary_search_first_ge, getSpinIndex, swap, custom_findloc, &
                         operator(.div.)
     use get_excit, only: make_double, make_single
@@ -542,7 +543,7 @@ contains
             end do
 
             call apply_lower_bound(w)
-            call double_elec_one_sampler%setupSampler(w)
+            call double_elec_one_sampler%setupSampler(root, w)
         end subroutine setup_elec_one_sampler
 
         !------------------------------------------------------------------------------------------!
@@ -579,7 +580,7 @@ contains
                 ! to prevent bias, a lower bound for the probabilities is set
                 call apply_lower_bound(w)
 
-                call double_elec_two_sampler(i)%setupSampler(w)
+                call double_elec_two_sampler(i)%setupSampler(root, w)
             end do
 
         end subroutine setup_elec_two_sampler
@@ -603,7 +604,7 @@ contains
                 end do
 
                 do iSpin = 0, spinMax
-                    call double_hole_one_sampler(i, iSpin)%setupSampler(w(:, iSpin))
+                    call double_hole_one_sampler(i, iSpin)%setupSampler(root, w(:, iSpin))
                 end do
             end do
         end subroutine setup_hole_one_sampler
@@ -630,7 +631,7 @@ contains
 
                 do iSpin = 0, spinMax
                     do iSym = 0, symmax - 1
-                        call double_hole_two_sampler(j, iSym, iSpin)%setupSampler(w(:, iSym, iSpin))
+                        call double_hole_two_sampler(j, iSym, iSpin)%setupSampler(root, w(:, iSym, iSpin))
                     end do
                 end do
             end do
@@ -678,7 +679,7 @@ contains
                 end do
             end do
             ! load the probabilites for electron selection into the alias table
-            call single_elec_sampler%setupSampler(w)
+            call single_elec_sampler%setupSampler(root, w)
 
         end subroutine setup_elecs_sampler
 
@@ -706,7 +707,7 @@ contains
                         w(a) = acc_doub_matel(i, a)
                 end do
 
-                call single_hole_sampler(i)%setupSampler(w)
+                call single_hole_sampler(i)%setupSampler(root, w)
             end do
 
         end subroutine setup_holes_sampler

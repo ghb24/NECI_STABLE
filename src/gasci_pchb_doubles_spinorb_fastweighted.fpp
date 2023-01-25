@@ -32,6 +32,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use bit_rep_data, only: nIfTot
     use excitation_generators, only: doubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
+    use MPI_wrapper, only: root
     use excitation_types, only: DoubleExc_t
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -386,7 +387,7 @@ contains
                     end do ! a
                     ij = fuseIndex(i, j)
                     ! @jph
-                    call this%AB_sampler%setup_entry(ij, i_sg, w)
+                    call this%AB_sampler%setup_entry(ij, i_sg, root, w)
 
                     associate(I => ex(1, 1), J => ex(1, 2))
                         IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)

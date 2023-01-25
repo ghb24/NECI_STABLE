@@ -2,10 +2,10 @@
 module aliasSampling
     ! This module contains the utility to use alias table lookup on lists,
     ! requiring to precompute biases but making the lookup O(1)
-    use constants, only: dp, int64, eps, n_int, bits_n_int
+    use constants, only: dp, int64, n_int, bits_n_int, stderr
     use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
-    use MPI_wrapper, only: iProcIndex_intra
+    use parallel_neci, only: iProcIndex_intra, MPIBcast, Node
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: stop_all, near_zero, binary_search_int, operator(.isclose.), operator(.div.), isclose
     use CDF_sampling_mod, only: CDF_Sampler_t
@@ -148,25 +148,36 @@ contains
     ! Initialization / Finalization routines of the aliasTable
     !------------------------------------------------------------------------------------------!
 
-    !> pseudo-constructor for alias tables
-    !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
-    !!              want to use for sampling
-    subroutine setupTable(this, arr)
+    subroutine setupTable(this, rank_with_info, arr)
+        !! pseudo-constructor for alias tables
         class(aliasTable_t), intent(inout) :: this
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         real(dp), intent(in) :: arr(:)
+            !! arr  array containing the (not necessarily normalized) probabilities we
+            !!              want to use for sampling
 
         character(*), parameter :: t_r = "setupTable"
         integer(int64) :: arrSize
-        if (sum(arr) < eps) call stop_all(t_r, &
-                                          "Trying to setup empty alias table")
+
+        block
+            logical :: error_found
+            error_found = near_zero(sum(arr))
+            call MPIBcast(error_found, iProcIndex_intra == rank_with_info, Node)
+            if (error_found) then
+                call stop_all(t_r,  "Trying to setup empty alias table")
+            end if
+        end block
 
         ! allocate the shared memory segment for the alias table
         arrSize = size(arr, kind=int64)
+        call MPIBcast(arrSize, iProcIndex_intra == rank_with_info, Node)
 
         call this%biasTable%shared_alloc(arrSize)
         call this%aliasTable%shared_alloc(arrSize)
 
-        call this%initTable(arr)
+        call this%initTable(rank_with_info, arr)
 
         ! Sync the shared resource between tasks
         call this%biasTable%sync()
@@ -179,29 +190,31 @@ contains
     !> Set the bias and alias values for each value in range
     !> @param[in] arr - array containing the (not necessarily normalized) probabilities we
     !>              want to use for sampling
-    subroutine initTable(this, arr)
+    subroutine initTable(this, rank_with_info, arr)
         class(aliasTable_t), intent(inout) :: this
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         real(dp), intent(in) :: arr(:)
 
-        integer :: i, j, cV, cU
-        integer(int64) :: arrSize
-        integer, allocatable :: overfull(:), underfull(:)
-
-        arrSize = size(arr, kind=int64)
-
         ! as this is shared memory, only node-root has to do this
-        if (iProcIndex_intra == 0) then
+        if (iProcIndex_intra == rank_with_info) then
+        block
+            integer :: i, j, cV, cU
+            integer(int64) :: arrSize
+            integer, allocatable :: overfull(:), underfull(:)
+
+            arrSize = size(arr, kind=int64)
             ! initialize the probabilities
             this%biasTable%ptr = arr / sum(arr) * arrSize
 
             ! indices of subarrays
-            allocate(overfull(arrSize))
-            allocate(underfull(arrSize))
+            allocate(overfull(arrSize), underfull(arrSize))
 
             cV = 0
             cU = 0
             do i = 1, int(arrSize)
-                call assignLabel(i)
+                call assignLabel(i, overfull, cV, underfull, cU)
             end do
             ! we now labeled each entry
 
@@ -224,19 +237,21 @@ contains
                 cU = cU - 1
                 ! reassign i based on the new bias
                 cV = cV - 1
-                call assignLabel(i)
+                call assignLabel(i, overfull, cV, underfull, cU)
             end do
 
             ! make sure we do not leave anything unfilled
             call roundTo1(overfull, cV)
             call roundTo1(underfull, cU)
 
+        end block
         end if
 
     contains
 
-        subroutine assignLabel(i)
+        subroutine assignLabel(i, overfull, cV, underfull, cU)
             integer, intent(in) :: i
+            integer, intent(inout) :: overfull(:), cV, underfull(:), cU
 
             if (this%biasTable%ptr(i) > 1) then
                 cV = cV + 1
@@ -250,6 +265,7 @@ contains
         subroutine roundTo1(labels, cI)
             integer, intent(in) :: labels(:)
             integer, intent(in) :: cI
+            integer :: i
 
             ! if, due to floating point errors, one of the categories is not empty, empty it
             ! (error is negligible then)
@@ -311,26 +327,36 @@ contains
     !> allocate the resources of this and load the probability distribution from arr into this
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
-    subroutine setupSampler(this, arr)
+    subroutine setupSampler(this, rank_with_info, arr)
         class(aliasSampler_t), intent(inout) :: this
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         real(dp), intent(in) :: arr(:)
 
         integer(int64) :: arrSize
         ! if all weights are 0, throw an error
-        if (sum(arr) < eps) then
-            ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
-            return
-        end if
+
+        block
+            logical :: early_return
+            early_return = near_zero(sum(arr))
+            call MPIBcast(early_return, iProcIndex_intra == rank_with_info, Node)
+            if (early_return) then
+                ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
+                return
+            end if
+        end block
 
         ! initialize the alias table
-        call this%table%setupTable(arr)
+        call this%table%setupTable(rank_with_info, arr)
         arrSize = size(arr, kind=int64)
+        call MPIBcast(arrSize, iProcIndex_intra == rank_with_info, Node)
 
         ! allocate the probabilities
         call this%probs%shared_alloc(arrSize)
 
         ! set the probabilities
-        call this%initProbs(arr)
+        call this%initProbs(rank_with_info, arr)
 
         call this%probs%sync()
     end subroutine setupSampler
@@ -341,20 +367,27 @@ contains
     !! we only use this in the sampler array, but fortran has no friend classes, so its public
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
-    subroutine initSampler(this, arr)
+    subroutine initSampler(this, rank_with_info, arr)
         class(aliasSampler_t), intent(inout) :: this
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         real(dp), intent(in) :: arr(:)
 
-        ! if all weights are 0, throw an error
-        if (sum(arr) < eps) then
-            ! if we reach this point, probs is uninitialized -> null it
-            this%probs%ptr => null()
-            return
-        end if
+        block
+            logical :: early_return
+            early_return = near_zero(sum(arr))
+            call MPIBcast(early_return, iProcIndex_intra == rank_with_info, Node)
+            if (early_return) then
+                ! if we reach this point, probs is uninitialized -> null it
+                this%probs%ptr => null()
+                return
+            end if
+        end block
 
         ! load the data - assume this is pre-allocated
-        call this%table%initTable(arr)
-        call this%initProbs(arr)
+        call this%table%initTable(rank_with_info, arr)
+        call this%initProbs(rank_with_info, arr)
     end subroutine initSampler
 
     !------------------------------------------------------------------------------------------!
@@ -362,12 +395,15 @@ contains
     !> load the probability distribution from arr into this%probs
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
-    subroutine initProbs(this, arr)
+    subroutine initProbs(this, rank_with_info, arr)
         class(aliasSampler_t), intent(inout) :: this
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         real(dp), intent(in) :: arr(:)
 
         ! the array is shared memory, so only node-root has to do this
-        if (iProcIndex_intra == 0) then
+        if (iProcIndex_intra == rank_with_info) then
             ! the probabilities are taken from input and normalized
             this%probs%ptr = arr / sum(arr)
         end if
@@ -587,11 +623,11 @@ contains
     !> Initialise one sampler of an array
     !> @param[in] iEntry  index of the entry to initialize
     !> @param[in] arr  data to be loaded by that entry
-    subroutine setupEntry_1D(this, iEntry, arr)
+    subroutine setupEntry_1D(this, iEntry, rank_with_info, arr)
         class(AliasSampler_1D_t), intent(inout) :: this
-        integer, intent(in) :: iEntry
+        integer, intent(in) :: iEntry, rank_with_info
         real(dp), intent(in) :: arr(:)
-        call this%alias_sampler%setup_entry(iEntry, 1, 1, arr)
+        call this%alias_sampler%setup_entry(iEntry, 1, 1, rank_with_info, arr)
     end subroutine setupEntry_1D
 
     !------------------------------------------------------------------------------------------!
@@ -698,11 +734,11 @@ contains
     !> Initialise one sampler of an array
     !> @param[in] iEntry  index of the entry to initialize
     !> @param[in] arr  data to be loaded by that entry
-    subroutine setupEntry_2D(this, i, j, arr)
+    subroutine setupEntry_2D(this, i, j, rank_with_info, arr)
         class(AliasSampler_2D_t), intent(inout) :: this
-        integer, intent(in) :: i, j
+        integer, intent(in) :: i, j, rank_with_info
         real(dp), intent(in) :: arr(:)
-        call this%alias_sampler%setup_entry(i, j, 1, arr)
+        call this%alias_sampler%setup_entry(i, j, 1, rank_with_info, arr)
     end subroutine setupEntry_2D
 
     !------------------------------------------------------------------------------------------!
@@ -841,12 +877,12 @@ contains
     !> @param[in] j Index of the entry to initialize
     !> @param[in] k Index of the entry to initialize
     !> @param[in] arr  data to be loaded by that entry
-    subroutine setupEntry_3D(this, i, j, k, arr)
+    subroutine setupEntry_3D(this, i, j, k, rank_with_info, arr)
         class(AliasSampler_3D_t), intent(inout) :: this
-        integer, intent(in) :: i, j, k
+        integer, intent(in) :: i, j, k, rank_with_info
         real(dp), intent(in) :: arr(:)
 
-        call this%samplerArray(i, j, k)%initSampler(arr)
+        call this%samplerArray(i, j, k)%initSampler(rank_with_info, arr)
 
         ! Sync the shared resources
         call this%allBiasTable%sync()

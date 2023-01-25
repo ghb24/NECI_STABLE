@@ -16,6 +16,7 @@ module gasci_singles_pc_weighted
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
     use get_excit, only: make_single
     use excitation_types, only: SingleExc_t
+    use MPI_wrapper, only: root
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -341,9 +342,9 @@ contains
                             this%weights(tgt, src, i_sg) = get_weight(exc)
                         end if
                     end do
-                    call this%A_sampler%setup_entry(src, i_sg, this%weights(:, src, i_sg))
+                    call this%A_sampler%setup_entry(src, i_sg, root, this%weights(:, src, i_sg))
                 end do
-                call this%I_sampler%setup_entry(i_sg, sum(this%weights(:, :, i_sg), dim=1))
+                call this%I_sampler%setup_entry(i_sg, root, sum(this%weights(:, :, i_sg), dim=1))
             end do
         end block
 

@@ -16,6 +16,7 @@ module gasci_pchb_doubles_select_particles
     use util_mod, only: stop_all, operator(.isclose.), swap, &
         binary_search_int, EnumBase_t, operator(.div.)
     use UMatCache, only: numBasisIndices
+    use MPI_wrapper, only: root
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use sets_mod, only: empty_int
@@ -288,9 +289,9 @@ contains
             integer :: I
             do i_sg = 1, size(supergroups, 2)
                 do I = 1, nBI
-                    call this%J_sampler%setup_entry(I, i_sg, weights(:, I, i_sg))
+                    call this%J_sampler%setup_entry(I, i_sg, root, weights(:, I, i_sg))
                 end do
-                call this%I_sampler%setup_entry(i_sg, sum(weights(:, :, i_sg), dim=1))
+                call this%I_sampler%setup_entry(i_sg, root, sum(weights(:, :, i_sg), dim=1))
             end do
         end block
     end subroutine
