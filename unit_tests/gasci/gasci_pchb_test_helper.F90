@@ -1,4 +1,3 @@
-! TODO test helper for pchb
 module gasci_pchb_test_helper
     use fruit, only: assert_equals, assert_true, assert_false
     use fortran_strings, only: str

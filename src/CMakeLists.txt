@@ -235,7 +235,7 @@ set( SRC_FILES
     lib/display_matrices.F90
     lib/binomial_lookup.F90
     lib/MAQAO_toggle.c
-)
+    )
 
 set( RELAX_WARNINGS_SRCS
 
@@ -455,7 +455,6 @@ set( FYPP_SRC_FILES
     shared_ragged_array.fpp
     SD_spin_purification.fpp
     sdt_amplitudes.fpp
-    # gasci_pchb_test_helper.F90
 )
 
 set( TEMPLATED_SRC_FILES
