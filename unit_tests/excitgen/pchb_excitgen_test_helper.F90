@@ -1,4 +1,4 @@
-module test_pchb_excitgen_mod
+module pchb_excitgen_test_helper
     use fruit, only: assert_true, run_test_case
     use constants, only: dp, maxExcit
     use pchb_excitgen, only: PCHB_FCI_excit_generator_t, &
@@ -16,16 +16,9 @@ module test_pchb_excitgen_mod
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
-    public :: pchb_test_driver
+    public :: test_pgen_rhf_hermitian, test_pgen_rhf_nonhermitian, test_pgen_uhf_hermitian, test_pgen_uhf_nonhermitian
 
 contains
-
-    subroutine pchb_test_driver()
-        call run_test_case(test_pgen_rhf_hermitian, "test_pgen_rhf_hermitian")
-        call run_test_case(test_pgen_uhf_hermitian, "test_pgen_uhf_hermitian")
-        call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
-        call run_test_case(test_pgen_uhf_nonhermitian, "test_pgen_uhf_nonhermitian")
-    end subroutine pchb_test_driver
 
     subroutine test_pgen_rhf_hermitian()
         call pchb_test_general(.false., .true.)
@@ -130,25 +123,4 @@ contains
             uhf=is_uhf, hermitian=is_hermitian)
     end subroutine random_fcidump_general
 
-end module
-
-program test_pchb_excitgen
-    use fruit, only: get_failed_count, init_fruit, fruit_summary, fruit_finalize
-    use Parallel_neci, only: MPIInit, MPIEnd
-    use test_pchb_excitgen_mod, only: pchb_test_driver
-    use util_mod, only: stop_all
-    implicit none
-
-    call MPIInit(.false.)
-    call init_fruit()
-    call pchb_test_driver()
-    call fruit_summary()
-    call fruit_finalize()
-    block
-        integer :: failed_count
-        call get_failed_count(failed_count)
-        if (failed_count /= 0) call stop_all('test_pchb_excitgen', 'failed_tests')
-    end block
-    call MPIEnd(.false.)
-
-end program test_pchb_excitgen
+end module pchb_excitgen_test_helper
