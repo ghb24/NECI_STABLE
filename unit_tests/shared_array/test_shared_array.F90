@@ -1,6 +1,7 @@
 module test_shared_array_mod
     use constants, only: int64, MPIArg, stdout, stderr
     use shared_array, only: shared_array_int64_t
+    use util_mod, only: stop_all
     use Parallel_neci, only: mpi_comm_intra, iProcIndex_intra, MPI_LOGICAL, MPI_LAND, &
         mpi_comm_size
 #ifndef IFORT_
