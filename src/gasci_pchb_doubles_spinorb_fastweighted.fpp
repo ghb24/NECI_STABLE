@@ -9,7 +9,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use get_excit, only: make_double, exciteIlut
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
-    use UMatCache, only: GTID, numBasisIndices
+    use UMatCache, only: numBasisIndices
     use SystemData, only: nEl, nBasis
     use SymExcitDataMod, only: ScratchSize
     use sltcnd_mod, only: sltcnd_excit
@@ -100,6 +100,7 @@ contains
         do a = 1, nBI
             do b = 1, a
                 ab = fuseIndex(a, b)
+                ! b comes first as this is an ordered list
                 this%tgtOrbs(1, ab) = b
                 this%tgtOrbs(2, ab) = a
             end do
@@ -188,7 +189,7 @@ contains
         @:ASSERT(pgen .isclose. this%particle_selector%get_pgen(nI, i_sg, src(1), src(2)))
 
         invalid = .false.
-        ij = fuseIndex(gtId(src(1)), gtId(src(2)))
+        ij = fuseIndex(src(1), src(2))
 
         ! get a pair of orbitals using the precomputed weights
         call this%AB_sampler%sample(ij, i_sg, ab, pGenHoles)
@@ -261,7 +262,7 @@ contains
         i_sg = this%indexer%idx_nI(nI)
 
         pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
-        pgen = pgen * this%AB_sampler%get_prob(IJ, i_sg, AB)
+        pgen = pgen * this%AB_sampler%get_prob(IJ, i_sg, AB) ! seems to be the problem
 
     end function GAS_doubles_PCHB_spinorb_get_pgen
 
