@@ -2,14 +2,14 @@
 module aliasSampling
     ! This module contains the utility to use alias table lookup on lists,
     ! requiring to precompute biases but making the lookup O(1)
-    use constants, only: dp, int64, n_int, bits_n_int, stderr
+    use constants, only: dp, int64, n_int, bits_n_int, stderr, MPIArg
     use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
-    use parallel_neci, only: iProcIndex_intra, MPIBcast, Node
+    use parallel_neci, only: iProcIndex_intra, Node, MPIBarrier, mpi_comm_intra, MPIBCast, MPI_BCast, MPI_LOGICAL
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: stop_all, near_zero, binary_search_int, operator(.isclose.), operator(.div.), isclose
     use CDF_sampling_mod, only: CDF_Sampler_t
-    implicit none
+    better_implicit_none
 
     private
     public :: aliasSampler_t, AliasSampler_1D_t, AliasSampler_2D_t, AliasSampler_3D_t, &
@@ -162,10 +162,11 @@ contains
         integer(int64) :: arrSize
 
         block
-            logical :: error_found
+            logical :: error_found(1)
+            integer :: ierr
             error_found = near_zero(sum(arr))
-            call MPIBcast(error_found, iProcIndex_intra == rank_with_info, Node)
-            if (error_found) then
+            call MPI_Bcast(error_found, size(error_found, kind=MPIArg), MPI_LOGICAL, rank_with_info, mpi_comm_intra, ierr)
+            if (error_found(1) .or. ierr /= 0) then
                 call stop_all(t_r,  "Trying to setup empty alias table")
             end if
         end block
@@ -335,13 +336,13 @@ contains
         real(dp), intent(in) :: arr(:)
 
         integer(int64) :: arrSize
-        ! if all weights are 0, throw an error
+        integer :: ierr
 
         block
-            logical :: early_return
+            logical :: early_return(1)
             early_return = near_zero(sum(arr))
-            call MPIBcast(early_return, iProcIndex_intra == rank_with_info, Node)
-            if (early_return) then
+            call MPI_Bcast(early_return, size(early_return, kind=MPIArg), MPI_LOGICAL, rank_with_info, mpi_comm_intra, ierr)
+            if (early_return(1)) then
                 ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
                 return
             end if
@@ -375,10 +376,12 @@ contains
         real(dp), intent(in) :: arr(:)
 
         block
-            logical :: early_return
+            logical :: early_return(1)
+            integer :: ierr
             early_return = near_zero(sum(arr))
-            call MPIBcast(early_return, iProcIndex_intra == rank_with_info, Node)
-            if (early_return) then
+            call MPI_Bcast(early_return, size(early_return, kind=MPIArg), MPI_LOGICAL, rank_with_info, mpi_comm_intra, ierr)
+
+            if (early_return(1)) then
                 ! if we reach this point, probs is uninitialized -> null it
                 this%probs%ptr => null()
                 return
