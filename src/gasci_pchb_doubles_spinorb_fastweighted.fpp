@@ -51,18 +51,18 @@ module gasci_pchb_doubles_spinorb_fastweighted
         integer, allocatable :: tgtOrbs(:, :)
     contains
         private
-        procedure, public :: init => GAS_doubles_PCHB_UHF_init
-        procedure, public :: finalize => GAS_doubles_PCHB_UHF_finalize
-        procedure, public :: gen_exc => GAS_doubles_PCHB_uhf_gen_exc
-        procedure, public :: get_pgen => GAS_doubles_PCHB_uhf_get_pgen
-        procedure, public :: gen_all_excits => GAS_doubles_PCHB_uhf_gen_all_excits
+        procedure, public :: init => GAS_doubles_PCHB_spinorb_init
+        procedure, public :: finalize => GAS_doubles_PCHB_spinorb_finalize
+        procedure, public :: gen_exc => GAS_doubles_PCHB_spinorb_gen_exc
+        procedure, public :: get_pgen => GAS_doubles_PCHB_spinorb_get_pgen
+        procedure, public :: gen_all_excits => GAS_doubles_PCHB_spinorb_gen_all_excits
 
-        procedure :: compute_samplers => GAS_doubles_PCHB_uhf_compute_samplers
+        procedure :: compute_samplers => GAS_doubles_PCHB_spinorb_compute_samplers
     end type GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
 
 contains
 
-    subroutine GAS_doubles_PCHB_UHF_init(this, GAS_spec, use_lookup, &
+    subroutine GAS_doubles_PCHB_spinorb_init(this, GAS_spec, use_lookup, &
                             create_lookup, PCHB_particle_selection)
         !! initalises the spinorb-resolved PCHB doubles excitation generator
         !!
@@ -72,7 +72,7 @@ contains
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_UHF_init'
+        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_init'
 
         integer :: ab, a, b, abMax, nBI
 
@@ -85,7 +85,7 @@ contains
             if (associated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
-                write(stdout, *) 'GAS PCHB (UHF) doubles is creating and managing the supergroup lookup'
+                write(stdout, *) 'GAS PCHB (spinorb) doubles is creating and managing the supergroup lookup'
                 lookup_supergroup_indexer => this%indexer
             end if
         end if
@@ -94,6 +94,7 @@ contains
         write(stdout, *) "Allocating PCHB excitation generator objects"
         ! number of *spin* orbs
         nBI = numBasisIndices(this%GAS_spec%n_spin_orbs())
+        ! nBI = this%GAS_spec%n_spin_orbs()
         ! initialize the mapping ab -> (a, b)
         abMax = fuseIndex(nBI, nBI)
         allocate(this%tgtOrbs(2, 0:abMax), source=0)
@@ -110,9 +111,9 @@ contains
 
         write(stdout, *) "Finished excitation generator initialization"
 
-    end subroutine GAS_doubles_PCHB_UHF_init
+    end subroutine GAS_doubles_PCHB_spinorb_init
 
-    subroutine GAS_doubles_PCHB_UHF_finalize(this)
+    subroutine GAS_doubles_PCHB_spinorb_finalize(this)
         !! deallocates the sampler and mapper
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
 
@@ -123,9 +124,9 @@ contains
             deallocate(this%particle_selector, this%tgtOrbs, this%indexer, this%GAS_spec)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
-    end subroutine GAS_doubles_PCHB_UHF_finalize
+    end subroutine GAS_doubles_PCHB_spinorb_finalize
 
-    subroutine GAS_doubles_PCHB_uhf_gen_exc(&
+    subroutine GAS_doubles_PCHB_spinorb_gen_exc(&
                 this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                 ex, tParity, pGen, hel, store, part_type)
         !! given the initial determinant (both as nI and ilut), create a random
@@ -153,7 +154,7 @@ contains
             !!
         integer, intent(in), optional :: part_type
             !! unused in this generator
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_uhf_gen_exc'
+        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_gen_exc'
 
         integer :: i_sg ! supergroup index
         integer :: src(2) ! particles (I, J)
@@ -238,9 +239,9 @@ contains
             ex(2, 1 : 2) = tgt
         end subroutine invalidate
 
-    end subroutine GAS_doubles_PCHB_uhf_gen_exc
+    end subroutine GAS_doubles_PCHB_spinorb_gen_exc
 
-    real(dp) function GAS_doubles_PCHB_uhf_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+    real(dp) function GAS_doubles_PCHB_spinorb_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
         !! calculates the probability of drawing a given double excitation
         !! parametrised by the excitation matrix ex
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
@@ -250,7 +251,7 @@ contains
             !! excitation matrix
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
         integer :: i_sg, IJ, AB
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_uhf_get_pgen'
+        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_get_pgen'
 
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         ! double excitation, so ic==2
@@ -263,9 +264,9 @@ contains
         pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
         pgen = pgen * this%AB_sampler%get_prob(IJ, i_sg, AB)
 
-    end function GAS_doubles_PCHB_uhf_get_pgen
+    end function GAS_doubles_PCHB_spinorb_get_pgen
 
-    subroutine GAS_doubles_PCHB_uhf_gen_all_excits(this, nI, n_excits, det_list)
+    subroutine GAS_doubles_PCHB_spinorb_gen_all_excits(this, nI, n_excits, det_list)
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
@@ -273,9 +274,9 @@ contains
 
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
 
-    end subroutine GAS_doubles_PCHB_uhf_gen_all_excits
+    end subroutine GAS_doubles_PCHB_spinorb_gen_all_excits
 
-    subroutine GAS_doubles_PCHB_uhf_compute_samplers(this, nBI, PCHB_particle_selection)
+    subroutine GAS_doubles_PCHB_spinorb_compute_samplers(this, nBI, PCHB_particle_selection)
         !! computes and stores values for the alias (spin-independent) sampling table
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
@@ -344,6 +345,6 @@ contains
 
         call allocate_and_init(PCHB_particle_selection, this%GAS_spec, IJ_weights, this%use_lookup, this%particle_selector)
 
-    end subroutine GAS_doubles_PCHB_uhf_compute_samplers
+    end subroutine GAS_doubles_PCHB_spinorb_compute_samplers
 
 end module gasci_pchb_doubles_spinorb_fastweighted
