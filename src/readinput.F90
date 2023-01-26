@@ -234,13 +234,6 @@ contains
                         GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
                     end if
                 end if ! indeterminate fast-weighted
-                if (GAS_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED .or. &
-                    possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED &
-                    == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
-                        ! use spin orbitals even if we have RHF
-                        tStoreSpinOrbs = .true.
-                end if
             else
                 if (FCI_PCHB_options%doubles%hole_selection &
                     == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
@@ -250,12 +243,6 @@ contains
                         FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
                     end if
                 end if ! indeterminate fast-weighted
-                if (FCI_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED .or. &
-                    FCI_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
-                        tStoreSpinOrbs = .true.
-                end if
             end if ! tGAS
         end if
 
