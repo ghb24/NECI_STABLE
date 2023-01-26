@@ -2,11 +2,8 @@ title
 
     system read
         electrons 8
-        # molpromimic
         spin-restrict -2
         nonuniformrandexcits pchb doubles hole-selection spin-orb-resolved-fast-weighted
-        # doubles particle-selection fully-weighted
-        # doubles hole-selection spin-orb-resolved-fast-weighted
     endsys
 
     calc
@@ -38,6 +35,6 @@ title
         allrealcoeff
         pops-core 2
 
-        memoryfacspawn 1000
+        memoryfacspawn 100
     endcalc
 end

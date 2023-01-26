@@ -7,7 +7,10 @@ title
         uhf
         molpromimic
         nonhermitian
-        nonuniformrandexcits pchb
+        # old one:
+        # nonuniformrandexcits 4ind-weighted
+        # what I am testing:
+        nonuniformrandexcits pchb doubles hole-selection fast-weighted
     endsys
 
     calc
