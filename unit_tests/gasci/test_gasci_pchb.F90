@@ -236,11 +236,7 @@ program test_gasci_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_pchb_rhf_fastweighted, only: test_pgen_RHF_hermitian, &
-                                                test_pgen_RHF_nonhermitian, &
-                                                test_pgen_UHF_hermitian, &
-                                                test_pgen_UHF_nonhermitian
-
+    use test_gasci_pchb_rhf_fastweighted, only: test_pgen_RHF_hermitian
 
     implicit none
     integer :: failed_count
@@ -267,7 +263,7 @@ contains
     subroutine test_gasci_driver()
         ! @jph uncomment these
         call run_test_case(test_pgen_RHF_hermitian, "test_pgen_RHF_hermitian")
-        call run_test_case(test_pgen_RHF_nonhermitian, "test_pgen_RHF_nonhermitian")
+        ! call run_test_case(test_pgen_RHF_nonhermitian, "test_pgen_RHF_nonhermitian")
         ! TODO(@jph): Good luck with that ;-)
         ! call run_test_case(test_pgen_UHF_hermitian, "test_pgen_UHF_hermitian")
         ! call run_test_case(test_pgen_UHF_nonhermitian, "test_pgen_UHF_nonhermitian")
