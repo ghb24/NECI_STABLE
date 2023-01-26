@@ -4,7 +4,7 @@
 !               Failing that, we use stdin
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
-    use SystemData, only: tUHF, tGAS, t_pchb_excitgen
+    use SystemData, only: tUHF, tGAS, t_pchb_excitgen, tStoreSpinOrbs
     use pchb_excitgen, only: FCI_PCHB_options
     use gasci_pchb_main, only: GAS_PCHB_options
     use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection
@@ -223,6 +223,13 @@ contains
                         GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
                     end if
                 end if ! indeterminate fast-weighted
+                if (GAS_PCHB_options%doubles%hole_selection &
+                    == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED .or. &
+                    possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED &
+                    == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
+                        ! use spin orbitals even if we have RHF
+                        tStoreSpinOrbs = .true.
+                end if
             else
                 if (FCI_PCHB_options%doubles%hole_selection &
                     == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
@@ -232,6 +239,12 @@ contains
                         FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
                     end if
                 end if ! indeterminate fast-weighted
+                if (FCI_PCHB_options%doubles%hole_selection &
+                    == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED .or. &
+                    FCI_PCHB_options%doubles%hole_selection &
+                    == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
+                        tStoreSpinOrbs = .true.
+                end if
             end if ! tGAS
         end if
     end subroutine
