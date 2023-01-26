@@ -15,7 +15,7 @@ title
             method vertex fcimc
         endmethods
         totalwalkers 1.e3
-        nmcyc 5000
+        nmcyc 1000
         definedet 1-6 7 9
 
         startsinglepart 100
