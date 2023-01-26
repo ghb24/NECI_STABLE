@@ -207,18 +207,15 @@ contains
         if (tMolpro) then
             if (tUHF) then
                 NBASISMAX(2, 3) = 1
-                tStoreSpinOrbs = .true.   !indicate that we are storing the orbitals in umat as spin-orbitals
             else
                 NBASISMAX(2, 3) = 2
-                tStoreSpinOrbs = .false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
             end if
         else
+            if (tRel) tStoreSpinOrbs = .true.
             IF ((UHF .and. (.not. tROHF)) .or. tRel) then
                 NBASISMAX(2, 3) = 1
-                tStoreSpinOrbs = .true.   !indicate that we are storing the orbitals in umat as spin-orbitals
             else
                 NBASISMAX(2, 3) = 2
-                tStoreSpinOrbs = .false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
             end if
         end if
 

@@ -4,7 +4,8 @@
 !               Failing that, we use stdin
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
-    use SystemData, only: tUHF, tGAS, t_pchb_excitgen, tStoreSpinOrbs
+    use SystemData, only: tUHF, tGAS, t_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
+                         tROHF
     use pchb_excitgen, only: FCI_PCHB_options
     use gasci_pchb_main, only: GAS_PCHB_options
     use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection
@@ -212,6 +213,16 @@ contains
         else
             lms = 0
         end if
+        ! move from `src/readint.F90::INITFROMFCID` which overwrote results here
+        ! note this comes before setting tstorespinorbs based on the hole selection
+        ! algorithm below, since even if these requirements are not satisfied,
+        ! we still want tstorespinorbs = .true.
+
+        if ((tMolpro .and. tUHF) .or. (tUHF .and. (.not. tROHF))) then
+            tStoreSpinOrbs = .true.
+        else
+            tStoreSpinOrbs = .false.
+        end if
 
         if (t_pchb_excitgen) then
             if (tGAS) then
@@ -247,6 +258,7 @@ contains
                 end if
             end if ! tGAS
         end if
+
     end subroutine
 
     subroutine checkinput()
