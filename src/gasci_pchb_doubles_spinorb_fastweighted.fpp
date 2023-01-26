@@ -93,8 +93,7 @@ contains
 
         write(stdout, *) "Allocating PCHB excitation generator objects"
         ! number of *spin* orbs
-        nBI = numBasisIndices(this%GAS_spec%n_spin_orbs())
-        ! nBI = this%GAS_spec%n_spin_orbs()
+        nBI = this%GAS_spec%n_spin_orbs()
         ! initialize the mapping ab -> (a, b)
         abMax = fuseIndex(nBI, nBI)
         allocate(this%tgtOrbs(2, 0:abMax), source=0)
@@ -322,7 +321,8 @@ contains
                     first_hole: do a = 1, nBI
                         if (any(a == [i, j])) cycle
                         ex(2, 1) = a
-                        second_hole: do b = 1, a
+                        second_hole: do b = 1, nBI ! a
+                            if (a == b .or. any(b == [i, j])) cycle
                             ex(2, 2) = b
                             ab = fuseIndex(a, b)
                             if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
@@ -335,10 +335,8 @@ contains
                     ij = fuseIndex(i, j)
                     call this%AB_sampler%setup_entry(ij, i_sg, w)
 
-                    associate(I => ex(1, 1), J => ex(1, 2))
-                        IJ_weights(I, J, i_sg) = sum(w)
-                        IJ_weights(J, I, i_sg) = sum(w)
-                    end associate
+                    IJ_weights(I, J, i_sg) = sum(w)
+                    IJ_weights(J, I, i_sg) = sum(w)
                 end do second_particle ! j
             end do first_particle ! i
         end do ! i_sg
