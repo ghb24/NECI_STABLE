@@ -415,6 +415,10 @@ contains
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%J_sampler%constrained_sample(&
             srcs(1), i_sg, nI, ilutI, renorm_second(1), elecs(2), srcs(2), p_second(1))
+        if (srcs(2) == 0) then
+            elecs(:) = 0; srcs(:) = 0; p = 1._dp
+            return
+        end if
 
         @:ASSERT((srcs(1) .in. nI) .and. (srcs(2) .in. nI))
         @:ASSERT(srcs(1) /= srcs(2))
@@ -497,7 +501,9 @@ contains
 
         call this%J_sampler%sample(srcs(1), i_sg, srcs(2), p_J_I)
 
-        if (.not. IsOcc(ilutI, srcs(2))) then
+        if (srcs(2) == 0) then
+            elecs(:) = 0; srcs(:) = 0; p = 1._dp
+        else if (.not. IsOcc(ilutI, srcs(2))) then
             elecs(:) = 0; srcs(:) = 0; p = 1._dp
         else
             elecs(2) = int(binary_search_int(nI, srcs(2)))
