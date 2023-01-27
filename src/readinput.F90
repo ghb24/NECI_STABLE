@@ -4,7 +4,7 @@
 !               Failing that, we use stdin
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
-    use SystemData, only: tUHF, tGAS, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
+    use SystemData, only: tUHF, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
                          tROHF
     use pchb_excitgen, only: FCI_PCHB_options
     use gasci_pchb_main, only: GAS_PCHB_options
@@ -200,6 +200,17 @@ contains
 
         if (tGAS .and. allocated(user_input_GAS_exc_gen)) then
             GAS_exc_gen = user_input_GAS_exc_gen
+            ! set fast weighting in case of indeterminate setting
+            if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
+                if (GAS_PCHB_options%doubles%hole_selection &
+                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+                    if (tUHF) then
+                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+                    else
+                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+                    end if
+                end if ! gasci pchb
+            end if ! indeterminate fast-weighted
         end if
 
         if (allocated(user_input_seed)) then
@@ -223,27 +234,16 @@ contains
         else
             tStoreSpinOrbs = .false.
         end if
-
+        ! set fci pchb hole selection in case of indeterminate setting
         if (t_fci_pchb_excitgen) then
-            if (tGAS) then
-                if (GAS_PCHB_options%doubles%hole_selection &
+            if (FCI_PCHB_options%doubles%hole_selection &
                     == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
-                    if (tUHF) then
-                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
-                    else
-                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
-                    end if
-                end if ! indeterminate fast-weighted
-            else
-                if (FCI_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
-                    if (tUHF) then
-                        FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
-                    else
-                        FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
-                    end if
-                end if ! indeterminate fast-weighted
-            end if ! tGAS
+                if (tUHF) then
+                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+                else
+                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+                end if
+            end if ! indeterminate fast-weighted
         end if
 
     end subroutine
