@@ -3,7 +3,7 @@
 ! a guga simulation
 module guga_init
     ! module use statements
-    use SystemData, only: tSPN, tHPHF, lNoSymmetry, STOT, nEl, t_pchb_excitgen, &
+    use SystemData, only: tSPN, tHPHF, lNoSymmetry, STOT, nEl, t_fci_pchb_excitgen, &
                           nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
@@ -160,7 +160,7 @@ contains
             call Stop_All(this_routine, "'nosym-guga' option deprecated!")
         end if
 
-        if (t_pchb_excitgen) then
+        if (t_fci_pchb_excitgen) then
             call stop_all(this_routine, &
                 "please specify 'guga-pchb' as excitation generator to work with GUGA!")
         end if

@@ -367,7 +367,7 @@ module SystemData
 ! flag for the pre-computed power-pitzer excitaion generator
     logical :: t_pcpp_excitgen = .false.
 ! flags for the pre-computed heat-bath excitation generator
-    logical :: t_pchb_excitgen = .false.
+    logical :: t_fci_pchb_excitgen = .false.
     logical :: t_guga_pchb_weighted_singles = .false.
 
     logical :: t_guga_pchb = .false.

@@ -4,7 +4,7 @@
 !               Failing that, we use stdin
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
-    use SystemData, only: tUHF, tGAS, t_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
+    use SystemData, only: tUHF, tGAS, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
                          tROHF
     use pchb_excitgen, only: FCI_PCHB_options
     use gasci_pchb_main, only: GAS_PCHB_options
@@ -224,7 +224,7 @@ contains
             tStoreSpinOrbs = .false.
         end if
 
-        if (t_pchb_excitgen) then
+        if (t_fci_pchb_excitgen) then
             if (tGAS) then
                 if (GAS_PCHB_options%doubles%hole_selection &
                     == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
