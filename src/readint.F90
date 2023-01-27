@@ -9,6 +9,7 @@ module read_fci
         UMatEps, t_non_hermitian, tRIIntegrals, SYMMAX, irrepOrbOffset, &
         t_complex_ints
 
+
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
 
     use UMatCache, only: GetCacheIndexStates, GTID, &
