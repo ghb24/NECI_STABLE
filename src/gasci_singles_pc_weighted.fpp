@@ -2,14 +2,13 @@
 #:include "macros.fpph"
 
 module gasci_singles_pc_weighted
-    use constants, only: dp, int64, stdout, n_int, bits_n_int, maxExcit
+    use constants, only: dp, stdout, n_int, bits_n_int, maxExcit
     use fortran_strings, only: to_upper
-    use util_mod, only: operator(.div.), stop_all, EnumBase_t, near_zero, &
-        binary_search_int
+    use util_mod, only: stop_all, EnumBase_t
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use SymExcitDataMod, only: ScratchSize
-    use SystemData, only: nEl, nBasis, G1
+    use SystemData, only: nEl, nBasis
     use excitation_generators, only: SingleExcitationGenerator_t
     use FciMCData, only: excit_gen_store_type
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -23,16 +22,12 @@ module gasci_singles_pc_weighted
     use orb_idx_mod, only: calc_spin_raw, operator(==)
     use OneEInts, only: GetTMatEl
     use UMatCache, only: GTID, get_umat_el
-    use CDF_sampling_mod, only: CDF_Sampler_t
-
-    use matrix_util, only: print_matrix
 
     better_implicit_none
     private
     public :: do_allocation, print_options, &
         PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t, &
-        PC_Weighted_t, &
-        PC_singles_drawing_vals, PC_singles_weighting_vals
+        PC_Weighted_t, PC_singles_drawing_vals, PC_singles_weighting_vals
 
 
     type, extends(EnumBase_t) :: PC_singles_weighting_t

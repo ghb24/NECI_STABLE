@@ -11,15 +11,13 @@ module gasci_pchb_doubles_select_particles
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: pParallel
-    use sets_mod, only: is_set, operator(.in.)
+    use sets_mod, only: operator(.in.)
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use util_mod, only: stop_all, operator(.isclose.), swap, &
         binary_search_int, EnumBase_t, operator(.div.)
-    use UMatCache, only: numBasisIndices
     use MPI_wrapper, only: iProcIndex_intra, root
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use sets_mod, only: empty_int
     better_implicit_none
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &
@@ -429,6 +427,10 @@ contains
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%J_sampler%constrained_sample(&
             srcs(1), i_sg, nI, ilutI, renorm_second(1), elecs(2), srcs(2), p_second(1))
+        if (srcs(2) == 0) then
+            elecs(:) = 0; srcs(:) = 0; p = 1._dp
+            return
+        end if
 
         @:ASSERT((srcs(1) .in. nI) .and. (srcs(2) .in. nI))
         @:ASSERT(srcs(1) /= srcs(2))
@@ -511,7 +513,9 @@ contains
 
         call this%J_sampler%sample(srcs(1), i_sg, srcs(2), p_J_I)
 
-        if (.not. IsOcc(ilutI, srcs(2))) then
+        if (srcs(2) == 0) then
+            elecs(:) = 0; srcs(:) = 0; p = 1._dp
+        else if (.not. IsOcc(ilutI, srcs(2))) then
             elecs(:) = 0; srcs(:) = 0; p = 1._dp
         else
             elecs(2) = int(binary_search_int(nI, srcs(2)))

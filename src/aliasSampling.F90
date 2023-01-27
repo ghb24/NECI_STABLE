@@ -10,7 +10,8 @@ module aliasSampling
     use parallel_neci, only: MPI_BCast
 #endif
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: stop_all, near_zero, binary_search_int, operator(.isclose.), operator(.div.), isclose
+    use util_mod, only: stop_all, near_zero, binary_search_int, &
+        operator(.isclose.), operator(.div.), isclose
     use CDF_sampling_mod, only: CDF_Sampler_t
     better_implicit_none
 
