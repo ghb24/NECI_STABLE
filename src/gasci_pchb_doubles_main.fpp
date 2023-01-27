@@ -74,6 +74,8 @@ contains
         else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
             write(stdout, *) "PCHB with spin-orbital-resolved 'full-weighting' selected."
             allocate(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t :: generator)
+        else if (options%hole_selection == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+            call stop_all(this_routine, "'Indeterminate fast weighted' selected. Should never get here, please report.")
         else
             call stop_all(this_routine, "Invalid hole selection algorithm for PCHB doubles.")
         end if
