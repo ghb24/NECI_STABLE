@@ -11,14 +11,12 @@ module gasci_pchb_doubles_select_particles
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: pParallel
-    use sets_mod, only: is_set, operator(.in.)
+    use sets_mod, only: operator(.in.)
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use util_mod, only: stop_all, operator(.isclose.), swap, &
         binary_search_int, EnumBase_t, operator(.div.)
-    use UMatCache, only: numBasisIndices
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use sets_mod, only: empty_int
     better_implicit_none
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &

@@ -6,7 +6,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
     !! precomputed heat bath implementation for GASCI using spatial orbitals
     use constants, only: n_int, dp, int64, maxExcit, stdout
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
-        operator(.implies.), operator(.isclose.), swap, stop_all
+        operator(.implies.), operator(.isclose.), stop_all
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
@@ -15,7 +15,6 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: excit_gen_store_type, projEDet
-    use excit_gens_int_weighted, only: pick_biased_elecs
     use SystemData, only: nEl
     use bit_rep_data, only: NIfTot
     use gasci, only: GASSpec_t
