@@ -1,6 +1,7 @@
 title
 
 system read noorder
+    uhf
     symignoreenergies
     electrons 7
     nonuniformrandexcits
