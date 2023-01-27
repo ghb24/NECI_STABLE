@@ -5,7 +5,10 @@ module aliasSampling
     use constants, only: dp, int64, n_int, bits_n_int, stderr, MPIArg
     use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
-    use parallel_neci, only: iProcIndex_intra, Node, MPIBarrier, mpi_comm_intra, MPIBCast, MPI_BCast, MPI_LOGICAL
+    use parallel_neci, only: iProcIndex_intra, Node, MPIBarrier, mpi_comm_intra, MPIBCast, MPI_LOGICAL
+#ifndef IFORT_
+    use parallel_neci, only: MPI_BCast
+#endif
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: stop_all, near_zero, binary_search_int, operator(.isclose.), operator(.div.), isclose
     use CDF_sampling_mod, only: CDF_Sampler_t
