@@ -229,11 +229,7 @@ contains
         ! algorithm below, since even if these requirements are not satisfied,
         ! we still want tstorespinorbs = .true.
 
-        if ((tMolpro .and. tUHF) .or. (tUHF .and. (.not. tROHF))) then
-            tStoreSpinOrbs = .true.
-        else
-            tStoreSpinOrbs = .false.
-        end if
+        tStoreSpinOrbs = (tMolpro .and. tUHF) .or. (tUHF .and. (.not. tROHF))
         ! set fci pchb hole selection in case of indeterminate setting
         if (t_fci_pchb_excitgen) then
             if (FCI_PCHB_options%doubles%hole_selection &
@@ -243,7 +239,7 @@ contains
                 else
                     FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
                 end if
-            end if ! indeterminate fast-weighted
+            end if
         end if
 
     end subroutine

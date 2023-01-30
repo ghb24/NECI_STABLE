@@ -78,6 +78,10 @@ contains
         call SetSysDefaults()
         t_non_hermitian = .not. hermitian
         tUHF = UHF
+        ! tMolpro indicates that we use the Molpro-style FCIDUMP formatting, i.e.
+        ! the `molpromimic` input keyword. It is not strictly necessary in general,
+        ! but here our UHF FCIDUMPs are in this format, so we set tMolpro to true
+        ! whenever UHF is true
         tMolpro = UHF
 
         dumpwriter = random_fcidump_writer_t(UHF=UHF, hermitian=hermitian)

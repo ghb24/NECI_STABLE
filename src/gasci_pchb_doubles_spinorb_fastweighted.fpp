@@ -74,7 +74,7 @@ contains
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_init'
 
-        integer :: ab, a, b, abMax, nBI
+        integer :: AB, A, B, abMax, nBI
 
         this%GAS_spec = GAS_spec
         allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
@@ -97,12 +97,12 @@ contains
         ! initialize the mapping ab -> (a, b)
         abMax = fuseIndex(nBI, nBI)
         allocate(this%tgtOrbs(2, 0:abMax), source=0)
-        do a = 1, nBI
-            do b = 1, a
-                ab = fuseIndex(a, b)
+        do A = 1, nBI
+            do B = 1, A
+                AB = fuseIndex(A, B)
                 ! b comes first as this is an ordered list
-                this%tgtOrbs(1, ab) = b
-                this%tgtOrbs(2, ab) = a
+                this%tgtOrbs(1, AB) = B
+                this%tgtOrbs(2, AB) = A
             end do
         end do
 
@@ -254,7 +254,6 @@ contains
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_get_pgen'
 
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
-        ! double excitation, so ic==2
         @:ASSERT(ic == 2)
 
         IJ = fuseIndex(ex(1, 1), ex(1, 2))
@@ -262,7 +261,7 @@ contains
         i_sg = this%indexer%idx_nI(nI)
 
         pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
-        pgen = pgen * this%AB_sampler%get_prob(IJ, i_sg, AB) ! seems to be the problem
+        pgen = pgen * this%AB_sampler%get_prob(IJ, i_sg, AB)
 
     end function GAS_doubles_PCHB_spinorb_get_pgen
 
@@ -281,8 +280,8 @@ contains
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        integer :: i, j, ij, ijMax
-        integer :: a, b, ab, abMax
+        integer :: I, J, IJ, IJMax
+        integer :: A, B, AB, ABMax
         integer :: ex(2, 2)
         integer(int64) :: memCost
             !! n_supergroup * num_fused_indices * bytes_per_sampler
@@ -309,38 +308,38 @@ contains
         allocate(w(abMax))
         allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
 
-        do i_sg = 1, size(supergroups, 2)
+        supergroup: do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
-            first_particle: do i = 1, nBI
-                ex(1, 1) = i ! already a spin orbital
-                ! a,b are ordered, so we can assume j < i
-                second_particle: do j = 1, i - 1
-                    ex(1, 2) = j
+            first_particle: do I = 1, nBI
+                ex(1, 1) = I ! already a spin orbital
+                ! A,B are ordered, so we can assume J < I
+                second_particle: do J = 1, I - 1
+                    ex(1, 2) = J
                     w(:) = 0._dp
-                    ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
+                    ! for each (I,J), get all matrix elements <IJ|H|AB> and use them as
                     ! weights to prepare the sampler
-                    first_hole: do a = 1, nBI
-                        if (any(a == [i, j])) cycle
-                        ex(2, 1) = a
-                        second_hole: do b = 1, nBI ! a
-                            if (a == b .or. any(b == [i, j])) cycle
-                            ex(2, 2) = b
-                            ab = fuseIndex(a, b)
+                    first_hole: do A = 1, nBI
+                        if (any(A == [I, J])) cycle
+                        ex(2, 1) = A
+                        second_hole: do B = 1, nBI
+                            if (A == B .or. any(B == [I, J])) cycle
+                            ex(2, 2) = B
+                            AB = fuseIndex(A, B)
                             if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
-                                w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
+                                w(AB) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
                             else
-                                w(ab) = 0._dp
+                                w(AB) = 0._dp
                             end if
-                        end do second_hole ! b
-                    end do first_hole ! a
-                    ij = fuseIndex(i, j)
-                    call this%AB_sampler%setup_entry(ij, i_sg, w)
+                        end do second_hole
+                    end do first_hole
+                    IJ = fuseIndex(I, J)
+                    call this%AB_sampler%setup_entry(IJ, i_sg, w)
 
                     IJ_weights(I, J, i_sg) = sum(w)
-                    IJ_weights(J, I, i_sg) = sum(w)
-                end do second_particle ! j
-            end do first_particle ! i
-        end do ! i_sg
+                    IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
+                end do second_particle
+            end do first_particle
+        end do supergroup
 
         call allocate_and_init(PCHB_particle_selection, this%GAS_spec, IJ_weights, this%use_lookup, this%particle_selector)
 
