@@ -6,19 +6,15 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     !! precomputed heat bath implementation for GASCI using spin orbitals and full weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
-        operator(.implies.), operator(.isclose.), isclose, swap, stop_all
-    use dSFMT_interface, only: genrand_real2_dSFMT
+        operator(.implies.), operator(.isclose.), isclose, stop_all
     use get_excit, only: make_double, exciteIlut
     use bit_reps, only: decode_bit_det
     use bit_rep_data, only: nIfD
     use SymExcitDataMod, only: pDoubNew, ScratchSize
     use excitation_types, only: DoubleExc_t, excite
     use sltcnd_mod, only: sltcnd_excit
-    use CDF_sampling_mod, only: CDF_Sampler_t
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
-    use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: excit_gen_store_type, projEDet
-    use excit_gens_int_weighted, only: pick_biased_elecs
     use SystemData, only: nEl, nBasis
     use sets_mod, only: set, operator(.cap.)
     use bit_rep_data, only: NIfTot
@@ -26,10 +22,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
-        ParticleSelector_t, PC_FullyWeightedParticles_t, &
-        PC_FastWeightedParticles_t, UniformParticles_t, &
-        PCHB_ParticleSelection_t, PCHB_particle_selection_vals, &
-        allocate_and_init
+        ParticleSelector_t, PCHB_ParticleSelection_t, allocate_and_init
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
 
@@ -378,10 +371,10 @@ contains
                                 w_B(B) = 0._dp
                             end if
                         end do second_hole
-                        call this%B_sampler%setup_entry(A, IJ, i_sg, w_B(1 : nBasis))
+                        call this%B_sampler%setup_entry(A, IJ, i_sg, w_B(:))
                         w_A(A) = sum(w_B)
                     end do first_hole
-                    call this%A_sampler%setup_entry(IJ, i_sg, w_A(1 : nBasis))
+                    call this%A_sampler%setup_entry(IJ, i_sg, w_A(:))
 
                     IJ_weights(I, J, i_sg) = sum(w_A)
                     IJ_weights(J, I, i_sg) = sum(w_A)

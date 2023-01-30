@@ -169,72 +169,72 @@ considered. The block starts with the `system` keyword and ends with the
         (The default choice is usually sufficiently fast.)
         With **SINGLES** one can select the single excitation algorithm:
 
-        -   **PC-WEIGHTED**<br>
-            Use precomputed weighted singles.
-            The weight is given by
-            \begin{equation}
-                S^{A}_{I}
-              =
-                \begin{cases}
-                  | h_{AI} | + \sum_{R} |g_{AIRR} - g_{ARRI}|  & I \neq A \\
-                  0 & \text{else}
-                \end{cases}
-            \end{equation}
-            Note that \( R \) runs over all spin-orbitals, not only the occupied.
-            This makes the weighting determinant-independent.
-            The probabilites are then given by:
-            \begin{equation}
-              p_1^{\text{PCHB}}(I)
-              =
-                \frac
-                  {\sum_C S^{C}_{I} }
-                  {\sum_{CL} S^{C}_{L} }
-              \qquad
-              p_1^{\text{PCHB}}(A | I)
-              =
-                \frac
-                  { S^{A}_{I} }
-                  {\sum_C S^{C}_{I} }
-              \quad.
-            \end{equation}
-            The keyword can be followed by `fully-weighted`, `weighted`, or `fast-weighted`.
-            If we denote with the superscript `uni` the uniform probality we can
-            write the sampling schemes as:
+        - **SINGLES**<br>
 
-            - `fully-weighted`:
+            -   **PC-WEIGHTED**<br>
+                Use precomputed weighted singles.
+                The weight is given by
                 \begin{equation}
-                    p_1^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i}
+                    S^{A}_{I}
+                  =
+                    \begin{cases}
+                      | h_{AI} | + \sum_{R} |g_{AIRR} - g_{ARRI}|  & I \neq A \\
+                      0 & \text{else}
+                    \end{cases}
                 \end{equation}
-                it is guaranteed that \(I\) is occupied and \(A\) is unoccupied.
-
-            - `weighted`:
+                Note that \( R \) runs over all spin-orbitals, not only the occupied.
+                This makes the weighting determinant-independent.
+                The probabilites are then given by:
                 \begin{equation}
-                    p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i}
+                  p_1^{\text{PCHB}}(I)
+                  =
+                    \frac
+                      {\sum_C S^{C}_{I} }
+                      {\sum_{CL} S^{C}_{L} }
+                  \qquad
+                  p_1^{\text{PCHB}}(A | I)
+                  =
+                    \frac
+                      { S^{A}_{I} }
+                      {\sum_C S^{C}_{I} }
+                  \quad.
                 \end{equation}
-                it is guaranteed that \(I\) is occupied and \(A\) is unoccupied.
+                The keyword can be followed by `fully-weighted`, `weighted`, or `fast-weighted`.
+                If we denote with the superscript `uni` the uniform probality we can
+                write the sampling schemes as:
 
-            - `fast-weighted`:
-                \begin{equation}
-                    p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)
-                \end{equation}
-                it is guaranteed that \(I\) is occupied. If also using option `uhf`, this will default
-                to using spin-orbitals (else spatial orbitals).
+                **fully-weighted**:
+                    \begin{equation}
+                        p_1^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i}
+                    \end{equation}
+                    it is guaranteed that \(I\) is occupied and \(A\) is unoccupied.
 
-            - `spin-orb-resolved-fast-weighted`:
-                As above, but force the use of spin-orbitals.
+                **weighted**:
+                    \begin{equation}
+                        p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i}
+                    \end{equation}
+                    it is guaranteed that \(I\) is occupied and \(A\) is unoccupied.
+
+                **fast-weighted**:
+                    \begin{equation}
+                        p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)
+                    \end{equation}
+                    it is guaranteed that \(I\) is occupied.
 
 
-        -   **UNIFORM**<br>
-            This is the default. It chooses single
-            excitations uniformly.
+            -   **UNIFORM**<br>
+                This is the default. It chooses single
+                excitations uniformly.
 
-        -   **ON-THE-FLY-HEAT-BATH**<br>
-            It chooses single excitations weighted by their matrix
-            element.
+            -   **ON-THE-FLY-HEAT-BATH**<br>
+                It chooses single excitations weighted by their matrix
+                element.
 
-        With **doubles** one can select the particle- and hole-selection
+        - **DOUBLES**<br>
+
+        With `doubles` one can select the particle- and hole-selection
         algorithm for double excitations.
-        It is followed by `particle-selection` or `hole-selection`.
+        It is followed by **particle-selection** or **hole-selection**.
         The following weights are used for the doubles:
 
         \begin{equation}
@@ -276,43 +276,49 @@ considered. The block starts with the `system` keyword and ends with the
         \end{aligned}
         \end{equation}
 
-        We denote the uniform probality again with the superscript `uni`.
-        The possible `particle-selection` sampling schemes are:
+        - **particle-selection**<br>
+            We denote the uniform probality again with the superscript `uni`.
+            The possible `particle-selection` sampling shemes are:
 
-        - `fully-weighted`:
-            \begin{equation}
-                p_2^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i}
-            \end{equation}
-            it is guaranteed that \(I, J\) are occupied.
+            **fully-weighted**
+              \begin{equation}
+                  p_2^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i}
+              \end{equation}
+              it is guaranteed that \(I, J\) are occupied.
 
-        - `weighted`:
-            \begin{equation}
-                p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i}
-            \end{equation}
-            it is guaranteed that \(I, J\) are occupied.
+            **weighted**
+              \begin{equation}
+                  p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i}
+              \end{equation}
+              it is guaranteed that \(I, J\) are occupied.
 
-        - `fast-weighted`:
-            \begin{equation}
-                p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)
-            \end{equation}
-            it is guaranteed that \(I\) is occupied.
+            **fast-weighted**
+              \begin{equation}
+                  p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)
+              \end{equation}
+              it is guaranteed that \(I\) is occupied. If also using option `uhf`, this will default to using spin-orbitals
+              (else spatial orbitals).
 
-        -   **UNIFORM**<br>
-            \(I\) and \(J\) are just drawn uniformly.
+            **spin-orb-resolved-fast-weighted**
+              As above, but force the use of spin-orbitals.
 
-        The possible `hole-selection` sampling schemes are:
+            **uniform**<br>
+              \(I\) and \(J\) are just drawn uniformly.
 
-        - `fully-weighted`:
-            \begin{equation}
-                p_2^{\text{PCHB}}(A | IJ)|_{A \notin D_i} \cdot p_2^{\text{PCHB}}(B | IJA)|_{B \notin D_i}
-            \end{equation}
-            it is guaranteed that \(A, B\) are unoccupied.
+        - **hole-selection**<br>
+            The possible `hole-selection` sampling schemes are:
 
-        - `fast-weighted`:
-            \begin{equation}
-                p_2^{\text{PCHB}}(A | IJ) \cdot p_2^{\text{PCHB}}(B | IJA)
-            \end{equation}
-            There is no guarantee about unocupiedness
+            **fully-weighted**
+             \begin{equation}
+                 p_2^{\text{PCHB}}(A | IJ)|_{A \notin D_i} \cdot p_2^{\text{PCHB}}(B | IJA)|_{B \notin D_i}
+             \end{equation}
+             it is guaranteed that \(A, B\) are unoccupied.
+
+            **fast-weighted**
+                \begin{equation}
+                    p_2^{\text{PCHB}}(A | IJ) \cdot p_2^{\text{PCHB}}(B | IJA)
+                \end{equation}
+                There is no guarantee about unocupiedness
 
 
         An example input is:

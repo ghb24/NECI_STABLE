@@ -5,7 +5,6 @@ module gasci_singles_main
     use SystemData, only: nEl
     use excitation_generators, only: SingleExcitationGenerator_t
     use constants, only: n_int, dp, maxExcit, bits_n_int, stdout
-    use sort_mod, only: sort
     use dSFMT_interface, only: genrand_real2_dSFMT
     use SymExcitDataMod, only: ScratchSize
     use gasci, only: GASSpec_t
@@ -16,7 +15,6 @@ module gasci_singles_main
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use excitation_types, only: SingleExc_t
     use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
-    use exc_gen_class_wrappers, only: UniformSingles_t
     use fortran_strings, only: to_upper
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det

@@ -212,7 +212,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
             COMMAND
-                ${LATEXMK} -view=pdf ${tex_file} 1> /dev/null
+                ${LATEXMK} -view=pdf -halt-on-error ${tex_file}
             COMMAND
                 cp ${tex_stem}.pdf ${pdf_file}
             WORKING_DIRECTORY
