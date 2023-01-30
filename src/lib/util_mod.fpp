@@ -13,7 +13,7 @@ module util_mod
     use util_mod_numerical, only: binary_search_first_ge, stats_out
     use util_mod_cpts, only: arr_2d_ptr, arr_2d_dims, ptr_abuse_1d, &
         ptr_abuse_scalar, ptr_abuse_2d
-    use util_mod_epsilon_close, only: near_zero, operator(.isclose.)
+    use basic_float_math, only: near_zero, operator(.isclose.), isclose
     use constants, only: sp, dp, int32, int64, n_int, inum_runs, lenof_sign, &
         sizeof_int
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
@@ -41,8 +41,8 @@ module util_mod
     private
 #endif
 
-    public :: get_nan, isnan_neci, factrl, choose_i64, NECI_icopy, operator(.implies.), &
-        abs_l1, abs_sign, near_zero, operator(.isclose.), operator(.div.), &
+    public :: factrl, choose_i64, NECI_icopy, operator(.implies.), &
+        abs_l1, abs_sign, near_zero, operator(.isclose.), isclose, operator(.div.), &
         stochastic_round, stochastic_round_r
 #ifdef GFORTRAN_
     public :: choose_i128
@@ -513,28 +513,6 @@ contains
         ms = mod(orb, 2)
     end function getSpinIndex
 
-!--- Numerical utilities ---
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
-    real(dp) function get_nan()
-        real(dp) :: a, b
-        a = 1
-        b = 1
-        get_nan = log(a - 2 * b)
-    end function
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_is_nan (r)
-    elemental logical function isnan_neci(r)
-        real(dp), intent(in) :: r
-
-#ifdef GFORTRAN_
-        isnan_neci = isnan(r)
-#else
-        isnan_neci = r /= r
-#endif
-    end function
 
         !> @brief
         !> Calculate 1 + ... + n
@@ -1287,13 +1265,13 @@ contains
     #:for kind in kinds
     pure function cumsum_${type}$_${kind}$(X) result(Y)
         ${type}$(${kind}$), intent(in) :: X(:)
-        ${type}$(${kind}$) :: Y(lbound(X, 1):ubound(X, 1))
+        ${type}$(${kind}$) :: Y(size(X))
 
         integer :: i
 
-        if(size(X) /= 0) then
-            Y(lbound(X, 1)) = X(lbound(X, 1))
-            do i = lbound(X, 1) + 1, ubound(X, 1)
+        if(size(X) > 0) then
+            Y(1) = X(1)
+            do i = 2, size(Y)
                 Y(i) = Y(i - 1) + X(i)
             end do
         end if

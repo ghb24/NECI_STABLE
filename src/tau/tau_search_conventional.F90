@@ -19,6 +19,8 @@ module tau_search_conventional
 
     use util_mod, only: clamp
 
+    use basic_float_math, only: is_nan
+
     use tau_main, only: min_tau, max_tau, possible_tau_search_methods, &
             tau_search_method, tau_start_val, possible_tau_start, &
             tau, assign_value_to_tau, max_death_cpt, MaxWalkerBloom
@@ -39,11 +41,13 @@ module tau_search_conventional
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
-    use pchb_excitgen, only: FCI_PCHB_particle_selection
-
     use gasci, only: possible_GAS_exc_gen, GAS_exc_gen
 
-    use gasci_pchb, only: GAS_PCHB_particle_selection, PCHB_particle_selections
+    use gasci_pchb_doubles_select_particles, only: PCHB_particle_selection_vals
+
+    use gasci_pchb_main, only: GAS_PCHB_options
+
+    use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
 
     implicit none
     private
@@ -92,12 +96,12 @@ contains
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
         else if ((t_pchb_excitgen .and. .not. tGUGA) &
-                .and. (FCI_PCHB_particle_selection == PCHB_particle_selections%UNIFORM)) then
+                .and. (FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM)) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else if (tGAS &
             .and. (GAS_exc_gen /= possible_GAS_exc_gen%PCHB &
-                    .or. GAS_PCHB_particle_selection == PCHB_particle_selections%UNIFORM)) then
+                    .or. GAS_PCHB_options%doubles%particle_selection == PCHB_particle_selection_vals%UNIFORM)) then
             consider_par_bias = .true.
         else
             consider_par_bias = .false.
@@ -246,11 +250,11 @@ contains
             ! k-space hubbard model, where there are still no single
             ! excitations -> so reuse the quantities for the the singles
             ! instead of introducing yet more variables
-            if (.not. t_exclude_3_body_excits) then
+            if (t_exclude_3_body_excits .or. near_zero(pTriples)) then
+                tmp_gamma = 0.0_dp
+            else
                 tmp_prob = prob / pTriples
                 tmp_gamma = abs(matel) / tmp_prob
-            else
-                tmp_gamma = 0.0_dp
             end if
 
             if (tmp_gamma > t_s%gamma_trip) t_s%gamma_trip = tmp_gamma
@@ -295,8 +299,12 @@ contains
         t_s%gamma_sing = mpi_tmp
         call MPIAllReduce(t_s%gamma_doub, MPI_MAX, mpi_tmp)
         t_s%gamma_doub = mpi_tmp
-        call MPIAllReduce(t_s%gamma_trip, MPI_MAX, mpi_tmp)
-        t_s%gamma_trip = mpi_tmp
+        if (is_nan(t_s%gamma_trip)) then
+            t_s%gamma_trip = 0._dp
+        else
+            call MPIAllReduce(t_s%gamma_trip, MPI_MAX, mpi_tmp)
+            t_s%gamma_trip = mpi_tmp
+        end if
         if (tReltvy) then
             call MPIAllReduce(t_s%gamma_sing_spindiff1, MPI_MAX, mpi_tmp)
             t_s%gamma_sing_spindiff1 = mpi_tmp

@@ -178,6 +178,7 @@ module SystemData
     real(dp) :: ALAT(5)
     real(dp) :: ECore
     INTEGER :: nBasis
+        !! The number of spin orbitals.
     integer(int64) :: nBI
     integer :: nMax
     integer :: nnr

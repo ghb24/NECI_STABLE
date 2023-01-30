@@ -1421,8 +1421,6 @@ contains
 !>  @brief
 !>      Return the most populated states over all processors.
 !>
-!>  @author Oskar Weser
-!>
 !>  @details
 !>  Reducing version of `proc_most_populated_states`, which works per process.
 !>  Return as many states as the size of largest_walkers.

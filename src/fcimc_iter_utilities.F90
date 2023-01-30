@@ -939,15 +939,15 @@ contains
             do run = 1, inum_runs
                 lb = min_part_type(run)
                 ub = max_part_type(run)
-                if (iter_data%tot_parts_old(lb) > 0) then
-                    AllGrowRateRe(run) = (iter_data%update_growth_tot(lb) + &
-                                          iter_data%tot_parts_old(lb)) / &
-                                          iter_data%tot_parts_old(lb)
+                if (.not. near_zero(iter_data%tot_parts_old(lb))) then
+                    AllGrowRateRe(run) = &
+                        (iter_data%update_growth_tot(lb) + iter_data%tot_parts_old(lb)) &
+                        / iter_data%tot_parts_old(lb)
                 end if
-                if (iter_data%tot_parts_old(ub) > 0) then
-                    AllGrowRateIm(run) = (iter_data%update_growth_tot(ub) + &
-                                          iter_data%tot_parts_old(ub)) / &
-                                          iter_data%tot_parts_old(ub)
+                if (.not. near_zero(iter_data%tot_parts_old(ub))) then
+                    AllGrowRateIm(run) = &
+                        (iter_data%update_growth_tot(ub) + iter_data%tot_parts_old(ub)) &
+                        / iter_data%tot_parts_old(ub)
                 end if
             end do
 #endif

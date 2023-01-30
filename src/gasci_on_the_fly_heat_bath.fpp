@@ -4,7 +4,7 @@
 
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
-module gasci_general
+module gasci_on_the_fly_heat_bath
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use constants, only: dp, n_int, maxExcit
     use util_mod, only: binary_search_first_ge, &
@@ -522,4 +522,4 @@ contains
     end subroutine
 
 
-end module gasci_general
+end module gasci_on_the_fly_heat_bath

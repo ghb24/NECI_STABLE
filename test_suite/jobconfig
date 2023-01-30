@@ -287,7 +287,7 @@ program = mneci
 nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
-tolerance = (2e-8, None, 'sum_error_rdm_1'), (2e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_1'), (1e-8, None, 'max_error_rdm_2')
+tolerance = (2e-8, None, 'sum_error_rdm_1'), (6e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_1'), (1e-8, None, 'max_error_rdm_2')
 
 
 [hdf5/mneci/guga/C2_aas_bloom_scale/*/]

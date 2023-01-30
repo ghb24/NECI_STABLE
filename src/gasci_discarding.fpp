@@ -4,17 +4,18 @@
 module gasci_discarding
     use constants, only: n_int, dp, maxExcit
     use util_mod, only: stop_all
-    use SystemData, only: nel
+    use SystemData, only: nel, tUHF
     use FciMCData, only: excit_gen_store_type
     use bit_rep_data, only: NIfTot
     use sort_mod, only: sort
     use SymExcitDataMod, only: ScratchSize
 
-    use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_singles
-    use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, DoubleExcitationGenerator_t
+    use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_options_t, &
+        FCI_PCHB_options_vals, FCI_PCHB_SinglesOptions_t, PCHB_DoublesOptions_t
+    use excitation_generators, only: ExcitationGenerator_t, &
+        SingleExcitationGenerator_t, DoubleExcitationGenerator_t
     use gasci, only: GASSpec_t
     use gasci_util, only: GAS_gen_all_excits => gen_all_excits
-    use gasci_pchb, only: PCHB_ParticleSelection_t
     implicit none
 
     private
@@ -83,12 +84,21 @@ contains
     end function
 
 
-    subroutine init(this, GAS_spec, PCHB_particle_selection)
+    subroutine init(this, GAS_spec)
         class(GAS_DiscardingGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
-        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         this%GAS_spec = GAS_spec
-        call this%FCI_generator%init(PCHB_particle_selection, FCI_PCHB_singles)
+        call this%FCI_generator%init(&
+            FCI_PCHB_options_t(&
+                FCI_PCHB_SinglesOptions_t(&
+                    FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
+                ), &
+                PCHB_DoublesOptions_t( &
+                    FCI_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
+                    FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                ) &
+            ) &
+        )
     end subroutine
 
     subroutine finalize(this)

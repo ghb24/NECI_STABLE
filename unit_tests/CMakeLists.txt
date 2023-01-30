@@ -66,7 +66,7 @@ add_subdirectory( guga )
 
 add_subdirectory( impurity_excit_gen )
 
-add_subdirectory( pcpp_excitgen)
+add_subdirectory( excitgen)
 
 add_subdirectory( gdata_io )
 
@@ -89,3 +89,5 @@ add_subdirectory( input_parser )
 add_subdirectory( util_mod )
 
 add_subdirectory( hdf5_shared_array )
+
+add_subdirectory( sampler )

@@ -164,57 +164,165 @@ considered. The block starts with the `system` keyword and ends with the
         generator is extremely fast, while maintaining high acceptance
         rates and is generally recommended when memory is not an issue.
         The keyword has two optional sub-keywords,
-        `SINGLES` and `PARTICLE-SELECTION`.
+        `SINGLES`, `DOUBLES` which allow to tailor the algorithm
+        for your system.
+        (The default choice is usually sufficiently fast.)
         With **SINGLES** one can select the single excitation algorithm:
 
-        -   **UNIFORM**<br>
-            This is the default. It chooses single
-            excitations uniformly.
+        - **SINGLES**<br>
 
-        -   **ON-THE-FLY-HEAT-BATH**<br>
-            It chooses single excitations weighted by their matrix
-            element.
+            -   **PC-WEIGHTED**<br>
+                Use precomputed weighted singles.
+                The weight is given by
+                \begin{equation}
+                    S^{A}_{I}
+                  =
+                    \begin{cases}
+                      | h_{AI} | + \sum_{R} |g_{AIRR} - g_{ARRI}|  & I \neq A \\
+                      0 & \text{else}
+                    \end{cases}
+                \end{equation}
+                Note that \( R \) runs over all spin-orbitals, not only the occupied.
+                This makes the weighting determinant-independent.
+                The probabilites are then given by:
+                \begin{equation}
+                  p_1^{\text{PCHB}}(I)
+                  =
+                    \frac
+                      {\sum_C S^{C}_{I} }
+                      {\sum_{CL} S^{C}_{L} }
+                  \qquad
+                  p_1^{\text{PCHB}}(A | I)
+                  =
+                    \frac
+                      { S^{A}_{I} }
+                      {\sum_C S^{C}_{I} }
+                  \quad.
+                \end{equation}
+                The keyword can be followed by `fully-weighted`, `weighted`, or `fast-weighted`.
+                If we denote with the superscript `uni` the uniform probality we can
+                write the sampling schemes as:
 
-        With **PARTICLE-SELECTION** one can select the particle selection
-        algorithm for double excitations:
+                **fully-weighted**:
+                    \begin{equation}
+                        p_1^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i}
+                    \end{equation}
+                    it is guaranteed that \(I\) is occupied and \(A\) is unoccupied.
 
-        -   **PC-WEIGHTED**<br>
-            This is the default.
-            Assuming that a particle \( I \) was chosen, the
-            next particle \( J \) is chosen with the following
-            conditional probability:
+                **weighted**:
+                    \begin{equation}
+                        p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i}
+                    \end{equation}
+                    it is guaranteed that \(I\) is occupied and \(A\) is unoccupied.
 
-            \begin{equation*}
-                p(J | I) = \frac{ \sum_{XY} H^{XY}_{I, J} }{ \sum_{XYZ} H^{XY}_{I, Z} }
-            \end{equation*}
+                **fast-weighted**:
+                    \begin{equation}
+                        p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)
+                    \end{equation}
+                    it is guaranteed that \(I\) is occupied.
 
-            Where \( H^{AB}_{IJ} = | g_{IA, JB} - g_{IB, JA} | \)
-            is the absolute value of the matrix element of the double
-            excitation.
-            These probability distributions are precomputed as in the hole
-            selection of PCHB.
-            To ensure that only occupied particles are drawn from the
-            determinant we draw from the on-the-fly renormalized distribution
 
-            \begin{equation*}
-                p(J | I) \Big|_{D_i} = \frac{p(J | I)}{\sum_{X} p(X | I) }
-            \end{equation*}
+            -   **UNIFORM**<br>
+                This is the default. It chooses single
+                excitations uniformly.
 
-        -   **PC-WEIGHTED-APPROX**<br>
-            The particle is drawn according to the previously defined
-            \(p(J | I) \) in `PC-WEIGHTED`, but the renormalization is
-            ommitted and invalid \(J\) values are just discarded.
-            This is faster per iteration in wall clock time, but less efficient
-            per iteration.
+            -   **ON-THE-FLY-HEAT-BATH**<br>
+                It chooses single excitations weighted by their matrix
+                element.
 
-        -   **UNIFORM**<br>
-            \(I\) and \(J\) are just drawn uniformly.
+        - **DOUBLES**<br>
+
+        With `doubles` one can select the particle- and hole-selection
+        algorithm for double excitations.
+        It is followed by **particle-selection** or **hole-selection**.
+        The following weights are used for the doubles:
+
+        \begin{equation}
+            W^{AB}_{IJ}
+          =
+            \begin{cases}
+              | g_{AIBJ} - g_{AJBI}| & I \neq J \land  A \neq B \land \{I, J\} \cap \{A, B\} = \emptyset \\
+              0 & \text{else}
+            \end{cases}
+        \end{equation}
+
+        and the probalities are given by:
+
+        \begin{equation}
+        \label{Eq:PCHB_weights}
+        \begin{aligned}
+          p_2^{\text{PCHB}}(I)
+          &=
+            \frac
+              {\sum_{LCD} W^{CD}_{IL} }
+              {\sum_{KLCD} {W^{CD}_{KL}} }
+          &p_2^{\text{PCHB}}(J | I)
+          &=
+            \frac
+              {\sum_{CD}  {W^{CD}_{IJ}}}
+              {\sum_{LCD} {W^{CD}_{IL}}}
+          \\
+          p_2^{\text{PCHB}}(A | IJ)
+          &=
+            \frac
+              {\sum_{D}  {W^{AD}_{IJ}} }
+              {\sum_{CD} {W^{CD}_{IJ}} }
+          &p_2^{\text{PCHB}}(B | IJ A)
+          &=
+            \frac
+              { W^{AB}_{IJ} }
+              { \sum_D {W^{AD}_{IJ}} }
+          \quad.
+        \end{aligned}
+        \end{equation}
+
+        - **particle-selection**<br>
+            We denote the uniform probality again with the superscript `uni`.
+            The possible `particle-selection` sampling shemes are:
+
+            **fully-weighted**
+              \begin{equation}
+                  p_2^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i}
+              \end{equation}
+              it is guaranteed that \(I, J\) are occupied.
+
+            **weighted**
+              \begin{equation}
+                  p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i}
+              \end{equation}
+              it is guaranteed that \(I, J\) are occupied.
+
+            **fast-weighted**
+              \begin{equation}
+                  p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)
+              \end{equation}
+              it is guaranteed that \(I\) is occupied.
+
+            **uniform**<br>
+              \(I\) and \(J\) are just drawn uniformly.
+
+        - **hole-selection**<br>
+            The possible `hole-selection` sampling schemes are:
+
+            **fully-weighted**
+             \begin{equation}
+                 p_2^{\text{PCHB}}(A | IJ)|_{A \notin D_i} \cdot p_2^{\text{PCHB}}(B | IJA)|_{B \notin D_i}
+             \end{equation}
+             it is guaranteed that \(A, B\) are unoccupied.
+
+            **fast-weighted**
+                \begin{equation}
+                    p_2^{\text{PCHB}}(A | IJ) \cdot p_2^{\text{PCHB}}(B | IJA)
+                \end{equation}
+                There is no guarantee about unocupiedness
+
 
         An example input is:
 
             nonuniformrandexcits pchb \
-                    singles on-the-fly-heat-bath \
-                    particle-selection pc-weighted
+                    singles pc-weighted fully-weighted  \
+                    doubles particle-selection weighted \
+                    doubles hole-selection fully-weighted
 
     -   **guga-pchb**<br>
         Uses the pre-computed alias tables for the spin-adapted GUGA implementation.
@@ -271,35 +379,38 @@ considered. The block starts with the `system` keyword and ends with the
             similar to the FCI precomputed heat bath excitation generator
             but automatically exclude GAS forbidden excitations.
             The keyword has two optional sub-keywords,
-            `SINGLES` and `PARTICLE-SELECTION`.
+            `SINGLES`, `DOUBLES` which allow to tailor the algorithm
+            for your system.
+            (The default choice is usually sufficiently fast.)
             With **SINGLES** one can select the single excitation algorithm:
+
+            -   **PC-WEIGHTED**<br>
+                Use precomputed weighted singles, which
+                is the default and recommended sampling scheme.
+                Read at Full CI PCHB for a deeper description.
+                It allows the same sampling schemes
+                `fully-weighted`, `weighted`, and `fast-weighted`.
 
             -   **PC-UNIFORM**<br>
                 This is the default. It chooses GAS allowed single
                 excitations uniformly.
 
-            -   **DISCARDING-UNIFORM**<br>
-                It chooses single excitations uniformly as in FCI and discards.
-
             -   **ON-THE-FLY-HEAT-BATH**<br>
                 It chooses GAS allowed electrons weighted by their matrix
                 element.
 
-            With **PARTICLE-SELECTION** one can select the particle selection
-            algorithm for double excitations. Read at the section of Full CI
-            PCHB about the details.
-
-            -   **PC-WEIGHTED**<br>
-
-            -   **PC-WEIGHTED-APPROX**<br>
-
-            -   **UNIFORM**<br>
+            With **doubles** one can select the particle- and hole-selection
+            algorithm for double excitations.
+            It is followed by `particle-selection` or `hole-selection`.
+            Read at Full CI PCHB for a deeper description.
+            It allows the same sampling schemes.
 
             An example input is:
 
                 nonuniformrandexcits GAS-CI PCHB \
-                        singles on-the-fly-heat-bath \
-                        particle-selection pc-weighted
+                        singles pc-weighted weighted \
+                        doubles particle-selection weighted \
+                        doubles hole-selection fully-weighted
 
         -   **DISCARDING**<br>
             Use a Full CI excitation generator and just discard excitations
@@ -320,12 +431,6 @@ considered. The block starts with the `system` keyword and ends with the
 -   **lattice-excitgen**<br>
     Generates uniform excitations using momentum conservation. Requires
     the `kpoints` keyword.
-
--   **pchb-weighted-singles**<br>
-    Use a weighted single excitation generator for the pchb excitation
-    generator. By default, singles are created uniformly, the weighted
-    generation is much more expensive, but can help if single matrix
-    elements are large.
 
 <!-- -->
 
@@ -752,7 +857,6 @@ and ends with the `endcalc` keyword.
             \begin{equation}
                 \label{Eq:histogramming_tau_search}
                 \Delta \tau = k_{\text{maxbloom}} \cdot \left( \text{argmin}_{t} \Big| c - \int_0^t p(x)\,\mathrm{d}x \Big| \right)^{-1} \quad.
-            \end{equation}
             \end{equation}
             Where \(p\) is the probability distribution of \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\)
             which is obtained numerically by binning.

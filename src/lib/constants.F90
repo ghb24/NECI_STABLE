@@ -25,7 +25,7 @@ module constants
     real(dp), parameter ::  THIRD = 1._dp / 3._dp
     real(dp), parameter ::  Root2 = sqrt(2._dp)
     real(dp), parameter ::  OverR2 = 1.0_dp / Root2
-    real(dp), parameter :: EPS = 0.0000000000001_dp
+    real(dp), parameter :: EPS = 1e-13_dp
     real(dp), parameter :: INFINITY = huge(1.0_dp)
 
     integer, parameter :: sizeof_int = sizeof(0)

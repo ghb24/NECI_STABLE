@@ -19,7 +19,7 @@ module fortran_strings
 !>
 !>  @param[in] An int32 or int64.
     interface str
-        module procedure int32_to_str, int64_to_str, realsp_to_str, realdp_to_str
+        module procedure int32_to_str, int64_to_str, realsp_to_str, realdp_to_str, bool_to_str
     end interface
 
     interface operator(.in.)
@@ -76,6 +76,16 @@ contains
         integer, intent(in) :: after_comma
         character(:), allocatable :: res
         res = str(real(x, dp), after_comma)
+    end function
+
+    pure function bool_to_str(cond) result(res)
+        logical, intent(in) :: cond
+        character(:), allocatable :: res
+        if (cond) then
+            res = "true"
+        else
+            res = "false"
+        end if
     end function
 
 

@@ -3,6 +3,7 @@
 # set( Tailored_Warnings "-warn nounused -warn all")
 set( ${PROJECT_NAME}_Fortran_FLAGS "-fPIC -g")
 set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-O0 -check all,noarg_temp_created -traceback -fpe0 -init=arrays,snan" )
+set( ${PROJECT_NAME}_Fortran_FLAGS_FASTDEBUG "${${PROJECT_NAME}_Fortran_FLAGS_DEBUG}" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -xHost -align array64byte" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-ipo" )
 

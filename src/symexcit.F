@@ -265,21 +265,20 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          use util_mod, only: stop_all
 
          IMPLICIT NONE
-         INTEGER nPairs
-         INTEGER ORBPAIRS(2,nPairs)
-         INTEGER(int64) nPr
-         INTEGER iMinElec1, iMaxElec1,nEl,nI(nEl)
-         TYPE(Symmetry) SymProds(0:*)
-         INTEGER I,J,K
-         integer(int64) l
+         INTEGER, intent(out) :: ORBPAIRS(2,nPairs)
+         INTEGER, intent(in) :: nPairs
+         INTEGER, intent(in) :: nPr
+         INTEGER, intent(in) :: iMinElec1, iMaxElec1
+         TYPE(BasisFN), intent(in) :: G1(*)
+         INTEGER, intent(inout) :: SYMPRODIND(1:2,1:3,1:nPr)
+         TYPE(Symmetry), intent(in) :: SymProds(0 : *)
+         INTEGER, intent(in) :: nEl, nI(nEl)
+         integer(int64) :: l
          Type(Symmetry) Pr
-         INTEGER iSpn
-         INTEGER iCC
-         TYPE(BasisFN) G1(*)
-         INTEGER SYMPRODIND(1:2,1:3,1:nPr)
+         INTEGER :: iSpn, iCC, I, J, K
          character(*), parameter :: t_r = 'SymSetupExcits_StoreOccPairs'
 
-         ORBPAIRS(1:2,1:NPAIRS)=0
+         ORBPAIRS(:, :) = 0
          L=0
          DO I=iMinElec1,iMaxElec1
 
