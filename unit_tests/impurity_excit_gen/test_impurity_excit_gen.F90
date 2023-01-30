@@ -48,11 +48,12 @@ contains
 
     subroutine impurity_fcidump(iunit)
         use OneEInts, only: tCPMDSymTMat, tOneElecDiag
-        use SystemData, only: nBasis, t_complex_ints
+        use SystemData, only: nBasis, t_complex_ints, tUHF
         integer, intent(in) :: iunit
         integer :: i
         real(dp) :: e
         nBasis = nBasis_
+        tUHF = .true.
         tCPMDSymTMat = .false.
         tOneElecDiag = .false.
         t_complex_ints = .false.
