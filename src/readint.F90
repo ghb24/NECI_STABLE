@@ -100,8 +100,10 @@ contains
         call MPIBCast(OCC, 8)
         call MPIBCast(CLOSED, nIrreps)
         call MPIBCast(FROZEN, nIrreps)
-        if (UHF .and. .not. tUHF) then
-            write(stdout, '(A)') 'WARNING: UHF in FCIDUMP but not in input.'
+        if (UHF .and. .not. (tUHF .or. tROHF)) then
+            ! unfortunately, the `UHF` keyword in the FCIDUMP namelist indicates
+            ! spin-orbital-resolved integrals, not necessarily UHF
+            call stop_all(this_routine, 'UHF in FCIDUMP but neither uhf nor rohf in input.')
         end if
         ! If PropBitLen has been set then assume we're not using an Abelian
         ! symmetry group which has two cycle generators (ie the group has
