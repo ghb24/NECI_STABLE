@@ -1,4 +1,4 @@
-module test_gasci_pchb_rhf_fastweighted
+module gasci_pchb_test_helper
     use fruit, only: assert_equals, assert_true, assert_false
     use fortran_strings, only: str
     use constants, only: dp, int64, n_int, maxExcit
@@ -25,7 +25,10 @@ module test_gasci_pchb_rhf_fastweighted
     use SystemData, only: nEl
     implicit none
     private
-    public :: test_pgen_RHF_hermitian
+    public :: test_pgen_RHF_hermitian, &
+              test_pgen_RHF_nonhermitian, &
+              test_pgen_UHF_hermitian, &
+              test_pgen_UHF_nonhermitian
 
     type :: random_fcidump_writer_t
         logical :: UHF
@@ -42,19 +45,21 @@ contains
         call test_pgen_general(.false., .true.)
     end subroutine test_pgen_RHF_hermitian
 
-    ! subroutine test_pgen_UHF_hermitian()
-    !     call test_pgen_general(.true., .true.)
-    ! end subroutine test_pgen_UHF_hermitian
-    !
-    ! subroutine test_pgen_RHF_nonhermitian()
-    !     call test_pgen_general(.false., .false.)
-    ! end subroutine test_pgen_RHF_nonhermitian
-    !
-    ! subroutine test_pgen_UHF_nonhermitian()
-    !     call test_pgen_general(.true., .false.)
-    ! end subroutine test_pgen_UHF_nonhermitian
+    subroutine test_pgen_UHF_hermitian()
+        call test_pgen_general(.true., .true.)
+    end subroutine test_pgen_UHF_hermitian
+
+    subroutine test_pgen_RHF_nonhermitian()
+        call test_pgen_general(.false., .false.)
+    end subroutine test_pgen_RHF_nonhermitian
+
+    subroutine test_pgen_UHF_nonhermitian()
+        call test_pgen_general(.true., .false.)
+    end subroutine test_pgen_UHF_nonhermitian
 
     subroutine test_pgen_general(UHF, hermitian)
+        ! TODO make this also accept an options object and parallelise over that
+        ! (make this subroutine public)
         use FciMCData, only: pSingles, pDoubles, pParallel
         use SystemData, only: t_non_hermitian, tUHF, tMolpro
         use System, only: SetSysDefaults
@@ -73,7 +78,11 @@ contains
         call SetSysDefaults()
         t_non_hermitian = .not. hermitian
         tUHF = UHF
-        tMolpro = UHF ! @jph is this needed?
+        ! tMolpro indicates that we use the Molpro-style FCIDUMP formatting, i.e.
+        ! the `molpromimic` input keyword. It is not strictly necessary in general,
+        ! but here our UHF FCIDUMPs are in this format, so we set tMolpro to true
+        ! whenever UHF is true
+        tMolpro = UHF
 
         dumpwriter = random_fcidump_writer_t(UHF=UHF, hermitian=hermitian)
 
@@ -168,7 +177,7 @@ contains
         over_settings: do i = 1, size(settings)
             over_interspace_excitations: do n_interspace_exc = 0, 1
                 GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
-                                     spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+                                        spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
                 call assert_true(GAS_spec%is_valid())
                 call assert_true(GAS_spec%contains_conf(det_I))
 
@@ -224,46 +233,4 @@ contains
             UHF=this%UHF, hermitian=this%hermitian)
     end subroutine
 
-end module
-
-
-program test_gasci_program
-
-    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
-        get_failed_count, run_test_case
-    use util_mod, only: stop_all
-    use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_pchb_rhf_fastweighted, only: test_pgen_RHF_hermitian
-
-
-    implicit none
-    integer :: failed_count
-
-    block
-
-        call MPIInit(.false.)
-
-        call init_fruit()
-
-        call test_gasci_driver()
-
-        call fruit_summary()
-        call fruit_finalize()
-        call get_failed_count(failed_count)
-
-        if (failed_count /= 0) call stop_all('test_gasci_program', 'failed_tests')
-
-        call MPIEnd(.false.)
-    end block
-
-contains
-
-    subroutine test_gasci_driver()
-        ! @jph uncomment these
-        call run_test_case(test_pgen_RHF_hermitian, "test_pgen_RHF_hermitian")
-        ! call run_test_case(test_pgen_RHF_nonhermitian, "test_pgen_RHF_nonhermitian")
-        ! TODO(@jph): Good luck with that ;-)
-        ! call run_test_case(test_pgen_UHF_hermitian, "test_pgen_UHF_hermitian")
-        ! call run_test_case(test_pgen_UHF_nonhermitian, "test_pgen_UHF_nonhermitian")
-    end subroutine test_gasci_driver
-end program test_gasci_program
+end module gasci_pchb_test_helper

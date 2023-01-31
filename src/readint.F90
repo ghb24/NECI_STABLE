@@ -40,6 +40,7 @@ contains
         INTEGER NORB, NELEC, MS2, ISYM, i, SYML(1000), iunit, iuhf
         LOGICAL exists
         logical :: uhf, trel, tDetectSym
+        character(*), parameter :: this_routine = 'INITFROMFCID'
 
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
@@ -63,18 +64,18 @@ contains
             IF (TBIN) THEN
                 INQUIRE (FILE='FCISYM', EXIST=exists)
                 IF (.not. exists) THEN
-                    CALL Stop_All('InitFromFCID', 'FCISYM file does not exist')
+                    CALL Stop_All(this_routine, 'FCISYM file does not exist')
                 end if
                 INQUIRE (FILE=FCIDUMP_name, EXIST=exists, FORMATTED=fmat)
                 IF (.not. exists) THEN
-                    CALL Stop_All('INITFROMFCID', 'FCIDUMP file does not exist')
+                    CALL Stop_All(this_routine, 'FCIDUMP file does not exist')
                 end if
                 open(iunit, FILE='FCISYM', STATUS='OLD', FORM='FORMATTED')
                 read(iunit, FCI)
             ELSE
                 INQUIRE (FILE=FCIDUMP_name, EXIST=exists, UNFORMATTED=fmat)
                 IF (.not. exists) THEN
-                    CALL Stop_All('InitFromFCID', 'FCIDUMP file does not exist')
+                    CALL Stop_All(this_routine, 'FCIDUMP file does not exist')
                 end if
                 open(iunit, FILE=FCIDUMP_name, STATUS='OLD', FORM='FORMATTED')
                 read(iunit, FCI)
@@ -99,6 +100,11 @@ contains
         call MPIBCast(OCC, 8)
         call MPIBCast(CLOSED, nIrreps)
         call MPIBCast(FROZEN, nIrreps)
+        if (UHF .and. .not. (tUHF .or. tROHF)) then
+            ! unfortunately, the `UHF` keyword in the FCIDUMP namelist indicates
+            ! spin-orbital-resolved integrals, not necessarily UHF
+            call stop_all(this_routine, 'UHF in FCIDUMP but neither uhf nor rohf in input.')
+        end if
         ! If PropBitLen has been set then assume we're not using an Abelian
         ! symmetry group which has two cycle generators (ie the group has
         ! complex representations).
@@ -130,7 +136,7 @@ contains
 
         if (.not. tMolpro) then
             IF (tROHF .and. (.not. UHF)) THEN
-                CALL Stop_All("INITFROMFCID", "ROHF specified, but FCIDUMP is not in a high-spin format.")
+                CALL Stop_All(this_routine, "ROHF specified, but FCIDUMP is not in a high-spin format.")
             end if
         end if
 
@@ -207,18 +213,15 @@ contains
         if (tMolpro) then
             if (tUHF) then
                 NBASISMAX(2, 3) = 1
-                tStoreSpinOrbs = .true.   !indicate that we are storing the orbitals in umat as spin-orbitals
             else
                 NBASISMAX(2, 3) = 2
-                tStoreSpinOrbs = .false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
             end if
         else
+            tStoreSpinOrbs = tStoreSpinOrbs .or. tRel
             IF ((UHF .and. (.not. tROHF)) .or. tRel) then
                 NBASISMAX(2, 3) = 1
-                tStoreSpinOrbs = .true.   !indicate that we are storing the orbitals in umat as spin-orbitals
             else
                 NBASISMAX(2, 3) = 2
-                tStoreSpinOrbs = .false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
             end if
         end if
 

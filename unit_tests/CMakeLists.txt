@@ -1,10 +1,11 @@
 macro (add_unit_test _config test_name)
+        set (extra_args ${ARGN}) # optional extra libs
         neci_add_test(
             TARGET test_${_config}_${test_name}
         SOURCES
             test_${test_name}.F90
         LIBS
-            lib${_config} fruit
+            lib${_config} fruit ${extra_args}
         LINKER_LANGUAGE
             Fortran
         META_TARGET

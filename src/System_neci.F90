@@ -229,7 +229,7 @@ contains
         t_ueg_dump = .false.
         t_exclude_3_body_excits = .false.
         t_pcpp_excitgen = .false.
-        t_pchb_excitgen = .false.
+        t_fci_pchb_excitgen = .false.
         ! use weighted singles for the pchb excitgen?
         t_guga_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
@@ -1597,7 +1597,7 @@ contains
                         t_pcpp_excitgen = .true.
 
                     case ("PCHB")
-                        t_pchb_excitgen = .true.
+                        t_fci_pchb_excitgen = .true.
                         do while (tokens%remaining_items() > 0)
                             select case(to_upper(tokens%next()))
                             case ('SINGLES')

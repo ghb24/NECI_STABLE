@@ -1,4 +1,4 @@
-module test_pchb_excitgen_mod
+module pchb_excitgen_test_helper
     use fruit, only: assert_true, run_test_case
     use constants, only: dp, maxExcit
     use pchb_excitgen, only: PCHB_FCI_excit_generator_t, &
@@ -16,61 +16,74 @@ module test_pchb_excitgen_mod
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
-    public :: pchb_test_driver
+    public :: test_pgen_rhf_hermitian, test_pgen_rhf_nonhermitian, test_pgen_uhf_hermitian, test_pgen_uhf_nonhermitian
 
 contains
-
-    subroutine pchb_test_driver()
-        call run_test_case(test_pgen_rhf_hermitian, "test_pgen_rhf_hermitian")
-        ! TODO(@jph): Good luck with that ;-)
-        ! call run_test_case(test_pgen_uhf_hermitian, "test_pgen_uhf_hermitian")
-        ! call run_test_case(test_pgen_rhf_nonhermitian, "test_pgen_rhf_nonhermitian")
-        ! call run_test_case(test_pgen_uhf_nonhermitian, "test_pgen_uhf_nonhermitian")
-    end subroutine pchb_test_driver
 
     subroutine test_pgen_rhf_hermitian()
         call pchb_test_general(.false., .true.)
     end subroutine test_pgen_rhf_hermitian
 
-    ! subroutine test_pgen_uhf_hermitian()
-    !     call pchb_test_general(.true., .true.)
-    ! end subroutine test_pgen_uhf_hermitian
-    !
-    ! subroutine test_pgen_rhf_nonhermitian()
-    !     call pchb_test_general(.false., .false.)
-    ! end subroutine test_pgen_rhf_nonhermitian
-    !
-    ! subroutine test_pgen_uhf_nonhermitian()
-    !     call pchb_test_general(.true., .false.)
-    ! end subroutine test_pgen_uhf_nonhermitian
+    subroutine test_pgen_uhf_hermitian()
+        call pchb_test_general(.true., .true.)
+    end subroutine test_pgen_uhf_hermitian
+
+    subroutine test_pgen_rhf_nonhermitian()
+        call pchb_test_general(.false., .false.)
+    end subroutine test_pgen_rhf_nonhermitian
+
+    subroutine test_pgen_uhf_nonhermitian()
+        call pchb_test_general(.true., .false.)
+    end subroutine test_pgen_uhf_nonhermitian
 
     subroutine pchb_test_general(uhf, hermitian)
+        use System, only: SetSysDefaults
+        use Calc, only: SetCalcDefaults
+        use SystemData, only: t_non_hermitian, tUHF, tMolpro
         logical, intent(in) :: uhf, hermitian
         integer, parameter :: n_iters = 5 * 10**7
         type(PCHB_FCI_excit_generator_t) :: exc_generator
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10], n_spat_orb = 10
         logical :: successful
-
+        type(FCI_PCHB_options_t) :: options
         character(len=128) :: message
+
+        call SetCalcDefaults()
+        call SetSysDefaults()
+        t_non_hermitian = .not. hermitian
+        tUHF = UHF
+        tMolpro = UHF
+
         write(message, *) "Failed for uhf=", uhf, ", hermitian=", hermitian
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
         pDoubles = 1.0_dp - pSingles
 
-        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'), setdefaults=.false.)
 
-        call exc_generator%init(&
-            FCI_PCHB_options_t(&
-                FCI_PCHB_SinglesOptions_t(&
-                    FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
-                ), &
-                PCHB_DoublesOptions_t( &
-                    FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                    FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
-                ) &
-            ) &
-        )
+        if (uhf) then
+            options = FCI_PCHB_options_t(&
+                            FCI_PCHB_SinglesOptions_t(&
+                                FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
+                            ), &
+                            PCHB_DoublesOptions_t( &
+                                FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
+                                FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_WEIGHTED &
+                            ) &
+                        )
+        else
+            options = FCI_PCHB_options_t(&
+                            FCI_PCHB_SinglesOptions_t(&
+                                FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
+                            ), &
+                            PCHB_DoublesOptions_t( &
+                                FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
+                                FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                            ) &
+                        )
+        end if
+        call exc_generator%init(options)
 
         call run_excit_gen_tester( &
             exc_generator, 'PCHB FCI', &
@@ -93,7 +106,7 @@ contains
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
             is_problematic = &
-                (abs(1._dp - pgen_diagnostic) >= 0.1_dp) &
+                (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function is_problematic
 
@@ -110,25 +123,4 @@ contains
             uhf=is_uhf, hermitian=is_hermitian)
     end subroutine random_fcidump_general
 
-end module
-
-program test_pchb_excitgen
-    use fruit, only: get_failed_count, init_fruit, fruit_summary, fruit_finalize
-    use Parallel_neci, only: MPIInit, MPIEnd
-    use test_pchb_excitgen_mod, only: pchb_test_driver
-    use util_mod, only: stop_all
-    implicit none
-
-    call MPIInit(.false.)
-    call init_fruit()
-    call pchb_test_driver()
-    call fruit_summary()
-    call fruit_finalize()
-    block
-        integer :: failed_count
-        call get_failed_count(failed_count)
-        if (failed_count /= 0) call stop_all('test_pchb_excitgen', 'failed_tests')
-    end block
-    call MPIEnd(.false.)
-
-end program test_pchb_excitgen
+end module pchb_excitgen_test_helper

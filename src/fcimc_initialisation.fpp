@@ -22,7 +22,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, t_trans_corr_hop, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
+                          t_fci_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
                           basisfn, t_mixed_excits, t_hole_focus_excits
 
 
@@ -2081,7 +2081,7 @@ contains
 
         else if (t_pcpp_excitgen) then
             generate_excitation => gen_rand_excit_pcpp
-        else if (t_pchb_excitgen) then
+        else if (t_fci_pchb_excitgen) then
             call class_managed(generate_excitation, gen_all_excits)
         else if (t_k_space_hubbard) then
             if (t_3_body_excits) then
@@ -4254,4 +4254,3 @@ contains
 !------------------------------------------------------------------------------------------!
 
 end module fcimc_initialisation
-

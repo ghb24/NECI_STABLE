@@ -111,6 +111,12 @@ nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
 
+[neci/pchb/*/]
+program = neci
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
+
 [neci/rdm_singlerun/serial/*]
 program = neci
 max_nprocs = 4
@@ -306,4 +312,3 @@ max_nprocs = 4
 _default_ = neci kneci mneci kmneci
 
 # add new hdf5 class so this is not tested standardly on altest currently, since there is a problem compiling hdf5
-

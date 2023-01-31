@@ -296,7 +296,11 @@ considered. The block starts with the `system` keyword and ends with the
               \begin{equation}
                   p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)
               \end{equation}
-              it is guaranteed that \(I\) is occupied.
+              it is guaranteed that \(I\) is occupied. If also using option `uhf`, this will default to using spin-orbitals
+              (else spatial orbitals).
+
+            **spin-orb-resolved-fast-weighted**
+              As above, but force the use of spin-orbitals.
 
             **uniform**<br>
               \(I\) and \(J\) are just drawn uniformly.

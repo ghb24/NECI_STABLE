@@ -16,7 +16,7 @@ MODULE HPHFRandExcitMod
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
                           t_trans_corr_hop, t_spin_dependent_transcorr, &
-                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA, &
+                          t_fci_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA, &
                           t_pcpp_excitgen, max_ex_level, t_guga_pchb
 
     use IntegralsData, only: UMat, fck, nMax
