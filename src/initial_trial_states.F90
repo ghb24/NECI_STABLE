@@ -11,7 +11,7 @@ module initial_trial_states
 #ifndef CMPLX_
     use matrix_util, only: eig, print_matrix
 #endif
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), stop_all
 
     implicit none
 
@@ -202,8 +202,7 @@ contains
 
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
-            safe_malloc_e(evecs_transpose, (nexcit, ndets_all_procs), ierr)
-            if (ierr /= 0) call stop_all(this_routine, "Error allocating transposed eigenvectors array.")
+            safe_malloc(evecs_transpose, (nexcit, ndets_all_procs))
             evecs_transpose = transpose(evecs)
         else
             safe_free(ilut_list)
@@ -220,7 +219,7 @@ contains
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
-        allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
+        allocate(evecs_this_proc(nexcit, ndets_this_proc))
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
         if (ierr /= 0) call stop_all(this_routine, "Error in MPIScatterV call.")
 

@@ -44,6 +44,7 @@ contains
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         call exc_generator%init(GAS_spec)
+
         call run_excit_gen_tester( &
             exc_generator, 'discarding GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_dets=n_iters, &

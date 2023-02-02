@@ -19,7 +19,8 @@ MODULE System
     use read_fci, only: FCIDUMP_name, load_orb_perm
 
     use util_mod, only: error_function, error_function_c, &
-                        near_zero, operator(.isclose.), get_free_unit, operator(.div.)
+                        near_zero, operator(.isclose.), get_free_unit, operator(.div.), &
+                        stop_all, neci_flush
 
     use lattice_mod, only: lattice, lat
 
@@ -29,17 +30,9 @@ MODULE System
 
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
-    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
-        LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
-
-    use gasci_util, only: t_output_GAS_sizes
-
-
     use SD_spin_purification_mod, only: possible_purification_methods, &
         SD_spin_purification, spin_pure_J
 
-
-    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
     use MPI_wrapper, only: iprocindex, root
 
@@ -53,6 +46,13 @@ MODULE System
 
     use tau_main, only: tau, assign_value_to_tau
 
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
+         user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
+    use gasci_util, only: t_output_GAS_sizes
+    use gasci_pchb_main, only: GAS_PCHB_options, GAS_PCHB_options_vals
+    use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
+
+    use growing_buffers, only: buffer_int_1D_t
     IMPLICIT NONE
 
 contains
@@ -229,9 +229,9 @@ contains
         t_ueg_dump = .false.
         t_exclude_3_body_excits = .false.
         t_pcpp_excitgen = .false.
-        t_pchb_excitgen = .false.
+        t_fci_pchb_excitgen = .false.
         ! use weighted singles for the pchb excitgen?
-        t_pchb_weighted_singles = .false.
+        t_guga_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
         t_adjoint_replicas = .false.
         tGiovannisBrokenInit = .false.
@@ -289,7 +289,7 @@ contains
         type(TokenIterator_t) :: tokens
         character(*), parameter :: t_r = 'SysReadInput'
         character(*), parameter :: this_routine = 'SysReadInput'
-        integer :: temp_n_orbs
+        integer :: temp_n_orbs, buf(1000), n_orb
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
@@ -535,8 +535,10 @@ contains
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
             case ("UHF")
-! This keyword is required if we are doing an open shell calculation
-! but do not want to include singles in the energy calculations.
+            ! indicates UHF type FCIDUMP
+            ! Note, this keyword is required if we are doing an open shell calculation
+            ! but do not want to include singles in the energy calculations
+            ! (e.g. by nobrillouintheorem)
                 tUHF = .true.
             case ("RS")
                 FUEGRS = to_realdp(tokens%next())
@@ -1360,7 +1362,7 @@ contains
                 tNonUniRandExcits = .true.
                 do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
-                    select case (w)
+                    non_uniform_rand_excits: select case (w)
                     case ("NOSYM_GUGA")
                         call Stop_All(this_routine, "'nosym-guga' option deprecated!")
 
@@ -1599,8 +1601,64 @@ contains
                         t_pcpp_excitgen = .true.
 
                     case ("PCHB")
-                        ! the precomputed heat-bath excitation generator (uniform singles)
-                        t_pchb_excitgen = .true.
+                        t_fci_pchb_excitgen = .true.
+                        do while (tokens%remaining_items() > 0)
+                            select case(to_upper(tokens%next()))
+                            case ('SINGLES')
+                                FCI_PCHB_options%singles%algorithm = FCI_PCHB_options_vals%singles%algorithm%from_str(tokens%next())
+                                if (FCI_PCHB_options%singles%algorithm == FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
+                                    FCI_PCHB_options%singles%PC_weighted%drawing = FCI_PCHB_options_vals%singles%PC_weighted%drawing%from_str(tokens%next())
+                                end if
+                            case ('DOUBLES')
+                                select case(to_upper(tokens%next()))
+                                case ('PARTICLE-SELECTION')
+                                    FCI_PCHB_options%doubles%particle_selection = FCI_PCHB_options_vals%doubles%particle_selection%from_str(tokens%next())
+                                case ('HOLE-SELECTION')
+                                    FCI_PCHB_options%doubles%hole_selection = FCI_PCHB_options_vals%doubles%hole_selection%from_str(tokens%next())
+                                case default
+                                    call stop_all(t_r, "Only PARTICLE-SELECTION or HOLE-SELECTION allowed as optional next keyword after PCHB Doubles.")
+                                end select
+                            case default
+                                call stop_all(t_r, "Only SINGLES or DOUBLES allowed as optional next keyword after PCHB")
+                            end select
+                        end do
+
+                    case ("GAS-CI")
+                        w = to_upper(tokens%next())
+                        select case (w)
+                        case ('ON-THE-FLY-HEAT-BATH')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
+                        case ('DISCONNECTED')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                        case ('DISCARDING')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                        case ('PCHB')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+                            do while (tokens%remaining_items() > 0)
+                                w = to_upper(tokens%next())
+                                select case (w)
+                                case ("SINGLES")
+                                    GAS_PCHB_options%singles%algorithm = GAS_PCHB_options_vals%singles%algorithm%from_str(tokens%next())
+                                    if (GAS_PCHB_options%singles%algorithm == GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
+                                        GAS_PCHB_options%singles%PC_weighted%drawing = GAS_PCHB_options_vals%singles%PC_WEIGHTED%drawing%from_str(tokens%next())
+                                    end if
+                                case ("DOUBLES")
+                                    select case(to_upper(tokens%next()))
+                                    case ('PARTICLE-SELECTION')
+                                        GAS_PCHB_options%doubles%particle_selection = GAS_PCHB_options_vals%doubles%particle_selection%from_str(tokens%next())
+                                    case ('HOLE-SELECTION')
+                                        GAS_PCHB_options%doubles%hole_selection = GAS_PCHB_options_vals%doubles%hole_selection%from_str(tokens%next())
+                                    case default
+                                        call stop_all(t_r, "Only PARTICLE-SELECTION or HOLE-SELECTION allowed as optional next keyword after PCHB Doubles.")
+                                    end select
+                                case default
+                                    call stop_all(t_r, "Only SINGLES or DOUBLES allowed as optional next keyword after PCHB")
+                                end select
+                            end do
+                        case default
+                            call Stop_All(t_r, trim(w)//" not a valid keyword")
+                        end select
+
 
                     case ("GUGA-PCHB")
                         ! use an explicit guga-pchb keyword and flag
@@ -1614,12 +1672,19 @@ contains
 
                     case default
                         call Stop_All("ReadSysInp", trim(w)//" not a valid keyword")
-                    end select
+                    end select non_uniform_rand_excits
                 end do
 
             case ("PCHB-WEIGHTED-SINGLES")
                 ! Enable using weighted single excitations with the pchb excitation generator
-                t_pchb_weighted_singles = .true.
+                write(stdout, *) trim(w)//" is deprecated."
+                write(stdout, *) "For SD basis please use `nonuniformrandexcits pchb &
+                    &singles on-fly-heat-bath` instead."
+                write(stdout, *) "For GUGA please use `GUGA-PCHB-WEIGHTED-SINGLES`."
+                call stop_all(this_routine, trim(w)//" is deprecated.")
+
+            case ("GUGA-PCHB-WEIGHTED-SINGLES")
+                t_guga_pchb_weighted_singles = .true.
 
             ! enable intermediately some pchb+guga testing
             case("ANALYZE-PCHB")
@@ -1745,16 +1810,12 @@ contains
                 ! ordering given in the FCIDUMP file - only has an
                 ! effect when reading an FCIDUMP file, has no effect for
                 ! hubbard/heisenberg/ueg systems etc
-                block
-                  integer :: buf(1000)
-                  integer :: n_orb
-                  n_orb = 0
-                  do while (tokens%remaining_items() > 0)
-                      n_orb = n_orb + 1
-                      buf(n_orb) = to_int(tokens%next())
-                  end do
-                  call load_orb_perm(buf(1:n_orb))
-                end block
+                n_orb = 0
+                do while (tokens%remaining_items() > 0)
+                    n_orb = n_orb + 1
+                    buf(n_orb) = to_int(tokens%next())
+                end do
+                call load_orb_perm(buf(1:n_orb))
 
             case ("GIOVANNIS-BROKEN-INIT")
                 ! Giovanni's scheme for initialising determinants with the correct
@@ -1768,112 +1829,73 @@ contains
 
                 tGAS = .true.
                 block
-                    logical :: cumulative_constraints, recoupling
-                    integer :: nGAS, iGAS
-                    integer :: i_orb, n_spat_orbs
+                    logical :: recoupling
+                    integer :: nGAS, iGAS, i_sg, n_sg
+                    integer :: i_orb
                     ! n_orbs are the number of spatial orbitals per GAS space
                     ! cn_min, cn_max are cumulated particle numbers per GAS space
                     integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
-                                            spat_GAS_orbs(:), beta_orbs(:)
+                                            spat_GAS_orbs(:), beta_orbs(:), supergroups(:, :)
                     w = to_upper(tokens%next())
                     if (w == 'LOCAL') then
-                        cumulative_constraints = .false.
+                        allocate(LocalGASSpec_t :: GAS_specification)
                     else if (w == 'CUMULATIVE') then
-                        cumulative_constraints = .true.
+                        allocate(CumulGASSpec_t :: GAS_specification)
+                    else if (w == 'FLEXIBLE') then
+                        allocate(FlexibleGASSpec_t :: GAS_specification)
                     else
                         call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
                     end if
 
-                    nGAS = to_int(tokens%next())
-                    allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
-                    do iGAS = 1, nGAS
-                        n_orbs(iGAS) = to_int(tokens%next())
-                        cn_min(iGAS) = to_int(tokens%next())
-                        cn_max(iGAS) = to_int(tokens%next())
-                    end do
-
-                    n_spat_orbs = sum(n_orbs)
-                    allocate(spat_GAS_orbs(n_spat_orbs))
-                    block
-                        use fortran_strings, only: operator(.in.), Token_t, split
-                        integer :: times, iGAS
-                        type(Token_t), allocatable :: splitted(:)
-
-                        i_orb = 1
-                        do while (i_orb  <= n_spat_orbs)
-                            w = to_upper(tokens%next())
-                            if ('*' .in. w) then
-                                splitted = split(w, '*')
-                                read(splitted(1)%str, *) times
-                                read(splitted(2)%str, *) iGAS
+                    select type(GAS_specification)
+                    type is (FlexibleGASSpec_t)
+                        nGAS = to_int(tokens%next())
+                        n_sg = to_int(tokens%next())
+                        allocate(supergroups(nGAS, n_sg), source=0)
+                        do i_sg = 1, n_sg
+                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                                do iGAS = 1, nGAS
+                                    supergroups(iGAS, i_sg) = to_int(tokens%next())
+                                end do
                             else
-                                read(w, *) iGAS
-                                times = 1
+                                call stop_all(t_r, 'Error in GAS spec.')
                             end if
-                            spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
-                            i_orb = i_orb + times
                         end do
-                    end block
+                    class default
+                        nGAS = to_int(tokens%next())
+                        allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
+                        do iGAS = 1, nGAS
+                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                                n_orbs(iGAS) = to_int(tokens%next())
+                                cn_min(iGAS) = to_int(tokens%next())
+                                cn_max(iGAS) = to_int(tokens%next())
+                            else
+                                call stop_all(t_r, 'Error in GAS spec.')
+                            end if
+                        end do
+                    end select
 
-                    if (tokens%remaining_items() > 0) then
-                        w = to_upper(tokens%next())
-                        select case (w)
-                        case ('RECOUPLING')
-                            recoupling = .true.
-                        case ('NO-RECOUPLING')
-                            recoupling = .false.
-                        case default
-                            call Stop_All(t_r, "Only RECOUPLING or NO-RECOUPLING allowed.")
-                        end select
+
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                        call read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
                     else
-                        recoupling = .true.
+                        call stop_all(t_r, 'Error in GAS spec.')
                     end if
 
-                    if (cumulative_constraints) then
+                    select type(GAS_specification)
+                    type is(CumulGASSpec_t)
                         GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
-                    else
+                    type is(LocalGASSpec_t)
                         GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
-                    end if
+                    type is(FlexibleGASSpec_t)
+                        GAS_specification = FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling)
+                        call GAS_specification%write_to(6)
+                    class default
+                        call stop_all(t_r, "Invalid type for GAS specification.")
+                    end select
 
-                    beta_orbs = [(i, i=1, n_spat_orbs * 2, 2)]
-                    if (.not. all(n_orbs == GAS_specification%count_per_GAS(beta_orbs))) then
-                        call stop_all(t_r, "Inconsistent GAS specification")
-                    end if
                 end block
 
-            case ("GAS-CI")
-                w = to_upper(tokens%next())
-                select case (w)
-                case ('GENERAL')
-                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
-                case ('DISCONNECTED')
-                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                case ('DISCARDING')
-                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                case ('GENERAL_PCHB', 'GENERAL-PCHB')
-                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
-
-                    if (tokens%remaining_items() > 0) then
-                        w = to_upper(tokens%next())
-                        if (w == 'SINGLES') then
-                            w = to_upper(tokens%next())
-                            select case (w)
-                            case('DISCARDING-UNIFORM')
-                                GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
-                            case('PC-UNIFORM')
-                                GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
-                            case('ON-FLY-HEAT-BATH')
-                                GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
-                            case default
-                                call Stop_All(t_r, trim(w)//" not a valid keyword")
-                            end select
-                        else
-                            call Stop_All(t_r, "Only SINGLES allowed as optional next keyword after GENERAL-PCHB")
-                        end if
-                    end if
-                case default
-                    call Stop_All(t_r, trim(w)//" not a valid keyword")
-                end select
 
             case("OUTPUT-GAS-HILBERT-SPACE-SIZE")
                 t_output_GAS_sizes = .true.
@@ -1883,8 +1905,6 @@ contains
                 allocate(SD_spin_purification, source=possible_purification_methods%FULL_S2)
                 spin_pure_J = to_realdp(tokens%next())
                 if (tokens%remaining_items() > 0) then
-                block
-                    character(len=100) :: w
                     w = to_upper(tokens%next())
                     select case(w)
                     case ("ONLY-LADDER-OPERATOR")
@@ -1894,7 +1914,6 @@ contains
                     case default
                         call stop_all(t_r, "Wrong alternative purification method.")
                     end select
-                end block
                 end if
 
             case ("ENDSYS")
@@ -3498,12 +3517,51 @@ contains
         return
     end function
 
+    subroutine read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
+        use fortran_strings, only: operator(.in.), Token_t, split, can_be_int
+        use input_parser_mod, only: TokenIterator_t
+        type(TokenIterator_t), intent(inout) :: tokens
+        integer, allocatable, intent(out) :: spat_GAS_orbs(:)
+        logical, intent(out) :: recoupling
+        integer :: times, iGAS, i
+        type(Token_t), allocatable :: splitted(:)
+        type(buffer_int_1D_t) :: buffer
+        character(len=100) :: w
+        routine_name("read_spat_GAS_orbs")
+
+        call buffer%init()
+        recoupling = .true.
+        do while (tokens%remaining_items() > 0)
+            w = to_upper(tokens%next())
+            if ('*' .in. w) then
+                splitted = split(w, '*')
+                times = to_int(splitted(1)%str)
+                iGAS = to_int(splitted(2)%str)
+            else if (can_be_int(w)) then
+                times = 1
+                iGAS = to_int(w)
+            else if (w == 'RECOUPLING') then
+                recoupling = .true.
+                exit
+            else if (w == 'NO-RECOUPLING') then
+                recoupling = .false.
+                exit
+            else
+                call stop_all(this_routine, "Error in reading GAS orbitals.")
+            end if
+            do i = 1, times
+                call buffer%push_back(iGAS)
+            end do
+        end do
+        call buffer%dump_reset(spat_GAS_orbs)
+    end subroutine
+
 END MODULE System
 
 SUBROUTINE ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
     use SystemData, only: BasisFN, t_guga_noreorder, lNoSymmetry
     use sort_mod
-    use util_mod, only: NECI_ICOPY
+    use util_mod, only: NECI_ICOPY, stop_all
     use constants, only: dp, stdout
     use sym_mod, only: GENMOLPSYMTABLE
     implicit none

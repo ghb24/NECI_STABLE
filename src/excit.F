@@ -29,6 +29,7 @@
       SUBROUTINE FindExcitDet(ExcitMat,nI,IC,TParity)
          use SystemData , only : NEl
          use lattice_mod, only: sort_unique
+         use util_mod, only: stop_all
          implicit none
          integer, intent(in) :: ic
          integer, intent(inout) :: ExcitMat(2,ic)
@@ -258,6 +259,7 @@ C.. determinants within double excitations, which will end up fairly inefficient
             use SystemData, only: BasisFN
             use sym_mod, only: getsym
             use constants, only: int64
+            use util_mod, only: stop_all
             IMPLICIT NONE
             INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
             INTEGER NEXCIT(NEL),NLIST,nBasisMax(5,*)

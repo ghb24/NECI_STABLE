@@ -5,6 +5,7 @@ subroutine VaspSystemInit(ArrLEN)
     use vasp_interface
     use SymData, only: nRot, PropBitLen, tAbelian, nProp, KPntSym, tagKPntSym
     use constants, only: dp, sizeof_int, stdout
+    use util_mod, only: stop_all
     implicit none
     integer :: ArrLEN
     integer :: i, ik
@@ -34,6 +35,7 @@ subroutine VASPInitIntegrals(nOrbUsed, ECore, tOrder)
     use SystemData, only: BasisFN, nEl
     use OneEInts, only: TMatSym, TMatInd
     use vasp_interface
+    use util_mod, only: stop_all
     use UMatCache, only: SetupUMatCache, UMat2D
     use global_utilities
     use constants, only: dp

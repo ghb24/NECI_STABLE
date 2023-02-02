@@ -17,6 +17,7 @@ module orthogonalise
     use Parallel_neci
     use constants
     use util_mod
+    use basic_float_math, only: is_nan
     implicit none
 
 contains
@@ -622,8 +623,7 @@ contains
 
         S_half = matmul(evecs, evecs_t)
 
-        if (any(isnan_neci(s_half))) &
-            call stop_all(this_routine, "NaNs found")
+        if (any(is_nan(s_half))) call stop_all(this_routine, "NaNs found")
 
         ! Go through and update the values!
         HolesInList = 0

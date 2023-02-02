@@ -2,6 +2,7 @@
 
 set( ${PROJECT_NAME}_Fortran_FLAGS "-mcmodel=medium -Msignextend" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-Mbounds" )
+set( ${PROJECT_NAME}_Fortran_FLAGS_FASTDEBUG "${${PROJECT_NAME}_Fortran_FLAGS_DEBUG}" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-tp x64 -fastsse" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-Mipa=fast" )
 

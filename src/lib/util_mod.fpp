@@ -13,7 +13,7 @@ module util_mod
     use util_mod_numerical, only: binary_search_first_ge, stats_out
     use util_mod_cpts, only: arr_2d_ptr, arr_2d_dims, ptr_abuse_1d, &
         ptr_abuse_scalar, ptr_abuse_2d
-    use util_mod_epsilon_close, only: near_zero, operator(.isclose.)
+    use basic_float_math, only: near_zero, operator(.isclose.), isclose
     use constants, only: sp, dp, int32, int64, n_int, inum_runs, lenof_sign, &
         sizeof_int
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
@@ -26,6 +26,7 @@ module util_mod
     use DetBitOps, only: DetBitLt
     use, intrinsic :: iso_c_binding, only: c_char, c_int, c_double
     use mpi, only: MPI_WTIME
+    use error_handling_neci, only: stop_all, neci_flush, warning_neci
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
@@ -40,8 +41,8 @@ module util_mod
     private
 #endif
 
-    public :: get_nan, isnan_neci, factrl, choose_i64, NECI_icopy, operator(.implies.), &
-        abs_l1, abs_sign, near_zero, operator(.isclose.), operator(.div.), &
+    public :: factrl, choose_i64, NECI_icopy, operator(.implies.), &
+        abs_l1, abs_sign, near_zero, operator(.isclose.), isclose, operator(.div.), &
         stochastic_round, stochastic_round_r
 #ifdef GFORTRAN_
     public :: choose_i128
@@ -54,24 +55,19 @@ module util_mod
         append_ext, get_unique_filename, neci_flush, print_cstr_local, &
         stats_out
     public :: arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.), &
-        find_next_comb, binary_search, binary_search_custom, binary_search_first_ge, &
+        find_next_comb, binary_search_ilut, binary_search_custom, binary_search_first_ge, &
         cumsum, pairswap, swap, lex_leq, lex_geq, &
         get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
         getSpinIndex, binary_search_int, binary_search_real, clamp
+    public :: warning_neci
 
     public :: EnumBase_t
 
 
-    interface
-        ! NOTE: A stop all is of course state-changing, but even
-        !   the Fortran standard allows an `error stop`.
-        pure subroutine stop_all(sub_name, error_msg)
-            character(*), intent(in) :: sub_name, error_msg
-        end subroutine
-
-        subroutine neci_flush(n)
-            integer, intent(in) :: n
-        end subroutine
+    interface binary_search_int
+    #:for kind in field_types['integer']
+        module procedure binary_search_int_${kind}$
+    #:endfor
     end interface
 
     interface operator(.implies.)
@@ -517,32 +513,6 @@ contains
         ms = mod(orb, 2)
     end function getSpinIndex
 
-!--- Numerical utilities ---
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
-    real(dp) function get_nan()
-        real(dp) :: a, b
-        a = 1
-        b = 1
-        get_nan = log(a - 2 * b)
-    end function
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_is_nan (r)
-    elemental logical function isnan_neci(r)
-        real(dp), intent(in) :: r
-
-#ifdef GFORTRAN_
-        isnan_neci = isnan(r)
-#else
-        if((r == 0) .and. (r * 1 == 1)) then
-            isnan_neci = .true.
-        else
-            isnan_neci = .false.
-        endif
-#endif
-    end function
 
         !> @brief
         !> Calculate 1 + ... + n
@@ -595,7 +565,7 @@ contains
                 integer(int64) :: prev
                 prev = choose_i64_${kind}$(n - 1, r - 1, signal_overflow)
             ! Note that the recursion stops at n = 66
-                res = (prev * int(n, int64)) .div. k
+                res = (prev * n) .div. k
                 check_for_overflow: if (prev < 0 .or. res < 0) then
                     if (present(signal_overflow)) then
                         if (signal_overflow) then
@@ -655,7 +625,7 @@ contains
                 integer(int128) :: prev
                 prev = choose_i128_${kind}$(n - 1, r - 1, signal_overflow)
             ! Note that the recursion stops at n = 66
-                res = (prev * int(n, kind=int128)) .div. k
+                res = (prev * n) .div. k
                 check_for_overflow: if (prev < 0 .or. res < 0) then
                     if (present(signal_overflow)) then
                         if (signal_overflow) then
@@ -800,7 +770,7 @@ contains
     ! NOTE: This can only be used for binary searching determinant bit
     !       strings now. We can template it if it wants to be more general
     !       in the future if needed.
-    function binary_search(arr, val, cf_len) result(pos)
+    function binary_search_ilut(arr, val, cf_len) result(pos)
 
         integer(kind=n_int), intent(in) :: arr(:, :)
         integer(kind=n_int), intent(in) :: val(:)
@@ -868,48 +838,46 @@ contains
             endif
         endif
 
-    end function binary_search
+    end function binary_search_ilut
 
-    pure function binary_search_int(arr, val) result(pos)
-        ! W.D.: also write a binary search for "normal" lists of ints
-        integer, intent(in) :: arr(:)
-        integer, intent(in) :: val
-        integer :: pos
+    #:for kind in field_types['integer']
+        pure function binary_search_int_${kind}$(arr, val) result(pos)
+            integer(${kind}$), intent(in) :: arr(:)
+            integer(${kind}$), intent(in) :: val
+            integer(int64) :: pos
 
-        integer :: hi, lo
+            integer(int64) :: hi, lo
 
-        lo = lbound(arr, 1)
-        hi = ubound(arr, 1)
+            lo = 1
+            hi = size(arr)
 
-        if(hi < lo) then
-            pos = -lo
-            return
-        end if
-
-        do while(hi /= lo)
-            pos = int(real(hi + lo, dp) / 2.0_dp)
-
-            if(arr(pos) == val) then
-                exit
-            else if(val > arr(pos)) then
-                lo = pos + 1
-            else
-                hi = pos
+            if(hi < lo) then
+                pos = -lo
+                return
             end if
-        end do
 
-        if(hi == lo) then
-            if(arr(hi) == val) then
-                pos = hi
-            else if(val > arr(hi)) then
-                pos = -hi - 1
+            do while(hi /= lo)
+                pos = int((hi + lo) / 2.0_dp, kind=int64)
 
-            else
-                pos = -hi
+                if(arr(pos) == val) then
+                    exit
+                else if(val > arr(pos)) then
+                    lo = pos + 1
+                else
+                    hi = pos
+                end if
+            end do
+
+            if(hi == lo) then
+                if(arr(hi) == val) then
+                    pos = hi
+                else
+                    pos = -1
+                end if
             end if
-        end if
 
-    end function binary_search_int
+        end function binary_search_int_${kind}$
+    #:endfor
 
     function binary_search_real(arr, val, thresh) &
         result(pos)
@@ -1297,13 +1265,13 @@ contains
     #:for kind in kinds
     pure function cumsum_${type}$_${kind}$(X) result(Y)
         ${type}$(${kind}$), intent(in) :: X(:)
-        ${type}$(${kind}$) :: Y(lbound(X, 1):ubound(X, 1))
+        ${type}$(${kind}$) :: Y(size(X))
 
         integer :: i
 
-        if(size(X) /= 0) then
-            Y(lbound(X, 1)) = X(lbound(X, 1))
-            do i = lbound(X, 1) + 1, ubound(X, 1)
+        if(size(X) > 0) then
+            Y(1) = X(1)
+            do i = 2, size(Y)
                 Y(i) = Y(i - 1) + X(i)
             end do
         end if
@@ -1491,37 +1459,3 @@ function etime(tarr) result(tret)
 end function
 
 #endif
-
-subroutine neci_flush(un)
-#ifdef NAGF95
-    use f90_unix, only: flush
-    use constants, only: int32
-#endif
-    integer, intent(in) :: un
-#ifdef NAGF95
-    integer(kind=int32) :: dummy
-#endif
-#ifdef BLUEGENE_HACKS
-    call flush_(un)
-#else
-#ifdef NAGF95
-    dummy = un
-    call flush(dummy)
-#else
-    call flush(un)
-#endif
-#endif
-end subroutine neci_flush
-
-subroutine warning_neci(sub_name,error_msg)
-    != Print a warning message in a (helpfully consistent) format.
-    !=
-    != In:
-    !=    sub_name:  calling subroutine name.
-    !=    error_msg: error message.
-    use, intrinsic :: iso_fortran_env, only: stderr => error_unit
-    character(*), intent(in) :: sub_name, error_msg
-
-    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-    write (stderr,'(a/)') adjustl(error_msg)
-end subroutine warning_neci

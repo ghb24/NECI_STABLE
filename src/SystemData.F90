@@ -179,6 +179,7 @@ module SystemData
     real(dp) :: ALAT(5)
     real(dp) :: ECore
     INTEGER :: nBasis
+        !! The number of spin orbitals.
     integer(int64) :: nBI
     integer :: nMax
     integer :: nnr
@@ -367,8 +368,8 @@ module SystemData
 ! flag for the pre-computed power-pitzer excitaion generator
     logical :: t_pcpp_excitgen = .false.
 ! flags for the pre-computed heat-bath excitation generator
-    logical :: t_pchb_excitgen = .false.
-    logical :: t_pchb_weighted_singles = .false.
+    logical :: t_fci_pchb_excitgen = .false.
+    logical :: t_guga_pchb_weighted_singles = .false.
 
     logical :: t_guga_pchb = .false.
 

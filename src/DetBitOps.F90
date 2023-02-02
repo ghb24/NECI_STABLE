@@ -10,9 +10,9 @@ module DetBitOps
     use bit_rep_data, only: NIfTot, NIfD, &
                             test_flag, extract_sign
     use constants, only: n_int, bits_n_int, end_n_int, dp, lenof_sign
+    use error_handling_neci, only: stop_all
 
     implicit none
-    external :: stop_all
 
     private
     public :: MaskAlpha, MaskBeta, DetBitLt, Countbits, findbitexcitlevel, &
@@ -977,10 +977,10 @@ end module
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
 SUBROUTINE LargestBitSet(iLut, NIfD, LargestOrb)
     use constants, only: bits_n_int, end_n_int, n_int
+    use error_handling_neci, only: stop_all
     IMPLICIT NONE
     INTEGER :: LargestOrb, NIfD, i, j
     INTEGER(KIND=n_int) :: iLut(0:NIfD)
-    external :: stop_all
 
 #ifdef DEBUG_
     character(*), parameter :: this_routine = 'LargestBitSet'

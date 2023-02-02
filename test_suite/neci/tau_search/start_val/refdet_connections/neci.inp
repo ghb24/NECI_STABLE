@@ -6,7 +6,10 @@ System read
     freeformat
     spin-restrict 0
     FCIDUMP-name Li2.FciDmp
-    nonuniformrandexcits pchb
+    nonuniformrandexcits pchb \
+        singles uniform \
+        doubles particle-selection fully-weighted \
+        doubles hole-selection fast-weighted
 endsys
 
 calc

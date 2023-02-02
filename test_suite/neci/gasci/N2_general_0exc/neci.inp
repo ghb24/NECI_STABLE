@@ -5,13 +5,12 @@ System read
     nobrillouintheorem
     freeformat
     spin-restrict 0
-    GAS-CI general
-    GAS-SPEC LOCAL \
-    3 \
-    2 2 2 \
-    2 2 2 \
-    2 2 2 \
-    1 2 3 1 2 3
+    nonuniformrandexcits GAS-CI on-the-fly-heat-bath
+    GAS-SPEC LOCAL 3
+        2 2 2
+        2 2 2
+        2 2 2
+        1 2 3 1 2 3
 endsys
 
 calc

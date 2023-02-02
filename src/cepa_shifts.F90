@@ -6,7 +6,9 @@ module cepa_shifts
     use replica_data, only: diagsft
     use SystemData, only: nel, nOccAlpha, nBasis
     use cc_amplitudes, only: t_cc_amplitudes, cc_singles_factor, &
-                             cc_doubles_factor, cc_triples_factor, cc_quads_factor
+                             cc_doubles_factor, cc_triples_factor, &
+                             cc_quads_factor
+    use util_mod, only: stop_all
 
     implicit none
     private

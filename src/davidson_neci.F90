@@ -13,6 +13,7 @@ module davidson_neci
     use MPI_wrapper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
+    use util_mod, only: neci_flush
     use hamiltonian_linalg, only: &
         full_hamil_type, &
         sparse_hamil_type, &

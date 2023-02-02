@@ -13,7 +13,7 @@ module guga_matrixElements
         convert_ilut_toGUGA, identify_excitation, findFirstSwitch, findLastSwitch, &
         calcb_vector_ilut, count_open_orbs_ij
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
-    use util_mod, only: binary_search, operator(.isclose.), stop_all, near_zero, operator(.div.)
+    use util_mod, only: binary_search_ilut, operator(.isclose.), stop_all, near_zero, operator(.div.)
     use guga_data, only: projE_replica, ExcitationInformation_t, excit_type, gen_type
 
     use guga_data, only: funA_0_2overR2, minFunA_2_0_overR2, funA_2_0_overR2, &

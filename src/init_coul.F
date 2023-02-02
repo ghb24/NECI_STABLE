@@ -34,7 +34,7 @@ C =========================================================
       SUBROUTINE GEN_CK_FFT(N,DIST,A,TALPHA,ALPHA,OMEGA)
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,int64,pi
-      use util_mod, only : near_zero
+      use util_mod, only : near_zero, stop_all
 
       IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI)

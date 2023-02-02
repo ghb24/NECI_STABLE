@@ -22,7 +22,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, t_trans_corr_hop, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
+                          t_fci_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
                           basisfn, t_mixed_excits, t_hole_focus_excits
 
 
@@ -93,7 +93,7 @@ module fcimc_initialisation
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, tMCOutput, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, &
+                           OffDiagBinRange, iDiagSubspaceIter, t_store_ci_coeff, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            t_spin_measurements,  t_measure_local_spin, &
@@ -201,7 +201,7 @@ module fcimc_initialisation
         Sync_Time, MPIAllReduceDatatype
 
     use util_mod, only: stop_all, get_free_unit, neci_flush, &
-        operator(.isclose.), operator(.div.)
+        operator(.isclose.), operator(.div.), warning_neci
 
     use fortran_strings, only: str
 
@@ -221,7 +221,7 @@ module fcimc_initialisation
         SemiStoch_Davidson_Time, Trial_Init_Time, InitSpace_Init_Time, kp_generate_time, Stats_Comms_Time, &
         subspace_hamil_time, exact_subspace_h_time, subspace_spin_time, var_e_time, precond_e_time, &
         proj_e_time, rescale_time, death_time, hash_test_time, hii_test_time, &
-        init_flag_time, iter_data_fciqmc, ll_node
+        init_flag_time, iter_data_fciqmc, ll_node, GAS_PCHB_init_time
 
     use FciMCData, only: all_norms, tDetermSpawnedTo, core_run, &
         tSinglePartPhase, VaryShiftIter, con_send_buf, &
@@ -332,6 +332,8 @@ module fcimc_initialisation
                                   gen_excit_rs_hubbard_spin_dependent_transcorr
 
 
+    use sdt_amplitudes, only: init_ciCoeff
+
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
@@ -368,7 +370,7 @@ module fcimc_initialisation
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
     implicit none
 
-    external :: dgeev, Warning_neci, LargestBitSet
+    external :: dgeev, LargestBitSet
 
 contains
 
@@ -433,6 +435,8 @@ contains
         hash_test_time%timer_name = 'HashTestTime'
         hii_test_time%timer_name = 'HiiTestTime'
         init_flag_time%timer_name = 'InitFlagTime'
+        GAS_PCHB_init_time%timer_name = 'GAS_PCHB_init_time'
+
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -1330,6 +1334,10 @@ contains
             call assign_value_to_tau(TauFactor / REAL(HFConn, dp), 'Initialization from Tau-Factor.')
         end if
 
+        if (t_store_ci_coeff) then
+            call init_ciCoeff()
+        end if
+
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then
@@ -1521,7 +1529,8 @@ contains
     SUBROUTINE InitFCIMCCalcPar()
         INTEGER :: ierr, iunithead
         logical :: formpops, binpops, tStartedFromCoreGround
-        INTEGER :: error, MemoryAlloc, PopsVersion
+        integer(int64) :: MemoryAlloc
+        INTEGER :: error, PopsVersion
         character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
         real(dp) :: ExpectedMemWalk, read_tau, read_psingles, read_pparallel, read_ptriples
@@ -2072,7 +2081,7 @@ contains
 
         else if (t_pcpp_excitgen) then
             generate_excitation => gen_rand_excit_pcpp
-        else if (t_pchb_excitgen) then
+        else if (t_fci_pchb_excitgen) then
             call class_managed(generate_excitation, gen_all_excits)
         else if (t_k_space_hubbard) then
             if (t_3_body_excits) then
@@ -2426,21 +2435,6 @@ contains
 
         call finalize_exz_gen_class()
 
-!There seems to be some problems freeing the derived mpi type.
-!        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-!Free the mpi derived type that we have created for the hashes.
-!            CALL MPI_Type_free(mpilongintegertype,error)
-!            IF(error.ne.MPI_SUCCESS) THEN
-!                CALL MPI_Error_string(error,message,length,temp)
-!                IF(temp.ne.MPI_SUCCESS) THEN
-!                    write(stdout,*) "REALLY SERIOUS PROBLEMS HERE!",temp
-!                    CALL neci_flush(stdout)
-!                end if
-!                write(stdout,*) message(1:length)
-!                write(stdout,*) "ERROR FOUND"
-!                CALL neci_flush(stdout)
-!            end if
-!        end if
 
     end subroutine DeallocFCIMCMemPar
 
@@ -4260,4 +4254,3 @@ contains
 !------------------------------------------------------------------------------------------!
 
 end module fcimc_initialisation
-

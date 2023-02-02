@@ -23,6 +23,7 @@ create a bitbucket account as prompted if necessary.
 
 To gain access to the NECI repository, an ssh key is required. This can
 be generated on any linux machine using the command\footnote{`ssh-keygen` can also generate DSA keys. Some ssh clients and servers will reject DSA keys longer than 1024 bits, and 1024 bits is	currently on the margin of being crackable. As such 2048 bit RSA keys are preferred. Top secret this code is. Probably. Apart from the master branch which hosted for all on github. And in molpro.	And anyone that wants it obviously.}
+<!-- todo is this sassy footnote really necessary? :D -->
 
 ```bash
 ssh-keygen -t rsa -b 2048
@@ -44,10 +45,6 @@ git clone git@bitbucket.org:neci_developers/neci.git [target_dir]
 
 ## NECI Installation
 
-@note
-This is modified from instructions found on the internal wiki, written by Kai and Oskar.
-@endnote
-
 Installation of NECI requires\footnote{If you are on a cluster, you may need to run a command similar to `module load ifort mpi.intel`.}
 
 -   git,
@@ -59,7 +56,7 @@ Installation of NECI requires\footnote{If you are on a cluster, you may need to 
 
 To get started, we must first clone the repository, with
 ```bash
-https://github.com/ghb24/NECI_STABLE.git
+git clone https://github.com/ghb24/NECI_STABLE.git
 ```
 for the public release, or
 ```bash
@@ -79,6 +76,34 @@ make -j
 If you are making without HDF5, then remove the options `-DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON` from the third line.
 @endnote
 
+Sometimes it is necessary to pass in the desired MPI compilers.
+In particular if several MPI implementations are availabe on the system, then `cmake` might pick up the wrong ones.
+To explicitly select the correct MPI pass
+```bash
+-DCMAKE_Fortran_COMPILER=... -DCMAKE_C_COMPILER=... -DCMAKE_CXX_COMPILER=...
+```
+with appropiate paths to `cmake`.
+In the case of GNU compilers that are already in your path it would look like this:
+```bash
+-DCMAKE_Fortran_COMPILER=`which mpifort` \
+-DCMAKE_C_COMPILER=`which mpicc` \
+-DCMAKE_CXX_COMPILER=`which mpicxx`
+```
+
+If you want to link against an existing HDF5 library instead of rebuilding it everytime,
+then follow the instructions in the next section on how to correctly compile HDF5 with parallel support
+and set `HDF5_ROOT` as environment variable pointing to the installation directory of HDF5.
+A full command would look like this:
+
+```bash
+HDF5_ROOT=~/lib/hdf5-1.8.20_gfort_mpi \
+cmake -DENABLE_HDF5=ON \
+-DCMAKE_Fortran_COMPILER=mpifort \
+-DCMAKE_C_COMPILER=mpicc \
+-DCMAKE_CXX_COMPILER=mpicxx ~/code/neci
+```
+
+
 ## HDF5
 
 You may also need to build HDF5 yourself as a shared library, which speeds up the compilation process, since HDF5 does not have to be rebuilt for every new project.
@@ -91,7 +116,8 @@ In this case, download and extract the program from the HDF5 group website, then
 cd your_build_directory
 export HDF5_SRC= # The HDF5 source
 export HDF5_ROOT= # Where it should be installed
-FC=mpiifort F9X=mpiifort CC=mpicc $HDF5_SRC/configure --prefix=$HDF5_ROOT --enable-fortran --enable-fortran2003 --enable-parallel
+FC=mpiifort F9X=mpiifort CC=mpicc $HDF5_SRC/configure \
+    --prefix=$HDF5_ROOT --enable-fortran --enable-fortran2003 --enable-parallel
 make
 make install
 ```
@@ -130,3 +156,5 @@ Requirements to produce the docs are:
 
 This will not only generate this documentation in the form of a PDF, but also as a website,
 having in addition to the information in the PDF also automatically generated documentation from comments in the source files.
+
+<!-- todo ? should we include brief descriptions of all (important) build options? -->

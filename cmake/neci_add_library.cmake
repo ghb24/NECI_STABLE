@@ -47,6 +47,8 @@
 #
 # TYPE : optional
 #   library type, one of:
+#   :SHARED: libraries are linked dynamically and loaded at runtime
+#   :STATIC: archives of object files for use when linking other targets.
 #
 # PRIVATE_INCLUDES : optional
 #   list of paths to add to include directories that will NOT be exported to other projects. Currently
@@ -60,9 +62,6 @@
 #
 # OUTPUT_NAME : optional
 #   set the name of the output file (so it may differ from the target name)
-#
-#   :SHARED: libraries are linked dynamically and loaded at runtime
-#   :STATIC: archives of object files for use when linking other targets.
 #
 ##############################################################################
 

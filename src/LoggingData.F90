@@ -217,6 +217,12 @@ module LoggingData
     ! also use a use defined threshold
     real(dp) :: ija_thresh = 1.0e-7_dp
 
+    ! ci-coefficients collection
+    logical :: t_store_ci_coeff = .false.
+    logical :: t_start_ci_coeff = .true.
+    integer :: n_iter_ci_coeff = 1000
+    integer :: n_store_ci_level = 2
+
     ! for the output of the references in the adi-mode
     logical :: tWriteRefs
     character(255) :: ref_filename
@@ -249,5 +255,6 @@ module LoggingData
 ! The user knows that RDMs are biased for single replica runs
     logical :: tUserKnowsBiasedRDMS = .false.
 
+    logical :: t_print_hdf5_rdms = .false.
 
 end module LoggingData

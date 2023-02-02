@@ -476,7 +476,7 @@ contains
 
     subroutine remove_list1_states_from_list2(list_1, list_2, list_1_size, list_2_size)
 
-        use util_mod, only: binary_search
+        use util_mod, only: binary_search_ilut
 
         integer, intent(in) :: list_1_size
         integer, intent(inout) :: list_2_size
@@ -488,7 +488,7 @@ contains
 
         do i = 1, list_2_size
             ! Binary search list_1 to see if list_2(:,i) is in it.
-            pos = binary_search(list_1(:, min_ind:list_1_size), list_2(:, i), NifD + 1)
+            pos = binary_search_ilut(list_1(:, min_ind:list_1_size), list_2(:, i), NifD + 1)
             ! If it is in list 1, remove the state by setting it to 0.
             ! If it isn't in list 1 (pos < 0) then we can still search a smaller list next time.
             if (pos > 0) then

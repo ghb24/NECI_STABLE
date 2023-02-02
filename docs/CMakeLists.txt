@@ -134,7 +134,7 @@ add_custom_command(
     COMMAND
         ${Python3_EXECUTABLE} -m venv ${PYTHON_VENV}
     COMMAND
-        ${custom_Python3} -m pip install wheel --no-warn-script-location --quiet
+        ${custom_Python3} -m pip install --upgrade pip --no-warn-script-location --quiet
     COMMENT
         "Setting up virtual python environment."
 )
@@ -212,7 +212,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
             COMMAND
-                ${LATEXMK} -view=pdf ${tex_file} 1> /dev/null
+                ${LATEXMK} -view=pdf -halt-on-error ${tex_file}
             COMMAND
                 cp ${tex_stem}.pdf ${pdf_file}
             WORKING_DIRECTORY
@@ -249,14 +249,7 @@ function(add_ford_documentation target configuration)
 
     set(THIS_HTML_DOC ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
 
-    find_program(FORD ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
-    # The following test is necessary because `REQUIRED` inside
-    # find_program is only supported for cmake >=3.18.
-    # If the minimum version is >=3.18 you can remove it.
-    if (NOT FORD)
-        message(FATAL_ERROR "Ford not found. It was expected at ${PROJECT_SOURCE_DIR}/External/ford/ford.py.")
-    endif()
-
+    set(FORD ${PYTHON_VENV}/bin/ford)
     set(FORD_WORKDIR ${FORD_ROOT_WORKDIR}/${configuration})
     set(FORD_PAGES ${FORD_WORKDIR}/pages)
 
@@ -286,6 +279,8 @@ function(add_ford_documentation target configuration)
             ${custom_Python3} -m pip install bibtexparser --quiet
         COMMAND
             ${custom_Python3} -m pip install lxml --quiet
+        COMMAND
+            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford --quiet
         COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND

@@ -221,6 +221,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use sort_mod
          use sym_mod, only: LCHKSYM
          use MemoryManager, only: TagIntType
+         use util_mod, only: stop_all
          IMPLICIT NONE
          INTEGER NHG
          HElement_t(dp) CPMD1EINT(NSTATES,NSTATES)

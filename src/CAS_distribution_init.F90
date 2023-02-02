@@ -57,7 +57,7 @@ module CAS_distribution_init
 
     use Parallel_neci, only: iProcIndex, nNodes, mpisumall
 
-    use util_mod, only: operator(.isclose.)
+    use util_mod, only: operator(.isclose.), stop_all, neci_flush, warning_neci
 
     use FciMCData, only: ll_node, HFSym, ProjEDet, tSinglePartPhase, NoatHF, TotParts, &
         iLutRef, CurrentDets, OldAllHFCyc, AllTotParts, iter_data_fciqmc, AllNoAbortedOld, &

@@ -357,9 +357,13 @@ contains
             ! now have the correct means, but incorrect errors
             covariance = calc_covariance(that, this)
             mean_proje = mean1 / mean2
-            final_error = abs(mean_proje) * &
-                          sqrt((error2 / mean2)**2.0_dp + (error1 / mean1)**2.0_dp &
-                               - 2.0_dp * covariance / ((size(this)) * mean1 * mean2))
+            associate (sqrt_kernel => (error2 / mean2)**2.0_dp &
+                                        + (error1 / mean1)**2.0_dp &
+                                        - 2.0_dp * covariance / ((size(this)) * mean1 * mean2) &
+                       )
+
+                final_error = abs(mean_proje) * sqrt(merge(sqrt_kernel, 0._dp, sqrt_kernel > 0))
+            end associate
             final_eie = final_error / sqrt(2.0_dp * (size(this) - 1))
             write(iunit, *) size(that), mean_proje, final_error, final_eie
         end do
@@ -930,7 +934,8 @@ contains
         end do
         mean = s / length
         mean2 = s2 / length
-        error = sqrt(mean2 - mean**2.0_dp) / sqrt(real(length - 1, dp))
+
+        error = sqrt(merge(mean2 - mean**2, 0._dp, mean2 - mean**2 > 0) / real(length - 1._dp, dp))
 
         eie = error / sqrt(2.0_dp * (length - 1))
 

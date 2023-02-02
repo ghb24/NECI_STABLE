@@ -123,6 +123,7 @@ set( SRC_FILES
     rdm_explicit.F90
     rdm_filling.F90
     rdm_finalising.F90
+    rdm_hdf5.F90
     rdm_integral_fns.F90
     rdm_nat_orbs.F90
     rdm_reading.F90
@@ -216,12 +217,12 @@ set( SRC_FILES
     exc_gen_class_wrappers.F90
     exc_gen_classes.F90
 
-    lib/backtrace.cpp
-    lib/cons_neci.F90
+    lib/constants.F90
     lib/dSFMT.cpp
     lib/dSFMT_interface.F90
     lib/environment_report.F90
     lib/error_handling_neci.F90
+    lib/error_handling_neci_impls.F90
     lib/hdf5_util.F90
     lib/MemoryManagement.F90
     lib/signals.F90
@@ -234,7 +235,7 @@ set( SRC_FILES
     lib/display_matrices.F90
     lib/binomial_lookup.F90
     lib/MAQAO_toggle.c
-)
+    )
 
 set( RELAX_WARNINGS_SRCS
 
@@ -287,7 +288,6 @@ set( RELAX_WARNINGS_SRCS
     gndwork.F90
     hash.F90
     hamiltonian_linalg.F90
-    hdf5_popsfile.F90
     hdiag.F
     hdiag_from_excit.F90
     HElem.F90
@@ -413,8 +413,12 @@ set( RELAX_WARNINGS_SRCS
     real_time_read_input.F90
     verlet_aux.F90
     CAS_distribution_init.F90
+    rdm_hdf5.F90
 
+    # If this bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105594) in gfortran
+    #  is resolved, we can have again stricter compilation options.
     tau/tau_main_impls.F90
+    lib/error_handling_neci_impls.F90
 )
 
 set( FYPP_SRC_FILES
@@ -423,12 +427,20 @@ set( FYPP_SRC_FILES
     HPHFIntegrals.fpp
     sltcnd.fpp
     gasci.fpp
-    gasci_disconnected.fpp
     gasci_discarding.fpp
-    gasci_general.fpp
-    gasci_pchb.fpp
+    gasci_disconnected.fpp
+    gasci_on_the_fly_heat_bath.fpp
+    gasci_pchb_main.fpp
+    gasci_singles_main.fpp
+    gasci_singles_pc_weighted.fpp
+    gasci_pchb_doubles_main.fpp
+    gasci_pchb_doubles_select_particles.fpp
+    gasci_pchb_doubles_spatorb_fastweighted.fpp
+    gasci_pchb_doubles_spinorb_fullyweighted.fpp
+    gasci_pchb_doubles_spinorb_fastweighted.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp
+    CDF_sampling.fpp
     orb_idx.fpp
     excitation_types.fpp
     shared_array.fpp
@@ -436,11 +448,13 @@ set( FYPP_SRC_FILES
     global_det_data.fpp
     rdm_general.fpp
     hist.fpp
+    lib/parallel_hdf5_utils.fpp
     lib/util_mod.fpp
-    lib/util_mod_epsilon_close.fpp
+    lib/basic_float_math.fpp
     sets_mod.fpp
     shared_ragged_array.fpp
     SD_spin_purification.fpp
+    sdt_amplitudes.fpp
 )
 
 set( TEMPLATED_SRC_FILES

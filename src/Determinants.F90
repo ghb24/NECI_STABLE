@@ -27,7 +27,7 @@ MODULE Determinants
     use guga_data, only: ExcitationInformation_t
 
     use lattice_mod, only: get_helement_lattice
-    use util_mod, only: NECI_ICOPY, operator(.div.)
+    use util_mod, only: NECI_ICOPY, operator(.div.), stop_all
     use SymData, only: nSymLabels, SymLabelList, SymLabelCounts, TwoCycleSymGens
     use sym_mod
 
@@ -787,9 +787,6 @@ subroutine GetH0Element(nI, nEl, Arr, nBasis, ECore, hEl)
             hEl = hEl + (Arr(nI(i), 2))
         end do
     end if
-!         call writedet(77,nI,nel,.false.)
-!         write(77,*) "H0",hEl
-!         call neci_flush(77)
 end subroutine
 
 subroutine DetFreezeBasis(GG)
@@ -798,6 +795,7 @@ subroutine DetFreezeBasis(GG)
     use IntegralsData, only: nFrozen, nFrozenIn
     use sort_mod
     use sym_mod
+    use error_handling_neci, only: stop_all
     implicit none
     integer i, j
     INTEGER GG(*), Lz
@@ -1017,6 +1015,7 @@ END
 subroutine ModifyMomentum(FDet)
     use SystemData, only: nEl, G1, k_momentum, nBasis, tUEG
     use constants, only: stdout
+    use error_handling_neci, only: stop_all
     implicit none
     integer :: i, j ! Loop variables
     integer, intent(inout) :: FDet(NEl)

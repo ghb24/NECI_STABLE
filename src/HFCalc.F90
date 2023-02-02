@@ -1,6 +1,7 @@
 #include "macros.h"
 MODULE HFCalc
     use constants, only: dp, int64, MPIArg
+    use util_mod, only: stop_all, neci_flush
     implicit none
     save
 contains

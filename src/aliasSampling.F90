@@ -1,16 +1,20 @@
+#include "macros.h"
 module aliasSampling
     ! This module contains the utility to use alias table lookup on lists,
     ! requiring to precompute biases but making the lookup O(1)
-    use constants, only: dp, int64, eps
+    use constants, only: dp, int64, eps, n_int, bits_n_int
     use shared_array, only: shared_array_real_t, shared_array_int32_t
+    use sets_mod, only: is_set, subset, operator(.in.)
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: stop_all
+    use util_mod, only: stop_all, near_zero, binary_search_int, &
+        operator(.isclose.), operator(.div.), isclose
+    use CDF_sampling_mod, only: CDF_Sampler_t
     implicit none
 
     private
     public :: aliasSampler_t, AliasSampler_1D_t, AliasSampler_2D_t, AliasSampler_3D_t, &
-        clear_sampler_array, aliasTable_t
+        clear_sampler_array, aliasTable_t, do_direct_calculation
 
     ! type for tables: contains everything you need to get a random number
     ! with given biases
@@ -57,8 +61,13 @@ module aliasSampling
         procedure :: samplerDestructor
         ! get a random element and the generation probability
         procedure :: sample
+        ! get a random element from a constrained set and its normalized! generation probability
+        generic :: constrained_sample => constrained_sample_fast, constrained_sample_nI
+        procedure, private :: constrained_sample_nI, constrained_sample_fast
         ! get the probability to produce a given value
         procedure :: getProb
+        ! get the probability to draw a given value from a constrained set
+        procedure :: constrained_getProb
     end type aliasSampler_t
 
     !------------------------------------------------------------------------------------------!
@@ -84,7 +93,10 @@ module aliasSampling
         procedure :: finalize => samplerArrayDestructor_3D
         ! get a random element and the generation probability from one of the samplers
         procedure :: sample => aSample_3D
+        generic :: constrained_sample => constrained_sample_3D_nI, constrained_sample_3D_fast
+        procedure, private :: constrained_sample_3D_nI, constrained_sample_3D_fast
         procedure :: get_prob => aGetProb_3D
+        procedure :: constrained_getProb => constrained_get_prob_3D
     end type AliasSampler_3D_t
 
 
@@ -99,7 +111,10 @@ module aliasSampling
         procedure :: finalize => samplerArrayDestructor_2D
         ! get a random element and the generation probability from one of the samplers
         procedure :: sample => aSample_2D
+        generic :: constrained_sample => constrained_sample_2D_nI, constrained_sample_2D_fast
+        procedure, private :: constrained_sample_2D_nI, constrained_sample_2D_fast
         procedure :: get_prob => aGetProb_2D
+        procedure :: constrained_getProb => constrained_get_prob_2D
     end type AliasSampler_2D_t
 
 
@@ -114,10 +129,19 @@ module aliasSampling
         procedure :: finalize => samplerArrayDestructor_1D
         ! get a random element and the generation probability from one of the samplers
         procedure :: sample => aSample_1D
+        generic :: constrained_sample => constrained_sample_1D_nI, constrained_sample_1D_fast
+        procedure, private :: constrained_sample_1D_nI, constrained_sample_1D_fast
         procedure :: get_prob => aGetProb_1D
+        procedure :: constrained_getProb => constrained_get_prob_1D
     end type AliasSampler_1D_t
 
-
+    real(dp), parameter :: redrawing_cutoff = 0.1_dp
+        !! If we draw from constrained subsets of a precomputed probability distributions
+        !! we can use two different algorithms:
+        !!  1. We just redraw until we sample an element from our subset
+        !!  2. We reconstruct probability distributions for our narrower subset.
+        !! If the sum of probabilities of our subset is larger than `redrawing_cutoff`,
+        !! we take the first method, otherwise the second.
 
 contains
 
@@ -385,10 +409,99 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[out] tgt  on return, this is a random number in the sampling range of this
+    !> @param[out] pos  the position of tgt in `contain`
+    !> @param[out] prob  on return, the probability of picking tgt from constraint
+    subroutine constrained_sample_nI(this, contain, renormalization, pos, tgt, prob)
+        class(aliasSampler_t), intent(in) :: this
+        integer, intent(in) :: contain(:)
+        real(dp), intent(in) :: renormalization
+        integer, intent(out) :: pos, tgt
+        real(dp), intent(out) :: prob
+        character(*), parameter :: this_routine = 'constrained_sample_nI'
+
+        ASSERT(is_set(contain))
+        ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
+        ASSERT(renormalization .isclose. (sum(this%getProb(contain))))
+
+        if (near_zero(renormalization)) then
+            tgt = 0
+            prob = 1.0
+            return
+        end if
+
+        if (renormalization < redrawing_cutoff) then
+        block
+            type(CDF_Sampler_t) :: cdf_sampler
+            cdf_sampler = CDF_Sampler_t(this%probs%ptr(contain), renormalization)
+            call cdf_sampler%sample(pos, prob)
+            tgt = contain(pos)
+            return
+        end block
+        end if
+
+        tgt = this%table%getRand()
+        pos = int(binary_search_int(contain, tgt))
+        do while (pos == -1)
+            tgt = this%table%getRand()
+            pos = int(binary_search_int(contain, tgt))
+        end do
+        prob = this%probs%ptr(tgt) / renormalization
+        ASSERT(prob .isclose. (this%probs%ptr(tgt) / sum(this%probs%ptr(contain))))
+        ASSERT(contain(pos) == tgt)
+    end subroutine constrained_sample_nI
+
+
+    !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[out] tgt  on return, this is a random number in the sampling range of this
+    !> @param[out] pos  the position of tgt in `contain`
+    !> @param[out] prob  on return, the probability of picking tgt from constraint
+    subroutine constrained_sample_fast(this, contain, contain_ilut, renormalization, pos, val, prob)
+        class(aliasSampler_t), intent(in) :: this
+        integer, intent(in) :: contain(:)
+        integer(n_int), intent(in) :: contain_ilut(0 : )
+        real(dp), intent(in) :: renormalization
+        integer, intent(out) :: pos, val
+        real(dp), intent(out) :: prob
+        routine_name("constrained_sample_fast")
+        ASSERT(is_set(contain))
+        ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
+        ASSERT(renormalization .isclose. (sum(this%getProb(contain))))
+        ASSERT(size(contain) == sum(popcnt(contain_ilut)))
+
+        if (near_zero(renormalization)) then
+            pos = 0; val = 0; prob = 1.0
+            return
+        end if
+
+        if (renormalization < redrawing_cutoff) then
+        block
+            type(CDF_Sampler_t) :: cdf_sampler
+            cdf_sampler = CDF_Sampler_t(this%probs%ptr(contain), renormalization)
+            call cdf_sampler%sample(pos, prob)
+            val = contain(pos)
+            return
+        end block
+        end if
+
+        val = this%table%getRand()
+        do while (.not. IsOcc(contain_ilut, val))
+            val = this%table%getRand()
+        end do
+        pos = int(binary_search_int(contain, val))
+        prob = this%probs%ptr(val) / renormalization
+        ASSERT(prob .isclose. (this%probs%ptr(val) / sum(this%probs%ptr(contain))))
+    end subroutine constrained_sample_fast
+
+    !------------------------------------------------------------------------------------------!
+
     !> Returns the probability to draw tgt from this sampler
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @param[out] prob  the probability of drawing tgt with the sample routine
-    pure function getProb(this, tgt) result(prob)
+    elemental function getProb(this, tgt) result(prob)
         class(aliasSampler_t), intent(in) :: this
         integer, intent(in) :: tgt
         real(dp) :: prob
@@ -400,6 +513,38 @@ contains
             prob = this%probs%ptr(tgt)
         end if
     end function getProb
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Returns the probability to draw tgt from this sampler
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @param[in] constraint pick only elements from constraint
+    !>      (has to be a set, i.e. unique and ordered)
+    !> @param[out] prob  the probability of picking tgt from constraint
+    pure function constrained_getProb(this, contain, renorm, tgt) result(prob)
+        class(aliasSampler_t), intent(in) :: this
+        integer, intent(in) :: contain(:)
+        real(dp), intent(in) :: renorm
+        integer, intent(in) :: tgt
+        character(*), parameter :: this_routine = 'constrained_getProb'
+        real(dp) :: prob
+
+        ASSERT(is_set(contain))
+        ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
+        ASSERT(isclose(renorm, sum(this%getProb(contain)), atol=1e-10_dp))
+            !! This loosened threshhold might be a good idea if the renormalization
+            !! was calculated via the complement, i.e.
+            !! \Sum{ p_i } {i \in D_i} = 1 - \Sum{ p_i } {i \notin D_i}
+
+        if (near_zero(renorm)) then
+            !! the probability of drawing anything from an empty sampler is 0
+            prob = 0.0
+        else
+            prob = this%probs%ptr(tgt) / renorm
+        end if
+    end function constrained_getProb
+
+    !------------------------------------------------------------------------------------------!
 
     !------------------------------------------------------------------------------------------!
     ! Public non-member function to deallocate 1d-arrays of samplers (common task)
@@ -462,29 +607,81 @@ contains
     ! Array access functions
     !------------------------------------------------------------------------------------------!
 
-    !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
-    !> @param[in] iEntry  index of the sampler to use
-    !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize
-    !> @param[out] prob  on return, the probability of picking tgt
     subroutine aSample_1D(this, iEntry, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob
         class(AliasSampler_1D_t), intent(in) :: this
         integer, intent(in) :: iEntry
+            !! The index of the sampler.
         integer, intent(out) :: tgt
+            !! The sampled value `tgt`.
         real(dp), intent(out) :: prob
+            !! The probability of sampling `tgt`.
         call this%alias_sampler%sample(iEntry, 1, 1, tgt, prob)
     end subroutine aSample_1D
+
+    subroutine constrained_sample_1D_nI(this, i, contain, renorm, pos, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob while adherring to constraints
+        class(AliasSampler_1D_t), intent(in) :: this
+        integer, intent(in) :: i
+            !! The index of the sampler.
+        integer, intent(in) :: contain(:)
+            !! The constraint in nI format.
+        real(dp), intent(in) :: renorm
+            !! The renormalization. (i.e. sum(this%get_prob(... contain...))
+        integer, intent(out) :: pos, tgt
+            !! The sampled value `tgt` and its position `pos` in `contain.
+        real(dp), intent(out) :: prob
+            !! The probability of sampling `tgt` from `contain`
+
+        call this%alias_sampler%constrained_sample(i, 1, 1, contain, renorm, pos, tgt, prob)
+    end subroutine
+
+    subroutine constrained_sample_1D_fast(this, i, contain, contain_ilut, renormalization, pos, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob while adherring to constraints
+        class(AliasSampler_1D_t), intent(in) :: this
+        integer, intent(in) :: i
+            !! The index of the sampler.
+        integer, intent(in) :: contain(:)
+            !! The constraint in nI format.
+        integer(n_int), intent(in) :: contain_ilut(0 : )
+            !! The constraint in ilut (bitmask) format
+        real(dp), intent(in) :: renormalization
+            !! The renormalization. (i.e. sum(this%get_prob(... contain...))
+        integer, intent(out) :: pos, tgt
+            !! The sampled value `tgt` and its position `pos` in `contain.
+        real(dp), intent(out) :: prob
+            !! The probability of sampling `tgt` from `contain`
+
+        call this%alias_sampler%constrained_sample(i, 1, 1, contain, contain_ilut, renormalization, pos, tgt, prob)
+    end subroutine
 
     !> Returns the probability to draw tgt from the sampler with index iEntry
     !> @param[in] iEntry  index of the sampler to use
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @return prob  the probability of drawing tgt with the sample routine
-    pure function aGetProb_1D(this, iEntry, tgt) result(prob)
+    elemental function aGetProb_1D(this, iEntry, tgt) result(prob)
         class(AliasSampler_1D_t), intent(in) :: this
         integer, intent(in) :: iEntry
         integer, intent(in) :: tgt
         real(dp) :: prob
         prob = this%alias_sampler%get_prob(iEntry, 1, 1, tgt)
     end function aGetProb_1D
+
+    !> Returns the probability to draw tgt from the sampler with index iEntry
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @return prob  the probability of drawing tgt with the sample routine from constraint
+    pure function constrained_get_prob_1D(this, i, contain, renorm, tgt) result(prob)
+        class(AliasSampler_1D_t), intent(in) :: this
+        integer, intent(in) :: i
+        integer, intent(in) :: contain(:)
+        real(dp), intent(in) :: renorm
+        integer, intent(in) :: tgt
+        real(dp) :: prob
+
+        prob = this%alias_sampler%constrained_getProb(i, 1, 1, contain, renorm, tgt)
+    end function
 
     !> Setup an array of samplers using a single shared resource (split into parts associated
     !! with one of them each). This only does the allocation.
@@ -521,29 +718,82 @@ contains
     ! Array access functions
     !------------------------------------------------------------------------------------------!
 
-    !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
-    !> @param[in] iEntry  index of the sampler to use
-    !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize
-    !> @param[out] prob  on return, the probability of picking tgt
     subroutine aSample_2D(this, i, j, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob
         class(AliasSampler_2D_t), intent(in) :: this
         integer, intent(in) :: i, j
+            !! The index of the sampler.
         integer, intent(out) :: tgt
+            !! The sampled value `tgt`.
         real(dp), intent(out) :: prob
+            !! The probability of sampling `tgt`.
         call this%alias_sampler%sample(i, j, 1, tgt, prob)
     end subroutine aSample_2D
+
+    subroutine constrained_sample_2D_nI(this, i, j, contain, renorm, pos, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob while adherring to constraints
+        class(AliasSampler_2D_t), intent(in) :: this
+        integer, intent(in) :: i, j
+            !! The index of the sampler.
+        integer, intent(in) :: contain(:)
+            !! The constraint in nI format.
+        real(dp), intent(in) :: renorm
+            !! The renormalization. (i.e. sum(this%get_prob(... contain...))
+        integer, intent(out) :: pos, tgt
+            !! The sampled value `tgt` and its position `pos` in `contain.
+        real(dp), intent(out) :: prob
+            !! The probability of sampling `tgt` from `contain`
+
+        call this%alias_sampler%constrained_sample(i, j, 1, contain, renorm, pos, tgt, prob)
+    end subroutine
+
+    subroutine constrained_sample_2D_fast(this, i, j, contain, contain_ilut, renormalization, pos, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob while adherring to constraints
+        class(AliasSampler_2D_t), intent(in) :: this
+        integer, intent(in) :: i, j
+            !! The index of the sampler.
+        integer, intent(in) :: contain(:)
+            !! The constraint in nI format.
+        integer(n_int), intent(in) :: contain_ilut(0 : )
+            !! The constraint in ilut (bitmask) format
+        real(dp), intent(in) :: renormalization
+            !! The renormalization. (i.e. sum(this%get_prob(... contain...))
+        integer, intent(out) :: pos, tgt
+            !! The sampled value `tgt` and its position `pos` in `contain.
+        real(dp), intent(out) :: prob
+            !! The probability of sampling `tgt` from `contain`
+
+        call this%alias_sampler%constrained_sample(i, j, 1, contain, contain_ilut, renormalization, pos, tgt, prob)
+    end subroutine
 
     !> Returns the probability to draw tgt from the sampler with index iEntry
     !> @param[in] iEntry  index of the sampler to use
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @return prob  the probability of drawing tgt with the sample routine
-    pure function aGetProb_2D(this, i, j, tgt) result(prob)
+    elemental function aGetProb_2D(this, i, j, tgt) result(prob)
         class(AliasSampler_2D_t), intent(in) :: this
         integer, intent(in) :: i, j
         integer, intent(in) :: tgt
         real(dp) :: prob
         prob = this%alias_sampler%get_prob(i, j, 1, tgt)
     end function aGetProb_2D
+
+    !> Returns the probability to draw tgt from the sampler with index iEntry
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] j Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @return prob  the probability of drawing tgt with the sample routine from constraint
+    pure function constrained_get_prob_2D(this, i, j, contain, renorm, tgt) result(prob)
+        class(AliasSampler_2D_t), intent(in) :: this
+        integer, intent(in) :: i, j
+        integer, intent(in) :: contain(:)
+        real(dp), intent(in) :: renorm
+        integer, intent(in) :: tgt
+        real(dp) :: prob
+
+        prob = this%alias_sampler%constrained_getProb(i, j, 1, contain, renorm, tgt)
+    end function
 
 
     !> Setup an array of samplers using a single shared resource (split into parts associated
@@ -624,19 +874,54 @@ contains
     ! Array access functions
     !------------------------------------------------------------------------------------------!
 
-    !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
-    !> @param[in] i Index of the sampler to use
-    !> @param[in] j Index of the sampler to use
-    !> @param[in] k Index of the sampler to use
-    !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize
-    !> @param[out] prob  on return, the probability of picking tgt
     subroutine aSample_3D(this, i, j, k, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob
         class(AliasSampler_3D_t), intent(in) :: this
         integer, intent(in) :: i, j, k
+            !! The index of the sampler.
         integer, intent(out) :: tgt
+            !! The sampled value `tgt`.
         real(dp), intent(out) :: prob
-
+            !! The probability of sampling `tgt`.
         call this%samplerArray(i, j, k)%sample(tgt, prob)
+    end subroutine
+
+
+    subroutine constrained_sample_3D_nI(this, i, j, k, contain, renorm, pos, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob while adherring to constraints
+        class(AliasSampler_3D_t), intent(in) :: this
+        integer, intent(in) :: i, j, k
+            !! The index of the sampler.
+        integer, intent(in) :: contain(:)
+            !! The constraint in nI format.
+        real(dp), intent(in) :: renorm
+            !! The renormalization. (i.e. sum(this%get_prob(... contain...))
+        integer, intent(out) :: pos, tgt
+            !! The sampled value `tgt` and its position `pos` in `contain.
+        real(dp), intent(out) :: prob
+            !! The probability of sampling `tgt` from `contain`
+
+        call this%samplerArray(i, j, k)%constrained_sample(contain, renorm, pos, tgt, prob)
+    end subroutine
+
+
+    subroutine constrained_sample_3D_fast(this, i, j, k, contain, contain_ilut, renormalization, pos, tgt, prob)
+        !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob while adherring to constraints
+        class(AliasSampler_3D_t), intent(in) :: this
+        integer, intent(in) :: i, j, k
+            !! The index of the sampler.
+        integer, intent(in) :: contain(:)
+            !! The constraint in nI format.
+        integer(n_int), intent(in) :: contain_ilut(0 : )
+            !! The constraint in ilut (bitmask) format
+        real(dp), intent(in) :: renormalization
+            !! The renormalization. (i.e. sum(this%get_prob(... contain...))
+        integer, intent(out) :: pos, tgt
+            !! The sampled value `tgt` and its position `pos` in `contain.
+        real(dp), intent(out) :: prob
+            !! The probability of sampling `tgt` from `contain`
+
+        call this%samplerArray(i, j, k)%constrained_sample(contain, contain_ilut, renormalization, pos, tgt, prob)
     end subroutine
 
     !> Returns the probability to draw tgt from the sampler with index iEntry
@@ -645,13 +930,69 @@ contains
     !> @param[in] k Index of the sampler to use
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @return prob  the probability of drawing tgt with the sample routine
-    pure function aGetProb_3D(this, i, j, k, tgt) result(prob)
+    elemental function aGetProb_3D(this, i, j, k, tgt) result(prob)
         class(AliasSampler_3D_t), intent(in) :: this
         integer, intent(in) :: i, j, k
         integer, intent(in) :: tgt
         real(dp) :: prob
 
         prob = this%samplerArray(i, j, k)%getProb(tgt)
+    end function
+
+
+    !> Returns the probability to draw tgt from the sampler with index iEntry
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] j Index of the sampler to use
+    !> @param[in] k Index of the sampler to use
+    !> @param[in] constraint pick only elements from constraint
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @return prob  the probability of drawing tgt with the sample routine from constraint
+    pure function constrained_get_prob_3D(this, i, j, k, contain, renorm, tgt) result(prob)
+        class(AliasSampler_3D_t), intent(in) :: this
+        integer, intent(in) :: i, j, k
+        integer, intent(in) :: contain(:)
+        real(dp), intent(in) :: renorm
+        integer, intent(in) :: tgt
+        real(dp) :: prob
+
+        prob = this%samplerArray(i, j, k)%constrained_getProb(contain, renorm, tgt)
+    end function
+
+    elemental logical function do_direct_calculation(normalization)
+        !! Evaluate if a normalization has to be calculated directly.
+        !!
+        !! Sometimes we make the mathematically valid trick of
+        !! calculating a renormalization for a given subset
+        !! via one minus its complement.
+        !! \begin{equation}
+        !!  \sum_{i \in D} p_i = 1 - \sum_{i \notin D} p_i
+        !! \end{equation}
+        !! This is not always valid for two reasons:
+        !!
+        !! We assume that there are \(p_i\) with nonzero probabilities.
+        !! If \(1 - \sum_{i \notin D} p_i \) is 1, we might be in a situation
+        !! where all \( p_i \) are zero and assuming \( \sum_{i \in D} p_i = 1 \)
+        !! would be wrong.
+        !! This is the first case where we we have to directly calculate
+        !! \( \sum_{i \in D} p_i \).
+        !!
+        !! The other reason is floating point arithmetics, that might cause
+        !! the two sides to be slightly different.
+        !! Since they are renormalization factors and we divide by them,
+        !! these small errors blow up for small numbers.
+        real(dp), intent(in) :: normalization
+        real(dp), parameter :: threshhold = 1e-5_dp
+        debug_function_name("do_direct_calculation")
+#ifdef DEBUG_
+        if (.not. (0._dp <= normalization .and. normalization <= 1._dp)) then
+            if (.not. ((normalization .isclose. 0._dp) .or. (normalization .isclose. 1._dp))) then
+                call stop_all(this_routine, "Invalid normalization")
+            end if
+        end if
+#endif
+        do_direct_calculation = &
+            normalization >= 1 & ! now we have `normalization == 1`; first case
+            .or. normalization < threshhold ! Second case
     end function
 
 end module aliasSampling

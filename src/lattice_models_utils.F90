@@ -7,7 +7,7 @@ module lattice_models_utils
 
     use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
-    use util_mod, only: binary_search, binary_search_first_ge, choose_i64, swap, &
+    use util_mod, only: binary_search_ilut, binary_search_first_ge, choose_i64, swap, &
                         operator(.isclose.), operator(.div.), stop_all
 
     use sort_mod, only: sort
@@ -246,7 +246,7 @@ contains
             ! det-list, if i undertand the function below correctly
             ilut_sym = return_hphf_sym_det(ilut)
 
-            pos = binary_search(temp_dets(:, 1:cnt), ilut, nifd + 1)
+            pos = binary_search_ilut(temp_dets(:, 1:cnt), ilut, nifd + 1)
 
             if (pos < 0) then
                 ! then we have to store it
@@ -306,7 +306,7 @@ contains
                             ! actually a search is not really necessary.. since
                             ! all the single excitations are unique.. but
                             ! just to be sure
-                            pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                            pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                             if (pos < 0) then
 
@@ -381,7 +381,7 @@ contains
                         ! actually a search is not really necessary.. since
                         ! all the single excitations are unique.. but
                         ! just to be sure
-                        pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                        pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                         if (pos < 0) then
 
@@ -467,7 +467,7 @@ contains
                         ! actually a search is not really necessary.. since
                         ! all the single excitations are unique.. but
                         ! just to be sure
-                        pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                        pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                         if (pos < 0) then
 
@@ -1735,7 +1735,7 @@ contains
 
                                                 ! and to be save, search if we have
                                                 ! this excitation already..
-                                                pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                                                pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                                                 if (pos < 0) then
                                                     ! new excitation
@@ -1823,7 +1823,7 @@ contains
 
                                 ilutJ = make_ilutJ(ilut, ex, 2)
 
-                                pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                                pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                                 if (pos < 0) then
 

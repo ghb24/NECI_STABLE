@@ -3,6 +3,7 @@
 module lanczos_wrapper
 
     use constants
+    use util_mod, only: stop_all
 
     implicit none
 

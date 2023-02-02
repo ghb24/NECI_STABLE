@@ -6,13 +6,14 @@ System read
     freeformat
     spin-restrict 0
     FCIDUMP-name Li2.FciDmp
-    GAS-CI general_PCHB \
-        SINGLES PC-UNIFORM
-    GAS-SPEC CUMULATIVE \
-    2 \
-    5 2 4 \
-    5 6 6 \
-    1 1 1 1 1 2 2 2 2 2
+    nonuniformrandexcits GAS-CI PCHB \
+        SINGLES UNIFORM \
+        DOUBLES PARTICLE-SELECTION UNIFORM \
+        doubles hole-selection  fast-weighted
+    GAS-SPEC CUMULATIVE 2
+        5 2 4
+        5 6 6
+        1 1 1 1 1 2 2 2 2 2
 endsys
 
 calc

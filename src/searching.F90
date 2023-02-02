@@ -15,7 +15,7 @@ module searching
     use sparse_arrays, only: trial_ht, con_ht
     use SystemData, only: nel
     use timing_neci, only: set_timer, halt_timer
-    use util_mod, only: binary_search_custom, operator(.div.)
+    use util_mod, only: binary_search_custom, operator(.div.), stop_all
 
     implicit none
 
@@ -347,8 +347,6 @@ contains
         INTEGER :: i, j, N, Comp
         LOGICAL :: tSuccess
 
-        !    write(iout,*) "Binary searching between ",MinInd, " and ",MaxInd
-        !    CALL neci_flush(iout)
         i = MinInd
         j = MaxInd
         IF (i - j == 0) THEN

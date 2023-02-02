@@ -19,7 +19,7 @@ module guga_bitRepOps
     use bit_rep_data, only: test_flag, flag_deltaB_single, IlutBits, &
                             flag_deltaB_double, flag_deltaB_sign, niftot, &
                             nIfGUGA, nIfd, BitRep_t, GugaBits
-    use util_mod, only: binary_search, binary_search_custom, operator(.div.), &
+    use util_mod, only: binary_search_ilut, binary_search_custom, operator(.div.), &
                         near_zero, stop_all, operator(.isclose.)
 
     use sort_mod, only: sort
@@ -1932,7 +1932,7 @@ contains
 
         do i = 1, nDets2
 
-            pos = binary_search(list1(0:nifd, min_ind:ndets1), list2(0:nifd, i))
+            pos = binary_search_ilut(list1(0:nifd, min_ind:ndets1), list2(0:nifd, i))
             if (pos > 0) then
                 ! try new implementation of that without the need of an extra
                 ! output list

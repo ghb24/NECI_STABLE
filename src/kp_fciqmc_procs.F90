@@ -5,7 +5,7 @@ module kp_fciqmc_procs
     use bit_rep_data
     use bit_reps, only: decode_bit_det, encode_sign
     use constants
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, neci_flush, stop_all
     use Parallel_neci, only: iProcIndex, MPISum, nProcessors
     use kp_fciqmc_data_mod
     use SystemData, only: tGUGA

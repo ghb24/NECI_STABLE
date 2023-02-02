@@ -40,10 +40,10 @@ module timing_neci
 ! ========================================================================
     use constants, only: dp
     use mpi, only: MPI_WTIME
+    use error_handling_neci, only: neci_flush, stop_all, warning_neci
     implicit none
     save
     private
-    external :: warning_neci
     public :: timer, set_timer, halt_timer, get_total_time, &
         init_timing, end_timing, print_timing_report, time_at_all
 

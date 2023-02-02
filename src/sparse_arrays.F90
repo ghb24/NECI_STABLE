@@ -32,10 +32,12 @@ module sparse_arrays
     use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
                               CSF_Info_t
-    use util_mod, only: binary_search, near_zero
+    use util_mod, only: binary_search_ilut, near_zero
     use guga_data, only: tag_excitations, ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
+    use util_mod, only: stop_all
+    use basic_float_math, only: conjgt
 
     implicit none
 
@@ -318,14 +320,14 @@ contains
             disps(i) = disps(i - 1) + num_states(i - 1)
         end do
 
-        safe_realloc_e(sparse_ham, (num_states(iProcIndex)), ierr)
-        safe_realloc_e(SparseHamilTags, (2, num_states(iProcIndex)), ierr)
-        safe_realloc_e(hamiltonian_row, (num_states_tot), ierr)
-        call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag, ierr)
-        safe_realloc_e(hamil_diag, (num_states(iProcIndex)), ierr)
-        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex)), 8, t_r, HDiagTag, ierr)
-        safe_realloc_e(temp_store, (0:NIfTot, num_states_tot), ierr)
-        call LogMemAlloc('temp_store', num_states_tot * (NIfTot + 1), 8, t_r, TempStoreTag, ierr)
+        safe_realloc(sparse_ham, (num_states(iProcIndex)))
+        safe_realloc(SparseHamilTags, (2, num_states(iProcIndex)))
+        safe_realloc(hamiltonian_row, (num_states_tot))
+        call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag)
+        safe_realloc(hamil_diag, (num_states(iProcIndex)))
+        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex)), 8, t_r, HDiagTag)
+        safe_realloc(temp_store, (0:NIfTot, num_states_tot))
+        call LogMemAlloc('temp_store', num_states_tot * (NIfTot + 1), 8, t_r, TempStoreTag)
 
         ! Stick together the determinants from all processors, on all processors.
         call MPIAllGatherV(ilut_list(:, 1:num_states(iProcIndex)), temp_store, num_states, disps)
@@ -513,7 +515,7 @@ contains
                         end if
                         call calc_guga_matrix_element(&
                                 ilutJ_tmp, csf_j, ilutI_tmp, csf_i, excitInfo, tmp_mat_2, .true.)
-                        if (.not. near_zero(tmp_mat - tmp_mat_2)) then
+                        if (.not. near_zero(tmp_mat - conjgt(tmp_mat_2))) then
                             call stop_all(this_routine, "not hermititan!")
                         end if
 #endif

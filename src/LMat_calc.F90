@@ -5,6 +5,7 @@ module LMat_calc
     use hdf5
 #endif
     use hdf5_util
+    use util_mod, only: stop_all
     use tc_three_body_data
     use LMat_Indexing, only: lMatIndSym, lMatIndSpin
     use util_mod, only: get_free_unit

@@ -9,7 +9,7 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen
+                          tReadInt, t_pcpp_excitgen, tUHF, tMolpro
     use sort_mod
     use System, only: SysInit, SetSysDefaults, SysCleanup
     use Parallel_neci, only: MPIInit, MPIEnd, mpi_comm_rank, mpi_comm_world
@@ -26,7 +26,7 @@ module unit_test_helper_excitgen
     use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
     use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
     use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, stop_all
     use orb_idx_mod, only: SpinProj_t
     implicit none
     private
@@ -251,17 +251,24 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine init_excitgen_test(ref_det, fcidump_writer)
-        ! mimick the initialization of an FCIQMC calculation to the point where we can generate
+    subroutine init_excitgen_test(ref_det, fcidump_writer, setdefaults)
+        ! mimic the initialization of an FCIQMC calculation to the point where we can generate
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
         integer, intent(in) :: ref_det(:)
         type(FciDumpWriter_t), intent(in) :: fcidump_writer
+        logical, optional, intent(in) :: setdefaults
+            !! whether or not to set the default flags in this function
+            !! IMO this should be done using test fixtures and not in this function,
+            !! but much of the existing tests rely on it being here
+        logical :: setdefaults_
         integer :: nBasisMax(5, 3), lms
         integer(int64) :: umatsize
         real(dp) :: ecore
         character(*), parameter :: this_routine = 'init_excitgen_test'
         integer, parameter :: seed = 25
+
+        def_default(setdefaults_, setdefaults, .true.)
 
         umatsize = 0
         nel = size(ref_det)
@@ -276,14 +283,20 @@ contains
 
         fcidump_name = "FCIDUMP"
         UMatEps = 1.0e-8
-        tStoreSpinOrbs = .false.
+        if (tUHF .and. tMolpro) then
+            tStoreSpinOrbs = .true.
+        else
+            tStoreSpinOrbs = .false.
+        end if
         tTransGTID = .false.
         tReadFreeFormat = .true.
 
         call dSFMT_init(seed)
 
-        call SetCalcDefaults()
-        call SetSysDefaults()
+        if (setdefaults_) then
+            call SetCalcDefaults()
+            call SetSysDefaults()
+        end if
         tReadInt = .true.
 
         call write_file(fcidump_writer)
@@ -336,26 +349,52 @@ contains
     !------------------------------------------------------------------------------------------!
 
     ! generate an FCIDUMP file with random numbers with a given sparsity and write to iunit
-    subroutine generate_random_integrals(iunit, n_el, n_spat_orb, sparse, sparseT, total_ms)
+    subroutine generate_random_integrals(iunit, n_el, n_spat_orb, sparse, sparseT, &
+            total_ms, uhf, hermitian)
         integer, intent(in) :: iunit, n_el, n_spat_orb
         real(dp), intent(in) :: sparse, sparseT
         type(SpinProj_t), intent(in) :: total_ms
-        integer :: i, j, k, l
+        logical, optional, intent(in) :: uhf, hermitian
+            !! specify if the FCIDUMP is UHF
+            !! specify if the FCIDUMP is hermitian
+            !!
+            !! @note if uhf then assume
+            !! num spin-up basis functions = num spin-down basis functions
+        logical :: uhf_, hermitian_
+        integer :: i, j, k, l, j_end, l_end
         real(dp) :: r, matel
         ! we get random matrix elements from the cauchy-schwartz inequalities, so
         ! only <ij|ij> are random -> random 2d matrix
-        real(dp) :: umatRand(n_spat_orb, n_spat_orb)
+        real(dp), allocatable :: umatRand(:, :)
+        integer :: norb ! n_spin_orb or n_spat_orb
 
-        umatRand = 0.0_dp
-        do i = 1, n_spat_orb
-            do j = 1, n_spat_orb
+        def_default(hermitian_, hermitian, .true.)
+        ! UHF FCIDUMPs have six sectors:
+        ! two-body integrals: up-up, down-down, up-down
+        ! one-body integrals: up, down
+        ! nuclear repulsion
+        ! delimiter: 0.0000000000000000E+00   0   0   0   0
+        def_default(uhf_, uhf, .false.)
+
+        norb = merge(2*n_spat_orb, n_spat_orb, uhf_)
+        allocate(umatRand(norb, norb), source=0.0_dp)
+
+        do i = 1, norb
+            do j = 1, norb
                 r = genrand_real2_dSFMT()
-                if (r < sparse) &
+                if (r < sparse) then
                     umatRand(i, j) = r * r
+                    if (hermitian_) then
+                        umatRand(j, i) = umatRand(i, j)
+                    else
+                        ! have the conjugate be similar
+                        umatRand(j, i) = (1 + genrand_real2_dSFMT() * 0.1) * umatRand(i, j)
+                    endif
+                end if
             end do
         end do
 
-        ! write the canonical FCIDUMP header
+        ! write the canonical FCIDUMP header (norb here is num spatial orbitals)
         write(iunit, *) "&FCI NORB=", n_spat_orb, ",NELEC=", n_el, "MS2=", total_ms%val, ","
         write(iunit, "(A)", advance="no") "ORBSYM="
         do i = 1, n_spat_orb
@@ -365,25 +404,65 @@ contains
         write(iunit, *) "ISYM=1,"
         write(iunit, *) "&END"
         ! generate random 4-index integrals with a given sparsity
-        do i = 1, n_spat_orb
-            do j = 1, i
-                do k = i, n_spat_orb
-                    do l = 1, k
-                        matel = sqrt(umatRand(i, j) * umatRand(k, l))
-                        if (matel > eps) write(iunit, *) matel, i, j, k, l
+        ! then
+        ! generate random 2-index integrals with a given sparsity
+        if(uhf_) then
+            ! three 4-index sectors, so three calls to write_4index
+            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0 ! delimiter
+            ! we can keep using the spatial orbitals as indices because of the
+            ! partitioning of the dump file
+            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
+            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
+            call write_2index(1, n_spat_orb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
+            call write_2index(1, n_spat_orb, hermitian_)
+            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
+            ! then would come the nuclear repulsion
+        else ! .not. uhf_
+            call write_4index(1, norb, 1, norb, hermitian_)
+            call write_2index(1, n_spat_orb, hermitian_)
+        endif
+
+    contains
+        subroutine write_4index(i_start, i_end, k_start, k_end, hermitian)
+            ! i_end corresponds to electron 1, j_end to electron 2
+            integer, intent(in) :: i_start, i_end, k_start, k_end
+            logical, intent(in) :: hermitian
+            integer :: k_start_
+            do i = i_start, i_end
+                ! j_end = i if hermitian, else i_end
+                j_end = merge(i, i_end, hermitian)
+                do j = 1, j_end
+                    ! if the Hamiltonian *is* Hermitian, we may flip these indices
+                    k_start_ = merge(i, k_start, hermitian)
+                    do k = k_start_, k_end
+                        l_end = merge(k, k_end, hermitian)
+                        do l = 1, l_end
+                            matel = sqrt(umatRand(i, j) * umatRand(k, l))
+                            if (matel > eps) write(iunit, *) matel, i, j, k, l
+                        end do
                     end do
                 end do
             end do
-        end do
-        ! generate random 2-index integrals with a given sparsity
-        do i = 1, n_spat_orb
-            do j = 1, i
-                r = genrand_real2_dSFMT()
-                if (r < sparseT) then
-                    write(iunit, *) r, i, j, 0, 0
-                end if
+        end subroutine write_4index
+
+        subroutine write_2index(i_start, i_end, hermitian)
+            integer, intent(in) :: i_start, i_end
+            logical, intent(in) :: hermitian
+            do i = i_start, i_end
+                j_end = merge(i, i_end, hermitian)
+                do j = i_start, j_end
+                    r = genrand_real2_dSFMT()
+                    if (r < sparseT) then
+                        write(iunit, *) r, i, j, 0, 0
+                    end if
+                end do
             end do
-        end do
+        end subroutine write_2index
+
     end subroutine generate_random_integrals
 
     !------------------------------------------------------------------------------------------!

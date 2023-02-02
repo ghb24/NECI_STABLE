@@ -3,7 +3,10 @@ title
 system read noorder
     electrons 3
     nobrillouintheorem
-    nonuniformrandexcits pchb
+    nonuniformrandexcits pchb \
+        singles uniform \
+        doubles particle-selection fully-weighted \
+        doubles hole-selection fast-weighted
     molecular-transcorr 3-body
 endsys
 

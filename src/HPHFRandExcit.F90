@@ -16,7 +16,7 @@ MODULE HPHFRandExcitMod
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_uniform_excits, &
                           t_trans_corr_hop, t_spin_dependent_transcorr, &
-                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA, &
+                          t_fci_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA, &
                           t_pcpp_excitgen, max_ex_level, t_guga_pchb
 
     use IntegralsData, only: UMat, fck, nMax
@@ -85,6 +85,8 @@ MODULE HPHFRandExcitMod
     use guga_pchb_excitgen, only: calc_pgen_guga_pchb
 
     use guga_bitRepOps, only: current_csf_i
+
+    use util_mod, only: stop_all
 
     IMPLICIT NONE
 
@@ -607,8 +609,6 @@ contains
         INTEGER :: i, j, N, Comp
         LOGICAL :: tSuccess
 
-!        write(stdout,*) "Binary searching between ",MinInd, " and ",MaxInd
-!        CALL neci_flush(6)
         i = MinInd
         j = MaxInd
         IF(i - j == 0) THEN

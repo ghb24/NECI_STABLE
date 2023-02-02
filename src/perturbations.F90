@@ -4,6 +4,7 @@ module perturbations
     use constants
     use FciMCData, only: perturbation
     use fcimc_helper, only: checkValidSpawnedList
+    use util_mod, only: stop_all
 
 contains
 

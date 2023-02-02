@@ -24,7 +24,7 @@ module semi_stoch_gen
     use guga_excitations, only: actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
-    use util_mod, only: near_zero, operator(.div.)
+    use util_mod, only: near_zero, operator(.div.), warning_neci, neci_flush
     use core_space_util, only: core_space_t, cs_replicas, deallocate_sparse_ham
 
     implicit none
@@ -1749,7 +1749,7 @@ contains
         ! space_size slots in it (overwriting anything which was there before,
         ! which presumably won't be needed now).
         call generate_space_most_populated(target_space_size, .false., 0, &
-                                           SpawnedParts(0:niftot, 1:space_size), space_size, core_run)
+                                           SpawnedParts(0:niftot, 1 : ), space_size, core_run)
 
         write(stdout, '("Writing the most populated states to DETFILE...")'); call neci_flush(6)
 

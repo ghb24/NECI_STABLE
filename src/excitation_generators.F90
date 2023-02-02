@@ -19,7 +19,8 @@ module excitation_generators
     private
     public :: ExcitationGenerator_t, &
         SingleExcitationGenerator_t, DoubleExcitationGenerator_t, TripleExcitationGenerator_t, &
-        gen_exc_sd, get_pgen_sd, gen_all_excits_sd
+        FCISingleExcitationGenerator_t, FCIDoubleExcitationGenerator_t, &
+        gen_exc_sd, get_pgen_sd, gen_all_excits_sd, ClassicAbInitExcitationGenerator_t
 
     type, abstract :: ExcitationGenerator_t
     contains
@@ -27,19 +28,43 @@ module excitation_generators
         procedure(BoundGetPgen_t), public, deferred :: get_pgen
         procedure(BoundGenAllExcits_t), public, deferred :: gen_all_excits
         procedure(BoundFinalize_t), public, deferred :: finalize
+            !! This procedure finalizes.
+            !! It has to be implemented in such a way, that one can
+            !! call it on uninitialized instances and in particular
+            !! it should be idempotent.
     end type
 
     type, abstract, extends(ExcitationGenerator_t) :: SingleExcitationGenerator_t
+    end type
+
+    type, abstract, extends(SingleExcitationGenerator_t) :: FCISingleExcitationGenerator_t
     contains
         procedure, public :: gen_all_excits => FCI_singles_gen_all_excits
     end type
 
     type, abstract, extends(ExcitationGenerator_t) :: DoubleExcitationGenerator_t
+    end type
+
+    type, abstract, extends(DoubleExcitationGenerator_t) :: FCIDoubleExcitationGenerator_t
     contains
         procedure, public :: gen_all_excits => FCI_doubles_gen_all_excits
     end type
 
     type, abstract, extends(ExcitationGenerator_t) :: TripleExcitationGenerator_t
+    end type
+
+    type, abstract, extends(ExcitationGenerator_t) :: ClassicAbInitExcitationGenerator_t
+        !! this abstract excitation generator covers all ab initio Hamiltonians
+        !! in the typical sense (i.e. up to double excitations)
+        private
+        class(DoubleExcitationGenerator_t), public, allocatable :: doubles_generator
+        class(SingleExcitationGenerator_t), public, allocatable :: singles_generator
+    contains
+        private
+        procedure, public :: gen_exc => abinit_gen_exc
+        procedure, public :: get_pgen => abinit_get_pgen
+        procedure, public :: gen_all_excits => abinit_gen_all_excits
+        procedure, public :: finalize => abinit_finalize
     end type
 
     abstract interface
@@ -65,12 +90,12 @@ module excitation_generators
             integer, intent(in) :: nI(nEl)
             integer, intent(out) :: n_excits
             integer(n_int), allocatable, intent(out) :: det_list(:,:)
-        end subroutine
+        end subroutine BoundGenAllExcits_t
 
         subroutine BoundFinalize_t(this)
             import :: ExcitationGenerator_t
             class(ExcitationGenerator_t), intent(inout) :: this
-        end subroutine
+        end subroutine BoundFinalize_t
 
         real(dp) function BoundGetPgen_t(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
             import :: ExcitationGenerator_t, n_int, dp, ScratchSize, maxExcit, NifTot, nEl
@@ -79,7 +104,7 @@ module excitation_generators
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(in) :: ex(2, maxExcit), ic
             integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        end function
+        end function BoundGetPgen_t
     end interface
 contains
 
@@ -127,7 +152,7 @@ contains
         if (ic == 1) then
             pgen = pSingles * singles_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
         else if (ic == 2) then
-            pGen = (1.0 - pSingles) * doubles_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            pgen = (1.0 - pSingles) * doubles_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
         else
             pgen = 0.0_dp
         end if
@@ -155,7 +180,7 @@ contains
     end subroutine
 
     subroutine FCI_singles_gen_all_excits(this, nI, n_excits, det_list)
-        class(SingleExcitationGenerator_t), intent(in) :: this
+        class(FCISingleExcitationGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
@@ -164,11 +189,64 @@ contains
     end subroutine
 
     subroutine FCI_doubles_gen_all_excits(this, nI, n_excits, det_list)
-        class(DoubleExcitationGenerator_t), intent(in) :: this
+        class(FCIDoubleExcitationGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
         unused_var(this)
         call gen_excits(nI, n_excits, det_list, ex_flag=2)
     end subroutine
+
+    !!! ClassicAbInitExcitationGenerator_t methods !!!
+    subroutine abinit_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+        ex, tParity, pGen, hel, store, part_type)
+        class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+
+        call gen_exc_sd(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+            ex, tParity, pGen, hel, store, part_type, &
+            this%singles_generator, this%doubles_generator)
+    end subroutine abinit_gen_exc
+
+    real(dp) function abinit_get_pgen(&
+            this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) &
+                result(pgen)
+        class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        pgen = get_pgen_sd(&
+                        nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, &
+                        this%singles_generator, this%doubles_generator)
+    end function abinit_get_pgen
+
+
+    subroutine abinit_gen_all_excits(this, nI, n_excits, det_list)
+        class(ClassicAbInitExcitationGenerator_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(out) :: n_excits
+        integer(n_int), allocatable, intent(out) :: det_list(:,:)
+        call gen_all_excits_sd(nI, n_excits, det_list, &
+                               this%singles_generator, this%doubles_generator)
+    end subroutine abinit_gen_all_excits
+
+    subroutine abinit_finalize(this)
+        class(ClassicAbInitExcitationGenerator_t), intent(inout) :: this
+        if (allocated(this%doubles_generator)) then
+            call this%doubles_generator%finalize()
+            call this%singles_generator%finalize()
+            ! Yes, we assume that either both or none are allocated
+            deallocate(this%singles_generator, this%doubles_generator)
+        end if
+    end subroutine abinit_finalize
+
 end module

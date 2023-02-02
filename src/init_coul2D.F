@@ -35,6 +35,7 @@ C =========================================================
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,pi,int64
       use util_mod, only : near_zero
+      use util_mod, only: stop_all
       IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI)
       !INTEGER FFTW_R2HC
