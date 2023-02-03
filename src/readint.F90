@@ -8,7 +8,7 @@ module read_fci
         BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
         UMatEps, t_non_hermitian, tRIIntegrals, SYMMAX, irrepOrbOffset, &
         t_complex_ints
-
+    use IntegralsData, only: t_use_tchint_lib
 
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
 
@@ -810,17 +810,21 @@ contains
                     ! Have read in T_ij.  Check it's consistent with T_ji
                     ! (if T_ji has been read in).
                     diff = abs(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) - Z)
-                    IF (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) .and. diff > 1.0e-7_dp) then
+                    ! this concerns one-body integrals, which in the case of
+                    ! transcorrelation is still Hermitian
+                    IF (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) .and. diff > 1.0e-7_dp &
+                            .and. (.not. t_non_hermitian .or. t_use_tchint_lib)) then
                         write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
                         CALL Stop_All("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
                     end if
-
-                    TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
+                    if (.not. t_non_hermitian .or. t_use_tchint_lib) then
+                        TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
 #ifdef CMPLX_
-                    TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
+                        TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
 #else
-                    TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = Z
+                        TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = Z
 #endif
+                    end if
                 end do
             ELSE
 !.. 2-e integrals
@@ -955,8 +959,10 @@ contains
         else if (K == 0) THEN
 !.. 1-e integrals
 !.. These are stored as spinorbitals (with elements between different spins being 0
-            TMAT2D(2 * I - 1, 2 * J - 1) = Z
-            TMAT2D(2 * I, 2 * J) = Z
+            if (.not. t_non_hermitian .or. t_use_tchint_lib) then
+                TMAT2D(2 * I - 1, 2 * J - 1) = Z
+                TMAT2D(2 * I, 2 * J) = Z
+            end if
 
             TMAT2D(2 * J - 1, 2 * I - 1) = Z
             TMAT2D(2 * J, 2 * I) = Z
