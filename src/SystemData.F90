@@ -355,7 +355,8 @@ module SystemData
     logical :: t_3_body_excits = .false.
 
 ! make a general Flag to indicat a non-hermitian Hamiltonian
-    logical :: t_non_hermitian = .false.
+    logical :: t_non_hermitian_2_body = .false.
+    logical :: t_non_hermitian_1_body = .false.
 
 ! and indicate the maximum excitation level:
     integer :: max_ex_level = 2

@@ -7,7 +7,7 @@ MODULE UMatCache
     use SystemData, only: tROHF, tStoreSpinOrbs, tComplexWalkers_RealInts, &
                           Symmetry, BasisFN, UMatEps, tROHF
 
-    use SystemData, only: tRIIntegrals, t_non_hermitian
+    use SystemData, only: tRIIntegrals, t_non_hermitian_2_body
 
     use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero, operator(.div.), &
         stop_all
@@ -244,7 +244,7 @@ Contains
         integer(int64) :: UMatInd
         integer :: A, B
 
-        if(t_non_hermitian) then
+        if(t_non_hermitian_2_body) then
             A = (I - 1) * nBi + K
             B = (J - 1) * nBi + L
         else
@@ -375,7 +375,7 @@ Contains
         end if
 
         nBi = nBasis / iSS
-        if(t_non_hermitian) then
+        if(t_non_hermitian_2_body) then
             iPairs = nbi**2
         else
             iPairs = (nBi * (nBi + 1)) / 2
@@ -1443,4 +1443,3 @@ SUBROUTINE CACHEUMATEL(B, UMATEL, ICACHE, ICACHEI, iType)
         if(icachei > 0) OLAB = UMATLABELS(ICACHEI, ICACHE)
     end do
 END SUBROUTINE CacheUMatEl
-

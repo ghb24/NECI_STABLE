@@ -610,18 +610,36 @@ contains
                 else
                     trans_corr_param = 0.1_dp
                 end if
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
             case ("NONHERMITIAN")
                 ! just use a non-hermitian Hamiltonian, no additional tweaks
-                t_non_hermitian = .true.
+                ! note transcorrelation has only nonhermitian 2-body integrals
+                ! so if you are doing a TCMF calculation, do
+                ! `nonhermitian 2-body`
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
+                    select case (w)
+                    case ("1-BODY")
+                        write(stdout, '(A)') 'Treating 1-body integrals as non-Hermitian.'
+                        t_non_hermitian_1_body = .true.
+                    case ("2-BODY")
+                        write(stdout, '(A)') 'Treating 2-body integrals as non-Hermitian.'
+                        t_non_hermitian_2_body = .true.
+                    case default
+                        write(stdout, '(A)') 'Treating all integrals as non-Hermitian.'
+                        ! by default, do both
+                        t_non_hermitian_1_body = .true.
+                        t_non_hermitian_2_body = .true.
+                    end select
+                end if
 
             case ('MOLECULAR-TRANSCORR')
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
                 ! optionally supply the three-body integrals of the TC Hamiltonian
                 t_3_body_excits = .true.
                 if (tokens%remaining_items() > 0) then
@@ -647,7 +665,7 @@ contains
 
             case ('UEG-TRANSCORR')
                 t_ueg_transcorr = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
                 do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
                     select case (w)
@@ -684,7 +702,7 @@ contains
                 ! activate the transcorrelated Hamiltonian idea from hongjun for
                 ! the real-space hubbard model
                 t_trans_corr = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param = to_realdp(tokens%next())
@@ -696,7 +714,7 @@ contains
             case ("TRANSCORR-NEW")
                 t_trans_corr = .true.
                 t_trans_corr_new = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param = to_realdp(tokens%next())
@@ -709,7 +727,7 @@ contains
                 ! for the tJ model there are 2 choices of the transcorrelation
                 ! indicate that here!
                 t_trans_corr_2body = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param_2body = to_realdp(tokens%next())
@@ -726,7 +744,7 @@ contains
 
             case ('NEIGHBOR-TRANSCORR', 'TRANSCORR-NEIGHBOR', 'N-TRANSCORR')
                 t_trans_corr_2body = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param_2body = to_realdp(tokens%next())
@@ -742,7 +760,7 @@ contains
 
             case ("TRANSCORR-HOP", "HOP-TRANSCORR")
                 t_trans_corr_hop = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param = to_realdp(tokens%next())

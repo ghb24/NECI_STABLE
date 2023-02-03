@@ -10,7 +10,7 @@ MODULE Calc
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_k_space_hubbard, tHPHF, t_non_hermitian, &
+                          t_k_space_hubbard, tHPHF, t_non_hermitian_2_body, &
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, &
                           t_3_body_excits
     use Determinants, only: write_det
@@ -3893,7 +3893,7 @@ contains
             !          call Par2vSum(FDet)
         ELSE IF(tDavidson) then
             davidsonCalc = davidson_direct_ci_init()
-            if(t_non_hermitian) then
+            if(t_non_hermitian_2_body) then
                 call stop_all(this_routine, &
                               "perform_davidson not adapted for non-hermitian Hamiltonians!")
             end if

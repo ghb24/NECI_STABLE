@@ -4,7 +4,7 @@ module exact_diag
 
     use constants
     use FciMCData, only: hamiltonian
-    use SystemData, only: t_non_hermitian, tGUGA, nSpatOrbs
+    use SystemData, only: t_non_hermitian_2_body, tGUGA, nSpatOrbs
     use guga_bitRepOps, only: CSF_Info_t
     use util_mod, only: stop_all, neci_flush
 
@@ -131,7 +131,7 @@ contains
         end if
 
         ! Loop over every pair of determinants and calculate all elements.
-        if (t_non_hermitian) then
+        if (t_non_hermitian_2_body) then
             call stop_all(t_r, "check this for non-hermitian hamil!")
         end if
 

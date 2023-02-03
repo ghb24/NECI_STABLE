@@ -6,9 +6,8 @@ module read_fci
         tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
         tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
         BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
-        UMatEps, t_non_hermitian, tRIIntegrals, SYMMAX, irrepOrbOffset, &
+        UMatEps, t_non_hermitian_1_body, tRIIntegrals, SYMMAX, irrepOrbOffset, &
         t_complex_ints
-    use IntegralsData, only: t_use_tchint_lib
 
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
 
@@ -813,11 +812,11 @@ contains
                     ! this concerns one-body integrals, which in the case of
                     ! transcorrelation is still Hermitian
                     IF (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) .and. diff > 1.0e-7_dp &
-                            .and. (.not. t_non_hermitian .or. t_use_tchint_lib)) then
+                            .and. .not. t_non_hermitian_1_body) then
                         write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
                         CALL Stop_All("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
                     end if
-                    if (.not. t_non_hermitian .or. t_use_tchint_lib) then
+                    if (.not. t_non_hermitian_1_body) then
                         TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
 #ifdef CMPLX_
                         TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
@@ -959,7 +958,7 @@ contains
         else if (K == 0) THEN
 !.. 1-e integrals
 !.. These are stored as spinorbitals (with elements between different spins being 0
-            if (.not. t_non_hermitian .or. t_use_tchint_lib) then
+            if (.not. t_non_hermitian_1_body) then
                 TMAT2D(2 * I - 1, 2 * J - 1) = Z
                 TMAT2D(2 * I, 2 * J) = Z
             end if
