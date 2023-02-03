@@ -4,6 +4,7 @@ system read noorder
     electrons   10
     nobrillouintheorem
     molecular-transcorr 3-body
+    nonuniformrandexcits pchb
 endsys
 
 calc
