@@ -3,10 +3,7 @@ title
 system read noorder
     electrons 3
     nobrillouintheorem
-    nonuniformrandexcits pchb \
-        singles uniform \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection fast-weighted
+    nonuniformrandexcits pchb
     molecular-transcorr 3-body
 endsys
 
@@ -16,17 +13,16 @@ calc
     endmethods
     nmcyc 5000
     seed        -7
-    totalwalkers       10000
-    diagshift       1.5000000000
-    shiftdamp       0.1000000000
+    totalwalkers       3000
+    # diagshift       1
+    target-shiftdamp       0.1000000000
     stepsshift      10
     tau-values \
         start user-defined 0.001
     tau-search \
-        algorithm histogramming \
-        stop-condition off
+        algorithm conventional
     memoryfacpart         1.50
-    memoryfacspawn         5.
+    memoryfacspawn         50.
     truncinitiator
     addtoinitiator        2
     allrealcoeff
