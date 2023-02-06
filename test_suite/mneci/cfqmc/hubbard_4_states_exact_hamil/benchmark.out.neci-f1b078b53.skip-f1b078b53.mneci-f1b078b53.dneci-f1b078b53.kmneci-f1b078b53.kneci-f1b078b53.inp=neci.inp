@@ -4,15 +4,15 @@
  Memory Manager initialised with  99999.0 MB
 
  ================================================================
- Compiled on Feb  2 2023 at 10:46:27
+ Compiled on Feb  6 2023 at 21:43:56
  Compiled using configuration:
      cmake-GNU--RELEASE
  VCS BASE repository version:
-     2fc37fa768498ddfa47c9eba047f552cc0f7e74b
+     f1b078b537025c0dddfd2522cbe27fa019a0aabe
  Working directory: 
      /home/phaupt/dev/neci_2merge/test_suite/mneci/cfqmc/hubbard_4_states_exact_hamil
  Running on: alamdlogin1
- Started running on 02/02/2023 at 10:59:08
+ Started running on 06/02/2023 at 21:51:57
  ================================================================
 
  Processing argumentsneci.inp                                                                                                                                                                                                                                                       
@@ -267,7 +267,7 @@ Time to create auxiliary arrays:    0.001
 Time to sort auxiliary arrays:    0.000
 Arrays for Hamiltonian successfully allocated...
 Time to create the Hamiltonian:    0.001
-total_time:    0.001
+total_time:    0.002
 Using the deterministic ground state as initial walker configuration.
 Performing Davidson calculation...
  Space sizes and max Davidson iterations:           29          25
@@ -293,7 +293,7 @@ Davidson calculation complete.
 Deterministic subspace correlation energy:   -0.2580331648
 Total time (seconds) taken for Davidson calculation:    0.001
 Semi-stochastic initialisation complete.
-Time (seconds) taken for semi-stochastic initialisation:    0.002
+Time (seconds) taken for semi-stochastic initialisation:    0.003
 
  Setting ref           1
 (    5,    6,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16)
@@ -424,20 +424,20 @@ Exiting the single particle growth phase on iteration:             1 - Shift can
  Timing of most expensive procedures.
  Procedure                                 Calls       total time
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- SubspaceHamilTime                            7      9.22
- WalkerTime                                 120      2.79
+ SubspaceHamilTime                            7      9.37
+ WalkerTime                                 120      2.77
  SyncTime                                   287      1.16
- GetDiagMatelTime                         71534      0.50
- AnnMainTime                                120      0.38
+ GetDiagMatelTime                         71534      0.48
+ AnnMainTime                                120      0.37
  SortTime                                   120      0.24
  Compress Sort interface                    120      0.23
- NECICUBE                                     1      0.22
  Compression interface                      120      0.19
+ NECICUBE                                     1      0.19
  CommsTime                                  150      0.08
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- Total                                  15.00
+ Total                                  15.09
 
- Global wall clock time         15.06
+ Global wall clock time         15.15
  ================================================================
- Calculation ended 02/02/2023 at 10:59:23
+ Calculation ended 06/02/2023 at 21:52:12
  ================================================================
