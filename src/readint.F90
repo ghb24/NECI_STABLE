@@ -809,8 +809,6 @@ contains
                     ! Have read in T_ij.  Check it's consistent with T_ji
                     ! (if T_ji has been read in).
                     diff = abs(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) - Z)
-                    ! this concerns one-body integrals, which in the case of
-                    ! transcorrelation is still Hermitian
                     IF (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) .and. diff > 1.0e-7_dp &
                             .and. .not. t_non_hermitian_1_body) then
                         write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
