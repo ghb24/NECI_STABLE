@@ -11,26 +11,20 @@ calc
     methods
         method vertex fcimc
     endmethods
-    nmcyc 5000
-    seed        -7
-    totalwalkers       3000
-    # diagshift       1
-    target-shiftdamp       0.1000000000
-    stepsshift      10
+    load-balance-blocks off
+    seed 9
+    nmcyc 3000
+    totalwalkers 5000
+    target-shiftdamp 0.1
+    stepsshift 10
     tau-values \
         start user-defined 0.001
-    tau-search \
-        algorithm conventional
     memoryfacpart         1.50
     memoryfacspawn         50.
     truncinitiator
-    addtoinitiator        2
-    allrealcoeff
-    realspawncutoff 1.
-    avgrowthrate
+    addtoinitiator 2
     startsinglepart 10
     definedet 1 2 3
-    load-balance-interval 1000
 endcalc
 
 integral
