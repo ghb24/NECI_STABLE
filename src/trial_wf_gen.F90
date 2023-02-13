@@ -8,7 +8,7 @@ module trial_wf_gen
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
-    use SystemData, only: nel, tHPHF, t_non_hermitian
+    use SystemData, only: nel, tHPHF, t_non_hermitian_2_body
 
     use guga_data, only: ExcitationInformation_t
     use guga_matrixElements, only: calc_guga_matrix_element
@@ -570,7 +570,7 @@ contains
                         H_ij = hphf_off_diag_helement(nJ, nI, trial_space(:, j), con_space(:, i))
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
-                        ASSERT(.not. t_non_hermitian)
+                        ASSERT(.not. t_non_hermitian_2_body)
                         call calc_guga_matrix_element(&
                             con_space(:, i), csf_i, trial_space(:, j), csf_j, &
                             excitInfo, H_ij, .true.)

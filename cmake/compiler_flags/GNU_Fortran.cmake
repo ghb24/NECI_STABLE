@@ -2,8 +2,13 @@
 
 set( ${PROJECT_NAME}_Fortran_FLAGS "-g -ffree-line-length-none -fPIC" )
 
-set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-O0 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan -ffpe-trap=invalid,zero,overflow" )
-set( ${PROJECT_NAME}_Fortran_FLAGS_FASTDEBUG "-O2 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan -ffpe-trap=invalid,zero,overflow" )
+if(ENABLE_TCHINT)
+    set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-O0 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan" )
+    set( ${PROJECT_NAME}_Fortran_FLAGS_FASTDEBUG "-O2 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan" )
+else()
+    set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-O0 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan -ffpe-trap=invalid,zero,overflow" )
+    set( ${PROJECT_NAME}_Fortran_FLAGS_FASTDEBUG "-O2 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan -ffpe-trap=invalid,zero,overflow" )
+endif()
 set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -march=native -mtune=native -funroll-loops" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-flto" )
 set( ${PROJECT_NAME}_Fortran_LINKER_FLAGS_DEBUG "-rdynamic" )
@@ -30,4 +35,3 @@ set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-Werror")
 set( ${PROJECT_NAME}_32BIT_Fortran_FLAGS "-m32" )
 
 set( ${PROJECT_NAME}_64BIT_Fortran_FLAGS "-m64" )
-

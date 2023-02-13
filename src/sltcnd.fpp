@@ -20,7 +20,7 @@
 !>  from the excitation_types module
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module sltcnd_mod
-    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, t_3_body_excits, &
+    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, &
                           t_mol_3_body, t_ueg_3_body, tContact
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
@@ -29,7 +29,7 @@ module sltcnd_mod
     !       --> Talk to George/Alex to see what impact that might have?
     use constants, only: dp, n_int, maxExcit
     use UMatCache, only: GTID, UMatInd
-    use IntegralsData, only: UMAT
+    use IntegralsData, only: UMAT, t_use_tchint_lib
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
     use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
@@ -38,7 +38,7 @@ module sltcnd_mod
     use orb_idx_mod, only: SpinOrbIdx_t
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use bit_reps, only: NIfTot
-    use LMat_mod, only: get_lmat_el, get_lmat_el_ua
+    use LMat_mod, only: get_lmat_el, get_lmat_el_ua, external_lMat_matel
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
     use SD_spin_purification_mod, only: possible_purification_methods, SD_spin_purification, &
                 spin_pure_J, S2_expval_exc, ladder_op_exc
@@ -537,17 +537,22 @@ contains
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
         integer :: i, j, k
+        integer :: dummy(1,0)
 
         ! get the diagonal matrix element up to 2nd order
         hel = sltcnd_0_base(nI, exc)
         ! then add the 3-body part
-        do i = 1, nel - 2
-            do j = i + 1, nel - 1
-                do k = j + 1, nel
-                    hel = hel + get_lmat_el(nI(i), nI(j), nI(k), nI(i), nI(j), nI(k))
+        if(t_use_tchint_lib) then
+            hel = hel + external_lMat_matel(nI, dummy)
+        else
+            do i = 1, nel - 2
+                do j = i + 1, nel - 1
+                    do k = j + 1, nel
+                        hel = hel + get_lmat_el(nI(i), nI(j), nI(k), nI(i), nI(j), nI(k))
+                    end do
                 end do
             end do
-        end do
+        end if
     end function sltcnd_0_tc
 
     function sltcnd_1_tc(nI, ex, tSign) result(hel)
@@ -561,13 +566,17 @@ contains
         hel = sltcnd_1_kernel(nI, ex)
 
         ! then add the 3-body correction
-        do i = 1, nel - 1
-            do j = i + 1, nel
-                if (ex%val(1) /= nI(i) .and. ex%val(1) /= nI(j)) then
-                    hel = hel + get_lmat_el(ex%val(1), nI(i), nI(j), ex%val(2), nI(i), nI(j))
-                end if
+        if(t_use_tchint_lib) then
+            hel = hel + external_lMat_matel(nI, reshape(ex%val,(/2,1/)))
+        else
+            do i = 1, nel - 1
+                do j = i + 1, nel
+                    if (ex%val(1) /= nI(i) .and. ex%val(1) /= nI(j)) then
+                        hel = hel + get_lmat_el(ex%val(1), nI(i), nI(j), ex%val(2), nI(i), nI(j))
+                    end if
+                end do
             end do
-        end do
+        end if
         ! take fermi sign into account
         if (tSign) hel = -hel
     end function sltcnd_1_tc
@@ -583,15 +592,19 @@ contains
         hel = sltcnd_2_kernel(exc)
 
         ! and the 3-body term
-        associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-            src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
-            do i = 1, nel
-                if (src1 /= nI(i) .and. src2 /= nI(i)) then
-                hel = hel + get_lmat_el( &
-                    src1, src2, nI(i), tgt1, tgt2, nI(i))
-                end if
-            end do
-        end associate
+        if(t_use_tchint_lib) then
+            hel = hel + external_lMat_matel(nI, exc%val)
+        else
+            associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
+                src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+                do i = 1, nel
+                    if (src1 /= nI(i) .and. src2 /= nI(i)) then
+                    hel = hel + get_lmat_el( &
+                        src1, src2, nI(i), tgt1, tgt2, nI(i))
+                    end if
+                end do
+            end associate
+        end if
         ! take fermi sign into account
         if (tSign) hel = -hel
 
@@ -601,11 +614,17 @@ contains
         type(TripleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
+        integer :: dummy(1)
 
-        associate(ex => ex%val)
-            hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), &
-                              ex(2, 1), ex(2, 2), ex(2, 3))
-        end associate
+        ! this is directly the fully symmetrized entry of the L-matrix
+        if(t_use_tchint_lib) then
+            hel = external_lMat_matel(dummy, ex%val)
+        else
+            associate(ex => ex%val)
+                hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), &
+                                  ex(2, 1), ex(2, 2), ex(2, 3))
+            end associate
+        endif
         ! take fermi sign into account
         if (tSign) hel = -hel
     end function sltcnd_3_tc

@@ -371,6 +371,21 @@ contains
             case ("POSTFREEZEHF")
                 tPostFreezeHF = .true.
 
+            case("TCHINT-LIB")
+                t_use_tchint_lib = .true.
+                if (tokens%remaining_items() > 0) then
+                    tchint_mode = to_upper(tokens%next())
+                else
+                    tchint_mode = "PC"
+                end if
+
+            case ("NO-HASH-LMAT-CALC")
+                t_hash_lmat_calc = .false.
+
+            case ("RS-FACTORS")
+                ! read the range-separated factors instead of a TCDUMP file
+                t_rs_factors = .true.
+
             case ("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file
                 tHDF5LMat = .true.

@@ -16,10 +16,15 @@ module LMat_mod
     use UMatCache, only: numBasisIndices
     use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &
                              lMatIndSpin
-    use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc
+    use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc, &
+                         read_rs_lmat_factors
     use LMat_class, only: lMat_t, sparse_lMat_t, dense_lMat_t
 #ifdef USE_HDF5_
     use hdf5
+#endif
+    use IntegralsData, only: t_use_tchint_lib, tchint_mode, t_rs_factors
+#ifdef USE_TCHINT_
+    use tchint, only: tc_matel, tchint_init
 #endif
     implicit none
 
@@ -40,6 +45,7 @@ contains
         !        i,j,k - indices of orbitals to excite from
         ! Output: matel - matrix element of this excitation, including all exchange terms
         use UMatCache, only: gtID
+        use SystemData, only: t_exclude_pure_parallel
         ! Gets an entry of the 3-body tensor L:
         ! L_{abc}^{ijk} - triple excitation from abc to ijk
         integer, value :: a, b, c
@@ -50,6 +56,15 @@ contains
         ! initialize spin-correlator check: if all spins are the same, use LMat
         ! without spin-dependent correlator, always use LMat
 
+        matel = h_cast(0.0_dp)
+
+        if (t_exclude_pure_parallel) then
+            if (     (G1(a)%ms == G1(b)%ms .and. G1(a)%ms == G1(c)%ms) &
+                .or. (G1(i)%ms == G1(j)%ms .and. G1(i)%ms == G1(k)%ms)) then
+                return
+            end if
+        end if
+
         ! convert to spatial orbs if required
         ida = gtID(a)
         idb = gtID(b)
@@ -58,7 +73,6 @@ contains
         idj = gtID(j)
         idk = gtID(k)
 
-        matel = 0
         ! only add the contribution if the spins match
 
         ! here, we add up all the exchange terms
@@ -86,8 +100,9 @@ contains
 
                 if (tContact) then
                     lMatVal = get_lmat_ueg(ida, idb, idc, idp, idq, idr)
-                else if (tLMatCalc) then
+                else if (tLMatCalc .or. t_rs_factors) then
                     lMatVal = lMatCalc(ida, idb, idc, idp, idq, idr)
+
                 else
                     ! the indexing function is contained in the lMat object
                     index = lMat%indexFunc(ida, idb, idc, idp, idq, idr)
@@ -134,6 +149,20 @@ contains
     ! Six-index integral I/O functions
     !------------------------------------------------------------------------------------------!
 
+    subroutine setup_tchint_ints()
+#ifndef USE_TCHINT_
+      character(*), parameter :: t_r = "setup_tchint_ints"
+#endif
+
+      if(t_use_tchint_lib) then
+#ifdef USE_TCHINT_
+        call tchint_init()
+#else
+        call stop_all(t_r, "Did not compile with TCHINT support")
+#endif
+      end if
+    end subroutine setup_tchint_ints
+
     subroutine readLMat()
         use SystemData, only: nel
         character(255) :: tcdump_name
@@ -141,32 +170,63 @@ contains
         ! => for less electrons, this can be skipped
         if (nel <= 2) return
 
+        if(t_use_tchint_lib) return
+
         call initializeLMatPtrs()
 
         if (tLMatCalc) then
-          call readLMatFactors()
+            call readLMatFactors()
+        else if (t_rs_factors) then
+            call read_rs_lmat_factors()
         else
-          ! now, read lmat from file
-          if (tHDF5LMat) then
-            tcdump_name = "tcdump.h5"
-          else
-            tcdump_name = "TCDUMP"
-          end if
-          call lMat%read(trim(tcdump_name))
+            ! now, read lmat from file
+            if (tHDF5LMat) then
+                tcdump_name = "tcdump.h5"
+            else
+                tcdump_name = "TCDUMP"
+            end if
+            call lMat%read(trim(tcdump_name))
         end if
     end subroutine readLMat
 
     !------------------------------------------------------------------------------------------!
 
     subroutine freeLMat()
+#ifndef USE_TCHINT_
         character(*), parameter :: t_r = "freeLMat"
-        if (tLMatCalc) then
-            call freeLMatFactors()
+#endif
+
+        if (t_use_tchint_lib) then
+#ifdef USE_TCHINT_
+            call tchint_finalize()
+#else
+            call stop_all(t_r, "Did not compile with TCHINT support")
+#endif
         else
-            ! These are always safe to call, regardless of allocation
-            call LMat%dealloc()
-        end if
+            if (tLMatCalc .or. t_rs_factors) then
+                call freeLMatFactors()
+            else
+                call LMat%safe_dealloc()
+            end if
+        endif
     end subroutine freeLMat
+
+    !------------------------------------------------------------------------------------------------!
+
+    pure function external_lMat_matel(nI, ex) result(matel)
+      integer, intent(in) :: nI(:)
+      integer, intent(in) :: ex(:,:)
+      HElement_t(dp) :: matel
+
+#ifdef USE_TCHINT_
+      matel = tc_matel(nI, ex)
+#else
+      character(*), parameter :: t_r = "external_lMat_matel"
+      unused_var(nI); unused_var(ex); unused_var(matel)
+      call stop_all(t_r, "Did not compile with TCHINT support")
+#endif
+
+    end function external_lMat_matel
 
     !------------------------------------------------------------------------------------------------
     !functions for contact interaction
@@ -224,4 +284,3 @@ contains
     end function get_lmat_el_ua
 
 end module LMat_mod
-

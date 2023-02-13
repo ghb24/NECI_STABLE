@@ -1,0 +1,1119 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Feb  2 2023 at 10:46:27
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     2fc37fa768498ddfa47c9eba047f552cc0f7e74b
+ Working directory: 
+     /home/phaupt/dev/neci_2merge/test_suite/mneci/excited_state/HeHe_3_states_rdm
+ Running on: alamdlogin1
+ Started running on 02/02/2023 at 11:03:07
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+    electrons 4
+    nonuniformrandexcits 4ind-weighted
+    system-replicas 6
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+    memoryfacspawn 20.0
+    memoryfacpart 20.0
+    diagshift 0.5 0.5 2.0 2.0 2.0 2.0
+    totalwalkers 1000
+    tau-values \
+        start user-defined 0.01
+    startsinglepart 300
+    shiftdamp 0.5
+    stepsshift 10
+    nmcyc 4000
+    allrealcoeff
+    realspawncutoff 0.01
+    orthogonalise-replicas
+    doubles-init
+    semi-stochastic
+    doubles-core
+    global-core-space
+    trial-wavefunction 1000
+    pops-trial 200
+    load-balance-blocks off
+    seed 10
+endcalc
+
+integral
+endint
+
+logging
+    popsfile -1
+    calcrdmonfly 3 1100 50
+endlog
+end
+
+****************************************************************
+
+ RDM on fly
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     4
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      3      3      0      0      0     -1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      4      4      0      0      0      1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      7      7      0      0      0     -1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      8      8      0      0      0      1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     11     11      0      0      0     -1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     12     12      0      0      0      1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     13     13      0      0      0     -1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     14     14      0      0      0      1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     15     15      0      0      0     -1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     16     16      0      0      0      1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     17     17      0      0      0     -1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     18     18      0      0      0      1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     19     19      0      0      0     -1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+     20     20      0      0      0      1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  1540
+Memory required for integral storage:     0.1174926758E-01 Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                   898
+ ECORE=   1.3333333306333000     
+ Setting normal get_umat_el_normal routine
+ N_alpha:2 ; N_beta:2 ; LMS:0 ; NEl:4
+ Fermi det (D0):(    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -2.3168617878413200     
+ Setting normal get_umat_el_normal routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            6
+ Number of sign components in bit representation of determinant:            6
+Setting integer length of determinants as bit-strings to:      8
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          21  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -5.6970831223579710     
+ <D0|T|D0>=  -10.410636993357000     
+ <D0|U|D0>=   4.7135538709990294     
+ FDet has     2 alpha electrons, and     2 beta electrons.
+                1  alpha-alpha occupied electron pairs
+                1  beta-beta occupied electron pairs
+                4  alpha-beta occupied electron pairs
+               28 alpha-alpha (vacant) hole pairs
+               28 beta-beta (vacant) hole pairs
+               64 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,    4) E =     -5.697083122
+(    2,    3,    4,    5) E =     -3.868575450
+(    1,    3,    4,    6) E =     -3.868575450
+(    1,    2,    4,    7) E =     -3.797616786
+(    1,    2,    3,    8) E =     -3.797616786
+(    2,    3,    4,    9) E =     -2.886095063
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+Value for seed is:           10
+Reference Energy set to:        -5.6970831224
+Highest energy determinant is (approximately):      6.24071158603921    
+Corresponding to a correlation energy of:      11.9377947083972    
+This means tau should be no more than about         0.083767565486495
+ Highest energy determinant is:           17          18          19          20
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+     60 double excitations, and       8 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.882353
+ pSingles set to:       0.117647
+Initial Diagonal Shift:         0.5000000000
+ Connectivity of HF determinant is:           68
+Memory allocated for a maximum particle number per node of:         291272
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      48.889038 Mb / processor
+Spawning vectors allowing for a total of        30000 particles to be spawned in any one iteration per core.
+ Memory requirement    1.6021728515625000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             175
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        3
+Initial reference is: (    1,    2,    3,    4)
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :           36
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         1075
+ Setting ref           1
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -5.69708312235797    
+ Regenerating the stored diagonal HElements for all walkers.
+ Setting ref           2
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           3
+(    2,    3,    4,    5)
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           4
+(    2,    3,    4,    5)
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           5
+(    2,    3,    4,    5)
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           6
+(    2,    3,    4,    5)
+Changing projected energy reference determinant for run  6 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Initial memory (without excitgens + temp arrays) consists of :      21.439941 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ >>> Initial tau from source: user defined is    1.0000000000000000E-002 .
+ >>> Tau-search off.
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(    1,    2,    3,    4)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      0.051636
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):      0.344269
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):      0.206543
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:       3.122437 MB per MPI process.
+ RDM memory allocation complete.
+
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       69
+ WARNING: Total size of deterministic space is greater than 50% of the initiator space.
+          Reducing the size of the deterministic space is encouraged.
+Size of deterministic space on this processor:       12
+Generating the Hamiltonian in the deterministic space...
+Time to create auxiliary arrays:    0.000
+Time to sort auxiliary arrays:    0.000
+Arrays for Hamiltonian successfully allocated...
+Time to create the Hamiltonian:    0.000
+total_time:    0.001
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.005
+
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+ Highest weighted determinant on run           3 not reference det:          174         174          72          72         106         106   5.2130724065230335E-008
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           4 not reference det:          174         174          72          72         106         106   5.2130724065230335E-008
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           5 not reference det:          174         174          72          72         106         106  0.93279911236508894     
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           6 not reference det:          174         174          72          72         106         106  0.93279911236508894     
+Changing projected energy reference determinant for run  6 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+#  1. Iter.             2. Proj. E (cyc)                         3. Shift. (cyc)                          9. Tot. Proj. E                          10. Dets occ.        11. Dets spawned     13. Iter. time                          
+#                0   0.00000000000        1.50000000000       -5.69708312236                    69                0   0.00000000000     
+                10 -0.297873623390        1.50000000000       -5.99495674575                   153              506  0.624277442694E-003
+                20 -0.285519219586        1.50000000000       -5.98260234194                   180              585  0.683678686619E-003
+                30 -0.276257255453        1.50000000000       -5.97334037781                   202              647  0.733503699303E-003
+                40 -0.268906228540        1.50000000000       -5.96598935090                   201              708  0.761897116899E-003
+                50 -0.260807274398        1.50000000000       -5.95789039676                   212              817  0.807563960552E-003
+                60 -0.252603722267        1.50000000000       -5.94968684462                   210              823  0.825989246368E-003
+                70 -0.246223606031        1.50000000000       -5.94330672839                   205              877  0.856104493141E-003
+                80 -0.241565447091        1.50000000000       -5.93864856945                   209              880  0.872938707471E-003
+                90 -0.236081239279        1.50000000000       -5.93316436164                   218              957  0.893639028072E-003
+               100 -0.230950597408        1.50000000000       -5.92803371977                   211             1006  0.927344709635E-003
+               110 -0.226520897669        1.50000000000       -5.92360402003                   225             1025  0.981749594212E-003
+               120 -0.222373967390        1.50000000000       -5.91945708975                   235             1133  0.102322511375E-002
+               130 -0.218139883919        1.50000000000       -5.91522300628                   239             1080  0.106971226633E-002
+               140 -0.214300086461        1.50000000000       -5.91138320882                   236             1208  0.110773220658E-002
+               150 -0.210256013484        1.50000000000       -5.90733913584                   226             1220  0.113047957420E-002
+               160 -0.207622875700        1.50000000000       -5.90470599806                   237             1312  0.118134394288E-002
+               170 -0.204560193907        1.50000000000       -5.90164331627                   234             1307  0.122764445841E-002
+Exiting the single particle growth phase on iteration:           180 - Shift can now change for population3
+Exiting the single particle growth phase on iteration:           180 - Shift can now change for population4
+               180 -0.201939390913        1.31837727349       -5.89902251327                   234             1391  0.125710703433E-002
+               190 -0.197303150403        1.26765019422       -5.89438627276                   233             1423  0.130311474204E-002
+               200 -0.191211250619        1.27780994833       -5.88829437298                   245             1450  0.130130089819E-002
+Exiting the single particle growth phase on iteration:           210 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:           210 - Shift can now change for population2
+               210 -0.184656946527        1.11510697267       -5.88174006888                   243             1491  0.130079798400E-002
+               220 -0.181990089545        1.08348408398       -5.87907321190                   244             1439  0.131741762161E-002
+               230 -0.182891306297        1.09206436761       -5.87997442865                   245             1451  0.129478760064E-002
+               240 -0.184894099698        1.09898473049       -5.88197722206                   244             1442  0.131969898939E-002
+               250 -0.187103528553        1.12620132080       -5.88418665091                   245             1457  0.131801925600E-002
+               260 -0.189083490851        1.14391962774       -5.88616661321                   242             1459  0.133925974369E-002
+               270 -0.190188291005        1.13240598805       -5.88727141336                   242             1490  0.134092867374E-002
+               280 -0.190782656761        1.11758659363       -5.88786577912                   241             1506  0.134690664709E-002
+               290 -0.190911439357        1.11806749412       -5.88799456171                   248             1526  0.133676491678E-002
+               300 -0.191401772986        1.13804368667       -5.88848489534                   244             1512  0.134439766407E-002
+               310 -0.192652327145        1.15188374252       -5.88973544950                   243             1499  0.133377276361E-002
+               320 -0.193735673140        1.13157122932       -5.89081879550                   250             1430  0.136128887534E-002
+               330 -0.194508411097        1.12225375516       -5.89159153345                   252             1509  0.134946107864E-002
+               340 -0.195409967828        1.13045257376       -5.89249309019                   239             1439  0.181758031249E-002
+               350 -0.196774455650        1.14244687687       -5.89385757801                   250             1447  0.134174637496E-002
+               360 -0.197455128511        1.13260682967       -5.89453825087                   257             1524  0.135982744396E-002
+               370 -0.198314507330        1.11679294433       -5.89539762969                   253             1506  0.136714391410E-002
+               380 -0.199257404400        1.11538411858       -5.89634052676                   251             1491  0.137958414853E-002
+               390 -0.200211657873        1.13273628612       -5.89729478023                   247             1531  0.138904117048E-002
+               400 -0.201416664062        1.13455623407       -5.89849978642                   243             1532  0.138081312180E-002
+               410 -0.202314841245        1.14246594588       -5.89939796360                   244             1532  0.136925168335E-002
+               420 -0.202846188702        1.13196897297       -5.89992931106                   240             1540  0.145560465753E-002
+               430 -0.203863687650        1.13024489490       -5.90094681001                   238             1578  0.183436572552E-002
+               440 -0.205302830984        1.12346310816       -5.90238595334                   245             1637  0.140418112278E-002
+               450 -0.206301746090        1.11338761089       -5.90338486845                   249             1633  0.143393091857E-002
+               460 -0.206881729822        1.12275826495       -5.90396485218                   245             1563  0.143131762743E-002
+               470 -0.208575259893        1.13731506936       -5.90565838225                   240             1521  0.145659893751E-002
+               480 -0.210959933018        1.14295697516       -5.90804305538                   233             1541  0.143682397902E-002
+               490 -0.212859632827        1.13911010582       -5.90994275519                   243             1638  0.142785310745E-002
+               500 -0.213773754532        1.12391122661       -5.91085687689                   242             1600  0.143982805312E-002
+               510 -0.214850395010        1.12139974047       -5.91193351737                   249             1604  0.144782401621E-002
+               520 -0.216837862587        1.12139703303       -5.91392098495                   243             1640  0.146388858557E-002
+               530 -0.218616227059        1.14352010612       -5.91569934942                   246             1587  0.145582072437E-002
+               540 -0.219977094021        1.13256264749       -5.91706021638                   250             1580  0.147258713841E-002
+               550 -0.221258888896        1.12812769686       -5.91834201125                   251             1562  0.147710889578E-002
+               560 -0.222687243354        1.13235519005       -5.91977036571                   231             1656  0.147556066513E-002
+               570 -0.223412895063        1.13877885618       -5.92049601742                   245             1615  0.146990343928E-002
+               580 -0.224228441391        1.12501420570       -5.92131156375                   244             1680  0.148392431438E-002
+               590 -0.226035443462        1.12466640075       -5.92311856582                   247             1661  0.149869844317E-002
+               600 -0.228233021218        1.12010051669       -5.92531614358                   246             1662  0.150234177709E-002
+               610 -0.230205936003        1.12134122789       -5.92728905836                   249             1674  0.150037184358E-002
+               620 -0.233041237894        1.12772998963       -5.93012436025                   244             1694  0.153607167304E-002
+               630 -0.235513387044        1.12044445075       -5.93259650940                   251             1709  0.152728296816E-002
+               640 -0.237431036249        1.12502016132       -5.93451415861                   249             1694  0.154616124928E-002
+               650 -0.239073783205        1.14209019103       -5.93615690556                   237             1681  0.153165869415E-002
+               660 -0.239790979757        1.15394441877       -5.93687410211                   246             1748  0.152387022972E-002
+               670 -0.241678358171        1.13455509677       -5.93876148053                   253             1764  0.154121331871E-002
+               680 -0.243756581614        1.12472392577       -5.94083970397                   251             1798  0.157621800900E-002
+Exiting the single particle growth phase on iteration:           690 - Shift can now change for population6
+               690 -0.246544960907        1.09321779971       -5.94362808326                   246             1732  0.156577043235E-002
+               700 -0.248665443427        1.09089426975       -5.94574856578                   249             1746  0.158868469298E-002
+Exiting the single particle growth phase on iteration:           710 - Shift can now change for population5
+               710 -0.250430141362        1.07165703645       -5.94751326372                   252             1765  0.159215815365E-002
+               720 -0.250574736877        1.08338133647       -5.94765785923                   251             1748  0.157495401800E-002
+               730 -0.249332367125        1.08213166313       -5.94641548948                   246             1727  0.156920962036E-002
+               740 -0.248637340193        1.07946393401       -5.94572046255                   244             1736  0.157416164875E-002
+               750 -0.248475397336        1.08271586934       -5.94555851969                   248             1760  0.158178620040E-002
+               760 -0.248574544737        1.08542219637       -5.94565766709                   253             1791  0.158549249172E-002
+               770 -0.249427241872        1.08802486668       -5.94651036423                   253             1783  0.158366486430E-002
+               780 -0.251116890763        1.07847716555       -5.94820001312                   246             1720  0.157911144197E-002
+               790 -0.252109267708        1.10236356217       -5.94919239007                   241             1798  0.156457163393E-002
+               800 -0.251452334561        1.09986553478       -5.94853545692                   246             1736  0.156435519457E-002
+               810 -0.251474758432        1.06753415976       -5.94855788079                   248             1776  0.156353488564E-002
+               820 -0.250651071434        1.06686998925       -5.94773419379                   240             1755  0.158394314349E-002
+               830 -0.250390743544        1.08021133011       -5.94747386590                   245             1758  0.156260505319E-002
+               840 -0.249967423677        1.07096459103       -5.94705054604                   245             1791  0.159612223506E-002
+               850 -0.249967724739        1.06863171252       -5.94705084710                   244             1851  0.158082544804E-002
+               860 -0.250364220785        1.08589858108       -5.94744734314                   244             1791  0.156383179128E-002
+               870 -0.249816926380        1.08396811881       -5.94690004874                   250             1793  0.157652124763E-002
+               880 -0.248944112753        1.10488228067       -5.94602723511                   249             1806  0.156826488674E-002
+               890 -0.248633144266        1.08409211910       -5.94571626662                   253             1740  0.158669874072E-002
+               900 -0.248694246220        1.08645959409       -5.94577736858                   246             1796  0.158909447491E-002
+               910 -0.248611203841        1.08125651550       -5.94569432620                   248             1771  0.156889595091E-002
+               920 -0.248226406841        1.06415242851       -5.94530952920                   251             1745  0.158173702657E-002
+               930 -0.248463408177        1.08657311757       -5.94554653053                   241             1756  0.158737748861E-002
+               940 -0.247962932249        1.07969681108       -5.94504605461                   257             1742  0.156558379531E-002
+               950 -0.248405181640        1.08869579837       -5.94548830400                   248             1764  0.157082974911E-002
+               960 -0.248184252708        1.09683250103       -5.94526737507                   253             1748  0.155733264983E-002
+               970 -0.247394324625        1.08438266010       -5.94447744698                   252             1759  0.156443752348E-002
+               980 -0.247995500665        1.08136933976       -5.94507862302                   242             1753  0.156453400850E-002
+               990 -0.249083555334        1.07903185929       -5.94616667769                   248             1819  0.156037621200E-002
+              1000 -0.249022637718        1.07920360164       -5.94610576008                   243             1761  0.155553407967E-002
+              1010 -0.248743407441        1.09187983737       -5.94582652980                   245             1767  0.157909020782E-002
+              1020 -0.248413447056        1.10907063754       -5.94549656941                   247             1787  0.155244320631E-002
+              1030 -0.248096715687        1.10379391643       -5.94517983804                   240             1805  0.155889242887E-002
+              1040 -0.248524906121        1.08954354470       -5.94560802848                   241             1723  0.156772062182E-002
+              1050 -0.249625916461        1.07603663303       -5.94670903882                   239             1711  0.158243998885E-002
+              1060 -0.250016131755        1.07721434634       -5.94709925411                   245             1767  0.155487060547E-002
+              1070 -0.248890049020        1.07662658104       -5.94597317138                   245             1742  0.156712979078E-002
+              1080 -0.248054136053        1.08835025837       -5.94513725841                   240             1729  0.155876018107E-002
+              1090 -0.247209777947        1.08648208976       -5.94429290030                   249             1800  0.155673511326E-002
+              1100 -0.246902548330        1.08043786355       -5.94398567069                   244             1747  0.157052986324E-002
+              1110 -0.246811035118        1.07346028643       -5.94389415748                   243             1755  0.157206803560E-002
+              1120 -0.246231113414        1.06881875353       -5.94331423577                   244             1767  0.156752876937E-002
+              1130 -0.246385624925        1.06782035748       -5.94346874728                   249             1786  0.156716480851E-002
+              1140 -0.246582349107        1.07310031133       -5.94366547147                   249             1748  0.156378373504E-002
+              1150 -0.246908732906        1.09149657066       -5.94399185526                   246             1758  0.158134549856E-002
+              1160 -0.246937550196        1.10998432381       -5.94402067255                   242             1726  0.156826600432E-002
+              1170 -0.248107767014        1.11738926115       -5.94519088937                   238             1717  0.155968889594E-002
+Beginning to average shift value on iteration:           1180
+Beginning to average shift value on iteration:           1180
+              1180 -0.248800697606        1.09487291781       -5.94588381996                   243             1764  0.156730338931E-002
+              1190 -0.249103845021        1.07119160747       -5.94618696738                   249             1810  0.159485898912E-002
+              1200 -0.249922712325        1.08046113846       -5.94700583468                   242             1830  0.159788206220E-002
+Beginning to average shift value on iteration:           1210
+Beginning to average shift value on iteration:           1210
+              1210 -0.250184980506        1.07750383438       -5.94726810286                   236             1785  0.160516910255E-002
+              1220 -0.250477496837        1.08191420056       -5.94756061920                   245             1736  0.158451795578E-002
+              1230 -0.250081969818        1.09575033448       -5.94716509218                   240             1671  0.156327039003E-002
+              1240 -0.248318504900        1.10878907837       -5.94540162726                   242             1763  0.154876820743E-002
+              1250 -0.248326547567        1.08127703309       -5.94540966993                   250             1741  0.156445167959E-002
+              1260 -0.249277370119        1.07179771378       -5.94636049248                   248             1778  0.156673192978E-002
+              1270 -0.249709594059        1.06917163514       -5.94679271642                   250             1767  0.157930552959E-002
+              1280 -0.249869420178        1.07781098467       -5.94695254254                   250             1773  0.159770064056E-002
+              1290 -0.248785560839        1.07985081669       -5.94586868320                   250             1771  0.159353464842E-002
+              1300 -0.248158362292        1.06711263307       -5.94524148465                   250             1801  0.158614516258E-002
+              1310 -0.247527062932        1.07638772244       -5.94461018529                   251             1718  0.158145949244E-002
+              1320 -0.247588494367        1.07026068974       -5.94467161673                   250             1771  0.158787108958E-002
+              1330 -0.246377512126        1.06074845452       -5.94346063448                   250             1758  0.159650035203E-002
+              1340 -0.244531847745        1.09389525604       -5.94161497010                   243             1749  0.156567990780E-002
+              1350 -0.243006019447        1.08940556906       -5.94008914181                   243             1800  0.155168659985E-002
+              1360 -0.243413124228        1.09042264269       -5.94049624659                   240             1754  0.156675614417E-002
+              1370 -0.244464997231        1.08973443447       -5.94154811959                   251             1789  0.157443396747E-002
+              1380 -0.244963908372        1.08969511590       -5.94204703073                   241             1753  0.157049186528E-002
+              1390 -0.246037110400        1.07750089111       -5.94312023276                   245             1700  0.158117637038E-002
+              1400 -0.246258923883        1.09525361810       -5.94334204624                   252             1701  0.158304497600E-002
+              1410 -0.246109707081        1.08624023042       -5.94319282944                   246             1777  0.158153772354E-002
+              1420 -0.246350050081        1.09406444331       -5.94343317244                   246             1710  0.156281813979E-002
+              1430 -0.247490154451        1.07710604398       -5.94457327681                   256             1787  0.157523155212E-002
+              1440 -0.248661631587        1.05763739153       -5.94574475395                   253             1799  0.157693661749E-002
+              1450 -0.249525421269        1.06319737599       -5.94660854363                   256             1802  0.158257186413E-002
+              1460 -0.249419688039        1.09052294707       -5.94650281040                   243             1774  0.158679448068E-002
+              1470 -0.248845237401        1.11316536211       -5.94592835976                   238             1744  0.155989415944E-002
+              1480 -0.248303481415        1.10213230737       -5.94538660377                   251             1714  0.157808624208E-002
+              1490 -0.247525653335        1.07616069142       -5.94460877569                   254             1764  0.157202221453E-002
+              1500 -0.246075008662        1.06018836775       -5.94315813102                   252             1745  0.158057101071E-002
+              1510 -0.245643133252        1.10213608215       -5.94272625561                   243             1689  0.157179385424E-002
+              1520 -0.245341456456        1.10856186968       -5.94242457881                   247             1688  0.156940892339E-002
+              1530 -0.244996775784        1.07948539199       -5.94207989814                   249             1709  0.156796835363E-002
+              1540 -0.244066456055        1.07237013746       -5.94114957841                   251             1821  0.159904807806E-002
+              1550 -0.242789418226        1.08683524319       -5.93987254058                   246             1762  0.157577767968E-002
+              1560 -0.242513328910        1.08915120103       -5.93959645127                   252             1795  0.158587582409E-002
+              1570 -0.242155367398        1.08261483063       -5.93923848976                   242             1769  0.158121809363E-002
+              1580 -0.242679838434        1.08453000704       -5.93976296079                   241             1745  0.157659575343E-002
+              1590 -0.243766286972        1.09056947249       -5.94084940933                   243             1755  0.157987698913E-002
+              1600 -0.244402206615        1.08706948029       -5.94148532897                   248             1749  0.159784890711E-002
+              1610 -0.246303067996        1.09159934120       -5.94338619035                   242             1756  0.159038268030E-002
+              1620 -0.247822174917        1.09217135753       -5.94490529727                   236             1716  0.159249082208E-002
+              1630 -0.248378724112        1.07103966230       -5.94546184647                   244             1806  0.159306824207E-002
+              1640 -0.248956615613        1.06040055964       -5.94603973797                   254             1772  0.158784836531E-002
+              1650 -0.249030420839        1.07271874566       -5.94611354320                   247             1804  0.158687569201E-002
+              1660 -0.247697651462        1.07457716703       -5.94478077382                   238             1764  0.158144012094E-002
+              1670 -0.246089830166        1.07758301984       -5.94317295252                   249             1751  0.157963298261E-002
+              1680 -0.244941479180        1.09203438079       -5.94202460154                   250             1743  0.156567059457E-002
+Beginning to average shift value on iteration:           1690
+              1690 -0.244533069175        1.10051176726       -5.94161619153                   251             1782  0.157830752432E-002
+              1700 -0.244926521839        1.07841119513       -5.94200964420                   258             1758  0.158650651574E-002
+Beginning to average shift value on iteration:           1710
+              1710 -0.245396854175        1.07824100430       -5.94247997653                   257             1757  0.157429464161E-002
+
+=========== Trial wavefunction initialisation ==========
+Generating the trial space...
+  Initialising wavefunctions by the Lanczos algorithm
+ Total core population   5988.1315791645602     
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+ Total core population   5988.1315791645602     
+  MAXIMUM WIDTH OF HAMIL :           64
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         4714
+Size of trial space on this processor:       45
+Total size of the trial space:      200
+Calculating the number of states in the connected space...
+Attempting to allocate con_space. Size =        0.206 Mb
+States found on this processor, including repeats:     3368
+Generating and storing the connected space...
+Removing repeated states and sorting by processor...
+Performing MPI communication of connected states...
+Attempting to allocate temp_space. Size =        0.016 Mb
+Attempting to allocate con_space. Size =        0.016 Mb
+Total size of connected space:        309
+Size of connected space on this processor:         73
+Generating the vector \sum_j H_{ij} \psi^T_j...
+ Energy eigenvalue(s) of the trial space:  -5.7620455677079496       -4.2430348465456396       -3.8333589562342034     
+ Trial wavefunction initialisation complete.
+ Total time (seconds) taken for trial wavefunction initialisation:   3.5193406045436859E-002
+              1720 -0.246463984624        1.07624924126       -5.94354710698                   243             1780  0.613385103643E-002
+              1730 -0.246546165698        1.08324707309       -5.94362928806                   248             1754  0.157958045602E-002
+              1740 -0.246378238633        1.07983960728       -5.94346136099                   251             1801  0.158982798457E-002
+              1750 -0.246326322773        1.08290661441       -5.94340944513                   247             1764  0.160209462047E-002
+              1760 -0.246347222963        1.09064772828       -5.94343034532                   247             1754  0.159186199307E-002
+              1770 -0.247145841754        1.10038781891       -5.94422896411                   256             1740  0.159272141755E-002
+              1780 -0.247275617887        1.09106761637       -5.94435874024                   251             1745  0.158927030861E-002
+              1790 -0.246577329350        1.08108427751       -5.94366045171                   242             1754  0.158454403281E-002
+              1800 -0.245098906705        1.08152189046       -5.94218202906                   247             1780  0.159510299563E-002
+              1810 -0.244343175750        1.06847811846       -5.94142629811                   246             1849  0.161074884236E-002
+ Memory requirement for spawned arrays increased from     3.6621 to     5.0354 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration      1811
+ Reset fdv av at iteration         1811
+              1820 -0.244230187572        1.07566156260       -5.94131330993                   250             1704  0.197272561491E-002
+              1830 -0.243353986975        1.09754478675       -5.94043710933                   248             1780  0.194821469486E-002
+              1840 -0.243014861934        1.09487931323       -5.94009798429                   248             1735  0.194321423769E-002
+              1850 -0.243280822811        1.08136058573       -5.94036394517                   250             1721  0.196000300348E-002
+              1860 -0.244220781968        1.05969347576       -5.94130390433                   248             1777  0.199963226914E-002
+ Writing RDMs to file at iteration         1860
+ Reset fdv av at iteration         1861
+              1870 -0.246472324494        1.07545494912       -5.94355544685                   246             1785  0.195329040289E-002
+              1880 -0.247425749468        1.09427536005       -5.94450887183                   244             1741  0.194792076945E-002
+              1890 -0.247591325330        1.10165940539       -5.94467444769                   252             1794  0.193849094212E-002
+              1900 -0.247206735663        1.08665666095       -5.94428985802                   250             1803  0.195235386491E-002
+              1910 -0.246725249385        1.09142732454       -5.94380837174                   244             1784  0.197403691709E-002
+ Writing RDMs to file at iteration         1910
+ Reset fdv av at iteration         1911
+              1920 -0.246387736039        1.09334540351       -5.94347085840                   249             1771  0.194467343390E-002
+              1930 -0.246044121755        1.08248615302       -5.94312724411                   249             1745  0.207477919757E-002
+              1940 -0.245820488576        1.06845229346       -5.94290361093                   251             1781  0.197837576270E-002
+              1950 -0.246111192830        1.07421406909       -5.94319431519                   244             1774  0.196972936392E-002
+              1960 -0.246125231439        1.09050416535       -5.94320835380                   241             1729  0.198696590960E-002
+ Writing RDMs to file at iteration         1960
+ Reset fdv av at iteration         1961
+              1970 -0.246119663185        1.10300180526       -5.94320278554                   246             1747  0.195928961039E-002
+              1980 -0.246956777890        1.08692172157       -5.94403990025                   243             1751  0.196009725332E-002
+              1990 -0.246847368408        1.07662285333       -5.94393049077                   244             1807  0.196081958711E-002
+              2000 -0.246452510634        1.04627705266       -5.94353563299                   242             1803  0.196606107056E-002
+              2010 -0.245558872510        1.06374219923       -5.94264199487                   244             1729  0.198910571635E-002
+ Writing RDMs to file at iteration         2010
+ Reset fdv av at iteration         2011
+              2020 -0.245256759269        1.09891631621       -5.94233988163                   245             1777  0.193836577237E-002
+              2030 -0.245959653374        1.09551182826       -5.94304277573                   256             1781  0.195185281336E-002
+              2040 -0.245530739493        1.07252183481       -5.94261386185                   249             1766  0.195982307196E-002
+              2050 -0.244834765636        1.10072312601       -5.94191788799                   243             1690  0.194989182055E-002
+              2060 -0.244671743630        1.09758484304       -5.94175486599                   247             1781  0.198531746864E-002
+ Writing RDMs to file at iteration         2060
+ Reset fdv av at iteration         2061
+              2070 -0.244050938706        1.07169327774       -5.94113406106                   241             1707  0.197050310671E-002
+              2080 -0.243875591245        1.08594793379       -5.94095871360                   237             1753  0.195390172303E-002
+              2090 -0.243597649026        1.10708720640       -5.94068077138                   239             1713  0.193709433079E-002
+              2100 -0.242804126419        1.09375631784       -5.93988724878                   237             1802  0.194155387580E-002
+              2110 -0.243271557152        1.07640389394       -5.94035467951                   232             1789  0.198120549321E-002
+ Writing RDMs to file at iteration         2110
+ Reset fdv av at iteration         2111
+              2120 -0.244263580928        1.08415938882       -5.94134670329                   247             1764  0.194380395114E-002
+              2130 -0.244637540348        1.07432967402       -5.94172066271                   248             1752  0.194936618209E-002
+              2140 -0.244701963680        1.06883085123       -5.94178508604                   246             1760  0.196612738073E-002
+              2150 -0.245358767383        1.07251447397       -5.94244188974                   250             1775  0.194673798978E-002
+              2160 -0.246012791300        1.08174637881       -5.94309591366                   245             1715  0.197992734611E-002
+ Writing RDMs to file at iteration         2160
+ Reset fdv av at iteration         2161
+              2170 -0.246017206426        1.10279016998       -5.94310032878                   243             1692  0.193365104496E-002
+              2180 -0.245819031858        1.10008294935       -5.94290215422                   242             1740  0.194642581046E-002
+              2190 -0.245904330619        1.09216644663       -5.94298745298                   248             1727  0.197390317917E-002
+              2200 -0.247309141777        1.08363289666       -5.94439226413                   246             1773  0.198220461607E-002
+              2210 -0.247451278104        1.06501572380       -5.94453440046                   246             1736  0.200445391238E-002
+ Writing RDMs to file at iteration         2210
+ Reset fdv av at iteration         2211
+              2220 -0.248022667414        1.06930356281       -5.94510578977                   248             1734  0.197200402617E-002
+              2230 -0.248501913875        1.10272961944       -5.94558503623                   242             1687  0.195001140237E-002
+              2240 -0.247408835864        1.10500056972       -5.94449195822                   242             1733  0.196384117007E-002
+              2250 -0.246317693734        1.08860775547       -5.94340081609                   245             1749  0.196119584143E-002
+              2260 -0.246500482562        1.08167770535       -5.94358360492                   250             1733  0.198902115226E-002
+ Writing RDMs to file at iteration         2260
+ Reset fdv av at iteration         2261
+              2270 -0.247700946172        1.07144510291       -5.94478406853                   251             1773  0.198745392263E-002
+              2280 -0.248563618692        1.05729052193       -5.94564674105                   251             1814  0.197882093489E-002
+              2290 -0.247558875851        1.07951069082       -5.94464199821                   243             1741  0.196887850761E-002
+              2300 -0.245583864882        1.07503842487       -5.94266698724                   249             1792  0.197999030352E-002
+              2310 -0.245331521560        1.09014026458       -5.94241464392                   246             1751  0.200734883547E-002
+ Writing RDMs to file at iteration         2310
+ Reset fdv av at iteration         2311
+              2320 -0.245849508122        1.11389086648       -5.94293263048                   244             1745  0.194232799113E-002
+              2330 -0.246572105737        1.08629941811       -5.94365522810                   252             1788  0.196872688830E-002
+              2340 -0.246998000371        1.05923924217       -5.94408112273                   253             1735  0.198077894747E-002
+              2350 -0.247125895720        1.08983991858       -5.94420901808                   252             1748  0.196468234062E-002
+              2360 -0.247544360728        1.09135031131       -5.94462748309                   250             1714  0.201991014183E-002
+ Writing RDMs to file at iteration         2360
+ Reset fdv av at iteration         2361
+              2370 -0.246638220049        1.07360165178       -5.94372134241                   248             1764  0.196571722627E-002
+              2380 -0.246178279832        1.08890149815       -5.94326140219                   243             1771  0.196860544384E-002
+              2390 -0.245765547970        1.08701425250       -5.94284867033                   256             1757  0.197003372014E-002
+              2400 -0.245447300446        1.09814235129       -5.94253042280                   247             1729  0.196022167802E-002
+              2410 -0.246187037501        1.09337136738       -5.94327015986                   252             1724  0.200007148087E-002
+ Writing RDMs to file at iteration         2410
+ Reset fdv av at iteration         2411
+              2420 -0.246258050646        1.08027547155       -5.94334117300                   247             1696  0.196972265840E-002
+              2430 -0.245462299160        1.08781432598       -5.94254542152                   232             1770  0.196366235614E-002
+              2440 -0.245022814782        1.08318109933       -5.94210593714                   245             1833  0.194827467203E-002
+              2450 -0.245230166615        1.07537611976       -5.94231328897                   239             1761  0.193122774363E-002
+              2460 -0.245656019363        1.06914843768       -5.94273914172                   250             1788  0.198316499591E-002
+ Writing RDMs to file at iteration         2460
+ Reset fdv av at iteration         2461
+              2470 -0.245556898382        1.08300102285       -5.94264002074                   245             1795  0.194622948766E-002
+              2480 -0.245902033511        1.08179976782       -5.94298515587                   245             1777  0.194435976446E-002
+              2490 -0.245923219035        1.09659131962       -5.94300634139                   241             1745  0.193658769131E-002
+              2500 -0.245912517865        1.09205238157       -5.94299564022                   246             1703  0.193462148309E-002
+              2510 -0.244972759661        1.08690655797       -5.94205588202                   247             1779  0.197743847966E-002
+ Writing RDMs to file at iteration         2510
+ Reset fdv av at iteration         2511
+              2520 -0.244908492988        1.09691661570       -5.94199161535                   250             1694  0.195742398500E-002
+              2530 -0.245553645744        1.08389964455       -5.94263676810                   244             1758  0.196332074702E-002
+              2540 -0.245688942447        1.06955024285       -5.94277206480                   252             1787  0.195569321513E-002
+              2550 -0.245423039550        1.05311253946       -5.94250616191                   252             1795  0.195886828005E-002
+              2560 -0.244851211406        1.06872562340       -5.94193433376                   253             1661  0.198413394392E-002
+ Writing RDMs to file at iteration         2560
+ Reset fdv av at iteration         2561
+              2570 -0.245290093167        1.09153404215       -5.94237321552                   251             1768  0.197253152728E-002
+              2580 -0.245539177228        1.10098287285       -5.94262229959                   237             1784  0.194672681391E-002
+              2590 -0.245505886875        1.10890362238       -5.94258900923                   248             1727  0.193902626634E-002
+              2600 -0.244840664672        1.09143172404       -5.94192378703                   253             1812  0.195685811341E-002
+              2610 -0.244145906628        1.07565839759       -5.94122902899                   248             1746  0.201217830181E-002
+ Writing RDMs to file at iteration         2610
+ Reset fdv av at iteration         2611
+              2620 -0.243547952424        1.07007013119       -5.94063107478                   252             1803  0.195399001241E-002
+              2630 -0.243736754736        1.04667730977       -5.94081987709                   252             1743  0.197374932468E-002
+              2640 -0.244053686785        1.07601154603       -5.94113680914                   245             1715  0.195355527103E-002
+              2650 -0.243958861262        1.09684233933       -5.94104198362                   238             1752  0.196227729321E-002
+              2660 -0.243348693436        1.11258729908       -5.94043181579                   223             1770  0.197716504335E-002
+ Writing RDMs to file at iteration         2660
+ Reset fdv av at iteration         2661
+              2670 -0.243477333741        1.09570568685       -5.94056045610                   238             1769  0.194843858480E-002
+              2680 -0.244019875712        1.07391670436       -5.94110299807                   250             1780  0.198570005596E-002
+              2690 -0.244260426692        1.08806222530       -5.94134354905                   241             1794  0.194970592856E-002
+              2700 -0.244138532442        1.09054299917       -5.94122165480                   242             1785  0.193910971284E-002
+              2710 -0.244125564861        1.07643800349       -5.94120868722                   245             1783  0.198516845703E-002
+ Writing RDMs to file at iteration         2710
+ Reset fdv av at iteration         2711
+              2720 -0.243867203926        1.06827741146       -5.94095032628                   246             1797  0.194758437574E-002
+              2730 -0.244510556868        1.05664867462       -5.94159367923                   246             1752  0.196777656674E-002
+              2740 -0.245875599922        1.07647895689       -5.94295872228                   248             1791  0.197042152286E-002
+              2750 -0.246170009787        1.08331665416       -5.94325313214                   249             1728  0.195639207959E-002
+              2760 -0.245293478772        1.09460705940       -5.94237660113                   249             1780  0.199055448174E-002
+ Writing RDMs to file at iteration         2760
+ Reset fdv av at iteration         2761
+              2770 -0.244060912720        1.08876663056       -5.94114403508                   248             1736  0.194042287767E-002
+              2780 -0.242901814468        1.08486458981       -5.93998493683                   250             1814  0.194790624082E-002
+              2790 -0.242496087797        1.08038576770       -5.93957921016                   248             1746  0.195497684181E-002
+              2800 -0.244349822533        1.09094912134       -5.94143294489                   246             1735  0.196172669530E-002
+              2810 -0.245135669817        1.09739415904       -5.94221879217                   240             1737  0.200288668275E-002
+ Writing RDMs to file at iteration         2810
+ Reset fdv av at iteration         2811
+              2820 -0.245642263288        1.10237515402       -5.94272538565                   244             1808  0.195178352296E-002
+              2830 -0.246289856422        1.08213210916       -5.94337297878                   253             1779  0.195812173188E-002
+              2840 -0.246652132982        1.06331883568       -5.94373525534                   247             1797  0.197648368776E-002
+              2850 -0.246427239144        1.08491757173       -5.94351036150                   243             1704  0.195548832417E-002
+              2860 -0.246712940376        1.10176770210       -5.94379606273                   242             1757  0.197947099805E-002
+ Writing RDMs to file at iteration         2860
+ Reset fdv av at iteration         2861
+              2870 -0.245675106317        1.09271872772       -5.94275822867                   240             1719  0.194938853383E-002
+              2880 -0.244125718865        1.07943782292       -5.94120884122                   242             1722  0.195006616414E-002
+              2890 -0.242877323034        1.08133223471       -5.93996044539                   244             1659  0.195533111691E-002
+              2900 -0.242354359493        1.07947291768       -5.93943748185                   249             1785  0.196256116033E-002
+              2910 -0.243251261454        1.06441713015       -5.94033438381                   248             1758  0.198463834822E-002
+ Writing RDMs to file at iteration         2910
+ Reset fdv av at iteration         2911
+              2920 -0.243824741871        1.07781234574       -5.94090786423                   254             1764  0.196682326496E-002
+              2930 -0.243958238452        1.07226706690       -5.94104136081                   252             1723  0.195827260613E-002
+              2940 -0.243160674301        1.08519619475       -5.94024379666                   242             1707  0.193231739104E-002
+              2950 -0.242700746085        1.08954318304       -5.93978386844                   248             1693  0.195308662951E-002
+              2960 -0.243042882609        1.10382141329       -5.94012600497                   245             1740  0.198312103748E-002
+ Writing RDMs to file at iteration         2960
+ Reset fdv av at iteration         2961
+              2970 -0.244327252666        1.09309280212       -5.94141037502                   249             1784  0.196891203523E-002
+              2980 -0.245087396880        1.07654066914       -5.94217051924                   247             1755  0.197232663631E-002
+              2990 -0.244802932305        1.06644789529       -5.94188605466                   251             1819  0.197508521378E-002
+              3000 -0.244049876030        1.08315498938       -5.94113299839                   253             1710  0.196717120707E-002
+              3010 -0.243713763747        1.08225072196       -5.94079688611                   254             1748  0.200443118811E-002
+ Writing RDMs to file at iteration         3010
+ Reset fdv av at iteration         3011
+              3020 -0.244028158812        1.07959771032       -5.94111128117                   249             1757  0.196243189275E-002
+              3030 -0.244389095528        1.08845986626       -5.94147221789                   242             1757  0.196215137839E-002
+              3040 -0.244733277740        1.08915578412       -5.94181640010                   249             1772  0.196534059942E-002
+              3050 -0.245303453935        1.07945782226       -5.94238657629                   242             1751  0.195430479944E-002
+              3060 -0.245771508747        1.09646508348       -5.94285463111                   247             1734  0.197769440711E-002
+ Writing RDMs to file at iteration         3060
+ Reset fdv av at iteration         3061
+              3070 -0.245996597427        1.11341579236       -5.94307971979                   241             1701  0.194363296032E-002
+              3080 -0.245967396006        1.08611229520       -5.94305051836                   248             1821  0.195840708911E-002
+              3090 -0.245972376164        1.05762521935       -5.94305549852                   245             1768  0.196482352912E-002
+              3100 -0.245859103056        1.06375725100       -5.94294222541                   253             1755  0.195542015135E-002
+              3110 -0.244981568400        1.06713570090       -5.94206469076                   256             1729  0.200330130756E-002
+ Writing RDMs to file at iteration         3110
+ Reset fdv av at iteration         3111
+              3120 -0.244752198177        1.07951369334       -5.94183532053                   256             1765  0.196872130036E-002
+              3130 -0.245289469293        1.09170544973       -5.94237259165                   254             1731  0.196181237698E-002
+              3140 -0.246227050865        1.09592355566       -5.94331017322                   252             1794  0.196050293744E-002
+              3150 -0.246468813083        1.10230148188       -5.94355193544                   242             1744  0.194830261171E-002
+              3160 -0.245360864563        1.10339178381       -5.94244398692                   243             1743  0.197648368776E-002
+ Writing RDMs to file at iteration         3160
+ Reset fdv av at iteration         3161
+              3170 -0.244411569791        1.10168473267       -5.94149469215                   241             1702  0.194122605026E-002
+              3180 -0.243550047158        1.08962414335       -5.94063316952                   240             1732  0.195459462702E-002
+              3190 -0.243425421575        1.06976321574       -5.94050854393                   251             1792  0.194664075971E-002
+              3200 -0.243413947719        1.08235342678       -5.94049707008                   242             1748  0.193040743470E-002
+              3210 -0.243280050160        1.07115452105       -5.94036317252                   246             1812  0.196390636265E-002
+ Writing RDMs to file at iteration         3210
+ Reset fdv av at iteration         3211
+              3220 -0.242729426986        1.06491551318       -5.93981254934                   240             1743  0.196028091013E-002
+              3230 -0.243358198267        1.08936087356       -5.94044132062                   239             1764  0.195359699428E-002
+              3240 -0.243693935909        1.09812390417       -5.94077705827                   251             1725  0.194709599018E-002
+              3250 -0.243973763804        1.08846989266       -5.94105688616                   242             1727  0.194537565112E-002
+              3260 -0.243867656464        1.08288486234       -5.94095077882                   254             1793  0.199584513903E-002
+ Writing RDMs to file at iteration         3260
+ Reset fdv av at iteration         3261
+              3270 -0.244100083867        1.07906312460       -5.94118320622                   245             1749  0.195581391454E-002
+              3280 -0.245282711606        1.09240469191       -5.94236583396                   247             1774  0.195148885250E-002
+              3290 -0.246075124019        1.06968038472       -5.94315824638                   248             1696  0.196227654815E-002
+              3300 -0.245293382848        1.08166440805       -5.94237650521                   250             1693  0.195530205965E-002
+              3310 -0.245064018009        1.09267820828       -5.94214714037                   247             1708  0.197015814483E-002
+ Writing RDMs to file at iteration         3310
+ Reset fdv av at iteration         3311
+              3320 -0.244921029002        1.08139530915       -5.94200415136                   239             1751  0.196292139590E-002
+              3330 -0.244892428690        1.08107505851       -5.94197555105                   249             1703  0.194929130375E-002
+              3340 -0.244920993498        1.07075873855       -5.94200411586                   250             1786  0.195525884628E-002
+              3350 -0.244128625147        1.08464979963       -5.94121174750                   250             1704  0.193811170757E-002
+              3360 -0.243649225065        1.09314092844       -5.94073234742                   258             1721  0.198623761535E-002
+ Writing RDMs to file at iteration         3360
+ Reset fdv av at iteration         3361
+              3370 -0.243679437917        1.06859483974       -5.94076256027                   256             1739  0.197294391692E-002
+              3380 -0.244269649342        1.07717251025       -5.94135277170                   242             1692  0.196173787117E-002
+              3390 -0.243992128101        1.07623973721       -5.94107525046                   244             1727  0.197974108160E-002
+              3400 -0.243546208164        1.07640570047       -5.94062933052                   251             1737  0.196344666183E-002
+              3410 -0.244129987767        1.08362592254       -5.94121311013                   251             1732  0.200212188065E-002
+ Writing RDMs to file at iteration         3410
+ Reset fdv av at iteration         3411
+              3420 -0.244140495133        1.07302050676       -5.94122361749                   249             1780  0.197594128549E-002
+              3430 -0.243187151360        1.08470629092       -5.94027027372                   244             1755  0.195826664567E-002
+              3440 -0.242551356229        1.09104779034       -5.93963447859                   247             1713  0.195739269257E-002
+              3450 -0.243126061326        1.08905798801       -5.94020918368                   241             1767  0.194152109325E-002
+              3460 -0.243060670945        1.11030570275       -5.94014379330                   246             1707  0.197225287557E-002
+ Writing RDMs to file at iteration         3460
+ Reset fdv av at iteration         3461
+              3470 -0.242789007878        1.09945373006       -5.93987213024                   245             1720  0.194250494242E-002
+              3480 -0.242530328443        1.10260318128       -5.93961345080                   241             1731  0.194635316730E-002
+              3490 -0.241719420297        1.08123973633       -5.93880254265                   242             1775  0.194353200495E-002
+              3500 -0.241649052510        1.07776570942       -5.93873217487                   249             1770  0.194418467581E-002
+              3510 -0.242508840911        1.07282301440       -5.93959196327                   258             1761  0.199657715857E-002
+ Writing RDMs to file at iteration         3510
+ Reset fdv av at iteration         3511
+              3520 -0.243777118669        1.08533085364       -5.94086024103                   251             1705  0.195570476353E-002
+              3530 -0.244317991388        1.09318089805       -5.94140111375                   251             1725  0.196081139147E-002
+              3540 -0.244850281877        1.07987193811       -5.94193340423                   233             1718  0.196421332657E-002
+              3550 -0.244767619900        1.07138577661       -5.94185074226                   245             1762  0.196053981781E-002
+              3560 -0.244303663876        1.07452343543       -5.94138678623                   249             1754  0.198760852218E-002
+ Writing RDMs to file at iteration         3560
+ Reset fdv av at iteration         3561
+              3570 -0.243566237068        1.10277600170       -5.94064935943                   243             1664  0.195355936885E-002
+              3580 -0.242780434118        1.11474000018       -5.93986355648                   238             1728  0.194156244397E-002
+              3590 -0.242558686873        1.08414634989       -5.93964180923                   241             1788  0.193875283003E-002
+              3600 -0.243243923170        1.05639940235       -5.94032704553                   247             1796  0.196506232023E-002
+              3610 -0.243358148874        1.05574820756       -5.94044127123                   250             1744  0.198443941772E-002
+ Writing RDMs to file at iteration         3610
+ Reset fdv av at iteration         3611
+              3620 -0.242881120256        1.07489445994       -5.93996424261                   252             1688  0.195027962327E-002
+              3630 -0.242505008023        1.08794579800       -5.93958813038                   262             1760  0.194975994527E-002
+              3640 -0.242430248428        1.07503655515       -5.93951337079                   256             1733  0.195590965450E-002
+              3650 -0.242237012452        1.08381060052       -5.93932013481                   246             1722  0.196656249464E-002
+              3660 -0.241799438978        1.09612103680       -5.93888256134                   254             1735  0.200158879161E-002
+ Writing RDMs to file at iteration         3660
+ Reset fdv av at iteration         3661
+              3670 -0.241656318716        1.09455604015       -5.93873944107                   242             1734  0.194542184472E-002
+              3680 -0.241468748513        1.10812869748       -5.93855187087                   252             1739  0.197116620839E-002
+              3690 -0.241413811959        1.08738429903       -5.93849693432                   251             1729  0.196836814284E-002
+              3700 -0.242210530979        1.07809975890       -5.93929365334                   254             1750  0.194778889418E-002
+              3710 -0.242899804485        1.07681480948       -5.93998292684                   244             1798  0.199835784733E-002
+ Writing RDMs to file at iteration         3710
+ Reset fdv av at iteration         3711
+              3720 -0.243535601308        1.07159616345       -5.94061872367                   239             1740  0.195884592831E-002
+              3730 -0.243410830468        1.09229425766       -5.94049395283                   248             1735  0.195063762367E-002
+              3740 -0.242624243566        1.07792618161       -5.93970736592                   250             1764  0.196607708931E-002
+              3750 -0.241916260553        1.08655576738       -5.93899938291                   250             1729  0.195045471191E-002
+              3760 -0.240647943693        1.08857471497       -5.93773106605                   246             1744  0.197475850582E-002
+ Writing RDMs to file at iteration         3760
+ Reset fdv av at iteration         3761
+              3770 -0.239800415674        1.08464940434       -5.93688353803                   248             1786  0.194562412798E-002
+              3780 -0.239743493843        1.07400037725       -5.93682661620                   253             1734  0.195752307773E-002
+              3790 -0.240788332264        1.09040004466       -5.93787145462                   247             1737  0.195272080600E-002
+              3800 -0.242436533879        1.09574770539       -5.93951965624                   252             1762  0.196412950754E-002
+              3810 -0.244115053207        1.07954120268       -5.94119817557                   242             1752  0.200717784464E-002
+ Writing RDMs to file at iteration         3810
+ Reset fdv av at iteration         3811
+              3820 -0.245349056188        1.09201596390       -5.94243217855                   245             1758  0.194919742644E-002
+              3830 -0.246207317741        1.08974562163       -5.94329044010                   243             1732  0.195539221168E-002
+              3840 -0.245696846048        1.08097852295       -5.94277996841                   241             1733  0.195518136024E-002
+              3850 -0.245140208698        1.07057861158       -5.94222333106                   253             1813  0.196407996118E-002
+              3860 -0.244670729454        1.05951352349       -5.94175385181                   254             1763  0.201170258224E-002
+ Writing RDMs to file at iteration         3860
+ Reset fdv av at iteration         3861
+              3870 -0.244220428420        1.07176225541       -5.94130355078                   255             1808  0.196751430631E-002
+              3880 -0.243634683976        1.07855837667       -5.94071780633                   253             1699  0.196175761521E-002
+              3890 -0.243650102067        1.08966294067       -5.94073322443                   251             1733  0.195398144424E-002
+              3900 -0.243363932204        1.08831445178       -5.94044705456                   251             1796  0.196372680366E-002
+              3910 -0.242678565704        1.08113474363       -5.93976168806                   252             1745  0.198228210211E-002
+ Writing RDMs to file at iteration         3910
+ Reset fdv av at iteration         3911
+              3920 -0.241482051075        1.09908165240       -5.93856517343                   248             1739  0.195625200868E-002
+              3930 -0.241155578247        1.10236375816       -5.93823870061                   249             1771  0.195284709334E-002
+              3940 -0.240927416324        1.09006868994       -5.93801053868                   243             1768  0.195725150406E-002
+              3950 -0.241788543369        1.09053869810       -5.93887166573                   246             1773  0.195135138929E-002
+              3960 -0.242818594591        1.09166905387       -5.93990171695                   250             1729  0.199125930667E-002
+ Writing RDMs to file at iteration         3960
+ Reset fdv av at iteration         3961
+              3970 -0.243349498203        1.07572926593       -5.94043262056                   255             1723  0.194626227021E-002
+              3980 -0.244193353646        1.05796404458       -5.94127647600                   254             1813  0.196161121130E-002
+              3990 -0.243883494756        1.06842720164       -5.94096661711                   256             1815  0.195629745722E-002
+              4000 -0.242792657638        1.09076093233       -5.93987578000                   249             1718  0.199753716588E-002
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    7.1048188433051109     
+ Time lost due to load imbalance:    1.7176929758861661     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+****RDMs CALCULATED STOCHASTICALLY ****
+
+ == INFORMATION FOR FINAL 1-RDMs =========================================================
+
+ INFORMATION FOR 1-RDM 1:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      3.9712560789588
+
+ INFORMATION FOR 1-RDM 2:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      2.9853391145023
+
+ INFORMATION FOR 1-RDM 3:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      2.9611358782649
+
+ =========================================================================================
+
+ Writing RDMs to file at iteration         4000
+ == INFORMATION FOR FINAL 2-RDMS =========================================================
+
+ 2-RDM ESTIMATES FOR STATE 1:
+ Trace of 2-el-RDM before normalisation:  4.0879579914E+09
+ Trace of 2-el-RDM after normalisation:  6.0000000000E+00
+ Energy contribution from the 1-RDM: -1.0343681972E+01
+ Energy contribution from the 2-RDM:  3.2481837558E+00
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -5.7621648857303E+00
+
+ Hermiticty error estimates:
+            4000        0.00010357162364906139     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            4000        0.00486825529329767970     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR STATE 2:
+ Trace of 2-el-RDM before normalisation:  1.6172722298E+09
+ Trace of 2-el-RDM after normalisation:  6.0000000000E+00
+ Energy contribution from the 1-RDM: -8.4822500028E+00
+ Energy contribution from the 2-RDM:  2.9058385983E+00
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -4.2430780738204E+00
+
+ Hermiticty error estimates:
+            4000        0.00374613320493620994     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            4000        0.04683079456553541908     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR STATE 3:
+ Trace of 2-el-RDM before normalisation:  1.9813685073E+09
+ Trace of 2-el-RDM after normalisation:  6.0000000000E+00
+ Energy contribution from the 1-RDM: -8.5678456178E+00
+ Energy contribution from the 2-RDM:  3.4010625633E+00
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -3.8334497238590E+00
+
+ Hermiticty error estimates:
+            4000        0.00226133585295923770     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            4000        0.04329516368224400891     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ =========================================================================================
+ =============================================================
+ Reference and leading determinants for replica           1
+ =============================================================
+ 
+Current references: 
+(    1,    2,    3,    4)
+11110000000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-4
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+11110000000000000000    0    0    549.6632      0.99272  Y  -5.69708312E+00       3
+11001100000000000000    2    0   -21.92644      0.03960  Y  -2.20381610E+00       0
+00111100000000000000    2    0   -18.09103      0.03267  Y  -2.00903688E+00       1
+10011001000000000000    2    4   -16.58013      0.02994  Y  -1.93823096E+00       2
+01100110000000000000    2    4   -16.55573      0.02990  Y  -1.93823096E+00       2
+00110011000000000000    2    0   -14.14882      0.02555  Y  -1.62370974E+00       2
+11000011000000000000    2    0   -17.55390      0.03170  Y  -1.84577777E+00       3
+01101001000000000000    2    4    16.11995      0.02911  Y  -1.93856668E+00       3
+10010110000000000000    2    4    15.89837      0.02871  Y  -1.93856668E+00       3
+00110000110000000000    2    0   -10.20223      0.01843  Y  -8.63179936E-03       0
+01100000000010000100    2    4   -9.306801      0.01681  Y   1.54814681E-01       2
+01100000001000010000    2    4   -9.329008      0.01685  Y   1.54814681E-01       1
+10010000000001001000    2    4   -9.294043      0.01679  Y   1.54814681E-01       1
+11000000000000001100    2    0   -9.608080      0.01735  Y   8.79418643E-02       3
+11000000000000110000    2    0   -9.548959      0.01725  Y   8.79418644E-02       0
+ 
+ =============================================================
+ Reference and leading determinants for replica           2
+ =============================================================
+ 
+Current references: 
+(    1,    2,    3,    4)
+11110000000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-4
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+11110000000000000000    0    0    556.5908      0.99271  Y  -5.69708312E+00       3
+11001100000000000000    2    0   -22.39924      0.03995  Y  -2.20381610E+00       0
+00111100000000000000    2    0   -18.17594      0.03242  Y  -2.00903688E+00       1
+10011001000000000000    2    4   -16.76982      0.02991  Y  -1.93823096E+00       2
+01100110000000000000    2    4   -16.66055      0.02971  Y  -1.93823096E+00       2
+00110011000000000000    2    0   -14.29814      0.02550  Y  -1.62370974E+00       2
+11000011000000000000    2    0   -17.77007      0.03169  Y  -1.84577777E+00       3
+01101001000000000000    2    4    16.29279      0.02906  Y  -1.93856668E+00       3
+10010110000000000000    2    4    16.09751      0.02871  Y  -1.93856668E+00       3
+00110000110000000000    2    0   -10.27081      0.01832  Y  -8.63179936E-03       0
+01100000000010000100    2    4   -9.367288      0.01671  Y   1.54814681E-01       2
+01100000001000010000    2    4   -9.530426      0.01700  Y   1.54814681E-01       1
+10010000000001001000    2    4   -9.398794      0.01676  Y   1.54814681E-01       1
+11000000000000001100    2    0   -9.745454      0.01738  Y   8.79418643E-02       3
+11000000000000110000    2    0   -9.694798      0.01729  Y   8.79418644E-02       0
+ 
+ =============================================================
+ Reference and leading determinants for replica           3
+ =============================================================
+ 
+Current references: 
+(    2,    3,    4,    5)
+01111000000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     2-5
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+10110100000000000000    1    2    185.0179      0.52992  Y  -3.86857545E+00       2
+01111000000000000000    1    2    186.0796      0.53296  Y  -3.86857545E+00       1
+11100001000000000000    1    2   -161.8239      0.46348  Y  -3.79761679E+00       3
+11010010000000000000    1    2   -160.0546      0.45842  Y  -3.79761679E+00       2
+10000111000000000000    3    2   -10.52591      0.03015  Y  -2.75593138E-01       3
+01001011000000000000    3    2   -10.03588      0.02874  Y  -2.75593138E-01       0
+10110000010000000000    1    2    10.42981      0.02987  Y  -2.88609506E+00       2
+00101101000000000000    3    2    9.957531      0.02852  Y  -3.67893586E-01       2
+01110000100000000000    1    2    10.41155      0.02982  Y  -2.88609506E+00       1
+00011110000000000000    3    2    10.09667      0.02892  Y  -3.67893586E-01       1
+11100000000000000001    1    2   -8.537886      0.02445  Y  -2.56616187E+00       3
+11010000000000000010    1    2   -8.061391      0.02309  Y  -2.56616187E+00       2
+10000100000000001100    3    2   -3.611498      0.01034  Y   1.74827383E+00       3
+01001000001100000000    3    2   -3.386437      0.00970  Y   1.64996514E+00       3
+10000100000000110000    3    2   -3.670254      0.01051  Y   1.74827383E+00       0
+ 
+ =============================================================
+ Reference and leading determinants for replica           4
+ =============================================================
+ 
+Current references: 
+(    2,    3,    4,    5)
+01111000000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     2-5
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+10110100000000000000    1    2    183.7647      0.52824  Y  -3.86857545E+00       2
+01111000000000000000    1    2    185.9352      0.53448  Y  -3.86857545E+00       1
+11100001000000000000    1    2   -160.6122      0.46169  Y  -3.79761679E+00       3
+11010010000000000000    1    2   -159.9010      0.45964  Y  -3.79761679E+00       2
+00011110000000000000    3    2    12.06427      0.03468  Y  -3.67893586E-01       1
+00101101000000000000    3    2    10.69318      0.03074  Y  -3.67893586E-01       2
+10000111000000000000    3    2   -10.62853      0.03055  Y  -2.75593138E-01       3
+01001011000000000000    3    2   -10.38305      0.02985  Y  -2.75593138E-01       0
+10110000010000000000    1    2    10.36719      0.02980  Y  -2.88609506E+00       2
+01110000100000000000    1    2    10.47337      0.03011  Y  -2.88609506E+00       1
+11100000000000000001    1    2   -8.247537      0.02371  Y  -2.56616187E+00       3
+11010000000000000010    1    2   -8.100081      0.02328  Y  -2.56616187E+00       2
+01001000000011000000    3    2   -3.980588      0.01144  Y   1.64996514E+00       0
+01001000000000001100    3    2   -3.492453      0.01004  Y   1.74827383E+00       0
+10000100000000001100    3    2   -4.067692      0.01169  Y   1.74827383E+00       3
+ 
+ =============================================================
+ Reference and leading determinants for replica           5
+ =============================================================
+ 
+Current references: 
+(    2,    3,    4,    5)
+01111000000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     2-5
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+10110100000000000000    1    2    269.0405      0.69350  Y  -3.86857545E+00       2
+01111000000000000000    1    2   -266.9791      0.68818  Y  -3.86857545E+00       1
+11100001000000000000    1    2   -29.41195      0.07581  Y  -3.79761679E+00       3
+11010010000000000000    1    2    30.17158      0.07777  Y  -3.79761679E+00       2
+11001100000000000000    2    0    59.64761      0.15375  Y  -2.20381610E+00       0
+00110011000000000000    2    0   -17.80090      0.04588  Y  -1.62370974E+00       2
+01101001000000000000    2    4   -6.667659      0.01719  Y  -1.93856668E+00       3
+10010110000000000000    2    4   -6.507068      0.01677  Y  -1.93856668E+00       3
+00011110000000000000    3    2   -11.52816      0.02972  Y  -3.67893586E-01       1
+00101101000000000000    3    2    11.38948      0.02936  Y  -3.67893586E-01       2
+10000111000000000000    3    2   -6.453688      0.01664  Y  -2.75593138E-01       3
+01001000000000001100    3    2    5.272608      0.01359  Y   1.74827383E+00       0
+01001011000000000000    3    2    5.267740      0.01358  Y  -2.75593138E-01       0
+01001000001100000000    3    2    5.076192      0.01308  Y   1.64996514E+00       3
+00100100000001001000    3    4   -5.300565      0.01366  Y   1.80282035E+00       2
+ 
+ =============================================================
+ Reference and leading determinants for replica           6
+ =============================================================
+ 
+Current references: 
+(    2,    3,    4,    5)
+01111000000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     2-5
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
+10110100000000000000    1    2    265.8417      0.69350  Y  -3.86857545E+00       2
+01111000000000000000    1    2   -263.8411      0.68828  Y  -3.86857545E+00       1
+11100001000000000000    1    2   -30.57537      0.07976  Y  -3.79761679E+00       3
+11010010000000000000    1    2    29.37399      0.07663  Y  -3.79761679E+00       2
+11001100000000000000    2    0    58.33468      0.15218  Y  -2.20381610E+00       0
+00110011000000000000    2    0   -17.51479      0.04569  Y  -1.62370974E+00       2
+00011110000000000000    3    2   -9.106062      0.02375  Y  -3.67893586E-01       1
+00101101000000000000    3    2    10.52651      0.02746  Y  -3.67893586E-01       2
+10000111000000000000    3    2   -7.006548      0.01828  Y  -2.75593138E-01       3
+01101001000000000000    2    4   -6.579964      0.01717  Y  -1.93856668E+00       3
+10010110000000000000    2    4   -6.431895      0.01678  Y  -1.93856668E+00       3
+01001011000000000000    3    2    5.945357      0.01551  Y  -2.75593138E-01       0
+01001000000000001100    3    2    5.038937      0.01315  Y   1.74827383E+00       0
+01001000000011000000    3    2    4.575195      0.01194  Y   1.64996514E+00       0
+01001000110000000000    3    2    5.172696      0.01349  Y   1.41204541E+00       2
+ 
+ Warning: attempting to log deallocation but never logged allocation.
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process      70.7500000000
+ Min number of determinants/process                 66
+ Max number of determinants/process                 78
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:    1497.1928051473
+     Min number of walkers/process:          577.90128
+     Max number of walkers/process:         2099.64128
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:          210
+ No FCIMCStats file found for error analysis
+ Current reference energy                              -5.697083122358
+ Projected correlation energy                          -0.065087913353
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy          -5.76217104
+
+
+ Final energy estimate for state 1:     -5.7622114025059    
+ Final energy estimate for state 2:     -5.7622582544915    
+ Final energy estimate for state 3:     -4.2430915502751    
+ Final energy estimate for state 4:     -4.2431282899638    
+ Final energy estimate for state 5:     -3.8334051593118    
+ Final energy estimate for state 6:     -3.8333846425716    
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     139.0
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ trial_space       init_trial_wf      create_trial_hashta  61.0MB
+ global_determinantinit_global_det_datclean_global_det_da  48.9MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   17.8MB
+ current_trial_ampsinit_trial_wf      end_trial_wf          6.7MB
+ SpawnVec2         realloc_SpawnedPartDeallocFciMCMemPar    2.5MB
+ SpawnVec          realloc_SpawnedPartDeallocFciMCMemPar    2.5MB
+ SpawnVec          InitFCIMCPar       realloc_SpawnedPart   1.8MB
+ SpawnVec2         InitFCIMCPar       realloc_SpawnedPart   1.8MB
+ Spawned_Parents   init_rdms          dealloc_global_rdm_ 703.1KB
+ Spawned_Parents_Ininit_rdms          dealloc_global_rdm_ 234.4KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                4000      5.23
+ NECICUBE                                     1      0.64
+ AnnMainTime                               4000      0.32
+ Compression interface                     4000      0.21
+ Compress Sort interface                   4000      0.20
+ AnnihilTime                               4000      0.13
+ DeathTime                                 4000      0.09
+ StatsCommsTime                             400      0.08
+ CommsTime                                 4000      0.07
+ SortTime                                  4000      0.06
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   7.03
+
+ Global wall clock time          7.20
+ ================================================================
+ Calculation ended 02/02/2023 at 11:03:14
+ ================================================================

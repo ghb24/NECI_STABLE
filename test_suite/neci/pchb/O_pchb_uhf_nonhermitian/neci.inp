@@ -6,11 +6,11 @@ title
         nobrillouintheorem
         uhf
         molpromimic
-        nonhermitian
-        # old one:
-        # nonuniformrandexcits 4ind-weighted
-        # what I am testing:
-        nonuniformrandexcits pchb doubles hole-selection fast-weighted
+        nonhermitian 2-body
+        nonuniformrandexcits pchb \
+            singles uniform \
+            doubles particle-selection uniform \
+            doubles hole-selection fast-weighted
     endsys
 
     calc
@@ -22,25 +22,23 @@ title
             method vertex fcimc
         endmethods
         totalwalkers 1.e3
-        nmcyc 1000
+        nmcyc 5000
         definedet 1-6 7 9
 
-        startsinglepart 100
+        startsinglepart 10
         tau-values \
             start user-defined 0.01
         tau-search \
             algorithm conventional \
-            stop-condition var-shift
+            stop-condition var-shift \
+            maxwalkerbloom 2
 
-        shiftdamp 0.1
+        # diagshift 0.0
+        target-shiftdamp 0.1
         stepsshift 10
 
         truncinitiator
         addtoinitiator 3
-
-        semi-stochastic 2
-        allrealcoeff
-        pops-core 2
 
         memoryfacspawn 50
     endcalc

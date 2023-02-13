@@ -39,7 +39,7 @@ contains
     subroutine pchb_test_general(uhf, hermitian)
         use System, only: SetSysDefaults
         use Calc, only: SetCalcDefaults
-        use SystemData, only: t_non_hermitian, tUHF, tMolpro
+        use SystemData, only: t_non_hermitian_1_body, t_non_hermitian_2_body, tUHF, tMolpro
         logical, intent(in) :: uhf, hermitian
         integer, parameter :: n_iters = 5 * 10**7
         type(PCHB_FCI_excit_generator_t) :: exc_generator
@@ -50,7 +50,8 @@ contains
 
         call SetCalcDefaults()
         call SetSysDefaults()
-        t_non_hermitian = .not. hermitian
+        t_non_hermitian_1_body = .not. hermitian
+        t_non_hermitian_2_body = .not. hermitian
         tUHF = UHF
         tMolpro = UHF
 
