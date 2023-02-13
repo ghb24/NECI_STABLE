@@ -7,7 +7,7 @@ module LMat_class
     use MPI_wrapper
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
-    use constants
+    use constants, only: dp, int64
     use index_rhash, only: index_rhash_t
     use mpi
     use util_mod, only: get_free_unit, operator(.div.), near_zero
@@ -142,20 +142,21 @@ module LMat_class
 
         subroutine dealloc_t(this)
             import :: lMat_t
+            implicit none
             class(lMat_t), intent(inout) :: this
         end subroutine dealloc_t
 
         subroutine alloc_t(this, size)
-            use constants, only: int64
-            import :: lMat_t
+            import :: lMat_t, int64
+            implicit none
             class(lMat_t), intent(inout) :: this
             integer(int64), intent(in) :: size
         end subroutine alloc_t
 
         !> Set an element of a lMat
         subroutine set_elem_t(this, index, element)
-            use constants, only: int64, dp
-            import :: lMat_t
+            import :: lMat_t, int64, dp
+            implicit none
             class(lMat_t), intent(inout) :: this
             integer(int64), intent(in) :: index
             HElement_t(dp), intent(in) :: element
@@ -163,8 +164,8 @@ module LMat_class
 
         !> Get an element of a lMat. This replaces the old lMatAccess function pointer
         function get_elem_t(this, index) result(element)
-            use constants, only: int64, dp
-            import :: lMat_t
+            import :: lMat_t, int64, dp
+            implicit none
             class(lMat_t), intent(in) :: this
             integer(int64), intent(in) :: index
             HElement_t(dp) :: element
@@ -173,14 +174,15 @@ module LMat_class
         !> Read a lMat from a file
         subroutine read_t(this, filename)
             import :: lMat_t
+            implicit none
             class(lMat_t), intent(inout) :: this
             character(*), intent(in) :: filename
         end subroutine read_t
 
         !> Read operation on a single block of data read from an hdf5 file
         subroutine read_op_t(this, indices, entries)
-            use constants, only: int64
-            import :: lMat_t
+            import :: lMat_t, int64
+            implicit none
             class(lMat_t), intent(inout) :: this
             ! The read operation is allowed to deallocate the input to make
             ! memory available
