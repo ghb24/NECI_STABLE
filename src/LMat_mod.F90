@@ -24,7 +24,7 @@ module LMat_mod
 #endif
     use IntegralsData, only: t_use_tchint_lib, tchint_mode, t_rs_factors
 #ifdef USE_TCHINT_
-    use tchint
+    use tchint, only: tc_matel, tchint_init
 #endif
     implicit none
 
@@ -175,17 +175,17 @@ contains
         call initializeLMatPtrs()
 
         if (tLMatCalc) then
-          call readLMatFactors()
+            call readLMatFactors()
         else if (t_rs_factors) then
             call read_rs_lmat_factors()
         else
-          ! now, read lmat from file
-          if (tHDF5LMat) then
-            tcdump_name = "tcdump.h5"
-          else
-            tcdump_name = "TCDUMP"
-          end if
-          call lMat%read(trim(tcdump_name))
+            ! now, read lmat from file
+            if (tHDF5LMat) then
+                tcdump_name = "tcdump.h5"
+            else
+                tcdump_name = "TCDUMP"
+            end if
+            call lMat%read(trim(tcdump_name))
         end if
     end subroutine readLMat
 
@@ -206,15 +206,14 @@ contains
             if (tLMatCalc .or. t_rs_factors) then
                 call freeLMatFactors()
             else
-                ! These are always safe to call, regardless of allocation
-                call LMat%dealloc()
+                call LMat%safe_dealloc()
             end if
         endif
     end subroutine freeLMat
 
     !------------------------------------------------------------------------------------------------!
 
-    function external_lMat_matel(nI, ex) result(matel)
+    pure function external_lMat_matel(nI, ex) result(matel)
       integer, intent(in) :: nI(:)
       integer, intent(in) :: ex(:,:)
       HElement_t(dp) :: matel
@@ -285,4 +284,3 @@ contains
     end function get_lmat_el_ua
 
 end module LMat_mod
-

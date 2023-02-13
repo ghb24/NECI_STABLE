@@ -24,7 +24,7 @@ module IntegralsData
     logical :: tDumpFCIDUMP !Do we write out an FCIDUMP file (after freezing)
 
     ! Flag to indicate usage of the external TCHINT library for st-FCIQMC
-    logical :: t_use_tchint_lib
+    logical :: t_use_tchint_lib = .false.
     character(50) :: tchint_mode
 !  From NECI.F
 ! UMAT stores 4-index, 2-electron integrals.  Lookup is via the UMATIND function

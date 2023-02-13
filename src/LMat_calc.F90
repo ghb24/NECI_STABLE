@@ -13,6 +13,8 @@ module LMat_calc
     use IntegralsData, only: t_hash_lmat_calc
     implicit none
 
+    private
+    public :: read_rs_lmat_factors, readLMatFactors, freeLMatFactors, lMatCalc
     real(dp), allocatable :: qwprod(:, :, :), ycoulomb(:, :, :, :)
 #ifdef USE_HDF5_
     integer(hsize_t) :: nBasis, nGrid
@@ -191,7 +193,7 @@ contains
     subroutine read_rs_lmat_factors
         character(*), parameter :: filename_mo = "mos_in_r"
         character(*), parameter :: filename_ints = "x_w_ij_r"
-        character(*), parameter :: filename_info = 'n_grid_pts_mo_num'
+        character(*), parameter :: filename_info = "n_grid_pts_mo_num"
         character(*), parameter :: this_routine = "read_rs_lmat_factors"
 
         integer :: iunit, ierr, i, j, k, l
@@ -251,10 +253,10 @@ contains
         if (t_hash_lmat_calc) then
             lMatIndMax = lMatIndSym(num_mos, num_mos, num_mos, num_mos, num_mos, num_mos)
             lMatCalcHSize = int( real(lMatCalcHFactor,dp) * real(lMatIndMax,dp), int64)
-!
+
             root_print "Total Size of LMat: ", lMatIndMax
             root_print "Size of LMatCalc Hash Table: ", lMatCalcHSize
-!
+
             allocate(lMatCalcHKeys(lMatCalcHSize))
             allocate(lMatCalcHVals(lMatCalcHSize))
             do ii = 1_int64, lMatCalcHSize
@@ -268,27 +270,5 @@ contains
         root_print "Done: reading in range-separated TC factors"
 
     end subroutine read_rs_lmat_factors
-
-!     function rs_lmat_calc(i, j, m, k, l, n) result(matel)
-!         integer(int64), intent(in) :: i, j, k, l, m, n
-!         HElement_t(dp) :: matel
-!         character(*), parameter :: this_routine = "rs_lmat_calc"
-!
-!         integer :: g, x
-!
-!         matel = 0.0_dp
-!
-!         do x = 1, 3
-!             do g = 1, ngrid
-!                 matel = matel + array_mos(g, i) * array_mos(g, k) &
-!                     * array_ints(g, x, m, n) * array_ints(g, x, j, l)
-!                 matel = matel + array_mos(g, j) * array_mos(g, l) &
-!                     * array_ints(g, x, m, n) * array_ints(g, x, i, k)
-!                 matel = matel + array_mos(g, m) * array_mos(g, n) &
-!                     * array_ints(g, x, j, l) * array_ints(g, x, i, k)
-!             end do
-!         end do
-!
-!     end function rs_lmat_calc
 
 end module LMat_calc
