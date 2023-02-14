@@ -11,15 +11,15 @@ program test_tc_freeze
     use SystemData, only: t_mol_3_body, ECore, nEl
     use IntegralsData, only: nFrozen, UMAT
     use OneEInts, only: TMat2D
-    use excitation_types, only: NoExc_t, SingleExc_t, DoubleExc_t, Excitation_t
+    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excitation_t
     use orb_idx_mod, only: SpinProj_t
     use LMat_mod, only: readLMat, freeLMat
-    use excitation_types, only: NoExc_t, SingleExc_t, DoubleExc_t
+    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t
 
     implicit none
     integer, parameter :: n_con = 10
     integer, parameter :: n_f = 4
-    integer, parameter :: nI_ref(n_con) = (/1, 2, 3, 4, 5, 6, 7, 8, 9, 10/)
+    integer, parameter :: nI_ref(n_con) = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     integer, parameter :: nI_ref_frozen(n_con - n_f) = nI_ref(1:n_con - n_f)
 
     call MPIInit(.false.)
@@ -37,9 +37,9 @@ program test_tc_freeze
 contains
 
     subroutine tc_freeze_test_driver()
-        type(NoExc_t) :: exc_0
-        type(SingleExc_t) :: exc_1
-        type(DoubleExc_t) :: exc_2
+        type(Excite_0_t) :: exc_0
+        type(Excite_1_t) :: exc_1
+        type(Excite_2_t) :: exc_2
         integer :: ex(2, 2), i
 
         ! Initialize the matrix element calculation
@@ -51,69 +51,69 @@ contains
         write(stdout, *) "Checking diagonal matrix elements"
 
         ! Test the diagonal elements
-        call test_freeze((/1, 1, 2, 2, 1, 1/), exc_0)
-        call test_freeze((/1, 1, 2, 1, 1, 2/), exc_0)
-        call test_freeze((/1, 2, 2, 1, 1, 1/), exc_0)
-        call test_freeze((/1, 1, 3, 1, 1, 3/), exc_0)
-        call test_freeze((/1, 1, 3, 1, 3, 1/), exc_0)
-        call test_freeze((/1, 3, 3, 1, 1, 1/), exc_0)
-        call test_freeze((/1, 1, 1, 1, 3, 3/), exc_0)
-        call test_freeze((/1, 2, 3, 1, 2, 3/), exc_0)
-        call test_freeze((/1, 2, 3, 1, 2, 3/), exc_0)
-        call test_freeze((/1, 2, 3, 2, 1, 3/), exc_0)
-        call test_freeze((/2, 2, 3, 1, 1, 3/), exc_0)
-        call test_freeze((/2, 3, 2, 1, 1, 3/), exc_0)
-        call test_freeze((/1, 3, 4, 1, 3, 4/), exc_0)
-        call test_freeze((/1, 3, 4, 3, 1, 4/), exc_0)
-        call test_freeze((/1, 3, 4, 4, 1, 3/), exc_0)
-        call test_freeze((/3, 3, 4, 1, 1, 4/), exc_0)
-        call test_freeze((/1, 3, 3, 4, 1, 4/), exc_0)
+        call test_freeze([1, 1, 2, 2, 1, 1], exc_0)
+        call test_freeze([1, 1, 2, 1, 1, 2], exc_0)
+        call test_freeze([1, 2, 2, 1, 1, 1], exc_0)
+        call test_freeze([1, 1, 3, 1, 1, 3], exc_0)
+        call test_freeze([1, 1, 3, 1, 3, 1], exc_0)
+        call test_freeze([1, 3, 3, 1, 1, 1], exc_0)
+        call test_freeze([1, 1, 1, 1, 3, 3], exc_0)
+        call test_freeze([1, 2, 3, 1, 2, 3], exc_0)
+        call test_freeze([1, 2, 3, 1, 2, 3], exc_0)
+        call test_freeze([1, 2, 3, 2, 1, 3], exc_0)
+        call test_freeze([2, 2, 3, 1, 1, 3], exc_0)
+        call test_freeze([2, 3, 2, 1, 1, 3], exc_0)
+        call test_freeze([1, 3, 4, 1, 3, 4], exc_0)
+        call test_freeze([1, 3, 4, 3, 1, 4], exc_0)
+        call test_freeze([1, 3, 4, 4, 1, 3], exc_0)
+        call test_freeze([3, 3, 4, 1, 1, 4], exc_0)
+        call test_freeze([1, 3, 3, 4, 1, 4], exc_0)
 
         write(stdout, *) "Checking single excitaion matrix elements"
 
         ! Test the single excitation matrix elements
-        exc_1 = SingleExc_t((/5, 21/))
-        call test_freeze((/1, 1, 3, 1, 1, 11/), exc_1)
-        call test_freeze((/1, 1, 3, 11, 1, 1/), exc_1)
-        call test_freeze((/11, 1, 3, 1, 1, 1/), exc_1)
-        call test_freeze((/3, 1, 11, 1, 1, 1/), exc_1)
-        call test_freeze((/1, 1, 1, 11, 1, 3/), exc_1)
+        exc_1 = Excite_1_t(reshape([5, 21], [2, 1]))
+        call test_freeze([1, 1, 3, 1, 1, 11], exc_1)
+        call test_freeze([1, 1, 3, 11, 1, 1], exc_1)
+        call test_freeze([11, 1, 3, 1, 1, 1], exc_1)
+        call test_freeze([3, 1, 11, 1, 1, 1], exc_1)
+        call test_freeze([1, 1, 1, 11, 1, 3], exc_1)
 
-        call test_freeze((/1, 2, 3, 1, 2, 11/), exc_1)
-        call test_freeze((/1, 2, 3, 2, 1, 11/), exc_1)
-        call test_freeze((/1, 2, 3, 1, 11, 2/), exc_1)
-        call test_freeze((/1, 2, 3, 11, 1, 2/), exc_1)
-        call test_freeze((/1, 1, 3, 11, 2, 2/), exc_1)
-        call test_freeze((/11, 2, 3, 1, 1, 2/), exc_1)
-        call test_freeze((/1, 2, 11, 3, 1, 2/), exc_1)
-        call test_freeze((/1, 2, 11, 1, 2, 3/), exc_1)
-        call test_freeze((/11, 2, 2, 1, 1, 3/), exc_1)
+        call test_freeze([1, 2, 3, 1, 2, 11], exc_1)
+        call test_freeze([1, 2, 3, 2, 1, 11], exc_1)
+        call test_freeze([1, 2, 3, 1, 11, 2], exc_1)
+        call test_freeze([1, 2, 3, 11, 1, 2], exc_1)
+        call test_freeze([1, 1, 3, 11, 2, 2], exc_1)
+        call test_freeze([11, 2, 3, 1, 1, 2], exc_1)
+        call test_freeze([1, 2, 11, 3, 1, 2], exc_1)
+        call test_freeze([1, 2, 11, 1, 2, 3], exc_1)
+        call test_freeze([11, 2, 2, 1, 1, 3], exc_1)
 
         write(stdout, *) "Checking double excitaion matrix elements"
 
         ! Test the double excitation matrix elements
-        ex(:, 1) = (/5, 7/)
-        ex(:, 2) = (/21, 23/)
-        exc_2 = DoubleExc_t(ex)
-        call test_freeze((/1, 3, 4, 1, 11, 12/), exc_2)
-        call test_freeze((/1, 11, 4, 1, 3, 12/), exc_2)
-        call test_freeze((/1, 3, 4, 12, 1, 11/), exc_2)
-        call test_freeze((/12, 3, 4, 1, 1, 11/), exc_2)
-        call test_freeze((/1, 3, 4, 1, 12, 11/), exc_2)
-        call test_freeze((/1, 3, 4, 11, 1, 12/), exc_2)
-        call test_freeze((/11, 3, 4, 1, 1, 12/), exc_2)
-        call test_freeze((/1, 3, 11, 1, 12, 4/), exc_2)
-        call test_freeze((/11, 1, 4, 1, 3, 12/), exc_2)
-        call test_freeze((/12, 3, 11, 1, 1, 4/), exc_2)
-        ex(:, 1) = (/5, 6/)
-        ex(:, 2) = (/11, 12/)
-        exc_2 = DoubleExc_t(ex)
-        call test_freeze((/1, 3, 3, 1, 11, 11/), exc_2)
-        call test_freeze((/1, 3, 3, 11, 1, 11/), exc_2)
-        call test_freeze((/1, 3, 11, 1, 11, 3/), exc_2)
-        call test_freeze((/1, 3, 3, 11, 11, 1/), exc_2)
-        call test_freeze((/11, 3, 3, 1, 1, 11/), exc_2)
-        call test_freeze((/11, 1, 3, 1, 3, 11/), exc_2)
+        ex(:, 1) = [5, 7]
+        ex(:, 2) = [21, 23]
+        exc_2 = Excite_2_t(ex)
+        call test_freeze([1, 3, 4, 1, 11, 12], exc_2)
+        call test_freeze([1, 11, 4, 1, 3, 12], exc_2)
+        call test_freeze([1, 3, 4, 12, 1, 11], exc_2)
+        call test_freeze([12, 3, 4, 1, 1, 11], exc_2)
+        call test_freeze([1, 3, 4, 1, 12, 11], exc_2)
+        call test_freeze([1, 3, 4, 11, 1, 12], exc_2)
+        call test_freeze([11, 3, 4, 1, 1, 12], exc_2)
+        call test_freeze([1, 3, 11, 1, 12, 4], exc_2)
+        call test_freeze([11, 1, 4, 1, 3, 12], exc_2)
+        call test_freeze([12, 3, 11, 1, 1, 4], exc_2)
+        ex(:, 1) = [5, 6]
+        ex(:, 2) = [11, 12]
+        exc_2 = Excite_2_t(ex)
+        call test_freeze([1, 3, 3, 1, 11, 11], exc_2)
+        call test_freeze([1, 3, 3, 11, 1, 11], exc_2)
+        call test_freeze([1, 3, 11, 1, 11, 3], exc_2)
+        call test_freeze([1, 3, 3, 11, 11, 1], exc_2)
+        call test_freeze([11, 3, 3, 1, 1, 11], exc_2)
+        call test_freeze([11, 1, 3, 1, 3, 11], exc_2)
 
     end subroutine tc_freeze_test_driver
 
@@ -135,12 +135,12 @@ contains
         call readLMat()
         nel = nel - nFrozen
         select type (exc)
-        type is (SingleExc_t)
-            allocate(SingleExc_t :: exc_frozen)
-            exc_frozen = SingleExc_t(exc%val(1) - nFrozen, exc%val(2) - nFrozen)
-        type is (DoubleExc_t)
-            allocate(DoubleExc_t :: exc_frozen)
-            exc_frozen = DoubleExc_t(exc%val(1, 1) - nFrozen, exc%val(2, 1) - nFrozen, &
+        type is (Excite_1_t)
+            allocate(Excite_1_t :: exc_frozen)
+            exc_frozen = Excite_1_t(exc%val(1, 1) - nFrozen, exc%val(2, 1) - nFrozen)
+        type is (Excite_2_t)
+            allocate(Excite_2_t :: exc_frozen)
+            exc_frozen = Excite_2_t(exc%val(1, 1) - nFrozen, exc%val(2, 1) - nFrozen, &
                                      exc%val(1, 2) - nFrozen, exc%val(2, 2) - nFrozen)
         class default
             exc_frozen = exc

@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
+#:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']
 
 module gasci_on_the_fly_heat_bath
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
@@ -18,7 +18,7 @@ module gasci_on_the_fly_heat_bath
     use get_excit, only: make_double, make_single
     use SymExcitDataMod, only: ScratchSize
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
-    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
+    use excitation_types, only: Excitation_t, Excite_1_t, Excite_2_t, &
         get_last_tgt, set_last_tgt, defined, UNKNOWN, &
         excite, ilut_excite
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, &
@@ -145,7 +145,7 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "GAS_singles_gen_exc"
 
-        type(SingleExc_t) :: exc
+        type(Excite_1_t) :: exc
         integer, allocatable :: possible_holes(:)
         real(dp) :: pgen_particle, pgen_hole
         real(dp), allocatable :: c_sum(:)
@@ -158,12 +158,12 @@ contains
 #endif
         ! Pick any random electron
         elec = int(genrand_real2_dSFMT() * nEl) + 1
-        exc%val(1) = nI(elec)
+        exc%val(1, 1) = nI(elec)
         pgen_particle = 1.0_dp / real(nEl, kind=dp)
 
         ! Get a hole with the same spin projection
         ! while fullfilling GAS-constraints.
-        possible_holes = this%get_possible_holes(nI, exc%val(1))
+        possible_holes = this%get_possible_holes(nI, exc%val(1, 1))
 
         if (size(possible_holes) == 0) then
             call zero_result()
@@ -176,8 +176,8 @@ contains
         call draw_from_cum_list(c_sum, i, pgen_hole)
         @:ASSERT(i == 0 .neqv. (0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp))
         if (i /= 0) then
-            exc%val(2) = possible_holes(i)
-            call make_single(nI, nJ, elec, exc%val(2), ex, tParity)
+            exc%val(2, 1) = possible_holes(i)
+            call make_single(nI, nJ, elec, exc%val(2, 1), ex, tParity)
             ilutJ = ilut_excite(ilutI, exc)
         else
             call zero_result()
@@ -188,7 +188,7 @@ contains
         contains
 
             subroutine zero_result()
-                ex(:, 1) = exc%val(:)
+                ex(:, 1) = exc%val(:, 1)
                 nJ(1) = 0
                 ilutJ = 0_n_int
             end subroutine zero_result
@@ -216,7 +216,7 @@ contains
         idx = custom_findloc(possible_holes, ex(2, 1))
         ! build the cumulative list of matrix elements <src|H|tgt>
         ! with tgt \in possible_holes
-        c_sum = get_cumulative_list(nI, SingleExc_t(src=ex(1, 1)), possible_holes)
+        c_sum = get_cumulative_list(nI, Excite_1_t(src=ex(1, 1)), possible_holes)
         if (idx == 1) then
             pgen_hole = c_sum(1)
         else
@@ -276,7 +276,7 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = 'GAS_doubles_gen_exc'
 
-        type(DoubleExc_t) :: exc
+        type(Excite_2_t) :: exc
         integer, allocatable :: possible_holes(:)
         integer :: deleted(2)
         real(dp) :: pgen_particles, &
@@ -353,7 +353,7 @@ contains
         ! determine the probability of picking tgt1 with spin m_s_1 upon picking tgt2 first.
         block
             integer :: src1, tgt1, src2, tgt2
-            type(DoubleExc_t) :: reverted_exc
+            type(Excite_2_t) :: reverted_exc
             src1 = exc%val(1, 1); src2 = exc%val(1, 2);
             tgt1 = exc%val(2, 1); tgt2 = exc%val(2, 2);
             @:ASSERT(src1 /= tgt2 .and. src2 /= tgt2, src1, tgt2, src2)
@@ -370,7 +370,7 @@ contains
             i = binary_search_first_ge(possible_holes, tgt1)
             @:ASSERT(i /= -1, tgt1, possible_holes)
 
-            reverted_exc = DoubleExc_t(src1=src1, tgt1=tgt2, src2=src2)
+            reverted_exc = Excite_2_t(src1=src1, tgt1=tgt2, src2=src2)
             c_sum = get_cumulative_list(nI, reverted_exc, possible_holes)
             if (i == 1) then
                 pgen_second_pick(2) = c_sum(1)
@@ -423,14 +423,14 @@ contains
             ! pgen == p_double * p (i j) * p(a | i j) * sum([p(b | a i j), p(a | b i j)])
             !      == p_double * p (i j) * p(b | i j) * sum([p(b | a i j), p(a | b i j)])
             pgen_first_pick, pgen_second_pick(2)
-        type(DoubleExc_t) :: exc, reverted_exc
+        type(Excite_2_t) :: exc, reverted_exc
         real(dp), allocatable :: c_sum(:)
         integer, allocatable :: possible_holes(:)
         integer :: i
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         @:ASSERT(ic == 2)
 
-        exc = DoubleExc_t(ex)
+        exc = Excite_2_t(ex)
 
         pgen_particles = get_pgen_pick_biased_elecs(&
                 calc_spin_raw(exc%val(1, 1)) == calc_spin_raw(exc%val(1, 2)), &

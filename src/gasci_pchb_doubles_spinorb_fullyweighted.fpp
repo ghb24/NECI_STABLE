@@ -11,7 +11,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use bit_reps, only: decode_bit_det
     use bit_rep_data, only: nIfD
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: DoubleExc_t, excite
+    use excitation_types, only: Excite_2_t, excite
     use sltcnd_mod, only: sltcnd_excit
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
     use FciMCData, only: excit_gen_store_type, projEDet
@@ -365,8 +365,8 @@ contains
                         second_hole: do B = 1, nBasis
                             if (A == B .or. any(B == [I, J])) cycle
                             ex(2, 2) = B
-                            if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
-                                w_B(B) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
+                            if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
+                                w_B(B) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
                             else
                                 w_B(B) = 0._dp
                             end if

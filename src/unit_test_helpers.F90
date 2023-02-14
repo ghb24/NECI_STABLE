@@ -33,7 +33,7 @@ module unit_test_helpers
 
     use orb_idx_mod, only: SpinOrbIdx_t, new_write_det => write_det, size
 
-    use excitation_types, only: Excitation_t, get_excitation, SingleExc_t, DoubleExc_t
+    use excitation_types, only: Excitation_t, get_excitation, Excite_1_t, Excite_2_t
 
     use sort_mod, only: sort
 

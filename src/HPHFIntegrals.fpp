@@ -10,7 +10,7 @@ module hphf_integrals
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs, GetBitExcitation
-    use excitation_types, only: NoExc_t, DoubleExc_t
+    use excitation_types, only: Excite_0_t, Excite_2_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
     use bit_reps, only: NIfD, NIfTot, decode_bit_det
     use lattice_mod, only: get_helement_lattice
@@ -355,7 +355,14 @@ contains
         if(t_lattice_model) then
             hel = get_helement_lattice(nI, nI)
         else
-            hel = sltcnd_excit(nI, NoExc_t())
+            ! block to get around ifort failure
+            block
+                use excitation_types, only: UNKNOWN
+                integer :: tmpval(2, 0)
+                tmpval = UNKNOWN
+                ! NOTE: the parity here is an unused variable
+                hel = sltcnd_excit(nI, Excite_0_t(tmpval), .false.)
+            end block
         end if
 
         if(.not. TestClosedShellDet(iLutnI)) then

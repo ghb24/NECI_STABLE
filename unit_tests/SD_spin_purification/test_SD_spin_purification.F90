@@ -5,7 +5,7 @@ module test_SD_spin_purification_mod
     use constants, only: dp, n_int
     use SD_spin_purification_mod, only: S2_expval, spin_momentum, &
         get_open_shell, spin_q_num, S2_expval_exc, dyn_S2_expval_exc
-    use excitation_types, only: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t
+    use excitation_types, only: Excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t
     use util_mod, only: operator(.isclose.)
     implicit none
     private
@@ -84,61 +84,61 @@ contains
 
 
     subroutine test_S2_expval_exc()
-        call assert_equals(0._dp, S2_expval_exc([integer::], NoExc_t()))
+        call assert_equals(0._dp, S2_expval_exc([integer::], Excite_0_t()))
 
-        call assert_equals(0._dp, S2_expval_exc([integer::], DoubleExc_t(1, 2, 3, 4)))
+        call assert_equals(0._dp, S2_expval_exc([integer::], Excite_2_t(1, 2, 3, 4)))
 
-        call assert_equals(0._dp, S2_expval_exc([1, 2, 3, 4], NoExc_t()))
+        call assert_equals(0._dp, S2_expval_exc([1, 2, 3, 4], Excite_0_t()))
 
-        call assert_equals(0._dp, S2_expval_exc([1, 3], DoubleExc_t(1, 3, 5, 7)))
+        call assert_equals(0._dp, S2_expval_exc([1, 3], Excite_2_t(1, 3, 5, 7)))
 
-        call assert_true(spin_momentum(0.5_dp)**2 .isclose. S2_expval_exc([1], NoExc_t()))
+        call assert_true(spin_momentum(0.5_dp)**2 .isclose. S2_expval_exc([1], Excite_0_t()))
 
-        call assert_true(spin_momentum(0.5_dp)**2 .isclose. S2_expval_exc([2], NoExc_t()))
+        call assert_true(spin_momentum(0.5_dp)**2 .isclose. S2_expval_exc([2], Excite_0_t()))
 
-        call assert_equals(2._dp, S2_expval_exc([1, 3], NoExc_t()))
+        call assert_equals(2._dp, S2_expval_exc([1, 3], Excite_0_t()))
 
-        call assert_true(spin_momentum(1.0_dp)**2 .isclose. S2_expval_exc([2, 4], NoExc_t()))
+        call assert_true(spin_momentum(1.0_dp)**2 .isclose. S2_expval_exc([2, 4], Excite_0_t()))
 
-        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], NoExc_t()))
+        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], Excite_0_t()))
 
-        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4, 5, 6], DoubleExc_t(1, 2, 4, 3)))
+        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4, 5, 6], Excite_2_t(1, 2, 4, 3)))
 
-        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], NoExc_t()))
+        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], Excite_0_t()))
 
-        call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], NoExc_t()))
+        call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], Excite_0_t()))
 
-        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], DoubleExc_t(src1=1, tgt1=2, src2=4, tgt2=3)))
+        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], Excite_2_t(src1=1, tgt1=2, src2=4, tgt2=3)))
     end subroutine
 
     subroutine test_dyn_S2_expval_exc()
         class(Excitation_t), allocatable :: exc
 
-        exc = NoExc_t()
+        exc = Excite_0_t()
         call assert_equals(0._dp, dyn_S2_expval_exc([integer::], exc))
 
-        exc = DoubleExc_t(1, 2, 3, 4)
+        exc = Excite_2_t(1, 2, 3, 4)
         call assert_equals(0._dp, dyn_S2_expval_exc([integer::], exc))
 
-        exc = NoExc_t()
+        exc = Excite_0_t()
         call assert_equals(0._dp, dyn_S2_expval_exc([1, 2, 3, 4], exc))
 
-        exc = DoubleExc_t(1, 3, 5, 7)
-        call assert_equals(0._dp, dyn_S2_expval_exc([1, 3], DoubleExc_t(1, 3, 5, 7)))
+        exc = Excite_2_t(1, 3, 5, 7)
+        call assert_equals(0._dp, dyn_S2_expval_exc([1, 3], Excite_2_t(1, 3, 5, 7)))
 
-        exc = NoExc_t()
+        exc = Excite_0_t()
         call assert_true(spin_momentum(0.5_dp)**2 .isclose. dyn_S2_expval_exc([1], exc))
 
-        exc = NoExc_t()
+        exc = Excite_0_t()
         call assert_true(spin_momentum(0.5_dp)**2 .isclose. dyn_S2_expval_exc([2], exc))
 
-        exc = NoExc_t()
+        exc = Excite_0_t()
         call assert_equals(2._dp, dyn_S2_expval_exc([1, 3], exc))
 
-        exc = NoExc_t()
+        exc = Excite_0_t()
         call assert_true(spin_momentum(1.0_dp)**2 .isclose. dyn_S2_expval_exc([2, 4], exc))
 
-        exc = NoExc_t()
+        exc = Excite_0_t()
         call assert_true(1.0_dp .isclose. dyn_S2_expval_exc([1, 4], exc))
     end subroutine
 

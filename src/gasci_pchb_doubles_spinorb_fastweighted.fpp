@@ -16,7 +16,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use bit_rep_data, only: nIfTot
     use excitation_generators, only: doubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
-    use excitation_types, only: DoubleExc_t
+    use excitation_types, only: Excite_2_t
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
@@ -325,8 +325,8 @@ contains
                             if (A == B .or. any(B == [I, J])) cycle
                             ex(2, 2) = B
                             AB = fuseIndex(A, B)
-                            if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
-                                w(AB) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
+                            if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
+                                w(AB) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
                             else
                                 w(AB) = 0._dp
                             end if

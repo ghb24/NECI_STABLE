@@ -8,7 +8,7 @@ module excitation_generators
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use procedure_pointers, only: generate_excitation_t
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
+    use excitation_types, only: Excite_1_t, Excite_2_t, excite
     use SymExcitDataMod, only: ScratchSize
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use sets_mod, only: operator(.complement.)

@@ -3622,13 +3622,13 @@ contains
         use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
         use global_utilities
         use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
-        use excitation_types, only: NoExc_t
+        use excitation_types, only: Excite_0_t
         real(dp) CalcT, CalcT2, GetRhoEps
 
         INTEGER I, IC, J, norb
         INTEGER nList
         HElement_t(dp) HDiagTemp, h_2_temp, h_3_temp
-        type(NoExc_t) :: NoExc
+        type(Excite_0_t) :: NoExc
         character(*), parameter :: this_routine = 'CalcInit'
 
         !Checking whether we have large enoguh basis for ultracold atoms and
@@ -3727,9 +3727,11 @@ contains
                     write(stdout, *) "<D0|U|D0>=", h_2_temp
                     write(stdout, *) "<D0|L|D0>=", h_3_temp
                 else
-                    HDiagTemp = sltcnd_0_tc(fdet, NoExc)
-                    h_2_temp = sltcnd_0_base(fdet, NoExc) - calct(fdet, nel)
-                    h_3_temp = HDiagTemp - sltcnd_0_base(fdet, NoExc)
+                    ! NOTE: the .false. here are arbitrary as 0-excitation
+                    ! has no parity
+                    HDiagTemp = sltcnd_0_tc(fdet, NoExc, .false.)
+                    h_2_temp = sltcnd_0_base(fdet, NoExc, .false.) - calct(fdet, nel)
+                    h_3_temp = HDiagTemp - sltcnd_0_base(fdet, NoExc, .false.)
                     write(stdout, *) "<D0|U|D0>=", h_2_temp
                     write(stdout, *) "<D0|L|D0>=", h_3_temp
                 end if
