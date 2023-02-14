@@ -612,7 +612,7 @@ contains
         type(Excite_3_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        @:unused_var(ex, tSign, I)
+        @:unused_var(ex, tSign, nI)
         hel = 0
     end function sltcnd_3_base
 
