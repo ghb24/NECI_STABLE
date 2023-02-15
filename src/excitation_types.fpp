@@ -66,9 +66,9 @@ module excitation_types
 !>  Omitted indices are set to UNKNOWN.
 !>
 !>  \code{.unparsed}
-!>  Excite_t_t([1, 2]) == Excite_t_t(src=1, tgt=2)
+!>  Excite_t([1, 2]) == Excite_t(src=1, tgt=2)
 !>  ! If the target should be UNKNOWN, just omit it
-!>  Excite_t_t(src=1)
+!>  Excite_t(src=1)
 !>  \endcode
 !>
 !>  The signature is `(src_1, tgt_1, src_2, tgt_2, ...)`.
