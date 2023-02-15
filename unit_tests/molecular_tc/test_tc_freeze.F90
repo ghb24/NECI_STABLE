@@ -40,7 +40,7 @@ contains
         type(Excite_0_t) :: exc_0
         type(Excite_1_t) :: exc_1
         type(Excite_2_t) :: exc_2
-        integer :: ex(2, 2), i
+        integer :: ex_1(2, 1), ex_2(2, 2), i
 
         ! Initialize the matrix element calculation
         call init_excitgen_test( &
@@ -72,7 +72,8 @@ contains
         write(stdout, *) "Checking single excitaion matrix elements"
 
         ! Test the single excitation matrix elements
-        exc_1 = Excite_1_t(reshape([5, 21], [2, 1]))
+        ex_1(:, 1) = [5, 21]
+        exc_1 = Excite_1_t(ex_1)
         call test_freeze([1, 1, 3, 1, 1, 11], exc_1)
         call test_freeze([1, 1, 3, 11, 1, 1], exc_1)
         call test_freeze([11, 1, 3, 1, 1, 1], exc_1)
@@ -92,9 +93,9 @@ contains
         write(stdout, *) "Checking double excitaion matrix elements"
 
         ! Test the double excitation matrix elements
-        ex(:, 1) = [5, 7]
-        ex(:, 2) = [21, 23]
-        exc_2 = Excite_2_t(ex)
+        ex_2(:, 1) = [5, 7]
+        ex_2(:, 2) = [21, 23]
+        exc_2 = Excite_2_t(ex_2)
         call test_freeze([1, 3, 4, 1, 11, 12], exc_2)
         call test_freeze([1, 11, 4, 1, 3, 12], exc_2)
         call test_freeze([1, 3, 4, 12, 1, 11], exc_2)
@@ -105,9 +106,9 @@ contains
         call test_freeze([1, 3, 11, 1, 12, 4], exc_2)
         call test_freeze([11, 1, 4, 1, 3, 12], exc_2)
         call test_freeze([12, 3, 11, 1, 1, 4], exc_2)
-        ex(:, 1) = [5, 6]
-        ex(:, 2) = [11, 12]
-        exc_2 = Excite_2_t(ex)
+        ex_2(:, 1) = [5, 6]
+        ex_2(:, 2) = [11, 12]
+        exc_2 = Excite_2_t(ex_2)
         call test_freeze([1, 3, 3, 1, 11, 11], exc_2)
         call test_freeze([1, 3, 3, 11, 1, 11], exc_2)
         call test_freeze([1, 3, 11, 1, 11, 3], exc_2)
