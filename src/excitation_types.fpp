@@ -79,7 +79,7 @@ module excitation_types
     end interface
     #:endfor
 
-#ifdef __INTEL_COMPILER
+#ifdef IFORT_
     interface Excite_0_t
         module procedure Excite_0_t_ctor
     end interface
@@ -136,7 +136,7 @@ module excitation_types
 contains
 
 ! workaround for pesky intel compiler errors
-#ifdef __INTEL_COMPILER
+#ifdef IFORT_
     type(Excite_0_t) function Excite_0_t_ctor() result(this)
         integer :: tmpval(2, 0)
         tmpval = UNKNOWN
