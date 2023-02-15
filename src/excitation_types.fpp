@@ -22,6 +22,7 @@
 !>  The procedures create_excitation, get_excitation, and get_bit_excitation
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module excitation_types
+    use orb_idx_mod, only: size
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_rep_data, only: nIfTot
     use util_mod, only: stop_all
