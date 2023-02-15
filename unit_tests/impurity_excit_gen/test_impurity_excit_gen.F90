@@ -62,7 +62,7 @@ program test_impurity_excit_gen
         get_failed_count, run_test_case, assert_true, assert_equals
     use util_mod, only: stop_all
     use unit_test_helper_excitgen, only: init_excitgen_test, test_excitation_generator
-    use SystemData, only: nBasis, t_complex_ints, tUHF
+    use SystemData, only: nBasis, t_complex_ints
 
     use test_impurity_excit_gen_mod, only: ImpurityFciDumpWriter_t
 
