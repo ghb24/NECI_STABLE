@@ -6,10 +6,9 @@ program test_pcpp_excitgen
                      get_failed_count, run_test_case, assert_equals, assert_true
     use util_mod, only: stop_all
     use pcpp_excitgen, only: init_pcpp_excitgen, gen_rand_excit_pcpp, create_elec_map, calc_pgen_pcpp
-    use unit_test_helper_excitgen, only: FciDumpWriter_t, set_ref, free_ref, &
+    use unit_test_helper_excitgen, only: RandomFciDumpWriter_t, set_ref, free_ref, &
                                          finalize_excitgen_test, init_excitgen_test, &
                                          test_excitation_generator, calc_pgen, generate_random_integrals
-    use orb_idx_mod, only: beta
     use DetBitOps, only: encodeBitDet
     use procedure_pointers, only: generate_excitation
     use SymExcitDataMod, only: scratchSize
@@ -42,7 +41,11 @@ contains
         ! set the excitation we want to test
         generate_excitation => gen_rand_excit_pcpp
         ! prepare everything for testing the excitgen
-        call init_excitgen_test(ref_det=[(i, i=1, 5)], fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        associate (ref_det => [(i, i=1, 5)])
+            call init_excitgen_test(ref_det, &
+                    RandomFciDumpWriter_t(12, ref_det, 0.9_dp, 0.1_dp)&
+            )
+        end associate
 
         ! prepare the pcpp excitation generator: get the precomputed weights
 
@@ -90,12 +93,6 @@ contains
         call assert_equals(9, elec_map(5))
 
     end subroutine test_elec_mapping
-
-    subroutine random_fcidump(iunit)
-        integer, intent(in) :: iunit
-        call generate_random_integrals( &
-            iunit, n_el=5, n_spat_orb=12, sparse=0.9_dp, sparseT=0.1_dp, total_ms=beta)
-    end subroutine random_fcidump
 
     function calc_pgen_local(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
         implicit none

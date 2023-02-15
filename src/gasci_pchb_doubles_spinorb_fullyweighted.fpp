@@ -345,8 +345,8 @@ contains
         write(stdout, *) "The number of supergroups is", size(supergroups, 2)
         write(stdout, *) "Generating samplers for PCHB excitation generator"
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
-        call this%A_sampler%shared_alloc([IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_UHF_FullyWeighted')
-        call this%B_sampler%shared_alloc([nBasis, IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_UHF_FullyWeighted')
+        call this%A_sampler%shared_alloc([IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
+        call this%B_sampler%shared_alloc([nBasis, IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
 
         if (iProcIndex_intra == root) then
             allocate(w_A(nBasis), w_B(nBasis), source=0._dp)

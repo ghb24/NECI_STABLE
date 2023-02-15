@@ -10,7 +10,7 @@ module tau_search_conventional
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, &
                           t_trans_corr, tHub, t_trans_corr_hop, &
                           t_exclude_3_body_excits, t_ueg_3_body, &
-                          t_pchb_excitgen, tGAS
+                          t_fci_pchb_excitgen, tGAS
 
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, pExcit2, pExcit4, &
@@ -95,7 +95,7 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
-        else if ((t_pchb_excitgen .and. .not. tGUGA) &
+        else if ((t_fci_pchb_excitgen .and. .not. tGUGA) &
                 .and. (FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM)) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.

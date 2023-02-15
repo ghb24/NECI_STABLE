@@ -150,6 +150,16 @@ considered. The block starts with the `system` keyword and ends with the
     parallel. The argument \(n\) is the number of wave functions
     (replicas). Requires `mneci` or `kmneci`.
 
+-   **nonhermitian [1-body] [2-body]**<br>
+    Specifies that the input is a non-Hermitian Hamiltonian, but makes no further
+    assumptions. By default it assumes both 1- and 2-body non-Hermiticity.
+    However, it has two optional keywords, if `1-body` is given, only the
+    1-body components of the Hamiltonian are non-Hermitian; if `2-body` is given
+    then only the 2-body components are non-Hermitian. Note that in the case of
+    transcorrelation, only the 2-body component would be non-Hermitian; hence
+    if you are running a transcorrelated mean-field calculation, use
+    `nonhermitian 2-body`.
+
 #### Excitation generation options
 
 -   **\textcolor{blue}{nonUniformRandExcits}**<br>
@@ -296,7 +306,11 @@ considered. The block starts with the `system` keyword and ends with the
               \begin{equation}
                   p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)
               \end{equation}
-              it is guaranteed that \(I\) is occupied.
+              it is guaranteed that \(I\) is occupied. If also using option `uhf`, this will default to using spin-orbitals
+              (else spatial orbitals).
+
+            **spin-orb-resolved-fast-weighted**
+              As above, but force the use of spin-orbitals.
 
             **uniform**<br>
               \(I\) and \(J\) are just drawn uniformly.

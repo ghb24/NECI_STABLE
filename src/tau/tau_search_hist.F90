@@ -9,7 +9,7 @@ module tau_search_hist
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
                           t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard, &
                           t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits, &
-                          tGAS, t_pchb_excitgen
+                          tGAS, t_fci_pchb_excitgen
 
     use CalcData, only: tTruncInitiator, InitiatorWalkNo, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
@@ -260,7 +260,7 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
-        else if (t_pchb_excitgen .and. .not. tGUGA) then
+        else if (t_fci_pchb_excitgen .and. .not. tGUGA) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else if (tGAS) then

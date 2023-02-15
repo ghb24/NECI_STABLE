@@ -4,7 +4,7 @@ program test_tc_freeze
     use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
                      get_failed_count, run_test_case, assert_true
     use unit_test_helper_excitgen, only: generate_random_integrals, &
-        FciDumpWriter_t, init_excitgen_test
+        RandomFciDumpWriter_t, init_excitgen_test
     use util_mod, only: operator(.isclose.), operator(.div.), stop_all, &
         get_free_unit
     use sltcnd_mod, only: initSltCndPtr, dyn_sltcnd_excit
@@ -43,8 +43,12 @@ contains
         integer :: ex(2, 2), i
 
         ! Initialize the matrix element calculation
-        call init_excitgen_test( &
-            ref_det=[(i, i=1, n_con)], fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        associate (ref_det => [(i, i=1, n_con)])
+            call init_excitgen_test(ref_det, &
+                RandomFcidumpWriter_t(&
+                    14, ref_det, sparse=0.9_dp, sparseT=0.1_dp) &
+            )
+        end associate
         t_mol_3_body = .true.
         call initSltCndPtr()
 
@@ -163,12 +167,6 @@ contains
         write(iunit, *) 1.0, inds
         close(iunit)
     end subroutine write_single_tcdump
-
-    subroutine random_fcidump(iunit)
-        integer, intent(in) :: iunit
-        call generate_random_integrals( &
-            iunit, n_el=n_con, n_spat_orb=14, sparse=0.9_dp, sparseT=0.1_dp, total_ms=SpinProj_t(0))
-    end subroutine random_fcidump
 
     subroutine reset_ints()
         if (iProcIndex_intra == 0) then

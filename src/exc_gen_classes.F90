@@ -51,7 +51,7 @@ contains
     end subroutine
 
     subroutine init_exc_gen_class()
-        use SystemData, only: t_pchb_excitgen
+        use SystemData, only: t_fci_pchb_excitgen
         use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_options
 
         block
@@ -87,7 +87,7 @@ contains
         end block
 
         block
-            if (t_pchb_excitgen) then
+            if (t_fci_pchb_excitgen) then
                 allocate(PCHB_FCI_excit_generator_t :: current_exc_generator)
                 select type(current_exc_generator)
                 type is (PCHB_FCI_excit_generator_t)

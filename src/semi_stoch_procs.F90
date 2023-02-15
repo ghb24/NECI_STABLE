@@ -27,7 +27,7 @@ module semi_stoch_procs
 
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
 
-    use SystemData, only: nel, tHPHF, tGUGA, t_non_hermitian
+    use SystemData, only: nel, tHPHF, tGUGA, t_non_hermitian_2_body
 
     use procedure_pointers, only: shiftScaleFunction
 

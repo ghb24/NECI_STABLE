@@ -17,6 +17,7 @@ module SystemData
     logical :: tNoSingExcits    !True if there are no single excitations in the system
     logical :: t_mol_3_body     ! using molecular 3-body transcorr. matels
     logical :: t_exclude_3_body_excits = .false.
+    logical :: t_exclude_pure_parallel = .false.
     logical :: t_ueg_transcorr, t_ueg_dump, t_ueg_3_body
     logical :: tSmallBasisForThreeBody = .true.     ! using  3-body transcorr. matels for ueg and ultracold atoms
     logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
@@ -354,7 +355,8 @@ module SystemData
     logical :: t_3_body_excits = .false.
 
 ! make a general Flag to indicat a non-hermitian Hamiltonian
-    logical :: t_non_hermitian = .false.
+    logical :: t_non_hermitian_2_body = .false.
+    logical :: t_non_hermitian_1_body = .false.
 
 ! and indicate the maximum excitation level:
     integer :: max_ex_level = 2
@@ -367,7 +369,7 @@ module SystemData
 ! flag for the pre-computed power-pitzer excitaion generator
     logical :: t_pcpp_excitgen = .false.
 ! flags for the pre-computed heat-bath excitation generator
-    logical :: t_pchb_excitgen = .false.
+    logical :: t_fci_pchb_excitgen = .false.
     logical :: t_guga_pchb_weighted_singles = .false.
 
     logical :: t_guga_pchb = .false.

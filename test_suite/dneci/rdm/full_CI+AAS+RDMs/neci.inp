@@ -34,8 +34,7 @@ calc
         aas-matele2
 
     tau-values \
-        start refdet-connections \
-        max 0.03
+        start refdet-connections
     tau-search \
         algorithm conventional \
         stop-condition off \

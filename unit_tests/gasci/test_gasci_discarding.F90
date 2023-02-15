@@ -13,7 +13,7 @@ module test_gasci_discarding_mod
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-        FciDumpWriter_t
+        RandomFcidumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
@@ -42,7 +42,10 @@ contains
         call assert_true(GAS_spec%is_valid())
         call assert_true(GAS_spec%contains_conf(det_I))
 
-        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        call init_excitgen_test(det_I, &
+            RandomFcidumpWriter_t(&
+                GAS_spec, det_I, sparse=1.0_dp, sparseT=1.0_dp) &
+        )
         call exc_generator%init(GAS_spec)
 
         call run_excit_gen_tester( &

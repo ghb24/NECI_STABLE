@@ -1,7 +1,26 @@
+add_library(
+    gasci_pchb_test_helper
+    gasci_pchb_test_helper.F90
+)
+target_link_libraries(gasci_pchb_test_helper libneci fruit)
+
 add_unit_test(neci gasci)
 add_unit_test(neci gasci_util)
 add_unit_test(neci gasci_on_the_fly_heat_bath)
 add_unit_test(neci gasci_disconnected)
 add_unit_test(neci gasci_discarding)
 add_unit_test(neci gasci_supergroup_index)
-add_unit_test(neci gasci_pchb)
+
+
+add_unit_test(neci gasci_pchb_rhf_hermitian gasci_pchb_test_helper)
+target_link_libraries(test_neci_gasci_pchb_rhf_hermitian gasci_pchb_test_helper)
+
+
+add_unit_test(neci gasci_pchb_rhf_nonhermitian gasci_pchb_test_helper)
+target_link_libraries(test_neci_gasci_pchb_rhf_nonhermitian gasci_pchb_test_helper)
+
+add_unit_test(neci gasci_pchb_uhf_hermitian gasci_pchb_test_helper)
+target_link_libraries(test_neci_gasci_pchb_uhf_hermitian gasci_pchb_test_helper)
+
+add_unit_test(neci gasci_pchb_uhf_nonhermitian gasci_pchb_test_helper)
+target_link_libraries(test_neci_gasci_pchb_uhf_nonhermitian gasci_pchb_test_helper)

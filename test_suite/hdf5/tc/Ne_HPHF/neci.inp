@@ -6,7 +6,7 @@ system read noorder
     molecular-transcorr 3-body
     nonuniformrandexcits pchb \
         singles uniform \
-        doubles particle-selection fully-weighted \
+        doubles particle-selection uniform \
         doubles hole-selection fast-weighted
     hphf 0
 endsys
@@ -22,8 +22,7 @@ calc
     shiftdamp       0.1000000000
     stepsshift      10
     tau-values \
-        start user-defined 0.001 \
-        max 1e-3
+        start user-defined 0.001
     tau-search \
         algorithm histogramming 1e-5 20000 20000 \
         stop-condition off

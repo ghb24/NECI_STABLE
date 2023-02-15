@@ -126,7 +126,6 @@ contains
         ! CAS is implemented as a special case of GAS with only one GAS space.
         ! Since a GAS specification with one GAS space is trivially disconnected, there
         ! is no point to use the lookup.
-        ! @jph TODO implement UHF
         call doubles_allocate_and_init(&
                 CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), options%doubles, &
                 .false., this%doubles_generator)

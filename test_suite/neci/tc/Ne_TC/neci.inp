@@ -4,6 +4,10 @@ system read noorder
     electrons   10
     nobrillouintheorem
     molecular-transcorr 3-body
+    nonuniformrandexcits pchb \
+        singles uniform \
+        doubles particle-selection uniform \
+        doubles hole-selection fast-weighted
 endsys
 
 calc
@@ -13,19 +17,17 @@ calc
     nmcyc 2000
     seed        -7
     totalwalkers       10000
-    diagshift       1.5000000000
     shiftdamp       0.1000000000
     stepsshift      10
     tau-values \
-        start user-defined 0.001 \
-        min 0.000001
+        start user-defined 0.001
     tau-search \
         algorithm conventional \
         stop-condition var-shift
     memoryfacpart         1.500000000000000
     memoryfacspawn         5.
     truncinitiator
-    addtoinitiator        2
+    addtoinitiator        3
     allrealcoeff
     realspawncutoff 1.
     avgrowthrate

@@ -6,6 +6,7 @@ system read
     nobrillouintheorem
     impurity-excitgen
     spinorbs
+    uhf
 endsys
 
 calc

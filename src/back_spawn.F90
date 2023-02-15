@@ -7,7 +7,7 @@ module back_spawn
 
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, &
                           tHub, tUEG, nmaxx, nmaxy, nmaxz, tOrbECutoff, OrbECutoff, &
-                          tUEGNewGenerator, t_k_space_hubbard, t_3_body_excits
+                          tUEGNewGenerator, t_k_space_hubbard
 
     use constants, only: n_int, dp, bits_n_int, lenof_sign, inum_runs
 
