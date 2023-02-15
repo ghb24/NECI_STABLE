@@ -4075,14 +4075,7 @@ contains
                                 (.not. any(orb2 == found_orbs))) then
                                 det = HFDet
                                 det(i) = orb2
-                                ! block to get around ifort failure
-                                block
-                                    use excitation_types, only: UNKNOWN
-                                    integer :: tmpval(2, 0)
-                                    tmpval = UNKNOWN
-                                    ! NOTE: the parity here is an unused variable
-                                    hdiag = real(sltcnd_excit(det, Excite_0_t(tmpval), .false.), dp)
-                                end block
+                                hdiag = real(sltcnd_excit(det, Excite_0_t(), .false.), dp)
                                 if (hdiag < energies(i)) then
                                     energies(i) = hdiag
                                     orbs(i) = orb2

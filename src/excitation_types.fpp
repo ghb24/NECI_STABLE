@@ -79,6 +79,13 @@ module excitation_types
     end interface
     #:endfor
 
+#ifdef __INTEL_COMPILER
+    interface Excite_0_t
+        module procedure Excite_0_t_ctor
+    end interface
+#endif
+
+
 !>  Return true if all sources and targets are not UNKNOWN.
     interface defined
     #:for Excitation_t in excitations
@@ -127,6 +134,15 @@ module excitation_types
     end interface
 
 contains
+
+! workaround for pesky intel compiler errors
+#ifdef __INTEL_COMPILER
+    type(Excite_0_t) function Excite_0_t_ctor() result(this)
+        integer :: tmpval(2, 0)
+        tmpval = UNKNOWN
+        this%val = tmpval
+    end function
+#endif
 
     #:for Excitation_t in non_trivial_excitations
     elemental function defined_${Excitation_t}$ (exc) result(res)

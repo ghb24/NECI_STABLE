@@ -2288,14 +2288,7 @@ contains
             hel = hel_sing + hel_doub + hel_one + hel_three
 
         else
-            ! block to get around ifort failure
-            block
-                use excitation_types, only: UNKNOWN
-                integer :: tmpval(2, 0)
-                tmpval = UNKNOWN
-                ! NOTE: the parity here is an unused variable
-                hel = sltcnd_excit(nI, Excite_0_t(tmpval), .false.)
-            end block
+            hel = sltcnd_excit(nI, Excite_0_t(), .false.)
         end if
 
     end function get_diag_helement_k_sp_hub

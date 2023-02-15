@@ -355,14 +355,7 @@ contains
         if(t_lattice_model) then
             hel = get_helement_lattice(nI, nI)
         else
-            ! block to get around ifort failure
-            block
-                use excitation_types, only: UNKNOWN
-                integer :: tmpval(2, 0)
-                tmpval = UNKNOWN
-                ! NOTE: the parity here is an unused variable
-                hel = sltcnd_excit(nI, Excite_0_t(tmpval), .false.)
-            end block
+            hel = sltcnd_excit(nI, Excite_0_t(), .false.)
         end if
 
         if(.not. TestClosedShellDet(iLutnI)) then
