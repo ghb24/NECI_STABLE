@@ -360,7 +360,6 @@ contains
         type(Excite_2_t), intent(in) :: exc
         integer :: res(size(det_I))
         character(*), parameter :: this_routine = 'excite_nI_Excite_2_t'
-
         integer :: src(2), tgt(2)
 
         @:pure_ASSERT(defined(exc))
