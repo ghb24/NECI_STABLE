@@ -492,6 +492,7 @@ contains
         ! scaling of spawns
         tScaleBlooms = .false.
         max_allowed_spawn = MaxWalkerBloom
+        t_left_trial = .false.
     end subroutine SetCalcDefaults
 
     SUBROUTINE CalcReadInput(file_reader)
@@ -1714,6 +1715,9 @@ contains
                     tStartTrialLater = .true.
                     trial_shift_iter = to_int(tokens%next())
                 end if
+
+            case("LEFT-TRIAL-EVEC")
+                t_left_trial = .true.
 
             case("NUM-TRIAL-STATES-CALC")
                 ntrial_ex_calc = to_int(tokens%next())

@@ -1325,6 +1325,14 @@ and is stopped after 10000 iterations.
         deterministic projection is therefore performed with this
         option.
 
+    -   **left-trial-evec**
+        When diagonalising the matrix formed from the top determinants, take
+        the left eigenvector as your trial wave function instead of the right.
+        @note
+        This keyword was primarily introduced for non-Hermitian Hamiltonians.
+        At the moment it is not fully understood which eigenvector is appropriate in this case.
+        @endnote
+
 #### Memory options
 
 -   **memoryFacPart \(x\)**<br>
