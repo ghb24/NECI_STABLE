@@ -12,6 +12,7 @@ module initial_trial_states
     use matrix_util, only: eig, print_matrix
 #endif
     use util_mod, only: operator(.div.), stop_all
+    use CalcData, only: t_left_trial
 
     implicit none
 
@@ -453,10 +454,17 @@ contains
                 allocate(evecs_all(ndets_all_procs, ndets_all_procs), stat=ierr)
                 evecs_all = 0.0_dp
 
-                ! i think i need the left eigenvector for the trial-projection
-                ! if it is non-hermitian..
-                ! apparently not.. maybe with the j,i convention above not..
-                ! confusing
+#ifdef DEBUG_
+                block
+                    use hamiltonian_linalg, only: pretty_print
+                    if (size(H_tmp, dim=1)<=100) then
+                        write(stdout, *) "Hamiltonian produced from top determinants:"
+                        call pretty_print(stdout, H_tmp)
+                    end if
+                end block
+#endif
+                ! depending on the flag t_left_trial, we take the left eigenvector
+                ! of the diagonalisation for calculating the projected energy
                 call eig(H_tmp, evals_all, evecs_all, .false.)
 
                 evals = evals_all(1:nexcit)
