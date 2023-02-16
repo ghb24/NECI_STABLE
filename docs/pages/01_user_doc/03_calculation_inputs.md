@@ -570,6 +570,11 @@ considered. The block starts with the `system` keyword and ends with the
     When using this option, non-uniform random excitation generator
     become inefficient, so using `nonUniformRandExcits` is discouraged.
 
+-   **adjoint-calculation**<br>
+    Instead of calculating \(H\), NECI solves for \(H^\dagger\). Note in the
+    of transcorrelation, this is equivalent to switching the sign of your
+    Jastrow factor: \(J\to -J\).
+
 -   **ueg-transcorr \(mode\)**<br>
     Enable the usage of a transcorrelated Hamiltonian for the uniform
     electron gas. This implies the non-hermiticity of the Hamiltonian as
