@@ -1,12 +1,15 @@
 #include "macros.h"
 #:include "macros.fpph"
-! while in principle further excitations are possible, in all current implementations
-! of NECI, they are always zero
-#:set excit_ranks = [0, 1, 2, 3]
-#:set excitations = [f'Excite_{i}_t' for i in excit_ranks]
-#:set trivial_excitations = excitations[:1]
-#:set non_trivial_excitations = excitations[1:]
-#:set classic_abinit_excitations = excitations[:3]
+
+#:set max_excit_rank = 3
+#:set excit_ranks = list(range(0, max_excit_rank + 1))
+    ! note that this excludes further excitations, which must be handled manually
+#:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
+    ! Excite_Further_t is for all ranks > max_excit_rank
+#:set defined_excitations = excitations[1:]
+#:set trivial_excitations = excitations[:2]
+#:set non_trivial_excitations = excitations[2:]
+#:set classic_abinit_excitations = excitations[1:max_excit_rank + 1]
 
 !>  A module for representing different excitations.
 !>
@@ -14,7 +17,7 @@
 !>  an arbitrary excitation.
 !>  Possible excitations are the
 !>  non trivial excitations Excite_{1,2,3}_t
-!>  and the trivial excitation Excite_0_t.
+!>  and the trivial excitations Excite_0_t and Excite_Further_t.
 !>
 !>  The non trivial excitations can "know" only some indices
 !>  and leave the rest UNKNOWN, which is an arbitrary integer constant.
@@ -56,6 +59,10 @@ module excitation_types
     end type
     #:endfor
 
+    type, extends(Excitation_t) :: Excite_Further_t
+        !! Represents an excitation with so many different indices, it has to be zero
+    end type
+
     #:for Excitation_t in non_trivial_excitations
 !>  Additional constructors for the excitation types from integers instead
 !>  of an integer array.
@@ -88,7 +95,7 @@ module excitation_types
 
 !>  Return true if all sources and targets are not UNKNOWN.
     interface defined
-    #:for Excitation_t in excitations
+    #:for Excitation_t in defined_excitations
         module procedure defined_${Excitation_t}$
     #:endfor
     end interface
@@ -164,7 +171,7 @@ contains
         logical :: res
 
         select type (exc)
-        #:for Excitation_t in excitations
+        #:for Excitation_t in defined_excitations
         type is (${Excitation_t}$)
             res = defined(exc)
         #:endfor
@@ -220,14 +227,12 @@ contains
 #endif
 
         select case (IC)
-        case (0)
-            allocate(Excite_0_t :: exc)
-        case (1)
-            allocate(Excite_1_t :: exc)
-        case (2)
-            allocate(Excite_2_t :: exc)
-        case (3)
-            allocate(Excite_3_t :: exc)
+        #:for rank in excit_ranks
+        case (${rank}$)
+            allocate(Excite_${rank}$_t :: exc)
+        #:endfor
+        case (${max_excit_rank}$ + 1 :)
+            allocate(Excite_Further_t :: exc)
         case (:-1)
 #ifdef DEBUG_
             call stop_all(this_routine, 'invalid IC < 0 passed.')
