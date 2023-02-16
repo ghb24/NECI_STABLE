@@ -23,7 +23,7 @@ if [ "gfortran-self_build_hdf5" == "$@" ]; then
 		cmake --build . -j 2 --
 	fi
 
-elif [ "gfortran-doc" == "$@" ]; then
+elif [ "gfortran-doc" == "$@" ] || [ "gfortran-short-doc" == "$@" ]; then
     # make VERBOSE=1 -j 2 doc
     cmake --build . -j 2 --target doc -v --
 else
