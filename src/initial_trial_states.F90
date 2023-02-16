@@ -465,7 +465,7 @@ contains
 #endif
                 ! depending on the flag t_left_trial, we take the left eigenvector
                 ! of the diagonalisation for calculating the projected energy
-                call eig(H_tmp, evals_all, evecs_all, .false.)
+                call eig(H_tmp, evals_all, evecs_all, t_left_trial)
 
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:, 1:nexcit)
