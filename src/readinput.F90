@@ -209,8 +209,8 @@ contains
                     else
                         GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
                     end if
-                end if ! gasci pchb
-            end if ! indeterminate fast-weighted
+                end if
+            end if
         end if
 
         if (allocated(user_input_seed)) then
