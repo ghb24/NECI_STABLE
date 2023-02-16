@@ -5,7 +5,7 @@ module aliasSampling
     use constants, only: dp, int64, n_int, bits_n_int, stderr, MPIArg
     use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
-    use parallel_neci, only: iProcIndex_intra, Node, MPIBarrier, mpi_comm_intra, MPIBCast, MPI_LOGICAL
+    use parallel_neci, only: iProcIndex_intra, Node, MPIBarrier, mpi_comm_intra, MPIBCast, MPI_INTEGER8, MPI_LOGICAL
 #ifndef IFORT_
     use parallel_neci, only: MPI_BCast
 #endif
@@ -163,7 +163,7 @@ contains
             !!              want to use for sampling
 
         character(*), parameter :: t_r = "setupTable"
-        integer(int64) :: arrSize
+        integer :: ierr
 
         block
             logical :: error_found(1)
@@ -176,11 +176,16 @@ contains
         end block
 
         ! allocate the shared memory segment for the alias table
-        arrSize = size(arr, kind=int64)
-        call MPIBcast(arrSize, iProcIndex_intra == rank_with_info, Node)
+        block
+            integer(int64) :: arrSize(1)
+            arrSize = size(arr, kind=int64)
+            call MPI_Bcast(arrSize, size(arrSize, kind=MPIArg), MPI_INTEGER8, rank_with_info, mpi_comm_intra, ierr)
+            ! allocate the probabilities
+            call this%biasTable%shared_alloc(arrSize(1))
+            call this%aliasTable%shared_alloc(arrSize(1))
+        end block
 
-        call this%biasTable%shared_alloc(arrSize)
-        call this%aliasTable%shared_alloc(arrSize)
+
 
         call this%initTable(rank_with_info, arr)
 
@@ -339,7 +344,6 @@ contains
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         real(dp), intent(in) :: arr(:)
 
-        integer(int64) :: arrSize
         integer :: ierr
 
         block
@@ -354,11 +358,15 @@ contains
 
         ! initialize the alias table
         call this%table%setupTable(rank_with_info, arr)
-        arrSize = size(arr, kind=int64)
-        call MPIBcast(arrSize, iProcIndex_intra == rank_with_info, Node)
 
-        ! allocate the probabilities
-        call this%probs%shared_alloc(arrSize)
+        block
+            integer(int64) :: arrSize(1)
+            arrSize = size(arr, kind=int64)
+            call MPI_Bcast(arrSize, size(arrSize, kind=MPIArg), MPI_INTEGER8, rank_with_info, mpi_comm_intra, ierr)
+            ! allocate the probabilities
+            call this%probs%shared_alloc(arrSize(1))
+        end block
+
 
         ! set the probabilities
         call this%initProbs(rank_with_info, arr)

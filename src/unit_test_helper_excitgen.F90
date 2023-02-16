@@ -29,7 +29,7 @@ module unit_test_helper_excitgen
     use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
     use util_mod, only: stop_all, operator(.div.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
-    implicit none(type, external)
+    better_implicit_none
     private
     public :: test_excitation_generator, generate_uniform_integrals, FciDumpWriter_t, &
         init_excitgen_test, generate_random_integrals, set_ref, free_ref, calc_pgen, &

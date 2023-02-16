@@ -1,7 +1,7 @@
 ! Do unit tests for the aliasSampling module
 #include "macros.h"
 program test_aliasTables
-    use constants, only: dp, stdout, stderr
+    use constants, only: dp
     use fruit, only: assert_true, init_fruit, fruit_summary, fruit_finalize, &
         get_failed_count
     use aliasSampling, only: aliasTable_t, aliasSampler_t
