@@ -14,7 +14,7 @@
 
 neci_add_option(
     FEATURE BUILD_HDF5
-    DEFAULT off
+    DEFAULT OFF
     DESCRIPTION "Build HDF5 in the source tree, for compatibility with the build configuration" )
 
 if ( HAVE_BUILD_HDF5 )
@@ -77,7 +77,7 @@ if ( HAVE_BUILD_HDF5 )
 		# -- Build step ------
 		BUILD_COMMAND "" #make && make install
 		BUILD_IN_SOURCE 0
-		BINARY_DIR ${HDF_BUILDDIR} 
+		BINARY_DIR ${HDF_BUILDDIR}
 		# -- install step ----
 		INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
 		# INSTALL_COMMAND "make install"
