@@ -3,7 +3,7 @@
 
 #:set max_excit_rank = 3
     ! all excitations with rank higher than max_excit_rank are definitely zero
-#:set excit_ranks = list(range(0, max_excit_rank + 1))
+#:set excit_ranks = list(range(max_excit_rank + 1))
     ! note that this excludes further excitations, which must be handled manually
 #:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
     ! Excite_Further_t is for all ranks > max_excit_rank
