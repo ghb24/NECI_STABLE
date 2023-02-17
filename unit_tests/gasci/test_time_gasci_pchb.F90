@@ -7,7 +7,8 @@ module test_time_pchb
     use excitation_types, only: Excitation_t
 
     use gasci, only: LocalGASSpec_t
-    use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles
+    use gasci_pchb_general, only: GAS_PCHB_ExcGenerator_t,
+    use gasci_pc_select_particles, only: possible_GAS_singles
     use gasci_discarding, only: GAS_DiscardingGenerator_t
     use excitation_generators, only: ExcitationGenerator_t
 
@@ -69,7 +70,7 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(Li2_FCIDUMP, 'FCIDUMP'))
             call GAS_PCHB%init(GAS_spec, use_lookup=.false., create_lookup=.false., recoupling=.true., &
-                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM)
+                                    used_singles_generator=possible_GAS_singles%BITMASK_UNIFORM)
             call run_excit_gen_tester( &
                 GAS_PCHB, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &
@@ -147,7 +148,7 @@ contains
 
             call init_excitgen_test(det_I, FciDumpWriter_t(FePor_FCIDUMP, 'FCIDUMP'))
             call GAS_PCHB%init(GAS_spec, use_lookup=.false., create_lookup=.false., recoupling=.true., &
-                                    used_singles_generator=possible_GAS_singles%PC_UNIFORM)
+                                    used_singles_generator=possible_GAS_singles%BITMASK_UNIFORM)
             call run_excit_gen_tester( &
                 GAS_PCHB, 'general implementation, Li2 like system', &
                 opt_nI=det_I, &

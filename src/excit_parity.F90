@@ -64,8 +64,13 @@ contains
 
 #ifdef DEBUG_
         ! This is a useful (but O[N]) check to test the generated determinant.
-        if (.not. SymAllowedExcit(nI, nJ, 1, ex, err_msg)) &
+        if (.not. SymAllowedExcit(nI, nJ, 1, ex, err_msg)) then
+            print *, "nI: ", nI
+            print *, "nJ: ", nJ
+            print *, "src: ", ex(1, 1)
+            print *, "tgt: ", ex(2, 1)
             call stop_all(this_routine, 'Generating invalid excitation. '//trim(err_msg))
+        end if
 #endif
 
     end subroutine

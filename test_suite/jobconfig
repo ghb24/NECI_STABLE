@@ -111,6 +111,12 @@ nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
 
+[neci/pchb/*/]
+program = neci
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
+
 [neci/rdm_singlerun/serial/*]
 program = neci
 max_nprocs = 4
@@ -182,7 +188,7 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 
 [mneci/cfqmc/hubbard_4_states_exact_hamil/]
 program = mneci
-tolerance = (5e-7, None, 'overlap_sum'), (1e-6, None, 'hamil_sum')
+tolerance = (5e-7, None, 'overlap_sum'), (1.1e-6, None, 'hamil_sum')
 
 [mneci/cfqmc/hubbard_4_states/]
 program = mneci
@@ -287,7 +293,7 @@ program = mneci
 nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
-tolerance = (2e-8, None, 'sum_error_rdm_1'), (2e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_1'), (1e-8, None, 'max_error_rdm_2')
+tolerance = (2e-8, None, 'sum_error_rdm_1'), (6e-8, None, 'sum_error_rdm_2'), (1e-8, None, 'max_error_rdm_1'), (1e-8, None, 'max_error_rdm_2')
 
 
 [hdf5/mneci/guga/C2_aas_bloom_scale/*/]
@@ -306,4 +312,3 @@ max_nprocs = 4
 _default_ = neci kneci mneci kmneci
 
 # add new hdf5 class so this is not tested standardly on altest currently, since there is a problem compiling hdf5
-

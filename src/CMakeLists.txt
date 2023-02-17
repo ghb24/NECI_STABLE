@@ -217,7 +217,7 @@ set( SRC_FILES
     exc_gen_class_wrappers.F90
     exc_gen_classes.F90
 
-    lib/cons_neci.F90
+    lib/constants.F90
     lib/dSFMT.cpp
     lib/dSFMT_interface.F90
     lib/environment_report.F90
@@ -235,7 +235,7 @@ set( SRC_FILES
     lib/display_matrices.F90
     lib/binomial_lookup.F90
     lib/MAQAO_toggle.c
-)
+    )
 
 set( RELAX_WARNINGS_SRCS
 
@@ -427,14 +427,20 @@ set( FYPP_SRC_FILES
     HPHFIntegrals.fpp
     sltcnd.fpp
     gasci.fpp
-    gasci_disconnected.fpp
     gasci_discarding.fpp
-    gasci_general.fpp
-    gasci_pchb.fpp
-    gasci_pc_select_particles.fpp
-    CDF_sampling.fpp
+    gasci_disconnected.fpp
+    gasci_on_the_fly_heat_bath.fpp
+    gasci_pchb_main.fpp
+    gasci_singles_main.fpp
+    gasci_singles_pc_weighted.fpp
+    gasci_pchb_doubles_main.fpp
+    gasci_pchb_doubles_select_particles.fpp
+    gasci_pchb_doubles_spatorb_fastweighted.fpp
+    gasci_pchb_doubles_spinorb_fullyweighted.fpp
+    gasci_pchb_doubles_spinorb_fastweighted.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp
+    CDF_sampling.fpp
     orb_idx.fpp
     excitation_types.fpp
     shared_array.fpp
@@ -444,7 +450,7 @@ set( FYPP_SRC_FILES
     hist.fpp
     lib/parallel_hdf5_utils.fpp
     lib/util_mod.fpp
-    lib/util_mod_epsilon_close.fpp
+    lib/basic_float_math.fpp
     sets_mod.fpp
     shared_ragged_array.fpp
     SD_spin_purification.fpp
@@ -474,6 +480,9 @@ if (HAVE_FFTW)
 endif()
 if (HAVE_HDF5)
     list(APPEND _conditional_libraries ${HDF5_NECI_LIBRARIES} )
+endif()
+if (HAVE_TCHINT)
+    list(APPEND _conditional_libraries ${TCHINT_NECI_LIBRARIES})
 endif()
 
 # ---------------------------------------------------------------------------------
@@ -520,6 +529,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${NECI_GLOBAL_DEFINES}"
             "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
             "${HDF5_NECI_DEFINITIONS}"
+            "${TCHINT_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
         WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}

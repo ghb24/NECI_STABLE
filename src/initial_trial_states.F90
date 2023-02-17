@@ -5,7 +5,7 @@ module initial_trial_states
     use bit_rep_data
     use constants
     use kp_fciqmc_data_mod
-    use SystemData, only: t_non_hermitian
+    use SystemData, only: t_non_hermitian_2_body
     use core_space_util, only: cs_replicas
     use FciMCData, only: core_run
 #ifndef CMPLX_
@@ -160,7 +160,7 @@ contains
         end if
 
         ! Perform the Lanczos procedure in parallel.
-        if (t_non_hermitian) then
+        if (t_non_hermitian_2_body) then
             call stop_all(this_routine, &
                           "perform_lanczos not implemented for non-hermitian Hamiltonians!")
         end if
@@ -202,8 +202,7 @@ contains
 
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
-            safe_malloc_e(evecs_transpose, (nexcit, ndets_all_procs), ierr)
-            if (ierr /= 0) call stop_all(this_routine, "Error allocating transposed eigenvectors array.")
+            safe_malloc(evecs_transpose, (nexcit, ndets_all_procs))
             evecs_transpose = transpose(evecs)
         else
             safe_free(ilut_list)
@@ -220,7 +219,7 @@ contains
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
-        allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
+        allocate(evecs_this_proc(nexcit, ndets_this_proc))
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
         if (ierr /= 0) call stop_all(this_routine, "Error in MPIScatterV call.")
 
@@ -419,7 +418,7 @@ contains
 #else
 
             ! should we switch here, if it is not hermitian?
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 ASSERT(.not. tGUGA)
                 ndets_int = int(ndets_all_procs)
                 allocate(H_tmp(ndets_all_procs, ndets_all_procs), stat=ierr)

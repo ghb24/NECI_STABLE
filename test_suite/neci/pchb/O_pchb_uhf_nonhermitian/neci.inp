@@ -1,0 +1,45 @@
+title
+
+    system read
+        electrons 8
+        spin-restrict -2
+        nobrillouintheorem
+        uhf
+        molpromimic
+        nonhermitian 2-body
+        nonuniformrandexcits pchb \
+            singles uniform \
+            doubles particle-selection uniform \
+            doubles hole-selection fast-weighted
+    endsys
+
+    calc
+        # since this is a test, need it to be reproducible:
+        load-balance-blocks off
+        seed 9
+
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 1.e3
+        nmcyc 5000
+        definedet 1-6 7 9
+
+        startsinglepart 10
+        tau-values \
+            start user-defined 0.01
+        tau-search \
+            algorithm conventional \
+            stop-condition var-shift \
+            maxwalkerbloom 2
+
+        # diagshift 0.0
+        target-shiftdamp 0.1
+        stepsshift 10
+
+        truncinitiator
+        addtoinitiator 3
+
+        memoryfacspawn 50
+    endcalc
+end

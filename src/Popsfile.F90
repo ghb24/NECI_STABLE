@@ -4,7 +4,7 @@ MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, nBasis, tNoBrillouin, tReal, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy, &
-                          t_lattice_model, t_non_hermitian, t_3_body_excits
+                          t_lattice_model, t_non_hermitian_2_body, t_3_body_excits
     use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, &
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
@@ -2121,7 +2121,7 @@ contains
                     hf_helemt_trans = 0.0_dp
 
                     if (tGUGA) then
-                        ASSERT(.not. t_non_hermitian)
+                        ASSERT(.not. t_non_hermitian_2_body)
                         call calc_guga_matrix_element(&
                                 det, CSF_Info_t(det), iLutRef(:, 1), CSF_Info_t(iLutRef(:, 1)), &
                                 excitInfo, hf_helemt, .true.)
@@ -2134,7 +2134,7 @@ contains
                                 hf_helemt = hphf_off_diag_helement(ProjEDet(:, 1), &
                                                                    nI, iLutRef(:, 1), det)
 
-                                if (t_non_hermitian) then
+                                if (t_non_hermitian_2_body) then
                                     hf_helemt_trans = hphf_off_diag_helement(nI, &
                                                                              ProjEDet(:, 1), det, iLutRef(:, 1))
 
@@ -2143,14 +2143,14 @@ contains
                                 if (t_lattice_model) then
                                     hf_helemt = get_helement_lattice(ProjEDet(:, 1), &
                                                                      nI, ex_level)
-                                    if (t_non_hermitian) then
+                                    if (t_non_hermitian_2_body) then
                                         hf_helemt_trans = get_helement_lattice(nI, &
                                                                                ProjEDet(:, 1), ex_level)
                                     end if
                                 else
                                     hf_helemt = get_helement(ProjEDet(:, 1), nI, &
                                                              ex_level, iLutRef(:, 1), det)
-                                    if (t_non_hermitian) then
+                                    if (t_non_hermitian_2_body) then
                                         hf_helemt_trans = get_helement(nI, ProjEDet(:, 1), &
                                                                        ex_level, det, iLutRef(:, 1))
                                     end if
@@ -2188,7 +2188,7 @@ contains
                     endif
 
                     call writebitdet(iunit_2, det, .false.)
-                    if (t_non_hermitian) then
+                    if (t_non_hermitian_2_body) then
                         write (iunit_2, '(i5,i5,3f20.10,4i5)') &
                             ex_level, nopen, detenergy, hf_helemt, &
                             hf_helemt_trans, ex(1, 1), ex(1, 2), ex(2, 1), ex(2, 2)

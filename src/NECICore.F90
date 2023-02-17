@@ -275,7 +275,7 @@ subroutine NECICalcInit(iCacheFlag)
     use RotateOrbsMod, only: RotateOrbs
     use replica_data, only: init_replica_arrays
     use gen_coul_ueg_mod, only: GEN_Umat_TC, prep_ueg_dump, GEN_Umat_TC_Contact
-    use LMat_mod, only: readLMat
+    use LMat_mod, only: readLMat, setup_tchint_ints
     use guga_init, only: init_guga
     implicit none
     integer, intent(in) :: iCacheFlag
@@ -285,6 +285,7 @@ subroutine NECICalcInit(iCacheFlag)
     ! These are essentially constant arrays available after the input has
     ! been read
     call init_replica_arrays()
+    if (t_mol_3_body) call setup_tchint_ints()
 
 !   Initlialize the system.  Sets up ...
 !   Symmetry is a subset of the system

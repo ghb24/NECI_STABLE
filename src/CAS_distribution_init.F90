@@ -1,5 +1,5 @@
 module CAS_distribution_init
-    use SystemData, only: tHPHFInts, tHPHF, lms, lztot, t_non_hermitian, tspn
+    use SystemData, only: tHPHFInts, tHPHF, lms, lztot, t_non_hermitian_2_body, tspn
 
     use CalcData, only: DiagSft, InitialPart, InitWalkers, OccCasorbs, RealCoeffExcitThresh,&
                         tAllRealCoeff, tReadPops, tRealCoeffByExcitLevel, &
@@ -298,7 +298,7 @@ contains
             allocate(CkN(nCASDet, nEval), stat=ierr)
             CkN = 0.0_dp
             !C..Lanczos iterative diagonalising routine
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 call stop_all(this_routine, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
@@ -333,7 +333,7 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = nCASDet + 1
             nBlocks = 1
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 call stop_all(this_routine, &
                               "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if

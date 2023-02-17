@@ -1,131 +1,194 @@
 #include "macros.h"
 module pchb_excitgen
-    use constants, only: n_int, dp, maxExcit
+    use constants, only: n_int, dp, maxExcit, stdout
     use SystemData, only: nel, nBasis
-    use util_mod, only: operator(.div.), EnumBase_t, stop_all
-    use bit_rep_data, only: NIfTot
-    use FciMCData, only: pSingles, excit_gen_store_type, pDoubles
-    use SymExcitDataMod, only: ScratchSize
+    use fortran_strings, only: to_upper
+    use util_mod, only: operator(.div.), EnumBase_t, stop_all, operator(.implies.)
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
+    use SystemData, only: tUHF
 
     use gasci, only: GASSpec_t, LocalGASSpec_t
-    use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, get_pgen_sd, gen_exc_sd, gen_all_excits_sd
+    use excitation_generators, only: ClassicAbInitExcitationGenerator_t, &
+        SingleExcitationGenerator_t
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t, &
-        PCHB_ParticleSelection_t, PCHB_particle_selections
+    use gasci_singles_pc_weighted, only: &
+        PC_WeightedSinglesOptions_t,  PC_WeightedSinglesOptions_vals_t, &
+        PC_singles_drawing_vals, &
+        PC_singles_weighting_vals, PC_Weighted_t, do_allocation, print_options
+    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
+        doubles_allocate_and_init => allocate_and_init, &
+        possible_PCHB_hole_selection, PCHB_particle_selection_vals
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selection_vals
     better_implicit_none
 
     private
 
-    public :: PCHB_FCI_excit_generator_t, FCI_PCHB_particle_selection, &
-        FCI_PCHB_singles, possible_PCHB_singles
+    public :: PCHB_FCI_excit_generator_t, &
+        FCI_PCHB_options_t, FCI_PCHB_Options_vals_t, FCI_PCHB_options_vals, &
+        FCI_PCHB_options
+    public :: FCI_PCHB_SinglesOptions_t
+    ! Reexpose
+    public :: PCHB_DoublesOptions_t
 
-    type, extends(ExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
-        private
-        type(GAS_doubles_PCHB_ExcGenerator_t) :: doubles_generator
-        class(SingleExcitationGenerator_t), allocatable :: singles_generator
+
+    type, extends(ClassicAbInitExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
     contains
         private
         procedure, public :: init
-        procedure, public :: finalize
-        procedure, public :: gen_exc
-        procedure, public :: get_pgen
-        procedure, public :: gen_all_excits
     end type
 
-    type(PCHB_ParticleSelection_t) :: FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
-
-
-    type, extends(EnumBase_t) :: PCHB_used_singles_t
+    type, extends(EnumBase_t) :: FCI_PCHB_singles_algorithm_t
     end type
 
-    type :: possible_PCHB_singles_t
-        type(PCHB_used_singles_t) :: &
-            ON_FLY_HEAT_BATH = PCHB_used_singles_t(1), &
-            UNIFORM = PCHB_used_singles_t(2)
+    type :: FCI_PCHB_singles_algorithm_vals_t
+        type(FCI_PCHB_singles_algorithm_t) :: &
+            ON_FLY_HEAT_BATH = FCI_PCHB_singles_algorithm_t(1), &
+            UNIFORM = FCI_PCHB_singles_algorithm_t(2), &
+            PC_WEIGHTED = FCI_PCHB_singles_algorithm_t(3)
+        contains
+            procedure, nopass :: from_str => singles_from_keyword
     end type
 
-    type(possible_PCHB_singles_t), parameter :: possible_PCHB_singles = possible_PCHB_singles_t()
+    type(FCI_PCHB_singles_algorithm_vals_t), parameter :: &
+        possible_PCHB_singles = FCI_PCHB_singles_algorithm_vals_t()
 
-    type(PCHB_used_singles_t) :: FCI_PCHB_singles = possible_PCHB_singles%UNIFORM
+    type :: FCI_PCHB_SinglesOptions_vals_t
+        type(FCI_PCHB_singles_algorithm_vals_t) :: &
+            algorithm = FCI_PCHB_singles_algorithm_vals_t()
+        type(PC_WeightedSinglesOptions_vals_t) :: &
+            PC_weighted = PC_WeightedSinglesOptions_vals_t()
+    end type
+
+    type(FCI_PCHB_SinglesOptions_vals_t), parameter :: &
+        FCI_PCHB_singles_options_vals = FCI_PCHB_SinglesOptions_vals_t()
+
+    type :: FCI_PCHB_SinglesOptions_t
+        type(FCI_PCHB_singles_algorithm_t) :: algorithm
+        type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
+            FCI_PCHB_singles_options_vals%PC_weighted%weighting%UNDEFINED, &
+            FCI_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
+    end type
+
+    type :: FCI_PCHB_Options_t
+        type(FCI_PCHB_SinglesOptions_t) :: singles
+        type(PCHB_DoublesOptions_t) :: doubles
+    contains
+        procedure :: assert_validity
+    end type
+
+    type :: FCI_PCHB_Options_vals_t
+        type(FCI_PCHB_SinglesOptions_vals_t) :: singles = FCI_PCHB_SinglesOptions_vals_t()
+        type(PCHB_DoublesOptions_vals_t) :: doubles = PCHB_DoublesOptions_vals_t()
+    end type
+
+    type(FCI_PCHB_Options_vals_t), parameter :: FCI_PCHB_options_vals = FCI_PCHB_Options_vals_t()
+
+    type(FCI_PCHB_options_t) :: FCI_PCHB_options = FCI_PCHB_options_t(&
+        FCI_PCHB_SinglesOptions_t(&
+            FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+            PC_WeightedSinglesOptions_t(&
+                FCI_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
+                FCI_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+            ) &
+        ), &
+        PCHB_DoublesOptions_t( &
+            FCI_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
+            FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+        ) &
+    )
+
 
 contains
 
-    subroutine init(this, PCHB_particle_selection, PCHB_singles)
+    pure function singles_from_keyword(w) result(res)
+        !! Parse a given keyword into the possible weighting schemes
+        character(*), intent(in) :: w
+        type(FCI_PCHB_singles_algorithm_t) :: res
+        routine_name("from_keyword")
+        select case(to_upper(w))
+        case('UNIFORM')
+            res = possible_PCHB_singles%UNIFORM
+        case('ON-THE-FLY-HEAT-BATH')
+            res = possible_PCHB_singles%ON_FLY_HEAT_BATH
+        case('PC-WEIGHTED')
+            res = possible_PCHB_singles%PC_WEIGHTED
+        case default
+            call stop_all(this_routine, trim(w)//" not a valid singles generator for GAS PCHB.")
+        end select
+    end function
+
+
+    subroutine init(this, options)
         class(PCHB_FCI_excit_generator_t), intent(inout) :: this
-        type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        type(PCHB_used_singles_t), intent(in) :: PCHB_singles
+        type(FCI_PCHB_options_t), intent(in) :: options
         character(*), parameter :: this_routine = 'pchb_excitgen::init'
+
         ! CAS is implemented as a special case of GAS with only one GAS space.
         ! Since a GAS specification with one GAS space is trivially disconnected, there
         ! is no point to use the lookup.
-        call this%doubles_generator%init(&
-                CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
-                use_lookup=.false., create_lookup=.false., &
-                PCHB_particle_selection=PCHB_particle_selection)
+        call doubles_allocate_and_init(&
+                CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), options%doubles, &
+                .false., this%doubles_generator)
+        call singles_allocate_and_init(options%singles, this%singles_generator)
+    end subroutine
 
-        ! luckily the singles generators don't require initialization.
-        if (PCHB_singles == possible_PCHB_singles%ON_FLY_HEAT_BATH) then
-            allocate(WeightedSingles_t :: this%singles_generator)
-        else if (PCHB_singles == possible_PCHB_singles%UNIFORM) then
-            allocate(UniformSingles_t :: this%singles_generator)
+
+    subroutine singles_allocate_and_init(options, generator)
+        type(FCI_PCHB_SinglesOptions_t), intent(in) :: options
+        class(SingleExcitationGenerator_t), allocatable, intent(inout) :: generator
+        routine_name("pchb_excitgen::singles_allocate_and_init")
+
+        if (allocated(generator)) then
+            call generator%finalize()
+            deallocate(generator)
+        end if
+
+        ! luckily many of the singles generators don't require initialization.
+        if (options%algorithm == possible_PCHB_singles%ON_FLY_HEAT_BATH) then
+            allocate(WeightedSingles_t :: generator)
+        else if (options%algorithm == possible_PCHB_singles%UNIFORM) then
+            allocate(UniformSingles_t :: generator)
+        else if (options%algorithm == possible_PCHB_singles%PC_WEIGHTED) then
+            call print_options(options%PC_weighted, stdout)
+            call do_allocation(generator, options%PC_weighted%drawing)
+            select type(generator)
+            class is(PC_Weighted_t)
+                call generator%init(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
+                                    options%PC_weighted%weighting, &
+                                    use_lookup=.false., create_lookup=.false.)
+            end select
         else
             call stop_all(this_routine, "Invalid PCHB_singles in FCI PCHB init.")
         end if
-    contains
-
-        type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
-            integer, intent(in) :: n_el, n_spat_orbs
-            integer :: i
-            ! It does not matter if we use local or cumulative GAS
-            ! constraints
-            CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
-        end function
     end subroutine
 
 
-    subroutine finalize(this)
-        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
-        call this%singles_generator%finalize()
-        deallocate(this%singles_generator)
-        call this%doubles_generator%finalize()
-    end subroutine
-
-    function get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2, maxExcit), ic
-        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        real(dp) :: pgen
-        pgen = get_pgen_sd(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, &
-                           this%singles_generator, this%doubles_generator)
+    type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
+        integer, intent(in) :: n_el, n_spat_orbs
+        integer :: i
+        ! It does not matter if we use local or cumulative GAS
+        ! constraints
+        CAS_spec = LocalGASSpec_t(&
+            n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
     end function
 
-    subroutine gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                     ex, tParity, pGen, hel, store, part_type)
-        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
-        integer, intent(in) :: nI(nel), exFlag
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        real(dp), intent(out) :: pGen
-        logical, intent(out) :: tParity
-        HElement_t(dp), intent(out) :: hel
-        type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: part_type
-        call gen_exc_sd(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                        ex, tParity, pGen, hel, store, part_type, &
-                        this%singles_generator, this%doubles_generator)
-    end subroutine
 
-    subroutine gen_all_excits(this, nI, n_excits, det_list)
-        class(PCHB_FCI_excit_generator_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-        integer, intent(out) :: n_excits
-        integer(n_int), allocatable, intent(out) :: det_list(:,:)
-        call gen_all_excits_sd(nI, n_excits, det_list, &
-                               this%singles_generator, this%doubles_generator)
+    subroutine assert_validity(this)
+        class(FCI_PCHB_options_t), intent(in) :: this
+        routine_name("assert_validity")
+
+        if (.not. (this%singles%algorithm == possible_PCHB_singles%PC_WEIGHTED &
+               .implies. (this%singles%PC_weighted%weighting /= PC_singles_weighting_vals%UNDEFINED &
+                        .and. this%singles%PC_weighted%drawing /= PC_singles_drawing_vals%UNDEFINED))) then
+            call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
+        end if
+
+        if (.not. (tUHF &
+                    .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED &
+                                .or. this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED))) then
+            call stop_all(this_routine, "Spin-resolved excitation generation requires spin-resolved hole generation.")
+        end if
+
     end subroutine
 
 end module pchb_excitgen

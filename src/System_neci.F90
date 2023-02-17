@@ -49,6 +49,8 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
          user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
     use gasci_util, only: t_output_GAS_sizes
+    use gasci_pchb_main, only: GAS_PCHB_options, GAS_PCHB_options_vals
+    use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
 
     use growing_buffers, only: buffer_int_1D_t
     IMPLICIT NONE
@@ -227,7 +229,7 @@ contains
         t_ueg_dump = .false.
         t_exclude_3_body_excits = .false.
         t_pcpp_excitgen = .false.
-        t_pchb_excitgen = .false.
+        t_fci_pchb_excitgen = .false.
         ! use weighted singles for the pchb excitgen?
         t_guga_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
@@ -287,7 +289,7 @@ contains
         type(TokenIterator_t) :: tokens
         character(*), parameter :: t_r = 'SysReadInput'
         character(*), parameter :: this_routine = 'SysReadInput'
-        integer :: temp_n_orbs
+        integer :: temp_n_orbs, buf(1000), n_orb
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
@@ -533,8 +535,10 @@ contains
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
             case ("UHF")
-! This keyword is required if we are doing an open shell calculation
-! but do not want to include singles in the energy calculations.
+            ! indicates UHF type FCIDUMP
+            ! Note, this keyword is required if we are doing an open shell calculation
+            ! but do not want to include singles in the energy calculations
+            ! (e.g. by nobrillouintheorem)
                 tUHF = .true.
             case ("RS")
                 FUEGRS = to_realdp(tokens%next())
@@ -606,18 +610,36 @@ contains
                 else
                     trans_corr_param = 0.1_dp
                 end if
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
             case ("NONHERMITIAN")
                 ! just use a non-hermitian Hamiltonian, no additional tweaks
-                t_non_hermitian = .true.
+                ! note transcorrelation has only nonhermitian 2-body integrals
+                ! so if you are doing a TCMF calculation, do
+                ! `nonhermitian 2-body`
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
+                    select case (w)
+                    case ("1-BODY")
+                        write(stdout, '(A)') 'Treating 1-body integrals as non-Hermitian.'
+                        t_non_hermitian_1_body = .true.
+                    case ("2-BODY")
+                        write(stdout, '(A)') 'Treating 2-body integrals as non-Hermitian.'
+                        t_non_hermitian_2_body = .true.
+                    case default
+                        write(stdout, '(A)') 'Treating all integrals as non-Hermitian.'
+                        ! by default, do both
+                        t_non_hermitian_1_body = .true.
+                        t_non_hermitian_2_body = .true.
+                    end select
+                end if
 
             case ('MOLECULAR-TRANSCORR')
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
                 ! optionally supply the three-body integrals of the TC Hamiltonian
                 t_3_body_excits = .true.
                 if (tokens%remaining_items() > 0) then
@@ -643,7 +665,7 @@ contains
 
             case ('UEG-TRANSCORR')
                 t_ueg_transcorr = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
                 do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
                     select case (w)
@@ -672,11 +694,15 @@ contains
                 ! Do not generate 3-body excitations, even in the molecular-transcorr mode
                 t_exclude_3_body_excits = .true.
 
+            case ('EXCLUDE-3-BODY-PARALLEL', 'EXCLUDE-3-BODY-PAR')
+                ! exclude fully spin-parallel 3 body excitation
+                t_exclude_pure_parallel = .true.
+
             case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
                 ! activate the transcorrelated Hamiltonian idea from hongjun for
                 ! the real-space hubbard model
                 t_trans_corr = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param = to_realdp(tokens%next())
@@ -688,7 +714,7 @@ contains
             case ("TRANSCORR-NEW")
                 t_trans_corr = .true.
                 t_trans_corr_new = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param = to_realdp(tokens%next())
@@ -701,7 +727,7 @@ contains
                 ! for the tJ model there are 2 choices of the transcorrelation
                 ! indicate that here!
                 t_trans_corr_2body = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param_2body = to_realdp(tokens%next())
@@ -718,7 +744,7 @@ contains
 
             case ('NEIGHBOR-TRANSCORR', 'TRANSCORR-NEIGHBOR', 'N-TRANSCORR')
                 t_trans_corr_2body = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param_2body = to_realdp(tokens%next())
@@ -734,7 +760,7 @@ contains
 
             case ("TRANSCORR-HOP", "HOP-TRANSCORR")
                 t_trans_corr_hop = .true.
-                t_non_hermitian = .true.
+                t_non_hermitian_2_body = .true.
 
                 if (tokens%remaining_items() > 0) then
                     trans_corr_param = to_realdp(tokens%next())
@@ -1593,96 +1619,63 @@ contains
                         t_pcpp_excitgen = .true.
 
                     case ("PCHB")
-                        ! the precomputed heat-bath excitation generator (uniform singles)
-                        t_pchb_excitgen = .true.
+                        t_fci_pchb_excitgen = .true.
                         do while (tokens%remaining_items() > 0)
-                            w = to_upper(tokens%next())
-                            if (w == 'SINGLES') then
-                            block
-                                use pchb_excitgen, only: FCI_PCHB_singles, possible_PCHB_singles
-
-                                w = to_upper(tokens%next())
-                                select case (w)
-                                case('UNIFORM')
-                                    FCI_PCHB_singles = possible_PCHB_singles%UNIFORM
-                                case('ON-THE-FLY-HEAT-BATH')
-                                    FCI_PCHB_singles = possible_PCHB_singles%ON_FLY_HEAT_BATH
+                            select case(to_upper(tokens%next()))
+                            case ('SINGLES')
+                                FCI_PCHB_options%singles%algorithm = FCI_PCHB_options_vals%singles%algorithm%from_str(tokens%next())
+                                if (FCI_PCHB_options%singles%algorithm == FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
+                                    FCI_PCHB_options%singles%PC_weighted%drawing = FCI_PCHB_options_vals%singles%PC_weighted%drawing%from_str(tokens%next())
+                                end if
+                            case ('DOUBLES')
+                                select case(to_upper(tokens%next()))
+                                case ('PARTICLE-SELECTION')
+                                    FCI_PCHB_options%doubles%particle_selection = FCI_PCHB_options_vals%doubles%particle_selection%from_str(tokens%next())
+                                case ('HOLE-SELECTION')
+                                    FCI_PCHB_options%doubles%hole_selection = FCI_PCHB_options_vals%doubles%hole_selection%from_str(tokens%next())
                                 case default
-                                    call Stop_All(t_r, trim(w)//" not a valid PCHB singles generator")
+                                    call stop_all(t_r, "Only PARTICLE-SELECTION or HOLE-SELECTION allowed as optional next keyword after PCHB Doubles.")
                                 end select
-                            end block
-                            else if (w == 'PARTICLE-SELECTION') then
-                            block
-                                use pchb_excitgen, only: FCI_PCHB_particle_selection
-                                use gasci_pchb, only: PCHB_particle_selections
-
-                                w = to_upper(tokens%next())
-                                select case (w)
-                                case('PC-WEIGHTED-APPROX')
-                                    FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
-                                case('PC-WEIGHTED')
-                                    FCI_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
-                                case('UNIFORM')
-                                    FCI_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
-                                case default
-                                    call Stop_All(t_r, trim(w)//" not a valid PCHB particle selector")
-                                end select
-                            end block
-                            else
-                                call stop_all(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after PCHB")
-                            end if
+                            case default
+                                call stop_all(t_r, "Only SINGLES or DOUBLES allowed as optional next keyword after PCHB")
+                            end select
                         end do
 
-                case ("GAS-CI")
-                block
-                    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator, &
-                        PCHB_particle_selections, GAS_PCHB_particle_selection
-
-                    w = to_upper(tokens%next())
-                    select case (w)
-                    case ('ON-THE-FLY-HEAT-BATH')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
-                    case ('DISCONNECTED')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                    case ('DISCARDING')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                    case ('PCHB')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
-
-                        do while (tokens%remaining_items() > 0)
-                            w = to_upper(tokens%next())
-                            if (w == 'SINGLES') then
+                    case ("GAS-CI")
+                        w = to_upper(tokens%next())
+                        select case (w)
+                        case ('ON-THE-FLY-HEAT-BATH')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
+                        case ('DISCONNECTED')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                        case ('DISCARDING')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                        case ('PCHB')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+                            do while (tokens%remaining_items() > 0)
                                 w = to_upper(tokens%next())
                                 select case (w)
-                                case('DISCARDING-UNIFORM')
-                                    GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
-                                case('PC-UNIFORM')
-                                    GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
-                                case('ON-THE-FLY-HEAT-BATH')
-                                    GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
+                                case ("SINGLES")
+                                    GAS_PCHB_options%singles%algorithm = GAS_PCHB_options_vals%singles%algorithm%from_str(tokens%next())
+                                    if (GAS_PCHB_options%singles%algorithm == GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED) then
+                                        GAS_PCHB_options%singles%PC_weighted%drawing = GAS_PCHB_options_vals%singles%PC_WEIGHTED%drawing%from_str(tokens%next())
+                                    end if
+                                case ("DOUBLES")
+                                    select case(to_upper(tokens%next()))
+                                    case ('PARTICLE-SELECTION')
+                                        GAS_PCHB_options%doubles%particle_selection = GAS_PCHB_options_vals%doubles%particle_selection%from_str(tokens%next())
+                                    case ('HOLE-SELECTION')
+                                        GAS_PCHB_options%doubles%hole_selection = GAS_PCHB_options_vals%doubles%hole_selection%from_str(tokens%next())
+                                    case default
+                                        call stop_all(t_r, "Only PARTICLE-SELECTION or HOLE-SELECTION allowed as optional next keyword after PCHB Doubles.")
+                                    end select
                                 case default
-                                    call Stop_All(t_r, trim(w)//" not a valid GAS singles generator")
+                                    call stop_all(t_r, "Only SINGLES or DOUBLES allowed as optional next keyword after PCHB")
                                 end select
-                            else if (w == 'PARTICLE-SELECTION') then
-                                w = to_upper(tokens%next())
-                                select case (w)
-                                case('PC-WEIGHTED-APPROX')
-                                    GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED_APPROX
-                                case('PC-WEIGHTED')
-                                    GAS_PCHB_particle_selection = PCHB_particle_selections%PC_WEIGHTED
-                                case('UNIFORM')
-                                    GAS_PCHB_particle_selection = PCHB_particle_selections%UNIFORM
-                                case default
-                                    call Stop_All(t_r, trim(w)//" not a valid GAS particle selector")
-                                end select
-                            else
-                                call Stop_All(t_r, "Only SINGLES or PARTICLE_SELECTION allowed as optional next keyword after GENERAL-PCHB")
-                            end if
-                        end do
-                    case default
-                        call Stop_All(t_r, trim(w)//" not a valid keyword")
-                    end select
-                    end block
+                            end do
+                        case default
+                            call Stop_All(t_r, trim(w)//" not a valid keyword")
+                        end select
 
 
                     case ("GUGA-PCHB")
@@ -1835,16 +1828,12 @@ contains
                 ! ordering given in the FCIDUMP file - only has an
                 ! effect when reading an FCIDUMP file, has no effect for
                 ! hubbard/heisenberg/ueg systems etc
-                block
-                  integer :: buf(1000)
-                  integer :: n_orb
-                  n_orb = 0
-                  do while (tokens%remaining_items() > 0)
-                      n_orb = n_orb + 1
-                      buf(n_orb) = to_int(tokens%next())
-                  end do
-                  call load_orb_perm(buf(1:n_orb))
-                end block
+                n_orb = 0
+                do while (tokens%remaining_items() > 0)
+                    n_orb = n_orb + 1
+                    buf(n_orb) = to_int(tokens%next())
+                end do
+                call load_orb_perm(buf(1:n_orb))
 
             case ("GIOVANNIS-BROKEN-INIT")
                 ! Giovanni's scheme for initialising determinants with the correct
@@ -1934,8 +1923,6 @@ contains
                 allocate(SD_spin_purification, source=possible_purification_methods%FULL_S2)
                 spin_pure_J = to_realdp(tokens%next())
                 if (tokens%remaining_items() > 0) then
-                block
-                    character(len=100) :: w
                     w = to_upper(tokens%next())
                     select case(w)
                     case ("ONLY-LADDER-OPERATOR")
@@ -1945,7 +1932,6 @@ contains
                     case default
                         call stop_all(t_r, "Wrong alternative purification method.")
                     end select
-                end block
                 end if
 
             case ("ENDSYS")

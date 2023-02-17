@@ -33,7 +33,6 @@ contains
 
     end subroutine
 
-
 end module
 
 program test_prog_util_mod

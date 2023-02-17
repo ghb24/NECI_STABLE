@@ -6,7 +6,10 @@ Title
 
 System read
     electrons  6
-    nonuniformrandexcits pchb
+    nonuniformrandexcits pchb \
+        singles uniform \
+        doubles particle-selection fully-weighted \
+        doubles hole-selection fast-weighted
     hphf 0
     nobrillouintheorem
     sym 0 0 0 0
@@ -31,8 +34,7 @@ calc
         aas-matele2
 
     tau-values \
-        start refdet-connections \
-        max 0.03
+        start refdet-connections
     tau-search \
         algorithm conventional \
         stop-condition off \

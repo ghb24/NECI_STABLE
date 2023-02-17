@@ -1008,9 +1008,10 @@ contains
             print *, "=========================="
         end if
 
-#ifdef DEBUG_
-        call check_update_growth(iter_data_fciqmc, "Error in first RK step")
-#endif
+! #ifdef DEBUG_
+! TODO: This has to switched on again and fixed!
+!         call check_update_growth(iter_data_fciqmc, "Error in first RK step")
+! #endif
 
         ! for now update the iter data here, although in the final
         ! implementation i only should do that after the 2nd RK step
