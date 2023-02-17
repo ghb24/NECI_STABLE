@@ -283,7 +283,7 @@ function(add_ford_documentation target configuration)
         # We want our custom ford because of tailored changes!
         # Do not look for a preinstalled ford, or at least make sure it works!
         COMMAND
-            ${custom_Python3} -m pip install ford
+            ${custom_Python3} -m pip install ford --quiet
         COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
