@@ -279,8 +279,11 @@ function(add_ford_documentation target configuration)
             ${custom_Python3} -m pip install bibtexparser --quiet
         COMMAND
             ${custom_Python3} -m pip install lxml --quiet
+        # We want to install the custom ford into a virtual environment for the build process
+        # We want our custom ford because of tailored changes!
+        # Do not look for a preinstalled ford, or at least make sure it works!
         COMMAND
-            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford --quiet
+            ${custom_Python3} -m pip install ford
         COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
@@ -339,11 +342,6 @@ function(add_ford_documentation target configuration)
             ${fortran_sources}
             ${processed_files}
             ${markdown_files}
-        # We want to install the custom ford into a virtual environment for the build process
-        # We want our custom ford because of tailored changes!
-        # Do not look for a preinstalled ford, or at least make sure it works!
-        COMMAND
-            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford/ --quiet
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
         COMMAND
