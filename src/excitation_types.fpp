@@ -2,6 +2,7 @@
 #:include "macros.fpph"
 
 #:set max_excit_rank = 3
+    ! all excitations with rank higher than max_excit_rank are definitely zero
 #:set excit_ranks = list(range(0, max_excit_rank + 1))
     ! note that this excludes further excitations, which must be handled manually
 #:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
@@ -50,8 +51,8 @@ module excitation_types
     type, abstract :: Excitation_t
     end type
 
-    #:for rank in excit_ranks
-    type, extends(Excitation_t) :: Excite_${rank}$_t
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
+    type, extends(Excitation_t) :: ${excite_t}$
         !! Represents the orbital indices of a ${rank}$-order excitation
         !! The array is sorted like:
         !! [srcs, tgts]
@@ -86,6 +87,8 @@ module excitation_types
     end interface
     #:endfor
 
+! workaround for pesky intel compiler errors
+! this should be removed if IFORT_ works properly at some pointer in the future
 #ifdef IFORT_
     interface Excite_0_t
         module procedure Excite_0_t_ctor
@@ -143,6 +146,7 @@ module excitation_types
 contains
 
 ! workaround for pesky intel compiler errors
+! this should be removed if IFORT_ works properly at some pointer in the future
 #ifdef IFORT_
     type(Excite_0_t) function Excite_0_t_ctor() result(this)
         integer :: tmpval(2, 0)
@@ -227,11 +231,11 @@ contains
 #endif
 
         select case (IC)
-        #:for rank in excit_ranks
+        #:for rank, excite_t in zip(excit_ranks, defined_excitations)
         case (${rank}$)
-            allocate(Excite_${rank}$_t :: exc)
+            allocate(${excite_t}$ :: exc)
         #:endfor
-        case (${max_excit_rank}$ + 1 :)
+        case (${max_excit_rank + 1}$ :)
             allocate(Excite_Further_t :: exc)
         case (:-1)
 #ifdef DEBUG_
@@ -449,12 +453,10 @@ contains
         type(SpinOrbIdx_t) :: res
 
         select type (exc)
-        type is (Excite_0_t)
+        #:for Excitation_t in classic_abinit_excitations
+        type is (${Excitation_t}$)
             res = excite(det_I, exc)
-        type is (Excite_1_t)
-            res = excite(det_I, exc)
-        type is (Excite_2_t)
-            res = excite(det_I, exc)
+        #:endfor
         end select
     end function
 end module
