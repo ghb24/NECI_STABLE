@@ -124,8 +124,7 @@ if (NOT GIT_SUBMOD_RESULT EQUAL "0")
     message(FATAL_ERROR "Git submodules required. Check your internet connection.")
 endif()
 
-
-find_package(Python3 REQUIRED)
+find_package(Python3 3.7 REQUIRED)
 set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 set(custom_Python3 ${PYTHON_VENV}/bin/python3)
 add_custom_command(
