@@ -13,7 +13,7 @@ module gasci_singles_main
     use get_excit, only: make_single
     use orb_idx_mod, only: calc_spin_raw, operator(==)
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use excitation_types, only: SingleExc_t
+    use excitation_types, only: Excite_1_t
     use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
     use fortran_strings, only: to_upper
     use bit_rep_data, only: NIfTot, nIfD
@@ -187,8 +187,8 @@ contains
                 do tgt = 1, this%GAS_spec%n_spin_orbs()
                     if (src /= tgt &
                             .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
-                            .and. this%GAS_spec%is_allowed(SingleExc_t(src, tgt), supergroups(:, i_sg)) &
-                            .and. symmetry_allowed(SingleExc_t(src, tgt))) then
+                            .and. this%GAS_spec%is_allowed(Excite_1_t(src, tgt), supergroups(:, i_sg)) &
+                            .and. symmetry_allowed(Excite_1_t(src, tgt))) then
                         call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
                     end if
                 end do
@@ -209,8 +209,8 @@ contains
             ! For single excitations it is simple
             logical pure function symmetry_allowed(exc)
                 use SymExcitDataMod, only: SpinOrbSymLabel
-                type(SingleExc_t), intent(in) :: exc
-                symmetry_allowed = SpinOrbSymLabel(exc%val(1)) == SpinOrbSymLabel(exc%val(2))
+                type(Excite_1_t), intent(in) :: exc
+                symmetry_allowed = SpinOrbSymLabel(exc%val(1, 1)) == SpinOrbSymLabel(exc%val(2, 1))
             end function
     end subroutine GAS_singles_uniform_init
 
