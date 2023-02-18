@@ -2,7 +2,7 @@
 #:include "algorithms.fpph"
 
 
-#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
+#:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']
 
 !> This module contains functions for GAS that are not bound
 !>  to a specific GAS excitation generator.
@@ -14,7 +14,7 @@ module gasci_util
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
         alpha, beta
     use sort_mod, only: sort
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
+    use excitation_types, only: Excite_1_t, Excite_2_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
         operator(.isclose.), custom_findloc, choose_i64
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -72,7 +72,7 @@ contains
                         excess=-m_s_1)
             do j = 1, size(possible_holes)
                 tgt1 = possible_holes(j)
-                call buffer%push_back(excite(det_I, SingleExc_t(src1, tgt1)))
+                call buffer%push_back(excite(det_I, Excite_1_t(src1, tgt1)))
             end do
         end do
         call buffer%dump_reset(singles_exc_list)
@@ -121,7 +121,7 @@ contains
 
                     do l = 1, size(second_pick_possible_holes)
                         tgt2 = second_pick_possible_holes(l)
-                        call buffer%push_back(excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
+                        call buffer%push_back(excite(det_I, Excite_2_t(src1, tgt1, src2, tgt2)))
                     end do
                 end do
             end do

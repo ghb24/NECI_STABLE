@@ -12,7 +12,7 @@ MODULE Determinants
 
     use IntegralsData, only: UMat, FCK, NMAX
 
-    use excitation_types, only: Excitation_t, DoubleExc_t, get_excitation
+    use excitation_types, only: Excitation_t, Excite_2_t, get_excitation
     use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
                           sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
 
@@ -585,7 +585,7 @@ contains
 
             ex(1, :) = nJ(4:5)
             ex(2, :) = nJ(6:7)
-            hel = sltcnd_excit(nI, DoubleExc_t(ex), .false.)
+            hel = sltcnd_excit(nI, Excite_2_t(ex), .false.)
         end if
 
         if (present(iLutJ)) then
