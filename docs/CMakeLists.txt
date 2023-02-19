@@ -110,20 +110,6 @@ function(get_unique_dirs paths result)
     set(${result} ${${result}} PARENT_SCOPE)
 endfunction()
 
-find_package(Git QUIET REQUIRED)
-execute_process(
-    COMMAND
-        ${GIT_EXECUTABLE} submodule update --init --recursive
-    WORKING_DIRECTORY
-        ${PROJECT_SOURCE_DIR}
-    RESULT_VARIABLE
-        GIT_SUBMOD_RESULT
-)
-
-if (NOT GIT_SUBMOD_RESULT EQUAL "0")
-    message(FATAL_ERROR "Git submodules required. Check your internet connection.")
-endif()
-
 find_package(Python3 3.7 REQUIRED)
 set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 set(custom_Python3 ${PYTHON_VENV}/bin/python3)
