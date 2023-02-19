@@ -111,13 +111,35 @@ You may also need to build HDF5 yourself as a shared library, which speeds up th
 HDF5 should be built with the same set of compilers as NECI.
 @endnote
 
-In this case, download and extract the program from the HDF5 group website, then build with (you may replace the compilers if you wish, for example use `FC=mpifort` instead of `FC=mpiifort`)
+In this case, download and extract the program from the HDF5 group website ([download link for v1.12](https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.12/hdf5-1.12.2/src/hdf5-1.12.2.tar.gz)),
+then build with parallel IO and Fortran Support enabled.
+You may replace the compilers if you wish, for example use GNU `mpifort` or Intel `mpiifort`.
+
+The `cmake` command is:
 ```bash
 cd your_build_directory
-export HDF5_SRC= # The HDF5 source
-export HDF5_ROOT= # Where it should be installed
-FC=mpiifort F9X=mpiifort CC=mpicc $HDF5_SRC/configure \
-    --prefix=$HDF5_ROOT --enable-fortran --enable-fortran2003 --enable-parallel
+HDF5_SRC= # The HDF5 source
+HDF5_ROOT= # Where it should be installed
+
+cmake \
+    -DCMAKE_INSTALL_PREFIX:PATH=${HDF5_ROOT} \
+    -DHDF5_ENABLE_PARALLEL:BOOL=ON  \
+    -DHDF5_BUILD_FORTRAN:BOOL=ON
+    -DCMAKE_Fortran_COMPILER:PATH=`which mpifort` \
+    -DCMAKE_C_COMPILER:PATH=`which mpicc` \
+    ${HDF5_SRC}
+make -j
+make install
+```
+The `configure` command for older HDF5 versions is:
+```bash
+cd your_build_directory
+cd your_build_directory
+HDF5_SRC= # The HDF5 source
+HDF5_ROOT= # Where it should be installed
+
+FC=mpifort F9X=mpifort CC=mpicc ${HDF5_SRC}/configure \
+    --prefix=${HDF5_ROOT} --enable-fortran --enable-fortran2003 --enable-parallel
 make
 make install
 ```
