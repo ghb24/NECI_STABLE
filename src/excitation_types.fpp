@@ -340,7 +340,15 @@ contains
     end function get_last_tgt_${Excitation_t}$
     #:endfor
 
-    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
+    pure function excite_nI_Excite_0_t(det_I, exc) result(res)
+        integer, intent(in) :: det_I(:)
+        type(Excite_0_t), intent(in) :: exc
+        integer :: res(size(det_I))
+        @:unused_var(exc)
+        res = det_I
+    end function
+
+    #:for rank, excite_t in zip(excit_ranks[1:], non_trivial_excitations)
     pure function excite_nI_${excite_t}$(det_I, exc) result(res)
         integer, intent(in) :: det_I(:)
         type(${excite_t}$), intent(in) :: exc
