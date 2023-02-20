@@ -431,12 +431,12 @@ contains
     end function
     #:endfor
 
-    #:for rank in excit_ranks
-    pure function excite_Ilut_t_Excite_${rank}$_t(ilut_I, exc) result(res)
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
+    pure function excite_Ilut_t_${excite_t}$(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
-        type(Excite_${rank}$_t), intent(in) :: exc
+        type(${excite_t}$), intent(in) :: exc
         integer(n_int) :: res(0:size(ilut_I) - 1)
-        character(*), parameter :: this_routine = 'excite_Ilut_t_Excite_${rank}$_t'
+        character(*), parameter :: this_routine = 'excite_Ilut_t_${excite_t}$'
 
         integer :: src(${rank}$), tgt(${rank}$), i
 

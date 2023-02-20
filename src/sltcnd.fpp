@@ -79,11 +79,11 @@ module sltcnd_mod
     end interface
 
     abstract interface
-        #:for rank in excit_ranks
+        #:for rank, excite_t in zip(excit_ranks, defined_excitations)
         HElement_t(dp) function sltcnd_${rank}$_t(nI, exc, tParity) result(hel)
-            import :: dp, nel, Excite_${rank}$_t
+            import :: dp, nel, ${excite_t}$
             integer, intent(in) :: nI(nel)
-            type(Excite_${rank}$_t), intent(in) :: exc
+            type(${excite_t}$), intent(in) :: exc
             logical, intent(in) :: tParity
         end function sltcnd_${rank}$_t
         #:endfor
