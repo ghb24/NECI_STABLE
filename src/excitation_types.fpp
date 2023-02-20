@@ -1,5 +1,6 @@
 #include "macros.h"
 #:include "macros.fpph"
+#:include "algorithms.fpph"
 
 #:set max_excit_rank = 3
     ! all excitations with rank higher than max_excit_rank are definitely zero
@@ -339,42 +340,20 @@ contains
     end function get_last_tgt_${Excitation_t}$
     #:endfor
 
-    pure function excite_nI_Excite_0_t(det_I, exc) result(res)
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
+    pure function excite_nI_${excite_t}$(det_I, exc) result(res)
         integer, intent(in) :: det_I(:)
-        type(Excite_0_t), intent(in) :: exc
+        type(${excite_t}$), intent(in) :: exc
         integer :: res(size(det_I))
-        @:unused_var(exc)
-        res = det_I
-    end function
+        character(*), parameter :: this_routine = 'excite_nI_${excite_t}$'
 
-    pure function excite_nI_Excite_1_t(det_I, exc) result(res)
-        integer, intent(in) :: det_I(:)
-        type(Excite_1_t), intent(in) :: exc
-        integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_Excite_1_t'
-
-        @:pure_ASSERT(defined(exc))
-        associate(src => exc%val(1, 1), tgt => exc%val(2, 1))
-            @:pure_ASSERT(src /= tgt)
-            @:pure_ASSERT(disjoint([tgt], det_I))
-            @:pure_ASSERT(subset([src], det_I))
-            res = special_union_complement(det_I, [tgt], [src])
-        end associate
-    end function
-
-
-    pure function excite_nI_Excite_2_t(det_I, exc) result(res)
-        integer, intent(in) :: det_I(:)
-        type(Excite_2_t), intent(in) :: exc
-        integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_Excite_2_t'
-        integer :: src(2), tgt(2)
+        integer :: src(${rank}$), tgt(${rank}$)
 
         @:pure_ASSERT(defined(exc))
         src = exc%val(1, :)
         tgt = exc%val(2, :)
-        if (src(1) > src(2)) call swap(src(1), src(2))
-        if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
+        @:sort(integer, src)
+        @:sort(integer, tgt)
         @:pure_ASSERT(is_sorted(src))
         @:pure_ASSERT(is_sorted(tgt))
         @:pure_ASSERT(disjoint(src, tgt))
@@ -384,43 +363,7 @@ contains
         res = special_union_complement(det_I, tgt, src)
 
     end function
-
-    pure function excite_nI_Excite_3_t(det_I, exc) result(res)
-        integer, intent(in) :: det_I(:)
-        type(Excite_3_t), intent(in) :: exc
-        integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_Excite_3_t'
-
-        integer :: src(3), tgt(3)
-
-        @:pure_ASSERT(defined(exc))
-        src = exc%val(1, :)
-        tgt = exc%val(2, :)
-        ! pretty sure this is just a tiny bubble sort
-        if (src(1) > src(2)) call swap(src(1), src(2))
-        if (src(2) > src(3)) call swap(src(2), src(3))
-        if (src(1) > src(2)) call swap(src(1), src(2))
-        if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
-        if (tgt(2) > tgt(3)) call swap(tgt(2), tgt(3))
-        if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
-        @:pure_ASSERT(is_sorted(src))
-        @:pure_ASSERT(is_sorted(tgt))
-        @:pure_ASSERT(disjoint(src, tgt))
-        @:pure_ASSERT(disjoint(tgt, det_I))
-        @:pure_ASSERT(subset(src, det_I))
-
-        res = special_union_complement(det_I, tgt, src)
-
-    end function
-
-    pure subroutine swap(a, b)
-        !! helper function: a and b swap values
-        integer, intent(inout) :: a, b
-        integer :: tmp
-        tmp = a
-        a = b
-        b = tmp
-    end subroutine
+    #:endfor
 
     #:for Excitation_t in defined_excitations
     pure function excite_SpinOrbIdx_t_${Excitation_t}$(det_I, exc) result(res)
