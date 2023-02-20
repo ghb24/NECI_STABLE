@@ -2,10 +2,10 @@
 #:include "macros.fpph"
 #:set max_excit_rank = 3
 #:set excit_ranks = list(range(max_excit_rank + 1))
-#:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
-#:set trivial_excitations = excitations[:2]
-#:set non_trivial_excitations = excitations[2:]
-#:set classic_abinit_excitations = excitations[1:max_excit_rank + 1]
+#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
+#:set defined_excitations = excitations[:-1]
+#:set trivial_excitations = [excitations[0], excitations[-1]]
+#:set non_trivial_excitations = excitations[1:-1]
 
 !>  @brief
 !>      A module to evaluate the Slater-Condon Rules.

@@ -5,12 +5,11 @@
     ! all excitations with rank higher than max_excit_rank are definitely zero
 #:set excit_ranks = list(range(max_excit_rank + 1))
     ! note that this excludes further excitations, which must be handled manually
-#:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
+#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
     ! Excite_Further_t is for all ranks > max_excit_rank
-#:set defined_excitations = excitations[1:]
-#:set trivial_excitations = excitations[:2]
-#:set non_trivial_excitations = excitations[2:]
-#:set classic_abinit_excitations = excitations[1:max_excit_rank + 1]
+#:set defined_excitations = excitations[:-1]
+#:set trivial_excitations = [excitations[0], excitations[-1]]
+#:set non_trivial_excitations = excitations[1:-1]
 
 !>  A module for representing different excitations.
 !>
@@ -459,7 +458,7 @@ contains
         type(SpinOrbIdx_t) :: res
 
         select type (exc)
-        #:for Excitation_t in classic_abinit_excitations
+        #:for Excitation_t in non_trivial_excitations
         type is (${Excitation_t}$)
             res = excite(det_I, exc)
         #:endfor
