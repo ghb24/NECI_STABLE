@@ -156,11 +156,11 @@ contains
         end if
     end subroutine initSltCndPtr
 
-    #:for rank in excit_ranks
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
     HElement_t(dp) function adjoint_sltcnd_${rank}$(nI, ex, tSign) result(hel)
         !! returns the adjoint sltcnd of the given rank: ${rank}$
         integer, intent(in) :: nI(nel)
-        type(Excite_${rank}$_t), intent(in) :: ex
+        type(${excite_t}$), intent(in) :: ex
         logical, intent(in) :: tSign
         integer :: nJ(nel)
         integer :: excit_mat_new(2, ${rank}$)
@@ -168,7 +168,7 @@ contains
         excit_mat_new(1,:) = ex%val(2,:)
         excit_mat_new(2,:) = ex%val(1,:)
         nJ = dyn_nI_excite(nI, ex)
-        hel = nonadjoint_sltcnd_${rank}$(nJ, Excite_${rank}$_t(excit_mat_new), tSign)
+        hel = nonadjoint_sltcnd_${rank}$(nJ, ${excite_t}$(excit_mat_new), tSign)
 #ifdef CMPLX_
         hel = conjg(hel)
 #endif
