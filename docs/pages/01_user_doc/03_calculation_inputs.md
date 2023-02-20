@@ -571,7 +571,7 @@ considered. The block starts with the `system` keyword and ends with the
     become inefficient, so using `nonUniformRandExcits` is discouraged.
 
 -   **adjoint-calculation**<br>
-    Instead of calculating \(H\), NECI solves for \(H^\dagger\). Note in the
+    Instead of calculating \(H\), NECI solves for \(H^\dagger\). Note in the case
     of transcorrelation, this is equivalent to switching the sign of your
     Jastrow factor: \(J\to -J\).
 
