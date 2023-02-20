@@ -361,7 +361,6 @@ contains
         @:pure_ASSERT(subset(src, det_I))
 
         res = special_union_complement(det_I, tgt, src)
-
     end function
     #:endfor
 
