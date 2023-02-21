@@ -264,9 +264,6 @@ function(add_ford_documentation target configuration)
             ${custom_Python3} -m pip install bibtexparser --quiet
         COMMAND
             ${custom_Python3} -m pip install lxml --quiet
-        # We want to install the custom ford into a virtual environment for the build process
-        # We want our custom ford because of tailored changes!
-        # Do not look for a preinstalled ford, or at least make sure it works!
         COMMAND
             ${custom_Python3} -m pip install ford --quiet
         COMMAND
