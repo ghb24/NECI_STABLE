@@ -48,7 +48,7 @@ list(APPEND NECI_GLOBAL_DEFINES USE_MPI)
 
 neci_add_option(
     FEATURE FFTW
-    DEFAULT ON
+    DEFAULT OFF
     DESCRIPTION "Enable functionality requiring FFTW"
     REQUIRED_PACKAGES FFTW )
 

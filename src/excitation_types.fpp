@@ -1,15 +1,16 @@
 #include "macros.h"
 #:include "macros.fpph"
+#:include "algorithms.fpph"
 
 #:set max_excit_rank = 3
-#:set excit_ranks = list(range(0, max_excit_rank + 1))
+    ! all excitations with rank higher than max_excit_rank are definitely zero
+#:set excit_ranks = list(range(max_excit_rank + 1))
     ! note that this excludes further excitations, which must be handled manually
-#:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
+#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
     ! Excite_Further_t is for all ranks > max_excit_rank
-#:set defined_excitations = excitations[1:]
-#:set trivial_excitations = excitations[:2]
-#:set non_trivial_excitations = excitations[2:]
-#:set classic_abinit_excitations = excitations[1:max_excit_rank + 1]
+#:set defined_excitations = excitations[:-1]
+#:set trivial_excitations = [excitations[0], excitations[-1]]
+#:set non_trivial_excitations = excitations[1:-1]
 
 !>  A module for representing different excitations.
 !>
@@ -50,8 +51,8 @@ module excitation_types
     type, abstract :: Excitation_t
     end type
 
-    #:for rank in excit_ranks
-    type, extends(Excitation_t) :: Excite_${rank}$_t
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
+    type, extends(Excitation_t) :: ${excite_t}$
         !! Represents the orbital indices of a ${rank}$-order excitation
         !! The array is sorted like:
         !! [srcs, tgts]
@@ -86,6 +87,8 @@ module excitation_types
     end interface
     #:endfor
 
+! workaround for pesky intel compiler errors
+! this should be removed if IFORT_ works properly at some pointer in the future
 #ifdef IFORT_
     interface Excite_0_t
         module procedure Excite_0_t_ctor
@@ -143,6 +146,7 @@ module excitation_types
 contains
 
 ! workaround for pesky intel compiler errors
+! this should be removed if IFORT_ works properly at some pointer in the future
 #ifdef IFORT_
     type(Excite_0_t) function Excite_0_t_ctor() result(this)
         integer :: tmpval(2, 0)
@@ -227,11 +231,11 @@ contains
 #endif
 
         select case (IC)
-        #:for rank in excit_ranks
+        #:for rank, excite_t in zip(excit_ranks, defined_excitations)
         case (${rank}$)
-            allocate(Excite_${rank}$_t :: exc)
+            allocate(${excite_t}$ :: exc)
         #:endfor
-        case (${max_excit_rank}$ + 1 :)
+        case (${max_excit_rank + 1}$ :)
             allocate(Excite_Further_t :: exc)
         case (:-1)
 #ifdef DEBUG_
@@ -344,34 +348,20 @@ contains
         res = det_I
     end function
 
-    pure function excite_nI_Excite_1_t(det_I, exc) result(res)
+    #:for rank, excite_t in zip(excit_ranks[1:], non_trivial_excitations)
+    pure function excite_nI_${excite_t}$(det_I, exc) result(res)
         integer, intent(in) :: det_I(:)
-        type(Excite_1_t), intent(in) :: exc
+        type(${excite_t}$), intent(in) :: exc
         integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_Excite_1_t'
+        character(*), parameter :: this_routine = 'excite_nI_${excite_t}$'
 
-        @:pure_ASSERT(defined(exc))
-        associate(src => exc%val(1, 1), tgt => exc%val(2, 1))
-            @:pure_ASSERT(src /= tgt)
-            @:pure_ASSERT(disjoint([tgt], det_I))
-            @:pure_ASSERT(subset([src], det_I))
-            res = special_union_complement(det_I, [tgt], [src])
-        end associate
-    end function
-
-
-    pure function excite_nI_Excite_2_t(det_I, exc) result(res)
-        integer, intent(in) :: det_I(:)
-        type(Excite_2_t), intent(in) :: exc
-        integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_Excite_2_t'
-        integer :: src(2), tgt(2)
+        integer :: src(${rank}$), tgt(${rank}$)
 
         @:pure_ASSERT(defined(exc))
         src = exc%val(1, :)
         tgt = exc%val(2, :)
-        if (src(1) > src(2)) call swap(src(1), src(2))
-        if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
+        @:sort(integer, src)
+        @:sort(integer, tgt)
         @:pure_ASSERT(is_sorted(src))
         @:pure_ASSERT(is_sorted(tgt))
         @:pure_ASSERT(disjoint(src, tgt))
@@ -379,45 +369,8 @@ contains
         @:pure_ASSERT(subset(src, det_I))
 
         res = special_union_complement(det_I, tgt, src)
-
     end function
-
-    pure function excite_nI_Excite_3_t(det_I, exc) result(res)
-        integer, intent(in) :: det_I(:)
-        type(Excite_3_t), intent(in) :: exc
-        integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_Excite_3_t'
-
-        integer :: src(3), tgt(3)
-
-        @:pure_ASSERT(defined(exc))
-        src = exc%val(1, :)
-        tgt = exc%val(2, :)
-        ! pretty sure this is just a tiny bubble sort
-        if (src(1) > src(2)) call swap(src(1), src(2))
-        if (src(2) > src(3)) call swap(src(2), src(3))
-        if (src(1) > src(2)) call swap(src(1), src(2))
-        if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
-        if (tgt(2) > tgt(3)) call swap(tgt(2), tgt(3))
-        if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
-        @:pure_ASSERT(is_sorted(src))
-        @:pure_ASSERT(is_sorted(tgt))
-        @:pure_ASSERT(disjoint(src, tgt))
-        @:pure_ASSERT(disjoint(tgt, det_I))
-        @:pure_ASSERT(subset(src, det_I))
-
-        res = special_union_complement(det_I, tgt, src)
-
-    end function
-
-    pure subroutine swap(a, b)
-        !! helper function: a and b swap values
-        integer, intent(inout) :: a, b
-        integer :: tmp
-        tmp = a
-        a = b
-        b = tmp
-    end subroutine
+    #:endfor
 
     #:for Excitation_t in defined_excitations
     pure function excite_SpinOrbIdx_t_${Excitation_t}$(det_I, exc) result(res)
@@ -428,12 +381,12 @@ contains
     end function
     #:endfor
 
-    #:for rank in excit_ranks
-    pure function excite_Ilut_t_Excite_${rank}$_t(ilut_I, exc) result(res)
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
+    pure function excite_Ilut_t_${excite_t}$(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
-        type(Excite_${rank}$_t), intent(in) :: exc
+        type(${excite_t}$), intent(in) :: exc
         integer(n_int) :: res(0:size(ilut_I) - 1)
-        character(*), parameter :: this_routine = 'excite_Ilut_t_Excite_${rank}$_t'
+        character(*), parameter :: this_routine = 'excite_Ilut_t_${excite_t}$'
 
         integer :: src(${rank}$), tgt(${rank}$), i
 
@@ -455,12 +408,10 @@ contains
         type(SpinOrbIdx_t) :: res
 
         select type (exc)
-        type is (Excite_0_t)
+        #:for Excitation_t in non_trivial_excitations
+        type is (${Excitation_t}$)
             res = excite(det_I, exc)
-        type is (Excite_1_t)
-            res = excite(det_I, exc)
-        type is (Excite_2_t)
-            res = excite(det_I, exc)
+        #:endfor
         end select
     end function
 

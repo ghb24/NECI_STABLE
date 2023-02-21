@@ -1,11 +1,11 @@
 #include "macros.h"
 #:include "macros.fpph"
 #:set max_excit_rank = 3
-#:set excit_ranks = list(range(0, max_excit_rank + 1))
-#:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
-#:set trivial_excitations = excitations[:2]
-#:set non_trivial_excitations = excitations[2:]
-#:set classic_abinit_excitations = excitations[1:max_excit_rank + 1]
+#:set excit_ranks = list(range(max_excit_rank + 1))
+#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
+#:set defined_excitations = excitations[:-1]
+#:set trivial_excitations = [excitations[0], excitations[-1]]
+#:set non_trivial_excitations = excitations[1:-1]
 
 !>  @brief
 !>      A module to evaluate the Slater-Condon Rules.
@@ -79,11 +79,11 @@ module sltcnd_mod
     end interface
 
     abstract interface
-        #:for rank in excit_ranks
+        #:for rank, excite_t in zip(excit_ranks, defined_excitations)
         HElement_t(dp) function sltcnd_${rank}$_t(nI, exc, tParity) result(hel)
-            import :: dp, nel, Excite_${rank}$_t
+            import :: dp, nel, ${excite_t}$
             integer, intent(in) :: nI(nel)
-            type(Excite_${rank}$_t), intent(in) :: exc
+            type(${excite_t}$), intent(in) :: exc
             logical, intent(in) :: tParity
         end function sltcnd_${rank}$_t
         #:endfor
@@ -156,11 +156,11 @@ contains
         end if
     end subroutine initSltCndPtr
 
-    #:for rank in excit_ranks
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
     HElement_t(dp) function adjoint_sltcnd_${rank}$(nI, ex, tSign) result(hel)
         !! returns the adjoint sltcnd of the given rank: ${rank}$
         integer, intent(in) :: nI(nel)
-        type(Excite_${rank}$_t), intent(in) :: ex
+        type(${excite_t}$), intent(in) :: ex
         logical, intent(in) :: tSign
         integer :: nJ(nel)
         integer :: excit_mat_new(2, ${rank}$)
@@ -168,7 +168,7 @@ contains
         excit_mat_new(1,:) = ex%val(2,:)
         excit_mat_new(2,:) = ex%val(1,:)
         nJ = dyn_nI_excite(nI, ex)
-        hel = nonadjoint_sltcnd_${rank}$(nJ, Excite_${rank}$_t(excit_mat_new), tSign)
+        hel = nonadjoint_sltcnd_${rank}$(nJ, ${excite_t}$(excit_mat_new), tSign)
 #ifdef CMPLX_
         hel = conjg(hel)
 #endif

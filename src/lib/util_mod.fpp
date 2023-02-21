@@ -48,7 +48,7 @@ module util_mod
     public :: choose_i128
 #endif
 
-    public :: error_function, error_function_c, stop_all, toggle_lprof
+    public :: error_function, error_function_c, stop_all
     public :: arr_2d_ptr, ptr_abuse_1d, ptr_abuse_2d, ptr_abuse_scalar
     public :: neci_etime, get_free_unit, int_fmt,&
         strlen_wrap, record_length, open_new_file, &
@@ -118,13 +118,6 @@ module util_mod
             real(c_double), intent(in) :: x
             real(c_double) :: ec
         end function
-        subroutine toggle_lprof() bind(C, name='toggle_lprof')
-            !! This call toggles the profiling using MAQAO
-            !!
-            !! It can be for example used to switch on profiling
-            !! right before the main loop
-            !! and to switch it off directly afterwards.
-        end subroutine
     end interface
 
     interface operator(.div.)
