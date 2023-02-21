@@ -234,7 +234,6 @@ set( SRC_FILES
     lib/matrix_util.F90
     lib/display_matrices.F90
     lib/binomial_lookup.F90
-    lib/MAQAO_toggle.c
     )
 
 set( RELAX_WARNINGS_SRCS

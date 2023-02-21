@@ -9,9 +9,6 @@ source /usr/share/Modules/3.2.10/init/sh
 export MODULEPATH="${MODULEPATH}:/usr/local/fkf/modules"
 module purge
 
-# for ninja:
-export PATH=/scratch/jenkins/.local/bin/:$PATH
-
 echo "Loading modules for: $@"
 
 if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then
@@ -20,7 +17,7 @@ if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then
     module load ifort/19.1.1 mpi.intel/2019.7
 elif [ "ifort18-debug" == "$@" ] || [ "ifort18" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.12.2_ifort18_mpi
-    module load ifort/18.0.1 mpi.intel/5.0.3
+    source /usr/local/server/IntelStudio_2018/parallel_studio_xe_2018.4.057/psxevars.sh intel64
 elif [ "gfortran-debug" == "$@" ] || [ "gfortran-fastdebug" == "$@" ] || [ "gfortran" == "$@" ] || [ "gfortran-short-doc" == "$@" ] || [ "gfortran-doc" == "$@" ] || [ "gfortran-debug-integer8" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.12.2_gfort7_mpi
     module load gnu-openmpi/3.1.6
