@@ -196,13 +196,10 @@ contains
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
-        class(excitation_t), allocatable :: exc
-
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
             call stop_all(this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
-        call create_excitation(exc, IC, ex)
-        hel = dyn_sltcnd_excit(nI, exc, tParity)
+        hel = dyn_sltcnd_excit(nI, create_excitation(IC, ex) , tParity)
     end function
 
     function sltcnd_compat(nI, nJ, IC) result(hel)

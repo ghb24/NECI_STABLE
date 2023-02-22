@@ -4,7 +4,7 @@
 module gasci_singles_pc_weighted
     use constants, only: dp, stdout, n_int, bits_n_int, maxExcit
     use fortran_strings, only: to_upper
-    use util_mod, only: stop_all, EnumBase_t
+    use util_mod, only: stop_all, EnumBase_t, operator(.div.)
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use SymExcitDataMod, only: ScratchSize
