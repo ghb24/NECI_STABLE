@@ -5,7 +5,7 @@ module initial_trial_states
     use bit_rep_data
     use constants
     use kp_fciqmc_data_mod
-    use SystemData, only: t_non_hermitian_2_body
+    use SystemData, only: t_non_hermitian_2_body, t_non_hermitian_1_body
     use core_space_util, only: cs_replicas
     use FciMCData, only: core_run
 #ifndef CMPLX_
