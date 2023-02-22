@@ -1011,16 +1011,16 @@ contains
             write(stdout, "(A,F25.15)") "This means tau should be no more than about ", UpperTau
             write(stdout, "(A)") "Highest energy determinant is: ", HighEDet(:)
 
-            if (UpperTau < max_tau) then
-            associate(new_max_tau => UpperTau * 1.1)
+            associate(deterministic_max_tau => UpperTau * 1.1)
+            if (deterministic_max_tau < max_tau) then
                 write(stdout, "(A)") "The deterministic tau is smaller than max_tau."
-                write(stdout, "(A)") "We will limit max_tau to:", new_max_tau
-                max_tau = new_max_tau
+                write(stdout, "(A)") "We will limit max_tau to:", deterministic_max_tau
+                max_tau = deterministic_max_tau
                 if (tau > max_tau) then
                     call assign_value_to_tau(max_tau, 'Initial tau was higher than deterministic tau limit.')
                 end if
-            end associate
             end if
+            end associate
         else
             UpperTau = 0.0_dp
         end if
