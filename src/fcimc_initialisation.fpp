@@ -1009,11 +1009,17 @@ contains
             write(stdout, "(A,G25.15)") "Highest energy determinant is (approximately): ", REAL(TempHii, dp)
             write(stdout, "(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
             write(stdout, "(A,F25.15)") "This means tau should be no more than about ", UpperTau
-            write(stdout, "(A)") "We limit tau_{max} by this value."
-            write(stdout, *) "Highest energy determinant is: ", HighEDet(:)
-            max_tau = UpperTau
-            if (tau > max_tau) then
-                call assign_value_to_tau(max_tau, 'Initial tau was higher than deterministic tau limit.')
+            write(stdout, "(A)") "Highest energy determinant is: ", HighEDet(:)
+
+            if (UpperTau < max_tau) then
+            associate(new_max_tau => UpperTau * 1.1)
+                write(stdout, "(A)") "The deterministic tau is smaller than max_tau."
+                write(stdout, "(A)") "We will limit max_tau to:", new_max_tau
+                max_tau = new_max_tau
+                if (tau > max_tau) then
+                    call assign_value_to_tau(max_tau, 'Initial tau was higher than deterministic tau limit.')
+                end if
+            end associate
             end if
         else
             UpperTau = 0.0_dp
