@@ -65,6 +65,7 @@ contains
         USE SymData, only: tStoreStateList
         use OneEInts, only: tOneElecDiag
 
+        t_calc_adjoint = .false.
         ! Default from SymExcitDataMod
         tBuildOccVirtList = .false.
 !     SYSTEM defaults - leave these as the default defaults
@@ -634,6 +635,15 @@ contains
                         t_non_hermitian_1_body = .true.
                         t_non_hermitian_2_body = .true.
                     end select
+                end if
+
+            case("ADJOINT-CALCULATION")
+                ! calculate the adjoint of H instead of H
+                t_calc_adjoint = .true.
+                write(stdout, *) "Calculating H^\dagger instead of H."
+                if (.not. t_non_hermitian_1_body .and. .not. t_non_hermitian_2_body) then
+                    write(stdout, *) "WARNING: Adjoint matrix calculation for a &
+                        &Hermitian matrix. Assuming this is intended."
                 end if
 
             case ('MOLECULAR-TRANSCORR')

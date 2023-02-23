@@ -358,6 +358,9 @@ module SystemData
     logical :: t_non_hermitian_2_body = .false.
     logical :: t_non_hermitian_1_body = .false.
 
+! if true, we are actually propagating $H^\dagger$, not $H$
+    logical :: t_calc_adjoint = .false.
+
 ! and indicate the maximum excitation level:
     integer :: max_ex_level = 2
 

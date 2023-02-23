@@ -2,10 +2,10 @@
 #:include "macros.fpph"
 #:set max_excit_rank = 3
 #:set excit_ranks = list(range(max_excit_rank + 1))
-#:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
-#:set trivial_excitations = excitations[:2]
-#:set non_trivial_excitations = excitations[2:]
-#:set classic_abinit_excitations = excitations[1:max_excit_rank + 1]
+#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
+#:set defined_excitations = excitations[:-1]
+#:set trivial_excitations = [excitations[0], excitations[-1]]
+#:set non_trivial_excitations = excitations[1:-1]
 
 !>  @brief
 !>      A module to evaluate the Slater-Condon Rules.
@@ -26,7 +26,7 @@
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module sltcnd_mod
     use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, &
-                          t_mol_3_body, t_ueg_3_body, tContact
+                          t_mol_3_body, t_ueg_3_body, tContact, t_calc_adjoint
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
@@ -39,7 +39,7 @@ module sltcnd_mod
     use procedure_pointers, only: get_umat_el
     use excitation_types, only: excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, &
                                 Excite_3_t, UNKNOWN, get_excitation, get_bit_excitation, &
-                                create_excitation, Excite_Further_t
+                                create_excitation, Excite_Further_t, dyn_nI_excite
     use orb_idx_mod, only: SpinOrbIdx_t
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use bit_reps, only: NIfTot
@@ -79,11 +79,11 @@ module sltcnd_mod
     end interface
 
     abstract interface
-        #:for rank in excit_ranks
+        #:for rank, excite_t in zip(excit_ranks, defined_excitations)
         HElement_t(dp) function sltcnd_${rank}$_t(nI, exc, tParity) result(hel)
-            import :: dp, nel, Excite_${rank}$_t
+            import :: dp, nel, ${excite_t}$
             integer, intent(in) :: nI(nel)
-            type(Excite_${rank}$_t), intent(in) :: exc
+            type(${excite_t}$), intent(in) :: exc
             logical, intent(in) :: tParity
         end function sltcnd_${rank}$_t
         #:endfor
@@ -91,6 +91,7 @@ module sltcnd_mod
 
     #:for rank in excit_ranks
     procedure(sltcnd_${rank}$_t), pointer :: sltcnd_${rank}$ => null()
+    procedure(sltcnd_${rank}$_t), pointer :: nonadjoint_sltcnd_${rank}$ => null()
     #:endfor
 
 contains
@@ -146,7 +147,33 @@ contains
             end if
 
         end if
+
+        if (t_calc_adjoint) then ! invert all matrix element calls
+            #:for rank in excit_ranks
+            nonadjoint_sltcnd_${rank}$ => sltcnd_${rank}$
+            sltcnd_${rank}$ => adjoint_sltcnd_${rank}$
+            #:endfor
+        end if
     end subroutine initSltCndPtr
+
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
+    HElement_t(dp) function adjoint_sltcnd_${rank}$(nI, ex, tSign) result(hel)
+        !! returns the adjoint sltcnd of the given rank: ${rank}$
+        integer, intent(in) :: nI(nel)
+        type(${excite_t}$), intent(in) :: ex
+        logical, intent(in) :: tSign
+        integer :: nJ(nel)
+        integer :: excit_mat_new(2, ${rank}$)
+        ! reverse excitation matrix and pass it to a new excitation object
+        excit_mat_new(1,:) = ex%val(2,:)
+        excit_mat_new(2,:) = ex%val(1,:)
+        nJ = dyn_nI_excite(nI, ex)
+        hel = nonadjoint_sltcnd_${rank}$(nJ, ${excite_t}$(excit_mat_new), tSign)
+#ifdef CMPLX_
+        hel = conjg(hel)
+#endif
+    end function adjoint_sltcnd_${rank}$
+    #:endfor
 
 !>  @brief
 !>      Evaluate Matrix Element for different excitations

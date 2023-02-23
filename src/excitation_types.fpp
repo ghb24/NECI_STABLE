@@ -1,16 +1,16 @@
 #include "macros.h"
 #:include "macros.fpph"
+#:include "algorithms.fpph"
 
 #:set max_excit_rank = 3
     ! all excitations with rank higher than max_excit_rank are definitely zero
 #:set excit_ranks = list(range(max_excit_rank + 1))
     ! note that this excludes further excitations, which must be handled manually
-#:set excitations = [f'Excite_{i}_t' for i in ['Further'] + excit_ranks]
+#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
     ! Excite_Further_t is for all ranks > max_excit_rank
-#:set defined_excitations = excitations[1:]
-#:set trivial_excitations = excitations[:2]
-#:set non_trivial_excitations = excitations[2:]
-#:set classic_abinit_excitations = excitations[1:max_excit_rank + 1]
+#:set defined_excitations = excitations[:-1]
+#:set trivial_excitations = [excitations[0], excitations[-1]]
+#:set non_trivial_excitations = excitations[1:-1]
 
 !>  A module for representing different excitations.
 !>
@@ -39,7 +39,7 @@ module excitation_types
     private
     public :: Excitation_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, &
-        ilut_excite, excite, dyn_excite
+        ilut_excite, excite, dyn_excite, dyn_nI_excite
     #:for excit in excitations
     public :: ${excit}$
     #:endfor
@@ -125,7 +125,7 @@ module excitation_types
 !>  to be disjoint.
     interface excite
     #:for det_type in ['nI', 'SpinOrbIdx_t']
-        #:for Excitation_t in classic_abinit_excitations
+        #:for Excitation_t in defined_excitations
             module procedure excite_${det_type}$_${Excitation_t}$
         #:endfor
     #:endfor
@@ -133,7 +133,7 @@ module excitation_types
 
     interface ilut_excite
     #:for det_type in ['Ilut_t']
-        #:for Excitation_t in classic_abinit_excitations
+        #:for Excitation_t in defined_excitations
         module procedure excite_${det_type}$_${Excitation_t}$
         #:endfor
     #:endfor
@@ -348,34 +348,20 @@ contains
         res = det_I
     end function
 
-    pure function excite_nI_Excite_1_t(det_I, exc) result(res)
+    #:for rank, excite_t in zip(excit_ranks[1:], non_trivial_excitations)
+    pure function excite_nI_${excite_t}$(det_I, exc) result(res)
         integer, intent(in) :: det_I(:)
-        type(Excite_1_t), intent(in) :: exc
+        type(${excite_t}$), intent(in) :: exc
         integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_Excite_1_t'
+        character(*), parameter :: this_routine = 'excite_nI_${excite_t}$'
 
-        @:pure_ASSERT(defined(exc))
-        associate(src => exc%val(1, 1), tgt => exc%val(2, 1))
-            @:pure_ASSERT(src /= tgt)
-            @:pure_ASSERT(disjoint([tgt], det_I))
-            @:pure_ASSERT(subset([src], det_I))
-            res = special_union_complement(det_I, [tgt], [src])
-        end associate
-    end function
-
-
-    pure function excite_nI_Excite_2_t(det_I, exc) result(res)
-        integer, intent(in) :: det_I(:)
-        type(Excite_2_t), intent(in) :: exc
-        integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_Excite_2_t'
-        integer :: src(2), tgt(2)
+        integer :: src(${rank}$), tgt(${rank}$)
 
         @:pure_ASSERT(defined(exc))
         src = exc%val(1, :)
         tgt = exc%val(2, :)
-        if (src(1) > src(2)) call swap(src(1), src(2))
-        if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
+        @:sort(integer, src)
+        @:sort(integer, tgt)
         @:pure_ASSERT(is_sorted(src))
         @:pure_ASSERT(is_sorted(tgt))
         @:pure_ASSERT(disjoint(src, tgt))
@@ -383,69 +369,38 @@ contains
         @:pure_ASSERT(subset(src, det_I))
 
         res = special_union_complement(det_I, tgt, src)
-
-    contains
-        pure subroutine swap(a, b)
-            integer, intent(inout) :: a, b
-            integer :: tmp
-            tmp = a
-            a = b
-            b = tmp
-        end subroutine
     end function
+    #:endfor
 
-#:for Excitation_t in classic_abinit_excitations
+    #:for Excitation_t in defined_excitations
     pure function excite_SpinOrbIdx_t_${Excitation_t}$(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(${Excitation_t}$), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
         res%idx = excite(det_I%idx, exc)
     end function
-#:endfor
+    #:endfor
 
-    pure function excite_Ilut_t_Excite_0_t(ilut_I, exc) result(res)
+    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
+    pure function excite_Ilut_t_${excite_t}$(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
-        type(Excite_0_t), intent(in) :: exc
+        type(${excite_t}$), intent(in) :: exc
         integer(n_int) :: res(0:size(ilut_I) - 1)
-        @:unused_var(exc)
-        res = ilut_I
-    end function
+        character(*), parameter :: this_routine = 'excite_Ilut_t_${excite_t}$'
 
-    pure function excite_Ilut_t_Excite_1_t(ilut_I, exc) result(res)
-        integer(n_int), intent(in) :: ilut_I(:)
-        type(Excite_1_t), intent(in) :: exc
-        integer(n_int) :: res(0:size(ilut_I) - 1)
-        character(*), parameter :: this_routine = 'excite_Ilut_t_Excite_1_t'
-
-        associate(src => exc%val(1, 1), tgt => exc%val(2, 1))
-            @:pure_ASSERT(defined(exc))
-            @:pure_ASSERT(src /= tgt)
-            res = ilut_I
-            clr_orb(res, src)
-            set_orb(res, tgt)
-        end associate
-    end function
-
-    pure function excite_Ilut_t_Excite_2_t(ilut_I, exc) result(res)
-        integer(n_int), intent(in) :: ilut_I(:)
-        type(Excite_2_t), intent(in) :: exc
-        integer(n_int) :: res(0:size(ilut_I) - 1)
-        character(*), parameter :: this_routine = 'excite_Ilut_t_Excite_2_t'
-
-        integer :: src(2), tgt(2), i
+        integer :: src(${rank}$), tgt(${rank}$), i
 
         src = exc%val(1, :)
         tgt = exc%val(2, :)
         @:pure_ASSERT(defined(exc))
-        do i = 1, 2
-            @:pure_ASSERT(all(src(i) /= tgt))
-        end do
         res = ilut_I
-        clr_orb(res, src(1))
-        clr_orb(res, src(2))
-        set_orb(res, tgt(1))
-        set_orb(res, tgt(2))
+        do i = 1, ${rank}$
+            @:pure_ASSERT(all(src(i) /= tgt))
+            clr_orb(res, src(i))
+            set_orb(res, tgt(i))
+        end do
     end function
+    #:endfor
 
     pure function dyn_excite(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
@@ -453,10 +408,25 @@ contains
         type(SpinOrbIdx_t) :: res
 
         select type (exc)
-        #:for Excitation_t in classic_abinit_excitations
+        #:for Excitation_t in non_trivial_excitations
         type is (${Excitation_t}$)
             res = excite(det_I, exc)
         #:endfor
+        end select
+    end function
+
+    pure function dyn_nI_excite(det_I, exc) result(res)
+        integer, intent(in) :: det_I(:)
+        class(Excitation_t), intent(in) :: exc
+        integer :: res(size(det_I))
+
+        select type (exc)
+        #:for Excitation_t in defined_excitations
+        type is (${Excitation_t}$)
+            res = excite(det_I, exc)
+        #:endfor
+        class default
+            call stop_all("dyn_nI_excite", "Excitation type invalid.")
         end select
     end function
 end module
