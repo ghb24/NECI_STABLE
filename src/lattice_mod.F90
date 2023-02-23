@@ -658,7 +658,7 @@ module lattice_mod
 
     interface get_helement_lattice
         ! These wrapper functions just exist because of this bug
-        ! (https://github.com/Fortran-FOSS-Programmers/ford/issues/477)
+        ! https://github.com/Fortran-FOSS-Programmers/ford/issues/477
         ! call the pointers in the future directly.
         procedure get_helement_lattice_ex_mat_wrapper
         procedure get_helement_lattice_general_wrapper
@@ -4944,7 +4944,7 @@ contains
 
 
     ! These wrapper functions just exist because of this bug
-    ! (https://github.com/Fortran-FOSS-Programmers/ford/issues/477)
+    ! https://github.com/Fortran-FOSS-Programmers/ford/issues/477
     ! call the pointers in the future directly.
     function get_helement_lattice_ex_mat_wrapper(nI, ic, ex, tpar) result(hel)
         integer, intent(in) :: nI(nel), ic, ex(2, ic)
@@ -4954,7 +4954,7 @@ contains
     end function
 
     ! These wrapper functions just exist because of this bug
-    ! (https://github.com/Fortran-FOSS-Programmers/ford/issues/477)
+    ! https://github.com/Fortran-FOSS-Programmers/ford/issues/477
     ! call the pointers in the future directly.
     function get_helement_lattice_general_wrapper(nI, nJ, ic_ret) result(hel)
         integer, intent(in) :: nI(nel), nJ(nel)
