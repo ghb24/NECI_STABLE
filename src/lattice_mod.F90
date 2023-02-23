@@ -14,7 +14,7 @@ module lattice_mod
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
                           symmetry, brr, t_input_order, orbital_order, &
                           t_k_space_hubbard, t_trans_corr_hop, &
-                          t_new_real_space_hubbard
+                          t_new_real_space_hubbard, nEl
     use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     use util_mod, only: stop_all
@@ -223,7 +223,7 @@ module lattice_mod
 
         ! this is just a small test if we can bring classic procedure
         ! pointers into the game.. but will be removed soon
-        procedure(test), pointer :: a
+        procedure(test), pointer :: a => null()
 
     contains
         private
@@ -633,34 +633,35 @@ module lattice_mod
                           DIM_CUBE = 3
 
     ! define the global lattice class here or? this makes more sense
-    class(lattice), pointer :: lat
+    class(lattice), pointer :: lat => null()
 
     abstract interface
         function get_helement_lattice_ex_mat_t(nI, ic, ex, tpar) result(hel)
-            use SystemData, only: nel
-            use constants, only: dp
+            import :: dp, nEl
+            implicit none
             integer, intent(in) :: nI(nel), ic, ex(2, ic)
             logical, intent(in) :: tpar
             HElement_t(dp) :: hel
-
         end function get_helement_lattice_ex_mat_t
 
         function get_helement_lattice_general_t(nI, nJ, ic_ret) result(hel)
-            use SystemData, only: nel
-            use constants, only: dp
+            import :: dp, nEl
+            implicit none
             integer, intent(in) :: nI(nel), nJ(nel)
             integer, intent(inout), optional :: ic_ret
             HElement_t(dp) :: hel
-
         end function get_helement_lattice_general_t
     end interface
 
-    procedure(get_helement_lattice_ex_mat_t), pointer, public:: get_helement_lattice_ex_mat
-    procedure(get_helement_lattice_general_t), pointer, public :: get_helement_lattice_general
+    procedure(get_helement_lattice_ex_mat_t), pointer, public :: get_helement_lattice_ex_mat => null()
+    procedure(get_helement_lattice_general_t), pointer, public :: get_helement_lattice_general => null()
 
     interface get_helement_lattice
-        procedure get_helement_lattice_ex_mat
-        procedure get_helement_lattice_general
+        ! These wrapper functions just exist because of this bug
+        ! https://github.com/Fortran-FOSS-Programmers/ford/issues/477
+        ! call the pointers in the future directly.
+        procedure get_helement_lattice_ex_mat_wrapper
+        procedure get_helement_lattice_general_wrapper
     end interface get_helement_lattice
 
     interface epsilon_kvec
@@ -4942,4 +4943,23 @@ contains
     end subroutine read_lattice_struct
 
 
+    ! These wrapper functions just exist because of this bug
+    ! https://github.com/Fortran-FOSS-Programmers/ford/issues/477
+    ! call the pointers in the future directly.
+    function get_helement_lattice_ex_mat_wrapper(nI, ic, ex, tpar) result(hel)
+        integer, intent(in) :: nI(nel), ic, ex(2, ic)
+        logical, intent(in) :: tpar
+        HElement_t(dp) :: hel
+        hel = get_helement_lattice_ex_mat(nI, ic, ex, tpar)
+    end function
+
+    ! These wrapper functions just exist because of this bug
+    ! https://github.com/Fortran-FOSS-Programmers/ford/issues/477
+    ! call the pointers in the future directly.
+    function get_helement_lattice_general_wrapper(nI, nJ, ic_ret) result(hel)
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(inout), optional :: ic_ret
+        HElement_t(dp) :: hel
+        hel = get_helement_lattice_general(nI, nJ, ic_ret)
+    end function
 end module lattice_mod
