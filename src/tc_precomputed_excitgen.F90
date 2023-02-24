@@ -10,7 +10,7 @@ module pcpp_excitgen
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Integrals_neci, only: get_umat_el
     use UMatCache, only: gtID
-    use excitation_types, only: SingleExc_t, DoubleExc_t
+    use excitation_types, only: Excite_1_t, Excite_2_t
     use sltcnd_mod, only: sltcnd_excit
     use MPI_wrapper, only: root
     use util_mod, only: binary_search_first_ge, getSpinIndex, swap, custom_findloc, &
@@ -88,9 +88,9 @@ contains
 
         ! assign ilutnJ
         if (nJ(1) == 0) then
-          ilutnJ = 0_n_int
+            ilutnJ = 0_n_int
         else
-          call EncodeBitDet(nJ, ilutnJ)
+            call EncodeBitDet(nJ, ilutnJ)
         end if
 
     end subroutine gen_rand_excit_pcpp
@@ -533,7 +533,7 @@ contains
                                 do b = 1, nBasis
                                     if (.not. any(b == (/a, i, j/))) then
                                         w(iEl) = &
-                                            w(iEl) + abs(sltcnd_excit(refDet, DoubleExc_t(i, a, j, b), tPar))
+                                            w(iEl) + abs(sltcnd_excit(refDet, Excite_2_t(i, a, j, b), tPar))
                                     end if
                                 end do
                             end if
@@ -551,7 +551,7 @@ contains
         subroutine setup_elec_two_sampler()
             implicit none
             real(dp) :: w(nel)
-            type(DoubleExc_t) :: ex
+            type(Excite_2_t) :: ex
             logical :: tPar
             integer :: aerr
             integer :: i, j, a, b
@@ -569,7 +569,7 @@ contains
                                 do b = 1, nBasis
                                     if (.not. any(b == (/i, j, a/))) then
                                         w(jEl) = &
-                                            w(jEl) + abs(sltcnd_excit(refDet, DoubleExc_t(i, a, j, b), tPar))
+                                            w(jEl) + abs(sltcnd_excit(refDet, Excite_2_t(i, a, j, b), tPar))
                                     end if
                                 end do
                             end if
@@ -733,7 +733,7 @@ contains
             real(dp) :: prob
             integer :: b, j
             integer :: nI(nel)
-            type(SingleExc_t) :: ex
+            type(Excite_1_t) :: ex
             logical :: tPar
 
             prob = 0
@@ -748,7 +748,7 @@ contains
                                 call make_single(refDet(:), nI, j, b, ex%val, tPar)
                                 ! this is a symbolic excitation, we do NOT require src to be occupied
                                 ! we just use the formula for excitation matrix elements
-                                prob = prob + abs(sltcnd_excit(nI, SingleExc_t(src, tgt), tPar))
+                                prob = prob + abs(sltcnd_excit(nI, Excite_1_t(src, tgt), tPar))
                             end if
                         end do
                     end if

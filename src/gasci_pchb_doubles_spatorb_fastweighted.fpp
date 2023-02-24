@@ -10,7 +10,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: DoubleExc_t, excite
+    use excitation_types, only: Excite_2_t, excite
     use sltcnd_mod, only: sltcnd_excit
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
@@ -389,10 +389,10 @@ contains
                                 ! exception: for sampler 3, a!=b
                                 if (i_exch == OPP_SPIN_EXCH .and. a == b &
                                         .or. any(ex(1, 1) == ex(2, :)) .or. any(ex(1, 2) == ex(2, :)) &
-                                        .or. .not. this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
+                                        .or. .not. this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
                                     w(ab) = 0._dp
                                 else
-                                    w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
+                                    w(ab) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
                                 end if
                             end do
                         end do

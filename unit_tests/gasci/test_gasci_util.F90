@@ -4,7 +4,7 @@ module test_gasci_util_mod
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: calc_spin_raw, sum, alpha, beta, SpinOrbIdx_t, SpinProj_t
-    use excitation_types, only: Excitation_t, SingleExc_t, excite
+    use excitation_types, only: Excitation_t, Excite_1_t, excite
     use SystemData, only: nEl
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
@@ -996,7 +996,7 @@ contains
         call assert_equals(expected, calculated, size(expected))
 
         expected = [2, 3, 4]
-        calculated = GAS_spec%get_possible_holes(excite(reference, SingleExc_t(5, 11)), add_holes=[1])
+        calculated = GAS_spec%get_possible_holes(excite(reference, Excite_1_t(5, 11)), add_holes=[1])
         call assert_equals(expected, calculated, size(expected))
 
         expected = [2, 3, 4]
@@ -1079,7 +1079,7 @@ contains
         call assert_equals(expected, calculated, size(expected))
 
         expected = [2, 3, 4]
-        calculated = GAS_spec%get_possible_holes(excite(reference, SingleExc_t(5, 11)), add_holes=[1])
+        calculated = GAS_spec%get_possible_holes(excite(reference, Excite_1_t(5, 11)), add_holes=[1])
         call assert_equals(expected, calculated, size(expected))
 
         expected = [2, 3, 4]

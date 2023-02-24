@@ -11,7 +11,7 @@ submodule (tau_main) tau_main_impls
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
-    use util_mod, only: stop_all, operator(.isclose.)
+    use util_mod, only: operator(.isclose.)
 
     use lattice_mod, only: get_helement_lattice
 

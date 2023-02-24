@@ -1,6 +1,6 @@
 #include "macros.h"
 #:include "macros.fpph"
-#:set excitations = ['NoExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
+#:set excitations = ['Excite_0_t', 'Excite_1_t', 'Excite_2_t', 'Excite_3_t']
 
 
 module SD_spin_purification_mod
@@ -9,9 +9,9 @@ module SD_spin_purification_mod
     use util_mod, only: stop_all, operator(.isclose.), swap, operator(.div.), &
         EnumBase_t
     use sets_mod, only: subset
-    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
-                                TripleExc_t, FurtherExc_t, &
-                                UNKNOWN, get_excitation, get_bit_excitation, create_excitation
+    use excitation_types, only: excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, &
+                                Excite_3_t, UNKNOWN, get_excitation, get_bit_excitation, &
+                                create_excitation
     implicit none
 
     type, extends(EnumBase_t) :: SD_SpinPurificationMethods_t
@@ -144,13 +144,13 @@ contains
         real(dp) :: res
 
         select type(exc)
-        type is (NoExc_t)
+        type is (Excite_0_t)
             res = S2_expval_exc(nI, exc)
-        type is (SingleExc_t)
+        type is (Excite_1_t)
             res = S2_expval_exc(nI, exc)
-        type is (DoubleExc_t)
+        type is (Excite_2_t)
             res = S2_expval_exc(nI, exc)
-        type is (TripleExc_t)
+        type is (Excite_3_t)
             res = S2_expval_exc(nI, exc)
         end select
     end function
@@ -169,22 +169,22 @@ contains
         real(dp) :: res
 
         select type(exc)
-        type is (NoExc_t)
+        type is (Excite_0_t)
             res = ladder_op_exc(nI, exc)
-        type is (SingleExc_t)
+        type is (Excite_1_t)
             res = ladder_op_exc(nI, exc)
-        type is (DoubleExc_t)
+        type is (Excite_2_t)
             res = ladder_op_exc(nI, exc)
-        type is (TripleExc_t)
+        type is (Excite_3_t)
             res = ladder_op_exc(nI, exc)
         end select
     end function
 
-    pure function ladder_op_exc_NoExc_t(nI, exc) result(res)
+    pure function ladder_op_exc_Excite_0_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S_+S_- | D_i > \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
-        type(NoExc_t), intent(in) :: exc
+        type(Excite_0_t), intent(in) :: exc
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
@@ -196,22 +196,22 @@ contains
         res = real(count(mod(oS_nI, 2) == 0 ), dp)
     end function
 
-    pure function ladder_op_exc_SingleExc_t(nI, exc) result(res)
+    pure function ladder_op_exc_Excite_1_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S_+S- | a^\dagger_A a_I D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         real(dp) :: res
             !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
         res = 0.0_dp
     end function
 
-    pure function ladder_op_exc_DoubleExc_t(nI, exc) result(res)
+    pure function ladder_op_exc_Excite_2_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S_+ S_- | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
-        type(DoubleExc_t), intent(in) :: exc
+        type(Excite_2_t), intent(in) :: exc
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
@@ -236,22 +236,22 @@ contains
         end if
     end function
 
-    pure function ladder_op_exc_TripleExc_t(nI, exc) result(res)
+    pure function ladder_op_exc_Excite_3_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S_+S_- | a^\dagger_A a^\dagger_B a^\dagger_C a_I a_J a_K D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
-        type(TripleExc_t), intent(in) :: exc
+        type(Excite_3_t), intent(in) :: exc
         real(dp) :: res
             !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
         res = 0.0_dp
     end function
 
-    pure function S2_expval_exc_NoExc_t(nI, exc) result(res)
+    pure function S2_expval_exc_Excite_0_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S^2 | D_i > \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
-        type(NoExc_t), intent(in) :: exc
+        type(Excite_0_t), intent(in) :: exc
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
@@ -262,33 +262,33 @@ contains
         res = s_z * (s_z - 1_dp) + ladder_op_exc(nI, exc)
     end function
 
-    pure function S2_expval_exc_SingleExc_t(nI, exc) result(res)
+    pure function S2_expval_exc_Excite_1_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S^2 | a^\dagger_A a_I D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         real(dp) :: res
             !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
         res = 0.0_dp
     end function
 
-    pure function S2_expval_exc_DoubleExc_t(nI, exc) result(res)
+    pure function S2_expval_exc_Excite_2_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
-        type(DoubleExc_t), intent(in) :: exc
+        type(Excite_2_t), intent(in) :: exc
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
         res = ladder_op_exc(nI, exc)
     end function
 
-    pure function S2_expval_exc_TripleExc_t(nI, exc) result(res)
+    pure function S2_expval_exc_Excite_3_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a^\dagger_C a_I a_J a_K D_i > = 0 \)
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
-        type(TripleExc_t), intent(in) :: exc
+        type(Excite_3_t), intent(in) :: exc
         real(dp) :: res
             !! The matrix element is always exactly zero
         @:unused_var(nI, exc)

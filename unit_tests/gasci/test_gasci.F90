@@ -10,7 +10,7 @@ module test_gasci_mod
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
         size, operator(==), alpha, beta, sum, calc_spin, calc_spin_raw, &
         operator(-), to_ilut, write_det, operator(/=)
-    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, excite, dyn_excite
+    use excitation_types, only: Excitation_t, Excite_1_t, Excite_2_t, excite, dyn_excite
     use util_mod, only: cumsum
 
     use gasci, only: LocalGASSpec_t, FlexibleGASSpec_t

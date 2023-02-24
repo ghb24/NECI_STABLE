@@ -2,21 +2,20 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
-
-#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
+#:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']
 
 module gasci
     use constants, only: n_int, dp
     use SystemData, only: nBasis
     use util_mod, only: cumsum, stop_all, operator(.div.)
-    use excitation_types, only: SingleExc_t, DoubleExc_t
+    use excitation_types, only: Excite_1_t, Excite_2_t
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==)
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
         operator(.isclose.), custom_findloc, EnumBase_t, lex_geq
     use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
         alpha, beta
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
+    use excitation_types, only: Excite_1_t, Excite_2_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
     use sltcnd_mod, only: sltcnd_excit
     use dSFMT_interface, only: genrand_real2_dSFMT
     use bit_rep_data, only: nIfTot
@@ -352,14 +351,14 @@ contains
     !> Is called once at initialization, so it does not have to be super fast.
     logical pure function is_allowed_single(this, exc, supergroup)
         class(GASSpec_t), intent(in) :: this
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         integer, intent(in) :: supergroup(:)
 
         integer :: excited_supergroup(size(supergroup))
         integer :: src_space, tgt_space
 
-        src_space = this%get_iGAS(exc%val(1))
-        tgt_space = this%get_iGAS(exc%val(2))
+        src_space = this%get_iGAS(exc%val(1, 1))
+        tgt_space = this%get_iGAS(exc%val(2, 1))
 
         if (src_space == tgt_space) then
             ! All electrons come from the same space and there are no restrictions
@@ -383,7 +382,7 @@ contains
     !> of individual GAS spaces.
     logical pure function is_allowed_double(this, exc, supergroup)
         class(GASSpec_t), intent(in) :: this
-        type(DoubleExc_t), intent(in) :: exc
+        type(Excite_2_t), intent(in) :: exc
         integer, intent(in) :: supergroup(:)
 
         integer :: excited_supergroup(size(supergroup))

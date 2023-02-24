@@ -14,8 +14,8 @@ module gasci_singles_pc_weighted
     use dSFMT_interface, only: genrand_real2_dSFMT
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
     use get_excit, only: make_single
-    use excitation_types, only: SingleExc_t
     use MPI_wrapper, only: root
+    use excitation_types, only: Excite_1_t
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -128,9 +128,9 @@ module gasci_singles_pc_weighted
 
     abstract interface
         real(dp) pure function get_weight_t(exc)
-            import :: SingleExc_t, dp
+            import :: Excite_1_t, dp
             implicit none
-            type(SingleExc_t), intent(in) :: exc
+            type(Excite_1_t), intent(in) :: exc
         end function
     end interface
 
@@ -324,11 +324,11 @@ contains
         allocate(this%weights(nBI, nBI, n_supergroups), source=0._dp)
         block
             integer :: i_sg, src, tgt
-            type(SingleExc_t) :: exc
+            type(Excite_1_t) :: exc
             do i_sg = 1, n_supergroups
                 do src = 1, nBi
                     do tgt = 1, nBi
-                        exc = SingleExc_t(src, tgt)
+                        exc = Excite_1_t(src, tgt)
                         if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
                                 .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
                                 .and. src /= tgt &
@@ -347,8 +347,8 @@ contains
             ! For single excitations it is simple
             logical pure function symmetry_allowed(exc)
                 use SymExcitDataMod, only: SpinOrbSymLabel
-                type(SingleExc_t), intent(in) :: exc
-                symmetry_allowed = SpinOrbSymLabel(exc%val(1)) == SpinOrbSymLabel(exc%val(2))
+                type(Excite_1_t), intent(in) :: exc
+                symmetry_allowed = SpinOrbSymLabel(exc%val(1, 1)) == SpinOrbSymLabel(exc%val(2, 1))
             end function
     end subroutine
 
@@ -647,7 +647,7 @@ contains
 
 
     pure function get_weight_uniform(exc) result(w)
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         real(dp) :: w
         @:unused_var(exc)
         w = 1._dp
@@ -655,18 +655,18 @@ contains
 
 
     pure function get_weight_h_only(exc) result(w)
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         real(dp) :: w
-        w = abs(h(exc%val(1), exc%val(2)))
+        w = abs(h(exc%val(1, 1), exc%val(2, 1)))
     end function
 
 
     pure function get_weight_h_and_g(exc) result(w)
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         real(dp) :: w
         integer :: R
         real(dp) :: two_el_term
-        associate(I => exc%val(1), A => exc%val(2))
+        associate(I => exc%val(1, 1), A => exc%val(2, 1))
             two_el_term = 0._dp
             do R = 1, nBasis
                 two_el_term = two_el_term + g(I, A, R, R) - G(I, R, R, A)
@@ -677,11 +677,11 @@ contains
 
 
     pure function get_weight_h_and_g_both_abs(exc) result(w)
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         real(dp) :: w
         integer :: R
         real(dp) :: two_el_term
-        associate(I => exc%val(1), A => exc%val(2))
+        associate(I => exc%val(1, 1), A => exc%val(2, 1))
             two_el_term = 0._dp
             do R = 1, nBasis
                 two_el_term = two_el_term + abs(g(I, A, R, R) - G(I, R, R, A))

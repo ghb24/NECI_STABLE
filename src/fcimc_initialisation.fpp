@@ -190,7 +190,7 @@ module fcimc_initialisation
 
     use get_excit, only: make_double
 
-    use excitation_types, only: NoExc_t
+    use excitation_types, only: Excite_0_t
     use sltcnd_mod, only: sltcnd_excit
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
                         ThisRDMIter
@@ -4075,7 +4075,7 @@ contains
                                 (.not. any(orb2 == found_orbs))) then
                                 det = HFDet
                                 det(i) = orb2
-                                hdiag = real(sltcnd_excit(det, NoExc_t()), dp)
+                                hdiag = real(sltcnd_excit(det, Excite_0_t(), .false.), dp)
                                 if (hdiag < energies(i)) then
                                     energies(i) = hdiag
                                     orbs(i) = orb2
