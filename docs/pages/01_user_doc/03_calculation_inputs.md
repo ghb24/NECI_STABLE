@@ -4,11 +4,6 @@ title: Calculation inputs
 
 ## Calculation inputs
 
-Pew pew hello world
-
-ASDF
-
-
 The NECI executable takes one input argument, which is the name of an
 input file containing the instructions for carrying out the calculation.
 The input file is organized in blocks, with each block being started and
