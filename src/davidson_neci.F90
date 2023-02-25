@@ -28,7 +28,7 @@ module davidson_neci
 
     implicit none
 
-    integer :: max_num_davidson_iters = 25
+    integer :: max_num_davidson_iters = 100
     real(dp), parameter :: residual_norm_target = 0.0000001_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
