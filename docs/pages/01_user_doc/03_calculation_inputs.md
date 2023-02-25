@@ -1245,7 +1245,9 @@ and is stopped after 10000 iterations.
     Use all determinants to form the core space. A fully deterministic
     projection is therefore performed with this option.
     This option requires information about spin(-projection) and spatial
-    symmetry, so the keywords `sym` and `spin-restrict` are required.
+    symmetry, so the keywords `sym`, and `spin-restrict` for a 
+    diagonalization in a Slater Determinant basis or `guga` for a 
+    diagonalization in a Gelfand-Tsetlin basis are required.
 
 -   **read-core**<br>
     Use the determinants in the CORESPACE file to form the core space. A
