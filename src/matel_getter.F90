@@ -7,7 +7,7 @@ module matel_getter
     ! to avoid circular dependencies.
 
     use constants, only: dp, n_int
-    use FciMCData, only: ilutRef, GetOffDiagMatel_Time
+    use FciMCData, only: ilutRef
     use SystemData, only: nel, tHPHF, tNoBrillouin, tGUGA, t_3_body_excits, &
         t_ueg_3_body, t_mol_3_body
     use DetBitOps, only: FindBitExcitLevel
@@ -59,8 +59,6 @@ contains
         integer(n_int) :: ilut0(0:NIfTot)
         integer :: exlevel, det0(nel)
 
-        call set_timer(GetOffDiagMatel_Time)
-
         ! We operate with the reference for run=1 here, which works for
         ! inum_runs==1 and inum_runs>1 with a common reference.  The projected
         ! energy for inum_runs>1 with different references is calculated
@@ -90,8 +88,6 @@ contains
                 end if
             end if
         end if
-
-        call halt_timer(GetOffDiagMatel_Time)
 
     end function get_off_diagonal_matel
 
