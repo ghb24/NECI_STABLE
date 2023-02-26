@@ -215,7 +215,7 @@ module fcimc_initialisation
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
     use FciMCData, only: &
-        Walker_Time, Annihil_Time, GetDiagMatel_Time, GetOffDiagMatel_Time, Sort_Time, &
+        Walker_Time, Annihil_Time, GetOffDiagMatel_Time, Sort_Time, &
         Comms_Time, ACF_Time, AnnSpawned_time, AnnMain_time, BinSearch_time, &
         SemiStoch_Comms_Time, SemiStoch_Multiply_Time, Trial_Search_Time, SemiStoch_Init_Time, SemiStoch_Hamil_Time, &
         SemiStoch_Davidson_Time, Trial_Init_Time, InitSpace_Init_Time, kp_generate_time, Stats_Comms_Time, &
@@ -405,7 +405,6 @@ contains
 !Set timed routine names
         Walker_Time%timer_name = 'WalkerTime'
         Annihil_Time%timer_name = 'AnnihilTime'
-        GetDiagMatel_Time%timer_name = 'GetDiagMatelTime'
         GetOffDiagMatel_Time%timer_name = 'GetOffDiagMatelTime'
         Sort_Time%timer_name = 'SortTime'
         Comms_Time%timer_name = 'CommsTime'
