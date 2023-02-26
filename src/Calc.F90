@@ -1579,7 +1579,7 @@ contains
                 end if
 
             case("DAVIDSON-MAX-ITERS")
-                ! Set the max number of iteration for Davidson method: defaulted to 25
+                ! Set the max number of iteration for Davidson method: defaulted to 100
                 ! This is probably needed only for very special cases, e.g., very small
                 ! test cases where Davidson throws Floating point exception when this is
                 ! too large, for instance.
