@@ -685,7 +685,7 @@ contains
             if (.not. GAS_specification%contains_conf(DefDet)) then
                 call stop_all(t_r, "Reference determinant has to be contained in GAS space.")
             endif
-            if (.not. GAS_specification%is_valid()) then
+            if (.not. GAS_specification%is_valid(nBasis)) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
             if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%PCHB])) then
