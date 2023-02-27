@@ -111,7 +111,7 @@ contains
 
         end do
 
-        if (print_info) write(stdout, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
+        if (print_info) write(stdout, '(/,1x,"Final calculated correlation energy:",1X,f16.10)') this%davidson_eigenvalue
 
         call free_davidson_ss(this)
 
