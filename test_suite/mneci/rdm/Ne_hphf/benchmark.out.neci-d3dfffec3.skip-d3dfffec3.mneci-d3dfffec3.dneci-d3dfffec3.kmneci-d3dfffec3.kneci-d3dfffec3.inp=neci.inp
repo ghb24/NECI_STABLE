@@ -1,18 +1,24 @@
  Number of processors:            4
  Processor            1 /           4  as head node.
+ Processor            2 /           4  moving to local output.
+ Processor            3 /           4  moving to local output.
+ Processor            4 /           4  moving to local output.
+ outfile=NodeFile2           
+ outfile=NodeFile3           
+ outfile=NodeFile4           
  Sum:           10
  Memory Manager initialised with  99999.0 MB
 
  ================================================================
- Compiled on Feb  2 2023 at 10:46:27
+ Compiled on Feb 26 2023 at 11:03:45
  Compiled using configuration:
-     cmake-GNU--RELEASE
+     cmake-GNU--FASTDEBUG
  VCS BASE repository version:
-     2fc37fa768498ddfa47c9eba047f552cc0f7e74b
+     d3dfffec35894d169f3752a56ce23e602236066b
  Working directory: 
-     /home/phaupt/dev/neci_2merge/test_suite/mneci/rdm/Ne_hphf
- Running on: alamdlogin1
- Started running on 02/02/2023 at 11:07:12
+     /home/weser/code/neci/test_suite/mneci/rdm/Ne_hphf
+ Running on: altest
+ Started running on 26/02/2023 at 11:27:36
  ================================================================
 
  Processing argumentsneci.inp                                                                                                                                                                                                                                                       
@@ -73,6 +79,11 @@ end
  Filling RDMs without explicitly specifying the number of replica simplations
  Defaulting to using 2 replicas
  Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+         2         2
+         3         3
  I am the node root for node            0
 ======== SYSTEM ==========
   NUMBER OF ELECTRONS :    10
@@ -83,6 +94,15 @@ end
   Maximum number of symmetries:   8
   Generating abelian symmetry table with  3 generators
   Number of symmetry classes: 8
+ Label, Sym, SymConjLabel, SymConj, SymProd
+           1           0           1           0           0
+           2           1           2           1           0
+           3           2           3           2           0
+           4           3           4           3           0
+           5           4           5           4           0
+           6           5           6           5           0
+           7           6           7           6           0
+           8           7           8           7           0
  
 Ordering Basis (Closed):    0   0   0   0   0   0   0   0
 Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
@@ -141,6 +161,10 @@ Two-electron integrals with a magnitude over    0.1000000E-07 are screened
  ECORE=   0.0000000000000000     
  Setting normal get_umat_el_normal routine
  N_alpha: 5 ; N_beta: 5 ; LMS: 0 ; NEl:10
+ Total momentum           0           0           0
+ Requested momentum           0           0           0
+ Total spin           0 Requested spin           0
+ fDet           1           2           3           4          17          18          23          24          33          34
  Fermi det (D0):(    1,    2,    3,    4,   17,   18,   23,   24,   33,   34)
  Symmetry:  ( 0, 0, 0) 0
  Fock operator energy:  -74.588984324264047     
@@ -208,6 +232,60 @@ Setting integer bit-length of determinants as bit-strings to:     64
            8  DISTINCT ORBITAL PAIR PRODUCT SYMS
  Symmetry and spin of orbitals correctly set up for excitation generators.
  Simply transferring this into a spin orbital representation.
+ SpinOrbSymLabel: 
+           1           0
+           2           0
+           3           0
+           4           0
+           5           0
+           6           0
+           7           0
+           8           0
+           9           0
+          10           0
+          11           0
+          12           0
+          13           0
+          14           0
+          15           1
+          16           1
+          17           1
+          18           1
+          19           1
+          20           1
+          21           2
+          22           2
+          23           2
+          24           2
+          25           2
+          26           2
+          27           3
+          28           3
+          29           3
+          30           3
+          31           4
+          32           4
+          33           4
+          34           4
+          35           4
+          36           4
+          37           5
+          38           5
+          39           5
+          40           5
+          41           6
+          42           6
+          43           6
+          44           6
+ SymInvLabel: 
+           0           0
+           1           1
+           2           2
+           3           3
+           4           4
+           5           5
+           6           6
+           7           7
  Not storing the H matrix.
  <D0|H|D0>=  -128.49634973032460     
  <D0|T|D0>=  -60.295813781004199     
@@ -235,6 +313,8 @@ Highest energy determinant is (approximately):     -75.3862942834926
 Corresponding to a correlation energy of:      53.1100554468320    
 This means tau should be no more than about         0.018828826134461
  Highest energy determinant is:           13          14          29          30          39          40          43          44
+The deterministic tau is smaller than max_tau.
+We will limit max_tau to:        0.020711708747907
 Brillouin theorem in use for calculation of projected energy.
  Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
     960 double excitations, and      24 single excitations found from reference. This will be used to calculate pDoubles.
@@ -273,171 +353,159 @@ Initial number of particles set to        100 and shift will be held at     0.00
  Main RDM memory arrays consists of:       9.073608 MB per MPI process.
  RDM memory allocation complete.
 
+ HF:            1           2          15          16          21          22          31          32
+ HF_true:            1           2          15          16          21          22          31          32
+ Ref:            1           2          15          16          21          22          31          32
+ ProjEDet:            1           2          15          16          21          22          31          32           1           2          15          16          21          22          31          32
  Allocating temporary array for walkers spawned from a particular Di.
  This requires       0.007629 Mb/Processor
 ## 1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Proj. E (cyc)                         5. Shift. (cyc)                          11. Tot. Proj. E                         12. Dets occ.        13. Dets spawned     15. Iter. time                          
 ##               0   100.000000000        100.000000000        0.00000000000        0.00000000000       -128.496349730                     1                0   0.00000000000     
  Updating parallel-spin bias; new pParallel =   0.17931476449001027     
->>> Changing tau: 0.100000E-02 -> 0.236441E-01
+>>> Changing tau: 0.100000E-02 -> 0.207115E-01
 >>> Reason: Conventional tau search
  Updating singles/doubles bias. pSingles =    5.1007094640656364E-002
   pDoubles =   0.94899290535934366     
-                25   143.712090976        100.057344563      -0.172974336129E-001   0.00000000000       -128.513647164                    78              109  0.371871739626E-003
- Updating parallel-spin bias; new pParallel =   0.18562679924446948     
->>> Changing tau: 0.236441E-01 -> 0.228152E-01
+                25   143.712090976        100.057344563      -0.172974336129E-001   0.00000000000       -128.513647164                    78              109  0.673022344708E-003
+ Updating parallel-spin bias; new pParallel =   0.15453406912021025     
+>>> Changing tau: 0.207115E-01 -> 0.201243E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    6.5088515242627085E-002
-  pDoubles =   0.93491148475737296     
-                50   565.058361909        106.650480908      -0.170046593228        0.00000000000       -128.666396324                   556              975  0.825369805098E-003
- Updating parallel-spin bias; new pParallel =   0.14904285085219221     
->>> Changing tau: 0.228152E-01 -> 0.184192E-01
+ Updating singles/doubles bias. pSingles =    6.2756893157908097E-002
+  pDoubles =   0.93724310684209189     
+                50   507.843610511        106.006165480      -0.161761018074        0.00000000000       -128.658110748                   478              901  0.127642631531E-002
+ Updating parallel-spin bias; new pParallel =   0.15267196804885350     
+>>> Changing tau: 0.201243E-01 -> 0.177409E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    5.9961501735860491E-002
-  pDoubles =   0.94003849826413954     
-                75   702.687553777        118.192760413      -0.214453941434        0.00000000000       -128.710803672                   707             1272  0.114246711135E-002
->>> Changing tau: 0.184192E-01 -> 0.183962E-01
+ Updating singles/doubles bias. pSingles =    6.9196894528942385E-002
+  pDoubles =   0.93080310547105760     
+                75   667.413676744        118.499374376      -0.208728292910        0.00000000000       -128.705078023                   654             1152  0.154793515801E-002
+               100   718.969917285        128.401043201      -0.205897282552        0.00000000000       -128.702247013                   703             1256  0.168728411198E-002
+               125   809.456214372        139.880120225      -0.208663083810        0.00000000000       -128.705012814                   794             1428  0.179815202951E-002
+               150   883.883240765        152.668598533      -0.211233247264        0.00000000000       -128.707582978                   868             1550  0.199911743402E-002
+               175   1060.56916245        165.118417586      -0.206903135913        0.00000000000       -128.703252866                  1032             1823  0.228656738997E-002
+               200   1180.38816624        184.553358369      -0.214197136542        0.00000000000       -128.710546867                  1177             2072  0.256099402905E-002
+               225   1357.72654910        204.596662462      -0.218087618933        0.00000000000       -128.714437349                  1316             2337  0.286729007959E-002
+ Updating parallel-spin bias; new pParallel =   0.15171760320023564     
+>>> Changing tau: 0.177409E-01 -> 0.176376E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    6.1136503770494795E-002
-  pDoubles =   0.93886349622950516     
-               100   740.279144315        130.101318497      -0.216819694858        0.00000000000       -128.713169425                   740             1311  0.129738911986E-002
-               125   853.540547905        146.066825932      -0.211610661966        0.00000000000       -128.707960392                   817             1505  0.141227409244E-002
-               150   1053.66937051        163.084320264      -0.216142415770        0.00000000000       -128.712492146                  1059             1851  0.163765221834E-002
- Updating parallel-spin bias; new pParallel =   0.10112381701757298     
->>> Changing tau: 0.183962E-01 -> 0.127318E-01
+ Updating singles/doubles bias. pSingles =    6.8794096389484444E-002
+  pDoubles =   0.93120590361051558     
+               250   1515.79167415        220.218437666      -0.207812696155        0.00000000000       -128.704162426                  1511             2664  0.321075677872E-002
+ Updating parallel-spin bias; new pParallel =   0.17286455538702220     
+>>> Changing tau: 0.176376E-01 -> 0.172274E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    4.2312087898268826E-002
-  pDoubles =   0.95768791210173121     
-               175   1157.55345098        184.028245106      -0.204089172534        0.00000000000       -128.700438903                  1121             2032  0.187122732401E-002
-               200   1271.17664700        199.446124731      -0.204490271512        0.00000000000       -128.700840002                  1235             2188  0.198525652289E-002
->>> Changing tau: 0.127318E-01 -> 0.126681E-01
+ Updating singles/doubles bias. pSingles =    6.7194355430044983E-002
+  pDoubles =   0.93280564456995507     
+               275   1645.92941639        241.684766099      -0.207682572042        0.00000000000       -128.704032302                  1600             2853  0.350469499826E-002
+               300   1865.31850779        267.614595866      -0.207564856093        0.00000000000       -128.703914586                  1812             3201  0.384097874165E-002
+ Updating parallel-spin bias; new pParallel =   0.16991432541363599     
+>>> Changing tau: 0.172274E-01 -> 0.169529E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    4.7108673997172626E-002
-  pDoubles =   0.95289132600282733     
-               225   1444.54648355        216.851228508      -0.209706491694        0.00000000000       -128.706056222                  1423             2503  0.220073714852E-002
- Updating parallel-spin bias; new pParallel =   0.10274619028242940     
->>> Changing tau: 0.126681E-01 -> 0.126463E-01
+ Updating singles/doubles bias. pSingles =    6.6123398009945211E-002
+  pDoubles =   0.93387660199005484     
+               325   2235.93969845        296.153806617      -0.207424777634        0.00000000000       -128.703774508                  2193             3900  0.443937391043E-002
+               350   2372.78307122        331.324070970      -0.213739026583        0.00000000000       -128.710088757                  2295             4162  0.496770948172E-002
+               375   2720.20544127        365.268949974      -0.209734930495        0.00000000000       -128.706084661                  2652             4776  0.556652963161E-002
+ Updating parallel-spin bias; new pParallel =   0.13517005100567381     
+>>> Changing tau: 0.169529E-01 -> 0.136712E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    4.7027646562532326E-002
-  pDoubles =   0.95297235343746767     
-               250   1524.29823787        230.671762894      -0.209445724412        0.00000000000       -128.705795455                  1476             2625  0.276375025511E-002
- Updating parallel-spin bias; new pParallel =   0.10592174686638713     
->>> Changing tau: 0.126463E-01 -> 0.126036E-01
+ Updating singles/doubles bias. pSingles =    5.3323395387439125E-002
+  pDoubles =   0.94667660461256087     
+               400   3151.30713933        397.778366355      -0.217523078496        0.00000000000       -128.713872809                  3071             5520  0.629527926445E-002
+               425   3346.70736811        429.183246810      -0.214335502242        0.00000000000       -128.710685233                  3245             5753  0.674992084503E-002
+               450   3641.00544432        457.195502949      -0.215173095292        0.00000000000       -128.711522826                  3554             6340  0.736007869244E-002
+               475   3870.68279324        491.550461537      -0.212420143386        0.00000000000       -128.708769874                  3742             6622  0.782884359360E-002
+               500   4295.31254377        523.189946350      -0.219433166434        0.00000000000       -128.715782897                  4125             7376  0.839842081070E-002
+               525   4601.22284916        562.931422812      -0.218996601961        0.00000000000       -128.715346332                  4460             7918  0.929272234440E-002
+               550   5009.04790277        606.122803719      -0.211020520317        0.00000000000       -128.707370251                  4809             8625  0.985358715057E-002
+               575   5371.12264473        646.522893526      -0.211859040115        0.00000000000       -128.708208770                  5134             9293  0.104734289646E-001
+               600   5831.62249879        689.457516621      -0.211492951474        0.00000000000       -128.707842682                  5582            10051  0.114064478874E-001
+               625   6358.77377731        747.072163354      -0.213438657447        0.00000000000       -128.709788388                  6021            10974  0.122089254856E-001
+ Updating parallel-spin bias; new pParallel =   0.12160053088642367     
+>>> Changing tau: 0.136712E-01 -> 0.123649E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    4.6869007409765448E-002
-  pDoubles =   0.95313099259023459     
-               275   1663.82169636        248.096869332      -0.209325471558        0.00000000000       -128.705675202                  1608             2863  0.255134105682E-002
- Updating singles/doubles bias. pSingles =    4.7740806878300762E-002
-  pDoubles =   0.95225919312169927     
-               300   1873.45152219        266.173330471      -0.209338704174        0.00000000000       -128.705688434                  1858             3181  0.281523644924E-002
-               325   2023.10401253        279.721737269      -0.211699638819        0.00000000000       -128.708049369                  1989             3486  0.314428687096E-002
-               350   2137.61681535        295.838566869      -0.211652387483        0.00000000000       -128.708002118                  2072             3699  0.326318025589E-002
- Updating parallel-spin bias; new pParallel =   0.10678558186229847     
- Updating singles/doubles bias. pSingles =    4.7696881023229741E-002
-  pDoubles =   0.95230311897677022     
-               375   2412.14509859        319.109033599      -0.213327628664        0.00000000000       -128.709677359                  2387             4191  0.364925801754E-002
-               400   2570.93961134        344.607886728      -0.210158632323        0.00000000000       -128.706508363                  2508             4410  0.376885771751E-002
-               425   2815.99768608        364.791657879      -0.212938022890        0.00000000000       -128.709287753                  2764             4768  0.420521616936E-002
->>> Changing tau: 0.125805E-01 -> 0.125355E-01
+ Updating singles/doubles bias. pSingles =    4.8228509057957329E-002
+  pDoubles =   0.95177149094204272     
+               650   6831.01388805        800.115564831      -0.214792294516        0.00000000000       -128.711142025                  6462            11706  0.133932864666E-001
+>>> Changing tau: 0.123649E-01 -> 0.123231E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    5.1105565747840920E-002
-  pDoubles =   0.94889443425215902     
-               450   3038.75374644        392.652687881      -0.208214967322        0.00000000000       -128.704564698                  2998             5173  0.432739675045E-002
- Updating parallel-spin bias; new pParallel =   0.11207522793461440     
->>> Changing tau: 0.125355E-01 -> 0.124536E-01
+ Updating singles/doubles bias. pSingles =    5.1446254103095036E-002
+  pDoubles =   0.94855374589690500     
+               675   7270.59573983        853.186035929      -0.211136997970        0.00000000000       -128.707486728                  6825            12497  0.142139887810E-001
+               700   7974.56423654        913.898624670      -0.209666622878        0.00000000000       -128.706016353                  7490            13563  0.152277886868E-001
+               725   8464.60734481        974.702898031      -0.212222886920        0.00000000000       -128.708572617                  7885            14478  0.162977302074E-001
+               750   9057.03617115        1030.65545847      -0.211166761552        0.00000000000       -128.707516492                  8336            15525  0.172998416424E-001
+               775   9543.07372364        1102.16354298      -0.210304190384        0.00000000000       -128.706653921                  8734            16277  0.184043443203E-001
+               800   10392.4993972        1179.61246727      -0.210860229422        0.00000000000       -128.707209960                  9476            17844  0.197051060200E-001
+               825   11070.3090629        1261.03185513      -0.213083337362        0.00000000000       -128.709433068                  9894            18918  0.214051842690E-001
+               850   12091.9573851        1348.51299897      -0.214879169658        0.00000000000       -128.711228900                 10767            20596  0.228615665436E-001
+>>> Changing tau: 0.123231E-01 -> 0.122277E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    5.1684747810333380E-002
-  pDoubles =   0.94831525218966661     
-               475   3273.36823416        415.876311890      -0.212231477075        0.00000000000       -128.708581207                  3188             5658  0.500378727913E-002
->>> Changing tau: 0.124536E-01 -> 0.123876E-01
+ Updating singles/doubles bias. pSingles =    5.8788499221254016E-002
+  pDoubles =   0.94121150077874594     
+               875   12783.7468025        1441.82340976      -0.214365549908        0.00000000000       -128.710715280                 11231            21983  0.244313025475E-001
+               900   13525.9889571        1537.94690229      -0.212959799106        0.00000000000       -128.709309529                 11729            23108  0.260299491882E-001
+               925   14484.0607456        1645.55449191      -0.214611020834        0.00000000000       -128.710960751                 12434            24627  0.276074314117E-001
+ Updating parallel-spin bias; new pParallel =   0.12635969152091539     
+>>> Changing tau: 0.122277E-01 -> 0.121654E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    5.6716101066282915E-002
-  pDoubles =   0.94328389893371711     
-               500   3529.89505441        447.723181853      -0.210230169607        0.00000000000       -128.706579900                  3450             6033  0.526630103588E-002
- Updating parallel-spin bias; new pParallel =   0.12846836008127832     
->>> Changing tau: 0.123876E-01 -> 0.121716E-01
+ Updating singles/doubles bias. pSingles =    5.8488613181294592E-002
+  pDoubles =   0.94151138681870539     
+               950   15461.1722093        1751.97961281      -0.213640168840        0.00000000000       -128.709989899                 13239            26495  0.293798398972E-001
+               975   16500.3618369        1868.42135192      -0.215224978574        0.00000000000       -128.711574709                 13956            28155  0.312110209465E-001
+              1000   17432.5602382        1988.58157001      -0.214594083166        0.00000000000       -128.710943813                 14493            29824  0.330198216438E-001
+>>> Changing tau: 0.121654E-01 -> 0.120855E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    5.5727344117418150E-002
-  pDoubles =   0.94427265588258180     
-               525   3783.86100807        481.897427834      -0.212147667762        0.00000000000       -128.708497398                  3658             6519  0.574846863747E-002
-               550   4135.98144928        510.842025841      -0.214833890349        0.00000000000       -128.711183621                  4035             7066  0.602655887604E-002
-               575   4363.33546484        542.144576716      -0.217519940654        0.00000000000       -128.713869671                  4245             7408  0.640858054161E-002
-               600   4701.10805063        581.653704526      -0.212072076281        0.00000000000       -128.708421807                  4538             8050  0.655506193638E-002
-               625   5065.86444289        614.099044189      -0.212394093151        0.00000000000       -128.708743823                  4918             8692  0.727986335754E-002
-               650   5417.28431789        653.837775476      -0.213812690887        0.00000000000       -128.710162421                  5253             9271  0.806216597557E-002
-               675   5797.11790719        694.472273589      -0.213868320933        0.00000000000       -128.710218051                  5567             9939  0.865201115608E-002
-               700   6169.21636024        742.151713032      -0.212733335185        0.00000000000       -128.709083066                  5880            10534  0.912443041801E-002
-               725   6637.81940130        795.871066679      -0.209517667674        0.00000000000       -128.705867398                  6298            11290  0.989778399467E-002
-               750   7205.46902224        841.905231042      -0.212051742718        0.00000000000       -128.708401473                  6784            12452  0.100938725471E-001
-               775   7718.27140102        893.452666128      -0.213630115441        0.00000000000       -128.709979846                  7205            13132  0.105454719067E-001
-               800   8291.98640531        952.476209219      -0.212723625514        0.00000000000       -128.709073356                  7783            14151  0.112381577492E-001
->>> Changing tau: 0.121716E-01 -> 0.119711E-01
+ Updating singles/doubles bias. pSingles =    6.4669582251655394E-002
+  pDoubles =   0.93533041774834458     
+              1025   18628.5528447        2123.15733515      -0.214067693578        0.00000000000       -128.710417424                 15419            31877  0.352289772034E-001
+ Updating parallel-spin bias; new pParallel =   0.12328242032874252     
+>>> Changing tau: 0.120855E-01 -> 0.118098E-01
 >>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    7.1282437988301611E-002
-  pDoubles =   0.92871756201169842     
-               825   8751.51801818        1013.39248329      -0.211108175479        0.00000000000       -128.707457906                  8070            15037  0.121209836006E-001
-               850   9335.27648955        1080.26545830      -0.211861086093        0.00000000000       -128.708210816                  8638            15900  0.130322110653E-001
- Updating parallel-spin bias; new pParallel =   0.13286019178876796     
->>> Changing tau: 0.119711E-01 -> 0.119150E-01
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    7.0948716044615057E-002
-  pDoubles =   0.92905128395538494     
-               875   10023.1309499        1151.50079414      -0.213359713304        0.00000000000       -128.709709444                  9107            17219  0.138680744171E-001
-               900   10790.0441562        1225.20869919      -0.216350361156        0.00000000000       -128.712700091                  9754            18432  0.145385479927E-001
-               925   11364.9740420        1295.88519523      -0.216383632553        0.00000000000       -128.712733363                 10163            19572  0.152440130711E-001
-               950   11989.2540283        1378.40182621      -0.211223960296        0.00000000000       -128.707573691                 10711            20455  0.163084053993E-001
-               975   12887.6017735        1466.41614971      -0.213119454033        0.00000000000       -128.709469184                 11275            21980  0.173925697803E-001
-              1000   13661.3567030        1567.43492981      -0.212671068810        0.00000000000       -128.709020799                 11857            23443  0.186740326881E-001
- Updating parallel-spin bias; new pParallel =   0.12964810513110128     
->>> Changing tau: 0.119150E-01 -> 0.116470E-01
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    6.9352387842848362E-002
-  pDoubles =   0.93064761215715164     
-              1025   14512.3448423        1669.02610174      -0.213238866303        0.00000000000       -128.709588597                 12391            24868  0.195519506931E-001
-              1050   15542.4017058        1773.44230774      -0.213171492564        0.00000000000       -128.709521223                 13230            26565  0.209592604637E-001
-              1075   16364.0313172        1888.26066298      -0.212351739718        0.00000000000       -128.708701470                 13734            27852  0.220271396637E-001
-              1100   17526.7097881        2005.19610896      -0.213420881682        0.00000000000       -128.709770612                 14606            29944  0.236957049370E-001
-              1125   18581.3426602        2130.88918999      -0.213419258658        0.00000000000       -128.709768989                 15198            31712  0.245254731178E-001
-              1150   19751.7239960        2265.14442012      -0.213060197955        0.00000000000       -128.709409928                 16011            33765  0.266635727882E-001
-Exiting the single particle growth phase on iteration:          1175 - Shift can now change for population1
-Exiting the single particle growth phase on iteration:          1175 - Shift can now change for population2
+ Updating singles/doubles bias. pSingles =    6.3194192222078852E-002
+  pDoubles =   0.93680580777792111     
+Exiting the single particle growth phase on iteration:          1050 - Shift can now change for population2
 
  The current tau search method is: Conventional
  It is switched off now because of: Variable Shift reached
 
-              1175   21112.5200517        2412.00102016      -0.214920493727      -0.213060491694       -128.711270224                 16981            36176  0.292432141304E-001
-              1200   21118.4206546        2419.58727352      -0.214648607699      -0.216795123777       -128.710998338                 17008            36073  0.289429044724E-001
-              1225   21078.7924454        2425.67466586      -0.215166707804      -0.216150569918       -128.711516438                 17039            36053  0.281307816505E-001
-              1250   21155.8437653        2418.27090635      -0.212866471983      -0.216231046379       -128.709216202                 17026            36206  0.288014030457E-001
-              1275   20980.5336801        2411.01963889      -0.212926756484      -0.216000082050       -128.709276487                 16917            35727  0.288838195801E-001
-              1300   20846.8554738        2411.75109590      -0.211648473589      -0.215094204804       -128.707998204                 16791            35670  0.280745744705E-001
-              1325   20796.8483615        2409.25087246      -0.213476391455      -0.215109700451       -128.709826122                 16770            35667  0.282303237915E-001
+              1050   19959.9175209        2279.34561068      -0.213773114304      -0.107155990713       -128.710122845                 16245            34210  0.377247905731E-001
+Exiting the single particle growth phase on iteration:          1075 - Shift can now change for population1
+              1075   20477.7079316        2349.44177376      -0.213436625635      -0.215295149355       -128.709786356                 16444            35010  0.392533612251E-001
+              1100   20522.8000179        2364.22899791      -0.212934432693      -0.216951576760       -128.709284163                 16583            35009  0.396122360229E-001
+              1125   20431.7085025        2353.44238914      -0.213392900140      -0.216889429021       -128.709742630                 16638            34959  0.397558379173E-001
+              1150   20308.5916675        2353.63061136      -0.212646867966      -0.216349076733       -128.708996598                 16380            34729  0.397162699699E-001
+              1175   20185.3929701        2351.94162983      -0.210950357181      -0.215858722901       -128.707300088                 16297            34419  0.395980668068E-001
+              1200   20447.0119143        2352.69125016      -0.211016085331      -0.215825380962       -128.707365816                 16608            34865  0.394534802437E-001
+              1225   20476.3682511        2352.58480390      -0.211679051636      -0.216610998857       -128.708028782                 16585            35085  0.396032738686E-001
 
 ============ Semi-stochastic initialisation ============
 Generating the deterministic space...
- Total core population   24362.291718074877     
+ Total core population   23908.519215860040     
 Total size of deterministic space:     2000
  WARNING: Total size of deterministic space is greater than 50% of the initiator space.
           Reducing the size of the deterministic space is encouraged.
-Size of deterministic space on this processor:      458
+Size of deterministic space on this processor:      455
 Generating the Hamiltonian in the deterministic space...
-Time to create auxiliary arrays:    0.002
-Time to sort auxiliary arrays:    0.000
+Time to create auxiliary arrays:    0.003
+Time to sort auxiliary arrays:    0.001
 Arrays for Hamiltonian successfully allocated...
-Time to create the Hamiltonian:    0.011
-total_time:    0.014
+Time to create the Hamiltonian:    0.015
+total_time:    0.018
 Semi-stochastic initialisation complete.
-Time (seconds) taken for semi-stochastic initialisation:    0.244
+Time (seconds) taken for semi-stochastic initialisation:    0.190
 
 
 =========== Trial wavefunction initialisation ==========
 Generating the trial space...
   Initialising wavefunctions by the Lanczos algorithm
- Total core population   12273.324548830104     
+ Total core population   11987.126773323158     
   Aborting Lanczos and initialising trial states with direct diagonalisation
- Total core population   12273.324548830104     
-  MAXIMUM WIDTH OF HAMIL :           85
-  TOTAL NUMBER OF NON-ZERO ELEMENTS :         1311
-Size of trial space on this processor:       12
+ Total core population   11987.126773323158     
+  MAXIMUM WIDTH OF HAMIL :           86
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         1334
+Size of trial space on this processor:       13
+ trial state:            1  kept for replica            1  based on overlap, with energy:   -128.64099203586625     
 Total size of the trial space:      100
 Calculating the number of states in the connected space...
 Attempting to allocate con_space. Size =        0.748 Mb
@@ -445,19 +513,223 @@ States found on this processor, including repeats:    24508
 Generating and storing the connected space...
 Removing repeated states and sorting by processor...
 Performing MPI communication of connected states...
-Attempting to allocate temp_space. Size =        0.374 Mb
-Attempting to allocate con_space. Size =        0.374 Mb
-Total size of connected space:      38302
-Size of connected space on this processor:       9353
+Attempting to allocate temp_space. Size =        0.384 Mb
+Attempting to allocate con_space. Size =        0.384 Mb
+Total size of connected space:      38685
+Size of connected space on this processor:       9475
 Generating the vector \sum_j H_{ij} \psi^T_j...
- Energy eigenvalue(s) of the trial space:  -128.64206741977895     
+ Energy eigenvalue(s) of the trial space:  -128.64099203586625     
  Trial wavefunction initialisation complete.
- Total time (seconds) taken for trial wavefunction initialisation:  0.26240666210651398     
-              1350   22136.9994405        2406.55455178      -0.213233669071      -0.220698340987       -128.709583399                 19738            30759  0.522250509262E-001
-              1375   21944.2825627        2401.37709999      -0.213116365462      -0.220467069389       -128.709466096                 19432            30403  0.298836135864E-001
+ Total time (seconds) taken for trial wavefunction initialisation:  0.44836282101459801     
+              1250   21609.4189243        2349.30130473      -0.212725918662      -0.222511060513       -128.709075649                 19198            30346  0.707287216187E-001
+              1275   21606.1528320        2342.92225073      -0.213052195478      -0.222005059915       -128.709401926                 19228            30193  0.424343395233E-001
  Memory requirement for spawned arrays increased from     1.8311 to     3.2043 Mb/Processor
 Calculating the 2 electron density matrix on the fly.
-Beginning to fill the RDMs during iteration      1376
+Beginning to fill the RDMs during iteration      1276
+ Reset fdv av at iteration         1276
+ Writing RDMs to file at iteration         1276
+ Reset fdv av at iteration         1277
+ Writing RDMs to file at iteration         1277
+ Reset fdv av at iteration         1278
+ Writing RDMs to file at iteration         1278
+ Reset fdv av at iteration         1279
+ Writing RDMs to file at iteration         1279
+ Reset fdv av at iteration         1280
+ Writing RDMs to file at iteration         1280
+ Reset fdv av at iteration         1281
+ Writing RDMs to file at iteration         1281
+ Reset fdv av at iteration         1282
+ Writing RDMs to file at iteration         1282
+ Reset fdv av at iteration         1283
+ Writing RDMs to file at iteration         1283
+ Reset fdv av at iteration         1284
+ Writing RDMs to file at iteration         1284
+ Reset fdv av at iteration         1285
+ Writing RDMs to file at iteration         1285
+ Reset fdv av at iteration         1286
+ Writing RDMs to file at iteration         1286
+ Reset fdv av at iteration         1287
+ Writing RDMs to file at iteration         1287
+ Reset fdv av at iteration         1288
+ Writing RDMs to file at iteration         1288
+ Reset fdv av at iteration         1289
+ Writing RDMs to file at iteration         1289
+ Reset fdv av at iteration         1290
+ Writing RDMs to file at iteration         1290
+ Reset fdv av at iteration         1291
+ Writing RDMs to file at iteration         1291
+ Reset fdv av at iteration         1292
+ Writing RDMs to file at iteration         1292
+ Reset fdv av at iteration         1293
+ Writing RDMs to file at iteration         1293
+ Reset fdv av at iteration         1294
+ Writing RDMs to file at iteration         1294
+ Reset fdv av at iteration         1295
+ Writing RDMs to file at iteration         1295
+ Reset fdv av at iteration         1296
+ Writing RDMs to file at iteration         1296
+ Reset fdv av at iteration         1297
+ Writing RDMs to file at iteration         1297
+ Reset fdv av at iteration         1298
+ Writing RDMs to file at iteration         1298
+ Reset fdv av at iteration         1299
+ Writing RDMs to file at iteration         1299
+ Reset fdv av at iteration         1300
+              1300   21408.1995489        2336.77644669      -0.213119493037      -0.221531257093       -128.709469223                 19041            29693  0.125087566376     
+ Writing RDMs to file at iteration         1300
+ Reset fdv av at iteration         1301
+ Writing RDMs to file at iteration         1301
+ Reset fdv av at iteration         1302
+ Writing RDMs to file at iteration         1302
+ Reset fdv av at iteration         1303
+ Writing RDMs to file at iteration         1303
+ Reset fdv av at iteration         1304
+ Writing RDMs to file at iteration         1304
+ Reset fdv av at iteration         1305
+ Writing RDMs to file at iteration         1305
+ Reset fdv av at iteration         1306
+ Writing RDMs to file at iteration         1306
+ Reset fdv av at iteration         1307
+ Writing RDMs to file at iteration         1307
+ Reset fdv av at iteration         1308
+ Writing RDMs to file at iteration         1308
+ Reset fdv av at iteration         1309
+ Writing RDMs to file at iteration         1309
+ Reset fdv av at iteration         1310
+ Writing RDMs to file at iteration         1310
+ Reset fdv av at iteration         1311
+ Writing RDMs to file at iteration         1311
+ Reset fdv av at iteration         1312
+ Writing RDMs to file at iteration         1312
+ Reset fdv av at iteration         1313
+ Writing RDMs to file at iteration         1313
+ Reset fdv av at iteration         1314
+ Writing RDMs to file at iteration         1314
+ Reset fdv av at iteration         1315
+ Writing RDMs to file at iteration         1315
+ Reset fdv av at iteration         1316
+ Writing RDMs to file at iteration         1316
+ Reset fdv av at iteration         1317
+ Writing RDMs to file at iteration         1317
+ Reset fdv av at iteration         1318
+ Writing RDMs to file at iteration         1318
+ Reset fdv av at iteration         1319
+ Writing RDMs to file at iteration         1319
+ Reset fdv av at iteration         1320
+ Writing RDMs to file at iteration         1320
+ Reset fdv av at iteration         1321
+ Writing RDMs to file at iteration         1321
+ Reset fdv av at iteration         1322
+ Writing RDMs to file at iteration         1322
+ Reset fdv av at iteration         1323
+ Writing RDMs to file at iteration         1323
+ Reset fdv av at iteration         1324
+ Writing RDMs to file at iteration         1324
+ Reset fdv av at iteration         1325
+              1325   21375.7464173        2331.07684587      -0.213226477359      -0.221395536894       -128.709576208                 19111            29761  0.125111951828     
+ Writing RDMs to file at iteration         1325
+ Reset fdv av at iteration         1326
+ Writing RDMs to file at iteration         1326
+ Reset fdv av at iteration         1327
+ Writing RDMs to file at iteration         1327
+ Reset fdv av at iteration         1328
+ Writing RDMs to file at iteration         1328
+ Reset fdv av at iteration         1329
+ Writing RDMs to file at iteration         1329
+ Reset fdv av at iteration         1330
+ Writing RDMs to file at iteration         1330
+ Reset fdv av at iteration         1331
+ Writing RDMs to file at iteration         1331
+ Reset fdv av at iteration         1332
+ Writing RDMs to file at iteration         1332
+ Reset fdv av at iteration         1333
+ Writing RDMs to file at iteration         1333
+ Reset fdv av at iteration         1334
+ Writing RDMs to file at iteration         1334
+ Reset fdv av at iteration         1335
+ Writing RDMs to file at iteration         1335
+ Reset fdv av at iteration         1336
+ Writing RDMs to file at iteration         1336
+ Reset fdv av at iteration         1337
+ Writing RDMs to file at iteration         1337
+ Reset fdv av at iteration         1338
+ Writing RDMs to file at iteration         1338
+ Reset fdv av at iteration         1339
+ Writing RDMs to file at iteration         1339
+ Reset fdv av at iteration         1340
+ Writing RDMs to file at iteration         1340
+ Reset fdv av at iteration         1341
+ Writing RDMs to file at iteration         1341
+ Reset fdv av at iteration         1342
+ Writing RDMs to file at iteration         1342
+ Reset fdv av at iteration         1343
+ Writing RDMs to file at iteration         1343
+ Reset fdv av at iteration         1344
+ Writing RDMs to file at iteration         1344
+ Reset fdv av at iteration         1345
+ Writing RDMs to file at iteration         1345
+ Reset fdv av at iteration         1346
+ Writing RDMs to file at iteration         1346
+ Reset fdv av at iteration         1347
+ Writing RDMs to file at iteration         1347
+ Reset fdv av at iteration         1348
+ Writing RDMs to file at iteration         1348
+ Reset fdv av at iteration         1349
+ Writing RDMs to file at iteration         1349
+ Reset fdv av at iteration         1350
+              1350   21286.3917234        2325.45187105      -0.213119883903      -0.220642459831       -128.709469614                 18974            29581  0.124740180969     
+ Writing RDMs to file at iteration         1350
+ Reset fdv av at iteration         1351
+ Writing RDMs to file at iteration         1351
+ Reset fdv av at iteration         1352
+ Writing RDMs to file at iteration         1352
+ Reset fdv av at iteration         1353
+ Writing RDMs to file at iteration         1353
+ Reset fdv av at iteration         1354
+ Writing RDMs to file at iteration         1354
+ Reset fdv av at iteration         1355
+ Writing RDMs to file at iteration         1355
+ Reset fdv av at iteration         1356
+ Writing RDMs to file at iteration         1356
+ Reset fdv av at iteration         1357
+ Writing RDMs to file at iteration         1357
+ Reset fdv av at iteration         1358
+ Writing RDMs to file at iteration         1358
+ Reset fdv av at iteration         1359
+ Writing RDMs to file at iteration         1359
+ Reset fdv av at iteration         1360
+ Writing RDMs to file at iteration         1360
+ Reset fdv av at iteration         1361
+ Writing RDMs to file at iteration         1361
+ Reset fdv av at iteration         1362
+ Writing RDMs to file at iteration         1362
+ Reset fdv av at iteration         1363
+ Writing RDMs to file at iteration         1363
+ Reset fdv av at iteration         1364
+ Writing RDMs to file at iteration         1364
+ Reset fdv av at iteration         1365
+ Writing RDMs to file at iteration         1365
+ Reset fdv av at iteration         1366
+ Writing RDMs to file at iteration         1366
+ Reset fdv av at iteration         1367
+ Writing RDMs to file at iteration         1367
+ Reset fdv av at iteration         1368
+ Writing RDMs to file at iteration         1368
+ Reset fdv av at iteration         1369
+ Writing RDMs to file at iteration         1369
+ Reset fdv av at iteration         1370
+ Writing RDMs to file at iteration         1370
+ Reset fdv av at iteration         1371
+ Writing RDMs to file at iteration         1371
+ Reset fdv av at iteration         1372
+ Writing RDMs to file at iteration         1372
+ Reset fdv av at iteration         1373
+ Writing RDMs to file at iteration         1373
+ Reset fdv av at iteration         1374
+ Writing RDMs to file at iteration         1374
+ Reset fdv av at iteration         1375
+              1375   21236.4184528        2320.31443100      -0.213119549536      -0.220716206855       -128.709469280                 18894            29565  0.124309406281     
+ Writing RDMs to file at iteration         1375
  Reset fdv av at iteration         1376
  Writing RDMs to file at iteration         1376
  Reset fdv av at iteration         1377
@@ -507,7 +779,7 @@ Beginning to fill the RDMs during iteration      1376
  Reset fdv av at iteration         1399
  Writing RDMs to file at iteration         1399
  Reset fdv av at iteration         1400
-              1400   21944.3273339        2396.33619468      -0.213268036368      -0.220138258273       -128.709617767                 19500            30350  0.113493556976     
+              1400   21167.4659120        2315.13188473      -0.213118138480      -0.220352752902       -128.709467869                 18837            29587  0.124093027115     
  Writing RDMs to file at iteration         1400
  Reset fdv av at iteration         1401
  Writing RDMs to file at iteration         1401
@@ -558,7 +830,7 @@ Beginning to fill the RDMs during iteration      1376
  Reset fdv av at iteration         1424
  Writing RDMs to file at iteration         1424
  Reset fdv av at iteration         1425
-              1425   21826.7928533        2391.34646544      -0.213007528728      -0.220188282839       -128.709357259                 19298            30315  0.115819540024     
+              1425   21245.7008963        2310.18447813      -0.213034491400      -0.220480909011       -128.709384222                 19022            29694  0.124362697601     
  Writing RDMs to file at iteration         1425
  Reset fdv av at iteration         1426
  Writing RDMs to file at iteration         1426
@@ -609,7 +881,7 @@ Beginning to fill the RDMs during iteration      1376
  Reset fdv av at iteration         1449
  Writing RDMs to file at iteration         1449
  Reset fdv av at iteration         1450
-              1450   21799.3317144        2386.39257786      -0.213086079168      -0.219658795720       -128.709435809                 19310            30447  0.115437669754     
+              1450   21224.8823448        2305.14860395      -0.213073546672      -0.220421056240       -128.709423277                 18977            29508  0.124101638794     
  Writing RDMs to file at iteration         1450
  Reset fdv av at iteration         1451
  Writing RDMs to file at iteration         1451
@@ -660,7 +932,7 @@ Beginning to fill the RDMs during iteration      1376
  Reset fdv av at iteration         1474
  Writing RDMs to file at iteration         1474
  Reset fdv av at iteration         1475
-              1475   21800.5910771        2381.84057831      -0.213151738788      -0.219259413627       -128.709501469                 19242            30166  0.114630632401     
+              1475   21182.8182204        2300.36109814      -0.213367091222      -0.220079137386       -128.709716822                 18960            29453  0.124523754120     
  Writing RDMs to file at iteration         1475
  Reset fdv av at iteration         1476
  Writing RDMs to file at iteration         1476
@@ -711,12 +983,12 @@ Beginning to fill the RDMs during iteration      1376
  Reset fdv av at iteration         1499
  Writing RDMs to file at iteration         1499
  Reset fdv av at iteration         1500
-              1500   21703.5476750        2377.68315222      -0.213292293816      -0.219368740934       -128.709642024                 19204            29969  0.112303915024     
+              1500   20927.3318734        2295.65546195      -0.213181839392      -0.219679581846       -128.709531570                 18581            29423  0.124775657654     
  Writing RDMs to file at iteration         1500
 Total iteration number limit reached. Finishing FCIQMC loop...
  - - - - - - - - - - - - - - - - - - - - - - - -
- Total loop-time:    31.874828360974789     
- Time lost due to load imbalance:    4.4099207259714603     
+ Total loop-time:    51.654623862996232     
+ Time lost due to load imbalance:    6.9729528647294501     
  - - - - - - - - - - - - - - - - - - - - - - - -
 
 ****RDMs CALCULATED STOCHASTICALLY ****
@@ -725,7 +997,7 @@ Total iteration number limit reached. Finishing FCIQMC loop...
 
  INFORMATION FOR 1-RDM 1:
 
- SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      7.9287476142580
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      7.9286409362043
 
  =========================================================================================
 
@@ -733,15 +1005,15 @@ Total iteration number limit reached. Finishing FCIQMC loop...
  == INFORMATION FOR FINAL 2-RDMS =========================================================
 
  2-RDM ESTIMATES FOR STATE 1:
- Trace of 2-el-RDM before normalisation:  2.0705019026E+10
+ Trace of 2-el-RDM before normalisation:  3.5083611032E+10
  Trace of 2-el-RDM after normalisation:  2.8000000000E+01
- Energy contribution from the 1-RDM: -5.9933948322E+01
- Energy contribution from the 2-RDM:  2.5073376281E+01
- *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.2870947358733E+02
+ Energy contribution from the 1-RDM: -5.9928394047E+01
+ Energy contribution from the 2-RDM:  2.5067800075E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.2870949551792E+02
 
  Hermiticty error estimates:
-            1500        0.00135364022724465292     (Iteration, MAX ABS ERROR IN HERMITICITY)
-            1500        0.27528424821558866720     (Iteration, SUM ABS ERROR IN HERMITICITY)
+            1500        0.00102612045107291355     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            1500        0.20756719109151683389     (Iteration, SUM ABS ERROR IN HERMITICITY)
 
  =========================================================================================
  
@@ -755,21 +1027,21 @@ definedet     1-4  17-18  23-24  33-34
 Most occupied         15 determinants as excitations from reference: 
 
 Excitation ExcitLevel  Seniority Walkers(1) Walkers(2)    Amplitude Init?(1) Init?(2)  <D|H|D>Proc Spin-Coup?
-11000000000000110000110000000011000000000000    0    0    2405.779        2349.260      0.98159  Y  Y  -1.28496350E+02       1
-11000000000000110000010010000010000100000000    2    4    82.81955        82.29164      0.02410  Y  Y  -1.24044637E+02       2  *
-11000000000000010010100001000011000000000000    2    4    83.60586        81.32335      0.02407  Y  Y  -1.24044637E+02       1  *
-11000000000000010010110000000010000100000000    2    4    83.60589        80.87782      0.02401  Y  Y  -1.24044637E+02       3  *
-11000000000000110000000011000011000000000000    2    0   -82.11764       -79.58337      0.03338  Y  Y  -1.24013535E+02       1
-11000000000000000011110000000011000000000000    2    0   -81.54160       -79.45289      0.03323  Y  Y  -1.24013535E+02       3
-11000000000000110000110000000000001100000000    2    0   -81.07144       -79.42821      0.03313  Y  Y  -1.24013535E+02       3
-11000000000000100001100001000011000000000000    2    4   -63.51298       -63.29599      0.01851  Y  Y  -1.24085920E+02       3  *
-11000000000000110000100001000010000100000000    2    4   -64.00657       -61.79549      0.01836  Y  Y  -1.24085920E+02       3  *
-01000000100000110000100001000011000000000000    2    4    63.67672        61.91081      0.01833  Y  Y  -1.22220592E+02       1  *
-01000000100000110000110000000010000100000000    2    4    63.26089        61.88834      0.01827  Y  Y  -1.22220592E+02       3  *
-01000000100000100001110000000011000000000000    2    4    64.05320        60.62230      0.01820  Y  Y  -1.22220592E+02       3  *
-11000000000000100001110000000010000100000000    2    4   -63.05235       -61.29921      0.01815  Y  Y  -1.24085920E+02       1  *
-11000000000000001001110000000011000000000000    2    2   -60.49996       -59.67491      0.01754  Y  Y  -1.25226866E+02       1  *
-11000000000000110000001001000011000000000000    2    2   -60.91060       -57.88324      0.01734  Y  Y  -1.25226866E+02       2  *
+11000000000000110000110000000011000000000000    0    0    2348.748        2242.206      0.98152  Y  Y  -1.28496350E+02       1
+11000000000000010010110000000010000100000000    2    4    81.07028        77.99489      0.02405  Y  Y  -1.24044637E+02       3  *
+11000000000000110000010010000010000100000000    2    4    81.77272        77.21531      0.02404  Y  Y  -1.24044637E+02       2  *
+11000000000000010010100001000011000000000000    2    4    80.93520        77.78865      0.02400  Y  Y  -1.24044637E+02       1  *
+11000000000000110000110000000000001100000000    2    0   -80.40562       -77.10270      0.03367  Y  Y  -1.24013535E+02       3
+11000000000000110000000011000011000000000000    2    0   -79.91501       -76.23164      0.03338  Y  Y  -1.24013535E+02       1
+11000000000000000011110000000011000000000000    2    0   -79.60167       -76.50247      0.03337  Y  Y  -1.24013535E+02       3
+11000000000000100001110000000010000100000000    2    4   -62.38918       -59.90589      0.01849  Y  Y  -1.24085920E+02       1  *
+01000000100000100001110000000011000000000000    2    4    61.85606        60.12666      0.01844  Y  Y  -1.22220592E+02       3  *
+11000000000000100001100001000011000000000000    2    4   -62.64034       -59.08913      0.01840  Y  Y  -1.24085920E+02       3  *
+01000000100000110000100001000011000000000000    2    4    62.71829        58.11416      0.01827  Y  Y  -1.22220592E+02       1  *
+11000000000000110000100001000010000100000000    2    4   -61.32131       -58.82582      0.01816  Y  Y  -1.24085920E+02       3  *
+01000000100000110000110000000010000100000000    2    4    61.88693        57.95431      0.01812  Y  Y  -1.22220592E+02       3  *
+11000000000000110000110000000000100100000000    2    2   -60.41616       -56.10960      0.01762  Y  Y  -1.25226866E+02       2  *
+11000000000000110000001001000011000000000000    2    2   -57.99664       -56.51783      0.01731  Y  Y  -1.25226866E+02       2  *
  * = Spin-coupled function implicitly has time-reversed determinant with same weight.
  
  Warning: attempting to log deallocation but never logged allocation.
@@ -777,33 +1049,33 @@ Excitation ExcitLevel  Seniority Walkers(1) Walkers(2)    Amplitude Init?(1) Ini
 
  Load balancing information based on the last iteration:
 
- Mean number of determinants/process    5516.2500000000
- Min number of determinants/process               5375
- Max number of determinants/process               5662
+ Mean number of determinants/process    5450.0000000000
+ Min number of determinants/process               5311
+ Max number of determinants/process               5600
 
 
 
  Load balancing information based on the last iteration:
-     Mean number of walkers/process:   10851.7738375078
-     Min number of walkers/process:         8420.56880
-     Max number of walkers/process:        14690.80120
+     Mean number of walkers/process:   10463.6659366952
+     Min number of walkers/process:         8031.76331
+     Max number of walkers/process:        14266.66576
 
 
 
 Calculating approximate errorbar for energy estimates...
 
-Attempting automatic reblocking analysis on data from iteration:         1175
+Attempting automatic reblocking analysis on data from iteration:         1075
  No FCIMCStats file found for error analysis
  Current reference energy                            -128.496349730325
- Projected correlation energy                          -0.212662286167
+ Projected correlation energy                          -0.212980347745
  No automatic errorbar obtained for projected energy
  No reliable averaged shift correlation energy could be obtained automatically
 
- Total projected energy        -128.70901202
+ Total projected energy        -128.70933008
 
 
- Final energy estimate for state 1:     -128.70951462366    
- Final energy estimate for state 2:     -128.70964983291    
+ Final energy estimate for state 1:     -128.70958921148    
+ Final energy estimate for state 2:     -128.70954667218    
  Warning: attempting to log deallocation but never logged allocation.
 
  ================================================================
@@ -833,20 +1105,20 @@ Attempting automatic reblocking analysis on data from iteration:         1175
  Timing of most expensive procedures.
  Procedure                                 Calls       total time
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- WalkerTime                                1500     24.06
- AnnMainTime                               1500      1.59
- SyncTime                                  1684      1.36
- NECICUBE                                     1      1.05
- DeathTime                                 1500      0.94
- Compress Sort interface                   1500      0.74
- Compression interface                     1500      0.52
- SortTime                                  1500      0.41
- AnnihilTime                               1500      0.33
- TrialInitTime                                1      0.26
+ WalkerTime                                1500     40.72
+ SyncTime                                  1784      2.48
+ AnnMainTime                               1500      2.13
+ NECICUBE                                     1      2.04
+ DeathTime                                 1500      1.00
+ Compress Sort interface                   1500      0.81
+ Compression interface                     1500      0.56
+ SortTime                                  1500      0.47
+ TrialInitTime                                1      0.45
+ AnnihilTime                               1500      0.39
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- Total                                  31.26
+ Total                                  51.04
 
- Global wall clock time         32.04
+ Global wall clock time         51.99
  ================================================================
- Calculation ended 02/02/2023 at 11:07:44
+ Calculation ended 26/02/2023 at 11:28:28
  ================================================================

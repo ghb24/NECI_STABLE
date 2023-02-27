@@ -216,7 +216,7 @@ contains
     end function
 
 !>  Create an excitation from an excitation matrix and excitation level IC
-    subroutine create_excitation(exc, ic, ex)
+    pure function create_excitation(ic, ex) result(exc)
         !>  The excitation level. (1=Excite_1_t, 2=Excite_2_t, ...)
         integer, intent(in) :: IC
         !>  An excitation matrix as in the %val component of
@@ -225,7 +225,7 @@ contains
         !>  An excitation of type excitation_t.
         !>      By using select type(exc) one can select the actual type at runtime
         !>      **and** statically dispatch as much as possible at runtime.
-        class(Excitation_t), allocatable, intent(out) :: exc
+        class(Excitation_t), allocatable :: exc
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'create_excitation'
 #endif
@@ -253,7 +253,7 @@ contains
                 exc%val = ex
             end select
         end if
-    end subroutine
+    end function
 
 !>  Create an excitation from nI to nJ where the excitation level
 !>  is already known.
@@ -269,7 +269,7 @@ contains
         !>  The parity of the excitation.
         logical, intent(out) :: tParity
 
-        call create_excitation(exc, IC)
+        exc = create_excitation(ic)
 
         ! The compiler has to statically know, what the type of exc is.
         select type (exc)
@@ -307,7 +307,7 @@ contains
         class(Excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
 
-        call create_excitation(exc, IC)
+        exc = create_excitation(ic)
 
         ! The compiler has to statically know, what the type of exc is.
         select type (exc)

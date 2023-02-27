@@ -578,9 +578,9 @@ module lattice_mod
             integer :: n_sites
         end function calc_nsites_t
 
-        logical function is_periodic_t(this, dimen)
+        logical pure function is_periodic_t(this, dimen)
             import :: lattice
-            class(lattice) :: this
+            class(lattice), intent(in) :: this
             integer, intent(in), optional :: dimen
         end function is_periodic_t
 
@@ -1345,8 +1345,8 @@ contains
     end function is_k_space
 
     ! for the beginning set the aim periodicity to false all the time!
-    logical function is_periodic_aim(this, dimen)
-        class(aim) :: this
+    logical pure function is_periodic_aim(this, dimen)
+        class(aim), intent(in) :: this
         integer, intent(in), optional :: dimen
         unused_var(this)
         if (present(dimen)) then
@@ -4225,8 +4225,8 @@ contains
 
     end function calc_nsites_star
 
-    logical function is_periodic_aim_star(this, dimen)
-        class(aim_star) :: this
+    logical pure function is_periodic_aim_star(this, dimen)
+        class(aim_star), intent(in) :: this
         integer, intent(in), optional :: dimen
         unused_var(this)
         unused_var(dimen)
@@ -4641,70 +4641,49 @@ contains
 
     end subroutine set_length_aim_chain
 
-    logical function is_periodic_star(this, dimen)
+    logical pure function is_periodic_star(this, dimen)
         ! this is always false.. the star geometry can't be periodic
-        class(star) :: this
+        class(star), intent(in) :: this
         integer, intent(in), optional :: dimen
-        unused_var(dimen)
+        debug_function_name("is_periodic_star")
         unused_var(this)
-
-        unused_var(dimen)
-        unused_var(this)
+        ASSERT(.not. present(dimen))
 
         is_periodic_star = .false.
 
     end function is_periodic_star
 
-    logical function is_periodic_chain(this, dimen)
-        class(chain) :: this
+    logical pure function is_periodic_chain(this, dimen)
+        class(chain), intent(in) :: this
         integer, intent(in), optional :: dimen
-        unused_var(dimen)
-        ! we do not want to deal with two dimensional flags for chains or?
+        debug_function_name("is_periodic_chain")
+        ASSERT(.not. present(dimen))
         is_periodic_chain = this%t_periodic(1)
-        ! the chain is only treated as periodic if both the flags are set
-        ! to be periodic!
-
     end function is_periodic_chain
 
-    logical function is_periodic_cube(this, dimen)
-        class(cube) :: this
+    logical pure function is_periodic_cube(this, dimen)
+        class(cube), intent(in) :: this
         integer, intent(in), optional :: dimen
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "is_periodic_cube"
-#endif
-
+        debug_function_name("is_periodic_cube")
         if (present(dimen)) then
-            ASSERT(dimen > 0)
-            ASSERT(dimen <= 3)
-
+            ASSERT(1 <= dimen .and. dimen <= 3)
             is_periodic_cube = this%t_periodic(dimen)
 
         else
             is_periodic_cube = all(this%t_periodic)
-
         end if
-
     end function is_periodic_cube
 
-    logical function is_periodic_rect(this, dimen)
-        class(rectangle) :: this
+    logical pure function is_periodic_rect(this, dimen)
+        class(rectangle), intent(in) :: this
         integer, intent(in), optional :: dimen
-        character(*), parameter :: this_routine = "is_periodic_rect"
-
-        ! depending if we want to have a certain periodic flag or
-        ! a check for full periodicity
+        debug_function_name("is_periodic_rect")
         if (present(dimen)) then
-            ! we only consider the first 2 dimensions here
-            ASSERT(dimen > 0)
-            ASSERT(dimen <= 3)
-
+            ASSERT(1 <= dimen .and. dimen <= 3)
             is_periodic_rect = this%t_periodic(dimen)
-
         else
             is_periodic_rect = all(this%t_periodic)
-
         end if
-
     end function is_periodic_rect
 
     logical function is_periodic_x(this)
