@@ -1,0 +1,38 @@
+title
+
+system read
+electrons 6
+guga 0
+nonuniformrandexcits mol-guga-weighted
+sym 0 0 0 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+seed -7
+memoryfacspawn 5.0
+memoryfacpart 2.0
+totalwalkers 10000
+tau-values \
+    start user-defined 0.01
+startsinglepart 10000
+shiftdamp 0.5
+stepsshift 1
+allrealcoeff
+realspawncutoff 0.01
+nmcyc 0
+semi-stochastic
+fci-core
+load-balance-blocks off
+definedet 1 4 5 8 9 12
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
