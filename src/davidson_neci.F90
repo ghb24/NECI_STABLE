@@ -13,7 +13,7 @@ module davidson_neci
     use MPI_wrapper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
-    use util_mod, only: neci_flush
+    use util_mod, only: neci_flush, warning_neci
     use hamiltonian_linalg, only: &
         full_hamil_type, &
         sparse_hamil_type, &
@@ -28,7 +28,7 @@ module davidson_neci
 
     implicit none
 
-    integer :: max_num_davidson_iters = 100
+    integer :: max_num_davidson_iters = 50
     real(dp), parameter :: residual_norm_target = 0.0000001_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
@@ -69,6 +69,7 @@ contains
         integer :: i
         real(dp) :: start_time, end_time
         type(DavidsonCalcType), intent(inout) :: this
+        character(*), parameter :: this_routine = "perform_davidson"
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
@@ -99,6 +100,11 @@ contains
                 this%davidson_eigenvalue, end_time - start_time; call neci_flush(6)
 
             if (this%residual_norm < residual_norm_target) exit
+
+            if (i == max_num_davidson_iters) then
+                call warning_neci(this_routine, "Davidson iteration reached the maximum number of iterations. &
+                                                &The deterministic energy may not be converged.")
+            end if
 
         end do
 

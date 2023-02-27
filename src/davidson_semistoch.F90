@@ -15,10 +15,10 @@ module davidson_semistoch
     use MPI_wrapper, only: root, MPI_WTIME
     use sparse_arrays, only: HDiagTag
     use core_space_util, only: cs_replicas
-    use util_mod, only: neci_flush
+    use util_mod, only: neci_flush, warning_neci
     implicit none
 
-    integer :: max_num_davidson_iters = 100
+    integer :: max_num_davidson_iters = 50
     real(dp), parameter :: residual_norm_target = 0.0000001_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
@@ -80,6 +80,7 @@ contains
         integer :: i
         real(dp) :: start_time, end_time
         type(davidson_ss), intent(inout) :: this
+        character(*), parameter :: this_routine = "perform_davidson_ss"
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
@@ -108,6 +109,11 @@ contains
                 this%davidson_eigenvalue, end_time - start_time; call neci_flush(6)
 
             if (this%residual_norm < residual_norm_target) exit
+
+            if (i == min(max_num_davidson_iters, this%space_size)) then
+                call warning_neci(this_routine, "Davidson iteration reached the maximum number of iterations. &
+                                                &The deterministic energy may not be converged.")
+            end if
 
         end do
 

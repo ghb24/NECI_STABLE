@@ -1579,7 +1579,7 @@ contains
                 end if
 
             case("DAVIDSON-MAX-ITERS")
-                ! Set the max number of iteration for Davidson method: defaulted to 100
+                ! Set the max number of iteration for Davidson method: defaulted to 50
                 if (allocated(user_input_max_davidson_iters)) then
                     call stop_all(t_r, "davison max iters given twice")
                 else
