@@ -4,7 +4,7 @@
 module guga_matrixElements
     use SystemData, only: nEl, nBasis, ECore, t_tJ_model, t_heisenberg_model, t_new_hubbard, &
         t_new_real_space_hubbard, treal, nSpatOrbs, t_mixed_hubbard, ElecPairs, &
-        is_init_guga, modk_offdiag
+        is_init_guga, tStoquastize
     use constants, only: dp, n_int, hel_zero, int_rdm, bn2_, Root2
     use bit_reps, only: decode_bit_det
     use OneEInts, only: GetTMatEl
@@ -319,7 +319,7 @@ contains
 
         end select
 
-        if (modk_offdiag) mat_ele = -abs(mat_ele)
+        if (tStoquastize) mat_ele = -abs(mat_ele)
 
         if (t_matele_cutoff .and. abs(mat_ele) < matele_cutoff) mat_ele = h_cast(0.0_dp)
 

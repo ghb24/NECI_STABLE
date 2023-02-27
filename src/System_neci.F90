@@ -211,7 +211,7 @@ contains
         tHFNoOrder = .false.
         tSymIgnoreEnergies = .false.
         tPickVirtUniform = .false.
-        modk_offdiag = .false.
+        tStoquastize = .false.
         tAllSymSectors = .false.
         tGenHelWeighted = .false.
         tGen_4ind_weighted = .false.
@@ -1062,8 +1062,8 @@ contains
                 if (ISTATE /= 1) then
                     call stop_all(this_routine, "Require ISTATE to be left set as 1")
                 end if
-            case ("MODK-OFFDIAG")
-                modk_offdiag = .true.
+            case ("STOQUASTIZE")
+                tStoquastize = .true.
             case ("FAST-EXCITGEN")
                 tAbelianFastExcitGen = .true.
                 ! tAbelianFastExcitGen is a temporary flag.

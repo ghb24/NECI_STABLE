@@ -4,7 +4,7 @@
 module hphf_integrals
     use constants, only: dp, n_int, sizeof_int, maxExcit
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model, &
+                          ALat, NMSH, tOddS_HPHF, tStoquastize, t_lattice_model, &
                           t_3_body_excits, max_ex_level
     use IntegralsData, only: UMat, FCK, NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
@@ -51,7 +51,7 @@ contains
 
         hel = hphf_off_diag_helement_norm(nI, nJ, iLutI, iLutJ)
 
-        if(IC /= 0 .and. modk_offdiag) hel = -abs(hel)
+        if(IC /= 0 .and. tStoquastize) hel = -abs(hel)
 
     end function
 

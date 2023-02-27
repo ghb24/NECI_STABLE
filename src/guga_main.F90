@@ -12,7 +12,7 @@ module guga_main
                           t_crude_exchange, t_crude_exchange_noninits, &
                           t_approx_exchange, t_approx_exchange_noninits, &
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
-                          modk_offdiag
+                          tStoquastize
 
     use constants, only: dp, n_int, bn2_, maxExcit, stdout
 
@@ -194,7 +194,7 @@ contains
             end if
         end if
 
-        if (modk_offdiag) HElgen = -abs(HElgen)
+        if (tStoquastize) HElgen = -abs(HElgen)
 
     contains
 
