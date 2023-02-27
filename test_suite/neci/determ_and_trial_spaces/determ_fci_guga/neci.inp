@@ -22,7 +22,7 @@ shiftdamp 0.5
 stepsshift 1
 allrealcoeff
 realspawncutoff 0.01
-nmcyc 0
+nmcyc 100
 semi-stochastic
 fci-core
 load-balance-blocks off
