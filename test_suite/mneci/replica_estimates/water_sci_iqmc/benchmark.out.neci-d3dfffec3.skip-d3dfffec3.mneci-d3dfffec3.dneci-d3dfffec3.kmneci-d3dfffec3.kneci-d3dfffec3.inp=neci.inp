@@ -1,18 +1,24 @@
  Number of processors:            4
  Processor            1 /           4  as head node.
+ Processor            2 /           4  moving to local output.
+ outfile=NodeFile2           
+ Processor            3 /           4  moving to local output.
+ outfile=NodeFile3           
+ Processor            4 /           4  moving to local output.
+ outfile=NodeFile4           
  Sum:           10
  Memory Manager initialised with  99999.0 MB
 
  ================================================================
- Compiled on Feb  2 2023 at 10:46:27
+ Compiled on Feb 26 2023 at 11:03:45
  Compiled using configuration:
-     cmake-GNU--RELEASE
+     cmake-GNU--FASTDEBUG
  VCS BASE repository version:
-     2fc37fa768498ddfa47c9eba047f552cc0f7e74b
+     d3dfffec35894d169f3752a56ce23e602236066b
  Working directory: 
-     /home/phaupt/dev/neci_2merge/test_suite/mneci/replica_estimates/water_sci_iqmc
- Running on: alamdlogin1
- Started running on 02/02/2023 at 11:10:12
+     /home/weser/code/neci/test_suite/mneci/replica_estimates/water_sci_iqmc
+ Running on: altest
+ Started running on 26/02/2023 at 11:30:28
  ================================================================
 
  Processing argumentsneci.inp                                                                                                                                                                                                                                                       
@@ -80,6 +86,11 @@ end
  Please note that because of load-balancing the calculation is not fully deterministic (CPU load).
  If a fully deterministic calculation is required use the `load-balance-interval` keyword.
  Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+         2         2
+         3         3
  I am the node root for node            0
 ======== SYSTEM ==========
   NUMBER OF ELECTRONS :     8
@@ -92,6 +103,11 @@ end
   Maximum number of symmetries:   4
   Generating abelian symmetry table with  2 generators
   Number of symmetry classes: 4
+ Label, Sym, SymConjLabel, SymConj, SymProd
+           1           0           1           0           0
+           2           1           2           1           0
+           3           2           3           2           0
+           4           3           4           3           0
 *** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
  UMatSize:                 38226
 Memory required for integral storage:     0.2916412353     Mb/Shared Memory
@@ -167,6 +183,58 @@ Setting integer bit-length of determinants as bit-strings to:     64
            4  DISTINCT ORBITAL PAIR PRODUCT SYMS
  Symmetry and spin of orbitals correctly set up for excitation generators.
  Simply transferring this into a spin orbital representation.
+ SpinOrbSymLabel: 
+           1           0
+           2           0
+           3           1
+           4           1
+           5           0
+           6           0
+           7           2
+           8           2
+           9           0
+          10           0
+          11           1
+          12           1
+          13           1
+          14           1
+          15           0
+          16           0
+          17           0
+          18           0
+          19           2
+          20           2
+          21           1
+          22           1
+          23           0
+          24           0
+          25           3
+          26           3
+          27           2
+          28           2
+          29           0
+          30           0
+          31           1
+          32           1
+          33           1
+          34           1
+          35           0
+          36           0
+          37           2
+          38           2
+          39           3
+          40           3
+          41           0
+          42           0
+          43           0
+          44           0
+          45           1
+          46           1
+ SymInvLabel: 
+           0           0
+           1           1
+           2           2
+           3           3
  Not storing the H matrix.
  <D0|H|D0>=  -76.026772053392122     
  <D0|T|D0>=  -41.612320169945278     
@@ -195,6 +263,10 @@ Highest energy determinant is (approximately):     -45.1937631715183
 Corresponding to a correlation energy of:      30.8330088818738    
 This means tau should be no more than about         0.032432773714403
  Highest energy determinant is:           39          40          41          42          43          44          45          46
+The deterministic tau is smaller than max_tau.
+We will limit max_tau to:        0.035676051085844
+>>> Changing tau: 0.100000E+00 -> 0.356761E-01
+>>> Reason: Initial tau was higher than deterministic tau limit.
  Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
    2056 double excitations, and      50 single excitations found from reference. This will be used to calculate pDoubles.
  pDoubles set to:       0.976258
@@ -215,7 +287,7 @@ Initial number of particles set to      50000 and shift will be held at     0.00
  Only one array of memory to store main particle list allocated...
  Initial memory allocation sucessful...
  =============================================
- >>> Initial tau from source: user defined is   0.10000000000000001      .
+ >>> Initial tau from source: user defined is    3.5676051085843638E-002 .
  >>> Tau-search activated. Using conventional algorithm. Stop if variable shift reached.
 
 ============ Semi-stochastic initialisation ============
@@ -225,11 +297,11 @@ Total size of deterministic space:    26578
           Reducing the size of the deterministic space is encouraged.
 Size of deterministic space on this processor:     6580
 Generating the Hamiltonian in the deterministic space...
-Time to create auxiliary arrays:    0.015
+Time to create auxiliary arrays:    0.016
 Time to sort auxiliary arrays:    0.004
 Arrays for Hamiltonian successfully allocated...
-Time to create the Hamiltonian:    0.677
-total_time:    0.696
+Time to create the Hamiltonian:    0.719
+total_time:    0.739
 Using the deterministic ground state as initial walker configuration.
 Performing Davidson calculation...
  Space sizes and max Davidson iterations:         6580          25
@@ -240,28 +312,28 @@ Performing Davidson calculation...
  calculating the initial residual vector... done.
 
  Iteration    Residual norm            Energy       Time
-         1      0.304283303     -0.1968149810      0.003
-         2      0.069934933     -0.2115890171      0.003
-         3      0.021936428     -0.2125247128      0.003
-         4      0.008299136     -0.2126336243      0.003
-         5      0.002299971     -0.2126475891      0.003
-         6      0.000906995     -0.2126488685      0.003
-         7      0.000330549     -0.2126490646      0.003
-         8      0.000139621     -0.2126490949      0.003
-         9      0.000046890     -0.2126490996      0.003
-        10      0.000016809     -0.2126491001      0.003
-        11      0.000005244     -0.2126491002      0.003
-        12      0.000001839     -0.2126491002      0.003
-        13      0.000000589     -0.2126491002      0.003
-        14      0.000000172     -0.2126491002      0.003
-        15      0.000000050     -0.2126491002      0.003
+         1      0.304283303     -0.1968149810      0.078
+         2      0.069934933     -0.2115890171      0.077
+         3      0.021936428     -0.2125247128      0.097
+         4      0.008299136     -0.2126336243      0.084
+         5      0.002299971     -0.2126475891      0.094
+         6      0.000906995     -0.2126488685      0.043
+         7      0.000330549     -0.2126490646      0.095
+         8      0.000139621     -0.2126490949      0.093
+         9      0.000046890     -0.2126490996      0.071
+        10      0.000016809     -0.2126491001      0.052
+        11      0.000005244     -0.2126491002      0.122
+        12      0.000001839     -0.2126491002      0.077
+        13      0.000000589     -0.2126491002      0.076
+        14      0.000000172     -0.2126491002      0.064
+        15      0.000000050     -0.2126491002      0.090
 
  Final calculated energy:    -0.2126491002
 Davidson calculation complete.
 Deterministic subspace correlation energy:   -0.2126491002
-Total time (seconds) taken for Davidson calculation:    0.049
+Total time (seconds) taken for Davidson calculation:    1.250
 Semi-stochastic initialisation complete.
-Time (seconds) taken for semi-stochastic initialisation:    0.051
+Time (seconds) taken for semi-stochastic initialisation:    0.114
 
  Setting ref           1
 (    1,    2,    3,    4,    5,    6,    7,    8)
@@ -282,78 +354,72 @@ Generating the initiator space...
 Total size of initiator space:    26578
 Size of initiator space on this processor:     6580
 Initialisation of initiator space complete.
-Total time (seconds) taken for initiator space initialisation:    0.029
+Total time (seconds) taken for initiator space initialisation:    0.090
 
+ HF:            1           2           3           4           5           6           7           8
+ HF_true:            1           2           3           4           5           6           7           8
+ Ref:            1           2           3           4           5           6           7           8
+ ProjEDet:            1           2           3           4           5           6           7           8           1           2           3           4           5           6           7           8
 ## 1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Proj. E (cyc)                         5. Shift. (cyc)                          11. Tot. Proj. E                         12. Dets occ.        13. Dets spawned     15. Iter. time                           41. EN2 Dets.       
 ##               0   50000.0000000        50000.0000000        0.00000000000        0.00000000000       -76.0267720534                     1                0   0.00000000000                    0
  Updating parallel-spin bias; new pParallel =   0.24400622615845940     
->>> Changing tau: 0.100000E+00 -> 0.689270E+00
->>> Reason: Conventional tau search
  Updating singles/doubles bias. pSingles =    4.9979673469562738E-002
   pDoubles =   0.95002032653043722     
 Exiting the single particle growth phase on iteration:             1 - Shift can now change for population1
 Exiting the single particle growth phase on iteration:             1 - Shift can now change for population2
-                 1   57330.6007878        4698.11627049      -0.212649100188        0.00000000000       -76.2394211536                 40970           608219  0.578318238258                    0
- Updating parallel-spin bias; new pParallel =   0.25103150126078971     
->>> Changing tau: 0.689270E+00 -> 0.641980E+00
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    5.9449609377201708E-002
-  pDoubles =   0.94055039062279833     
-                 2   101615.509089        4698.11627049      -0.212649124018      -0.106554350275E-001  -76.2394211774                115422           749718  0.707650899887                    0
- Updating parallel-spin bias; new pParallel =   0.23902619626331451     
->>> Changing tau: 0.641980E+00 -> 0.611286E+00
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    5.9436665283575899E-002
-  pDoubles =   0.94056333471642406     
-                 3   118760.301952        4698.11627049      -0.212834908097      -0.574715948329E-001  -76.2396069615                140112          1631424   1.29808020592                    0
- Updating parallel-spin bias; new pParallel =   0.19138897227072296     
->>> Changing tau: 0.611286E+00 -> 0.474639E+00
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    8.7915946541996234E-002
-  pDoubles =   0.91208405345800381     
-                 4   126523.857396        4698.11627049      -0.213808115185      -0.738957215716E-001  -76.2405801686                151176          1968349   1.55017161369                    0
- Updating parallel-spin bias; new pParallel =   0.14949797513288179     
->>> Changing tau: 0.474639E+00 -> 0.378024E+00
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    7.0020404226658103E-002
-  pDoubles =   0.92997959577334188     
-                 5   126765.571716        4698.11627049      -0.214382581050      -0.822712752814E-001  -76.2411546344                154153          2112238   1.61233401299                    0
-                 6   126655.106323        4698.11627049      -0.214542198172      -0.825238241069E-001  -76.2413142516                155114          2123662   1.59405970573                    0
- Updating parallel-spin bias; new pParallel =   0.15452414822838134     
->>> Changing tau: 0.378024E+00 -> 0.375946E+00
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    6.9635422718510698E-002
-  pDoubles =   0.93036457728148925     
-                 7   126864.910110        4698.11627049      -0.214567918556      -0.824078998360E-001  -76.2413399719                155900          2121412   1.62325787544                    0
-                 8   126589.505826        4698.11627049      -0.214623024010      -0.826276759315E-001  -76.2413950774                155896          2126076   1.61631488800                    0
- Updating singles/doubles bias. pSingles =    7.0013647803294443E-002
-  pDoubles =   0.92998635219670556     
-                 9   126625.258814        4698.11627049      -0.214731502741      -0.823387001831E-001  -76.2415035561                155927          2121106   1.59637773037                    0
-                10   126587.795513        4698.11627049      -0.214855086570      -0.823762719073E-001  -76.2416271400                155713          2120921   1.58952093124                    0
-                11   126800.917094        4698.11627049      -0.214933331164      -0.823370818450E-001  -76.2417053846                156007          2120238   1.65557920933                    0
- Updating parallel-spin bias; new pParallel =   0.17076253692032262     
->>> Changing tau: 0.375793E+00 -> 0.362563E+00
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    8.5184645901339784E-002
-  pDoubles =   0.91481535409866022     
-                12   126673.167625        4698.11627049      -0.214967141741      -0.825690440362E-001  -76.2417391951                156145          2124364   1.62207221985                    0
-                13   126427.796769        4698.11627049      -0.214934733017      -0.824300195132E-001  -76.2417067864                156011          2117078   1.66458976269                    0
-                14   126016.275866        4698.11627049      -0.214889703921      -0.821624380278E-001  -76.2416617573                155427          2112295   1.64630317688                    0
- Updating parallel-spin bias; new pParallel =   0.18673502223059230     
->>> Changing tau: 0.362563E+00 -> 0.356164E+00
->>> Reason: Conventional tau search
- Updating singles/doubles bias. pSingles =    8.3681152504533438E-002
-  pDoubles =   0.91631884749546655     
-                15   125845.896446        4698.11627049      -0.214852315752      -0.817048160784E-001  -76.2416243691                155268          2104747   1.60482954979                    0
-                16   125465.000187        4698.11627049      -0.214940097116      -0.815148360552E-001  -76.2417121505                154776          2100743   1.58042216301                    0
-                17   125143.451321        4698.11627049      -0.214860514689      -0.810894343665E-001  -76.2416325681                154452          2094158   1.59580469131                    0
-                18   124877.903342        4698.11627049      -0.214825389263      -0.807292331832E-001  -76.2415974427                154015          2087497   1.66539061069                    0
-                19   125111.245671        4698.11627049      -0.214883413317      -0.804310405423E-001  -76.2416554667                154245          2081767   1.64713311195                    0
-                20   125261.820228        4698.11627049      -0.214875510189      -0.806930654275E-001  -76.2416475636                154456          2086379   1.65114414692                    0
+                 1   52696.0000060        4698.11627049      -0.212649100188        0.00000000000       -76.2394211536                 31927           608219  0.851540505886                    0
+ Updating parallel-spin bias; new pParallel =   0.23459202580183780     
+ Updating singles/doubles bias. pSingles =    4.8144204267062882E-002
+  pDoubles =   0.95185579573293710     
+                 2   55037.3981744        4698.11627049      -0.212649100188      -0.736023510079E-001  -76.2394211536                 36492           657029  0.909235656261                    0
+ Updating singles/doubles bias. pSingles =    5.4999622197999337E-002
+  pDoubles =   0.94500037780200064     
+                 3   57314.9125266        4698.11627049      -0.212653584327      -0.134531227649       -76.2394256377                 40919           703797  0.953776597977                    0
+ Updating singles/doubles bias. pSingles =    5.8766663657528695E-002
+  pDoubles =   0.94123333634247131     
+                 4   59535.1717470        4698.11627049      -0.212658820863      -0.191359748402       -76.2394308743                 45206           747756  0.998479604721                    0
+ Updating parallel-spin bias; new pParallel =   0.23061676703574388     
+ Updating singles/doubles bias. pSingles =    6.0971103869355531E-002
+  pDoubles =   0.93902889613064444     
+                 5   61704.1971131        4698.11627049      -0.212666776650      -0.244626256909       -76.2394388300                 49368           791347   1.04348349571                    0
+                 6   63803.6630485        4698.11627049      -0.212678321055      -0.294778936936       -76.2394503744                 53332           833143   1.09097325802                    0
+ Updating singles/doubles bias. pSingles =    6.6979936934247947E-002
+  pDoubles =   0.93302006306575203     
+                 7   65875.7833124        4698.11627049      -0.212690211745      -0.341671779598       -76.2394622651                 57206           875621   1.12646901608                    0
+ Updating parallel-spin bias; new pParallel =   0.18837977011513954     
+ Updating singles/doubles bias. pSingles =    5.5392205757842428E-002
+  pDoubles =   0.94460779424215757     
+                 8   67815.8503093        4698.11627049      -0.212701877022      -0.386463994134       -76.2394739304                 60770           915280   1.16791653633                    0
+                 9   69715.0021485        4698.11627049      -0.212717837055      -0.427142707989       -76.2394898904                 64261           956901   1.19849312305                    0
+ Updating parallel-spin bias; new pParallel =   0.19627372925890696     
+ Updating singles/doubles bias. pSingles =    6.2297923683978761E-002
+  pDoubles =   0.93770207631602120     
+                10   71546.9903308        4698.11627049      -0.212731198739      -0.465851121682       -76.2395032521                 67608           996837   1.23819172382                    0
+ Updating parallel-spin bias; new pParallel =   0.19002737917400642     
+ Updating singles/doubles bias. pSingles =    6.0435131148184953E-002
+  pDoubles =   0.93956486885181500     
+                11   73218.9666699        4698.11627049      -0.212752225701      -0.502206293975       -76.2395242791                 70613          1030203   1.27428841591                    0
+                12   74880.0536193        4698.11627049      -0.212771677524      -0.534581462928       -76.2395437309                 73587          1063970   1.30497825146                    0
+                13   76472.9360465        4698.11627049      -0.212795369690      -0.566021734215       -76.2395674231                 76450          1097379   1.33615565300                    0
+                14   78071.7076797        4698.11627049      -0.212819575504      -0.595522162823       -76.2395916289                 79330          1129101   1.37537813187                    0
+ Updating parallel-spin bias; new pParallel =   0.11591468190218231     
+ Updating singles/doubles bias. pSingles =    3.7754678501446925E-002
+  pDoubles =   0.96224532149855313     
+                15   79654.0305228        4698.11627049      -0.212843855079      -0.624520029447       -76.2396159085                 82120          1161490   1.39776325226                    0
+                16   81129.3500215        4698.11627049      -0.212864944562      -0.652642122448       -76.2396369980                 84674          1199910   1.47076666355                    0
+ Updating parallel-spin bias; new pParallel =   0.15845362300116009     
+ Updating singles/doubles bias. pSingles =    3.6003466417667336E-002
+  pDoubles =   0.96399653358233262     
+                17   82548.6499387        4698.11627049      -0.212887957659      -0.678362863691       -76.2396600111                 87125          1229585   1.98943531513                    0
+                18   83955.5680477        4698.11627049      -0.212915355226      -0.702669192057       -76.2396874086                 89586          1258276   11.3951101303                    0
+ Updating singles/doubles bias. pSingles =    3.6182940303427093E-002
+  pDoubles =   0.96381705969657294     
+                19   85343.2177054        4698.11627049      -0.212939762218      -0.726353765846       -76.2397118156                 92014          1286361   55.0643806458                    0
+                20   86732.5193398        4698.11627049      -0.212969529970      -0.749328529466       -76.2397415834                 94397          1313245   6.79088783264                    0
 Total iteration number limit reached. Finishing FCIQMC loop...
  - - - - - - - - - - - - - - - - - - - - - - - -
- Total loop-time:    30.106748603284359     
- Time lost due to load imbalance:    1.1702065924182534     
+ Total loop-time:    97.344102035975084     
+ Time lost due to load imbalance:    2.3992753176862607     
  - - - - - - - - - - - - - - - - - - - - - - - -
  
 Current references: 
@@ -366,21 +432,21 @@ definedet     1-8
 Most occupied         15 determinants as excitations from reference: 
 
 Excitation ExcitLevel  Seniority Walkers(1) Walkers(2)    Amplitude Init?(1) Init?(2)  <D|H|D>Proc Spin-Coup?
-1111111100000000000000000000000000000000000000    0    0    4698.116        4698.116      0.96977  Y  Y  -7.60267721E+01       0
-1111110000000000001100000000000000000000000000    2    0   -243.3217       -243.5997      0.05025  Y  Y  -7.35865580E+01       1
-1111011000000000100100000000000000000000000000    2    4   -193.1313       -192.6635      0.02816  Y  Y  -7.35448887E+01       2  *
-1100111100001100000000000000000000000000000000    2    0   -174.8191       -174.5950      0.03606  Y  Y  -7.37914722E+01       3
-1111001100000000110000000000000000000000000000    2    0   -168.5202       -168.7692      0.03481  Y  Y  -7.34423638E+01       1
-1110110100000000001001000000000000000000000000    2    4    153.8430        153.5292      0.02243  Y  Y  -7.32899159E+01       3  *
-1110011100001001000000000000000000000000000000    2    4   -149.3304       -151.0184      0.02192  Y  Y  -7.38783974E+01       1  *
-1101111000100000000100000000000000000000000000    2    4   -149.3132       -148.7483      0.02175  Y  Y  -7.41190046E+01       2  *
-1100111100110000000000000000000000000000000000    2    0   -145.8998       -145.0056      0.03002  Y  Y  -7.44490436E+01       1
-1100111100100100000000000000000000000000000000    2    2   -143.5625       -143.4323      0.02094  Y  Y  -7.41633896E+01       3  *
-1100111100000011000000000000000000000000000000    2    0   -137.3434       -137.1421      0.02833  Y  Y  -7.36753515E+01       2
-1111101000000000010100000000000000000000000000    2    4    134.7237        134.8886      0.01968  Y  Y  -7.35739636E+01       3  *
-1100111100100000000001000000000000000000000000    2    2   -129.9559       -130.5053      0.01901  Y  Y  -7.37241180E+01       3  *
-1111001100001100000000000000000000000000000000    2    0   -125.1421       -125.3055      0.02585  Y  Y  -7.39057923E+01       1
-0111111010000000000100000000000000000000000000    2    4   -124.4188       -124.4949      0.01817  Y  Y  -7.35617081E+01       2  *
+1111111100000000000000000000000000000000000000    0    0    4698.116        4698.116      0.97091  Y  Y  -7.60267721E+01       0
+1111110000000000001100000000000000000000000000    2    0   -243.5728       -243.5882      0.05034  Y  Y  -7.35865580E+01       1
+1111011000000000100100000000000000000000000000    2    4   -192.8520       -192.8790      0.02818  Y  Y  -7.35448887E+01       2  *
+1100111100001100000000000000000000000000000000    2    0   -174.2173       -174.1864      0.03600  Y  Y  -7.37914722E+01       3
+1111001100000000110000000000000000000000000000    2    0   -168.5496       -168.5057      0.03483  Y  Y  -7.34423638E+01       1
+1110110100000000001001000000000000000000000000    2    4    153.7886        153.8219      0.02248  Y  Y  -7.32899159E+01       3  *
+1110011100001001000000000000000000000000000000    2    4   -149.2097       -149.1352      0.02180  Y  Y  -7.38783974E+01       1  *
+1101111000100000000100000000000000000000000000    2    4   -148.5650       -148.7288      0.02172  Y  Y  -7.41190046E+01       2  *
+1100111100110000000000000000000000000000000000    2    0   -144.0610       -144.2298      0.02979  Y  Y  -7.44490436E+01       1
+1100111100100100000000000000000000000000000000    2    2   -143.2373       -143.0430      0.02092  Y  Y  -7.41633896E+01       3  *
+1100111100000011000000000000000000000000000000    2    0   -137.0991       -137.0123      0.02832  Y  Y  -7.36753515E+01       2
+1111101000000000010100000000000000000000000000    2    4    134.7964        134.6490      0.01969  Y  Y  -7.35739636E+01       3  *
+1100111100100000000001000000000000000000000000    2    2   -129.4794       -129.6696      0.01893  Y  Y  -7.37241180E+01       3  *
+1111001100001100000000000000000000000000000000    2    0   -124.5941       -124.6957      0.02576  Y  Y  -7.39057923E+01       1
+0111111010000000000100000000000000000000000000    2    4   -124.0822       -124.1141      0.01813  Y  Y  -7.35617081E+01       2  *
  * = Spin-coupled function implicitly has time-reversed determinant with same weight.
  
  Warning: attempting to log deallocation but never logged allocation.
@@ -388,16 +454,16 @@ Excitation ExcitLevel  Seniority Walkers(1) Walkers(2)    Amplitude Init?(1) Ini
 
  Load balancing information based on the last iteration:
 
- Mean number of determinants/process   50345.2500000000
- Min number of determinants/process              50095
- Max number of determinants/process              50644
+ Mean number of determinants/process   24092.0000000000
+ Min number of determinants/process              23946
+ Max number of determinants/process              24255
 
 
 
  Load balancing information based on the last iteration:
-     Mean number of walkers/process:   62630.9101138117
-     Min number of walkers/process:        60606.77975
-     Max number of walkers/process:        66978.85950
+     Mean number of walkers/process:   43366.2596698894
+     Min number of walkers/process:        41019.42400
+     Max number of walkers/process:        47746.79617
 
 
 
@@ -406,19 +472,19 @@ Calculating approximate errorbar for energy estimates...
 Attempting automatic reblocking analysis on data from iteration:            1
  No FCIMCStats file found for error analysis
  Current reference energy                             -76.026772053392
- Projected correlation energy                          -0.214436726953
+ Projected correlation energy                          -0.212768243801
  No automatic errorbar obtained for projected energy
  No reliable averaged shift correlation energy could be obtained automatically
 
- Total projected energy         -76.24120878
+ Total projected energy         -76.23954030
 
  THE FOLLOWING IS FOR TEST SUITE USE ONLY!
 
  REPLICA ESTIMATES FOR STATE 1:
- Variational energy from replica_estimates: -7.6241677648291E+01
- Energy squared from replica_estimates:  5.8127929214695E+03
- EN2 estimate from replica_estimates: -3.0196015256914E-05
- Preconditioned energy from replica_estimates: -7.6241592136122E+01
+ Variational energy from replica_estimates: -7.6241088310236E+01
+ Energy squared from replica_estimates:  5.8127080303738E+03
+ EN2 estimate from replica_estimates: -2.1380311054361E-05
+ Preconditioned energy from replica_estimates: -7.6241612194582E+01
 
 
 
@@ -450,20 +516,20 @@ Attempting automatic reblocking analysis on data from iteration:            1
  Timing of most expensive procedures.
  Procedure                                 Calls       total time
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- WalkerTime                                  20     23.69
- Compress Sort interface                     20      1.94
- AnnMainTime                                 20      1.22
- PreCondEnergyTime                           20      0.92
- Compression interface                       20      0.73
-                                              1      0.68
- RescaleTime                                 20      0.47
- DeathTime                                   20      0.20
- SemiStochMultiplyTime                       20      0.17
- ProjEnergyTime                              20      0.17
+ WalkerTime                                  20     88.41
+ StatsCommsTime                              20      3.36
+ SemiStochDavidsonTime                        1      1.25
+ Compress Sort interface                     20      1.04
+ NECICUBE                                     1      0.97
+ PreCondEnergyTime                           20      0.74
+                                              1      0.72
+ AnnMainTime                                 20      0.66
+ Compression interface                       20      0.57
+ AnnihilTime                                 20      0.36
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- Total                                  30.18
+ Total                                  98.08
 
- Global wall clock time         31.05
+ Global wall clock time         99.84
  ================================================================
- Calculation ended 02/02/2023 at 11:10:43
+ Calculation ended 26/02/2023 at 11:32:08
  ================================================================

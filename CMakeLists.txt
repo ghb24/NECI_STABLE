@@ -60,7 +60,7 @@ neci_add_option(
 
 neci_add_option(
     FEATURE HDF5
-    DEFAULT OFF
+    DEFAULT ON
     DESCRIPTION "Use HDF5 file format for storage"
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
