@@ -160,6 +160,11 @@ considered. The block starts with the `system` keyword and ends with the
     if you are running a transcorrelated mean-field calculation, use
     `nonhermitian 2-body`.
 
+-   **stoquastize**<br>
+    Stoquastize the Hamiltonian. This means, the off-diagonal elements of the
+    original Hamiltonian become negative without changing the magnitudes,
+    i.e. \(H^{stoq}_{ij} = H_{ij}\delta_{ij} - |H_{ij}|(1 - \delta_{ij})\).
+
 #### Excitation generation options
 
 -   **\textcolor{blue}{nonUniformRandExcits}**<br>
