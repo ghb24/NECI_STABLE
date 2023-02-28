@@ -1623,14 +1623,17 @@ contains
         ! Generate and store all the determinants in nI_list.
         call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
 
-        do i = 1, ndets
-            call EncodeBitDet(nI_list(:, i), ilut)
-            if (tGUGACore) then
+        if (tGUGACore) then
+            do i = 1, ndets
+                call EncodeBitDet(nI_list(:, i), ilut)
                 if (isProperCSF_flexible(ilut, STOT, nel)) call add_state_to_space(ilut, ilut_list, space_size, nI_list(:, i))
-            else
+            end do
+        else
+            do i = 1, ndets
+                call EncodeBitDet(nI_list(:, i), ilut)
                 call add_state_to_space(ilut, ilut_list, space_size, nI_list(:, i))
-            end if
-        end do
+            end do
+        end if
 
     end subroutine generate_fci_core
 
