@@ -1,38 +1,42 @@
 title
 
 system read
-electrons 6
-guga 0
-nonuniformrandexcits mol-guga-weighted
-sym 0 0 0 0
+    electrons 6
+    guga 0
+    nonuniformrandexcits mol-guga-weighted
+    sym 0 0 0 0
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-memoryfacspawn 5.0
-memoryfacpart 2.0
-totalwalkers 10000
-tau-values \
-    start user-defined 0.01
-startsinglepart 10000
-shiftdamp 0.5
-stepsshift 1
-allrealcoeff
-realspawncutoff 0.01
-nmcyc 100
-semi-stochastic
-fci-core
-load-balance-blocks off
-definedet 1 4 5 8 9 12
+    methods
+        method vertex fcimc
+    endmethods
+
+    tau-values \
+        start user-defined 0.01
+
+    seed -7
+    load-balance-blocks off
+    definedet 1 4 5 8 9 12
+
+    semi-stochastic
+    fci-core
+
+    memoryfacspawn 5.0
+    memoryfacpart 2.0
+    totalwalkers 10000
+    startsinglepart 10000
+    shiftdamp 0.5
+    stepsshift 1
+    allrealcoeff
+    realspawncutoff 0.01
+    nmcyc 100
 endcalc
 
 integral
 endint
 
 logging
-popsfile -1
-endlog
+    popsfile -1
+    endlog
 end
