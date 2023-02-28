@@ -6,14 +6,15 @@ module davidson_neci
     ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
     use constants
-    use FciMCData, only: hamiltonian, DavidsonTag, user_input_max_davidson_iters
+    use FciMCData, only: hamiltonian, DavidsonTag, user_input_max_davidson_iters, &
+                         user_input_davidson_tolerance
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
     use MPI_wrapper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
-    use util_mod, only: neci_flush, warning_neci
+    use util_mod, only: neci_flush, stop_all
     use hamiltonian_linalg, only: &
         full_hamil_type, &
         sparse_hamil_type, &
@@ -29,7 +30,7 @@ module davidson_neci
     implicit none
 
     integer :: max_num_davidson_iters = 50
-    real(dp), parameter :: residual_norm_target = 0.0000001_dp
+    real(dp) :: residual_norm_target = 0.0000001_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
     type DavidsonCalcType
@@ -102,8 +103,9 @@ contains
             if (this%residual_norm < residual_norm_target) exit
 
             if (i == max_num_davidson_iters) then
-                call warning_neci(this_routine, "Davidson iteration reached the maximum number of iterations. &
-                                                &The deterministic energy may not be converged.")
+                call stop_all(this_routine, "Davidson iteration reached the maximum number of iterations. &
+                                            &The deterministic energy may not be converged. &
+                                            &You can increase 'davidson-max-iters' or 'davidson-target-tolerance'.")
             end if
 
         end do
@@ -139,6 +141,9 @@ contains
 
         if( allocated(user_input_max_davidson_iters) ) &
             max_num_davidson_iters = user_input_max_davidson_iters
+
+        if( allocated(user_input_davidson_tolerance) ) &
+            residual_norm_target = user_input_davidson_tolerance
 
         call InitHamiltonianCalc(this%super, print_info, hamil_type, max_num_davidson_iters, .true., .false.)
 

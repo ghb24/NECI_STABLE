@@ -701,6 +701,10 @@ and ends with the `endcalc` keyword.
     for instance, in the semi-stochastic implementation or when
     CI Davidson is used. The default value is \(50\).
 
+-   **davidson-target-tolerance \(x\)**<br>
+    Set the target convergence tolerance of the residual norm of Davidson
+    diagonalization. The default value is \(0.0000001\).
+
 #### Population control options
 
 -   **\textcolor{red}{totalWalkers \(n\)}**<br>

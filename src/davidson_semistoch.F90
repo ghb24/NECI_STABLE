@@ -6,7 +6,8 @@ module davidson_semistoch
     ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
     use constants
-    use FciMCData, only: DavidsonTag, user_input_max_davidson_iters
+    use FciMCData, only: DavidsonTag, user_input_max_davidson_iters, &
+                         user_input_davidson_tolerance
     use SystemData, only: t_non_hermitian_2_body
     use MemoryManager, only: TagIntType
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
@@ -15,11 +16,11 @@ module davidson_semistoch
     use MPI_wrapper, only: root, MPI_WTIME
     use sparse_arrays, only: HDiagTag
     use core_space_util, only: cs_replicas
-    use util_mod, only: neci_flush, warning_neci
+    use util_mod, only: neci_flush, stop_all
     implicit none
 
     integer :: max_num_davidson_iters = 50
-    real(dp), parameter :: residual_norm_target = 0.0000001_dp
+    real(dp) :: residual_norm_target = 0.0000001_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
     type davidson_ss
@@ -111,8 +112,9 @@ contains
             if (this%residual_norm < residual_norm_target) exit
 
             if (i == min(max_num_davidson_iters, this%space_size)) then
-                call warning_neci(this_routine, "Davidson iteration reached the maximum number of iterations. &
-                                                &The deterministic energy may not be converged.")
+                call stop_all(this_routine, "Davidson iteration reached the maximum number of iterations. &
+                                            &The deterministic energy may not be converged. &
+                                            &You can increase 'davidson-max-iters' or 'davidson-target-tolerance'.")
             end if
 
         end do
@@ -144,6 +146,9 @@ contains
 
         if( allocated(user_input_max_davidson_iters) ) &
             max_num_davidson_iters = user_input_max_davidson_iters
+
+        if( allocated(user_input_davidson_tolerance) ) &
+            residual_norm_target = user_input_davidson_tolerance
 
         this%run = run
         associate ( &
