@@ -703,7 +703,7 @@ and ends with the `endcalc` keyword.
 
 -   **davidson-target-tolerance \(x\)**<br>
     Set the target convergence tolerance of the residual norm of Davidson
-    diagonalization. The default value is \(0.0000001\).
+    diagonalization. The default value is \(10^{-7}\).
 
 #### Population control options
 

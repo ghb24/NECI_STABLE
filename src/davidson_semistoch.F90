@@ -20,7 +20,7 @@ module davidson_semistoch
     implicit none
 
     integer :: max_num_davidson_iters = 50
-    real(dp) :: residual_norm_target = 0.0000001_dp
+    real(dp) :: residual_norm_target = 1e-7_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
     type davidson_ss
