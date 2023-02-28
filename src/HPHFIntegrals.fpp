@@ -8,6 +8,7 @@ module hphf_integrals
                           t_3_body_excits, max_ex_level
     use IntegralsData, only: UMat, FCK, NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
+    use orb_idx_mod, only: size
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs, GetBitExcitation
     use excitation_types, only: Excite_0_t, Excite_2_t
@@ -16,6 +17,10 @@ module hphf_integrals
     use lattice_mod, only: get_helement_lattice
     use util_mod, only: stop_all
     implicit none
+    private
+    public :: hphf_off_diag_helement, hphf_spawn_sign, hphf_off_diag_helement_opt, &
+        hphf_off_diag_special_case, hphf_diag_helement, hphf_sign, &
+        hphf_off_diag_helement_norm, hphf_off_diag_helement_spawn
 
     interface hphf_off_diag_helement
         module procedure hphf_off_diag_helement_norm

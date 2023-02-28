@@ -336,7 +336,6 @@ set( RELAX_WARNINGS_SRCS
     parallel_workarounds.F90
     MPI_wrapper.F90
     pchb_excitgen.F90
-    perturbations.F90
     Popsfile.F90
     Popsfile_impls.F90
     proc_ptrs.F90
