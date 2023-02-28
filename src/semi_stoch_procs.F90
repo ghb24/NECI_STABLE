@@ -20,7 +20,7 @@ module semi_stoch_procs
 
     use FciMCData, only: SpawnedParts, TotWalkers, CurrentDets, &
                          MaxSpawned, ilutRef, &
-                         t_global_core_space, core_run
+                         t_global_core_space, core_run, Hii
 
     use core_space_util, only: core_space_t, cs_replicas, min_pt, max_pt, &
                                deallocate_sparse_ham
@@ -236,7 +236,7 @@ contains
 
     subroutine determ_projection_kp_hamil(partial_vecs, full_vecs, rep)
 
-        use FciMCData, only: Hii, SemiStoch_Comms_Time, SemiStoch_Multiply_Time
+        use FciMCData, only: SemiStoch_Comms_Time, SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
         real(dp), allocatable, intent(inout) :: partial_vecs(:, :)
@@ -1833,7 +1833,7 @@ contains
 
         if (tPrintInfo) then
             write(stdout, '(a30)') "Davidson calculation complete."
-            write(stdout, '("Deterministic subspace correlation energy:",1X,f15.10)') dc%davidson_eigenvalue
+            write(stdout, '("Deterministic total energy:",1X,f15.10)') dc%davidson_eigenvalue + Hii
             call neci_flush(6)
         end if
 
@@ -1950,8 +1950,8 @@ contains
         e_vector = davidsonCalc%davidson_eigenvector
 
         write(stdout, '(a30)') "Davidson calculation complete."
-        write(stdout, '("Deterministic subspace correlation energy:",1X,f15.10)') &
-            e_value
+        write(stdout, '("Deterministic total energy:",1X,f15.10)') &
+            e_value + Hii
 
         call neci_flush(6)
 

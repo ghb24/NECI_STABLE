@@ -31,7 +31,7 @@ MODULE Calc
                          alloc_popsfile_dets, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
-                         user_input_max_davidson_iters
+                         user_input_max_davidson_iters, user_input_davidson_tolerance
     use tau_main, only:  &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         tau_stop_method, possible_tau_stop_methods, &
@@ -1579,14 +1579,22 @@ contains
                 end if
 
             case("DAVIDSON-MAX-ITERS")
-                ! Set the max number of iteration for Davidson method: defaulted to 25
-                ! This is probably needed only for very special cases, e.g., very small
-                ! test cases where Davidson throws Floating point exception when this is
-                ! too large, for instance.
+                ! Set the max number of iteration for Davidson method: defaulted to 50
                 if (allocated(user_input_max_davidson_iters)) then
                     call stop_all(t_r, "davison max iters given twice")
                 else
                     user_input_max_davidson_iters = to_int(tokens%next())
+                endif
+
+            case("DAVIDSON-TARGET-TOLERANCE")
+                ! Set the target convergence tolerance of Davidson residual norm
+                ! This keyword has been introduced to be used when one wants to start
+                ! an FCIQMC calculation from an intermediate ci-vector of a Davidson
+                ! diagonalization before reaching convergence
+                if (allocated(user_input_davidson_tolerance)) then
+                    call stop_all(t_r, "davidson target tolerance given twice")
+                else
+                    user_input_davidson_tolerance = to_realdp(tokens%next())
                 endif
 
             case("ALL-CONN-CORE")
