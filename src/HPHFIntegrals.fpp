@@ -166,6 +166,9 @@ contains
                 end if
             end if
         end if
+
+        if(tStoquastize) hel = -abs(hel)
+
     end function
 
     function hphf_off_diag_helement_opt(nI, iLutnI, iLutnJ, IC, CS_I, CS_J) result(hel)
