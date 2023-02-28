@@ -5,7 +5,7 @@
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
     use SystemData, only: tUHF, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
-                         tROHF
+                         tROHF, nBasis
     use pchb_excitgen, only: FCI_PCHB_options
     use gasci_pchb_main, only: GAS_PCHB_options
     use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection
