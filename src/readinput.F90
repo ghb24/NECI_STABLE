@@ -5,7 +5,7 @@
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
     use SystemData, only: tUHF, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
-                         tROHF, nBasis
+                         tROHF
     use pchb_excitgen, only: FCI_PCHB_options
     use gasci_pchb_main, only: GAS_PCHB_options
     use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection
@@ -685,7 +685,7 @@ contains
             if (.not. GAS_specification%contains_conf(DefDet)) then
                 call stop_all(t_r, "Reference determinant has to be contained in GAS space.")
             endif
-            if (.not. GAS_specification%is_valid(nBasis)) then
+            if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
             if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%PCHB])) then
