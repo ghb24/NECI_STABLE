@@ -12,7 +12,7 @@ set( SRC_FILES
     BitReps.F90
     CalcData.F90
     Calc.F90
-    calcrho.F
+    calcrho.F90
     CMakeLists.txt
     compiler_issues.txt
     cont_time_fcimc.F90
@@ -139,7 +139,7 @@ set( SRC_FILES
     RotateOrbsData.F90
     RotateOrbs.F90
     RPA.F90
-    scrtransf.F
+    scrtransf.F90
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
@@ -242,8 +242,6 @@ set( RELAX_WARNINGS_SRCS
     BitReps.F90
     CalcData.F90
     Calc.F90
-    calcrho.F
-    CMakeLists.txt
     compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
@@ -361,7 +359,7 @@ set( RELAX_WARNINGS_SRCS
     RotateOrbsData.F90
     RotateOrbs.F90
     RPA.F90
-    scrtransf.F
+    scrtransf.F90
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90

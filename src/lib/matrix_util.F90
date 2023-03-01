@@ -10,7 +10,7 @@ module matrix_util
         calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx, &
         store_hf_coeff, my_minloc, my_minval, matrix_inverse, print_vec
 
-    external :: dgetrf, dgetri, dgemm, dsyev, zheev, dgeev
+    external :: dgetrf, dgetri, dgemm, dsyev, zheev, dgeev, zgemm
 
     interface linspace
         module procedure linspace_sp
