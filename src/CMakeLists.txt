@@ -19,8 +19,8 @@ set( SRC_FILES
     cont_time_rates.F90
     core_space_util.F90
     CPMDData.F90
-    cpmdinit.F
-    cpmdstub.F
+    cpmdinit.F90
+    cpmdstub.F90
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90
@@ -247,8 +247,6 @@ set( RELAX_WARNINGS_SRCS
     cont_time_rates.F90
     core_space_util.F90
     CPMDData.F90
-    cpmdinit.F
-    cpmdstub.F
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90

@@ -51,6 +51,8 @@ module Integrals_neci
     use input_parser_mod, only: FileReader_t, TokenIterator_t
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_realsp, to_realdp
+
+    use cpmdinit_mod, only: cpmdinit2indint
     implicit none
 
 contains

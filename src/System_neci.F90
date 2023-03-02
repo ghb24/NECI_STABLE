@@ -52,6 +52,8 @@ MODULE System
     use gasci_pchb_main, only: GAS_PCHB_options, GAS_PCHB_options_vals
     use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
 
+    use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit
+
     use growing_buffers, only: buffer_int_1D_t
     IMPLICIT NONE
 

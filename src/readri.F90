@@ -1,5 +1,5 @@
 subroutine InitRIBasis(nBasisMax, Len)
-    use constants, only: dp, int64
+    use constants, only: dp, int64, stdout
     Use SymData, only: tAbelian
 ! lenrec is the number of auxiliary basis functions
     use UMatCache
@@ -32,6 +32,7 @@ subroutine InitRIBasis(nBasisMax, Len)
 END
 
 SUBROUTINE ReadRI2EIntegrals(nBasis, nOrbUsed)
+    use constants, only: stdout
     use UMatCache
     IMPLICIT NONE
     INTEGER nBasis, nOrbUsed
@@ -50,7 +51,7 @@ SUBROUTINE ReadRIIntegrals(nBasis, nOrbUsed)
     use UMatCache
     use global_utilities
     use util_mod, only: record_length
-    use constants, only: dp, int64
+    use constants, only: dp, int64, stdout
     IMPLICIT NONE
     character(*), parameter :: t_r = 'ReadRIIntegrals'
     INTEGER nBasis, nOrbUsed
