@@ -47,7 +47,7 @@ set( SRC_FILES
     FciMCPar.F90
     fcimc_pointed_fns.F90
     fcoul.F90
-    frsblk.F
+    frsblk.F90
     ftlm_neci.F90
     gdata_io.F90
     gen_coul.F
@@ -271,8 +271,7 @@ set( RELAX_WARNINGS_SRCS
     fcimc_output.F90
     FciMCPar.F90
     fcimc_pointed_fns.F90
-    # fcoul.F90
-    frsblk.F
+    frsblk.F90
     ftlm_neci.F90
     gdata_io.F90
     gen_coul.F
