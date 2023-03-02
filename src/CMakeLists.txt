@@ -53,7 +53,7 @@ set( SRC_FILES
     gen_coul.F90
     gen_coul_ueg.F90
     global_utilities.F90
-    gndts_blk.F
+    gndts_blk.F90
     gndts.F90
     gndwork.F90
     hash.F90
@@ -276,7 +276,7 @@ set( RELAX_WARNINGS_SRCS
     gdata_io.F90
     gen_coul_ueg.F90
     global_utilities.F90
-    gndts_blk.F
+    # gndts_blk.F90
     gndts.F90
     gndwork.F90
     hash.F90

@@ -19,6 +19,7 @@ MODULE DetCalc
 
     use excit_mod, only: isvaliddet, genexcit
 
+    use gndts_blk_mod, only: gndts_blk
 
     IMPLICIT NONE
     save

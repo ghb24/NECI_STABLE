@@ -158,13 +158,17 @@ module SystemData
 
     integer, PARAMETER :: SymmetrySize = 2
     integer, PARAMETER :: SymmetrySizeB = SymmetrySize * 8
-    TYPE BasisFN
+    TYPE :: BasisFN
         TYPE(Symmetry) :: sym
         INTEGER :: k(3)
         INTEGER :: Ms
         INTEGER :: Ml            !This is the Ml symmetry of the orbital
         INTEGER :: Dummy         !Rather than use SEQUENCE which has caused endless bother...
     END TYPE
+
+    interface BasisFn
+        module procedure construct_basisfn
+    end interface
 
 ! Empty basis function is used in many places.
 ! This is useful so if BasisFn changes, we don't have to go
@@ -454,6 +458,12 @@ contains
     elemental logical function SymLt(a, b)
         type(Symmetry), intent(in) :: a, b
         SymLt = a%S < b%S
+    end function
+
+    pure function construct_basisfn(mdk) result(res)
+        integer, intent(in) :: mdk(5)
+        type(BasisFN) :: res
+        res = BasisFN(Symmetry(int(mdk(1), int64)), mdk(2:4), mdk(5), 0, 0)
     end function
 
 end module SystemData
