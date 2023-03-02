@@ -488,6 +488,8 @@ MODULE FciMCData
 
     ! Number of Davidson max iterations
     integer, allocatable :: user_input_max_davidson_iters
+    ! Tolerance of Davidson residual norm
+    real(dp), allocatable :: user_input_davidson_tolerance
 
     ! If true (as is the case by default) then semi-stochastic calculations
     ! will start from the ground state of the core space
