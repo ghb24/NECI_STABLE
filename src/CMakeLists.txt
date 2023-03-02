@@ -46,7 +46,7 @@ set( SRC_FILES
     fcimc_output.F90
     FciMCPar.F90
     fcimc_pointed_fns.F90
-    fcoul.F
+    fcoul.F90
     frsblk.F
     ftlm_neci.F90
     gdata_io.F90
@@ -261,6 +261,7 @@ set( RELAX_WARNINGS_SRCS
     exact_diag.F90
     exact_spectrum.F90
     symexcit.F90
+    excit.F90
     excit_parity.F90
     fast_determ_hamil.F90
     FciMCData.F90
@@ -270,7 +271,7 @@ set( RELAX_WARNINGS_SRCS
     fcimc_output.F90
     FciMCPar.F90
     fcimc_pointed_fns.F90
-    fcoul.F
+    # fcoul.F90
     frsblk.F
     ftlm_neci.F90
     gdata_io.F90
