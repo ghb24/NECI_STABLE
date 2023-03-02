@@ -30,7 +30,7 @@ set( SRC_FILES
     DeterminantData.F90
     Determinants.F90
     determ_proj.F90
-    detham.F
+    detham.F90
     direct_ci.F90
     enumerate_excitations.F90
     ErrorAnalysis.F90
@@ -255,7 +255,6 @@ set( RELAX_WARNINGS_SRCS
     DeterminantData.F90
     Determinants.F90
     determ_proj.F90
-    detham.F
     direct_ci.F90
     enumerate_excitations.F90
     ErrorAnalysis.F90
