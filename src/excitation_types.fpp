@@ -34,7 +34,7 @@ module excitation_types
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement
     use DetBitOps, only: GetBitExcitation
-    use neci_intfce, only: GetExcitation
+    use excit_mod, only: GetExcitation
     implicit none
     private
     public :: Excitation_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &

@@ -36,7 +36,7 @@ set( SRC_FILES
     ErrorAnalysis.F90
     exact_diag.F90
     exact_spectrum.F90
-    excit.F
+    excit.F90
     excit_parity.F90
     fast_determ_hamil.F90
     FciMCData.F90
@@ -152,8 +152,8 @@ set( SRC_FILES
     symexcit3.F90
     symexcit4.F90
     symexcitData.F90
-    symexcit.F
-    symexcit_old.F
+    symexcit.F90
+    symexcit_old.F90
     sym.F90
     sym_general.F90
     GenRandSymExcitNUMod.F90
@@ -260,7 +260,7 @@ set( RELAX_WARNINGS_SRCS
     ErrorAnalysis.F90
     exact_diag.F90
     exact_spectrum.F90
-    excit.F
+    symexcit.F90
     excit_parity.F90
     fast_determ_hamil.F90
     FciMCData.F90
@@ -369,8 +369,6 @@ set( RELAX_WARNINGS_SRCS
     symexcit3.F90
     symexcit4.F90
     symexcitData.F90
-    symexcit.F
-    symexcit_old.F
     sym.F90
     sym_general.F90
     symrandexcit1.F

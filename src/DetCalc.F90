@@ -17,6 +17,9 @@ MODULE DetCalc
 
     use procedure_pointers, only: get_umat_el
 
+    use excit_mod, only: isvaliddet, genexcit
+
+
     IMPLICIT NONE
     save
 
@@ -61,7 +64,6 @@ CONTAINS
         integer i, j, ii, iunit
         integer ierr, norb
         integer nDetTot
-        logical isvaliddet
 
         character(25), parameter :: this_routine = 'DetCalcInit'
 
@@ -116,7 +118,8 @@ CONTAINS
                     call write_det(6, FDET, .true.)
                 end if
 !C.. if we're doing a truncated CI expansion
-                CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, 0, (/0.0_dp/), NDET, 1, G1, .TRUE., NBASISMAX, .TRUE.)
+                CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, reshape([0], [1, 1]), &
+                              reshape([0], [1, 1]), NDET, 1, G1, .TRUE., NBASISMAX, .TRUE.)
                 write(stdout, *) "NDET out of GENEXCIT ", NDET
 !C.. We need to add in the FDET
                 NDET = NDET + 1
@@ -187,7 +190,9 @@ CONTAINS
                 allocate(Hamil(II), stat=ierr)
                 LogAlloc(ierr, 'HAMIL', II, HElement_t_sizeB, tagHamil)
                 NDET = 0
-                CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, NMRKS(1, 2), HAMIL, NDET, 1, G1, .TRUE., NBASISMAX, .FALSE.)
+                CALL GENEXCIT(&
+                        FDET, iExcitLevel, NBASIS, NEL, &
+                        NMRKS(:1, :2), int(HAMIL), NDET, 1, G1, .TRUE., NBASISMAX, .FALSE.)
                 Deallocate(Hamil)
                 LogDealloc(tagHamil)
                 NDET = NDET + 1
