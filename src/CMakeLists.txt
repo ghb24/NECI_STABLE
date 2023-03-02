@@ -50,7 +50,7 @@ set( SRC_FILES
     frsblk.F90
     ftlm_neci.F90
     gdata_io.F90
-    gen_coul.F
+    gen_coul.F90
     gen_coul_ueg.F90
     global_utilities.F90
     gndts_blk.F
@@ -274,7 +274,6 @@ set( RELAX_WARNINGS_SRCS
     frsblk.F90
     ftlm_neci.F90
     gdata_io.F90
-    gen_coul.F
     gen_coul_ueg.F90
     global_utilities.F90
     gndts_blk.F

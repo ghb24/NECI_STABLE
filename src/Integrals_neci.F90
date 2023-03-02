@@ -53,6 +53,8 @@ module Integrals_neci
     use fortran_strings, only: to_upper, to_lower, to_int, to_realsp, to_realdp
 
     use cpmdinit_mod, only: cpmdinit2indint
+
+    use gen_coul_mod, only: gen_coul
     implicit none
 
 contains
