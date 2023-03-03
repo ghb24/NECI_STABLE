@@ -103,7 +103,6 @@ contains
         RETURN
     END
 
-
     SUBROUTINE CYCLIC_REORDER(N, L, IP)
         integer :: N, L(N), iP
         integer :: iS, I
@@ -115,7 +114,6 @@ contains
         IP = (-1)**(N - 1)
         RETURN
     END
-
 
     SUBROUTINE ASCENDING_ORDER(N, L, IP)
         integer :: N, l(n), iP

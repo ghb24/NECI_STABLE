@@ -26,6 +26,8 @@ MODULE DetCalc
 
     use frsblk_mod, only: neci_frsblkh
 
+    use read_psi_mod, only: read_psi, write_psi_comp
+
     IMPLICIT NONE
     save
 
@@ -91,10 +93,10 @@ CONTAINS
         if (tDeferred_Umat2d .and. .not. tUMat2D) then
 
             ASSERT(.not. btest(nbasis, 0))
-
             ! And fill in the array
             call SetupUMat2d_dense(nBasis)
         end if
+
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
         if (TSPECDET) then

@@ -130,7 +130,7 @@ set( SRC_FILES
     readdf.F90
     readinput.F90
     readint.F90
-    read_psi.F
+    read_psi.F90
     readri.F90
     replica_data.F90
     replica_estimates.F90
@@ -289,8 +289,6 @@ set( RELAX_WARNINGS_SRCS
     hubbard.F
     impurity_models.F90
     index_rhash.F90
-    # init_coul2D.F90
-    # init_coul.F90
     initial_trial_states.F90
     initiator_space_procs.F90
     IntegralsData.F90
@@ -303,7 +301,6 @@ set( RELAX_WARNINGS_SRCS
     lanczos_general.F90
     lanczos_wrapper.F90
     legacy_data.F90
-    # lineup.F90
     LMat_calc.F90
     LMat_class.F90
     LMat_freeze.F90
@@ -341,7 +338,7 @@ set( RELAX_WARNINGS_SRCS
     rdm_reading.F90
     readdf.F90
     readinput.F90
-    read_psi.F
+    # read_psi.F90
     readri.F90
     replica_data.F90
     replica_estimates.F90
