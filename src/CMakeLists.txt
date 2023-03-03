@@ -85,7 +85,7 @@ set( SRC_FILES
     lanczos_general.F90
     lanczos_wrapper.F90
     legacy_data.F90
-    lineup.F
+    lineup.F90
     LMat_calc.F90
     LMat_class.F90
     LMat_freeze.F90
@@ -303,7 +303,7 @@ set( RELAX_WARNINGS_SRCS
     lanczos_general.F90
     lanczos_wrapper.F90
     legacy_data.F90
-    lineup.F
+    # lineup.F90
     LMat_calc.F90
     LMat_class.F90
     LMat_freeze.F90

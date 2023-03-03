@@ -1,4 +1,5 @@
 module scrtransf_mod
+    use lineup_mod, only: lineup
     implicit none
     private
     public :: GETTRTMATEL, GETTRUMATEL, gethelement2t
