@@ -135,7 +135,6 @@ contains
         INTEGER DX, DY, DZ, LX, LY, LZ
         LOGICAL TTILT, TREAL, TPBC
         real(dp) TOTSUM
-        character(*), parameter :: this_routine = 'CALCTMATHUB'
         integer temp_k(3)
         IF (iProcIndex == 0) OPEN(10, FILE='TMAT', STATUS='UNKNOWN')
         CALL SetupTMAT(NBASIS, 2, iSize)
@@ -450,7 +449,6 @@ contains
         use SystemData, only: G1, nSpatOrbs, nBasisMax, uHub, omega
         use sym_mod, only: mompbcsym
         use UMatCache, only: gtid
-        character(*), parameter :: this_routine = "write_kspace_umat"
 
         integer :: i, j, k, l, k_in(3), k_out(3)
         open(10, file="UMAT", status="unknown")
