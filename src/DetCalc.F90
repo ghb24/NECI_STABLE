@@ -329,8 +329,8 @@ CONTAINS
         use ras, only: generate_entire_ras_space
         use real_space_hubbard, only: init_real_space_hubbard
 
-        real(dp), ALLOCATABLE :: TKE(:), A(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), WORK2(:), V2(:, :), FCIGS(:)
-        HElement_t(dp), ALLOCATABLE :: WORK(:)
+        real(dp), ALLOCATABLE :: TKE(:), A(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), V2(:, :), FCIGS(:)
+        HElement_t(dp), ALLOCATABLE :: WORK(:), WORK2(:)
         INTEGER, ALLOCATABLE :: INDEX(:), ISCR(:), Temp(:)
         integer(TagIntType) :: TKETag = 0, ATag = 0, VTag = 0, AMTag = 0, BMTag = 0, TTag = 0
         INTEGER(TagIntType) :: WTTag = 0, SCRTag = 0, ISCRTag = 0, INDEXTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0, WorkTag = 0
@@ -516,8 +516,12 @@ CONTAINS
                     call stop_all(this_routine, &
                                   "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians")
                 end if
+#ifdef CMPLX_
+            call stop_all(this_routine, "this does not make sense for complex code")
+#else
                 CALL NECI_FRSBLKH(NDET, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A, W, V, AM, BM, T, WT, &
          &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .true.)
+#endif
 
 !Multiply all eigenvalues by -1.
                 CALL DSCAL(NEVAL, -1.0_dp, W, 1)

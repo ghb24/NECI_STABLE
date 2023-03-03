@@ -336,10 +336,14 @@ contains
                         HFMIX, EDELTA, CDELTA, TRHF, R1, R2, &
                         IHFMETHOD, TREADHF, FRAND, HFDET, ILOGGING)
         ELSE
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             CALL UHFGRADDESC(NBASIS, NBASISMAX, G1, BRR, ECORE, &
                              UMAT, HFE, HFBASIS, NHFIT, NEL, MS, NSPINS, NSBASIS, HFES, &
                              HFMIX, FMAT, OFMAT, DMAT, ODMAT, EDELTA, CDELTA, R1, R2, WORK, TRHF, &
                              IHFMETHOD, TREADHF, FRAND, HFDET, ILOGGING)
+#endif
         END IF
 
         deallocate(FMAT, OFMAT, DMAT, ODMAT, WORK, R1, R2, HFES)
@@ -369,9 +373,9 @@ contains
         HElement_t(dp) FMAT(NSBASIS, NSBASIS, NSPINS)
         HElement_t(dp) OFMAT(NSBASIS, NSBASIS, NSPINS)
         HElement_t(dp) DMAT(NSBASIS, NSBASIS, NSPINS)
-        HElement_t(dp) ODMAT(NSBASIS, NSBASIS, NSPINS)
-        real(dp) WORK(NBASIS * 3), HFMIX
-        real(dp) R1(NSBASIS, NSBASIS), R2(NSBASIS, NSBASIS)
+        HElement_t(dp) ODMAT(NSBASIS, NSBASIS, NSPINS), WORK(NBASIS * 3)
+        real(dp) HFMIX
+        HElement_t(dp) R1(NSBASIS, NSBASIS), R2(NSBASIS, NSBASIS)
         INTEGER NHFIT, NEL
         INTEGER I, J, K, L, ISPN, NELS(NSPINS)
         real(dp) ELAST, EDELTA, ECUR, CDELTA
@@ -383,6 +387,9 @@ contains
         LOGICAL TRHF, TREADHF
         INTEGER HFDET(*)
         INTEGER ILOGGING
+#ifdef CMPLX_
+        routine_name("UHFSCF")
+#endif
         F = HFMIX
 !         EDELTA=1.0e-8_dp
         ELAST = 1.D20
@@ -403,7 +410,11 @@ contains
             NELS(1) = NEL
         END IF
         IF (TREADHF) THEN
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             CALL READHFFMAT(NBASIS, FMAT, HFES, G1, NSPINS, NSBASIS, .FALSE.)
+#endif
         ELSE
             CALL GENHFGUESS(FMAT, NSPINS, NSBASIS, BRR, G1, .FALSE., MS, FRAND, NELS, HFDET)
         END IF
@@ -452,7 +463,11 @@ contains
         WRITE(6, *) IHFIT, ECUR, RMSD
 !.. Now add back in some of our original F matrix
         IF (IHFMETHOD == -1) THEN
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             CALL HFROTMIX(FMAT, OFMAT, NSPINS, NSBASIS, F, R1, R2, WORK)
+#endif
         ELSE
             CALL HFLINMIX(FMAT, OFMAT, NSPINS, NSBASIS, F, R1, R2, WORK)
         END IF
@@ -469,7 +484,13 @@ contains
         ELAST = ECUR
 
         END DO
-        IF (BTEST(ILOGGING, 11)) CALL WRITEHFPSIALL(NBASIS, FMAT, HFES, G1, NSPINS, NSBASIS, .FALSE.)
+        IF (BTEST(ILOGGING, 11)) then
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
+            CALL WRITEHFPSIALL(NBASIS, FMAT, HFES, G1, NSPINS, NSBASIS, .FALSE.)
+#endif
+        end if
 !.. We write out HFMAT
         HFBASIS = (0.0_dp)
         DO I = 1, NSBASIS
@@ -726,7 +747,7 @@ contains
         INTEGER N, NSPINS
         real(dp) FMIX
         HElement_t(dp) FMAT(N, N, NSPINS), OFMAT(N, N, NSPINS)
-        real(dp) R1(*), R2(*), WORK(*)
+        HElement_t(dp) R1(*), R2(*), WORK(*)
         INTEGER I, J, ISPN
         DO ISPN = 1, NSPINS
         DO I = 1, N
@@ -747,9 +768,10 @@ contains
 
     SUBROUTINE HFROTMIX(FMAT, OFMAT, NSPINS, N, FMIX, R1, R2, WORK)
         INTEGER NSPINS, N
-        real(dp) FMIX, FMAT(N, N, NSPINS)
+        real(dp) FMIX
+        HElement_t(dp) :: FMAT(N, N, NSPINS)
         real(dp) OFMAT(N, N, NSPINS)
-        real(dp) R1(N, N), R2(N, N), WORK(3 * N)
+        HElement_t(dp) R1(N, N), R2(N, N), WORK(3 * N)
         INTEGER I, J, ISPN
 !.. OFMAT is the old HF orbitals
 !.. FMAT is the new HF orbitals
@@ -804,15 +826,15 @@ contains
         INTEGER BRR(NBASIS)
         real(dp) HFBASIS(NBASIS, NBASIS), HFE(NBASIS)
         real(dp) HFES(NSBASIS, NSPINS)
-        real(dp) CMAT(NSBASIS, NSBASIS, NSPINS)
+        HElement_t(dp) CMAT(NSBASIS, NSBASIS, NSPINS)
         real(dp) OCMAT(NSBASIS, NSBASIS, NSPINS)
-        real(dp) DEDCIJ(NSBASIS, NSBASIS, NSPINS)
-        real(dp) DMAT(NSBASIS, NSBASIS, NSPINS)
-        real(dp) WORK(NBASIS * 3)
+        HElement_t(dp) DEDCIJ(NSBASIS, NSBASIS, NSPINS)
+        HElement_t(dp) DMAT(NSBASIS, NSBASIS, NSPINS)
+        HElement_t(dp) WORK(NBASIS * 3)
         INTEGER INORDER(100, 2), ILOGGING
         real(dp) EORDER(100, 2)
 !,HFMIX
-        real(dp) R1(NSBASIS, NSBASIS), R2(NSBASIS, NSBASIS)
+        HElement_t(dp) R1(NSBASIS, NSBASIS), R2(NSBASIS, NSBASIS)
         INTEGER NHFIT, NEL, IHFMETHOD, NELEX2
 !,NSTART(NEL)
         INTEGER I, J, K, L, ISPN, NELS(NSPINS)
@@ -855,7 +877,11 @@ contains
 
 !         VMAT=0.0_dp
         IF (TREADHF) THEN
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             CALL READHFFMAT(NBASIS, CMAT, HFES, G1, NSPINS, NSBASIS, .TRUE.)
+#endif
         ELSE
             CALL GENHFGUESS(CMAT, NSPINS, NSBASIS, BRR, G1, .TRUE., MS, FRAND, NELS, HFDET)
         END IF
@@ -902,12 +928,24 @@ contains
 !.. dE/dcij is automatically 0 if i>N as the HF det only depends on
 !.. phi_1 to phi_N.  All values of j must be iterated as each phi_i is
 !.. dependent on all u_j
+#ifdef CMPLX_
+        call stop_all(this_routine, "does not work for complex")
+#else
         ECUR = GETHELEMENT2T(NDET1(1), NDET1(1), NEL, NBASISMAX, NBASIS, ECORE, 0, CMAT, NSBASIS, NSPINS)
+#endif
 !.. Calculate the Gradient
         IF (IHFMETHOD == 1) THEN
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             CALL CALCDEDCIJ(CMAT, DEDCIJ, NDET1, NSPINS, NSBASIS, ECORE, NBASIS, NBASISMAX, NELS, NEL, ECUR)
+#endif
         ELSEIF (IHFMETHOD == 2) THEN
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             CALL CALCDEDCIJ2(CMAT, DEDCIJ, NDET1, NSPINS, NSBASIS, UMAT, NELS, NEL)
+#endif
         END IF
 !.. DEDCIJ now comtains all elements of dE/dcij
 !.. To move down the slope, we subtract a small amount of this from cij,
@@ -954,11 +992,13 @@ contains
         END DO
         RMSD = 0.0_dp
         DO ISPN = 1, NSPINS
-        DO I = 1, NSBASIS
-        DO J = 1, NSBASIS
-            IF (.NOT. TRHF .OR. TRHF .AND. ISPN == IRHFB) RMSD = RMSD + (CMAT(I, J, ISPN) - OCMAT(I, J, ISPN))**2
-        END DO
-        END DO
+            DO I = 1, NSBASIS
+                DO J = 1, NSBASIS
+                    IF (.NOT. TRHF .OR. (TRHF .AND. ISPN == IRHFB)) then
+                        RMSD = RMSD + (CMAT(I, J, ISPN) - OCMAT(I, J, ISPN))**2
+                    end if
+                END DO
+            END DO
         END DO
         RMSD = SQRT(RMSD / (NSBASIS * NSBASIS * NSPINS))
         IF (IHFIT > NHFIT) THEN
@@ -989,18 +1029,32 @@ contains
         DO I = 1, NSBASIS
             NELEX = (I - 1) * NSPINS + 1 + ISPN - 1
             EN = 0.0_dp
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             CALL GETTRTMATEL(NELEX, NELEX, CMAT, NSBASIS, NSPINS, EN)
+#endif
             HFES(I, ISPN) = EN
             DO JSPN = 1, NSPINS
             DO J = 1, NELS(JSPN)
                 NELEX2 = (J - 1) * NSPINS + 1 + JSPN - 1
                 IF (NELEX /= NELEX2) THEN
 !.. we're not allowed to count the current electron again
+#ifdef CMPLX_
+                    call stop_all(this_routine, "does not work for complex")
+#else
                     CALL GETTRUMATEL(NELEX, NELEX2, NELEX, NELEX2, CMAT, NSBASIS, NSPINS, EN)
+#endif
 
 !                        HFES(I,ISPN)=HFES(I,ISPN)+EN
                     EN = 0.0_dp
-                    IF (ISPN == JSPN) CALL GETTRUMATEL(NELEX, NELEX2, NELEX2, NELEX, CMAT, NSBASIS, NSPINS, EN)
+                    IF (ISPN == JSPN) then
+#ifdef CMPLX_
+                        call stop_all(this_routine, "does not work for complex")
+#else
+                        CALL GETTRUMATEL(NELEX, NELEX2, NELEX2, NELEX, CMAT, NSBASIS, NSPINS, EN)
+#endif
+                    endif
 !                        HFES(I,ISPN)=HFES(I,ISPN)-EN
                 END IF
             END DO
@@ -1046,9 +1100,21 @@ contains
             END DO
             END DO
         END IF
-        IF (MOD(IHFIT, 10) == 0 .AND. BTEST(ILOGGING, 11)) CALL WRITEHFPSIALL(NBASIS, CMAT, HFES, G1, NSPINS, NSBASIS, .TRUE.)
+        IF (MOD(IHFIT, 10) == 0 .AND. BTEST(ILOGGING, 11)) then
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
+            CALL WRITEHFPSIALL(NBASIS, CMAT, HFES, G1, NSPINS, NSBASIS, .TRUE.)
+#endif
+        end if
         END DO
-        IF (BTEST(ILOGGING, 11)) CALL WRITEHFPSIALL(NBASIS, CMAT, HFES, G1, NSPINS, NSBASIS, .TRUE.)
+        IF (BTEST(ILOGGING, 11)) then
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
+            CALL WRITEHFPSIALL(NBASIS, CMAT, HFES, G1, NSPINS, NSBASIS, .TRUE.)
+#endif
+        end if
 !.. We write out HFMAT
         HFBASIS = 0.0_dp
         DO I = 1, NSBASIS

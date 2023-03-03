@@ -21,8 +21,8 @@ contains
     SUBROUTINE LOWDIN_ORTH(MAT, N, R1, R2, WORK)
         INTEGER N
         HElement_t(dp) MAT(N, N), R1(N, N), R2(N, N)
-        real(dp) L(N), LL, RWORK(3 * N)
         HElement_t(dp) WORK(3 * N)
+        real(dp) L(N), LL, RWORK(3 * N)
         INTEGER I, J
         integer(sp) info
         character(*), parameter :: this_routine = 'LOWDIN_ORTH'

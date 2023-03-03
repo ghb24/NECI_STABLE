@@ -1790,8 +1790,8 @@ contains
         integer :: gc, ierr, icmax, lenhamil, nKry1, nBlock, LScr, LIScr
         integer(n_int) :: ilut(0:NIfTot)
         logical :: tmc, tSuccess
-        real(dp), allocatable :: A_Arr(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), WORK2(:), V2(:, :), W(:)
-        HElement_t(dp), allocatable :: Work(:)
+        real(dp), allocatable :: A_Arr(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), V2(:, :), W(:)
+        HElement_t(dp), allocatable :: Work(:), WORK2(:)
         HElement_t(dp), allocatable :: CkN(:, :), Hamil(:), TruncWavefunc(:)
         HElement_t(dp), allocatable :: Ck(:, :)  !This holds eigenvectors in the end
         HElement_t(dp) :: Num, Denom, HDiagTemp
