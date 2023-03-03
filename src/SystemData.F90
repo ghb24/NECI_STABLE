@@ -166,7 +166,8 @@ module SystemData
         INTEGER :: Dummy         !Rather than use SEQUENCE which has caused endless bother...
     END TYPE
 
-    interface BasisFn
+
+    interface get_BasisFn
         module procedure construct_basisfn
     end interface
 

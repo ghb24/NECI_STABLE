@@ -12,7 +12,7 @@ MODULE Calc
                           t_new_real_space_hubbard, t_heisenberg_model, &
                           t_k_space_hubbard, tHPHF, t_non_hermitian_2_body, &
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, &
-                          t_3_body_excits, basisfn
+                          t_3_body_excits, get_basisfn
     use Determinants, only: write_det
     use default_sets
     use read_fci, only: reorder_orb_label
@@ -3838,7 +3838,7 @@ contains
         IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC
             NLIST = 1
-            CALL GENSYMDETSS(basisfn(MDK), NEL, G1, BRR, NBASIS, MCDET, NLIST, NBASISMAX)
+            CALL GENSYMDETSS(get_basisfn(MDK), NEL, G1, BRR, NBASIS, MCDET, NLIST, NBASISMAX)
             IF(NLIST == 0) THEN
 !C.. we couldn't find a det of that symmetry
                 call stop_all(this_routine, 'Cannot find MC start determinant of correct symmetry')
