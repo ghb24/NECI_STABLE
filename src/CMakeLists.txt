@@ -62,7 +62,7 @@ set( SRC_FILES
     hdiag.F90
     hdiag_from_excit.F90
     HElem.F90
-    hfbasis.F
+    hfbasis.F90
     HFCalc.F90
     hilbert_space_size.F90
     hist_data.F90
@@ -282,7 +282,7 @@ set( RELAX_WARNINGS_SRCS
     hamiltonian_linalg.F90
     hdiag_from_excit.F90
     HElem.F90
-    hfbasis.F
+    hfbasis.F90
     HFCalc.F90
     hilbert_space_size.F90
     hist_data.F90
