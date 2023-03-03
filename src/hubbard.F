@@ -326,13 +326,13 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          use constants, only: int64
          use lattice_mod, only: lat
          use util_mod, only: stop_all
+         use hfbasis_mod, only: iFindBasisFn
          IMPLICIT NONE
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)
          INTEGER J,nSyms,K
          integer(int64) :: I
          TYPE(BasisFN) NQNS,S
-         INTEGER iFindBasisFn
          character(*),parameter:: this_routine='GenHubMomIrrepsSymTable'
          nSym=nBasis/2
          WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",
@@ -560,28 +560,6 @@ C.. we have a new rep
         KALLOWED=TALLOW
         RETURN
       END FUNCTION KALLOWED
-
-      INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
-         use SystemData, only: BasisFN
-         IMPLICIT NONE
-         INTEGER NBASIS,I,J
-         TYPE(BasisFN) G1(NBASIS),NQNS
-         LOGICAL L
-         DO I=1,NBASIS
-            L=.TRUE.
-            DO J=1,3
-               IF(G1(I)%k(J).NE.NQNS%k(J)) L=.FALSE.
-            ENDDO
-            IF(G1(I)%Sym%s.NE.NQNS%Sym%s) L=.FALSE.
-            IF(G1(I)%Ms.NE.NQNS%Ms) L=.FALSE.
-            IF(L) THEN
-               IFINDBASISFN=I
-               RETURN
-            ENDIF
-         ENDDO
-         IFINDBASISFN=0
-         RETURN
-      END FUNCTION IFINDBASISFN
 
       subroutine write_kspace_umat()
           ! subroutine to output the umat also in the case of the

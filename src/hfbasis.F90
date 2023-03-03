@@ -7,7 +7,8 @@ module hfbasis_mod
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use OneEInts, only: GetTMATEl, TMAT2D, TMAT2D2
     use SystemData, only: BasisFN, tMolpro, IPARITY, nbasisMax, symmetry, &
-        symmax, brr, g1, nbasis, lms, nel, tHub, tGUGA, t_k_space_hubbard
+        symmax, brr, g1, nbasis, lms, nel, tHub, tGUGA, t_k_space_hubbard, &
+        get_basisfn
     use UMatCache, only: UMatInd, GTID
     use constants, only: dp
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -35,7 +36,7 @@ module hfbasis_mod
     external :: orderbasis
     private
     public :: CALCHFTMAT, setuphfbasis, calchfbasis, readhftmat, &
-        readhfumat, orderbasishf, calchfumat, readhfbasis
+        readhfumat, orderbasishf, calchfumat, readhfbasis, iFindBasisFn
 
 contains
 
@@ -252,7 +253,6 @@ contains
         real(dp) HFBASIS(NBASIS, NBASIS), HFE(NBASIS)
         INTEGER I, L, J, NB, NE, IG
         real(dp) VAL
-        INTEGER IFINDBASISFN
         character(*), parameter :: this_routine = 'READHFBASIS'
         WRITE(6, *) "Loading HF BASIS"
         OPEN(10, FILE='HFBASIS', STATUS='OLD')
@@ -271,7 +271,7 @@ contains
             NQNS(4) = L
             DO J = 1, NB
                 READ(10, *) NN, NQNS(1), NQNS(2), NQNS(3), VAL
-                IG = IFINDBASISFN(NQNS, G1, NBASIS)
+                IG = IFINDBASISFN(get_basisfn(NQNS), G1, NBASIS)
                 HFBASIS(I * 2 + (L - 1) / 2, J * 2 + (L - 1) / 2) = VAL
 !.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
             END DO
@@ -1267,7 +1267,6 @@ contains
         real(dp) FMAT(NSBASIS, NSBASIS, NSPINS), HFES(NSBASIS, NSPINS)
         INTEGER I, L, J, NB, NE, IG
         real(dp) VAL
-        INTEGER IFINDBASISFN
         LOGICAL TRANSP
         character(*), parameter :: this_routine = 'READHFFMAT'
         WRITE(6, *) "Loading HF BASIS"
@@ -1287,7 +1286,7 @@ contains
             NQNS(4) = L
             DO J = 1, NB
                 READ(10, *) NN, NQNS(1), NQNS(2), NQNS(3), VAL
-                IG = IFINDBASISFN(NQNS, G1, NBASIS)
+                IG = IFINDBASISFN(get_basisfn(NQNS), G1, NBASIS)
                 IF (TRANSP) THEN
                     FMAT(I, J,(L + 3) / 2) = VAL
                 ELSE
@@ -1375,5 +1374,27 @@ contains
 ! 1000 FORMAT(12E15.6)
         RETURN
     END
+
+
+      INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
+         INTEGER NBASIS,I,J
+         TYPE(BasisFN) G1(NBASIS),NQNS
+         LOGICAL L
+         DO I=1,NBASIS
+            L=.TRUE.
+            DO J=1,3
+               IF(G1(I)%k(J).NE.NQNS%k(J)) L=.FALSE.
+            ENDDO
+            IF(G1(I)%Sym%s.NE.NQNS%Sym%s) L=.FALSE.
+            IF(G1(I)%Ms.NE.NQNS%Ms) L=.FALSE.
+            IF(L) THEN
+               IFINDBASISFN=I
+               RETURN
+            ENDIF
+         ENDDO
+         IFINDBASISFN=0
+         RETURN
+      END FUNCTION IFINDBASISFN
+
 
 end module
