@@ -21,6 +21,8 @@ MODULE DetCalc
 
     use gndts_blk_mod, only: gndts_blk
 
+    use hdiag_mod, only: hdiag_neci
+
     IMPLICIT NONE
     save
 

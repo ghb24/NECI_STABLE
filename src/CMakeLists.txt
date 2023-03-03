@@ -59,7 +59,7 @@ set( SRC_FILES
     hash.F90
     hamiltonian_linalg.F90
     hdf5_popsfile.F90
-    hdiag.F
+    hdiag.F90
     hdiag_from_excit.F90
     HElem.F90
     hfbasis.F
@@ -276,12 +276,10 @@ set( RELAX_WARNINGS_SRCS
     gdata_io.F90
     gen_coul_ueg.F90
     global_utilities.F90
-    # gndts_blk.F90
     gndts.F90
     gndwork.F90
     hash.F90
     hamiltonian_linalg.F90
-    hdiag.F
     hdiag_from_excit.F90
     HElem.F90
     hfbasis.F

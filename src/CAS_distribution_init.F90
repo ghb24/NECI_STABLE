@@ -67,6 +67,8 @@ module CAS_distribution_init
 
     use dSFMT_interface, only: genrand_real2_dSFMT
 
+    use hdiag_mod, only: hdiag_neci
+
     use sym_mod
 
     use constants

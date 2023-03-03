@@ -106,6 +106,8 @@ module fcimc_helper
 
     use sparse_arrays, only: t_evolve_adjoint
 
+    use hdiag_mod, only: hdiag_neci
+
     implicit none
 
     save
