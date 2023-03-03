@@ -35,15 +35,17 @@ contains
         integer, intent(inout) :: NEL
         integer SYMLZ(1000), ST, III
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
-        integer(int64) :: ORBSYM(1000)
+        integer(int64) :: ORBSYM(1000) 
         INTEGER NORB, NELEC, MS2, ISYM, i, SYML(1000), iunit, iuhf
         LOGICAL exists
         logical :: uhf, trel, tDetectSym
         character(*), parameter :: this_routine = 'INITFROMFCID'
+        real(dp) :: FOCK(1000)
 
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
         UHF = .FALSE.
         fmat = 'NO'
         PROPBITLEN = 0
@@ -54,6 +56,7 @@ contains
         OCC = -1
         CLOSED = -1
         FROZEN = -1
+        FOCK = 0.0
         ! [W.D. 15.5.2017:]
         ! with the new relativistic calculations, withoug a ms value in the
         ! FCIDUMP, we have to set some more defaults..
@@ -99,6 +102,7 @@ contains
         call MPIBCast(OCC, 8)
         call MPIBCast(CLOSED, nIrreps)
         call MPIBCast(FROZEN, nIrreps)
+        CALL MPIBCast(FOCK)
         if (UHF .and. .not. (tUHF .or. tROHF)) then
             ! unfortunately, the `UHF` keyword in the FCIDUMP namelist indicates
             ! spin-orbital-resolved integrals, not necessarily UHF
@@ -248,11 +252,13 @@ contains
         LOGICAL TBIN
         logical :: uhf, tRel
         integer :: orbsPerIrrep(nIrreps)
+        real(dp) :: FOCK(1000)
 #ifdef CMPLX_
         real(dp) :: real_time_Z
 #endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
 
         iunit = 0
         UHF = .FALSE.
@@ -261,6 +267,7 @@ contains
         IUHF = 0
         TREL = .false.
         SYMLZ(:) = 0
+        FOCK = 0.0
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
             IF (TBIN) THEN
@@ -290,6 +297,7 @@ contains
         CALL MPIBCast(TREL)
         CALL MPIBCast(PROPBITLEN, 1)
         CALL MPIBCast(NPROP, 3)
+        CALL MPIBCast(FOCK)
         ! If PropBitLen has been set then assume we're not using an Abelian
         ! symmetry group which has two cycle generators (ie the group has
         ! complex representations).
@@ -513,6 +521,7 @@ contains
 
         end if
 
+
         if (tMolpro .and. (iProcIndex == 0)) close(iunit)
 
 !We now need to broadcast all the information we've just read in...
@@ -586,11 +595,13 @@ contains
         integer(int64) :: start_ind, end_ind
         integer(int64), parameter :: chunk_size = 1000000
         integer:: bytecount
+        real(dp) :: FOCK(1000)
 #if defined(CMPLX_)
         real(dp) :: real_time_Z
 #endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
 
         LWRITE = .FALSE.
         UHF = .FALSE.
@@ -603,6 +614,7 @@ contains
         LzDisallowed = 0
         NonZeroInt = 0
         iunit = 0
+        FOCK = 0.0
 
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
@@ -626,6 +638,7 @@ contains
         CALL MPIBCast(TREL)
         CALL MPIBCast(PROPBITLEN, 1)
         CALL MPIBCast(NPROP, 3)
+        CALL MPIBCast(FOCK)
         ! If PropBitLen has been set then assume we're not using an Abelian
         ! symmetry group which has two cycle generators (ie the group has
         ! complex representations).
@@ -996,11 +1009,14 @@ contains
         real(dp) :: diff, core
         character(len=100) :: file_name, PropFile
         logical :: TREL, UHF
+        real(dp) :: FOCK(1000)
         character(*), parameter :: t_r = 'ReadPropInts'
-        NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
+        NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, &
+                       SYMLZ, PROPBITLEN, NPROP, ST, III, FOCK
 
         ZeroedInt = 0
         UHF = .false.
+        FOCK = 0.0
 
         if (iProcIndex == 0) then
             iunit = get_free_unit()
@@ -1025,6 +1041,7 @@ contains
         CALL MPIBCast(TREL)
         CALL MPIBCast(PROPBITLEN, 1)
         CALL MPIBCast(NPROP, 3)
+        CALL MPIBCast(FOCK)
 
         core = 0.0d0
         iSpins = 2
