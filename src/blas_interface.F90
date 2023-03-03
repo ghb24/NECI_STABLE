@@ -5,8 +5,8 @@ module blas_interface_mod
 
     private
 
-    public :: dcopy, dgemm, dsyev, zheev, zgemm, dgetrf, dgetri, dgeev
+    public :: dcopy, dgemm, dsyev, zheev, zgemm, dgetrf, dgetri, dgeev, dscal
 
-    external :: dcopy, dgemm, dsyev, zheev, zgemm, dgetrf, dgetri, dgeev
+    external :: dcopy, dgemm, dsyev, zheev, zgemm, dgetrf, dgetri, dgeev, dscal
 
 end module

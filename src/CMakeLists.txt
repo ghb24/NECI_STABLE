@@ -97,7 +97,7 @@ set( SRC_FILES
     Logging.F90
     Makefile
     matel_getter.F90
-    matmul.F
+    matmul.F90
     modifiedHub.F90
     molcas_interface.F90
     MolproPlugin.F90
@@ -314,7 +314,7 @@ set( RELAX_WARNINGS_SRCS
     LoggingData.F90
     Logging.F90
     Makefile
-    matmul.F
+    # matmul.F90
     modifiedHub.F90
     molcas_interface.F90
     MolproPlugin.F90
