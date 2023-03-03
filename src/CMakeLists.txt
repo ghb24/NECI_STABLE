@@ -72,7 +72,7 @@ set( SRC_FILES
     impurity_models.F90
     index_rhash.F90
     init_coul2D.F
-    init_coul.F
+    init_coul.F90
     initial_trial_states.F90
     initiator_space_procs.F90
     input_parser_mod.F90
@@ -291,7 +291,7 @@ set( RELAX_WARNINGS_SRCS
     impurity_models.F90
     index_rhash.F90
     init_coul2D.F
-    init_coul.F
+    init_coul.F90
     initial_trial_states.F90
     initiator_space_procs.F90
     IntegralsData.F90

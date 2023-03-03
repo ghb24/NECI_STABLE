@@ -1,13 +1,13 @@
       FUNCTION RHODIAG_CP(RHOIJ,I_P,I_V)
          use global_utilities
-         use constants, only: dp
+         use constants, only: dp, int32
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
          real(dp) RHOIJ(0:I_V,0:I_V)
          real(dp) RIJMAT(I_V,I_V),RHODIAG_CP
          real(dp) WLIST(I_V),WORK(3*I_V)
-         INTEGER*4 INFO
+         INTEGER(int32) :: INFO
          INTEGER I,J
          real(dp) SI
          real(dp) RII
@@ -69,7 +69,7 @@ C.. we diagonalize the HIJ elements and work out e^-beta lambda.
 C.. See 1/7/04
       RECURSIVE FUNCTION HDIAG_CPP(HIJ,
      &       I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS) result (HDIAG_CPPRES)
-         use constants, only: dp
+         use constants, only: dp, int32
          use global_utilities
          use HElem
          IMPLICIT NONE
@@ -78,7 +78,7 @@ C.. See 1/7/04
          HElement_t(dp) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          real(dp) WLIST(I_V),WORK(3*I_V)
          HElement_t(dp) NWORK(4*I_V)
-         INTEGER*4 INFO
+         INTEGER(int32) :: INFO
          INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
@@ -204,7 +204,7 @@ C.. See 1/7/04
       RECURSIVE FUNCTION RHODIAG_CPP(RHOIJ,
      &    I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight)
      &      RESULT (RHODIAG_CPPRES)
-         use constants, only: dp
+         use constants, only: dp, int32
          use global_utilities
          use util_mod, only : near_zero
          use HElem
@@ -215,7 +215,7 @@ C.. See 1/7/04
          HElement_t(dp) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          real(dp) WORK(3*I_V),R
          real(dp) WLIST(I_V)
-         INTEGER*4 INFO
+         INTEGER(int32) :: INFO
          INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
@@ -392,7 +392,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 !  As rhodiag_cpp, but only deal with this vertex level, and subtract out the two-vertex star contribtion from this vertex level.
       FUNCTION RHODIAG_CPPS2VS(RHOIJ,
      &            I_P,I_V,DBETA,DLWDB,HIJS)
-         use constants, only: dp
+         use constants, only: dp, int32
          use global_utilities
          use HElem
          use util_mod, only : near_zero
@@ -403,7 +403,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          HElement_t(dp) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          real(dp) WORK(3*I_V),R
          real(dp) WLIST(I_V)
-         INTEGER*4 INFO
+         INTEGER(int32) :: INFO
          INTEGER I,J
          real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
