@@ -24,7 +24,7 @@ module real_space_hubbard
                           tNoBrillouin, tUseBrillouin, &
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
                           pholefocus, t_twisted_bc, twisted_bc, lnosymmetry, &
-                          t_anti_periodic, t_bipartite_order
+                          t_anti_periodic, t_bipartite_order, tStoquastize
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                            get_helement_lattice, get_helement_lattice_ex_mat, &
@@ -2208,9 +2208,11 @@ contains
             ! here we need to make the distinction, if we are doing a
             ! transcorrelated hamiltonian or not
             hel = get_offdiag_helement_rs_hub(nI, ex(:, 1), tpar)
+            if (tStoquastize) hel = -abs(hel)
 
         else if (ic == 2 .and. t_trans_corr_hop) then
             hel = get_double_helem_rs_hub_transcorr(ex, tpar)
+            if (tStoquastize) hel = -abs(hel)
 
         else
             ! zero matrix element!
@@ -2237,12 +2239,14 @@ contains
                 ! exchange for fix with twisted BCs
                 call GetExcitation(nI, nJ, nel, ex, tpar)
                 hel = get_offdiag_helement_rs_hub(nI, ex(:, 1), tpar)
+                if (tStoquastize) hel = -abs(hel)
 
             else if (ic_ret == 2 .and. t_trans_corr_hop) then
 
                 ex(1, 1) = 2
                 call GetExcitation(nI, nJ, nel, ex, tpar)
                 hel = get_double_helem_rs_hub_transcorr(ex, tpar)
+                if (tStoquastize) hel = -abs(hel)
 
             else if (ic_ret == -1) then
                 ! this indicates that ic_ret wants to get returned instead of
@@ -2287,11 +2291,13 @@ contains
                 ! exchange for fix with twisted BCs
                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
                 hel = get_offdiag_helement_rs_hub(nI, ex(:, 1), tpar)
+                if (tStoquastize) hel = -abs(hel)
 
             else if (ic == 2 .and. t_trans_corr_hop) then
                 ex(1, 1) = 2
                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
                 hel = get_double_helem_rs_hub_transcorr(ex, tpar)
+                if (tStoquastize) hel = -abs(hel)
             else
                 hel = h_cast(0.0_dp)
             end if
