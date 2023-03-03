@@ -108,6 +108,8 @@ module fcimc_helper
 
     use hdiag_mod, only: hdiag_neci
 
+    use frsblk_mod, only: neci_frsblkh
+
     implicit none
 
     save
@@ -1805,6 +1807,7 @@ contains
         integer :: PartInd, ioTrunc
         character(24) :: abstr
 
+
         if (DetLen > 1300) then
             nEval = 3
         else
@@ -1906,8 +1909,13 @@ contains
                 call stop_all(t_r, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
-          CALL NECI_FRSBLKH(DetLen, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
-             &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false.)
+#ifdef CMPLX_
+            call stop_all(t_r, "does not work for complex")
+#else
+            CALL NECI_FRSBLKH(DetLen, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, &
+                    NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
+                    SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false.)
+#endif
 
             !Eigenvalues may come out wrong sign - multiply by -1
             if (W(1) > 0.0_dp) then
