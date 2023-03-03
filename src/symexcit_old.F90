@@ -1,3 +1,5 @@
+#include "macros.h"
+
 !! NB SYMSETUPEXCITS uses a store which has integer(int64) to cope with 64-bit machines, and passes this directly to SYMSETUPEXCITS2
 !!  Iterators which use GENSYMEXCITIT2 use an INTEGER STORE, and create an integer(int64) STORE2 internally, and pass this to SYMSETUPEXCITS2
 
@@ -5,29 +7,26 @@
 !!   This STORE can then be passed to SYMGENEXCITS.
 !.. Setup for symmetry routine below.
 SUBROUTINE SYMSETUPEXCITS(NI, NEL, NBASIS, STORE, TCOUNT, ICOUNT, ILEVEL, iMinElec1, iMaxElec1)
-    use SystemData, only: Symmetry, SymmetrySize, g1, BasisFN
-    use SymData, only: SymClassSize
+    use SystemData, only: Symmetry, BasisFN
+    use error_handling_neci, only: stop_all
     IMPLICIT NONE
     INTEGER NEL, NI(NEL), NBASIS
-    integer, POINTER :: DSTORE(:)
     INTEGER STORE(6)
     INTEGER ICOUNT
     LOGICAL TCOUNT
     INTEGER ILEVEL
     INTEGER iMinElec1, iMaxElec1
-
-    external :: SYMSETUPEXCITS3
-
-    STORE(1:6) = 0
-    allocate(DSTORE(SymClassSize * NEL + (nBasis / 32) + 1 + SymmetrySize * (NEL * NEL + 1)))
-    STORE(1) = 1 !Meaning the first element of DSTORE
-! STORE(1) -->
-    CALL SYMSETUPEXCITS3(NI, NEL, G1, NBASIS, STORE, STORE(1), STORE(1), STORE(1), &
-                         STORE(1), TCOUNT, ICOUNT, DSTORE(1), DSTORE(SymClassSize * NEL + 1), &
-                         DSTORE(SymClassSize * NEL + 1 + (nBasis / 32) + 1), &
-                         ILEVEL, iMinElec1, iMaxElec1)
-!.. If we're just counting, we don't need to keep DSTORE
-    IF (TCOUNT) deallocate(dstore)
+    routine_name("SYMSETUPEXCITS")
+    unused_var(NI)
+    unused_var(NEL)
+    unused_var(NBASIS)
+    unused_var(STORE)
+    unused_var(TCOUNT)
+    unused_var(ICOUNT)
+    unused_var(ILEVEL)
+    unused_var(iMinElec1)
+    unused_var(iMaxElec1)
+    call stop_all(this_routine, 'See if this routine is actually used.')
 END
 
 !.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
@@ -41,6 +40,7 @@ END
 
 SUBROUTINE GENSYMEXCITIT2(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEVEL)
     use SystemData, only: Symmetry, BasisFN
+    use error_handling_neci, only: stop_all
     IMPLICIT NONE
     INTEGER NEL, NI(NEL), NBASIS
     INTEGER G1(nBasis)
@@ -51,6 +51,19 @@ SUBROUTINE GENSYMEXCITIT2(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEV
     INTEGER NJ(NEL), IC
     LOGICAL TSETUP
     INTEGER ILEVEL
-    external :: GenSymExcitIt2Par
-    CALL GenSymExcitIt2Par(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEVEL, 1, NEL)
+    routine_name("GENSYMEXCITIT2")
+
+#ifdef WARNING_WORKAROUND_
+    associate(tmp => nMEM(1:1)); end associate
+    unused_var(NI)
+    unused_var(NEL)
+    unused_var(G1)
+    unused_var(NBASIS)
+    unused_var(TSETUP)
+    unused_var(NJ)
+    unused_var(IC)
+    unused_var(STORE)
+    unused_var(ILEVEL)
+#endif
+    call stop_all(this_routine, 'See if this routine is actually used.')
 END
