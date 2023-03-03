@@ -55,6 +55,10 @@ module Integrals_neci
     use cpmdinit_mod, only: cpmdinit2indint
 
     use gen_coul_mod, only: gen_coul
+
+    use init_coul_mod, only: initfou
+
+    use init_coul2D_mod, only: initfou2d
     implicit none
 
 contains

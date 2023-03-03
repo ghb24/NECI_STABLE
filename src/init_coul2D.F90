@@ -1,11 +1,11 @@
 #include "macros.h"
-module init_coul_mod
-    use constants, only: dp, int64, sp, pi
-    use util_mod, only: near_zero, stop_all, neci_etime
+module init_coul2D_mod
+    use constants, only: dp, sp, pi, int64
+    use util_mod, only: stop_all, near_zero, neci_etime
+    use init_coul_mod, only: gen_zia, gen_ck_fft
     better_implicit_none
-
     private
-    public :: gen_ck_fft, gen_zia, initfou
+    public :: INITFOU2D
 
 contains
 
@@ -13,44 +13,45 @@ contains
 !.. Routines needed for the initialisation of the Fourier
 !.. Method of evaluating the Coulomb integrals
 !  ========================================================
-    SUBROUTINE INITFOU(NMESHX, CK, NMAX, A, TALPHA, ALPHA, OMEGA, ZIA)
+    SUBROUTINE INITFOU2D(NMESHX, CK, NMAX, A, TALPHA, ALPHA, OMEGA, ZIA)
         integer :: NMESHX, NMAX
         complex(dp) CK(NMESHX, NMESHX, NMESHX)
         complex(dp) ZIA(-NMESHX / 2:NMESHX / 2, NMAX, NMAX)
-        real(dp) :: ALPHA, OMEGA
-        real(dp) A(3), t3
-        real(dp) t(2), t1, t2
+        real(dp) A(3), OMEGA, ALPHA
+        real(dp) t1, t2, t3, t(2)
         LOGICAL TALPHA
         INTEGER, SAVE :: IFIRST = 0
         IF (IFIRST == 1) RETURN
         IFIRST = 1
         T1 = neci_etime(t)
-        CALL GEN_CK_FFT(NMESHX, CK, A, TALPHA, ALPHA, OMEGA)
+        CALL GEN_CK_FFT2D(NMESHX, CK, A, TALPHA, ALPHA, OMEGA)
         CALL GEN_ZIA(NMESHX, NMAX, ZIA)
         T2 = neci_etime(t)
         T3 = (T2 - T1)
-        WRITE(6, *) 'V0=', CK(NMESHX / 2, NMESHX / 2, NMESHX / 2)
-        WRITE(6, *) ' TIME FOR INITIALISATION:', T3 / 1000.
-    END
+        WRITE(6, *) 'V0=', CK(NMESHX / 2 + 1, NMESHX / 2 + 1, NMESHX / 2 + 1)
+        WRITE(6, *) ' TIME FOR INITIALISATION:', T3 / 1000.0_dp
+    end subroutine
 ! =========================================================
-    SUBROUTINE GEN_CK_FFT(N, DIST, A, TALPHA, ALPHA, OMEGA)
-        integer :: N, I, J, K, N1, N2, N3
+    SUBROUTINE GEN_CK_FFT2D(N, DIST, A, TALPHA, ALPHA, OMEGA)
+        integer :: i, j, k, n, n1, n2, n3
         complex(dp) DIST(-N / 2:N / 2 - 1, -N / 2:N / 2 - 1, -N / 2:N / 2 - 1)
-        real(dp) A(3), ALPHA2, ALPHA, HSTEPX, HSTEPY, HSTEPZ
-        real(dp) :: X, Y, Z, AUX, SUM, G2, GX, GY, GZ, OMEGA, OMEGAP, R
+        real(dp) A(3), x, y, z, aux, r, ALPHA, ALPHA2, OMEGA, OMEGAP
         LOGICAL TALPHA
-        character(len=*), parameter :: t_r = "GEN_CK_FFT"
+        complex(dp) D(-N / 2:N / 2 - 1, -N / 2:N / 2 - 1)
+        real(dp) :: HSTEPX, HSTEPY, HSTEPZ, gx, gy, gz, SUM, G
+        character(len=*), parameter :: t_r = "GEN_CK_FFT2D"
         ALPHA2 = ALPHA * ALPHA
         HSTEPX = 2.0_dp * A(1) / N
         HSTEPY = 2.0_dp * A(2) / N
-        HSTEPZ = 2.0_dp * A(3) / N
-!..
+        HSTEPZ = 0
+
 #if defined(NAGF95) || defined(GFORTRAN_) || defined(BLUEGENE_HACKS)
-        call stop_all(t_r, "No ERF in NAG/GFortran?")
+        call stop_all(t_r, "No ERF in NAG?")
 #endif
+
         DO I = -N / 2, N / 2 - 1
         DO J = -N / 2, N / 2 - 1
-        DO K = -N / 2, N / 2 - 1
+            K = 0
             X = real(I, dp) * HSTEPX
             Y = real(J, dp) * HSTEPY
             Z = real(K, dp) * HSTEPZ
@@ -59,23 +60,24 @@ contains
             IF (TALPHA) THEN
                 R = SQRT(AUX)
 #if !defined(NAGF95) && !defined(GFORTRAN_) && !defined(BLUEGENE_HACKS)
-                AUX = 1.0_dp / R * (-1)**(I + J + K) * DERF(R / ALPHA)
+                AUX = 1.0_dp / R * (-1)**(I + J) * DERF(R / ALPHA)
 #endif
             ELSE
-                AUX = 1.0_dp / SQRT(AUX) * (-1)**(I + J + K)
+                AUX = 1.0_dp / SQRT(AUX) * (-1)**(I + J)
             END IF
             ELSE
             IF (TALPHA) THEN
-                AUX = 2.0_dp / SQRT(PI) / ALPHA
+                AUX = (2.0_dp / SQRT(PI) / ALPHA) * (-1)**(I + J)
             ELSE
-                AUX = real(N / 2, dp) * (-1)**(I + J + K)
+                AUX = real(N / 2, dp) * (-1)**(I + J)
             END IF
             END IF
-            DIST(I, J, K) = CMPLX(AUX, 0.0_dp, dp)
-        END DO
+            D(I, J) = CMPLX(AUX, 0.0_dp, dp)
+
         END DO
         END DO
 #ifdef __SGI
+!..FFT parameters
         N1 = N
         N2 = N
         N3 = N
@@ -97,62 +99,42 @@ contains
         N2 = N
         N3 = N
 #ifndef DISABLE_FFTW
-        CALL DFFTW_PLAN_DFT_3D(PLAN, N1, N2, N3, DIST, DIST, FFTW_FORWARD, FFTW_ESTIMATE)
+        CALL DFFTW_PLAN_DFT_2D(PLAN, N1, N2, D, DIST(-N / 2, -N / 2, 0), FFTW_FORWARD, FFTW_ESTIMATE)
         CALL DFFTW_EXECUTE(PLAN)
         CALL DFFTW_DESTROY_PLAN(PLAN)
 #else
-        call stop_all("gen_ck_fft", "FFTW disabled")
+        call stop_all("gen_ck_fft2d", "FFTW disabled")
 #endif
 #endif
 !..Shift origin and normalise
         DO I = -N / 2, N / 2 - 1
         DO J = -N / 2, N / 2 - 1
-        DO K = -N / 2, N / 2 - 1
-            DIST(I, J, K) = DIST(I, J, K) * (-1)**(i + j + k) / real(n1 * n2 * n3, dp)
-        end do
+            K = 0
+            DIST(I, J, 0) = DIST(I, J, 0) * (-1)**(i + j + k) / real(n1 * n2, dp)
         end do
         end do
 !..the short-range correction for alpha
         IF (TALPHA) THEN
-            OMEGAP = 8.0_dp * OMEGA
+
+            OMEGAP = 4.0_dp * OMEGA
             DO I = -N / 2, N / 2 - 1
             DO J = -N / 2, N / 2 - 1
-            DO K = -N / 2, N / 2 - 1
+                K = 0
                 GX = PI * I / A(1)
                 GY = PI * J / A(2)
-                GZ = PI * K / A(3)
-                G2 = GX * GX + GY * GY + GZ * GZ
-                IF (.not. near_zero(G2)) THEN
-                    SUM = 4.0_dp * PI * (1.0_dp - AUX) / OMEGAP / G2
+                GZ = 0
+                G = SQRT(GX * GX + GY * GY + GZ * GZ)
+                IF (.not. near_zero(G)) THEN
+#if !defined(NAGF95) && !defined(GFORTRAN_) && !defined(BLUEGENE_HACKS)
+                    SUM = 2.0_dp * PI * DERF(ALPHA * G / 2) / OMEGAP / G
+#endif
                 ELSE
-                    SUM = PI * ALPHA2 / OMEGAP
+                    SUM = ALPHA / (SQRT(PI) * OMEGAP)
                 END IF
                 DIST(I, J, K) = DIST(I, J, K) + CMPLX(SUM, 0.0_dp, dp)
             END DO
             END DO
-            END DO
         END IF
-    END
-! ============================================================
-    SUBROUTINE GEN_ZIA(KMAX, NMAX, ZIA)
-        integer :: K, N, M, KMAX, NMAX
-        complex(dp) ZIA(-KMAX / 2:KMAX / 2, NMAX, NMAX)
-        DO K = -KMAX / 2, KMAX / 2
-            DO N = 1, NMAX
-                DO M = 1, NMAX
-                    ZIA(K, N, M) = 0.25_dp * (ZIO(N - M + K) + ZIO(-N + M + K) - ZIO(N + M + K) - ZIO(-N - M + K))
-                END DO
-            END DO
-        END DO
-    END
-
-    complex(dp) elemental FUNCTION ZIO(K)
-        INTEGER, intent(in) :: K
-        IF (K == 0) THEN
-            ZIO = (1.0_dp, 0.0_dp)
-        ELSE
-            ZIO = CMPLX(0.0_dp, -((-1.0_dp)**K - 1.0_dp) / (REAL(K, dp) * PI), dp)
-        END IF
-    END function
+    end subroutine
 
 end module

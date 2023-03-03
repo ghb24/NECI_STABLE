@@ -14,7 +14,6 @@ set( SRC_FILES
     CalcData.F90
     Calc.F90
     calcrho.F90
-    CMakeLists.txt
     compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
@@ -71,7 +70,7 @@ set( SRC_FILES
     hubbard.F
     impurity_models.F90
     index_rhash.F90
-    init_coul2D.F
+    init_coul2D.F90
     init_coul.F90
     initial_trial_states.F90
     initiator_space_procs.F90
@@ -290,8 +289,8 @@ set( RELAX_WARNINGS_SRCS
     hubbard.F
     impurity_models.F90
     index_rhash.F90
-    init_coul2D.F
-    init_coul.F90
+    # init_coul2D.F90
+    # init_coul.F90
     initial_trial_states.F90
     initiator_space_procs.F90
     IntegralsData.F90
@@ -313,8 +312,6 @@ set( RELAX_WARNINGS_SRCS
     load_balance_calcnodes.F90
     LoggingData.F90
     Logging.F90
-    Makefile
-    # matmul.F90
     modifiedHub.F90
     molcas_interface.F90
     MolproPlugin.F90
