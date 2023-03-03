@@ -51,8 +51,6 @@ contains
 
         hel = hphf_off_diag_helement_norm(nI, nJ, iLutI, iLutJ)
 
-        if(IC /= 0 .and. tStoquastize) hel = -abs(hel)
-
     end function
 
     function hphf_off_diag_helement_norm(nI, nJ, iLutnI, iLutnJ) result(hel)
