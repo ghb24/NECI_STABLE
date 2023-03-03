@@ -55,6 +55,9 @@ MODULE System
     use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit
 
     use growing_buffers, only: buffer_int_1D_t
+
+    use hubbard_mod, only: genhubmomirrepssymtable, genhubsymreps, &
+        hubkin, hubkinn, setbasislim_hubtilt, setbasislim_hub
     IMPLICIT NONE
 
 contains
@@ -2005,7 +2008,6 @@ contains
         real(dp) SUM
 ! Called functions
         TYPE(BasisFN) FrzSym
-        logical kallowed
         real(dp) dUnscaledE
         real(dp), allocatable :: arr_tmp(:, :)
         integer, allocatable :: brr_tmp(:)
@@ -2903,8 +2905,6 @@ contains
                                 ! aperiodic does not work anyway and is not really needed..
                                 ! if tilted i want to check if k is allowed otherwise
                                 if ((treal .and. .not. ttilt) .or. kAllowed(G, NBASISMAX)) then
-!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).and.KALLOWED(G,NBASISMAX)) THEN
-!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).or.KALLOWED(G,NBASISMAX)) THEN
                                     IF (THUB) THEN
 !C..Note for the Hubbard model, the t is defined by ALAT(1)!
                                         call setupMomIndexTable()

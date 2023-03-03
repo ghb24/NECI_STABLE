@@ -67,7 +67,7 @@ set( SRC_FILES
     hilbert_space_size.F90
     hist_data.F90
     HPHFRandExcit.F90
-    hubbard.F
+    hubbard.F90
     impurity_models.F90
     index_rhash.F90
     init_coul2D.F90
@@ -286,7 +286,6 @@ set( RELAX_WARNINGS_SRCS
     hilbert_space_size.F90
     hist_data.F90
     HPHFRandExcit.F90
-    hubbard.F
     impurity_models.F90
     index_rhash.F90
     initial_trial_states.F90

@@ -59,6 +59,8 @@ module Integrals_neci
     use init_coul_mod, only: initfou
 
     use init_coul2D_mod, only: initfou2d
+
+    use hubbard_mod, only: calcumathubreal, write_kspace_umat, calctmathub
     implicit none
 
 contains

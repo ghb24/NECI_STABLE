@@ -96,8 +96,8 @@ module k_space_hubbard
     use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
                               isProperCSF_ilut, current_csf_i, CSF_Info_t
     use guga_data, only: ExcitationInformation_t
-    use neci_intfce, only: setbasislim_hubtilt, setbasislim_hub, calctmathub
     use excit_mod, only: GetExcitation, isvaliddet
+    use hubbard_mod, only: calctmathub, setbasislim_hubtilt, setbasislim_hub
 
     better_implicit_none
     external :: calcmathub
