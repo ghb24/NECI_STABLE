@@ -280,22 +280,24 @@ CONTAINS
                 allocate(CkN(nDet, nEval), stat=ierr)
                 LogAlloc(ierr, 'CKN', nDet * nEval, HElement_t_sizeB, tagCKN)
                 CKN = (0.0_dp)
-!C..
+
                 allocate(Ck(nDet, nEval), stat=ierr)
                 LogAlloc(ierr, 'CK', nDet * nEval, HElement_t_sizeB, tagCK)
                 CK = (0.0_dp)
-!C..
+
                 allocate(W(nEval), stat=ierr)
                 LogAlloc(ierr, 'W', nEval, 8, tagW)
                 W = 0.0_dp
             end if
-!C..
+
             IF (TREAD) THEN
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex")
+#else
                 CALL READ_PSI(BOX, BOA, COA, NDET, NEVAL, NBASISMAX, NEL, CK, W)
+#endif
             end if
         end if
-
-!      TMC=TCALCHMAT.AND.(.NOT.TENERGY)
 
     End Subroutine DetCalcInit
 
