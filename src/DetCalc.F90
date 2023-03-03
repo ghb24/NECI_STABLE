@@ -26,7 +26,7 @@ MODULE DetCalc
 
     use frsblk_mod, only: neci_frsblkh
 
-    use read_psi_mod, only: read_psi, write_psi_comp
+    use read_psi_mod, only: read_psi, write_psi, write_psi_comp
 
     IMPLICIT NONE
     save

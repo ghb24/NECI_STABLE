@@ -134,7 +134,7 @@ set( SRC_FILES
     readri.F90
     replica_data.F90
     replica_estimates.F90
-    rhodiag.F
+    rhodiag.F90
     RhoElement.F90
     RotateOrbsData.F90
     RotateOrbs.F90
@@ -338,11 +338,9 @@ set( RELAX_WARNINGS_SRCS
     rdm_reading.F90
     readdf.F90
     readinput.F90
-    # read_psi.F90
     readri.F90
     replica_data.F90
     replica_estimates.F90
-    rhodiag.F
     RhoElement.F90
     RotateOrbsData.F90
     RotateOrbs.F90

@@ -5,7 +5,7 @@ module read_psi_mod
     use util_mod, only: stop_all
     better_implicit_none
     private
-    public :: read_psi, write_psi_comp
+    public :: read_psi, write_psi, write_psi_comp
 
 contains
 
