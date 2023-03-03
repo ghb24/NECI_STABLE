@@ -51,19 +51,6 @@ SUBROUTINE GENSYMEXCITIT2(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEV
     INTEGER NJ(NEL), IC
     LOGICAL TSETUP
     INTEGER ILEVEL
-    routine_name("GENSYMEXCITIT2")
-
-#ifdef WARNING_WORKAROUND_
-    associate(tmp => nMEM(1:1)); end associate
-    unused_var(NI)
-    unused_var(NEL)
-    unused_var(G1)
-    unused_var(NBASIS)
-    unused_var(TSETUP)
-    unused_var(NJ)
-    unused_var(IC)
-    unused_var(STORE)
-    unused_var(ILEVEL)
-#endif
-    call stop_all(this_routine, 'See if this routine is actually used.')
+    external :: GenSymExcitIt2Par
+    CALL GenSymExcitIt2Par(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEVEL, 1, NEL)
 END
