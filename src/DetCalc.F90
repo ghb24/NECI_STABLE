@@ -3,7 +3,8 @@ MODULE DetCalc
     use constants, only: dp,n_int
     use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
          t_non_hermitian_2_body
-    use sort_mod
+
+    use sort_mod, only: sort
 
     use bit_reps, only: writebitdet
 
@@ -22,6 +23,8 @@ MODULE DetCalc
     use gndts_blk_mod, only: gndts_blk
 
     use hdiag_mod, only: hdiag_neci
+
+    use frsblk_mod, only: neci_frsblkh
 
     IMPLICIT NONE
     save

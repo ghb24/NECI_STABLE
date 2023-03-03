@@ -368,9 +368,11 @@ module fcimc_initialisation
     use SD_spin_purification_mod, only: SD_spin_purification, possible_purification_methods, spin_pure_J
 
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
+
+    use blas_interface_mod, only: dgeev
     implicit none
 
-    external :: dgeev, LargestBitSet
+    external :: LargestBitSet
 
 contains
 

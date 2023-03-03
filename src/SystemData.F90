@@ -247,8 +247,6 @@ module SystemData
 ! Has the user set the symmetry using the 'SYM' option?
     logical :: tSymSet = .false.
 
-    logical :: tGiovannisBrokenInit
-
 ! ==================== GUGA Implementation ========================
 ! input for graphical unitary group approach (GUGA) CSF implementation
     logical :: tGUGA = .false. ! flag to indicate usage of GUGA

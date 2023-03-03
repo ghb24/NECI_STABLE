@@ -6,6 +6,7 @@ module hdiag_mod
     use global_utilities, only: timer, set_timer, halt_timer
     use HElem, only: HElement_t_size
     use util_mod, only: stop_all
+    use blas_interface_mod, only: dsyev, zheev
     better_implicit_none
     private
     public :: HDIAG_neci
@@ -24,7 +25,6 @@ contains
         type(timer), save :: proc_timer
         real(dp) :: GSEN
         character(len=*), parameter :: t_r = "HDIAG_neci"
-        external :: dsyev, zheev
 #ifndef CMPLX_
         associate(tmp => WORK(1:1)); end associate
 #endif

@@ -26,6 +26,7 @@ module RotateOrbsMod
     use RotateOrbsData
     use sort_mod
     use util_mod, only: get_free_unit, near_zero, operator(.isclose.), stop_all, neci_flush
+    use Orthonorm_mod, only: GRAMSCHMIDT_NECI
 
     implicit none
 

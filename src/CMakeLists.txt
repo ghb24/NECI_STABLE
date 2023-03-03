@@ -7,6 +7,7 @@ set( SRC_FILES
     adi_initiators.F90
     adi_data.F90
     aliasSampling.F90
+    blas_interface.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
@@ -282,7 +283,6 @@ set( RELAX_WARNINGS_SRCS
     hamiltonian_linalg.F90
     hdiag_from_excit.F90
     HElem.F90
-    hfbasis.F90
     HFCalc.F90
     hilbert_space_size.F90
     hist_data.F90

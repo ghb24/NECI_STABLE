@@ -69,6 +69,8 @@ module CAS_distribution_init
 
     use hdiag_mod, only: hdiag_neci
 
+    use frsblk_mod, only: neci_frsblkh
+
     use sym_mod
 
     use constants

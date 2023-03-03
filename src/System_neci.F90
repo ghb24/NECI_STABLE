@@ -237,7 +237,6 @@ contains
         t_guga_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
         t_adjoint_replicas = .false.
-        tGiovannisBrokenInit = .false.
         ! GAS options
         tGAS = .false.
 
@@ -1846,14 +1845,6 @@ contains
                     buf(n_orb) = to_int(tokens%next())
                 end do
                 call load_orb_perm(buf(1:n_orb))
-
-            case ("GIOVANNIS-BROKEN-INIT")
-                ! Giovanni's scheme for initialising determinants with the correct
-                ! spin an symmetry properties in a wider range of cases than
-                ! currently supported.
-
-                ! Looks nice, but it currently breaks lots of other stuff!
-                tGiovannisBrokenInit = .true.
 
             case ("GAS-SPEC")
 
