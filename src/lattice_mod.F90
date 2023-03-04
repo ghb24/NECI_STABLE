@@ -14,7 +14,7 @@ module lattice_mod
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
                           symmetry, brr, t_input_order, orbital_order, &
                           t_k_space_hubbard, t_trans_corr_hop, &
-                          t_new_real_space_hubbard, nEl
+                          t_new_real_space_hubbard, nEl, tStoquastize
     use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     use util_mod, only: stop_all
@@ -4930,6 +4930,7 @@ contains
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
         hel = get_helement_lattice_ex_mat(nI, ic, ex, tpar)
+        if (tStoquastize .and. ic /= 0) hel = -abs(hel)        
     end function
 
     ! These wrapper functions just exist because of this bug
@@ -4940,5 +4941,6 @@ contains
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel
         hel = get_helement_lattice_general(nI, nJ, ic_ret)
+        if (tStoquastize .and. .not. all(nI == nJ)) hel = -abs(hel)        
     end function
 end module lattice_mod
