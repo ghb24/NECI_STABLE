@@ -265,6 +265,8 @@ contains
             end if
         end if
 
+        if(tStoquastize) hel = -abs(hel)
+
     end function
 
     function hphf_off_diag_special_case(nI2, iLutnI2, iLutnJ, ExcitLevel, OpenOrbsI) result(hel)
@@ -332,6 +334,8 @@ contains
                 hel = -MatEl2
             end if
         end if
+
+        if(tStoquastize) hel = -abs(hel)
 
     end function
 
