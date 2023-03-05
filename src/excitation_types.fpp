@@ -6,7 +6,7 @@
     ! all excitations with rank higher than max_excit_rank are definitely zero
 #:set excit_ranks = list(range(max_excit_rank + 1))
     ! note that this excludes further excitations, which must be handled manually
-#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
+#:set excitations = ['Excite_{}_t'.format(i) for i in excit_ranks + ['Further']]
     ! Excite_Further_t is for all ranks > max_excit_rank
 #:set defined_excitations = excitations[:-1]
 #:set trivial_excitations = [excitations[0], excitations[-1]]
