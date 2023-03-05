@@ -238,7 +238,6 @@ set( SRC_FILES
 
 set( RELAX_WARNINGS_SRCS
 
-    Annihilation.F90
     BitReps.F90
     CalcData.F90
     Calc.F90

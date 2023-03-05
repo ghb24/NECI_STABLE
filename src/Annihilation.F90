@@ -59,6 +59,11 @@ module AnnihilationMod
     use util_mod, only: stop_all, neci_flush, warning_neci
 
     implicit none
+    private
+    public :: SendProcNewParts, test_abort_spawn, directannihilation, &
+        compressspawnedlist, communicate_and_merge_spawns, rm_non_inits_from_spawnedparts, &
+        annihilatespawnedparts, deterministic_annihilation
+
 
 contains
 
