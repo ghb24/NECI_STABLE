@@ -6,7 +6,7 @@ module searching
                             IlutBits
     use bit_reps, only: decode_bit_det, set_flag
     use CalcData, only: tPairedReplicas
-    use constants
+    use constants, only: n_int, dp, lenof_sign
     use DetBitOps, only: DetBitLt, ilut_gt, DetBitEq
     use FciMCData, only: CurrentDets, trial_space, min_trial_ind, trial_space_size, trial_wfs, &
                          con_space, min_conn_ind, con_space_size, con_space_vecs, &
@@ -17,7 +17,11 @@ module searching
     use timing_neci, only: set_timer, halt_timer
     use util_mod, only: binary_search_custom, operator(.div.), stop_all
 
-    implicit none
+    better_implicit_none
+    private
+    public :: hash_search_trial, bin_search_trial, BinSearchParts, remove_repeated_states, &
+        BinSearchParts2, binsearchparts_rdm, get_con_amp_trial_space, &
+        add_trial_energy_contrib
 
 contains
 
@@ -341,7 +345,6 @@ contains
         use constants, only: n_int
         use bit_reps, only: NIfTot, nifd
 
-        IMPLICIT NONE
         INTEGER :: MinInd, MaxInd, PartInd
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: i, j, N, Comp
