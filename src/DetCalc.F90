@@ -28,6 +28,8 @@ MODULE DetCalc
 
     use read_psi_mod, only: read_psi, write_psi, write_psi_comp
 
+    use calcrho_mod, only: gethelement, igetexcitlevel_2
+
     IMPLICIT NONE
     save
 
@@ -347,11 +349,10 @@ CONTAINS
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
         INTEGER nKry1
         INTEGER(KIND=n_int) :: ilut(0:NIfTot), ilut_temp(0:NIfTot)
-        INTEGER J, JR, iGetExcitLevel_2, ExcitLevel, iunit
+        INTEGER J, JR, ExcitLevel, iunit
         INTEGER LSCR, LISCR, MaxIndex
         LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real(dp) :: GetHElement, calct, calcmcen, calcdlwdb, norm, temp_hel
-        external :: GetHElement
+        real(dp) :: calct, calcmcen, calcdlwdb, norm, temp_hel
         integer:: ic, TempnI(NEl), MomSymDet(NEl), ICSym, ICConnect, PairedUnit, SelfInvUnit
         integer(n_int) :: iLutMomSym(0:NIfTot)
         logical :: tSuccess
