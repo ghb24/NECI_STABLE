@@ -340,7 +340,7 @@ contains
         tRealCoeffByExcitLevel = .false.
         RealCoeffExcitThresh = 2
         tRealSpawnCutoff = .false.
-        RealSpawnCutoff = 1.0e-5_dp
+        RealSpawnCutoff = 1.0e-1_dp
         OccupiedThresh = 1.0_dp
         tJumpShift = .true.
 !Feb 08 default set.
