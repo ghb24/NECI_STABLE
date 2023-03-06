@@ -1625,6 +1625,7 @@ contains
         real(dp) :: sign_curr_real
 #ifdef CMPLX_
         sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
+        unused_var(run)
 #else
         if (tSignedRepAv) then
             sign_curr_real = real(abs(sum(sign_curr)), dp)

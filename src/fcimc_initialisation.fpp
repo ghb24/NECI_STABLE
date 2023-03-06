@@ -353,7 +353,9 @@ module fcimc_initialisation
 
     use OneEInts, only: tmat2d
 
+#ifndef CMPLX_
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, gen_all_excits_r_space_hubbard
+#endif
 
     use impurity_models, only: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
 
@@ -393,7 +395,9 @@ contains
         LOGICAL :: tSuccess, tFoundOrbs(nBasis), FoundPair, tSwapped, tAlreadyOcc
         INTEGER :: HFLz, ChosenOrb, step, SymFinal, run
         integer(int64) :: SymHF
+#ifndef CMPLX_
         integer(n_int), allocatable :: dummy_list(:, :)
+#endif
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         write(stdout, *)
@@ -795,7 +799,11 @@ contains
                 ! for this to work and also make sure this works with my
                 ! new symmetry implementation
                 if (.not. t_trans_corr_2body) then
+#ifdef CMPLX_
+                    call stop_all(this_routine, "does not work for complex")
+#else
                     call gen_all_excits_k_space_hubbard(HFDet, nDoubles, dummy_list)
+#endif
                 end if
                 nSingles = 0
             else
@@ -2272,9 +2280,17 @@ contains
 
         ! select the procedure that returns all connected determinants.
         if (t_k_space_hubbard) then
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             gen_all_excits => gen_all_excits_k_space_hubbard
+#endif
         else if (t_new_real_space_hubbard) then
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             gen_all_excits => gen_all_excits_r_space_hubbard
+#endif
         end if
 
     end subroutine init_fcimc_fn_pointers
@@ -3431,7 +3447,9 @@ contains
         integer :: nSingles, nDoubles, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2
         integer :: nTot
         character(*), parameter :: this_routine = "CalcApproxpDoubles"
+#ifndef CMPLX_
         integer(n_int), allocatable :: dummy_list(:, :)
+#endif
 
         nSingles = 0
         nDoubles = 0
@@ -3466,7 +3484,11 @@ contains
             if (tKPntSym) THEN
                 if (t_k_space_hubbard) then
                     ! change this to the new implementation
+#ifdef CMPLX_
+                    call stop_all(this_routine, "does not work for complex")
+#else
                     call gen_all_excits_k_space_hubbard(HFDet, nDoubles, dummy_list)
+#endif
                 else
                     call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.)
                 end if

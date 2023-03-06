@@ -104,7 +104,7 @@ module k_space_hubbard
     private
     public :: get_diag_helement_k_sp_hub, &
         init_three_body_const_mat, init_two_body_trancorr_fac_matrix, &
-        get_j_opt, init_get_helement_k_space_hub, setup_k_space_hub_sym, &
+        init_get_helement_k_space_hub, setup_k_space_hub_sym, &
         init_tmat_kspace, setup_g1, setup_nbasismax, &
         setup_k_total, setup_kPointToBasisFn, setup_tmat_k_space, &
         get_offdiag_helement_k_sp_hub, get_helement_k_space_hub, &
@@ -125,6 +125,9 @@ module k_space_hubbard
         gen_excit_k_space_hub_transcorr, gen_excit_mixed_k_space_hub_transcorr, &
         gen_excit_uniform_k_space_hub_transcorr, setup_symmetry_table, &
         get_2_body_diag_transcorr, get_3_body_diag_transcorr, calc_pgen_k_space_hubbard_uniform_transcorr
+#ifndef CMPLX_
+    public :: get_j_opt
+#endif
 
     integer, parameter :: ABORT_EXCITATION = 0
     integer, parameter :: N_DIM = 3
@@ -2348,6 +2351,7 @@ contains
 
     end function get_3_body_diag_transcorr
 
+#ifndef CMPLX_
     real(dp) function get_j_opt(nI, corr_J)
         ! routine to evaluate Hongjuns J-optimization formulas
         integer, intent(in) :: nI(nel)
@@ -2475,8 +2479,8 @@ contains
                 end do
             end do
         end if
-
     end function get_j_opt
+#endif
 
     function get_one_body_diag_sym(nI, spin, k_sym, t_sign) result(hel)
         integer, intent(in) :: nI(nel)
@@ -3321,6 +3325,9 @@ contains
     subroutine init_two_body_trancorr_fac_matrix()
         integer :: i, j
         type(symmetry) :: sym_i, sym_j
+#ifdef CMPLX_
+        routine_name("two_body_transcorr_factor_kvec")
+#endif
 
         ! for more efficiency, precompute the two-body factor for all possible
         ! symmetry symbols
@@ -3333,11 +3340,14 @@ contains
             sym_i = G1(2 * i)%sym
             do j = 1, nBasis / 2
                 sym_j = G1(2 * j)%Sym
-
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex (yet)")
+#else
                 two_body_transcorr_factor_matrix(sym_j%s, sym_i%s) = &
                     real(bhub, dp) / real(omega, dp) * &
                     ((exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_i) + &
                      (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_j))
+#endif
 
             end do
         end do
@@ -3402,6 +3412,9 @@ contains
     subroutine init_three_body_const_mat()
         integer :: i, j
         type(symmetry) :: sym_i, sym_j
+#ifdef CMPLX_
+        routine_name("init_three_body_const_mat")
+#endif
 
         if (allocated(three_body_const_mat)) deallocate(three_body_const_mat)
         allocate(three_body_const_mat(nBasis / 2, nBasis / 2, -1:1), source=0.0_dp)
@@ -3410,12 +3423,15 @@ contains
             sym_i = G1(2 * i)%Sym
             do j = 1, nBasis / 2
                 sym_j = G1(2 * j)%Sym
-
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex (yet)")
+#else
                 three_body_const_mat(sym_i%s, sym_j%s, -1) = -three_body_prefac * &
                                                              n_opp(-1) * (epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
 
                 three_body_const_mat(sym_i%s, sym_j%s, 1) = -three_body_prefac * &
                                                             n_opp(1) * (epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
+#endif
 
             end do
         end do

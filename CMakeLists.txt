@@ -108,7 +108,7 @@ set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex CMPLX_ PROG_NUMRUNS_)
 set(${PROJECT_NAME}_neci_WARNERR TRUE)
 set(${PROJECT_NAME}_dneci_WARNERR TRUE)
 set(${PROJECT_NAME}_mneci_WARNERR TRUE)
-# set(${PROJECT_NAME}_kneci_WARNERR TRUE)
+set(${PROJECT_NAME}_kneci_WARNERR TRUE)
 
 # Global (always on) defines
 

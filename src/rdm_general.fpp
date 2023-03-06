@@ -1013,6 +1013,12 @@ contains
         implicit none
         real(dp), intent(in) :: fmu
         real(dp) :: fmup
+#ifdef CMPLX_
+        routine_name("dressedFactor")
+        call stop_all(this_routine, "does not work for complex")
+        unused_var(fmu)
+        fmup = 0._dp
+#else
         real(dp) :: eCorr, e0Inits, enOffset
         if (tInitsRDMRef .and. tSetupInitsEst .and. sum(abs(proje_iter)) > eps) then
             ! initiator-only reference energy
@@ -1024,6 +1030,7 @@ contains
         else
             fmup = fmu
         end if
+#endif
     end function dressedFactor
 
     !------------------------------------------------------------------------------------------!

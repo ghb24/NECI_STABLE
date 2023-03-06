@@ -9,7 +9,9 @@ submodule (tau_main) tau_main_impls
     use SystemData, only: t_k_space_hubbard, t_trans_corr_2body, tReltvy, tGUGA, &
         nOccAlpha, nOccBeta
 
+#ifndef CMPLX_
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+#endif
 
     use util_mod, only: operator(.isclose.)
 
@@ -122,7 +124,11 @@ contains
         if (tGUGA) then
             call stop_all(this_routine, "Not implemented for GUGA")
         else if (t_k_space_hubbard) then
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
             call hubbard_find_tau_from_refdet_conn()
+#endif
         else
             call ab_initio_find_tau_from_refdet_conn()
         end if
@@ -283,6 +289,7 @@ contains
     end subroutine ab_initio_find_tau_from_refdet_conn
 
 
+#ifndef CMPLX_
     subroutine hubbard_find_tau_from_refdet_conn()
 
         ! Routine to find an upper bound to tau, by consideration of the
@@ -362,6 +369,7 @@ contains
         end if
         call assign_value_to_tau(new_tau, this_routine)
     end subroutine hubbard_find_tau_from_refdet_conn
+#endif
 
     subroutine finalize_tau_main()
         !! Reset the values

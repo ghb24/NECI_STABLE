@@ -42,10 +42,12 @@ module enumerate_excitations
 
     use MemoryManager, only: LogMemDealloc
 
+#ifndef CMPLX_
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_excits_r_space_hubbard
+#endif
 
-    implicit none
+    better_implicit_none
 
     ! This type allows data in the enumerating subroutines to be stored
     ! such that when the subroutine is next called it can begin where
@@ -238,7 +240,11 @@ contains
             else
                 if (t_new_real_space_hubbard) then
 
+#ifdef CMPLX_
+                    call stop_all(this_routine, "does not work for complex")
+#else
                     call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
+#endif
 
                     if (tStoreConnSpace) then
                         connected_space(0:nifd, connected_space_size + 1:connected_space_size + n_excits) &
@@ -385,7 +391,11 @@ contains
 
                 ! for every loop we have to save the excitations per
                 ! do we have to check if the list is unique?? i guess i do
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex")
+#else
                 call gen_all_excits_k_space_hubbard(nI, n_excits, temp_dets)
+#endif
 
                 if (tStoreConnSpace) then
                     connected_space(0:nifd, connected_space_size + 1:connected_space_size + n_excits) &

@@ -1276,6 +1276,9 @@ contains
         integer :: crun, nOcc
         real(dp) :: scaledInitiatorWalkNo
         logical :: init_flag
+#ifdef CMPLX_
+        unused_var(run)
+#endif
 
         if (tEScaleWalkers) then
             scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)

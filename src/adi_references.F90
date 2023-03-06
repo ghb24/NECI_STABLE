@@ -492,6 +492,7 @@ contains
         ! If the new ilut has sign 0, there is no need to do any check on this run
         if (mag_of_run(ilut_sign, run) > eps) then
 #ifdef CMPLX_
+            unused_var(run)
             ! The complex coherence check is more effortive, so only do it in complex builds
             ! Get the relative phase of the signs
             tmp = cmplx(signRef(min_part_type(run)), signRef(max_part_type(run)), dp) / &
