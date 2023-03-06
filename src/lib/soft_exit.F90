@@ -109,7 +109,7 @@
 module soft_exit
 
     use SystemData, only: nel, nBasis, tHPHF
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use util_mod, only: binary_search_ilut, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
                          SumENum, SumNoatHF, tTimeExit, &

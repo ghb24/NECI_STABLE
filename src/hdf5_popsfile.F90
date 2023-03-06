@@ -110,6 +110,8 @@ module hdf5_popsfile
     use tau_search_hist, only: finalize_hist_tau_search
     use tau_search_conventional, only: tau_search_stats
     use fortran_strings, only: str
+    use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
+    use bit_reps, only: decode_bit_det
     implicit none
     private
 
@@ -753,7 +755,6 @@ contains
 
     subroutine write_walkers(parent, MaxEx)
 
-        use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
         use FciMCData, only: CurrentDets, &
                              TotWalkers, iLutHF
         use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
@@ -931,7 +932,6 @@ contains
 
     subroutine read_walkers(parent, dets, CurrWalkers)
 
-        use bit_rep_data, only: NIfD
         use CalcData, only: pops_norm
 
         ! This is the routine that has complexity!!!
@@ -1364,11 +1364,9 @@ contains
                                          gdata_buf, gdata_loc, gdata_comm, sendcount)
 
         use load_balance_calcnodes, only: DetermineDetNode
-        use bit_reps, only: decode_bit_det, extract_sign
         use FciMCData, only: SpawnedParts2, SpawnedParts
 
         use Determinants, only: write_det
-        use bit_rep_data, only: IlutBits
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
@@ -1512,7 +1510,6 @@ contains
     subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, &
                              gdata_write, gdata_read_handler)
         use CalcData, only: iWeightPopRead
-        use bit_reps, only: extract_sign
 
         ! Integrate the just-read block of walkers into the main list.
 
@@ -1653,8 +1650,6 @@ contains
     ! This is only here for dependency circuit breaking
     subroutine add_pops_norm_contrib(ilut)
 
-        use bit_rep_data, only: NIfTot
-        use bit_reps, only: extract_sign
         use CalcData, only: pops_norm
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)

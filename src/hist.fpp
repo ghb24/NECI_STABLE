@@ -16,9 +16,9 @@ module hist
                          all_norm_psi_squared, ilutRef
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
-    use bit_rep_data, only: NIfTot, NIfD, extract_sign
+    use bit_rep_data, only: NIfTot, NIfD, extract_sign, test_flag, flag_initiator
     use bit_reps, only: encode_sign, extract_bit_rep, &
-                        decode_bit_det, flag_initiator, test_flag, &
+                        decode_bit_det, &
                         get_initiator_flag, writebitdet, &
                         any_run_is_initiator
     use searching, only: BinSearchParts2

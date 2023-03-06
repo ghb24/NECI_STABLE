@@ -3,8 +3,8 @@
 module semi_stoch_gen
 
     use SystemData, only: tGUGA, nel, t_mol_3_body
-    use bit_rep_data, only: NIfD, NIfTot
-    use bit_reps, only: decode_bit_det, nifguga
+    use bit_rep_data, only: NIfD, NIfTot, nIfGUGA, flag_static_init
+    use bit_reps, only: decode_bit_det, set_flag, clr_flag_multi, encode_sign
     use CalcData
     use constants
     use DetBitOps, only: EncodeBitDet
@@ -27,7 +27,7 @@ module semi_stoch_gen
     use util_mod, only: near_zero, operator(.div.), warning_neci, neci_flush
     use core_space_util, only: core_space_t, cs_replicas, deallocate_sparse_ham
 
-    implicit none
+    better_implicit_none
 
 contains
 
@@ -299,8 +299,6 @@ contains
 
         ! A wrapper to call the correct generating routine.
 
-        use bit_rep_data, only: flag_deterministic, flag_static_init
-        use bit_reps, only: set_flag, encode_sign
         use FciMCData, only: SpawnedParts, var_size_this_proc, temp_var_space
         use searching, only: remove_repeated_states
         use SystemData, only: tAllSymSectors
@@ -573,7 +571,6 @@ contains
         use lattice_models_utils, only: make_ilutJ
         use sym_general_mod, only: IsSymAllowedExcitMat
         ! Generate a list of all singles, doubles and triples
-        implicit none
         integer(n_int), intent(inout) :: ilut_list(0:, :)
         integer, intent(inout) :: space_size
         logical, intent(in) :: only_keep_conn
@@ -1036,7 +1033,6 @@ contains
         !             On output space_size will equal the total number of
         !             generated plus what space_size was on input.
 
-        use bit_reps, only: extract_sign
         use Parallel_neci, only: MPISum
         integer, intent(in) :: target_space_size, nApproxSpace
         integer(n_int), intent(in), optional :: opt_source_size
@@ -1805,8 +1801,6 @@ contains
         use FciMCData, only: iter_data_fciqmc
         use semi_stoch_procs, only: end_semistoch
 
-        implicit none
-
         logical :: tStartedFromCoreGround
 
         ! The reinitialization of the semistochastic space can affect population
@@ -1836,10 +1830,7 @@ contains
 
     subroutine reset_core_space()
 
-        use bit_reps, only: clr_flag_multi
         use FciMCData, only: MaxWalkersPart
-
-        implicit none
 
         integer(int64) :: i
 

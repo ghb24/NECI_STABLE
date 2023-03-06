@@ -22,9 +22,9 @@ module unit_test_helpers
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 
-    use bit_reps, only: decode_bit_det, extract_sign, get_weight
+    use bit_reps, only: decode_bit_det
 
-    use bit_rep_data, only: niftot, nifd
+    use bit_rep_data, only: niftot, nifd, extract_sign, get_weight
 
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
 

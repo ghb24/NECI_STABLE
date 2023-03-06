@@ -10,7 +10,7 @@ module RPA_Mod
     use SymExcit3, only: GenExcitations3
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
     use Determinants, only: GetH0Element3
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use DetBitops, only: EncodeBitDet
     use Integrals_neci, only: get_umat_el
     use UMatCache, only: GTID

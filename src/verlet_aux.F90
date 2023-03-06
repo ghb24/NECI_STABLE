@@ -10,10 +10,10 @@ module verlet_aux
 
     use hash, only: clear_hash_table, hash_table_lookup, add_hash_table_entry
 
-    use bit_rep_data, only: niftot, nifd, extract_sign, IlutBits
+    use bit_rep_data, only: niftot, nifd, extract_sign, IlutBits, test_flag
 
     use bit_reps, only: decode_bit_det, set_flag, get_initiator_flag_by_run, encode_sign, &
-                        add_ilut_lists, extract_bit_rep, test_flag, encode_bit_rep
+                        add_ilut_lists, extract_bit_rep, encode_bit_rep
 
     use real_time_data, only: spawnBuf, spawnBufSize, dpsi_cache, dpsi_size, max_cache_size, &
                               backup_size, temp_det_list, tau_real, tau_imag, iterInit, tDynamicAlpha, tVerletSweep, &

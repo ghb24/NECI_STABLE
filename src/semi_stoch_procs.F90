@@ -6,9 +6,13 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, NIfD, NIfTot, test_flag, &
-                            test_flag_multi, IlutBits
+                            test_flag_multi, IlutBits, extract_sign, &
+                            flag_connected, flag_trial
 
-    use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
+    use bit_reps, only: decode_bit_det, get_initiator_flag_by_run, &
+        set_flag, encode_sign
+
+    use mpi
 
     use CalcData
 
@@ -40,8 +44,6 @@ module semi_stoch_procs
     use procedure_pointers, only: shiftFactorFunction
 
     use timing_neci
-
-    use bit_reps, only: encode_sign
 
     use hamiltonian_linalg, only: parallel_sparse_hamil_type
 
@@ -89,7 +91,7 @@ module semi_stoch_procs
 
     use tau_main, only: tau
 
-    implicit none
+    better_implicit_none
 
     ! Distinguishing value for 'use all runs'
     integer, parameter :: GLOBAL_RUN = -45
@@ -897,7 +899,6 @@ contains
 
         ! Note: If requested, keep all doubles at the top, then sort by energy.
 
-        use bit_reps, only: decode_bit_det
         use DetBitOps, only: FindBitExcitLevel
         use FciMCData, only: ilutHF
         use sort_mod, only: sort
@@ -1064,7 +1065,6 @@ contains
         ! And if the state is already present, simply set its flag.
         ! Also sort the states afterwards.
 
-        use bit_reps, only: set_flag
         use DetBitOps, only: ilut_lt, ilut_gt, DetBitLT
         use searching, only: BinSearchParts
         use sort_mod, only: sort
@@ -1144,7 +1144,6 @@ contains
         ! on output, everything will be fine and ready for the FCIQMC calculation
         ! to start.
 
-        use bit_reps, only: set_flag, extract_sign
         use FciMCData, only: ll_node, HashIndex, nWalkerHashes
         use hash, only: clear_hash_table, FindWalkerHash
         use DetBitOps, only: tAccumEmptyDet
@@ -1309,7 +1308,6 @@ contains
         ! Return the most populated states in CurrentDets on *this* processor only.
         ! Also return the norm of these states, if requested.
 
-        use bit_reps, only: extract_sign
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
@@ -1428,7 +1426,6 @@ contains
 !>  @param[out] largest_walkers, Array of most `n_keep` most populated states.
     subroutine global_most_populated_states(n_keep, run, largest_walkers, norm, rank_of_largest, hdiag_largest)
         use Parallel_neci, only: MPISumAll, MPIAllReduceDatatype, MPIBCast
-        use bit_reps, only: extract_sign
 
         integer, intent(in) :: n_keep, run
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
@@ -1872,8 +1869,6 @@ contains
     end subroutine start_walkers_from_core_ground
 
     subroutine start_walkers_from_core_ground_nonhermit(tPrintInfo, run)
-        use bit_reps, only: encode_sign
-
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run
         integer :: i, counter, ierr
@@ -2224,8 +2219,6 @@ contains
         ! and trial_wfs, which are deallocated after the first init_trial_wf
         ! call.
 
-        use bit_rep_data, only: flag_trial, flag_connected
-        use bit_reps, only: decode_bit_det, set_flag
         use FciMCData, only: CurrentDets, TotWalkers, tTrialHash, current_trial_amps, ntrial_excits
         use searching, only: hash_search_trial, bin_search_trial
         use SystemData, only: nel

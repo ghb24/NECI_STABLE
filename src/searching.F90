@@ -343,7 +343,6 @@ contains
         use DetCalcData, only: FCIDets
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
-        use bit_reps, only: NIfTot, nifd
 
         INTEGER :: MinInd, MaxInd, PartInd
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)

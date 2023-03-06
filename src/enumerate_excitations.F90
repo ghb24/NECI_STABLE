@@ -6,7 +6,7 @@ module enumerate_excitations
 
     use util_mod, only: operator(.div.)
 
-    use bit_rep_data, only: NIfD, NIfTot
+    use bit_rep_data, only: NIfD, NIfTot, nifguga
 
     use bit_reps, only: decode_bit_det
 
@@ -168,7 +168,6 @@ contains
 
         use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
         use guga_excitations, only: actHamiltonian
-        use bit_reps, only: nifguga
         use SystemData, only: tGUGA
         integer :: nexcit, j
         integer(n_int), allocatable :: excitations(:, :)
@@ -346,7 +345,6 @@ contains
 
         use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
         use guga_excitations, only: actHamiltonian
-        use bit_reps, only: nifguga
         use SystemData, only: tGUGA
 
         integer :: nexcit, j

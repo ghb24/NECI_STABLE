@@ -21,11 +21,11 @@ module lattice_models_utils
 
     use symdata, only: symtable, SymConjTab
 
-    use bit_rep_data, only: niftot, nifd, GugaBits
+    use bit_rep_data, only: niftot, nifd, GugaBits, extract_sign
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, return_hphf_sym_det
 
-    use bit_reps, only: decode_bit_det, extract_sign, init_bit_rep
+    use bit_reps, only: decode_bit_det, init_bit_rep
 
     use SymExcitDataMod, only: KPointToBasisFn
 

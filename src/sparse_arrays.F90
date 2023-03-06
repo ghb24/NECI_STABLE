@@ -11,8 +11,8 @@
 
 module sparse_arrays
 
-    use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: decode_bit_det, nifguga
+    use bit_rep_data, only: NIfTot, NIfD, nifguga
+    use bit_reps, only: decode_bit_det
     use CalcData, only: tReadPops
     use constants
     use DetBitOps, only: DetBitEq, CountBits, TestClosedShellDet

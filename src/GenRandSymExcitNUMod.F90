@@ -47,7 +47,7 @@ MODULE GenRandSymExcitNUMod
     use excitation_types, only: Excite_1_t
     use sltcnd_mod, only: sltcnd_excit
     use constants, only: dp, n_int, bits_n_int, maxExcit, stdout
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use sym_mod, only: mompbcsym, GetLz
     use timing_neci
     use sym_general_mod

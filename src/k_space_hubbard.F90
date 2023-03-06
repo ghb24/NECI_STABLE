@@ -29,7 +29,8 @@ module k_space_hubbard
 
     use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit, stdout
 
-    use bit_rep_data, only: NIfTot, nifd
+    use bit_rep_data, only: NIfTot, nifd, nIfGUGA
+    use bit_reps, only: decode_bit_det
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
 
@@ -67,8 +68,6 @@ module k_space_hubbard
     use sort_mod, only: sort
 
     use IntegralsData, only: UMat
-
-    use bit_reps, only: decode_bit_det, nifguga
 
     use global_utilities, only: LogMemDealloc, LogMemAlloc
 

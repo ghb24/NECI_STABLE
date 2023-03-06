@@ -16,11 +16,12 @@ MODULE Determinants
     use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
                           sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
 
-    use global_utilities
-    use sort_mod
+    use global_utilities, only: timer, set_timer, halt_timer
+    use sort_mod, only: sort
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det, GetBitExcitation
     use DeterminantData
-    use bit_reps
+    ! use bit_reps, only:
+    use bit_rep_data, only: nIfTot
     use MemoryManager, only: TagIntType
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
@@ -46,13 +47,11 @@ MODULE Determinants
         module procedure get_helement_normal
     end interface
 
+
     interface
         !Write out the determinant in bit notation
         SUBROUTINE WriteDetBit(nUnit, iLutnI, lTerm)
-            use SystemData, only: nBasis
-            use bit_reps, only: nIfTot
-            use constants, only: n_int, bits_n_int
-            use util_mod, only: operator(.div.)
+            import :: nBasis, nIftot, n_int, bits_n_int
             implicit none
             integer, intent(in) :: nUnit
             integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
@@ -1036,7 +1035,7 @@ END
 !Write out the determinant in bit notation
 SUBROUTINE WriteDetBit(nUnit, iLutnI, lTerm)
     use SystemData, only: nBasis
-    use bit_reps, only: nIfTot
+    use bit_rep_data, only: nIfTot
     use constants, only: n_int, bits_n_int
     use util_mod, only: operator(.div.)
     implicit none
@@ -1071,7 +1070,7 @@ END SUBROUTINE WriteDetBit
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
 SUBROUTINE WriteBitEx(nUnit, iLutRef, iLutnI, lTerm)
     use SystemData, only: nEl
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use constants, only: n_int
     use DetBitOps, only: GetBitExcitation
     implicit none

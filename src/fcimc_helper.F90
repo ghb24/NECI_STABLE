@@ -13,16 +13,16 @@ module fcimc_helper
 
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state, check_determ_flag
 
-    use bit_rep_data, only: IlutBits
+    use bit_rep_data, only: IlutBits, NIfTot, NIfD, test_flag, extract_sign, &
+        flag_static_init, flag_deterministic, flag_static_init, flag_determ_parent, &
+        flag_trial, flag_connected, flag_deterministic
 
-    use bit_reps, only: NIfTot, test_flag, extract_flags, &
-                        encode_bit_rep, NIfD, set_flag_general, &
-                        extract_sign, set_flag, encode_sign, &
-                        flag_trial, flag_connected, flag_deterministic, &
+    use bit_reps, only: extract_flags, encode_bit_rep, &
+                        set_flag, encode_sign, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
                         log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
-                        extract_spawn_hdiag, flag_static_init, flag_determ_parent, &
+                        extract_spawn_hdiag, &
                         all_runs_are_initiator, writebitdet
 
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
@@ -2730,7 +2730,6 @@ contains
     end subroutine
 
     function check_semistoch_flags(ilut_child, nI_child, run, tCoreDet) result(break)
-        use bit_rep_data, only: flag_determ_parent
         integer(n_int), intent(inout) :: ilut_child(0:niftot)
         integer, intent(in) :: nI_child(nel)
         integer, intent(in) :: run

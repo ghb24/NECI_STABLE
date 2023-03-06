@@ -238,10 +238,8 @@ set( SRC_FILES
 
 set( RELAX_WARNINGS_SRCS
 
-    BitReps.F90
     CalcData.F90
     Calc.F90
-    compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
     core_space_util.F90

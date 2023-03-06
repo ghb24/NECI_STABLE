@@ -31,7 +31,9 @@ module fcimc_output
 
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
 
-    use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
+    use bit_rep_data, only: test_flag, extract_sign
+
+    use bit_reps, only: decode_bit_det, get_initiator_flag
 
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN, core_space_weight
 

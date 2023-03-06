@@ -39,10 +39,10 @@ module AnnihilationMod
     use constants, only: n_int, lenof_sign, null_part, sizeof_int, MPIArg, dp, &
         eps, stdout
     use bit_rep_data, only: IlutBitsParent, flag_adi_checked, flag_prone, flag_deterministic, &
-        test_flag_multi, IlutBits, niftot, nIfD
+        test_flag_multi, IlutBits, niftot, nIfD, test_flag, flag_initiator
     use bit_reps, only: decode_bit_det, writebitdet, &
-                        encode_sign, test_flag, set_flag, &
-                        flag_initiator, encode_part_sign, &
+                        encode_sign, set_flag, &
+                        encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, get_num_spawns, &
                         bit_parent_zero, get_initiator_flag, &
