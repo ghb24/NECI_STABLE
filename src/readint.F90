@@ -35,7 +35,7 @@ contains
         integer, intent(inout) :: NEL
         integer SYMLZ(1000), ST, III
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
-        integer(int64) :: ORBSYM(1000) 
+        integer(int64) :: ORBSYM(1000)
         INTEGER NORB, NELEC, MS2, ISYM, i, SYML(1000), iunit, iuhf
         LOGICAL exists
         logical :: uhf, trel, tDetectSym
