@@ -161,7 +161,7 @@ considered. The block starts with the `system` keyword and ends with the
     `nonhermitian 2-body`.
 
 -   **stoquastize**<br>
-    Stoquastize the Hamiltonian. This means, the off-diagonal elements of the
+    Stoquastize the Hamiltonian. This means that the off-diagonal elements of the
     original Hamiltonian become negative without changing the magnitudes,
     i.e. \(H^{stoq}_{ij} = H_{ij}\delta_{ij} - |H_{ij}|(1 - \delta_{ij})\).
 
