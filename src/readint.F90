@@ -521,7 +521,6 @@ contains
 
         end if
 
-
         if (tMolpro .and. (iProcIndex == 0)) close(iunit)
 
 !We now need to broadcast all the information we've just read in...
