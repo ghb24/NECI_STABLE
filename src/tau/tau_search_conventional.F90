@@ -39,8 +39,6 @@ module tau_search_conventional
 
     use lattice_mod, only: get_helement_lattice
 
-    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
-
     use gasci, only: possible_GAS_exc_gen, GAS_exc_gen
 
     use gasci_pchb_doubles_select_particles, only: PCHB_particle_selection_vals

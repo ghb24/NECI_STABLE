@@ -623,8 +623,16 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
         HElement_t(dp), intent(in) :: hel
+        routine_name("encode_spawn_hdiag")
 
+#ifdef CMPLX_
+        ! Properly ensure that complex uses two words instead of one
+        call stop_all(this_routine, "does not work for complex")
+        unused_var(ilut)
+        unused_var(hel)
+#else
         ilut(IlutBits%ind_hdiag) = transfer(hel, ilut(IlutBits%ind_hdiag))
+#endif
 
     end subroutine encode_spawn_hdiag
 
@@ -633,8 +641,16 @@ contains
         integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
 
         HElement_t(dp) :: hel
+        routine_name("extract_spawn_hdiag")
 
+#ifdef CMPLX_
+        ! Properly ensure that complex uses two words instead of one
+        call stop_all(this_routine, "does not work for complex")
+        unused_var(ilut)
+        hel = 0._dp
+#else
         hel = transfer(ilut(IlutBits%ind_hdiag), hel)
+#endif
 
     end function extract_spawn_hdiag
 

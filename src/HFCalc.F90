@@ -3,8 +3,10 @@ MODULE HFCalc
     use constants, only: dp, int64, MPIArg
     use util_mod, only: stop_all, neci_flush
 
+#ifndef CMPLX_
     use hfbasis_mod, only: setuphfbasis, calchfbasis, readhftmat, readhfumat, calchfbasis, orderbasishf, calchfumat, calchftmat, &
         readhfbasis
+#endif
 
 
     implicit none

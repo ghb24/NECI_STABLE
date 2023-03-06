@@ -513,8 +513,9 @@ contains
 
                         ! If specified, jump the value of the shift to that
                         ! predicted by the projected energy
-                        if (tJumpShift) &
-                            DiagSft(run) = proje_iter(run)
+                        if (tJumpShift) then
+                            DiagSft(run) = real(proje_iter(run), dp)
+                        end if
                     endif
                 enddo
             endif

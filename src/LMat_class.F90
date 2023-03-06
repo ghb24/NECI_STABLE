@@ -387,12 +387,17 @@ contains
         integer(int64), allocatable, intent(inout) :: indices(:, :), entries(:, :)
         integer(int64) :: i, this_blocksize
         HElement_t(dp) :: rVal
+        routine_name("read_op_dense_hdf5")
 
         this_blocksize = size(entries, dim=2)
 
         do i = 1, this_blocksize
             ! truncate down to lMatEps
-            rVal = 3.0_dp * transfer(entries(1,i),rVal)
+#ifdef CMPLX_
+            call stop_all(this_routine, "does not work for complex")
+#else
+            rVal = 3.0_dp * transfer(entries(1, i), rVal)
+#endif
             call freeze_lmat(rVal, indices(:,i))
             if(abs(rVal)>lMatEps) then
                 call this%set_elem(this%indexFunc(int(indices(1,i),int64),int(indices(2,i),int64),&
@@ -527,6 +532,8 @@ contains
         integer(int64), allocatable :: combined_inds(:)
         integer(int64) :: dummy
         HElement_t(dp) :: rVal
+        routine_name("read_op_sparse")
+
         block_size = size(indices, dim=2)
         allocate(combined_inds(block_size))
         ! Transfer the 6 orbitals to one contiguous index
@@ -537,9 +544,13 @@ contains
                 ! Only freeze once, when filling in the values (this read_op can be called
                 ! multiple times for the same block)
                 if(this%htable%known_conflicts()) then
-                    rVal = transfer(entries(1,i),rVal)
+#ifdef CMPLX_
+                    call stop_all(this_routine, "does not work for complex")
+#else
+                    rVal = transfer(entries(1, i), rVal)
                     call add_core_en(rVal,indices(:,i))
                     entries(1,i) = transfer(rVal,entries(1,i))
+#endif
                 end if
             end if
 
@@ -599,6 +610,7 @@ contains
         integer(int64) :: i, total_size, pos
         ! For typecasts
         HElement_t(dp), parameter :: rVal = 0.0_dp
+        routine_name("read_data")
         ! Gather all data on node root
         call gather_block(indices, tmp_inds)
         call gather_block(entries, tmp_entries)
@@ -607,8 +619,14 @@ contains
         ! Then write there
         if (iProcIndex_intra == 0) then
             do i = 1, total_size
-                if(tmp_inds(i) > 0) &
+                if(tmp_inds(i) > 0) then
+#ifdef CMPLX_
+                    call stop_all(this_routine, "does not work for complex")
+                    unused_var(this)
+#else
                     call this%set_elem(tmp_inds(i), 3.0_dp * transfer(tmp_entries(i), rVal))
+#endif
+                end if
             end do
         end if
         deallocate(tmp_inds)
