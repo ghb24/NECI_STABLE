@@ -272,11 +272,11 @@ contains
         IF (TNEWEXCITATIONS .AND. NORDER <= 2) THEN
             IF (NORDER == 1) ILEVEL = 1
             IF (NORDER == 2) THEN
-            IF (NMIN == 1) THEN
-                ILEVEL = 3
-            ELSE
-                ILEVEL = 2
-            END IF
+                IF (NMIN == 1) THEN
+                    ILEVEL = 3
+                ELSE
+                    ILEVEL = 2
+                END IF
             END IF
     !.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
             CALL SYMSETUPEXCITS(NI, NEL, NBASIS, STORE, TCOUNT, ICOUNT, ILEVEL, 1, nEl)

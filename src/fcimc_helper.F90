@@ -17,6 +17,8 @@ module fcimc_helper
         flag_static_init, flag_deterministic, flag_static_init, flag_determ_parent, &
         flag_trial, flag_connected, flag_deterministic
 
+    use calcrho_mod, only: igetexcitlevel
+
     use bit_reps, only: extract_flags, encode_bit_rep, &
                         set_flag, encode_sign, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
@@ -1804,7 +1806,7 @@ contains
         integer(TagIntType) :: LabTag = 0, NRowTag = 0, ATag = 0, VTag = 0, AMTag = 0, BMTag = 0, TTag = 0, tagCKN = 0, tagCK = 0
         integer(TagIntType) :: WTTag = 0, SCRTag = 0, ISCRTag = 0, INDEXTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0, tagW = 0
         integer(TagIntType) :: tagHamil = 0, WorkTag = 0
-        integer :: nEval, nBlocks, nBlockStarts(2), ExcitLev, iGetExcitLevel, i, nDoubles
+        integer :: nEval, nBlocks, nBlockStarts(2), ExcitLev, i, nDoubles
         character(*), parameter :: t_r = 'LanczosFindGroundE'
         real(dp) :: norm
         integer :: PartInd, ioTrunc
