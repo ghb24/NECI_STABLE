@@ -252,7 +252,7 @@ contains
         LOGICAL TBIN
         logical :: uhf, tRel
         integer :: orbsPerIrrep(nIrreps)
-        real(dp) :: FOCK(1000)
+        real(dp), allocatable :: FOCK(:)
 #ifdef CMPLX_
         real(dp) :: real_time_Z
 #endif
@@ -267,7 +267,7 @@ contains
         IUHF = 0
         TREL = .false.
         SYMLZ(:) = 0
-        FOCK = 0.0
+        allocate(FOCK(len/2), source=0.0_dp)
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
             IF (TBIN) THEN
@@ -594,7 +594,7 @@ contains
         integer(int64) :: start_ind, end_ind
         integer(int64), parameter :: chunk_size = 1000000
         integer:: bytecount
-        real(dp) :: FOCK(1000)
+        real(dp), allocatable :: FOCK(:)
 #if defined(CMPLX_)
         real(dp) :: real_time_Z
 #endif
@@ -613,7 +613,7 @@ contains
         LzDisallowed = 0
         NonZeroInt = 0
         iunit = 0
-        FOCK = 0.0
+        allocate(FOCK(nbasis/2), source=0.0_dp)
 
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
@@ -1008,14 +1008,14 @@ contains
         real(dp) :: diff, core
         character(len=100) :: file_name, PropFile
         logical :: TREL, UHF
-        real(dp) :: FOCK(1000)
+        real(dp), allocatable :: FOCK(:)
         character(*), parameter :: t_r = 'ReadPropInts'
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, &
                        SYMLZ, PROPBITLEN, NPROP, ST, III, FOCK
 
         ZeroedInt = 0
         UHF = .false.
-        FOCK = 0.0
+        allocate(FOCK(nbasis/2), source=0.0_dp)
 
         if (iProcIndex == 0) then
             iunit = get_free_unit()
