@@ -6,6 +6,7 @@ module gndts_blk_mod
     use sym_mod, only: GENNEXTSYM, SETUPSYM, GETSYMDEGEN, &
         GETSYM, LCHKSYM, WRITEALLSYM, getsym, ROUNDSYM, LCHKSYM
     use util_mod, only: NECI_ICOPY
+    use calcrho_mod, only: igetexcitlevel
     better_implicit_none
     private
     public :: gndts_blk, gensymdetss
@@ -83,7 +84,7 @@ contains
         TYPE(BASISFN) G1(NBASIS), KI, KJ, KJ2
         INTEGER LSTE(NEL, NLMAX), NJ(NEL), NELEC, NBF
         INTEGER I, BRR(NBASIS), NN(NEL), nBasisMax(5, *)
-        INTEGER IGETEXCITLEVEL, ICE
+        INTEGER ICE
         DO I = NBF, NBASIS
             NJ(NELEC) = BRR(I)
             KJ2 = KJ

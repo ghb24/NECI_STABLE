@@ -17,6 +17,7 @@ module symrandexcit3
                                OrbClassCount, ScratchSize1, ScratchSize2, &
                                ScratchSize3
     use SymData, only: nSymLabels
+    use SymExcit2, only: gensymexcitit2par_worker
     use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd, &
                                     CreateSingleExcit, CreateExcitLattice, &
@@ -481,16 +482,16 @@ contains
 !Setup excit generators for this determinant
         iMaxExcit = 0
         nStore(1:6) = 0
-        CALL GenSymExcitIt2(nI, NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, exFlag)
+        CALL gensymexcitit2par_worker(nI, NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, exFlag, 1, nEl)
         allocate(EXCITGEN(nExcitMemLen(1)), stat=ierr)
         IF (ierr /= 0) CALL Stop_All("SetupExcitGen", "Problem allocating excitation generator")
         EXCITGEN(:) = 0
-        CALL GenSymExcitIt2(nI, NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, exFlag)
+        CALL gensymexcitit2par_worker(nI, NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, exFlag, 1, nEl)
 !    CALL GetSymExcitCount(EXCITGEN,DetConn)
         excitcount = 0
 
         lp2: do while (.true.)
-            CALL GenSymExcitIt2(nI, nEl, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, exFlag)
+            CALL gensymexcitit2par_worker(nI, nEl, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, exFlag, 1, nEl)
             IF (nJ(1) == 0) exit lp2
             IF (tUEG .or. tHub) THEN
                 IF (IsMomentumAllowed(nJ)) THEN

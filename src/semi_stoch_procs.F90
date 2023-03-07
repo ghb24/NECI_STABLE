@@ -11,6 +11,7 @@ module semi_stoch_procs
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run, &
         set_flag, encode_sign
+    use calcrho_mod, only: igetexcitlevel
 
     use mpi
 
@@ -55,9 +56,12 @@ module semi_stoch_procs
 
     use Parallel_neci, only: MPIScatterV
 
-    use MPI_wrapper, only: root, MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
+    use MPI_wrapper, only: root
+#ifndef IFORT_
+    use MPI_wrapper, only: MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
         MPI_COMM_SIZE, MPI_Win_Sync, MPI_Barrier, MPI_2DOUBLE_PRECISION, &
         MPI_MAXLOC
+#endif
 
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 

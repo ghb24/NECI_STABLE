@@ -46,7 +46,7 @@ submodule (tau_main) tau_main_impls
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet, GetBitExcitation
 
-    use neci_intfce, only: GenSymExcitIt2
+    use SymExcit2, only: gensymexcitit2par_worker
 
     use excit_mod, only: GetExcitation
 
@@ -172,15 +172,15 @@ contains
             !Setting up excitation generators that will work with kpoint sampling
             iMaxExcit = 0
             nStore(:) = 0
-            CALL GenSymExcitIt2(ProjEDet(:, 1), NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, exFlag)
+            CALL gensymexcitit2par_worker(ProjEDet(:, 1), NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, exFlag, 1, nEl)
             allocate(EXCITGEN(nExcitMemLen(1)))
             EXCITGEN(:) = 0
-            CALL GenSymExcitIt2(ProjEDet(:, 1), NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, exFlag)
+            CALL gensymexcitit2par_worker(ProjEDet(:, 1), NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, exFlag, 1, nEl)
         end if
 
         do while (.not. tAllExcitFound)
             if (tKPntSym) then
-                call GenSymExcitIt2(ProjEDet(:, 1), nel, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, exFlag)
+                call gensymexcitit2par_worker(ProjEDet(:, 1), nel, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, exFlag, 1, nEl)
                 if (nJ(1) == 0) exit
                 !Calculate ic, tParity and Ex
                 call EncodeBitDet(nJ, iLutnJ)

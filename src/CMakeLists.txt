@@ -343,7 +343,6 @@ set( RELAX_WARNINGS_SRCS
     RPA.F90
     scrtransf.F90
     searching.F90
-    semi_stoch_gen.F90
     semi_stoch_procs.F90
     shared_rhash.F90
     sparse_arrays.F90
