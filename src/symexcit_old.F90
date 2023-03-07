@@ -27,7 +27,7 @@ SUBROUTINE SYMSETUPEXCITS(NI, NEL, NBASIS, STORE, TCOUNT, ICOUNT, ILEVEL, iMinEl
     unused_var(iMinElec1)
     unused_var(iMaxElec1)
     call stop_all(this_routine, 'See if this routine is actually used.')
-END
+end subroutine
 
 !.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
 !.. one at a time (in an unordered fashion) from a given det.  THis needs to be called twice,
@@ -38,7 +38,7 @@ END
 !! Second run,  TSETUP=.TRUE.  STORE(:) contains data from first run.  NMEM now is an array of nLenght INTEGERs.  The excitation generator data is stored in this.
 !! Third run,   TSETUP=.FALSE.  will generate an excitation of NI, and put it in NEL.
 
-SUBROUTINE GENSYMEXCITIT2(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEVEL)
+subroutine gensymexcitit2(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEVEL)
     use SystemData, only: Symmetry, BasisFN
     use error_handling_neci, only: stop_all
     IMPLICIT NONE
@@ -53,4 +53,4 @@ SUBROUTINE GENSYMEXCITIT2(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEV
     INTEGER ILEVEL
     external :: GenSymExcitIt2Par
     CALL GenSymExcitIt2Par(NI, NEL, G1, NBASIS, TSETUP, NMEM, NJ, IC, STORE, ILEVEL, 1, NEL)
-END
+end subroutine
