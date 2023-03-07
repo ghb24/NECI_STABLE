@@ -339,29 +339,6 @@ contains
         WRITE(6, *) "Finished TMAT"
         CLOSE(10)
 
-!        Obtain the fock eigenvalues (based upon the KS orbitals).
-!         allocate(FockEigv(nStatesUsed))
-!         allocate(work(2*nStatesUsed))
-!         allocate(rwork(3*nStatesUsed-2))
-!         call zheev('N','U',nStatesUsed,FockMat,nStatesUsed,FockEigv,
-!     &               work,2*nStatesUsed,rwork,info)
-!         if (info.eq.0) then
-!             ! Success! Output eigenvalues.
-!             write (6,'(/a)') 'i  KS eigenvalues   Fock eigenvalues'
-!             do i=1,nStatesUsed
-!                 write (6,'(i4,2f12.8)') i,Eigenvalues(i),FockEigv(i)
-!             end do
-!             write (6,'(/)')
-!
-!         else
-!             write (6,'(a,i)') 'Failure in ZHEEV. INFO=',INFO
-!             write (6,'(a)') 'Fock eigenvalues not computed.'
-!         end if
-!         deallocate(FockMat)
-!         deallocate(FockEigv)
-!         deallocate(work)
-!         deallocate(rwork)
-
         IF (.not. BTEST(iCacheFlag, 0)) THEN
             deallocate(HarInt)
             call LogMemDealloc(this_routine, tagHarInt)

@@ -8,8 +8,6 @@ MODULE Determinants
                           t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
                           nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
-    ! use System, only: writeBasis
-
     use IntegralsData, only: UMat, FCK, NMAX
 
     use excitation_types, only: Excitation_t, Excite_2_t, get_excitation
@@ -33,8 +31,6 @@ MODULE Determinants
 
     use SystemData, only: SymRestrict, tSymSet
     use sym_mod
-
-    ! use hfbasis_mod, only: genfdet
 
     implicit none
 
