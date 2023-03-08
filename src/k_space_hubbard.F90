@@ -96,9 +96,10 @@ module k_space_hubbard
     use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
                               isProperCSF_ilut, current_csf_i, CSF_Info_t
     use guga_data, only: ExcitationInformation_t
-    use neci_intfce, only: GetExcitation, setbasislim_hubtilt, setbasislim_hub, calctmathub
+    use excit_mod, only: GetExcitation, isvaliddet
+    use hubbard_mod, only: calctmathub, setbasislim_hubtilt, setbasislim_hub
 
-    implicit none
+    better_implicit_none
     external :: calcmathub
     private
     public :: get_diag_helement_k_sp_hub, &
@@ -480,7 +481,6 @@ contains
     end subroutine init_k_space_hubbard
 
     subroutine initialize_excit_table()
-        implicit none
         ! This cannot be a member of the lattice class because that would introduce
         ! a circulat dependency on get_offdiag_helement_k_sp_hub
         integer :: a, b, i, j, ex(2, 2)
@@ -549,7 +549,6 @@ contains
 #endif
         real(dp) :: p_elec, p_orb
         integer :: elecs(2), orbs(2), src(2)
-        logical :: isvaliddet
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGj(0:nifguga)
 
@@ -625,7 +624,6 @@ contains
 
     subroutine gen_excit_uniform_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, &
                                              tParity, pGen, hel, store, run)
-        implicit none
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -1085,8 +1083,6 @@ contains
     subroutine gen_excit_uniform_k_space_hub_test(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                                   ex, tParity, pGen, hel, store, run)
 
-        implicit none
-
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
@@ -1145,8 +1141,6 @@ contains
     ! interface as the other excitation generators!
     subroutine gen_excit_k_space_hub_transcorr_test(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                                     ex, tParity, pGen, hel, store, run)
-
-        implicit none
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)

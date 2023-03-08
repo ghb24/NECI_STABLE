@@ -4,13 +4,13 @@ module matrix_util
     use constants, only: sp, dp, EPS
     use util_mod, only: near_zero, get_free_unit, stop_all
     use sort_mod, only: sort
+    use blas_interface_mod, only: dgetrf, dgetri, dgemm, dsyev, zheev, dgeev, zgemm
     implicit none
     private
     public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
         calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx, &
         store_hf_coeff, my_minloc, my_minval, matrix_inverse, print_vec
 
-    external :: dgetrf, dgetri, dgemm, dsyev, zheev, dgeev
 
     interface linspace
         module procedure linspace_sp

@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:set max_excit_rank = 3
 #:set excit_ranks = list(range(max_excit_rank + 1))
-#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
+#:set excitations = ['Excite_{}_t'.format(i) for i in excit_ranks + ['Further']]
 #:set defined_excitations = excitations[:-1]
 #:set trivial_excitations = [excitations[0], excitations[-1]]
 #:set non_trivial_excitations = excitations[1:-1]

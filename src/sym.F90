@@ -1626,7 +1626,7 @@ contains
         INTEGER NEL, nBasisMax(5, *)
         INTEGER LMS
         TYPE(BasisFN) IPARITY, ISYM, IMax(2)
-        LOGICAL TSPN, TPARITY, TSETUP, TMORE, TDONE, KALLOWED, TMORE2
+        LOGICAL TSPN, TPARITY, TSETUP, TMORE, TDONE, TMORE2
         INTEGER ILEV
         IF (TSETUP) THEN
             IMAX(1) = NullBasisFn
@@ -1747,7 +1747,7 @@ contains
         IMPLICIT NONE
         TYPE(BasisFN) ISym, ISym2
         INTEGER nBasisMax(5, *), IDEGEN, I, J
-        LOGICAL KALLOWED, TDO
+        LOGICAL TDO
         IDEGEN = 0
         IF (NBASISMAX(3, 3) == 0) THEN
 !   Hubbard
@@ -2061,5 +2061,75 @@ contains
             if (.not. momcheck) return
         end do
     end function checkMomentumInvalidity
+
+    LOGICAL FUNCTION KALLOWED(G, NBASISMAX)
+! See if a given G vector is within a (possibly tilted) unit cell.
+! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
+        Type(BasisFN), intent(in) :: G
+        INTEGER nBasisMax(5, *), NMAXX, I, J, AX, AY
+        INTEGER KX, KY
+        real(dp) MX, MY, XX, YY
+        LOGICAL TALLOW
+        TALLOW = .TRUE.
+        IF (NBASISMAX(3, 3) == 1) THEN
+!.. spatial symmetries
+            IF (G%k(1) /= 0) TALLOW = .FALSE.
+        ELSEIF (NBASISMAX(3, 3) == 0) THEN
+!.. Hubbard
+            IF (NBASISMAX(1, 3) == 1) THEN
+!.. Tilted hubbard
+                NMAXX = NBASISMAX(1, 5)
+!         NMAXY=
+                AX = NBASISMAX(1, 4)
+                AY = NBASISMAX(2, 4)
+!.. (XX,YY) is the position of the bottom right corner of the unit cell
+                XX = ((AX + AY) / 2.0_dp) * NMAXX
+                YY = ((AY - AX) / 2.0_dp) * NMAXX
+                MX = XX * AX + YY * AY
+                MY = XX * AY - YY * AX
+                I = G%k(1)
+                J = G%k(2)
+                KX = I * AX + J * AY
+                KY = I * AY - J * AX
+                IF (KX > MX) TALLOW = .FALSE.
+                IF (KY > MY) TALLOW = .FALSE.
+                IF (KX <= -MX) TALLOW = .FALSE.
+                IF (KY <= -MY) TALLOW = .FALSE.
+            ELSEIF (NBASISMAX(1, 3) >= 4 .OR. NBASISMAX(1, 3) == 2) THEN
+!.. Real space Hubbard
+                IF (G%k(1) == 0 .AND. G%k(2) == 0 .AND. G%k(3) == 0) THEN
+                    TALLOW = .TRUE.
+                ELSE
+                    TALLOW = .FALSE.
+                END IF
+!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!.. mom space non-pbc non-tilt hub - parity sym
+!          IF(  (G(1).EQ.0.OR.G(1).EQ.1)
+!     &       .AND.(G(2).EQ.0.OR.G(2).EQ.1)
+!     &       .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
+!              TALLOW=.TRUE.
+!          ELSE
+!              TALLOW=.FALSE.
+!          ENDIF
+!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!.. non-pbc hubbard
+!          TALLOW=.TRUE.
+!          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
+!     &       TALLOW=.FALSE.
+!          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
+!     &       TALLOW=.FALSE.
+!          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
+!     &       TALLOW=.FALSE.
+            ELSE
+!.. Normal Hubbard
+                TALLOW = .TRUE.
+                IF (G%k(1) > NBASISMAX(1, 2) .OR. G%k(1) < NBASISMAX(1, 1)) TALLOW = .FALSE.
+                IF (G%k(2) > NBASISMAX(2, 2) .OR. G%k(2) < NBASISMAX(2, 1)) TALLOW = .FALSE.
+                IF (G%k(3) > NBASISMAX(3, 2) .OR. G%k(3) < NBASISMAX(3, 1)) TALLOW = .FALSE.
+            END IF
+        END IF
+        KALLOWED = TALLOW
+        RETURN
+    END FUNCTION KALLOWED
 
 end module sym_mod

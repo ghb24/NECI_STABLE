@@ -215,7 +215,7 @@ module fcimc_initialisation
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
     use FciMCData, only: &
-        Walker_Time, Annihil_Time, GetDiagMatel_Time, GetOffDiagMatel_Time, Sort_Time, &
+        Walker_Time, Annihil_Time, Sort_Time, &
         Comms_Time, ACF_Time, AnnSpawned_time, AnnMain_time, BinSearch_time, &
         SemiStoch_Comms_Time, SemiStoch_Multiply_Time, Trial_Search_Time, SemiStoch_Init_Time, SemiStoch_Hamil_Time, &
         SemiStoch_Davidson_Time, Trial_Init_Time, InitSpace_Init_Time, kp_generate_time, Stats_Comms_Time, &
@@ -368,9 +368,11 @@ module fcimc_initialisation
     use SD_spin_purification_mod, only: SD_spin_purification, possible_purification_methods, spin_pure_J
 
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
+
+    use blas_interface_mod, only: dgeev
     implicit none
 
-    external :: dgeev, LargestBitSet
+    external :: LargestBitSet
 
 contains
 
@@ -405,8 +407,6 @@ contains
 !Set timed routine names
         Walker_Time%timer_name = 'WalkerTime'
         Annihil_Time%timer_name = 'AnnihilTime'
-        GetDiagMatel_Time%timer_name = 'GetDiagMatelTime'
-        GetOffDiagMatel_Time%timer_name = 'GetOffDiagMatelTime'
         Sort_Time%timer_name = 'SortTime'
         Comms_Time%timer_name = 'CommsTime'
         ACF_Time%timer_name = 'ACFTime'
