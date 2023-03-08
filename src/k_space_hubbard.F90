@@ -22,7 +22,7 @@ module k_space_hubbard
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
-                           dispersion_rel_cached, init_dispersion_rel_cache, &
+                           init_dispersion_rel_cache, &
                            epsilon_kvec
 
     use procedure_pointers, only: get_umat_el
@@ -3324,9 +3324,6 @@ contains
     subroutine init_two_body_trancorr_fac_matrix()
         integer :: i, j
         type(symmetry) :: sym_i, sym_j
-#ifdef CMPLX_
-        routine_name("two_body_transcorr_factor_kvec")
-#endif
 
         ! for more efficiency, precompute the two-body factor for all possible
         ! symmetry symbols
@@ -3339,17 +3336,10 @@ contains
             sym_i = G1(2 * i)%sym
             do j = 1, nBasis / 2
                 sym_j = G1(2 * j)%Sym
-                associate(epsilon_i => epsilon_kvec(sym_i), epsilon_j => epsilon_kvec(sym_j))
-#ifdef CMPLX_
-                    if (.not. (all(near_zero(aimag([epsilon_i, epsilon_j]))))) then
-                        call stop_all(this_routine, "wrong assumption")
-                    end if
-#endif
-                    two_body_transcorr_factor_matrix(sym_j%s, sym_i%s) = &
-                        bhub / omega &
-                        * ((exp(trans_corr_param_2body) - 1.0_dp) * real(epsilon_i, dp) &
-                            + (exp(-trans_corr_param_2body) - 1.0_dp) * real(epsilon_j, dp))
-                end associate
+                two_body_transcorr_factor_matrix(sym_j%s, sym_i%s) = &
+                    bhub / omega &
+                    * ((exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_i) &
+                        + (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_j))
             end do
         end do
 
@@ -3413,9 +3403,6 @@ contains
     subroutine init_three_body_const_mat()
         integer :: i, j
         type(symmetry) :: sym_i, sym_j
-#ifdef CMPLX_
-        routine_name("init_three_body_const_mat")
-#endif
 
         if (allocated(three_body_const_mat)) deallocate(three_body_const_mat)
         allocate(three_body_const_mat(nBasis / 2, nBasis / 2, -1:1), source=0.0_dp)
@@ -3424,22 +3411,15 @@ contains
             sym_i = G1(2 * i)%Sym
             do j = 1, nBasis / 2
                 sym_j = G1(2 * j)%Sym
-                associate(epsilon_i => epsilon_kvec(sym_i), epsilon_j => epsilon_kvec(sym_j))
-#ifdef CMPLX_
-                    if (.not. (all(near_zero(aimag([epsilon_i, epsilon_j]))))) then
-                        call stop_all(this_routine, "wrong assumption")
-                    end if
-#endif
-                    three_body_const_mat(sym_i%s, sym_j%s, -1) = &
-                        -three_body_prefac &
-                            * n_opp(-1) &
-                            * real(epsilon_i + epsilon_j, dp)
+                three_body_const_mat(sym_i%s, sym_j%s, -1) = &
+                    -three_body_prefac &
+                        * n_opp(-1) &
+                        * real(epsilon_kvec(sym_i) + epsilon_kvec(sym_j), dp)
 
-                    three_body_const_mat(sym_i%s, sym_j%s, 1) = &
-                        -three_body_prefac &
-                            * n_opp(1) &
-                            * real(epsilon_i + epsilon_j, dp)
-                end associate
+                three_body_const_mat(sym_i%s, sym_j%s, 1) = &
+                    -three_body_prefac &
+                        * n_opp(1) &
+                        * real(epsilon_kvec(sym_i) + epsilon_kvec(sym_j), dp)
             end do
         end do
 
