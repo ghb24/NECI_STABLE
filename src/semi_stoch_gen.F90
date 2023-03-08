@@ -114,9 +114,11 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character(len=*), parameter :: t_r = "init_semi_stochastic"
+#ifndef CMPLX_
         real(dp), allocatable :: e_values(:)
         HElement_t(dp), allocatable :: e_vectors(:, :), gs_vector(:)
         real(dp) :: gs_energy
+#endif
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
         ! adjustment at this point.
@@ -136,7 +138,9 @@ contains
         ! Allocate the corespace replicas
         allocate(cs_replicas(num_core_runs))
 
-        write(stdout, '(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
+        write(stdout, '(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"
+        call neci_flush(6)
+
         do run = 1, size(cs_replicas)
             associate(rep => cs_replicas(run))
                 allocate(rep%determ_sizes(0:nProcessors - 1))

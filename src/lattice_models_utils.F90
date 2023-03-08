@@ -56,13 +56,10 @@ module lattice_models_utils
         create_hilbert_space_realspace, &
         create_heisenberg_fock_space, &
         create_heisenberg_fock_space_guga, gen_all_triples_k_space, &
-        create_hilbert_space_kspace
+        create_hilbert_space_kspace, &
+        gen_all_excits_r_space_hubbard, gen_all_excits_k_space_hubbard
 
-#ifndef CMPLX_
-    public :: gen_all_doubles_k_space, gen_all_excits_k_space_hubbard, &
-        gen_all_singles_rs_hub_default, gen_all_singles_rs_hub, &
-        gen_all_excits_r_space_hubbard
-#endif
+    public :: gen_all_doubles_k_space, gen_all_singles_rs_hub_default, gen_all_singles_rs_hub
 
     interface swap_excitations
         module procedure swap_excitations_higher
@@ -174,7 +171,6 @@ contains
 
     end subroutine pick_from_cum_list
 
-#ifndef CMPLX_
     subroutine gen_all_excits_r_space_hubbard(nI, n_excits, det_list)
         ! for the purpose of excitation generation and time-step and
         ! pDoubles determination create a routine to create all possible
@@ -227,7 +223,6 @@ contains
 
         end if
     end subroutine gen_all_excits_r_space_hubbard
-#endif
 
     subroutine spin_purify(n_excits_in, det_list_in, n_excits_out, det_list_out)
         ! routine to remove determinants, belonging to the same
@@ -270,7 +265,6 @@ contains
 
     end subroutine spin_purify
 
-#ifndef CMPLX_
     subroutine gen_all_doubles_rs_hub_hop_transcorr(nI, n_excits, det_list)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
@@ -335,9 +329,7 @@ contains
         call sort(det_list, ilut_lt, ilut_gt)
 
     end subroutine gen_all_doubles_rs_hub_hop_transcorr
-#endif
 
-#ifndef CMPLX_
     subroutine gen_all_singles_rs_hub(nI, n_excits, det_list)
         ! create all single excitations in the real-space hubbard
         ! without hopping transcorrelation this is quite easy..
@@ -352,9 +344,7 @@ contains
         end if
 
     end subroutine gen_all_singles_rs_hub
-#endif
 
-#ifndef CMPLX_
     subroutine gen_all_singles_rs_hub_hop_transcorr(nI, n_excits, det_list)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
@@ -413,9 +403,7 @@ contains
         call sort(det_list, ilut_lt, ilut_gt)
 
     end subroutine gen_all_singles_rs_hub_hop_transcorr
-#endif
 
-#ifndef CMPLX_
     subroutine gen_all_singles_rs_hub_default(nI, n_excits, det_list, sign_list)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
@@ -428,7 +416,7 @@ contains
         integer :: n_bound, i, src, j, neigh, ex(2, 2), pos, nJ(nel)
         integer(n_int), allocatable :: temp_list(:, :)
         integer, allocatable :: neighbors(:)
-        real(dp) :: elem
+        HElement_t(dp) :: elem
         real(dp), allocatable :: temp_sign(:)
         logical :: t_sign, tpar
 
@@ -488,8 +476,12 @@ contains
                             temp_list(:, n_excits) = ilutJ
 
                             if (t_sign) then
+#ifdef CMPLX_
+                                call stop_all(this_routine, "does not work for complex")
+#else
                                 temp_sign(n_excits) = sign(1.0_dp, elem)
                                 call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
+#endif
                             else
                                 call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                             end if
@@ -513,7 +505,6 @@ contains
         end if
 
     end subroutine gen_all_singles_rs_hub_default
-#endif
 
     ! i could also create all determinants, not only the open-shells.. or?
     function create_all_dets(n_orbs, n_alpha, n_beta) result(all_dets)
@@ -1317,7 +1308,6 @@ contains
 
     end function create_neel_state_chain
 
-#ifndef CMPLX_
     subroutine gen_all_excits_k_space_hubbard(nI, n_excits, det_list)!, sign_list)
 
         integer, intent(in) :: nI(nel)
@@ -1364,7 +1354,6 @@ contains
         end if
 
     end subroutine gen_all_excits_k_space_hubbard
-#endif
 
     subroutine create_hilbert_space_kspace(n_alpha, n_beta, n_orbs, nI, &
                                            n_states, state_list_ni, state_list_ilut)
@@ -1775,7 +1764,6 @@ contains
 
     end subroutine gen_all_triples_k_space
 
-#ifndef CMPLX_
     subroutine gen_all_doubles_k_space(nI, n_excits, det_list, sign_list)
         integer, intent(in) :: ni(nel)
         integer, intent(out) :: n_excits
@@ -1848,8 +1836,12 @@ contains
                                     temp_list(:, n_excits) = ilutJ
 
                                     if (t_sign) then
+#ifdef CMPLX_
+                                        call stop_all(this_routine, "does not work for complex")
+#else
                                         temp_sign(n_excits) = sign(1.0_dp, elem)
                                         call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
+#endif
                                     else
                                         call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                                     end if
@@ -1886,7 +1878,6 @@ contains
         end if
 
     end subroutine gen_all_doubles_k_space
-#endif
 
     function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
         ! write a cleaner implementation of this multiple used

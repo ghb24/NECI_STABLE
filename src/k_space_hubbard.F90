@@ -3339,15 +3339,17 @@ contains
             sym_i = G1(2 * i)%sym
             do j = 1, nBasis / 2
                 sym_j = G1(2 * j)%Sym
+                associate(epsilon_i => epsilon_kvec(sym_i), epsilon_j => epsilon_kvec(sym_j))
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex (yet)")
-#else
-                two_body_transcorr_factor_matrix(sym_j%s, sym_i%s) = &
-                    real(bhub, dp) / real(omega, dp) * &
-                    ((exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_i) + &
-                     (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_j))
+                    if (.not. (all(near_zero(aimag([epsilon_i, epsilon_j]))))) then
+                        call stop_all(this_routine, "wrong assumption")
+                    end if
 #endif
-
+                    two_body_transcorr_factor_matrix(sym_j%s, sym_i%s) = &
+                        bhub / omega &
+                        * ((exp(trans_corr_param_2body) - 1.0_dp) * real(epsilon_i, dp) &
+                            + (exp(-trans_corr_param_2body) - 1.0_dp) * real(epsilon_j, dp))
+                end associate
             end do
         end do
 
@@ -3422,16 +3424,22 @@ contains
             sym_i = G1(2 * i)%Sym
             do j = 1, nBasis / 2
                 sym_j = G1(2 * j)%Sym
+                associate(epsilon_i => epsilon_kvec(sym_i), epsilon_j => epsilon_kvec(sym_j))
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex (yet)")
-#else
-                three_body_const_mat(sym_i%s, sym_j%s, -1) = -three_body_prefac * &
-                                                             n_opp(-1) * (epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
-
-                three_body_const_mat(sym_i%s, sym_j%s, 1) = -three_body_prefac * &
-                                                            n_opp(1) * (epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
+                    if (.not. (all(near_zero(aimag([epsilon_i, epsilon_j]))))) then
+                        call stop_all(this_routine, "wrong assumption")
+                    end if
 #endif
+                    three_body_const_mat(sym_i%s, sym_j%s, -1) = &
+                        -three_body_prefac &
+                            * n_opp(-1) &
+                            * real(epsilon_i + epsilon_j, dp)
 
+                    three_body_const_mat(sym_i%s, sym_j%s, 1) = &
+                        -three_body_prefac &
+                            * n_opp(1) &
+                            * real(epsilon_i + epsilon_j, dp)
+                end associate
             end do
         end do
 
