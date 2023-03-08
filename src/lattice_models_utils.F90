@@ -409,7 +409,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
         real(dp), intent(out), allocatable, optional :: sign_list(:)
-#ifdef DEBUG_
+#if defined(DEBUG_) || defined(CMPLX_)
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub_default"
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
