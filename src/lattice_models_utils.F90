@@ -441,7 +441,6 @@ contains
         ! loop over electrons
         do i = 1, nel
             src = nI(i)
-
             ex(1, 1) = src
             neighbors = lat%get_spinorb_neighbors(src)
 
