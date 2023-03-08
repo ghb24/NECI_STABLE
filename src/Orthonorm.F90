@@ -11,14 +11,12 @@ module Orthonorm_mod
 
 contains
 
-
-
-    ! Lowdin Orthoganalize
-    ! for any non-singular R, let S=R RT
-    ! P = S^(-1/2) R is orthogonal.
-    ! MAT is NxN and is returned as an orthogal matrix
-    ! R1 and R2 are NxN workspaces
     SUBROUTINE LOWDIN_ORTH(MAT, N, R1, R2, WORK)
+        !! Lowdin Orthoganalize
+        !! for any non-singular R, let S=R RT
+        !! P = S^(-1/2) R is orthogonal.
+        !! MAT is NxN and is returned as an orthogal matrix
+        !! R1 and R2 are NxN workspaces
         INTEGER N
         HElement_t(dp) MAT(N, N), R1(N, N), R2(N, N)
         HElement_t(dp) WORK(3 * N)
