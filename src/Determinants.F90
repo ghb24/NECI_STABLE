@@ -1,39 +1,54 @@
 #include "macros.h"
-MODULE Determinants
+
+module Determinants
     use constants, only: dp, n_int, bits_n_int, int64, maxExcit, stdout
-    use SystemData, only: BasisFN, nel, G1, Brr, ECore, ALat, NMSH, &
-                          nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
-                          tGUGA, STOT, &
-                          t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, &
-                          tRef_Not_HF, tMolpro, tHub, tUEG, &
-                          nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
+    use SystemData, only: BasisFN, nel, G1, Brr, ECore, ALat, NMSH, nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, tCPMD, tPickVirtUniform, LMS, modk_offdiag, tGUGA, STOT, t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, tRef_Not_HF, tMolpro, tHub, tUEG, nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
     use IntegralsData, only: UMat, FCK, NMAX
 
     use excitation_types, only: Excitation_t, Excite_2_t, get_excitation
-    use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
-                          sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
+    use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
 
     use global_utilities, only: timer, set_timer, halt_timer
     use sort_mod, only: sort
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det, GetBitExcitation
     use DeterminantData
-    ! use bit_reps, only:
     use bit_rep_data, only: nIfTot
     use MemoryManager, only: TagIntType
-
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
     use guga_data, only: ExcitationInformation_t
-
     use lattice_mod, only: get_helement_lattice
     use util_mod, only: NECI_ICOPY, operator(.div.), stop_all
     use SymData, only: nSymLabels, SymLabelList, SymLabelCounts, TwoCycleSymGens
-
-
+    use SystemData, only: TSTOREASEXCITATIONS
+    use SystemData, only: nEl, nBasis, nBasisMax, BasisFN, G1, tFixLz
+    use SystemData, only: nBasis
+    use SystemData, only: nEl
+    use SystemData, only: nEl, G1, k_momentum, nBasis, tUEG
+    use SystemData, only: TUSEBRILLOUIN
+    use SystemData, only: BasisFN
+    use constants, only: dp, stdout
+    use constants, only: dp
+    use OneEInts, only: GetTMatEl
+    use constants, only: stdout
+    use error_handling_neci, only: stop_all
+    use bit_rep_data, only: NIfTot
+    use constants, only: n_int
+    use DetBitOps, only: GetBitExcitation
+    use bit_rep_data, only: nIfTot
+    use constants, only: n_int, bits_n_int
+    use util_mod, only: operator(.div.)
+    use IntegralsData, only: nFrozen, nFrozenIn
+    use sort_mod
+    use sym_mod
+    use error_handling_neci, only: stop_all
+    use constants, only: dp
     use SystemData, only: SymRestrict, tSymSet
     use sym_mod
 
+    ! better_implicit_none
     implicit none
+    ! private
+    ! public :: get_helement, modifymomentum
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
     !       list, or with only a bit-det
@@ -44,16 +59,6 @@ MODULE Determinants
     end interface
 
 
-    interface
-        !Write out the determinant in bit notation
-        SUBROUTINE WriteDetBit(nUnit, iLutnI, lTerm)
-            import :: nBasis, nIftot, n_int, bits_n_int
-            implicit none
-            integer, intent(in) :: nUnit
-            integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
-            logical, intent(in) :: lTerm
-        end subroutine
-    end interface
 
     save
 ! Set by Calc on input
@@ -211,7 +216,6 @@ contains
     contains
 
         subroutine assignOccOrbs
-            implicit none
             integer :: k
             ! assign the occ/closed orbs
             nOccOrbs = 0
@@ -840,490 +844,455 @@ contains
 #endif
     END
 
-END MODULE Determinants
 
-subroutine GetH0Element(nI, nEl, Arr, nBasis, ECore, hEl)
-    !  Get a matrix element of the unperturbed Hamiltonian.  This is just
-    !  the sum of the Hartree-Fock eigenvalues and the core energy.
-    !  In:
-    !     nI(nEl)  list of occupied spin orbitals in the determinant.
-    !     nEl      # of electrons.
-    !     Arr      array containing the eigenvalues of the spin-orbitals.
-    !              (See System for how it's defined/stored).
-    !     nBasis   # spin orbitals.
-    !     ECore    Core energy.
-    !  Out:
-    !     hEl      <D_i|H_0|D_i>, the unperturbed Hamiltonian matrix element.
-    use SystemData, only: TSTOREASEXCITATIONS
-    use constants, only: dp
-    implicit none
-    integer nEl, nI(nEl), nBasis
-    HElement_t(dp) hEl
-    real(dp) Arr(nBasis, 2), ECore
-    integer i
-    if (tStoreAsExcitations .and. nI(1) == -1) then
-!The excitation storage starts with -1.  The next number is the excitation level,L .
-!Next is the parity of the permutation required to lineup occupied->excited.  Then follows
-!a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-        hEl = 0.0_dp
-        do i = 4, nI(2) + 4 - 1
-            hEl = hEl - (Arr(nI(i), 2))
-        end do
-        do i = i, i + nI(2) - 1
-            hEl = hEl + (Arr(nI(i), 2))
-        end do
-    else
-        hEl = ECore
-        do i = 1, nEl
-            hEl = hEl + (Arr(nI(i), 2))
-        end do
-    end if
-end subroutine
-
-subroutine DetFreezeBasis(GG)
-    Use Determinants, only: FDet, nUHFDet, write_det, write_det_len
-    use SystemData, only: nEl, nBasis, nBasisMax, BasisFN, G1, tFixLz
-    use IntegralsData, only: nFrozen, nFrozenIn
-    use sort_mod
-    use sym_mod
-    use error_handling_neci, only: stop_all
-    implicit none
-    integer i, j
-    INTEGER GG(*), Lz
-    Type(BasisFn) s
-    character(*), parameter :: this_routine = 'DetFreezeBasis'
-!C.. Deal with FDET
-!C.. GG(I) is the new position in G of the (old) orb I
-    IF (FDET(1) /= 0) THEN
-        J = 0
-        DO I = 1, NEL
-            FDET(I) = GG(FDET(I))
-!C.. any orbitals which no longer exist, we move outside the basis
-            IF (FDET(I) == 0) THEN
-                FDET(I) = nBasis + 1
-            ELSE
-                J = J + 1
-            end if
-        end do
-        call sort(fdet)
-        IF (J /= NEL - NFROZEN - NFROZENIN) THEN
-            write (stdout, *) "Failed Freezing Det:"
-            call write_det(6, FDET, .true.)
-            call stop_all(this_routine, "After Freezing, FDET has wrong number of electrons")
+    subroutine GetH0Element(nI, nEl, Arr, nBasis, ECore, hEl)
+        !  Get a matrix element of the unperturbed Hamiltonian.  This is just
+        !  the sum of the Hartree-Fock eigenvalues and the core energy.
+        !  In:
+        !     nI(nEl)  list of occupied spin orbitals in the determinant.
+        !     nEl      # of electrons.
+        !     Arr      array containing the eigenvalues of the spin-orbitals.
+        !              (See System for how it's defined/stored).
+        !     nBasis   # spin orbitals.
+        !     ECore    Core energy.
+        !  Out:
+        !     hEl      <D_i|H_0|D_i>, the unperturbed Hamiltonian matrix element.
+        integer nEl, nI(nEl), nBasis
+        HElement_t(dp) hEl
+        real(dp) Arr(nBasis, 2), ECore
+        integer i
+        if (tStoreAsExcitations .and. nI(1) == -1) then
+    !The excitation storage starts with -1.  The next number is the excitation level,L .
+    !Next is the parity of the permutation required to lineup occupied->excited.  Then follows
+    !a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+            hEl = 0.0_dp
+            do i = 4, nI(2) + 4 - 1
+                hEl = hEl - (Arr(nI(i), 2))
+            end do
+            do i = i, i + nI(2) - 1
+                hEl = hEl + (Arr(nI(i), 2))
+            end do
+        else
+            hEl = ECore
+            do i = 1, nEl
+                hEl = hEl + (Arr(nI(i), 2))
+            end do
         end if
-    end if
-    IF (nUHFDet(1) /= 0) THEN
-        J = 0
-        DO I = 1, NEL
-            nUHFDET(I) = GG(nUHFDET(I))
-!C.. any orbitals which no longer exist, we move outside the basis
-            IF (nUHFDET(I) == 0) THEN
-                nUHFDET(I) = nBasis + 1
-            ELSE
-                J = J + 1
+    end subroutine
+
+
+    subroutine DetFreezeBasis(GG)
+        integer i, j
+        INTEGER GG(*), Lz
+        Type(BasisFn) s
+        character(*), parameter :: this_routine = 'DetFreezeBasis'
+    !C.. Deal with FDET
+    !C.. GG(I) is the new position in G of the (old) orb I
+        IF (FDET(1) /= 0) THEN
+            J = 0
+            DO I = 1, NEL
+                FDET(I) = GG(FDET(I))
+    !C.. any orbitals which no longer exist, we move outside the basis
+                IF (FDET(I) == 0) THEN
+                    FDET(I) = nBasis + 1
+                ELSE
+                    J = J + 1
+                end if
+            end do
+            call sort(fdet)
+            IF (J /= NEL - NFROZEN - NFROZENIN) THEN
+                write (stdout, *) "Failed Freezing Det:"
+                call write_det(6, FDET, .true.)
+                call stop_all(this_routine, "After Freezing, FDET has wrong number of electrons")
             end if
-        end do
-        call sort(nUHFDet(1:nel))
-        IF (J /= NEL - NFROZEN - NFROZENIN) THEN
-            write (stdout, *) "Failed Freezing Det:"
-            call write_det(6, nUHFDET, .true.)
-            call stop_all(this_routine, "After Freezing, UHFDET has wrong number of electrons")
         end if
-    end if
-    write (stdout, "(A)", advance='no') " Post-Freeze Fermi det (D0):"
-    call write_det_len(6, fDet, nel - nfrozen - nfrozenin, .true.)
-    write (stdout, "(A)", advance='no') " Symmetry: "
-    Call GetSym(FDet, nEl - nFrozen - nFrozenIn, G1, nBasisMax, s)
-    Call WriteSym(6, s%Sym, .true.)
-    IF (tFixLz) THEN
-        Call GetLz(FDet, nEl - nFrozen - nFrozenIn, Lz)
-        write (stdout, "(A,I5)") " Lz of Fermi det:", Lz
-    end if
+        IF (nUHFDet(1) /= 0) THEN
+            J = 0
+            DO I = 1, NEL
+                nUHFDET(I) = GG(nUHFDET(I))
+    !C.. any orbitals which no longer exist, we move outside the basis
+                IF (nUHFDET(I) == 0) THEN
+                    nUHFDET(I) = nBasis + 1
+                ELSE
+                    J = J + 1
+                end if
+            end do
+            call sort(nUHFDet(1:nel))
+            IF (J /= NEL - NFROZEN - NFROZENIN) THEN
+                write (stdout, *) "Failed Freezing Det:"
+                call write_det(6, nUHFDET, .true.)
+                call stop_all(this_routine, "After Freezing, UHFDET has wrong number of electrons")
+            end if
+        end if
+        write (stdout, "(A)", advance='no') " Post-Freeze Fermi det (D0):"
+        call write_det_len(6, fDet, nel - nfrozen - nfrozenin, .true.)
+        write (stdout, "(A)", advance='no') " Symmetry: "
+        Call GetSym(FDet, nEl - nFrozen - nFrozenIn, G1, nBasisMax, s)
+        Call WriteSym(6, s%Sym, .true.)
+        IF (tFixLz) THEN
+            Call GetLz(FDet, nEl - nFrozen - nFrozenIn, Lz)
+            write (stdout, "(A,I5)") " Lz of Fermi det:", Lz
+        end if
 
-end subroutine
+    end subroutine
 
-LOGICAL FUNCTION ISUHFDET(NI, NEL)
-    use SystemData, only: TUSEBRILLOUIN
-    Use Determinants, only: NUHFDET
-    IMPLICIT NONE
-    INTEGER NEL, NI(NEL)
-    INTEGER I
-    IF (.NOT. TUSEBRILLOUIN) THEN
-        ISUHFDET = .FALSE.
-        RETURN
-    end if
-    ISUHFDET = .TRUE.
-    DO I = NEL, 1, -1
-        IF (NI(I) /= NUHFDET(I)) THEN
+    LOGICAL FUNCTION ISUHFDET(NI, NEL)
+        INTEGER NEL, NI(NEL)
+        INTEGER I
+        IF (.NOT. TUSEBRILLOUIN) THEN
             ISUHFDET = .FALSE.
-            EXIT
-        end if
-    end do
-!         ISUHFDET=.FALSE.
-    RETURN
-END Function
-
-! Generate the active space from a basis.
-! The Active basis can be used to in PATHS calculations and (?) as a CASCI
-
-! nActiveBasis(1:2) contains (First Active Basis Fn, Last Active Basis Fn)
-! nDown is the number of orbital sets  below the Fermi level
-! nUp is the number of orbital sets  above the Fermi level
-
-SUBROUTINE GenActiveBasis(ARR, nBasis, nEl, nActiveBasis, nDown, nUp)
-    use SystemData, only: BasisFN
-    use constants, only: dp, stdout
-    IMPLICIT NONE
-    INTEGER nEl, nActiveBasis(2), nBasis
-    real(dp) ARR(nBasis)
-    INTEGER I, nDown, nUp, nLeft
-    I = nEl + 1
-    nLeft = 1 + nUp
-    IF (nDown /= 0 .AND. nUp /= 0) write (stdout, *) "Including ", -nDown, ",", nUp, " extra degenerate sets in active space."
-    DO WHILE (nLeft > 0 .AND. I < nBasis)
-        DO WHILE (I < nBasis .AND. ABS(ARR(I) - ARR(I - 1)) < 1.0e-5_dp)
-            I = I + 1
-        end do
-        nLeft = nLeft - 1
-        IF (nLeft == nUp .AND. I /= nEl + 1) write (stdout, *) "Fermi determinant degenerate.  "
-        IF (nLeft /= 0) I = I + 2
-    end do
-    IF (I == nEl + 1 .and. nDown == 0) THEN
-!We have no degeneracies at the Fermi Energy
-        write (stdout, *) "Fermi determinant non-degenerate.  "
-        IF (nDown == 0) THEN
-            write (stdout, *) "Active space empty."
-            nActiveBasis(1) = nEl + 1
-            nActiveBasis(2) = nEl
             RETURN
         end if
-    end if
-    nActiveBasis(2) = I - 1
-    I = nEl - 1
-    nLeft = nDown
-    Do WHILE (nLeft > 0 .AND. I > 0)
-        DO WHILE (I > 0 .AND. ABS(ARR(I) - ARR(I + 1)) < 1.0e-5_dp)
-            I = I - 1
+        ISUHFDET = .TRUE.
+        DO I = NEL, 1, -1
+            IF (NI(I) /= NUHFDET(I)) THEN
+                ISUHFDET = .FALSE.
+                EXIT
+            end if
         end do
-        nLeft = nLeft - 1
-    end do
-    nActiveBasis(1) = I + 1
-    write (stdout, *) "Active space:", nActiveBasis(1), " TO ", nActiveBasis(2), " (ordered labels)."
-    write (stdout, *) "Active space electrons:", nEl - nActiveBasis(1) + 1
-    RETURN
-END
+    !         ISUHFDET=.FALSE.
+        RETURN
+    END Function
 
-! Calculate the one-electron part of the energy of a det
-FUNCTION CALCT(NI, NEL)
-    use constants, only: dp
-    USE SystemData, only: BasisFN
-    USE OneEInts, only: GetTMatEl
-    IMPLICIT NONE
-    INTEGER NEL, NI(NEL), I
-    real(dp) :: CALCT
-    CALCT = 0.0_dp
-    DO I = 1, NEL
-        CALCT = CALCT + GetTMATEl(NI(I), NI(I))
-    end do
-    RETURN
-END
+    ! Generate the active space from a basis.
+    ! The Active basis can be used to in PATHS calculations and (?) as a CASCI
 
-!Write out the determinant in bit notation
-SUBROUTINE WriteDetBit(nUnit, iLutnI, lTerm)
-    use SystemData, only: nBasis
-    use bit_rep_data, only: nIfTot
-    use constants, only: n_int, bits_n_int
-    use util_mod, only: operator(.div.)
-    implicit none
-    integer, intent(in) :: nUnit
-    integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
-    logical, intent(in) :: lTerm
-    integer :: i
-
-    do i = 1, nBasis - 1
-        if (IsOcc(iLutnI, i)) then
-            write (nUnit, "(A1)", advance='no') "1"
-        else
-            write (nUnit, "(A1)", advance='no') "0"
+    ! nActiveBasis(1:2) contains (First Active Basis Fn, Last Active Basis Fn)
+    ! nDown is the number of orbital sets  below the Fermi level
+    ! nUp is the number of orbital sets  above the Fermi level
+    SUBROUTINE GenActiveBasis(ARR, nBasis, nEl, nActiveBasis, nDown, nUp)
+        INTEGER nEl, nActiveBasis(2), nBasis
+        real(dp) ARR(nBasis)
+        INTEGER I, nDown, nUp, nLeft
+        I = nEl + 1
+        nLeft = 1 + nUp
+        IF (nDown /= 0 .AND. nUp /= 0) write (stdout, *) "Including ", -nDown, ",", nUp, " extra degenerate sets in active space."
+        DO WHILE (nLeft > 0 .AND. I < nBasis)
+            DO WHILE (I < nBasis .AND. ABS(ARR(I) - ARR(I - 1)) < 1.0e-5_dp)
+                I = I + 1
+            end do
+            nLeft = nLeft - 1
+            IF (nLeft == nUp .AND. I /= nEl + 1) write (stdout, *) "Fermi determinant degenerate.  "
+            IF (nLeft /= 0) I = I + 2
+        end do
+        IF (I == nEl + 1 .and. nDown == 0) THEN
+    !We have no degeneracies at the Fermi Energy
+            write (stdout, *) "Fermi determinant non-degenerate.  "
+            IF (nDown == 0) THEN
+                write (stdout, *) "Active space empty."
+                nActiveBasis(1) = nEl + 1
+                nActiveBasis(2) = nEl
+                RETURN
+            end if
         end if
-    end do
-    if (IsOcc(iLutnI, nBasis)) then
-        if (lTerm) then
-            write (nUnit, "(A1)") "1"
+        nActiveBasis(2) = I - 1
+        I = nEl - 1
+        nLeft = nDown
+        Do WHILE (nLeft > 0 .AND. I > 0)
+            DO WHILE (I > 0 .AND. ABS(ARR(I) - ARR(I + 1)) < 1.0e-5_dp)
+                I = I - 1
+            end do
+            nLeft = nLeft - 1
+        end do
+        nActiveBasis(1) = I + 1
+        write (stdout, *) "Active space:", nActiveBasis(1), " TO ", nActiveBasis(2), " (ordered labels)."
+        write (stdout, *) "Active space electrons:", nEl - nActiveBasis(1) + 1
+    END SUBROUTINE
+
+
+    ! Calculate the one-electron part of the energy of a det
+    FUNCTION CALCT(NI, NEL)
+        INTEGER, intent(in) :: nI(nEl), NEL
+        real(dp) :: CALCT
+        calct = sum(gettmatel(nI, nI))
+    END function
+
+    !Write out the determinant in bit notation
+    SUBROUTINE WriteDetBit(nUnit, iLutnI, lTerm)
+        integer, intent(in) :: nUnit
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+        logical, intent(in) :: lTerm
+        integer :: i
+
+        do i = 1, nBasis - 1
+            if (IsOcc(iLutnI, i)) then
+                write (nUnit, "(A1)", advance='no') "1"
+            else
+                write (nUnit, "(A1)", advance='no') "0"
+            end if
+        end do
+        if (IsOcc(iLutnI, nBasis)) then
+            if (lTerm) then
+                write (nUnit, "(A1)") "1"
+            else
+                write (nUnit, "(A1)", advance='no') "1"
+            end if
         else
-            write (nUnit, "(A1)", advance='no') "1"
+            if (lTerm) then
+                write (nUnit, "(A1)") "0"
+            else
+                write (nUnit, "(A1)", advance='no') "0"
+            end if
         end if
-    else
-        if (lTerm) then
-            write (nUnit, "(A1)") "0"
-        else
-            write (nUnit, "(A1)", advance='no') "0"
+
+    END SUBROUTINE WriteDetBit
+
+
+    ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
+    SUBROUTINE WriteBitEx(nUnit, iLutRef, iLutnI, lTerm)
+        integer nUnit
+        integer(kind=n_int) :: iLutRef(0:nIfTot), iLutnI(0:nIfTot)
+        integer Ex(2, nEl)
+        logical lTerm
+        logical tSign
+        INTEGER iEl, I
+        EX(1, 1) = nEl  !Indicate the length of EX
+        CALL GetBitExcitation(iLutRef, iLutnI, Ex, tSign)
+        write (NUNIT, "(A)", advance='no') "("
+    ! First the excit from
+        DO I = 1, NEL
+            IEL = EX(1, I)
+            if (iEl == 0) EXIT
+            write (NUNIT, "(I5,A)", advance='no') IEL, ","
+        end do
+        IF (tSign) THEN
+            write (NUNIT, "(A)", advance='no') ")->-("
+        ELSE
+            write (NUNIT, "(A)", advance='no') ")->+("
         end if
-    end if
-
-END SUBROUTINE WriteDetBit
-
-! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
-SUBROUTINE WriteBitEx(nUnit, iLutRef, iLutnI, lTerm)
-    use SystemData, only: nEl
-    use bit_rep_data, only: NIfTot
-    use constants, only: n_int
-    use DetBitOps, only: GetBitExcitation
-    implicit none
-    integer nUnit
-    integer(kind=n_int) :: iLutRef(0:nIfTot), iLutnI(0:nIfTot)
-    integer Ex(2, nEl)
-    logical lTerm
-    logical tSign
-    INTEGER iEl, I
-    EX(1, 1) = nEl  !Indicate the length of EX
-    CALL GetBitExcitation(iLutRef, iLutnI, Ex, tSign)
-    write (NUNIT, "(A)", advance='no') "("
-! First the excit from
-    DO I = 1, NEL
-        IEL = EX(1, I)
-        if (iEl == 0) EXIT
-        write (NUNIT, "(I5,A)", advance='no') IEL, ","
-    end do
-    IF (tSign) THEN
-        write (NUNIT, "(A)", advance='no') ")->-("
-    ELSE
-        write (NUNIT, "(A)", advance='no') ")->+("
-    end if
-!Now the excit to
-    DO I = 1, NEL
-        IEL = EX(2, I)
-        if (iEl == 0) EXIT
-        write (NUNIT, "(I5,A)", advance='no') IEL, ","
-    end do
-    write (NUNIT, "(A)", advance='no') ")"
-    IF (LTERM) write (NUNIT, *)
-    RETURN
-END
-
-! This takes a the ground state FDet generated for the UEG and changes its total momentum
-! According to input options
-subroutine ModifyMomentum(FDet)
-    use SystemData, only: nEl, G1, k_momentum, nBasis, tUEG
-    use constants, only: stdout
-    use error_handling_neci, only: stop_all
-    implicit none
-    integer :: i, j ! Loop variables
-    integer, intent(inout) :: FDet(NEl)
-    integer :: k_total(3) ! Stores the total momentum of FDet
-    integer :: delta_k(3) ! Stores the difference between the current FDet and the FDet we're aiming for
-    integer, allocatable :: kPointToBasisFn(:, :, :, :) ! Look up table for kPoints to basis functions
-    integer :: kmaxX, kminX, kmaxY, kminY, kmaxZ, kminZ, iSpinIndex ! Stores the limits of kPointToBasisFn
-    integer :: det_sorted(NEl), e_store ! Storage for the sorting routine
-    logical :: sorted ! As above
-    integer :: wrapped_index
-    integer :: k_new
-
-    IF (.not. tUEG) call stop_all("ModifyMomentum", "Only works for UEG")
-
-    ! Finds current momentum, and finds the difference between this and the target momentum
-    ! most commonly will be zero to start with
-    k_total(1) = 0
-    k_total(2) = 0
-    k_total(3) = 0
-    do j = 1, NEl
-        k_total(1) = k_total(1) + G1(FDet(j))%k(1)
-        k_total(2) = k_total(2) + G1(FDet(j))%k(2)
-        k_total(3) = k_total(3) + G1(FDet(j))%k(3)
-    end do
-    delta_k = k_momentum - k_total
-
-    if (delta_k(1) == 0 .and. delta_k(2) == 0 .and. delta_k(3) == 0) write (stdout, *) "WARNING: specified momentum is ground state"
-
-    ! Creates a look-up table for k-points (this was taken from symrandexcit2.F90)
-    kmaxX = 0
-    kminX = 0
-    kmaxY = 0
-    kminY = 0
-    kminZ = 0
-    kmaxZ = 0
-    do i = 1, nBasis
-        IF (G1(i)%k(1) > kmaxX) kmaxX = G1(i)%k(1)
-        IF (G1(i)%k(1) < kminX) kminX = G1(i)%k(1)
-        IF (G1(i)%k(2) > kmaxY) kmaxY = G1(i)%k(2)
-        IF (G1(i)%k(2) < kminY) kminY = G1(i)%k(2)
-        IF (G1(i)%k(3) > kmaxZ) kmaxZ = G1(i)%k(3)
-        IF (G1(i)%k(3) < kminZ) kminZ = G1(i)%k(3)
-    end do
-    allocate (kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminZ:kmaxZ, 2))
-    do i = 1, nBasis
-        iSpinIndex = (G1(i)%Ms + 1) / 2 + 1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
-        kPointToBasisFn(G1(i)%k(1), G1(i)%k(2), G1(i)%k(3), iSpinIndex) = i
-    end do
-
-    ! For each of the three dimensions, nudge electrons one at a time by one momentum unit until delta_k is reached
-    det_sorted = FDet
-
-    ! Bubble sort to order det_sorted in order of kx of the corresponding electron
-    do
-        sorted = .true.
-        do i = 1, NEl - 1
-            j = i + 1
-            if (G1(det_sorted(j))%k(1) > G1(det_sorted(i))%k(1)) then
-                sorted = .false.
-                e_store = det_sorted(i)
-                det_sorted(i) = det_sorted(j)
-                det_sorted(j) = e_store
-            end if
+    !Now the excit to
+        DO I = 1, NEL
+            IEL = EX(2, I)
+            if (iEl == 0) EXIT
+            write (NUNIT, "(I5,A)", advance='no') IEL, ","
         end do
-        if (sorted) exit
-    end do
+        write (NUNIT, "(A)", advance='no') ")"
+        IF (LTERM) write (NUNIT, *)
+    END subroutine
 
-    ! Nudge momenta one at a time
-    if (delta_k(1) > 0) then
-        do i = 1, delta_k(1)
-            wrapped_index = mod(i, NEl)        ! Take the modulus to know which electron to nudge
-            if (wrapped_index == 0) then    ! Deal with the i=NEl case
-                wrapped_index = NEl
-            end if
-            j = wrapped_index                 ! For convenience asign this to j
-            k_new = G1(det_sorted(j))%k(1) + 1  ! Find the new momentum of this electron
-            if (k_new > kmaxX) then        ! Check that this momentum isn't outside the cell
-                call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-            end if
-            iSpinIndex = (G1(j)%Ms + 1) / 2 + 1     ! Spin of the new orbital is the same as the old
-! Finds basis number for the new momentum
-            det_sorted(j) = kPointToBasisFn(k_new, G1(det_sorted(j))%k(2), G1(det_sorted(j))%k(3), iSpinIndex)
+    ! This takes a the ground state FDet generated for the UEG and changes its total momentum
+    ! According to input options
+    subroutine ModifyMomentum(FDet)
+        integer :: i, j ! Loop variables
+        integer, intent(inout) :: FDet(NEl)
+        integer :: k_total(3) ! Stores the total momentum of FDet
+        integer :: delta_k(3) ! Stores the difference between the current FDet and the FDet we're aiming for
+        integer, allocatable :: kPointToBasisFn(:, :, :, :) ! Look up table for kPoints to basis functions
+        integer :: kmaxX, kminX, kmaxY, kminY, kmaxZ, kminZ, iSpinIndex ! Stores the limits of kPointToBasisFn
+        integer :: det_sorted(NEl), e_store ! Storage for the sorting routine
+        logical :: sorted ! As above
+        integer :: wrapped_index
+        integer :: k_new
+
+        IF (.not. tUEG) call stop_all("ModifyMomentum", "Only works for UEG")
+
+        ! Finds current momentum, and finds the difference between this and the target momentum
+        ! most commonly will be zero to start with
+        k_total(1) = 0
+        k_total(2) = 0
+        k_total(3) = 0
+        do j = 1, NEl
+            k_total(1) = k_total(1) + G1(FDet(j))%k(1)
+            k_total(2) = k_total(2) + G1(FDet(j))%k(2)
+            k_total(3) = k_total(3) + G1(FDet(j))%k(3)
         end do
-    else if (delta_k(1) < 0) then ! For the negative case, i must run through negative numbers
-        do i = -1, delta_k(1), -1
-            wrapped_index = mod(i, NEl)
-            if (wrapped_index == 0) then
-                wrapped_index = -NEl
-            end if
-            j = NEl + wrapped_index + 1 ! Now this goes through the list backward (wrapped_index is negative)
-            k_new = G1(det_sorted(j))%k(1) - 1 ! Find the new momentum of this electron, this time in the opposite direction
-            if (k_new < kminX) then ! Check the limits of the cell again
-                call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-            end if
-            iSpinIndex = (G1(j)%Ms + 1) / 2 + 1 ! Spin of the new orbital is the same as the old
-! Finds basis number for the new momentum
-            det_sorted(j) = kPointToBasisFn(k_new, G1(det_sorted(j))%k(2), G1(det_sorted(j))%k(3), iSpinIndex)
+        delta_k = k_momentum - k_total
+
+        if (delta_k(1) == 0 .and. delta_k(2) == 0 .and. delta_k(3) == 0) write (stdout, *) "WARNING: specified momentum is ground state"
+
+        ! Creates a look-up table for k-points (this was taken from symrandexcit2.F90)
+        kmaxX = 0
+        kminX = 0
+        kmaxY = 0
+        kminY = 0
+        kminZ = 0
+        kmaxZ = 0
+        do i = 1, nBasis
+            IF (G1(i)%k(1) > kmaxX) kmaxX = G1(i)%k(1)
+            IF (G1(i)%k(1) < kminX) kminX = G1(i)%k(1)
+            IF (G1(i)%k(2) > kmaxY) kmaxY = G1(i)%k(2)
+            IF (G1(i)%k(2) < kminY) kminY = G1(i)%k(2)
+            IF (G1(i)%k(3) > kmaxZ) kmaxZ = G1(i)%k(3)
+            IF (G1(i)%k(3) < kminZ) kminZ = G1(i)%k(3)
         end do
-    end if
-
-    FDet = det_sorted
-
-    !====ky treated as kx above
-    do
-        sorted = .true.
-        do i = 1, NEl - 1
-            j = i + 1
-            if (G1(det_sorted(j))%k(2) > G1(det_sorted(i))%k(2)) then
-                sorted = .false.
-                e_store = det_sorted(i)
-                det_sorted(i) = det_sorted(j)
-                det_sorted(j) = e_store
-            end if
+        allocate (kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminZ:kmaxZ, 2))
+        do i = 1, nBasis
+            iSpinIndex = (G1(i)%Ms + 1) / 2 + 1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+            kPointToBasisFn(G1(i)%k(1), G1(i)%k(2), G1(i)%k(3), iSpinIndex) = i
         end do
-        if (sorted) exit
-    end do
 
-    ! Nudge momenta one at a time
-    if (delta_k(2) > 0) then
-        do i = 1, delta_k(2)
-            wrapped_index = mod(i, NEl)        ! Take the modulus to know which electron to nudge
-            if (wrapped_index == 0) then    ! Deal with the i=NEl case
-                wrapped_index = NEl
-            end if
-            j = wrapped_index                 ! For convenience asign this to j
-            k_new = G1(det_sorted(j))%k(2) + 1  ! Find the new momentum of this electron
-            if (k_new > kmaxY) then        ! Check that this momentum isn't outside the cell
-                call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-            end if
-            iSpinIndex = (G1(j)%Ms + 1) / 2 + 1     ! Spin of the new orbital is the same as the old
-! Finds basis number for the new momentum
-            det_sorted(j) = kPointToBasisFn(G1(det_sorted(j))%k(1), k_new, G1(det_sorted(j))%k(3), iSpinIndex)
+        ! For each of the three dimensions, nudge electrons one at a time by one momentum unit until delta_k is reached
+        det_sorted = FDet
+
+        ! Bubble sort to order det_sorted in order of kx of the corresponding electron
+        do
+            sorted = .true.
+            do i = 1, NEl - 1
+                j = i + 1
+                if (G1(det_sorted(j))%k(1) > G1(det_sorted(i))%k(1)) then
+                    sorted = .false.
+                    e_store = det_sorted(i)
+                    det_sorted(i) = det_sorted(j)
+                    det_sorted(j) = e_store
+                end if
+            end do
+            if (sorted) exit
         end do
-    else if (delta_k(2) < 0) then ! For the negative case, i must run through negative numbers
-        do i = -1, delta_k(2), -1
-            wrapped_index = mod(i, NEl)
-            if (wrapped_index == 0) then
-                wrapped_index = -NEl
-            end if
-            j = NEl + wrapped_index + 1 ! Now this goes through the list backward (wrapped_index is negative)
-            k_new = G1(det_sorted(j))%k(2) - 1 ! Find the new momentum of this electron, this time in the opposite direction
-            if (k_new < kminY) then ! Check the limits of the cell again
-                call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-            end if
-            iSpinIndex = (G1(j)%Ms + 1) / 2 + 1 ! Spin of the new orbital is the same as the old
-! Finds basis number for the new momentum
-            det_sorted(j) = kPointToBasisFn(G1(det_sorted(j))%k(1), k_new, G1(det_sorted(j))%k(3), iSpinIndex)
+
+        ! Nudge momenta one at a time
+        if (delta_k(1) > 0) then
+            do i = 1, delta_k(1)
+                wrapped_index = mod(i, NEl)        ! Take the modulus to know which electron to nudge
+                if (wrapped_index == 0) then    ! Deal with the i=NEl case
+                    wrapped_index = NEl
+                end if
+                j = wrapped_index                 ! For convenience asign this to j
+                k_new = G1(det_sorted(j))%k(1) + 1  ! Find the new momentum of this electron
+                if (k_new > kmaxX) then        ! Check that this momentum isn't outside the cell
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                end if
+                iSpinIndex = (G1(j)%Ms + 1) / 2 + 1     ! Spin of the new orbital is the same as the old
+    ! Finds basis number for the new momentum
+                det_sorted(j) = kPointToBasisFn(k_new, G1(det_sorted(j))%k(2), G1(det_sorted(j))%k(3), iSpinIndex)
+            end do
+        else if (delta_k(1) < 0) then ! For the negative case, i must run through negative numbers
+            do i = -1, delta_k(1), -1
+                wrapped_index = mod(i, NEl)
+                if (wrapped_index == 0) then
+                    wrapped_index = -NEl
+                end if
+                j = NEl + wrapped_index + 1 ! Now this goes through the list backward (wrapped_index is negative)
+                k_new = G1(det_sorted(j))%k(1) - 1 ! Find the new momentum of this electron, this time in the opposite direction
+                if (k_new < kminX) then ! Check the limits of the cell again
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                end if
+                iSpinIndex = (G1(j)%Ms + 1) / 2 + 1 ! Spin of the new orbital is the same as the old
+    ! Finds basis number for the new momentum
+                det_sorted(j) = kPointToBasisFn(k_new, G1(det_sorted(j))%k(2), G1(det_sorted(j))%k(3), iSpinIndex)
+            end do
+        end if
+
+        FDet = det_sorted
+
+        !====ky treated as kx above
+        do
+            sorted = .true.
+            do i = 1, NEl - 1
+                j = i + 1
+                if (G1(det_sorted(j))%k(2) > G1(det_sorted(i))%k(2)) then
+                    sorted = .false.
+                    e_store = det_sorted(i)
+                    det_sorted(i) = det_sorted(j)
+                    det_sorted(j) = e_store
+                end if
+            end do
+            if (sorted) exit
         end do
-    end if
 
-    FDet = det_sorted
+        ! Nudge momenta one at a time
+        if (delta_k(2) > 0) then
+            do i = 1, delta_k(2)
+                wrapped_index = mod(i, NEl)        ! Take the modulus to know which electron to nudge
+                if (wrapped_index == 0) then    ! Deal with the i=NEl case
+                    wrapped_index = NEl
+                end if
+                j = wrapped_index                 ! For convenience asign this to j
+                k_new = G1(det_sorted(j))%k(2) + 1  ! Find the new momentum of this electron
+                if (k_new > kmaxY) then        ! Check that this momentum isn't outside the cell
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                end if
+                iSpinIndex = (G1(j)%Ms + 1) / 2 + 1     ! Spin of the new orbital is the same as the old
+    ! Finds basis number for the new momentum
+                det_sorted(j) = kPointToBasisFn(G1(det_sorted(j))%k(1), k_new, G1(det_sorted(j))%k(3), iSpinIndex)
+            end do
+        else if (delta_k(2) < 0) then ! For the negative case, i must run through negative numbers
+            do i = -1, delta_k(2), -1
+                wrapped_index = mod(i, NEl)
+                if (wrapped_index == 0) then
+                    wrapped_index = -NEl
+                end if
+                j = NEl + wrapped_index + 1 ! Now this goes through the list backward (wrapped_index is negative)
+                k_new = G1(det_sorted(j))%k(2) - 1 ! Find the new momentum of this electron, this time in the opposite direction
+                if (k_new < kminY) then ! Check the limits of the cell again
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                end if
+                iSpinIndex = (G1(j)%Ms + 1) / 2 + 1 ! Spin of the new orbital is the same as the old
+    ! Finds basis number for the new momentum
+                det_sorted(j) = kPointToBasisFn(G1(det_sorted(j))%k(1), k_new, G1(det_sorted(j))%k(3), iSpinIndex)
+            end do
+        end if
 
-    !====kz treated as kx and ky above
-    do
-        sorted = .true.
-        do i = 1, NEl - 1
-            j = i + 1
-            if (G1(det_sorted(j))%k(3) > G1(det_sorted(i))%k(3)) then
-                sorted = .false.
-                e_store = det_sorted(i)
-                det_sorted(i) = det_sorted(j)
-                det_sorted(j) = e_store
-            end if
+        FDet = det_sorted
+
+        !====kz treated as kx and ky above
+        do
+            sorted = .true.
+            do i = 1, NEl - 1
+                j = i + 1
+                if (G1(det_sorted(j))%k(3) > G1(det_sorted(i))%k(3)) then
+                    sorted = .false.
+                    e_store = det_sorted(i)
+                    det_sorted(i) = det_sorted(j)
+                    det_sorted(j) = e_store
+                end if
+            end do
+            if (sorted) exit
         end do
-        if (sorted) exit
-    end do
 
-    ! Nudge momenta one at a time
-    if (delta_k(3) > 0) then
-        do i = 1, delta_k(3)
-            wrapped_index = mod(i, NEl)        ! Take the modulus to know which electron to nudge
-            if (wrapped_index == 0) then    ! Deal with the i=NEl case
-                wrapped_index = NEl
-            end if
-            j = wrapped_index                 ! For convenience asign this to j
-            k_new = G1(det_sorted(j))%k(3) + 1  ! Find the new momentum of this electron
-            if (k_new > kmaxZ) then        ! Check that this momentum isn't outside the cell
-                call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-            end if
-            iSpinIndex = (G1(j)%Ms + 1) / 2 + 1     ! Spin of the new orbital is the same as the old
-! Finds basis number for the new momentum
-            det_sorted(j) = kPointToBasisFn(G1(det_sorted(j))%k(1), G1(det_sorted(j))%k(2), k_new, iSpinIndex)
+        ! Nudge momenta one at a time
+        if (delta_k(3) > 0) then
+            do i = 1, delta_k(3)
+                wrapped_index = mod(i, NEl)        ! Take the modulus to know which electron to nudge
+                if (wrapped_index == 0) then    ! Deal with the i=NEl case
+                    wrapped_index = NEl
+                end if
+                j = wrapped_index                 ! For convenience asign this to j
+                k_new = G1(det_sorted(j))%k(3) + 1  ! Find the new momentum of this electron
+                if (k_new > kmaxZ) then        ! Check that this momentum isn't outside the cell
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                end if
+                iSpinIndex = (G1(j)%Ms + 1) / 2 + 1     ! Spin of the new orbital is the same as the old
+    ! Finds basis number for the new momentum
+                det_sorted(j) = kPointToBasisFn(G1(det_sorted(j))%k(1), G1(det_sorted(j))%k(2), k_new, iSpinIndex)
+            end do
+        else if (delta_k(3) < 0) then ! For the negative case, i must run through negative numbers
+            do i = -1, delta_k(3), -1
+                wrapped_index = mod(i, NEl)
+                if (wrapped_index == 0) then
+                    wrapped_index = -NEl
+                end if
+                j = NEl + wrapped_index + 1 ! Now this goes through the list backward (wrapped_index is negative)
+                k_new = G1(det_sorted(j))%k(3) - 1 ! Find the new momentum of this electron, this time in the opposite direction
+                if (k_new < kminZ) then ! Check the limits of the cell again
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                end if
+                iSpinIndex = (G1(j)%Ms + 1) / 2 + 1 ! Spin of the new orbital is the same as the old
+                ! Finds basis number for the new momentum
+                det_sorted(j) = kPointToBasisFn(G1(det_sorted(j))%k(1), G1(det_sorted(j))%k(2), k_new, iSpinIndex)
+            end do
+        end if
+
+        FDet = det_sorted
+
+        ! Bubble sort to order FDet back into increasing order by number
+        do
+            sorted = .true.
+            do i = 1, NEl - 1
+                j = i + 1
+                if (FDet(j) < FDet(i)) then
+                    sorted = .false.
+                    e_store = FDet(i)
+                    FDet(i) = FDet(j)
+                    FDet(j) = e_store
+                end if
+            end do
+            if (sorted) exit
         end do
-    else if (delta_k(3) < 0) then ! For the negative case, i must run through negative numbers
-        do i = -1, delta_k(3), -1
-            wrapped_index = mod(i, NEl)
-            if (wrapped_index == 0) then
-                wrapped_index = -NEl
-            end if
-            j = NEl + wrapped_index + 1 ! Now this goes through the list backward (wrapped_index is negative)
-            k_new = G1(det_sorted(j))%k(3) - 1 ! Find the new momentum of this electron, this time in the opposite direction
-            if (k_new < kminZ) then ! Check the limits of the cell again
-                call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-            end if
-            iSpinIndex = (G1(j)%Ms + 1) / 2 + 1 ! Spin of the new orbital is the same as the old
-            ! Finds basis number for the new momentum
-            det_sorted(j) = kPointToBasisFn(G1(det_sorted(j))%k(1), G1(det_sorted(j))%k(2), k_new, iSpinIndex)
-        end do
-    end if
 
-    FDet = det_sorted
+        write (stdout, *) "Total momentum set to", k_momentum
 
-    ! Bubble sort to order FDet back into increasing order by number
-    do
-        sorted = .true.
-        do i = 1, NEl - 1
-            j = i + 1
-            if (FDet(j) < FDet(i)) then
-                sorted = .false.
-                e_store = FDet(i)
-                FDet(i) = FDet(j)
-                FDet(j) = e_store
-            end if
-        end do
-        if (sorted) exit
-    end do
+    end subroutine ModifyMomentum
 
-    write (stdout, *) "Total momentum set to", k_momentum
+END MODULE Determinants
 
-end subroutine ModifyMomentum
+

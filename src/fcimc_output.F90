@@ -44,7 +44,7 @@ module fcimc_output
     use fcimc_helper, only: LanczosFindGroundE
 
     use hphf_integrals, only: hphf_diag_helement
-    use Determinants, only: write_det, get_helement
+    use Determinants, only: write_det, get_helement, writeDetBit
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
 

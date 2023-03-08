@@ -30,6 +30,8 @@ MODULE DetCalc
 
     use calcrho_mod, only: gethelement, igetexcitlevel_2
 
+    use Determinants, only: calcT
+
     IMPLICIT NONE
     save
 
@@ -352,7 +354,7 @@ CONTAINS
         INTEGER J, JR, ExcitLevel, iunit
         INTEGER LSCR, LISCR, MaxIndex
         LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real(dp) :: calct, calcmcen, calcdlwdb, norm, temp_hel
+        real(dp) :: calcmcen, calcdlwdb, norm, temp_hel
         integer:: ic, TempnI(NEl), MomSymDet(NEl), ICSym, ICConnect, PairedUnit, SelfInvUnit
         integer(n_int) :: iLutMomSym(0:NIfTot)
         logical :: tSuccess
@@ -448,7 +450,7 @@ CONTAINS
             end if
             temp_hel = real(GETHELEMENT(IFDET, IFDET, HAMIL, LAB, NROW, NDET), dp)
             write(stdout, *) '<D0|H|D0>=', temp_hel
-            write(stdout, *) '<D0|T|D0>=', CALCT(NMRKS(1, IFDET), NEL)
+            write(stdout, *) '<D0|T|D0>=', CALCT(NMRKS(1 : 1 + nEl, IFDET), NEL)
             CALL neci_flush(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
         end if

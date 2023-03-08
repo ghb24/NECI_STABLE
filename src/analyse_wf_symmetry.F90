@@ -35,6 +35,8 @@ module analyse_wf_symmetry
 
     use hist, only: ssquared_contrib
 
+    use Determinants, only: writeDetBit
+
     implicit none
 
     logical :: t_symmetry_analysis = .false.

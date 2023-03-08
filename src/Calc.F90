@@ -17,7 +17,7 @@ MODULE Calc
     use default_sets
     use read_fci, only: reorder_orb_label
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
-                            tDefineDet
+                            tDefineDet, calcT
     use DetCalc, only: iObs, jObs, kObs, DETINV, &
                        icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
@@ -3633,7 +3633,7 @@ contains
         use global_utilities
         use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
         use excitation_types, only: Excite_0_t
-        real(dp) CalcT, CalcT2, GetRhoEps
+        real(dp) CalcT2, GetRhoEps
 
         INTEGER I, IC, J, norb
         INTEGER nList

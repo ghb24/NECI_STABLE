@@ -7,6 +7,7 @@ module gndts_blk_mod
         GETSYM, LCHKSYM, WRITEALLSYM, getsym, ROUNDSYM, LCHKSYM
     use util_mod, only: NECI_ICOPY
     use calcrho_mod, only: igetexcitlevel
+    use determinants, only: calcT
     better_implicit_none
     private
     public :: gndts_blk, gensymdetss
@@ -29,7 +30,6 @@ contains
         LOGICAL TGENFDET
         INTEGER IFDET, NDETTOT, IDEG
         real(dp) DETSC, TDETSC
-        real(dp) CALCT
         DETSC = 1D200
         II = 0
         IF (TCOUNT) THEN
