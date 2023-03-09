@@ -255,7 +255,8 @@ contains
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
                               tGen_4ind_lin_exact, tGen_4ind_2, tGAS, &
-                              tComplexOrbs_RealInts, tLatticeGens
+                              tComplexOrbs_RealInts, tLatticeGens,t_non_hermitian,
+                              t_non_hermitian_1_body, t_non_hermitian_2_body
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -316,6 +317,10 @@ contains
         if (tCalcVariationalEnergy .and. .not. tEnergy) then
             call stop_all(t_r, "CALCVARIATIONALENERGY requires initial FCI calculation")
         end if
+        if (t_mol_3_body .or. t_ueg_3_body) then
+            call stop_all(t_r, "The current implementation of PCHB supports only up to 2-body interactions.")
+        end if
+        t_non_hermitian = t_non_hermitian_1_body .or. t_non_hermitian_2_body
 
         nWalkerHashes = nint(HashLengthFrac * InitWalkers)
 

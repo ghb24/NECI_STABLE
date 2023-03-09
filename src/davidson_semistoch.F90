@@ -8,7 +8,7 @@ module davidson_semistoch
     use constants
     use FciMCData, only: DavidsonTag, user_input_max_davidson_iters, &
                          user_input_davidson_tolerance
-    use SystemData, only: t_non_hermitian_2_body
+    use SystemData, only: t_non_hermitian
     use MemoryManager, only: TagIntType
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather, MPISumAll
@@ -357,7 +357,7 @@ contains
         real(dp), allocatable :: right_eigenvectors(:, :)
         integer :: minInd, tmp(1)
 
-        if (t_non_hermitian_2_body) then
+        if (t_non_hermitian) then
 
             lwork = max(1, 4 * basis_index)
             allocate(work(lwork))

@@ -358,9 +358,12 @@ module SystemData
 ! also use an additional flag to indicate that 3-body excitations are possible
     logical :: t_3_body_excits = .false.
 
-! make a general Flag to indicat a non-hermitian Hamiltonian
+! make a general Flag to indicate a non-hermitian Hamiltonian
     logical :: t_non_hermitian_2_body = .false.
     logical :: t_non_hermitian_1_body = .false.
+    logical :: t_non_hermitian = .false.
+        !! logical that cannot be modified directly by the user, but rather is
+        !! used whenever querying any kind of nonhermiticity
 
 ! if true, we are actually propagating $H^\dagger$, not $H$
     logical :: t_calc_adjoint = .false.

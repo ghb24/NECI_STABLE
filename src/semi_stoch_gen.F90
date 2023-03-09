@@ -248,7 +248,7 @@ contains
 
                 write(stdout, '("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(stdout)
                 if (tAllSymSectors .or. tReltvy .or. nOccAlpha <= 1 .or. nOccBeta <= 1 &
-                    .or. tGUGA .or. t_mol_3_body .or. t_non_hermitian_2_body) then
+                    .or. tGUGA .or. t_mol_3_body .or. t_non_hermitian) then
                     ! In the above cases the faster generation is not implemented, so
                     ! use the original algorithm.
                     call set_timer(SemiStoch_Hamil_Time)
@@ -276,8 +276,8 @@ contains
                         call print_basis(rep)
                         call print_hamiltonian(rep)
                     end if
-                    root_print "I am before the diagonalization step with", t_non_hermitian_2_body
-                    if (t_non_hermitian_2_body) then
+                    root_print "I am before the diagonalization step with", t_non_hermitian
+                    if (t_non_hermitian) then
                         call diagonalize_core_non_hermitian(e_values, e_vectors, rep)
                         if (t_choose_trial_state) then
                             gs_energy = e_values(trial_excit_choice(1))
@@ -318,7 +318,7 @@ contains
 
                 tStartedFromCoreGround = .false.
                 if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore .and. (.not. tTrialInit)) then
-                    if (t_non_hermitian_2_body) then
+                    if (t_non_hermitian) then
                         call set_timer(SemiStoch_nonhermit_Time)
                         call start_walkers_from_core_ground_nonhermit(tPrintInfo=.true., run=run)
                         call halt_timer(SemiStoch_nonhermit_Time)
@@ -930,7 +930,7 @@ contains
                 write(stdout, '(a27)') "Constructing Hamiltonian..."
                 call neci_flush(stdout)
 
-                if (t_non_hermitian_2_body) then
+                if (t_non_hermitian) then
                     call calculate_sparse_hamiltonian_non_hermitian(new_num_states, ilut_store(:, 1:new_num_states))
                 else
                     call calculate_sparse_hamiltonian(new_num_states, ilut_store(:, 1:new_num_states))
@@ -940,7 +940,7 @@ contains
                 call neci_flush(stdout)
 
                 ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
-                if (t_non_hermitian_2_body) then
+                if (t_non_hermitian) then
                     call stop_all(t_r, &
                                   "perform_davidson not adapted for non-hermitian Hamiltonians!")
                 end if
