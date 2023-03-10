@@ -31,7 +31,8 @@ module fcimc_helper
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet, tAccumEmptyDet
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use FciMCData
     use hist, only: add_hist_spawn, add_hist_energies, HistMinInd
     use hist_data, only: tHistSpawn

@@ -38,7 +38,8 @@ MODULE GenRandSymExcitNUMod
     use FciMCData, only: pDoubles, psingles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
     use IntegralsData, only: UMat
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det, FDet
     use SymData, only: nSymLabels, TwoCycleSymGens, SymLabelList, &
                        SymLabelCounts
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -60,8 +61,11 @@ MODULE GenRandSymExcitNUMod
 
     use neci_intfce
     use bit_rep_data, only: test_flag
+    use sym_mod
+    use SystemData, only: G1, NEl, Symmetry, nBasisMax, BasisFN
+    use FciMCData, only: HFSym
+    implicit none
 
-    IMPLICIT NONE
 
 contains
 
@@ -2481,483 +2485,475 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 
     end subroutine
 
+    !Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly.
+    !Therefore, this routine will set up symlabellist and symlabelcounts
+    !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
+    SUBROUTINE SpinOrbSymSetup()
+        use SymExcitDataMod, only: ScratchSize, ScratchSize1, ScratchSize2, &
+                                   SymLabelList2, SymLabelCounts2, kTotal, &
+                                   OrbClassCount, kPointToBasisFn, sym_label_list_spat
+        use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, &
+                                   SymTableLabels, KPntInvSymOrb
+        use SymData, only: nSymLabels, SymClasses, SymLabels
+        use SystemData, only: NMAXZ, tFixLz, iMaxLz, nBasis, tUEG, tKPntSym, G1, tHub, nBasisMax, NEl
+        use SystemData, only: Symmetry, tHPHF, tSpn, tISKFuncs, Arr, tNoSymGenRandExcits, Elecpairs
+        use SystemData, only: MaxABPairs, tUEG2, kvec, t_k_space_hubbard
+        use umatcache, only: gtID
+        use sym_mod, only: mompbcsym, SymProd, writesym
+        use util_mod, only: stop_all
+        use constants, only: dp, stdout
+        use lattice_mod, only: lat
+
+        IMPLICIT NONE
+
+        INTEGER :: i, j, k, SymInd, Lab
+        INTEGER :: Spin, ierr, OrbSym, InvSym
+        real(dp) :: OrbEnergy
+        INTEGER, ALLOCATABLE :: Temp(:)
+        ! These are for the hubbard and UEG model look-up table
+        INTEGER :: kmaxX, kmaxY, kminX, kminY, kminZ, kmaxz, iSpinIndex, ktrial(3)
+        type(Symmetry) :: SymProduct, SymI, SymJ
+        character(len=*), parameter :: this_routine = 'SpinOrbSymSetup'
+        integer :: sym0
+
+        ElecPairs = (NEl * (NEl - 1)) / 2
+        MaxABPairs = (nBasis * (nBasis - 1) / 2)
+    !    write(stdout,*) "SETTING UP SYMMETRY!!",nBasis,elecpairs
+
+        IF (tFixLz) THEN
+    !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
+            ScratchSize = 2 * nSymLabels * (2 * iMaxLz + 1)
+        ELSE
+            ScratchSize = 2 * nSymLabels    !For k-point sym, this can be large
+        end if
+
+        IF (tNoSymGenRandExcits .or. tUEG) THEN
+            ScratchSize = 2
+        end if
+
+        ! We only need the first 2 scratch arrays
+        ScratchSize1 = ScratchSize
+        ScratchSize2 = ScratchSize
+
+        !Create SpinOrbSymLabel array.
+        !This array will return a number between 0 and nSymLabels-1.
+        !For molecular systems, this IS the character of the irrep
+        !For k-point systems, this is an arbitrary label, and is equal to the standard label - 1.
+        !This is chosen so that the indexing works with the rest of the excitation generators.
+        if (allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
+        allocate(SpinOrbSymLabel(nBasis))
+        do i = 1, nBasis
+            if (tNoSymGenRandExcits .or. tUEG) then
+                SpinOrbSymLabel(i) = 0
+            else if (tKPntSym .or. tHub) then
+                SpinOrbSymLabel(i) = SymClasses(((i + 1) / 2)) - 1        !This ensures that the symmetry labels go from 0 -> nSymLabels-1
+            else
+                SpinOrbSymLabel(i) = INT(G1(i)%Sym%S, 4)
+            end if
+        end do
+#ifdef DEBUG_
+        write(stdout, *) "SpinOrbSymLabel: "
+        do i = 1, nBasis
+            write(stdout, *) i, SpinOrbSymLabel(i)
+        end do
+#endif
+
+        if (tKPntSym) then
+            allocate(SymTableLabels(0:nSymLabels - 1, 0:nSymLabels - 1))
+            SymTableLabels(:, :) = -9000    !To make it easier to track bugs
+            do i = 0, nSymLabels - 1
+                do j = 0, i
+                    SymI = SymLabels(i + 1)        !Convert to the other symlabel convention to use SymLabels -
+                    !TODO: I will fix this to make them consistent when working (ghb24)!
+                    SymJ = SymLabels(j + 1)
+
+                    SymProduct = SymProd(SymI, SymJ)
+                    !Now, we need to find the label according to this symmetry!
+                    !Run through all symmetries to make working (this could be far more efficient, but its only once, so sod it...
+                    do Lab = 1, nSymLabels
+                        if (SymLabels(Lab)%S == SymProduct%S) then
+                            EXIT
+                        end if
+                    end do
+                    if (Lab == nSymLabels + 1) then
+                        call stop_all("SpinOrbSymSetup", "Cannot find symmetry label")
+                    end if
+                    SymTableLabels(i, j) = Lab - 1
+                    SymTableLabels(j, i) = Lab - 1
+                end do
+            end do
+#ifdef DEBUG_
+            write(stdout, *) "SymTable:"
+            do i = 0, nSymLabels - 1
+                do j = 0, nSymLabels - 1
+                    write(stdout, "(I6)", advance='no') SymTableLabels(i, j)
+                end do
+                write(stdout, *) ""
+            end do
+#endif
+
+        end if
+    !SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
+    !use in ClassCountInd.
+        if (allocated(SymInvLabel)) deallocate(SymInvLabel)
+        allocate(SymInvLabel(0:nSymLabels - 1))
+        SymInvLabel = -999
+
+        ! Dongxia changes the gamma point away from center.
+        ! SDS: Provide a default sym0 for cases where this doesn't apply
+        sym0 = 0
+        do i = 1, nsymlabels
+            if (symlabels(i)%s == 0) sym0 = i - 1
+        end do
+
+        do i = 0, nSymLabels - 1
+            if (tKPntSym) then
+                ! Change the sym label back to the representation used by the rest
+                ! of the code, use SymConjTab, then change back to other rep of
+                ! labels SymConjTab only works when all irreps are self-inverse.
+                ! Therefore, instead, we will calculate the inverses by just
+                ! finding the symmetry which will give A1.
+                do j = 0, nSymLabels - 1
+                    ! Run through all labels to find what gives totally symmetric
+                    ! rep
+                    if (SymTableLabels(i, j) == sym0) then
+                        if (SymInvLabel(i) /= -999) then
+                            write(stdout, *) "SymLabel: ", i
+                            call stop_all(this_routine, &
+                                          "Multiple inverse irreps found - error")
+                        end if
+                        ! This is the inverse
+                        SymInvLabel(i) = j
+                    end if
+                end do
+                if (SymInvLabel(i) == -999) then
+                    write(stdout, *) "SymLabel: ", i
+                    call stop_all(this_routine, "No inverse symmetry found - error")
+                end if
+            else
+                ! If not using k-point sym, then we are self-inverse
+                SymInvLabel(i) = i
+            end if
+        end do
+#ifdef DEBUG_
+        write(stdout, *) "SymInvLabel: "
+        do i = 0, nSymLabels - 1
+            write(stdout, *) i, SymInvLabel(i)
+        end do
+#endif
+
+        if (tISKFuncs) then
+            write(stdout, *) "Setting up inverse orbital lookup for use with ISK functions..."
+            if (.not. tKPntSym) call stop_all(this_routine, "Cannot use ISK funcs without KPoint symmetry")
+            if (tSpn) call stop_all(this_routine, "Cannot use ISK on open shell systems")
+            if (tHPHF) call stop_all(this_routine, "HPHF is not yet working with ISK")
+            allocate(KPntInvSymOrb(1:nBasis), stat=ierr)
+            if (ierr /= 0) call stop_all(this_routine, "Allocation error")
+            do i = 1, nBasis
+                !Find k-inverse orbital for each spin orbital.
+                !If the orbital is a self inverse, then just lookup itself.
+                OrbSym = SpinOrbSymLabel(i)
+                InvSym = SymInvLabel(OrbSym)
+                if (InvSym == OrbSym) then
+                    !Orbital is self-inverse
+                    KPntInvSymOrb(i) = i
+                    cycle
+                end if
+                !Run through all orbitals looking for inverse
+                OrbEnergy = Arr(i, 2)  !Fock energy of orbital
+                !Ensure that we get a same-spin orbital
+                do j = 1, nBasis
+                    if ((SpinOrbSymLabel(j) == InvSym) .and. (mod(i, 2) == mod(j, 2))) then
+                        !This orbital is the right symmetry - is it the inverse orbital? Check Energy.
+                        if ((abs(OrbEnergy - Arr(j, 2))) < 1.0e-7_dp) then
+                            !Assume that this is the inverse orbital.
+                            KPntInvSymOrb(i) = j
+                            exit
+                        end if
+                    end if
+                end do
+                if (j > nBasis) then
+                    write(stdout, *) "Orbital: ", i
+                    write(stdout, *) "Symmetry label: ", OrbSym
+                    write(stdout, *) "Inverse Symmetry label: ", InvSym
+                    write(stdout, *) "Fock energy: ", Arr(i, 2)
+                    write(stdout, *) "SpinOrbSymLabel: "
+                    do k = 1, nBasis
+                        write(stdout, *) k, SpinOrbSymLabel(k)
+                    end do
+                    write(stdout, *) "SymInvLavel: "
+                    do k = 0, nSymLabels - 1
+                        write(stdout, *) k, SymInvLabel(k)
+                    end do
+                    call stop_all(this_routine, "Could not find inverse orbital pair for ISK setup.")
+                end if
+            end do
+            do i = 1, nBasis
+                if (KPntInvSymOrb(i) /= i) exit
+            end do
+            if (i > nBasis) then
+                write(stdout, *) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
+                write(stdout, *) "This means that ISK functions cannot be constructed."
+                write(stdout, *) "However, through correct rotation of orbitals, all orbitals should be " &
+                & //"made real, and the code run in real mode (with tRotatedOrbsReal set)."
+                write(stdout, *) "Alternatively, run again in complex mode without ISK functions."
+                write(stdout, *) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
+    !            call stop_all(this_routine,"All kpoints are self-inverse")
+            end if
+            write(stdout, *) "All inverse kpoint orbitals correctly assigned."
+            write(stdout, *) "Orbital     Inverse Orbital"
+            do i = 1, nBasis
+                write(stdout, *) i, KPntInvSymOrb(i)
+            end do
+        end if
+
+    !SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
+    !SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
+    !SymLabelCounts(2,x) tells us the number of orbitals of spin & symmetry x there are.
+
+    !Therefore, if you want to run over all orbitals of a specific symmetry, you want to run over
+    !SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
+
+        allocate(SymLabelList2(nBasis))
+
+        if (allocated(sym_label_list_spat)) deallocate(sym_label_list_spat)
+
+        allocate(sym_label_list_spat(nBasis))
+        allocate(SymLabelCounts2(2, ScratchSize))
+        SymLabelList2(:) = 0          !Indices:   spin-orbital number
+        SymLabelCounts2(:, :) = 0      !Indices:   index/Number , symmetry(inc. spin)
+        allocate(Temp(ScratchSize))
+
+        do j = 1, nBasis
+            IF (G1(j)%Ms == 1) THEN
+                Spin = 1
+            ELSE
+                Spin = 2
+            end if
+    !        write(stdout,*) "BASIS FN ",j,G1(j)%Sym,SymClasses((j+1)/2)
+            SymInd = ClassCountInd(Spin, SpinOrbSymLabel(j), G1(j)%Ml)
+            SymLabelCounts2(2, SymInd) = SymLabelCounts2(2, SymInd) + 1
+        end do
+        SymLabelCounts2(1, 1) = 1
+        do j = 2, ScratchSize
+            SymLabelCounts2(1, j) = SymLabelCounts2(1, j - 1) + SymLabelCounts2(2, j - 1)
+        end do
+        Temp(:) = SymLabelCounts2(1, :)
+        do j = 1, nBasis
+            IF (G1(j)%Ms == 1) THEN
+                Spin = 1
+            ELSE
+                Spin = 2
+            end if
+            SymInd = ClassCountInd(Spin, SpinOrbSymLabel(j), G1(j)%Ml)
+            SymLabelList2(Temp(SymInd)) = j
+            Temp(SymInd) = Temp(SymInd) + 1
+        end do
+        ! get also only the spatial orbitals
+        sym_label_list_spat = gtID(SymLabelList2)
+
+    !    write(stdout,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
+    !    write(stdout,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
+        Deallocate(Temp)
+
+        allocate(OrbClassCount(ScratchSize))
+        OrbClassCount(:) = 0
+
+        IF (tNoSymGenRandExcits .or. tUEG) THEN
+    !All orbitals are in irrep 0
+            OrbClassCount(ClassCountInd(1, 0, 0)) = (nBasis / 2)
+            OrbClassCount(ClassCountInd(2, 0, 0)) = (nBasis / 2)
+        ELSE
+            do i = 1, nBasis
+                IF (G1(i)%Ms == 1) THEN
+    !                write(stdout,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
+    !                write(stdout,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
+                    OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) = &
+                    & OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
+                ELSE
+    !                write(stdout,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
+    !                write(stdout,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
+                    OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) = &
+                    & OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
+                end if
+            end do
+        end if
+
+    !    write(stdout,*) "*******",OrbClassCount(:)
+
+    !        ELSE
+    !!SymLabelCounts(2,1:nSymLabels) gives the number of *states* in each symmetry class.
+    !!There are therefore equal number of alpha and beta orbitals in each state from which to calculate the unoccupied classcount.
+    !            do i=1,nSymLabels
+    !                OrbClassCount(ClassCountInd(1,i-1,0))=SymLabelCounts2(1,2,i)
+    !                OrbClassCount(ClassCountInd(2,i-1,0))=SymLabelCounts2(2,2,i)
+    !            end do
+    !        end if
+
+        ! This makes a 3D lookup table kPointToBasisFn(kx,ky,1,ms_index) which gives the orbital number for a given kx, ky and ms_index
+        IF (tHub .and. .not. (NMAXZ /= 0 .and. NMAXZ /= 1)) THEN
+    !        IF(NMAXZ.ne.0.and.NMAXZ.ne.1) CALL Stop_All("SpinOrbSymSetup","This routine doesn't work with non-2D Hubbard model")
+            kmaxX = 0
+            kminX = 0
+            kmaxY = 0
+            kminY = 0
+            ! [W.D:] can we make this the same as in the UEG:
+            kminZ = 0
+            kmaxZ = 0
+            do i = 1, nBasis ! In the hubbard model with tilted lattice boundary conditions, it's unobvious what the maximum values of
+                ! kx and ky are, so this should be found
+                IF (G1(i)%k(1) > kmaxX) kmaxX = G1(i)%k(1)
+                IF (G1(i)%k(1) < kminX) kminX = G1(i)%k(1)
+                IF (G1(i)%k(2) > kmaxY) kmaxY = G1(i)%k(2)
+                IF (G1(i)%k(2) < kminY) kminY = G1(i)%k(2)
+                if (G1(i)%k(3) > kmaxz) kmaxz = g1(i)%k(3)
+                if (G1(i)%k(3) < kminz) kminz = g1(i)%k(3)
+            end do
+    !         allocate(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
+            allocate(kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminz:kmaxz, 2))
+            kPointToBasisFn = -1 !Init to invalid
+            do i = 1, nBasis
+                iSpinIndex = (G1(i)%Ms + 1) / 2 + 1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+                kPointToBasisFn(G1(i)%k(1), G1(i)%k(2), G1(i)%k(3), iSpinIndex) = i
+            end do
+        end if
+
+        !======================================================
+        if (tUEG2) then
+            kmaxX = 0
+            kminX = 0
+            kmaxY = 0
+            kminY = 0
+            kminZ = 0
+            kmaxZ = 0
+
+            do i = 1, nBasis
+                IF (kvec(i, 1) > kmaxX) kmaxX = kvec(i, 1)
+                IF (kvec(i, 1) < kminX) kminX = kvec(i, 1)
+                IF (kvec(i, 2) > kmaxY) kmaxY = kvec(i, 2)
+                IF (kvec(i, 2) < kminY) kminY = kvec(i, 2)
+                IF (kvec(i, 3) > kmaxZ) kmaxZ = kvec(i, 3)
+                IF (kvec(i, 3) < kminZ) kminZ = kvec(i, 3)
+            end do
+
+            allocate(kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminZ:kmaxZ, 2))
+            kPointToBasisFn = -1 !Init to invalid
+            do i = 1, nBasis
+                iSpinIndex = (G1(i)%Ms + 1) / 2 + 1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+                kPointToBasisFn(kvec(i, 1), kvec(i, 2), kvec(i, 3), iSpinIndex) = i
+            end do
+
+            kTotal(1) = 0
+            kTotal(2) = 0
+            kTotal(3) = 0
+            do j = 1, NEl
+                kTotal(1) = kTotal(1) + kvec(FDet(j), 1)
+                kTotal(2) = kTotal(2) + kvec(FDet(j), 2)
+                kTotal(3) = kTotal(3) + kvec(FDet(j), 3)
+            end do
+            write(stdout, *) "Total momentum is", kTotal
+
+            return
+        end if
+        !======================================================
+
+        ! This makes a 3D lookup table kPointToBasisFn(kx,ky,kz,ms_index) which
+        !gives the orbital number for a given kx, ky, kz and ms_index
+        IF (tUEG) THEN
+            kmaxX = 0
+            kminX = 0
+            kmaxY = 0
+            kminY = 0
+            kminZ = 0
+            kmaxZ = 0
+
+            do i = 1, nBasis
+                IF (G1(i)%k(1) > kmaxX) kmaxX = G1(i)%k(1)
+                IF (G1(i)%k(1) < kminX) kminX = G1(i)%k(1)
+                IF (G1(i)%k(2) > kmaxY) kmaxY = G1(i)%k(2)
+                IF (G1(i)%k(2) < kminY) kminY = G1(i)%k(2)
+                IF (G1(i)%k(3) > kmaxZ) kmaxZ = G1(i)%k(3)
+                IF (G1(i)%k(3) < kminZ) kminZ = G1(i)%k(3)
+            end do
+            allocate(kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminZ:kmaxZ, 2))
+            kPointToBasisFn = -1 !Init to invalid
+            do i = 1, nBasis
+                iSpinIndex = (G1(i)%Ms + 1) / 2 + 1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+                kPointToBasisFn(G1(i)%k(1), G1(i)%k(2), G1(i)%k(3), iSpinIndex) = i
+            end do
+        end if
+
+        IF (tUEG .or. tHUB) THEN
+            kTotal = 0
+            do j = 1, NEl
+                if (t_k_space_hubbard) then
+                    kTotal = lat%add_k_vec(kTotal, G1(FDet(j))%k)
+                else
+                    kTotal = kTotal + G1(FDet(j))%k
+                end if
+                ! just to be sure..
+                ! not necessary anymore with new add_k_vec
+    !             if (t_k_space_hubbard) then
+    !                 ktotal = lat%map_k_vec(ktotal)
+    !             end if
+            end do
+            if (tHub .and. .not. t_k_space_hubbard) then
+                ! is this turned off correctly?! check:
+                ktrial = (/kTotal(1), kTotal(2), 0/)
+                CALL MomPbcSym(ktrial, nBasisMax)
+                kTotal(1) = ktrial(1)
+                kTotal(2) = ktrial(2)
+            end if
+            write(stdout, *) "Total momentum is", kTotal
+        end if
+
+    END SUBROUTINE SpinOrbSymSetup
+
+    logical function IsMomAllowedDet(nJ)
+        integer :: nJ(nEl)
+        IsMomAllowedDet = IsMomAllowedDetAnyParent(nJ, HFSym%Sym)
+    end function IsMomAllowedDet
+
+    LOGICAL FUNCTION IsMomAllowedDetAnyParent(nJ, parentSym)
+        Type(Symmetry) :: SYM1
+        Type(Symmetry) :: parentSym
+        Type(BasisFN) :: iSym
+        INTEGER :: i, nJ(NEl), KPnt(3)
+
+        IsMomAllowedDetAnyParent = .false.
+
+        SYM1%S = 0
+        do i = 1, NEl
+            SYM1 = SYMPROD(SYM1, G1(nJ(i))%Sym)
+        end do
+
+        IF (SYM1%S /= parentSym%S) THEN
+            write(stdout, *) "nJ: ", nJ(:)
+            write(stdout, *) "parentSym,SYM1: ", parentSym%S, SYM1%S
+    !        write(stdout,*) "Counter: ",Counter
+            CALL DecomposeAbelianSym(SYM1%S, KPnt)
+            write(stdout, "(A,3I5)") "KPnt for nJ: ", KPnt(1), KPnt(2), KPnt(3)
+            CALL Stop_All("IsMomAllowedDet", "Momentum forbidden excitation created1.")
+        ELSE
+            IsMomAllowedDetAnyParent = .true.
+        end if
+
+        CALL GETSYM(nJ, NEl, G1, nBasisMax, iSym)
+
+        IF (iSym%Sym%S /= parentSym%S) THEN
+            write(stdout, *) "nJ: ", nJ(:)
+            write(stdout, *) "parentSym,SYM1: ", parentSym%S, iSym%Sym%S
+    !        write(stdout,*) "Counter: ",Counter
+            CALL DecomposeAbelianSym(iSym%Sym%S, KPnt)
+            write(stdout, "(A,3I5)") "KPnt for nJ: ", KPnt(1), KPnt(2), KPnt(3)
+            CALL Stop_All("IsMomAllowedDet", "Momentum forbidden excitation created2.")
+        ELSE
+            IsMomAllowedDetAnyParent = .true.
+        end if
+
+    END FUNCTION IsMomAllowedDetAnyParent
+
+
 END MODULE GenRandSymExcitNUMod
 
-!Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly.
-!Therefore, this routine will set up symlabellist and symlabelcounts
-!to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
-SUBROUTINE SpinOrbSymSetup()
-    use SymExcitDataMod, only: ScratchSize, ScratchSize1, ScratchSize2, &
-                               SymLabelList2, SymLabelCounts2, kTotal, &
-                               OrbClassCount, kPointToBasisFn, sym_label_list_spat
-    use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, &
-                               SymTableLabels, KPntInvSymOrb
-    use GenRandSymExcitNUMod, only: ClassCountInd
-    use SymData, only: nSymLabels, SymClasses, SymLabels
-    use SystemData, only: NMAXZ, tFixLz, iMaxLz, nBasis, tUEG, tKPntSym, G1, tHub, nBasisMax, NEl
-    use SystemData, only: Symmetry, tHPHF, tSpn, tISKFuncs, Arr, tNoSymGenRandExcits, Elecpairs
-    use SystemData, only: MaxABPairs, tUEG2, kvec, t_k_space_hubbard
-    use Determinants, only: FDet
-    use umatcache, only: gtID
-    use sym_mod, only: mompbcsym, SymProd, writesym
-    use util_mod, only: stop_all
-    use constants, only: dp, stdout
-    use lattice_mod, only: lat
-
-    IMPLICIT NONE
-
-    INTEGER :: i, j, k, SymInd, Lab
-    INTEGER :: Spin, ierr, OrbSym, InvSym
-    real(dp) :: OrbEnergy
-    INTEGER, ALLOCATABLE :: Temp(:)
-    ! These are for the hubbard and UEG model look-up table
-    INTEGER :: kmaxX, kmaxY, kminX, kminY, kminZ, kmaxz, iSpinIndex, ktrial(3)
-    type(Symmetry) :: SymProduct, SymI, SymJ
-    character(len=*), parameter :: this_routine = 'SpinOrbSymSetup'
-    integer :: sym0
-
-    ElecPairs = (NEl * (NEl - 1)) / 2
-    MaxABPairs = (nBasis * (nBasis - 1) / 2)
-!    write(stdout,*) "SETTING UP SYMMETRY!!",nBasis,elecpairs
-
-    IF (tFixLz) THEN
-!Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
-        ScratchSize = 2 * nSymLabels * (2 * iMaxLz + 1)
-    ELSE
-        ScratchSize = 2 * nSymLabels    !For k-point sym, this can be large
-    end if
-
-    IF (tNoSymGenRandExcits .or. tUEG) THEN
-        ScratchSize = 2
-    end if
-
-    ! We only need the first 2 scratch arrays
-    ScratchSize1 = ScratchSize
-    ScratchSize2 = ScratchSize
-
-    !Create SpinOrbSymLabel array.
-    !This array will return a number between 0 and nSymLabels-1.
-    !For molecular systems, this IS the character of the irrep
-    !For k-point systems, this is an arbitrary label, and is equal to the standard label - 1.
-    !This is chosen so that the indexing works with the rest of the excitation generators.
-    if (allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
-    allocate(SpinOrbSymLabel(nBasis))
-    do i = 1, nBasis
-        if (tNoSymGenRandExcits .or. tUEG) then
-            SpinOrbSymLabel(i) = 0
-        else if (tKPntSym .or. tHub) then
-            SpinOrbSymLabel(i) = SymClasses(((i + 1) / 2)) - 1        !This ensures that the symmetry labels go from 0 -> nSymLabels-1
-        else
-            SpinOrbSymLabel(i) = INT(G1(i)%Sym%S, 4)
-        end if
-    end do
-#ifdef DEBUG_
-    write(stdout, *) "SpinOrbSymLabel: "
-    do i = 1, nBasis
-        write(stdout, *) i, SpinOrbSymLabel(i)
-    end do
-#endif
-
-    if (tKPntSym) then
-        allocate(SymTableLabels(0:nSymLabels - 1, 0:nSymLabels - 1))
-        SymTableLabels(:, :) = -9000    !To make it easier to track bugs
-        do i = 0, nSymLabels - 1
-            do j = 0, i
-                SymI = SymLabels(i + 1)        !Convert to the other symlabel convention to use SymLabels -
-                !TODO: I will fix this to make them consistent when working (ghb24)!
-                SymJ = SymLabels(j + 1)
-
-                SymProduct = SymProd(SymI, SymJ)
-                !Now, we need to find the label according to this symmetry!
-                !Run through all symmetries to make working (this could be far more efficient, but its only once, so sod it...
-                do Lab = 1, nSymLabels
-                    if (SymLabels(Lab)%S == SymProduct%S) then
-                        EXIT
-                    end if
-                end do
-                if (Lab == nSymLabels + 1) then
-                    call stop_all("SpinOrbSymSetup", "Cannot find symmetry label")
-                end if
-                SymTableLabels(i, j) = Lab - 1
-                SymTableLabels(j, i) = Lab - 1
-            end do
-        end do
-#ifdef DEBUG_
-        write(stdout, *) "SymTable:"
-        do i = 0, nSymLabels - 1
-            do j = 0, nSymLabels - 1
-                write(stdout, "(I6)", advance='no') SymTableLabels(i, j)
-            end do
-            write(stdout, *) ""
-        end do
-#endif
-
-    end if
-!SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
-!use in ClassCountInd.
-    if (allocated(SymInvLabel)) deallocate(SymInvLabel)
-    allocate(SymInvLabel(0:nSymLabels - 1))
-    SymInvLabel = -999
-
-    ! Dongxia changes the gamma point away from center.
-    ! SDS: Provide a default sym0 for cases where this doesn't apply
-    sym0 = 0
-    do i = 1, nsymlabels
-        if (symlabels(i)%s == 0) sym0 = i - 1
-    end do
-
-    do i = 0, nSymLabels - 1
-        if (tKPntSym) then
-            ! Change the sym label back to the representation used by the rest
-            ! of the code, use SymConjTab, then change back to other rep of
-            ! labels SymConjTab only works when all irreps are self-inverse.
-            ! Therefore, instead, we will calculate the inverses by just
-            ! finding the symmetry which will give A1.
-            do j = 0, nSymLabels - 1
-                ! Run through all labels to find what gives totally symmetric
-                ! rep
-                if (SymTableLabels(i, j) == sym0) then
-                    if (SymInvLabel(i) /= -999) then
-                        write(stdout, *) "SymLabel: ", i
-                        call stop_all(this_routine, &
-                                      "Multiple inverse irreps found - error")
-                    end if
-                    ! This is the inverse
-                    SymInvLabel(i) = j
-                end if
-            end do
-            if (SymInvLabel(i) == -999) then
-                write(stdout, *) "SymLabel: ", i
-                call stop_all(this_routine, "No inverse symmetry found - error")
-            end if
-        else
-            ! If not using k-point sym, then we are self-inverse
-            SymInvLabel(i) = i
-        end if
-    end do
-#ifdef DEBUG_
-    write(stdout, *) "SymInvLabel: "
-    do i = 0, nSymLabels - 1
-        write(stdout, *) i, SymInvLabel(i)
-    end do
-#endif
-
-    if (tISKFuncs) then
-        write(stdout, *) "Setting up inverse orbital lookup for use with ISK functions..."
-        if (.not. tKPntSym) call stop_all(this_routine, "Cannot use ISK funcs without KPoint symmetry")
-        if (tSpn) call stop_all(this_routine, "Cannot use ISK on open shell systems")
-        if (tHPHF) call stop_all(this_routine, "HPHF is not yet working with ISK")
-        allocate(KPntInvSymOrb(1:nBasis), stat=ierr)
-        if (ierr /= 0) call stop_all(this_routine, "Allocation error")
-        do i = 1, nBasis
-            !Find k-inverse orbital for each spin orbital.
-            !If the orbital is a self inverse, then just lookup itself.
-            OrbSym = SpinOrbSymLabel(i)
-            InvSym = SymInvLabel(OrbSym)
-            if (InvSym == OrbSym) then
-                !Orbital is self-inverse
-                KPntInvSymOrb(i) = i
-                cycle
-            end if
-            !Run through all orbitals looking for inverse
-            OrbEnergy = Arr(i, 2)  !Fock energy of orbital
-            !Ensure that we get a same-spin orbital
-            do j = 1, nBasis
-                if ((SpinOrbSymLabel(j) == InvSym) .and. (mod(i, 2) == mod(j, 2))) then
-                    !This orbital is the right symmetry - is it the inverse orbital? Check Energy.
-                    if ((abs(OrbEnergy - Arr(j, 2))) < 1.0e-7_dp) then
-                        !Assume that this is the inverse orbital.
-                        KPntInvSymOrb(i) = j
-                        exit
-                    end if
-                end if
-            end do
-            if (j > nBasis) then
-                write(stdout, *) "Orbital: ", i
-                write(stdout, *) "Symmetry label: ", OrbSym
-                write(stdout, *) "Inverse Symmetry label: ", InvSym
-                write(stdout, *) "Fock energy: ", Arr(i, 2)
-                write(stdout, *) "SpinOrbSymLabel: "
-                do k = 1, nBasis
-                    write(stdout, *) k, SpinOrbSymLabel(k)
-                end do
-                write(stdout, *) "SymInvLavel: "
-                do k = 0, nSymLabels - 1
-                    write(stdout, *) k, SymInvLabel(k)
-                end do
-                call stop_all(this_routine, "Could not find inverse orbital pair for ISK setup.")
-            end if
-        end do
-        do i = 1, nBasis
-            if (KPntInvSymOrb(i) /= i) exit
-        end do
-        if (i > nBasis) then
-            write(stdout, *) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
-            write(stdout, *) "This means that ISK functions cannot be constructed."
-            write(stdout, *) "However, through correct rotation of orbitals, all orbitals should be " &
-            & //"made real, and the code run in real mode (with tRotatedOrbsReal set)."
-            write(stdout, *) "Alternatively, run again in complex mode without ISK functions."
-            write(stdout, *) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
-!            call stop_all(this_routine,"All kpoints are self-inverse")
-        end if
-        write(stdout, *) "All inverse kpoint orbitals correctly assigned."
-        write(stdout, *) "Orbital     Inverse Orbital"
-        do i = 1, nBasis
-            write(stdout, *) i, KPntInvSymOrb(i)
-        end do
-    end if
-
-!SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
-!SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
-!SymLabelCounts(2,x) tells us the number of orbitals of spin & symmetry x there are.
-
-!Therefore, if you want to run over all orbitals of a specific symmetry, you want to run over
-!SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
-
-    allocate(SymLabelList2(nBasis))
-
-    if (allocated(sym_label_list_spat)) deallocate(sym_label_list_spat)
-
-    allocate(sym_label_list_spat(nBasis))
-    allocate(SymLabelCounts2(2, ScratchSize))
-    SymLabelList2(:) = 0          !Indices:   spin-orbital number
-    SymLabelCounts2(:, :) = 0      !Indices:   index/Number , symmetry(inc. spin)
-    allocate(Temp(ScratchSize))
-
-    do j = 1, nBasis
-        IF (G1(j)%Ms == 1) THEN
-            Spin = 1
-        ELSE
-            Spin = 2
-        end if
-!        write(stdout,*) "BASIS FN ",j,G1(j)%Sym,SymClasses((j+1)/2)
-        SymInd = ClassCountInd(Spin, SpinOrbSymLabel(j), G1(j)%Ml)
-        SymLabelCounts2(2, SymInd) = SymLabelCounts2(2, SymInd) + 1
-    end do
-    SymLabelCounts2(1, 1) = 1
-    do j = 2, ScratchSize
-        SymLabelCounts2(1, j) = SymLabelCounts2(1, j - 1) + SymLabelCounts2(2, j - 1)
-    end do
-    Temp(:) = SymLabelCounts2(1, :)
-    do j = 1, nBasis
-        IF (G1(j)%Ms == 1) THEN
-            Spin = 1
-        ELSE
-            Spin = 2
-        end if
-        SymInd = ClassCountInd(Spin, SpinOrbSymLabel(j), G1(j)%Ml)
-        SymLabelList2(Temp(SymInd)) = j
-        Temp(SymInd) = Temp(SymInd) + 1
-    end do
-    ! get also only the spatial orbitals
-    sym_label_list_spat = gtID(SymLabelList2)
-
-!    write(stdout,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
-!    write(stdout,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
-    Deallocate(Temp)
-
-    allocate(OrbClassCount(ScratchSize))
-    OrbClassCount(:) = 0
-
-    IF (tNoSymGenRandExcits .or. tUEG) THEN
-!All orbitals are in irrep 0
-        OrbClassCount(ClassCountInd(1, 0, 0)) = (nBasis / 2)
-        OrbClassCount(ClassCountInd(2, 0, 0)) = (nBasis / 2)
-    ELSE
-        do i = 1, nBasis
-            IF (G1(i)%Ms == 1) THEN
-!                write(stdout,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
-!                write(stdout,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
-                OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) = &
-                & OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
-            ELSE
-!                write(stdout,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
-!                write(stdout,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
-                OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) = &
-                & OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
-            end if
-        end do
-    end if
-
-!    write(stdout,*) "*******",OrbClassCount(:)
-
-!        ELSE
-!!SymLabelCounts(2,1:nSymLabels) gives the number of *states* in each symmetry class.
-!!There are therefore equal number of alpha and beta orbitals in each state from which to calculate the unoccupied classcount.
-!            do i=1,nSymLabels
-!                OrbClassCount(ClassCountInd(1,i-1,0))=SymLabelCounts2(1,2,i)
-!                OrbClassCount(ClassCountInd(2,i-1,0))=SymLabelCounts2(2,2,i)
-!            end do
-!        end if
-
-    ! This makes a 3D lookup table kPointToBasisFn(kx,ky,1,ms_index) which gives the orbital number for a given kx, ky and ms_index
-    IF (tHub .and. .not. (NMAXZ /= 0 .and. NMAXZ /= 1)) THEN
-!        IF(NMAXZ.ne.0.and.NMAXZ.ne.1) CALL Stop_All("SpinOrbSymSetup","This routine doesn't work with non-2D Hubbard model")
-        kmaxX = 0
-        kminX = 0
-        kmaxY = 0
-        kminY = 0
-        ! [W.D:] can we make this the same as in the UEG:
-        kminZ = 0
-        kmaxZ = 0
-        do i = 1, nBasis ! In the hubbard model with tilted lattice boundary conditions, it's unobvious what the maximum values of
-            ! kx and ky are, so this should be found
-            IF (G1(i)%k(1) > kmaxX) kmaxX = G1(i)%k(1)
-            IF (G1(i)%k(1) < kminX) kminX = G1(i)%k(1)
-            IF (G1(i)%k(2) > kmaxY) kmaxY = G1(i)%k(2)
-            IF (G1(i)%k(2) < kminY) kminY = G1(i)%k(2)
-            if (G1(i)%k(3) > kmaxz) kmaxz = g1(i)%k(3)
-            if (G1(i)%k(3) < kminz) kminz = g1(i)%k(3)
-        end do
-!         allocate(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
-        allocate(kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminz:kmaxz, 2))
-        kPointToBasisFn = -1 !Init to invalid
-        do i = 1, nBasis
-            iSpinIndex = (G1(i)%Ms + 1) / 2 + 1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
-            kPointToBasisFn(G1(i)%k(1), G1(i)%k(2), G1(i)%k(3), iSpinIndex) = i
-        end do
-    end if
-
-    !======================================================
-    if (tUEG2) then
-        kmaxX = 0
-        kminX = 0
-        kmaxY = 0
-        kminY = 0
-        kminZ = 0
-        kmaxZ = 0
-
-        do i = 1, nBasis
-            IF (kvec(i, 1) > kmaxX) kmaxX = kvec(i, 1)
-            IF (kvec(i, 1) < kminX) kminX = kvec(i, 1)
-            IF (kvec(i, 2) > kmaxY) kmaxY = kvec(i, 2)
-            IF (kvec(i, 2) < kminY) kminY = kvec(i, 2)
-            IF (kvec(i, 3) > kmaxZ) kmaxZ = kvec(i, 3)
-            IF (kvec(i, 3) < kminZ) kminZ = kvec(i, 3)
-        end do
-
-        allocate(kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminZ:kmaxZ, 2))
-        kPointToBasisFn = -1 !Init to invalid
-        do i = 1, nBasis
-            iSpinIndex = (G1(i)%Ms + 1) / 2 + 1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
-            kPointToBasisFn(kvec(i, 1), kvec(i, 2), kvec(i, 3), iSpinIndex) = i
-        end do
-
-        kTotal(1) = 0
-        kTotal(2) = 0
-        kTotal(3) = 0
-        do j = 1, NEl
-            kTotal(1) = kTotal(1) + kvec(FDet(j), 1)
-            kTotal(2) = kTotal(2) + kvec(FDet(j), 2)
-            kTotal(3) = kTotal(3) + kvec(FDet(j), 3)
-        end do
-        write(stdout, *) "Total momentum is", kTotal
-
-        return
-    end if
-    !======================================================
-
-    ! This makes a 3D lookup table kPointToBasisFn(kx,ky,kz,ms_index) which
-    !gives the orbital number for a given kx, ky, kz and ms_index
-    IF (tUEG) THEN
-        kmaxX = 0
-        kminX = 0
-        kmaxY = 0
-        kminY = 0
-        kminZ = 0
-        kmaxZ = 0
-
-        do i = 1, nBasis
-            IF (G1(i)%k(1) > kmaxX) kmaxX = G1(i)%k(1)
-            IF (G1(i)%k(1) < kminX) kminX = G1(i)%k(1)
-            IF (G1(i)%k(2) > kmaxY) kmaxY = G1(i)%k(2)
-            IF (G1(i)%k(2) < kminY) kminY = G1(i)%k(2)
-            IF (G1(i)%k(3) > kmaxZ) kmaxZ = G1(i)%k(3)
-            IF (G1(i)%k(3) < kminZ) kminZ = G1(i)%k(3)
-        end do
-        allocate(kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminZ:kmaxZ, 2))
-        kPointToBasisFn = -1 !Init to invalid
-        do i = 1, nBasis
-            iSpinIndex = (G1(i)%Ms + 1) / 2 + 1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
-            kPointToBasisFn(G1(i)%k(1), G1(i)%k(2), G1(i)%k(3), iSpinIndex) = i
-        end do
-    end if
-
-    IF (tUEG .or. tHUB) THEN
-        kTotal = 0
-        do j = 1, NEl
-            if (t_k_space_hubbard) then
-                kTotal = lat%add_k_vec(kTotal, G1(FDet(j))%k)
-            else
-                kTotal = kTotal + G1(FDet(j))%k
-            end if
-            ! just to be sure..
-            ! not necessary anymore with new add_k_vec
-!             if (t_k_space_hubbard) then
-!                 ktotal = lat%map_k_vec(ktotal)
-!             end if
-        end do
-        if (tHub .and. .not. t_k_space_hubbard) then
-            ! is this turned off correctly?! check:
-            ktrial = (/kTotal(1), kTotal(2), 0/)
-            CALL MomPbcSym(ktrial, nBasisMax)
-            kTotal(1) = ktrial(1)
-            kTotal(2) = ktrial(2)
-        end if
-        write(stdout, *) "Total momentum is", kTotal
-    end if
-
-END SUBROUTINE SpinOrbSymSetup
-
-logical function IsMomAllowedDet(nJ)
-    use SystemData, only: nEl
-    use FciMCData, only: HFSym
-    implicit none
-    logical :: IsMomAllowedDetAnyParent
-    integer :: nJ(nEl)
-    IsMomAllowedDet = IsMomAllowedDetAnyParent(nJ, HFSym%Sym)
-end function IsMomAllowedDet
-
-LOGICAL FUNCTION IsMomAllowedDetAnyParent(nJ, parentSym)
-    use sym_mod
-    use SystemData, only: G1, NEl, Symmetry, nBasisMax, BasisFN
-!    use GenRandSymExcitNUMod , only : Counter
-    IMPLICIT NONE
-    Type(Symmetry) :: SYM1
-    Type(Symmetry) :: parentSym
-    Type(BasisFN) :: iSym
-    INTEGER :: i, nJ(NEl), KPnt(3)
-
-    IsMomAllowedDetAnyParent = .false.
-
-    SYM1%S = 0
-    do i = 1, NEl
-        SYM1 = SYMPROD(SYM1, G1(nJ(i))%Sym)
-    end do
-
-    IF (SYM1%S /= parentSym%S) THEN
-        write(stdout, *) "nJ: ", nJ(:)
-        write(stdout, *) "parentSym,SYM1: ", parentSym%S, SYM1%S
-!        write(stdout,*) "Counter: ",Counter
-        CALL DecomposeAbelianSym(SYM1%S, KPnt)
-        write(stdout, "(A,3I5)") "KPnt for nJ: ", KPnt(1), KPnt(2), KPnt(3)
-        CALL Stop_All("IsMomAllowedDet", "Momentum forbidden excitation created1.")
-    ELSE
-        IsMomAllowedDetAnyParent = .true.
-    end if
-
-    CALL GETSYM(nJ, NEl, G1, nBasisMax, iSym)
-
-    IF (iSym%Sym%S /= parentSym%S) THEN
-        write(stdout, *) "nJ: ", nJ(:)
-        write(stdout, *) "parentSym,SYM1: ", parentSym%S, iSym%Sym%S
-!        write(stdout,*) "Counter: ",Counter
-        CALL DecomposeAbelianSym(iSym%Sym%S, KPnt)
-        write(stdout, "(A,3I5)") "KPnt for nJ: ", KPnt(1), KPnt(2), KPnt(3)
-        CALL Stop_All("IsMomAllowedDet", "Momentum forbidden excitation created2.")
-    ELSE
-        IsMomAllowedDetAnyParent = .true.
-    end if
-
-END FUNCTION IsMomAllowedDetAnyParent
 

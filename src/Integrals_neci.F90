@@ -62,7 +62,7 @@ module Integrals_neci
 
     use hubbard_mod, only: calcumathubreal, write_kspace_umat, calctmathub
 
-    use Determinants, only: detfreezebasis
+    use Determinants, only: detfreezebasis, writebasis
     implicit none
 
 contains

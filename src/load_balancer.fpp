@@ -39,7 +39,8 @@ module load_balance
     use SystemData, only: nel
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
-    use determinants, only: get_helement, write_det
+    use determinants, only: get_helement
+    use DeterminantData, only: write_det
     use LoggingData, only: tOutputLoadDistribution, tAccumPopsActive
     use cont_time_rates, only: spawn_rate_full
     use DetBitOps, only: DetBitEq, tAccumEmptyDet

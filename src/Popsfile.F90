@@ -26,7 +26,8 @@ MODULE PopsfileMod
     use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table, add_hash_table_entry
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
     use bit_rep_data, only: extract_sign, flag_deterministic, flag_removed, &

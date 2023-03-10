@@ -1,54 +1,48 @@
 #include "macros.h"
 
 module Determinants
-    use constants, only: dp, n_int, bits_n_int, int64, maxExcit, stdout
-    use SystemData, only: BasisFN, nel, G1, Brr, ECore, ALat, NMSH, nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, tCPMD, tPickVirtUniform, LMS, modk_offdiag, tGUGA, STOT, t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, tRef_Not_HF, tMolpro, tHub, tUEG, nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
-    use IntegralsData, only: UMat, FCK, NMAX
-
-    use excitation_types, only: Excitation_t, Excite_2_t, get_excitation
-    use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
-
-    use global_utilities, only: timer, set_timer, halt_timer
-    use sort_mod, only: sort
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det, GetBitExcitation
-    use DeterminantData
-    use bit_rep_data, only: nIfTot
-    use MemoryManager, only: TagIntType
-    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-    use guga_data, only: ExcitationInformation_t
-    use lattice_mod, only: get_helement_lattice
-    use util_mod, only: NECI_ICOPY, operator(.div.), stop_all
-    use SymData, only: nSymLabels, SymLabelList, SymLabelCounts, TwoCycleSymGens
-    use SystemData, only: TSTOREASEXCITATIONS
-    use SystemData, only: nEl, nBasis, nBasisMax, BasisFN, G1, tFixLz
-    use SystemData, only: nBasis
-    use SystemData, only: nEl
-    use SystemData, only: nEl, G1, k_momentum, nBasis, tUEG
-    use SystemData, only: TUSEBRILLOUIN
-    use SystemData, only: BasisFN
-    use constants, only: dp, stdout
-    use constants, only: dp
-    use OneEInts, only: GetTMatEl
-    use constants, only: stdout
-    use error_handling_neci, only: stop_all
-    use bit_rep_data, only: NIfTot
-    use constants, only: n_int
     use DetBitOps, only: GetBitExcitation
-    use bit_rep_data, only: nIfTot
-    use constants, only: n_int, bits_n_int
-    use util_mod, only: operator(.div.)
+    use DeterminantData, only: Fdet, calculated_ms, tagfdet, write_det, write_det_len
+    use DeterminantData, only: fdet
+    use IntegralsData, only: UMat, FCK, NMAX
     use IntegralsData, only: nFrozen, nFrozenIn
-    use sort_mod
-    use sym_mod
+    use MemoryManager, only: TagIntType
+    use OneEInts, only: GetTMatEl
+    use SymData, only: nSymLabels, SymLabelList, SymLabelCounts, TwoCycleSymGens
+    use SystemData, only: alat, arr, arr, basisfn, basisfnsize, basisfnsizeb, &
+        brr, ecore, g1, irreporboffset, k_lattice_constant, k_lattice_vectors, &
+        k_momentum, lms, lnosymmetry, modk_offdiag, nbasis, nbasismax, &
+        nclosedorbs, nel, nirreps, nmsh, noccorbs, stot, symmetry, symmetrysize, &
+        symmetrysizeb, symrestrict, t_guga_noreorder, t_lattice_model, tcpmd, &
+        tfixlz, tguga, thphfints, thub, tmolpro, tpickvirtuniform, &
+        tref_not_hf, tspn, tstoreasexcitations, tsymset, tueg, tueg2, &
+        tuegspecifymomentum, tusebrillouin, t_k_space_hubbard
+    use bit_rep_data, only: nIfTot
+    use blas_interface_mod, only: dcopy
+    use constants, only: Pi, Pi2, THIRD, dp, n_int, bits_n_int, int64, maxExcit, stdout
+    use excitation_types, only: Excitation_t, Excite_2_t, get_excitation
+    use global_utilities, only: timer, set_timer, halt_timer, LogMemAlloc
+    use guga_data, only: ExcitationInformation_t
+    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+    use lattice_mod, only: get_helement_lattice, lat
+    use sltcnd_mod, only: CalcFockOrbEnergy
+    use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
+        sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
+    use sort_mod, only: sort
+    use sym_mod, only: writesym, GENMOLPSYMTABLE, getsym, MomPbcSym, GetLz, checkMomentumInvalidity
+    use util_mod, only: NECI_ICOPY, operator(.div.)
     use error_handling_neci, only: stop_all
-    use constants, only: dp
-    use SystemData, only: SymRestrict, tSymSet
-    use sym_mod
+    use fmt_utils, only: int_fmt
 
-    ! better_implicit_none
-    implicit none
-    ! private
-    ! public :: get_helement, modifymomentum
+    better_implicit_none
+    private
+    public :: get_helement, modifymomentum, get_helement_excit, &
+        orderbasis, writebasis, isuhfdet, calcT, NUHFDet, &
+        GetUEGKE, DetFreezeBasis, GetH0Element3, tagSpecDet, specdet, tSpecDet, &
+        geth0element4, tDefineDet, tagDefDet, DefDet, WriteDetBit, get_helement_det_only, &
+        iactivebasis, nActiveBasis, nActiveSpace, DetInit, DetPreFreezeInit, &
+        DetPreFreezeInit_old, DetCleanup
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
     !       list, or with only a bit-det
@@ -58,42 +52,40 @@ module Determinants
         module procedure get_helement_normal
     end interface
 
+    interface
+        module subroutine virt_uniform_sym_setup()
+        end subroutine
 
+        module subroutine DetInit()
+        end subroutine
+    end interface
 
     save
 ! Set by Calc on input
-    INTEGER nActiveSpace(2)
-    INTEGER, DIMENSION(:), POINTER :: SPECDET => null()
-    INTEGER(TagIntType) :: tagSPECDET = 0
-    Logical TSPECDET
+    integer :: nActiveSpace(2)
+    integer, DIMENSION(:), POINTER :: SPECDET => null()
+    integer(TagIntType) :: tagSPECDET = 0
+    logical TSPECDET
 
 !nActiveBasis(1) is the lowest non-active orbital
 !nActiveBasis(2) is the highest active orbital.  There can be virtuals above this.
 !  Active orbitals are used for generating the determinants whose energy/weight is to be found
-    Integer nActiveBasis(2)
+    integer nActiveBasis(2)
 !  Set by input to indicate which type of active basis we need
-    Integer iActiveBasis
-!Not really Locals - needed for the DetCalc
-    TYPE(BasisFN) ISym
+    integer iActiveBasis
 !Used to be from uhfdet.inc
-    INTEGER nUHFDet(5000)
+    integer nUHFDet(5000)
     real(dp) E0HFDet
 
-    INTEGER, allocatable :: DefDet(:)
-    Logical :: tDefineDet
+    integer, allocatable :: DefDet(:)
+    logical :: tDefineDet
     integer(TagIntType) :: tagDefDet = 0
 
 contains
 
     Subroutine DetPreFreezeInit_old()
-        use SystemData, only: nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax, &
-                              tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
-        use SystemData, only: tMolpro
-        use sym_mod
-        use util_mod, only: NECI_ICOPY
-        use sltcnd_mod, only: CalcFockOrbEnergy
-        integer ierr, ms, iEl, flagAlpha, iIrrep, msTmp
-        integer i, j, Lz, OrbOrder(8, 2), FDetTemp(NEl), lmsMax
+        integer :: ierr, ms, iEl, flagAlpha, msTmp
+        integer :: i, j, Lz, OrbOrder(8, 2), FDetTemp(NEl)
         type(BasisFn) s
         logical :: tGenFDet
         HElement_t(dp) :: OrbE
@@ -236,13 +228,6 @@ contains
 
     Subroutine DetPreFreezeInit()
 
-        Use global_utilities
-        use SystemData, only: nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax, &
-                              tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
-        use SystemData, only: tMolpro
-        use sym_mod
-        use util_mod, only: NECI_ICOPY
-        use sltcnd_mod, only: CalcFockOrbEnergy
         integer ierr, ms, iEl, flagAlpha
         integer i, j, Lz, OrbOrder(8, 2), FDetTemp(NEl), lmsMax
         type(BasisFn) s
@@ -339,144 +324,6 @@ contains
 
     End Subroutine DetPreFreezeInit
 
-    Subroutine DetInit()
-        real(dp) DNDET
-        integer i, j
-        integer(int64) nDet
-        integer :: alpha, beta, symalpha, symbeta, endsymstate
-        LOGICAL :: tSuccess, tFoundOrbs(nBasis)
-        integer :: ncsf
-
-        write (stdout, *) "SYMMETRY MULTIPLICATION TABLE"
-        CALL WRITESYMTABLE(6)
-
-        CALL GENSymStatePairs(NBASIS / 2, .false.)
-
-!iActiveBasis is a copy of nPaths
-        IF (iActiveBasis == -2) then
-!  PATHS ACTIVE SETS
-            Call GenActiveBasis(ARR, nBasis, nEl, nActiveBasis, nActiveSpace(1), nActiveSpace(2))
-        else if (iActiveBasis == -3) then
-!  PATHS ACTIVE ORBITALS
-            nActiveBasis(1) = nEl + 1 - nActiveSpace(1)
-            nActiveBasis(2) = nEl + nActiveSpace(2)
-            write (stdout, *) "Active space:", nActiveBasis(1), " TO ", nActiveBasis(2), " (ordered labels)."
-            write (stdout, *) "Active space electrons:", nEl - nActiveBasis(1) + 1
-        else
-            nActiveBasis(1) = 1
-            nActiveBasis(2) = nBasis
-        end if
-!C.. Work out a preliminary Fermi det
-!      IF(FDET(1).EQ.0) THEN
-
-!C.. Check if we're blocking the hamiltonian
-!C      IF(THFBASIS.AND.TBLOCK) THEN
-!C         write(stdout,*) "THFBASIS set and NBLK=0.  ",
-!C     &         "Cannot block diagonalize in HF Basis."
-!C         STOP
-!C      end if
-!C      CALL SYMGENEXCITS(FDET,NEL,NBASIS)
-!C      CALL LeaveMemoryManager
-!C      STOP
-
-!C.. in order to calculate the H matrix, we need to work out all the determinants
-!C.. beware with NPATHS - it calcs the list of dets even if we don't calc H
-!C.. Could be big.
-!C..Now we see how many determinants we need
-!C      IF(nBasis.GT.170) THEN
-!C..This fix is to stop floating overflow as taking the factorial of (nBasis.GT.170) crashes
-!C  using the old FACTRL routine.
-        NDET = 1
-        DNDET = 1.0_dp
-        DO I = 0, NEL - 1
-            NDET = (NDET * (nBasis - I)) / (I + 1)
-            DNDET = (DNDET * real(nBasis - I, dp)) / real(I + 1, dp)
-        end do
-
-        IF (abs(real(NDET) - dndet) > 1.0e-6) THEN
-!         write(stdout,*) ' NUMBER OF DETERMINANTS : ' , DNDET
-            NDET = -1
-        ELSE
-!         write(stdout,*) ' NUMBER OF DETERMINANTS : ' , NDET
-        end if
-
-!C      CALL TC(I_HMAX,I_P,NWHTAY)
-
-!Check that the symmetry routines have set the symmetry up correctly...
-        tSuccess = .true.
-        tFoundOrbs(:) = .false.
-
-        IF ((.not. tHub) .and. (.not. tUEG) .and. TwoCycleSymGens) THEN
-            do i = 1, nSymLabels
-                EndSymState = SymLabelCounts(1, i) + SymLabelCounts(2, i) - 1
-                do j = SymLabelCounts(1, i), EndSymState
-
-                    Beta = (2 * SymLabelList(j)) - 1
-                    Alpha = (2 * SymLabelList(j))
-                    SymAlpha = INT((G1(Alpha)%Sym%S), 4)
-                    SymBeta = INT((G1(Beta)%Sym%S), 4)
-
-                    IF (.not. tFoundOrbs(Beta)) THEN
-                        tFoundOrbs(Beta) = .true.
-                    ELSE
-                        CALL Stop_All("SetupParameters", "Orbital specified twice")
-                    end if
-                    IF (.not. tFoundOrbs(Alpha)) THEN
-                        tFoundOrbs(Alpha) = .true.
-                    ELSE
-                        CALL Stop_All("SetupParameters", "Orbital specified twice")
-                    end if
-
-                    IF (G1(Beta)%Ms /= -1) THEN
-                        tSuccess = .false.
-                    else if (G1(Alpha)%Ms /= 1) THEN
-                        tSuccess = .false.
-                    else if ((SymAlpha /= (i - 1)) .or. (SymBeta /= (i - 1))) THEN
-                        tSuccess = .false.
-                    end if
-                end do
-            end do
-            do i = 1, nBasis
-                IF (.not. tFoundOrbs(i)) THEN
-                    write (stdout, *) "Orbital: ", i, " not found."
-                    CALL Stop_All("SetupParameters", "Orbital not found")
-                end if
-            end do
-        end if
-        ! SpinOrbSymSetup currently sets up the symmetry arrays for use with
-        ! symrandexcit2 excitation routines. These are not currently
-        ! compatible with non-abelian symmetry groups, which CPMD jobs
-        ! invariably used. To avoid this complication, this symmetry
-        ! setup will not be used with CPMD, and thus these excitation
-        ! generators won't work.
-        IF (.not. tCPMD) THEN
-            IF (.not. tSuccess) THEN
-                write (stdout, *) "************************************************"
-                write (stdout, *) "**                 WARNING!!!                 **"
-                write (stdout, *) "************************************************"
-                write (stdout, *) "Symmetry information not set up correctly in NECI initialisation"
-                write (stdout, *) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
-                write (stdout, *) "Old excitation generators will not work"
-                write (stdout, *) "I strongly suggest you check that the reference energy is correct."
-                !CALL SpinOrbSymSetup() !.true.)
-            ELSE
-                write (stdout, *) "Symmetry and spin of orbitals correctly set up for excitation generators."
-                write (stdout, *) "Simply transferring this into a spin orbital representation."
-                !CALL SpinOrbSymSetup() !.false.)
-            end if
-
-            if (tPickVirtUniform) then
-                call virt_uniform_sym_setup()
-            else
-                ! Includes normal & HPHF
-                call SpinOrbSymSetup()
-            end if
-
-        end if
-! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
-! These are stored using spin orbitals.
-
-    End Subroutine DetInit
 
     function get_helement_compat(nI, nJ, IC, iLutI, iLutJ) result(hel)
         ! Get the matrix element of the hamiltonian. This assumes that we
@@ -497,9 +344,7 @@ contains
         character(*), parameter :: this_routine = 'get_helement_compat'
 
         integer :: temp_ic
-        integer(n_int) :: t_i(0:NIfTot), t_j(0:NIfTot)
         ! GUGA implementation:
-        type(ExcitationInformation_t) :: excitInfo
 
         if (tGUGA) then
             if (all(nI == nJ)) then
@@ -556,9 +401,6 @@ contains
         character(*), parameter :: this_routine = 'get_helement_normal'
         integer :: ex(2, 2), IC
         integer(kind=n_int) :: ilut(0:NIfTot, 2)
-        integer(n_int) :: t_i(0:niftot), t_j(0:niftot)
-        ! GUGA implementation:
-        type(ExcitationInformation_t) :: excitInfo
 
         if (tGUGA) then
 
@@ -633,7 +475,6 @@ contains
         HElement_t(dp) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_excit'
-        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
         ! intermediately put the special call to the hubbard matrix elements
         ! here. Although I want to change that in the whole code to have
@@ -759,8 +600,8 @@ contains
         logical :: invalid
 
 ! Working space
-        INTEGER NELS(2)
-        INTEGER NELR, IREAL, IS, NSBASIS, I, totSpin, nclosed
+        integer NELS(2)
+        integer NELR, IREAL, IS, NSBASIS, I, totSpin, nclosed
         integer :: nspins(2)
         integer, dimension(3) :: totK
         logical :: sr
@@ -883,8 +724,8 @@ contains
 
     subroutine DetFreezeBasis(GG)
         integer i, j
-        INTEGER GG(*), Lz
-        Type(BasisFn) s
+        integer GG(*), Lz
+        type(BasisFn) s
         character(*), parameter :: this_routine = 'DetFreezeBasis'
     !C.. Deal with FDET
     !C.. GG(I) is the new position in G of the (old) orb I
@@ -936,9 +777,9 @@ contains
 
     end subroutine
 
-    LOGICAL FUNCTION ISUHFDET(NI, NEL)
-        INTEGER NEL, NI(NEL)
-        INTEGER I
+    logical FUNCTION ISUHFDET(NI, NEL)
+        integer NEL, NI(NEL)
+        integer I
         IF (.NOT. TUSEBRILLOUIN) THEN
             ISUHFDET = .FALSE.
             RETURN
@@ -954,55 +795,10 @@ contains
         RETURN
     END Function
 
-    ! Generate the active space from a basis.
-    ! The Active basis can be used to in PATHS calculations and (?) as a CASCI
-
-    ! nActiveBasis(1:2) contains (First Active Basis Fn, Last Active Basis Fn)
-    ! nDown is the number of orbital sets  below the Fermi level
-    ! nUp is the number of orbital sets  above the Fermi level
-    SUBROUTINE GenActiveBasis(ARR, nBasis, nEl, nActiveBasis, nDown, nUp)
-        INTEGER nEl, nActiveBasis(2), nBasis
-        real(dp) ARR(nBasis)
-        INTEGER I, nDown, nUp, nLeft
-        I = nEl + 1
-        nLeft = 1 + nUp
-        IF (nDown /= 0 .AND. nUp /= 0) write (stdout, *) "Including ", -nDown, ",", nUp, " extra degenerate sets in active space."
-        DO WHILE (nLeft > 0 .AND. I < nBasis)
-            DO WHILE (I < nBasis .AND. ABS(ARR(I) - ARR(I - 1)) < 1.0e-5_dp)
-                I = I + 1
-            end do
-            nLeft = nLeft - 1
-            IF (nLeft == nUp .AND. I /= nEl + 1) write (stdout, *) "Fermi determinant degenerate.  "
-            IF (nLeft /= 0) I = I + 2
-        end do
-        IF (I == nEl + 1 .and. nDown == 0) THEN
-    !We have no degeneracies at the Fermi Energy
-            write (stdout, *) "Fermi determinant non-degenerate.  "
-            IF (nDown == 0) THEN
-                write (stdout, *) "Active space empty."
-                nActiveBasis(1) = nEl + 1
-                nActiveBasis(2) = nEl
-                RETURN
-            end if
-        end if
-        nActiveBasis(2) = I - 1
-        I = nEl - 1
-        nLeft = nDown
-        Do WHILE (nLeft > 0 .AND. I > 0)
-            DO WHILE (I > 0 .AND. ABS(ARR(I) - ARR(I + 1)) < 1.0e-5_dp)
-                I = I - 1
-            end do
-            nLeft = nLeft - 1
-        end do
-        nActiveBasis(1) = I + 1
-        write (stdout, *) "Active space:", nActiveBasis(1), " TO ", nActiveBasis(2), " (ordered labels)."
-        write (stdout, *) "Active space electrons:", nEl - nActiveBasis(1) + 1
-    END SUBROUTINE
-
 
     ! Calculate the one-electron part of the energy of a det
     FUNCTION CALCT(NI, NEL)
-        INTEGER, intent(in) :: nI(nEl), NEL
+        integer, intent(in) :: nI(nEl), NEL
         real(dp) :: CALCT
         calct = sum(gettmatel(nI, nI))
     END function
@@ -1037,38 +833,6 @@ contains
 
     END SUBROUTINE WriteDetBit
 
-
-    ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
-    SUBROUTINE WriteBitEx(nUnit, iLutRef, iLutnI, lTerm)
-        integer nUnit
-        integer(kind=n_int) :: iLutRef(0:nIfTot), iLutnI(0:nIfTot)
-        integer Ex(2, nEl)
-        logical lTerm
-        logical tSign
-        INTEGER iEl, I
-        EX(1, 1) = nEl  !Indicate the length of EX
-        CALL GetBitExcitation(iLutRef, iLutnI, Ex, tSign)
-        write (NUNIT, "(A)", advance='no') "("
-    ! First the excit from
-        DO I = 1, NEL
-            IEL = EX(1, I)
-            if (iEl == 0) EXIT
-            write (NUNIT, "(I5,A)", advance='no') IEL, ","
-        end do
-        IF (tSign) THEN
-            write (NUNIT, "(A)", advance='no') ")->-("
-        ELSE
-            write (NUNIT, "(A)", advance='no') ")->+("
-        end if
-    !Now the excit to
-        DO I = 1, NEL
-            IEL = EX(2, I)
-            if (iEl == 0) EXIT
-            write (NUNIT, "(I5,A)", advance='no') IEL, ","
-        end do
-        write (NUNIT, "(A)", advance='no') ")"
-        IF (LTERM) write (NUNIT, *)
-    END subroutine
 
     ! This takes a the ground state FDet generated for the UEG and changes its total momentum
     ! According to input options
@@ -1293,6 +1057,235 @@ contains
 
     end subroutine ModifyMomentum
 
-END MODULE Determinants
+
+    SUBROUTINE ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
+        INTEGER NBASIS, BRR(NBASIS), ORBORDER(8, 2), nBasisMax(5, *)
+        INTEGER BRR2(NBASIS)
+        TYPE(BASISFN) G1(NBASIS)
+        real(dp) ARR(NBASIS, 2), ARR2(NBASIS, 2)
+        INTEGER IDONE, I, J, IBFN, ITOT, ITYPE, ISPIN
+        real(dp) OEN
+        character(*), parameter :: this_routine = 'ORDERBASIS'
+        IDONE = 0
+        ITOT = 0
+    !.. copy the default ordered energies.
+        CALL DCOPY(NBASIS, ARR(1, 1), 1, ARR(1, 2), 1)
+        CALL DCOPY(NBASIS, ARR(1, 1), 1, ARR2(1, 2), 1)
+        write(stdout, *) ''
+        write(stdout, "(A,8I4)") "Ordering Basis (Closed): ", (ORBORDER(I, 1), I=1, 8)
+        write(stdout, "(A,8I4)") "Ordering Basis (Open  ): ", (ORBORDER(I, 2), I=1, 8)
+        IF (NBASISMAX(3, 3) == 1) THEN
+    !.. we use the symmetries of the spatial orbitals
+    ! actually this is never really used below here it seems.. since orborder
+    ! is only zeros, according to output. check that!
+    ! and that is independent of the GUGA implementation TODO: check orborder!
+            DO ITYPE = 1, 2
+                IBFN = 1
+                DO I = 1, 8
+                    ! 8 probably because at most D2h symmetry giovanni told me about.
+                    DO J = 1, ORBORDER(I, ITYPE)
+                        DO WHILE (IBFN <= NBASIS .AND. (G1(IBFN)%SYM%s < I - 1 .OR. BRR(IBFN) == 0))
+                            IBFN = IBFN + 1
+                        end do
+                        IF (IBFN > NBASIS) THEN
+                            call stop_all(this_routine, "Cannot find enough basis fns of correct symmetry")
+                        end if
+                        IDONE = IDONE + 1
+                        BRR2(IDONE) = IBFN
+                        BRR(IBFN) = 0
+                        ARR2(IDONE, 1) = ARR(IBFN, 1)
+                        IBFN = IBFN + 1
+                    end do
+                end do
+                ! Beta sort
+                call sort(arr2(itot + 1:idone, 1), brr2(itot + 1:idone), nskip=2)
+                ! Alpha sort
+                call sort(arr2(itot + 2:idone, 1), brr2(itot + 2:idone), nskip=2)
+                ITOT = IDONE
+            end do
+            DO I = 1, NBASIS
+                IF (BRR(I) /= 0) THEN
+                    ITOT = ITOT + 1
+                    BRR2(ITOT) = BRR(I)
+                    ARR2(ITOT, 1) = ARR(I, 1)
+                end if
+            end do
+            ! what are those doing?
+            ! ok those are copying the newly obtained arr2 and brr2 into arr and brr
+            CALL NECI_ICOPY(NBASIS, BRR2, 1, BRR, 1)
+            CALL DCOPY(NBASIS, ARR2(1, 1), 1, ARR(1, 1), 1)
+        end if
+        ! i think this is the only reached point: and this means i can make it
+        ! similar to the Hubbard implementation to not reorder!
+    ! beta sort
+        call sort(arr(idone + 1:nbasis, 1), brr(idone + 1:nbasis), nskip=2)
+    ! alpha sort
+        call sort(arr(idone + 2:nbasis, 1), brr(idone + 2:nbasis), nskip=2)
+    !.. We need to now go through each set of degenerate orbitals, and make
+    !.. the correct ones are paired together in BRR otherwise bad things
+    !.. happen in FREEZEBASIS
+    !.. We do this by ensuring that within a degenerate set, the BRR are in
+    !.. ascending order
+    !         IF(NBASISMAX(3,3).EQ.1) G1(3,BRR(1))=J
+        DO ISPIN = 0, 1
+            OEN = ARR(1 + ISPIN, 1)
+            J = 1 + ISPIN
+            ITOT = 2
+            DO I = 3 + ISPIN, NBASIS, 2
+                IF (ABS(ARR(I, 1) - OEN) > 1.0e-4_dp) THEN
+    !.. We don't have degenerate orbitals
+    !.. First deal with the last set of degenerate orbitals
+    !.. We sort them into order of BRR
+                    call sort(brr(i - itot:i - 1), arr(i - itot:i - 1, 1), nskip=2)
+    !.. now setup the new degenerate set.
+                    J = J + 2
+                    ITOT = 2
+                ELSE
+                    ITOT = ITOT + 2
+                end if
+                OEN = ARR(I, 1)
+                IF (NBASISMAX(3, 3) == 1) THEN
+    !.. If we've got a generic spatial sym or hf we mark degeneracies
+    !               G(3,BRR(I))=J
+                end if
+            end do
+    ! i is now nBasis+2
+            call sort(brr(i - itot:i - 2), arr(i - itot:i - 2, 1), nskip=2)
+        end do
+    !   if (t_guga_noreorder) then
+    !       ! this probably does not work so easy:
+    !       allocate(temp_sym(nBasis))
+    !       do i = 1, nBasis
+    !         temp_sym(i) = G1(i)
+    !       end do
+    !       do i = 1, nBasis
+    !           G1(i) = temp_sym(brr(i))
+    !           brr(i) = i
+    !       end do
+    !       ! could i just do a new molpsymtable here??
+    !       ! but only do it if symmetry is not turned off explicetyl!
+    !       if (.not. lNoSymmetry) CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
+    !   end if
+
+    END subroutine ORDERBASIS
+
+    !dUnscaledEnergy gives the energy without reference to box size and without any offset.
+    SUBROUTINE GetUEGKE(I, J, K, ALAT, tUEGTrueEnergies, tUEGOffset, k_offset, Energy, dUnscaledEnergy)
+        INTEGER I, J, K
+        real(dp) ALat(3), k_offset(3), Energy, E
+        LOGICAL tUEGOffset, tUEGTrueEnergies
+        real(dp) ::  dUnscaledEnergy
+        integer :: kvecX, kvecY, kvecZ
+        !==================================
+        ! initialize unscaled energy for the case of not using tUEGTrueEnergies
+        dunscaledEnergy = 0.0_dp
+        if (tUEG2) then
+            ! kvectors in cartesian coordinates
+            kvecX = k_lattice_vectors(1, 1) * I + k_lattice_vectors(2, 1) * J + k_lattice_vectors(3, 1) * K
+            kvecY = k_lattice_vectors(1, 2) * I + k_lattice_vectors(2, 2) * J + k_lattice_vectors(3, 2) * K
+            kvecZ = k_lattice_vectors(1, 3) * I + k_lattice_vectors(2, 3) * J + k_lattice_vectors(3, 3) * K
+
+            IF (tUEGTrueEnergies) then
+                if (tUEGOffset) then
+                    E = (kvecX + k_offset(1))**2 + (kvecY + k_offset(2))**2 + (kvecZ + k_offset(3))**2
+                else
+                    E = (kvecX)**2 + (kvecY)**2 + (kvecZ)**2
+                end if
+                Energy = 0.5_dp * E * k_lattice_constant**2
+                dUnscaledEnergy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
+            ELSE
+                Energy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
+            end if
+
+            return
+        end if
+        !==================================
+        IF (tUEGTrueEnergies) then
+            IF (tUEGOffset) then
+                E = ((I + k_offset(1))**2 / ALAT(1)**2)
+                E = E + ((J + k_offset(2))**2 / ALAT(2)**2)
+                E = E + ((K + k_offset(3))**2 / ALAT(3)**2)
+            else
+                E = (I * I / ALAT(1)**2)
+                E = E + (J * J / ALAT(2)**2)
+                E = E + (K * K / ALAT(3)**2)
+            end if
+            Energy = 0.5 * 4 * PI * PI * E
+            dUnscaledEnergy = (I * I)
+            dUnscaledEnergy = dUnscaledEnergy + (J * J)
+            dUnscaledEnergy = dUnscaledEnergy + (K * K)
+        ELSE
+            E = (I * I)
+            E = E + (J * J)
+            E = E + (K * K)
+            Energy = E
+        end if
+    END SUBROUTINE GetUEGKE
 
 
+    SUBROUTINE WRITEBASIS(NUNIT, G1, NHG, ARR, BRR)
+        ! Write out the current basis to unit nUnit
+        integer, intent(in) :: nunit
+        type(basisfn), intent(in) :: g1(nhg)
+        integer, intent(in) :: nhg, brr(nhg)
+
+        integer :: pos, i
+        real(dp) ARR(NHG, 2), unscaled_energy, kvecX, kvecY, kvecZ
+
+        ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
+        !     filled in yet. --> track pos.
+        if (.not. associated(fdet)) &
+            write(nunit, '("HF determinant not yet defined.")')
+        pos = 1
+    !=============================================
+        if (tUEG2) then
+
+            DO I = 1, NHG
+    !     kvectors in cartesian coordinates
+                kvecX = k_lattice_vectors(1, 1) * G1(BRR(I))%K(1) &
+                        + k_lattice_vectors(2, 1) * G1(BRR(I))%K(2) &
+                        + k_lattice_vectors(3, 1) * G1(BRR(I))%K(3)
+                kvecY = k_lattice_vectors(1, 2) * G1(BRR(I))%K(1) &
+                        + k_lattice_vectors(2, 2) * G1(BRR(I))%K(2) &
+                        + k_lattice_vectors(3, 2) * G1(BRR(I))%K(3)
+                kvecZ = k_lattice_vectors(1, 3) * G1(BRR(I))%K(1) &
+                        + k_lattice_vectors(2, 3) * G1(BRR(I))%K(2) &
+                        + k_lattice_vectors(3, 3) * G1(BRR(I))%K(3)
+
+                unscaled_energy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
+
+                write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
+                CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
+                write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
+                write(NUNIT, '(3F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2), unscaled_energy
+
+                if (associated(fdet)) then
+                    pos = 1
+                    do while (pos < nel .and. fdet(pos) < brr(i))
+                        pos = pos + 1
+                    end do
+                    if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
+                end if
+                write(nunit, *)
+            end do
+            RETURN
+        end if !UEG2
+    !=============================================
+        DO I = 1, NHG
+            write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
+            CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
+            write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
+            write(NUNIT, '(2F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2)
+            if (associated(fdet)) then
+                pos = 1
+                do while (pos < nel .and. fdet(pos) < brr(i))
+                    pos = pos + 1
+                end do
+                if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
+            end if
+            write(nunit, *)
+        end do
+        RETURN
+    END SUBROUTINE WRITEBASIS
+
+end module Determinants

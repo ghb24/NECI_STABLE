@@ -9,7 +9,9 @@ module unit_test_helpers
 
     use lattice_mod, only: get_helement_lattice, lattice
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+
+    use DeterminantData, only: write_det
 
     use SystemData, only: t_lattice_model, nOccAlpha, nOccBeta, &
                           trans_corr_param_2body, omega, nel, nBasis, &

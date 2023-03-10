@@ -30,7 +30,9 @@ MODULE DetCalc
 
     use calcrho_mod, only: gethelement, igetexcitlevel_2
 
-    use Determinants, only: calcT
+    use Determinants, only: calcT, get_helement, specdet, tSpecDet, &
+        tDefineDet, DefDet
+    Use DeterminantData, only: FDet, write_det
 
     IMPLICIT NONE
     save
@@ -61,8 +63,6 @@ CONTAINS
     Subroutine DetCalcInit
 
         Use global_utilities
-        Use Determinants, only: FDet, specdet, tSpecDet, tDefineDet, &
-                                DefDet, write_det
         Use IntegralsData, only: NFROZEN
         use SystemData, only: lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only: Alat, arr, brr, boa, box, coa, ecore, g1, Beta
@@ -308,7 +308,6 @@ CONTAINS
     Subroutine DoDetCalc
         Use global_utilities
         use util_mod, only: get_free_unit
-        use Determinants, only: get_helement, FDet, DefDet, tDefineDet
         use SystemData, only: Alat, arr, brr, boa, box, coa, ecore, g1, Beta
         use SystemData, only: t_new_real_space_hubbard
         use SystemData, only: nBasis, nBasisMax, nEl, nMsh, LzTot, TSPN, LMS

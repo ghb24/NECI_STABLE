@@ -29,6 +29,7 @@ set( SRC_FILES
     DetCalc.F90
     DeterminantData.F90
     Determinants.F90
+    Determinants_impls.F90
     determ_proj.F90
     detham.F90
     direct_ci.F90
@@ -250,7 +251,6 @@ set( RELAX_WARNINGS_SRCS
     DetCalcData.F90
     DetCalc.F90
     DeterminantData.F90
-    Determinants.F90
     determ_proj.F90
     direct_ci.F90
     enumerate_excitations.F90
@@ -394,6 +394,7 @@ set( RELAX_WARNINGS_SRCS
     #  is resolved, we can have again stricter compilation options.
     tau/tau_main_impls.F90
     lib/error_handling_neci_impls.F90
+    Determinants_impls.F90
 )
 
 set( FYPP_SRC_FILES

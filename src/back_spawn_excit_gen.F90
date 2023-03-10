@@ -28,7 +28,8 @@ module back_spawn_excit_gen
                           pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard, &
                           is_allowed_ueg_k_vector
     use get_excit, only: make_single, make_double
-    use Determinants, only: write_det, get_helement
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, &
                               calc_pgen_ueg
     use util_mod, only: operator(.div.), stop_all

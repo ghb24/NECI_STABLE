@@ -1,6 +1,7 @@
 #include "macros.h"
 module hfbasis_mod
-    use Determinants, only: write_det, write_det_len, get_helement
+    use Determinants, only: get_helement, orderbasis
+    use DeterminantData, only: write_det, write_det_len
     use HElem, only: HElement_t_size
     use IntegralsData, only: DMatEpsilon
     use LoggingData, only: HFLogLevel
@@ -33,7 +34,6 @@ module hfbasis_mod
     use frsblk_mod, only: neci_write_matrix
     better_implicit_none
 
-    external :: orderbasis
     private
     public :: CALCHFTMAT, setuphfbasis, readhftmat, &
         readhfumat, orderbasishf, calchfumat, readhfbasis, iFindBasisFn

@@ -3,7 +3,6 @@
 
 module hist
 
-    use DeterminantData, only: get_lexicographic, calculated_ms
     use SystemData, only: nbasis, nel, LMS, LMS, tHPHF, &
                           tOddS_HPHF, G1, tGUGA
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
@@ -22,7 +21,7 @@ module hist
                         get_initiator_flag, writebitdet, &
                         any_run_is_initiator
     use searching, only: BinSearchParts2
-    use Determinants, only: write_det
+    use DeterminantData, only: get_lexicographic, calculated_ms, write_det
     use util_mod, only: stop_all, binary_search_ilut, operator(.div.), &
         get_free_unit, choose_i64
     use hist_data, only: hist_excit_tofrom, tag_hist_excit, HistogramEnergy, &

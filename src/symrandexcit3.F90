@@ -21,7 +21,7 @@ module symrandexcit3
     use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd, &
                                     CreateSingleExcit, CreateExcitLattice, &
-                                    init_excit_gen_store, clean_excit_gen_store
+                                    init_excit_gen_store, clean_excit_gen_store, IsMomAllowedDet
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
     use bit_rep_data, only: niftot
     use bit_reps, only: decode_bit_det_lists
@@ -444,7 +444,7 @@ contains
         real(dp) :: pDoub, pGen, AverageContrib, AllAverageContrib
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot), iLut(0:NIfTot)
         INTEGER :: iExcit
-        LOGICAL :: tParity, IsMomAllowedDet, test
+        LOGICAL :: tParity, test
 
         ! Accumulator arrays. These need to be allocated on the heap, or we
         ! get a segfault by overflowing the stack using ifort
@@ -759,20 +759,6 @@ contains
 
     END SUBROUTINE
 
+
 end module
-
-! N.B. This is outside the module *sigh*
-subroutine virt_uniform_sym_setup()
-
-    use SymExcitDataMod, only: ScratchSize, ScratchSize3
-    implicit none
-
-    ! We use the third scratch array to store data for single
-    ! excitations
-
-    call SpinOrbSymSetup()
-
-    ScratchSize3 = ScratchSize
-
-end subroutine
 

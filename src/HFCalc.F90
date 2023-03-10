@@ -2,6 +2,8 @@
 MODULE HFCalc
     use constants, only: dp, int64, MPIArg
     use util_mod, only: stop_all, neci_flush
+    use Determinants, only: nUHFDet, writebasis
+    Use DeterminantData, only: FDet, write_det
 
     use hfbasis_mod, only: readhftmat
 #ifndef CMPLX_
@@ -21,7 +23,6 @@ contains
         use SystemData, only: tCPMD, tHFOrder, nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS
         use SystemData, only: tHub, lmsbasis
         Use LoggingData, only: iLogging
-        Use Determinants, only: FDet, nUHFDet, write_det
         use IntegralsData, only: UMat, tagUMat, umat_win
         Use UMatCache, only: GetUMatSize
         Use OneEInts, only: TMat2D, TMat2D2, SetupTMat2, DestroyTMat

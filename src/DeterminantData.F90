@@ -6,6 +6,9 @@ module DeterminantData
     use SystemData, only: nel, nbasis
     use MemoryManager, only: TagIntType
     implicit none
+    private
+    public :: write_det, write_det_len, tagFDet, Fdet, calculated_ms, &
+        get_lexicographic
 
     integer, pointer :: FDet(:)
     integer(TagIntType) :: tagFDet

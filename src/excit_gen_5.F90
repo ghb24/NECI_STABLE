@@ -20,7 +20,8 @@ module excit_gen_5
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
-    use Determinants, only: write_det, get_helement
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
     use procedure_pointers, only: get_umat_el
     use sym_general_mod, only: ClassCountInd
