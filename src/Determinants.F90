@@ -799,7 +799,7 @@ contains
     ! Calculate the one-electron part of the energy of a det
     FUNCTION CALCT(NI, NEL)
         integer, intent(in) :: nI(nEl), NEL
-        real(dp) :: CALCT
+        HElement_t(dp) :: CALCT
         calct = sum(gettmatel(nI, nI))
     END function
 

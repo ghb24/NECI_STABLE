@@ -8,6 +8,7 @@ module gndts_blk_mod
     use util_mod, only: NECI_ICOPY
     use calcrho_mod, only: igetexcitlevel
     use determinants, only: calcT
+    use error_handling_neci, only: stop_all
     better_implicit_none
     private
     public :: gndts_blk, gensymdetss
@@ -30,6 +31,9 @@ contains
         LOGICAL TGENFDET
         INTEGER IFDET, NDETTOT, IDEG
         real(dp) DETSC, TDETSC
+#ifdef CMPLX_
+        routine_name("GNDTS_BLK")
+#endif
         DETSC = 1D200
         II = 0
         IF (TCOUNT) THEN
@@ -61,7 +65,11 @@ contains
                     NBLOCKSTARTS(I) = OII + 1
                     BLOCKSYM(I) = ISYM
                     IF (TGENFDET) THEN
+#ifdef CMPLX_
+                        call stop_all(this_routine, "does not work for complex")
+#else
                         TDETSC = CALCT(NMRKS(1:NEL, OII + 1), NEL)
+#endif
                         IF (TDETSC < DETSC) THEN
                             IFDET = OII + 1
                             DETSC = TDETSC

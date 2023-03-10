@@ -133,12 +133,15 @@ module FciMCParMod
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
-    use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
+    use double_occ_mod, only: inst_double_occ, &
                               rezero_double_occ_stats, write_double_occ_stats, &
                               sum_double_occ, sum_norm_psi_squared, finalize_double_occ_and_spin_diff, &
                               measure_double_occ_and_spin_diff, rezero_spin_diff, &
                               write_spin_diff_stats, write_spat_doub_occ_stats, &
                               all_sum_double_occ, calc_double_occ_from_rdm
+#ifndef CMPLX_
+    use double_occ_mod, only: get_double_occupancy
+#endif
     use tau_main, only: tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         finalize_tau
     use tau_search_hist, only: print_frequency_histograms
@@ -1503,8 +1506,12 @@ contains
                 HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex")
+#else
                 inst_double_occ = inst_double_occ + &
                                   get_double_occupancy(CurrentDets(:, j), SignCurr)
+#endif
             end if
 
             if (t_measure_local_spin) then

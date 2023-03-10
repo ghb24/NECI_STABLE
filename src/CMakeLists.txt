@@ -250,7 +250,6 @@ set( RELAX_WARNINGS_SRCS
     default_sets.F90
     DetCalcData.F90
     DetCalc.F90
-    DeterminantData.F90
     determ_proj.F90
     direct_ci.F90
     enumerate_excitations.F90
