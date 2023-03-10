@@ -40,7 +40,7 @@ contains
         LOGICAL exists
         logical :: uhf, trel, tDetectSym
         character(*), parameter :: this_routine = 'INITFROMFCID'
-        real(dp) :: FOCK(1000)
+        real(dp), allocatable :: FOCK(:)
 
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
@@ -56,7 +56,7 @@ contains
         OCC = -1
         CLOSED = -1
         FROZEN = -1
-        FOCK = 0.0
+        allocate(FOCK(1000), source=0.0_dp)
         ! [W.D. 15.5.2017:]
         ! with the new relativistic calculations, withoug a ms value in the
         ! FCIDUMP, we have to set some more defaults..
@@ -85,6 +85,11 @@ contains
             close(iunit)
         end if
 
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
+
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
 
 !Now broadcast these values to the other processors
@@ -102,7 +107,6 @@ contains
         call MPIBCast(OCC, 8)
         call MPIBCast(CLOSED, nIrreps)
         call MPIBCast(FROZEN, nIrreps)
-        CALL MPIBCast(FOCK)
         if (UHF .and. .not. (tUHF .or. tROHF)) then
             ! unfortunately, the `UHF` keyword in the FCIDUMP namelist indicates
             ! spin-orbital-resolved integrals, not necessarily UHF
@@ -281,6 +285,11 @@ contains
             end if
         end if
 
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
+
         ! Re-order the orbitals symmetry labels if required
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
 
@@ -297,7 +306,6 @@ contains
         CALL MPIBCast(TREL)
         CALL MPIBCast(PROPBITLEN, 1)
         CALL MPIBCast(NPROP, 3)
-        CALL MPIBCast(FOCK)
         ! If PropBitLen has been set then assume we're not using an Abelian
         ! symmetry group which has two cycle generators (ie the group has
         ! complex representations).
@@ -621,6 +629,11 @@ contains
             read(iunit, FCI)
         end if
 
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
+
         ! Re-order the orbitals symmetry labels if required
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
 
@@ -637,7 +650,6 @@ contains
         CALL MPIBCast(TREL)
         CALL MPIBCast(PROPBITLEN, 1)
         CALL MPIBCast(NPROP, 3)
-        CALL MPIBCast(FOCK)
         ! If PropBitLen has been set then assume we're not using an Abelian
         ! symmetry group which has two cycle generators (ie the group has
         ! complex representations).
@@ -1025,6 +1037,11 @@ contains
             read(iunit, FCI)
         end if
 
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
+
         ! Re-order the orbitals symmetry labels if required
 
 !Now broadcast these values to the other processors (the values are only read in on root)
@@ -1040,7 +1057,6 @@ contains
         CALL MPIBCast(TREL)
         CALL MPIBCast(PROPBITLEN, 1)
         CALL MPIBCast(NPROP, 3)
-        CALL MPIBCast(FOCK)
 
         core = 0.0d0
         iSpins = 2
