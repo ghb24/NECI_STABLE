@@ -476,7 +476,7 @@ contains
 
                             if (t_sign) then
 #ifdef CMPLX_
-                                call stop_all(this_routine, "does not work for complex")
+                                call stop_all(this_routine, "not implemented for complex")
 #else
                                 temp_sign(n_excits) = sign(1.0_dp, elem)
                                 call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
@@ -1836,7 +1836,7 @@ contains
 
                                     if (t_sign) then
 #ifdef CMPLX_
-                                        call stop_all(this_routine, "does not work for complex")
+                                        call stop_all(this_routine, "not implemented for complex")
 #else
                                         temp_sign(n_excits) = sign(1.0_dp, elem)
                                         call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))

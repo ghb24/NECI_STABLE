@@ -61,7 +61,7 @@ contains
 !C.. re-order the orbitals and give us some energy)
 !C.. HF basis is NOT using the LMS value set in the input
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex")
+                call stop_all(this_routine, "not implemented for complex")
 #else
                 CALL CALCHFBASIS(NBASIS, NBASISMAX, G1, BRR, ECORE, UMAT, HFE, HFBASIS, 1, NEL, LMSBASIS, 1.0_dp, HFEDELTA, &
                                  HFCDELTA, .TRUE., 0, TREADHF, 0.0_dp, FDET, ILOGGING)
@@ -69,7 +69,7 @@ contains
 #endif
             else if (THFCALC) THEN
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex")
+                call stop_all(this_routine, "not implemented for complex")
 #else
                 CALL CALCHFBASIS(NBASIS, NBASISMAX, G1, BRR, ECORE, UMAT, HFE, HFBASIS, NHFIT, NEL, LMS, HFMIX, HFEDELTA, &
                                  HFCDELTA, TRHF, IHFMETHOD, TREADHF, HFRAND, FDET, ILOGGING)
@@ -77,7 +77,7 @@ contains
 #endif
             else if (THFBASIS) THEN
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex")
+                call stop_all(this_routine, "not implemented for complex")
 #else
                 CALL READHFBASIS(HFBASIS, HFE, G1, NBASIS)
                 CALL SETUPHFBASIS(NBASISMAX, G1, NBASIS, HFE, ARR, BRR)
@@ -106,7 +106,7 @@ contains
                     CALL READHFTMAT(NBASIS)
                 ELSE
 #ifdef CMPLX_
-                    call stop_all(this_routine, "does not work for complex")
+                    call stop_all(this_routine, "not implemented for complex")
 #else
                     CALL CALCHFTMAT(NBASIS, HFBASIS, NORBUSED)
 #endif
@@ -123,7 +123,7 @@ contains
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex")
+                call stop_all(this_routine, "not implemented for complex")
 #else
                 IF (TREADTUMAT) THEN
                     CALL READHFUMAT(UMAT2, NBASIS)

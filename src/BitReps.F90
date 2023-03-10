@@ -643,7 +643,7 @@ contains
 
 #ifdef CMPLX_
         ! Properly ensure that complex uses two words instead of one
-        call stop_all(this_routine, "does not work for complex")
+        call stop_all(this_routine, "not implemented for complex")
         unused_var(ilut)
         unused_var(hel)
 #else
@@ -663,7 +663,7 @@ contains
 
 #ifdef CMPLX_
         ! Properly ensure that complex uses two words instead of one
-        call stop_all(this_routine, "does not work for complex")
+        call stop_all(this_routine, "not implemented for complex")
         unused_var(ilut)
         hel = 0._dp
 #else

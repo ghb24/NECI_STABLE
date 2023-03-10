@@ -1216,7 +1216,7 @@ contains
                 call sort(ReIndex(1:Det),HOrderedHist(1:Det),HOrderedInstHist(1:Det))
 
 #ifdef CMPLX_
-                call stop_all(t_r, "does not work for complex")
+                call stop_all(t_r, "not implemented for complex")
 #else
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
 #endif
@@ -1224,7 +1224,7 @@ contains
 
                 CKN = 0.0_dp
 #ifdef CMPLX_
-                call stop_all(t_r, "does not work for complex")
+                call stop_all(t_r, "not implemented for complex")
 #else
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedInstHist,CKN,.true.)
 #endif

@@ -1022,7 +1022,7 @@ contains
             NELEX = (I - 1) * NSPINS + 1 + ISPN - 1
             EN = 0.0_dp
 #ifdef CMPLX_
-            call stop_all(this_routine, "does not work for complex")
+            call stop_all(this_routine, "not implemented for complex")
 #else
             CALL GETTRTMATEL(NELEX, NELEX, CMAT, NSBASIS, NSPINS, EN)
 #endif
@@ -1033,7 +1033,7 @@ contains
                 IF (NELEX /= NELEX2) THEN
 !.. we're not allowed to count the current electron again
 #ifdef CMPLX_
-                    call stop_all(this_routine, "does not work for complex")
+                    call stop_all(this_routine, "not implemented for complex")
 #else
                     CALL GETTRUMATEL(NELEX, NELEX2, NELEX, NELEX2, CMAT, NSBASIS, NSPINS, EN)
 #endif
@@ -1042,7 +1042,7 @@ contains
                     EN = 0.0_dp
                     IF (ISPN == JSPN) then
 #ifdef CMPLX_
-                        call stop_all(this_routine, "does not work for complex")
+                        call stop_all(this_routine, "not implemented for complex")
 #else
                         CALL GETTRUMATEL(NELEX, NELEX2, NELEX2, NELEX, CMAT, NSBASIS, NSPINS, EN)
 #endif

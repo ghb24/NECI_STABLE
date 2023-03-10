@@ -1016,7 +1016,7 @@ contains
         real(dp) :: fmup
 #ifdef CMPLX_
         routine_name("dressedFactor")
-        call stop_all(this_routine, "does not work for complex")
+        call stop_all(this_routine, "not implemented for complex")
         unused_var(fmu)
         fmup = 0._dp
 #else

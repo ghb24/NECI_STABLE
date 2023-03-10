@@ -394,7 +394,7 @@ contains
         do i = 1, this_blocksize
             ! truncate down to lMatEps
 #ifdef CMPLX_
-            call stop_all(this_routine, "does not work for complex")
+            call stop_all(this_routine, "not implemented for complex")
 #else
             rVal = 3.0_dp * transfer(entries(1, i), rVal)
 #endif
@@ -545,7 +545,7 @@ contains
                 ! multiple times for the same block)
                 if(this%htable%known_conflicts()) then
 #ifdef CMPLX_
-                    call stop_all(this_routine, "does not work for complex")
+                    call stop_all(this_routine, "not implemented for complex")
 #else
                     rVal = transfer(entries(1, i), rVal)
                     call add_core_en(rVal,indices(:,i))
@@ -621,7 +621,7 @@ contains
             do i = 1, total_size
                 if(tmp_inds(i) > 0) then
 #ifdef CMPLX_
-                    call stop_all(this_routine, "does not work for complex")
+                    call stop_all(this_routine, "not implemented for complex")
                     unused_var(this)
 #else
                     call this%set_elem(tmp_inds(i), 3.0_dp * transfer(tmp_entries(i), rVal))

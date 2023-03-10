@@ -296,7 +296,7 @@ CONTAINS
 
             IF (TREAD) THEN
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex with tREAD")
+                call stop_all(this_routine, "not implemented for complex with tREAD")
 #else
                 CALL READ_PSI(BOX, BOA, COA, NDET, NEVAL, NBASISMAX, NEL, CK, W)
 #endif

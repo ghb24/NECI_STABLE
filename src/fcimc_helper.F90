@@ -1916,7 +1916,7 @@ contains
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
 #ifdef CMPLX_
-            call stop_all(t_r, "does not work for complex")
+            call stop_all(t_r, "not implemented for complex")
 #else
             CALL NECI_FRSBLKH(DetLen, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, &
                     NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &

@@ -66,7 +66,7 @@ contains
                     BLOCKSYM(I) = ISYM
                     IF (TGENFDET) THEN
 #ifdef CMPLX_
-                        call stop_all(this_routine, "does not work for complex")
+                        call stop_all(this_routine, "not implemented for complex")
 #else
                         TDETSC = CALCT(NMRKS(1:NEL, OII + 1), NEL)
 #endif

@@ -125,7 +125,7 @@ contains
             call stop_all(this_routine, "Not implemented for GUGA")
         else if (t_k_space_hubbard) then
 #ifdef CMPLX_
-            call stop_all(this_routine, "does not work for complex")
+            call stop_all(this_routine, "not implemented for complex")
 #else
             call hubbard_find_tau_from_refdet_conn()
 #endif

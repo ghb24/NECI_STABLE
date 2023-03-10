@@ -240,7 +240,7 @@ contains
                 if (t_new_real_space_hubbard) then
 
 #ifdef CMPLX_
-                    call stop_all(this_routine, "does not work for complex")
+                    call stop_all(this_routine, "not implemented for complex")
 #else
                     call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
 #endif
@@ -390,7 +390,7 @@ contains
                 ! for every loop we have to save the excitations per
                 ! do we have to check if the list is unique?? i guess i do
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex")
+                call stop_all(this_routine, "not implemented for complex")
 #else
                 call gen_all_excits_k_space_hubbard(nI, n_excits, temp_dets)
 #endif

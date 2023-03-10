@@ -1507,7 +1507,7 @@ contains
 
             if (t_calc_double_occ) then
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex")
+                call stop_all(this_routine, "not implemented for complex")
 #else
                 inst_double_occ = inst_double_occ + &
                                   get_double_occupancy(CurrentDets(:, j), SignCurr)
