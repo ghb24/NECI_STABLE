@@ -14,6 +14,7 @@ MODULE SymExcit3
     use sort_mod, only: sort
     use util_mod, only: operator(.implies.), stop_all
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
+    use excit_mod, only: FindExcitDet
     IMPLICIT NONE
 
 CONTAINS

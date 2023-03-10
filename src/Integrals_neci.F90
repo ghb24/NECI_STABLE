@@ -51,6 +51,16 @@ module Integrals_neci
     use input_parser_mod, only: FileReader_t, TokenIterator_t
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_realsp, to_realdp
+
+    use cpmdinit_mod, only: cpmdinit2indint
+
+    use gen_coul_mod, only: gen_coul
+
+    use init_coul_mod, only: initfou
+
+    use init_coul2D_mod, only: initfou2d
+
+    use hubbard_mod, only: calcumathubreal, write_kspace_umat, calctmathub
     implicit none
 
 contains

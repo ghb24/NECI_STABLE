@@ -6,7 +6,7 @@
     ! all excitations with rank higher than max_excit_rank are definitely zero
 #:set excit_ranks = list(range(max_excit_rank + 1))
     ! note that this excludes further excitations, which must be handled manually
-#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
+#:set excitations = ['Excite_{}_t'.format(i) for i in excit_ranks + ['Further']]
     ! Excite_Further_t is for all ranks > max_excit_rank
 #:set defined_excitations = excitations[:-1]
 #:set trivial_excitations = [excitations[0], excitations[-1]]
@@ -34,7 +34,7 @@ module excitation_types
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement
     use DetBitOps, only: GetBitExcitation
-    use neci_intfce, only: GetExcitation
+    use excit_mod, only: GetExcitation
     implicit none
     private
     public :: Excitation_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &

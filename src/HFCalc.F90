@@ -2,6 +2,11 @@
 MODULE HFCalc
     use constants, only: dp, int64, MPIArg
     use util_mod, only: stop_all, neci_flush
+
+    use hfbasis_mod, only: setuphfbasis, calchfbasis, readhftmat, readhfumat, calchfbasis, orderbasishf, calchfumat, calchftmat, &
+        readhfbasis
+
+
     implicit none
     save
 contains
@@ -51,16 +56,28 @@ contains
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
 !C.. re-order the orbitals and give us some energy)
 !C.. HF basis is NOT using the LMS value set in the input
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex")
+#else
                 CALL CALCHFBASIS(NBASIS, NBASISMAX, G1, BRR, ECORE, UMAT, HFE, HFBASIS, 1, NEL, LMSBASIS, 1.0_dp, HFEDELTA, &
                                  HFCDELTA, .TRUE., 0, TREADHF, 0.0_dp, FDET, ILOGGING)
                 CALL ORDERBASISHF(ARR, BRR, HFE, HFBASIS, NBASIS, FDET, NEL)
+#endif
             else if (THFCALC) THEN
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex")
+#else
                 CALL CALCHFBASIS(NBASIS, NBASISMAX, G1, BRR, ECORE, UMAT, HFE, HFBASIS, NHFIT, NEL, LMS, HFMIX, HFEDELTA, &
                                  HFCDELTA, TRHF, IHFMETHOD, TREADHF, HFRAND, FDET, ILOGGING)
                 CALL SETUPHFBASIS(NBASISMAX, G1, NBASIS, HFE, ARR, BRR)
+#endif
             else if (THFBASIS) THEN
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex")
+#else
                 CALL READHFBASIS(HFBASIS, HFE, G1, NBASIS)
                 CALL SETUPHFBASIS(NBASISMAX, G1, NBASIS, HFE, ARR, BRR)
+#endif
             end if
             write(stdout, *) "FINAL HF BASIS"
             CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
@@ -84,7 +101,11 @@ contains
                 IF (TREADTUMAT) THEN
                     CALL READHFTMAT(NBASIS)
                 ELSE
+#ifdef CMPLX_
+                    call stop_all(this_routine, "does not work for complex")
+#else
                     CALL CALCHFTMAT(NBASIS, HFBASIS, NORBUSED)
+#endif
                 end if
                 CALL DestroyTMAT(.false.)
                 TMAT2D => TMAT2D2
@@ -97,11 +118,15 @@ contains
                 UMAT2 = 0.0_dp
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR
+#ifdef CMPLX_
+                call stop_all(this_routine, "does not work for complex")
+#else
                 IF (TREADTUMAT) THEN
                     CALL READHFUMAT(UMAT2, NBASIS)
                 ELSE
                     CALL CALCHFUMAT(UMAT, UMAT2, NBASIS, HFBASIS, ISPINSKIP, NORBUSED)
                 end if
+#endif
 !C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !C.. to UMAT2
                 call shared_sync_mpi(umat2_win)
