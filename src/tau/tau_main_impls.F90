@@ -44,7 +44,9 @@ submodule (tau_main) tau_main_impls
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet, GetBitExcitation
 
-    use neci_intfce, only: GetExcitation, GenSymExcitIt2
+    use neci_intfce, only: GenSymExcitIt2
+
+    use excit_mod, only: GetExcitation
 
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
 

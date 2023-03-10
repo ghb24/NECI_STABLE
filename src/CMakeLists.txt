@@ -7,20 +7,20 @@ set( SRC_FILES
     adi_initiators.F90
     adi_data.F90
     aliasSampling.F90
+    blas_interface.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
     CalcData.F90
     Calc.F90
-    calcrho.F
-    CMakeLists.txt
+    calcrho.F90
     compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
     core_space_util.F90
     CPMDData.F90
-    cpmdinit.F
-    cpmdstub.F
+    cpmdinit.F90
+    cpmdstub.F90
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90
@@ -30,13 +30,13 @@ set( SRC_FILES
     DeterminantData.F90
     Determinants.F90
     determ_proj.F90
-    detham.F
+    detham.F90
     direct_ci.F90
     enumerate_excitations.F90
     ErrorAnalysis.F90
     exact_diag.F90
     exact_spectrum.F90
-    excit.F
+    excit.F90
     excit_parity.F90
     fast_determ_hamil.F90
     FciMCData.F90
@@ -46,32 +46,32 @@ set( SRC_FILES
     fcimc_output.F90
     FciMCPar.F90
     fcimc_pointed_fns.F90
-    fcoul.F
-    frsblk.F
+    fcoul.F90
+    frsblk.F90
     ftlm_neci.F90
     gdata_io.F90
-    gen_coul.F
+    gen_coul.F90
     gen_coul_ueg.F90
     global_utilities.F90
-    gndts_blk.F
+    gndts_blk.F90
     gndts.F90
     gndwork.F90
     hash.F90
     hamiltonian_linalg.F90
     hdf5_popsfile.F90
-    hdiag.F
+    hdiag.F90
     hdiag_from_excit.F90
     HElem.F90
-    hfbasis.F
+    hfbasis.F90
     HFCalc.F90
     hilbert_space_size.F90
     hist_data.F90
     HPHFRandExcit.F90
-    hubbard.F
+    hubbard.F90
     impurity_models.F90
     index_rhash.F90
-    init_coul2D.F
-    init_coul.F
+    init_coul2D.F90
+    init_coul.F90
     initial_trial_states.F90
     initiator_space_procs.F90
     input_parser_mod.F90
@@ -85,7 +85,7 @@ set( SRC_FILES
     lanczos_general.F90
     lanczos_wrapper.F90
     legacy_data.F90
-    lineup.F
+    lineup.F90
     LMat_calc.F90
     LMat_class.F90
     LMat_freeze.F90
@@ -96,7 +96,7 @@ set( SRC_FILES
     Logging.F90
     Makefile
     matel_getter.F90
-    matmul.F
+    matmul.F90
     modifiedHub.F90
     molcas_interface.F90
     MolproPlugin.F90
@@ -130,16 +130,16 @@ set( SRC_FILES
     readdf.F90
     readinput.F90
     readint.F90
-    read_psi.F
+    read_psi.F90
     readri.F90
     replica_data.F90
     replica_estimates.F90
-    rhodiag.F
+    rhodiag.F90
     RhoElement.F90
     RotateOrbsData.F90
     RotateOrbs.F90
     RPA.F90
-    scrtransf.F
+    scrtransf.F90
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
@@ -152,8 +152,8 @@ set( SRC_FILES
     symexcit3.F90
     symexcit4.F90
     symexcitData.F90
-    symexcit.F
-    symexcit_old.F
+    symexcit.F90
+    symexcit_old.F90
     sym.F90
     sym_general.F90
     GenRandSymExcitNUMod.F90
@@ -242,15 +242,11 @@ set( RELAX_WARNINGS_SRCS
     BitReps.F90
     CalcData.F90
     Calc.F90
-    calcrho.F
-    CMakeLists.txt
     compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
     core_space_util.F90
     CPMDData.F90
-    cpmdinit.F
-    cpmdstub.F
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90
@@ -259,13 +255,13 @@ set( RELAX_WARNINGS_SRCS
     DeterminantData.F90
     Determinants.F90
     determ_proj.F90
-    detham.F
     direct_ci.F90
     enumerate_excitations.F90
     ErrorAnalysis.F90
     exact_diag.F90
     exact_spectrum.F90
-    excit.F
+    symexcit.F90
+    excit.F90
     excit_parity.F90
     fast_determ_hamil.F90
     FciMCData.F90
@@ -275,31 +271,23 @@ set( RELAX_WARNINGS_SRCS
     fcimc_output.F90
     FciMCPar.F90
     fcimc_pointed_fns.F90
-    fcoul.F
-    frsblk.F
+    frsblk.F90
     ftlm_neci.F90
     gdata_io.F90
-    gen_coul.F
     gen_coul_ueg.F90
     global_utilities.F90
-    gndts_blk.F
     gndts.F90
     gndwork.F90
     hash.F90
     hamiltonian_linalg.F90
-    hdiag.F
     hdiag_from_excit.F90
     HElem.F90
-    hfbasis.F
     HFCalc.F90
     hilbert_space_size.F90
     hist_data.F90
     HPHFRandExcit.F90
-    hubbard.F
     impurity_models.F90
     index_rhash.F90
-    init_coul2D.F
-    init_coul.F
     initial_trial_states.F90
     initiator_space_procs.F90
     IntegralsData.F90
@@ -312,7 +300,6 @@ set( RELAX_WARNINGS_SRCS
     lanczos_general.F90
     lanczos_wrapper.F90
     legacy_data.F90
-    lineup.F
     LMat_calc.F90
     LMat_class.F90
     LMat_freeze.F90
@@ -321,8 +308,6 @@ set( RELAX_WARNINGS_SRCS
     load_balance_calcnodes.F90
     LoggingData.F90
     Logging.F90
-    Makefile
-    matmul.F
     modifiedHub.F90
     molcas_interface.F90
     MolproPlugin.F90
@@ -336,7 +321,6 @@ set( RELAX_WARNINGS_SRCS
     parallel_workarounds.F90
     MPI_wrapper.F90
     pchb_excitgen.F90
-    perturbations.F90
     Popsfile.F90
     Popsfile_impls.F90
     proc_ptrs.F90
@@ -353,16 +337,14 @@ set( RELAX_WARNINGS_SRCS
     rdm_reading.F90
     readdf.F90
     readinput.F90
-    read_psi.F
     readri.F90
     replica_data.F90
     replica_estimates.F90
-    rhodiag.F
     RhoElement.F90
     RotateOrbsData.F90
     RotateOrbs.F90
     RPA.F90
-    scrtransf.F
+    scrtransf.F90
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
@@ -375,8 +357,6 @@ set( RELAX_WARNINGS_SRCS
     symexcit3.F90
     symexcit4.F90
     symexcitData.F90
-    symexcit.F
-    symexcit_old.F
     sym.F90
     sym_general.F90
     symrandexcit1.F

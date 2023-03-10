@@ -70,6 +70,8 @@ module fcimc_output
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
 
+    use matmul_mod, only: my_hpsi
+
     implicit none
 
 contains
@@ -1210,11 +1212,19 @@ contains
                 HOrderedInstHist(:) = AllInstHist(1,:)
                 call sort(ReIndex(1:Det),HOrderedHist(1:Det),HOrderedInstHist(1:Det))
 
+#ifdef CMPLX_
+                call stop_all(t_r, "does not work for complex")
+#else
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
+#endif
                 AvVarEnergy = DDOT(Det,HOrderedHist,1,CKN,1)
 
                 CKN = 0.0_dp
+#ifdef CMPLX_
+                call stop_all(t_r, "does not work for complex")
+#else
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedInstHist,CKN,.true.)
+#endif
                 VarEnergy = DDOT(Det,HOrderedInstHist,1,CKN,1)
 
                 deallocate(CKN)

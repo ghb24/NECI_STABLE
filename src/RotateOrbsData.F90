@@ -11,7 +11,7 @@ module RotateOrbsData
 
     ! This contains the transformation matrix which rotates the HF orbitals
     ! into their new basis.
-    real(dp), allocatable :: CoeffT1(:, :)
+    HElement_t(dp), allocatable :: CoeffT1(:, :)
     integer(TagIntType) :: CoeffT1Tag
 
     integer :: MemAllocRot

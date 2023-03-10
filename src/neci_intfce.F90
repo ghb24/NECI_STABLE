@@ -36,12 +36,6 @@ module neci_intfce
             real(dp) arr(nbasis, 2)
         end subroutine genexcitprob
 
-        subroutine getexcitation(ni, nj, nel, ex, tsign)
-            implicit none
-            integer nel, ni(nel), nj(nel), ex(2, *)
-            logical tsign
-        end subroutine
-
         subroutine setbasislim_hub(nbasismax, nmaxx, nmaxy, nmaxz, len, &
                                    tpbc, treal)
             integer nbasismax(5, *), nmaxx, nmaxy, nmaxz, len
