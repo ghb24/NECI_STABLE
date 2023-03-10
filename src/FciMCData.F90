@@ -296,8 +296,8 @@ MODULE FciMCData
                    var_e_time, precond_e_time, proj_e_time, &
                    rescale_time, death_time, hash_test_time, &
                    hii_test_time, init_flag_time, &
-                   InitSpace_Init_Time, GetDiagMatel_Time, &
-                   GetOffDiagMatel_Time, GAS_PCHB_init_time
+                   InitSpace_Init_Time, &
+                   GAS_PCHB_init_time
 
     ! Store the current value of S^2 between update cycles
     real(dp), allocatable :: curr_S2(:), curr_S2_init(:)

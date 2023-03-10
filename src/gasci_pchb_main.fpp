@@ -34,7 +34,7 @@ module gasci_pchb_main
     use util_mod, only: stop_all, EnumBase_t, operator(.implies.)
     use timing_neci, only: set_timer, halt_timer
     use FciMCData, only: GAS_PCHB_init_time
-    use SystemData, only: tUHF
+    use SystemData, only: tUHF, nBasis
 
     use gasci, only: GASSpec_t
     use gasci_singles_main, only: &
@@ -104,9 +104,13 @@ contains
             !!  The GAS specifications for the excitation generator.
         class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_PCHB_options_t), intent(in) :: options
+        routine_name("gasci_pchb_main::GAS_PCHB_init")
 
         call set_timer(GAS_PCHB_init_time)
 
+        if (.not. GAS_spec%is_valid(nBasis)) then
+            call stop_all(this_routine, "GAS specification not valid.")
+        end if
         call options%assert_validity()
 
         call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, this%singles_generator)

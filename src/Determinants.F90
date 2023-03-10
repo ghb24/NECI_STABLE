@@ -8,8 +8,6 @@ MODULE Determinants
                           t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
                           nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
-    ! use System, only: writeBasis
-
     use IntegralsData, only: UMat, FCK, NMAX
 
     use excitation_types, only: Excitation_t, Excite_2_t, get_excitation
@@ -29,6 +27,9 @@ MODULE Determinants
     use lattice_mod, only: get_helement_lattice
     use util_mod, only: NECI_ICOPY, operator(.div.), stop_all
     use SymData, only: nSymLabels, SymLabelList, SymLabelCounts, TwoCycleSymGens
+
+
+    use SystemData, only: SymRestrict, tSymSet
     use sym_mod
 
     implicit none
@@ -748,6 +749,97 @@ contains
 
     Subroutine DetCleanup()
     End Subroutine DetCleanup
+
+
+    SUBROUTINE GENFDET(FDET)
+        integer, intent(out) :: fdet(nel)
+        logical :: invalid
+
+! Working space
+        INTEGER NELS(2)
+        INTEGER NELR, IREAL, IS, NSBASIS, I, totSpin, nclosed
+        integer :: nspins(2)
+        integer, dimension(3) :: totK
+        logical :: sr
+
+! eigenvector N is in FMAT(i,N,IS), where i is the component of the
+! vector unless transposed
+        NSBASIS = NBASIS / 2
+        NELS(2) = (LMS + NEL) / 2
+        NELS(1) = NEL - NELS(2)
+
+        if (tGUGA) then
+            write(6, '(4(A,'//int_fmt(nel)//'))') "N_neg:", NELS(1), " ; N_pos:", NELS(2), " ; S:", LMS, " ; nEl:", nEL
+        else
+            WRITE(6, '(4(A,'//int_fmt(nel)//'))') " N_alpha:", NELS(1), " ; N_beta:", NELS(2), " ; LMS:", LMS, " ; NEl:", NEL
+        end if
+        nclosed = minval(nels)
+
+        if (tMolpro) then
+!Assume that orbitals are ordered by occupation number
+!Assuming LMS positive, NELS(2) > NELS(1)
+            do i = 1, nclosed * 2
+                FDET(i) = i  !Fill up closed shells
+            end do
+            do i = 1, abs(LMS) !Fill up open shells in odd orbitals
+                FDET(nclosed * 2 + i) = nclosed * 2 + (i * 2 - (1 - sign(1, LMS)) / 2)
+            end do
+            return
+        end if
+        NEL = 0
+        totK = 0
+        nspins = 0
+        totSpin = 0
+        sr = .false.
+        if (tSymSet) then
+! here, a momentum eigenstate for a given total momentum is constructed
+            do ireal = 1, nbasis
+! invalid is true if the desired total momentum cannot be reached anymore
+                invalid = checkMomentumInvalidity(ireal, totK, SymRestrict%k, nels(1) - nspins(1), nels(2) - nspins(2))
+                if (invalid) cycle
+! is ==1 if the spin is -1 and is==2 if it is 1
+                is = (3 + (G1(brr(ireal))%Ms)) / 2
+                if (nspins(is) <= nels(is)) then
+                    nel = nel + 1
+                    nspins(is) = nspins(is) + 1
+                    fdet(nel) = brr(ireal)
+                    if (t_k_space_hubbard) then
+                        totK = lat%add_k_vec(totK, G1(brr(ireal))%k)
+                    else
+                        totK = totK + G1(brr(ireal))%k
+                    end if
+                    totSpin = totSpin + G1(brr(ireal))%Ms
+                    if (tHub .and. .not. t_k_space_hubbard) then
+                        call MomPbcSym(totK, nBasisMax)
+                    end if
+                end if
+            end do
+        else
+            DO IS = 1, 2
+                IREAL = 1
+                DO I = 1, NSBASIS
+                    if (ireal > nbasis) exit
+                    DO WHILE (G1(BRR(IREAL))%Ms /= (-3 + 2 * IS))
+                        IREAL = IREAL + 1
+                        if (ireal > nbasis) exit
+                    END DO
+                    NELR = (BRR(IREAL) - 1) / 2 + 1
+                    IF (I <= NELS(IS)) THEN
+                        NEL = NEL + 1
+                        FDET(NEL) = BRR(IREAL)
+                    END IF
+                    IREAL = IREAL + 1
+                END DO
+            END DO
+        end if
+        call sort(fDet(1:nel))
+#ifdef DEBUG_
+        print *, "Total momentum", totK
+        print *, "Requested momentum", SymRestrict%k
+        print *, "Total spin", totSpin, "Requested spin", lms
+        print *, "fDet", fdet
+#endif
+    END
 
 END MODULE Determinants
 

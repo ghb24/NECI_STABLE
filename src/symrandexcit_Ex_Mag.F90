@@ -34,6 +34,7 @@ module symrandexcit_Ex_mag
                              create_excit_det2, construct_class_counts
     use symexcit3, only: GenSingleExcit
     use util_mod, only: stop_all, neci_flush
+    use excit_mod, only: FindExcitDet
 
     implicit none
 

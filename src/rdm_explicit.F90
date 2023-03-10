@@ -18,6 +18,8 @@ module rdm_explicit
     use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs
     use util_mod, only: stop_all, near_zero
 
+    use excit_mod, only: getexcitation
+
     implicit none
 
 contains
