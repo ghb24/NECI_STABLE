@@ -154,7 +154,6 @@ set( SRC_FILES
     symexcit4.F90
     symexcitData.F90
     symexcit.F90
-    symexcit_old.F90
     sym.F90
     sym_general.F90
     GenRandSymExcitNUMod.F90
