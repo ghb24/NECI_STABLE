@@ -1366,7 +1366,7 @@ contains
         use load_balance_calcnodes, only: DetermineDetNode
         use FciMCData, only: SpawnedParts2, SpawnedParts
 
-        use Determinants, only: write_det
+        use DeterminantData, only: write_det
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
