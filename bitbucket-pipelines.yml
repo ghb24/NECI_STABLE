@@ -17,7 +17,7 @@ pipelines:
       - mkdir build
       - cd build
       - echo "building release version"
-      - cmake -DCMAKE_BUILD_TYPE=FastDebug ..
+      - cmake -DCMAKE_BUILD_TYPE=FastDebug -DENABLE_HDF5=OFF ..
       - make -j neci test_neci
       - echo "done building release version"
       - echo "running unit tests"
