@@ -272,6 +272,7 @@ contains
         TREL = .false.
         SYMLZ(:) = 0
         allocate(FOCK(len/2), source=0.0_dp)
+
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
             IF (TBIN) THEN
