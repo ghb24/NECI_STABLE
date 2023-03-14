@@ -226,6 +226,7 @@ module SystemData
 
 !Set if we don't reorder the HF orbitals on entry
     LOGICAL :: tHFNoOrder
+
 ! When set, ignore differences in orbital energies between pairs of orbitals (which should be beta/alpha)
 !  and group them under the same symrep
     LOGICAL :: tSymIgnoreEnergies
