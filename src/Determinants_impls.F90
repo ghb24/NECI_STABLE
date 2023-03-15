@@ -4,6 +4,7 @@ submodule (Determinants) Determinants_impls
     use SymExcitDataMod, only: ScratchSize, ScratchSize3
     use GenRandSymExcitNUMod, only: SpinOrbSymSetup
     use sym_mod, only: writesymtable, gensymstatepairs
+    use SystemData, only: nEl
 
     better_implicit_none
 
@@ -20,10 +21,10 @@ contains
     end subroutine
 
 
-    Subroutine DetInit()
-        real(dp) DNDET
-        integer i, j
-        integer(int64) nDet
+    module subroutine DetInit()
+        real(dp) :: DNDET
+        integer :: i, j
+        integer(int64) :: nDet
         integer :: alpha, beta, symalpha, symbeta, endsymstate
         LOGICAL :: tSuccess, tFoundOrbs(nBasis)
 
@@ -155,7 +156,7 @@ contains
         end if
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
-    End Subroutine DetInit
+    end subroutine DetInit
 
 
     ! Generate the active space from a basis.
@@ -164,7 +165,7 @@ contains
     ! nActiveBasis(1:2) contains (First Active Basis Fn, Last Active Basis Fn)
     ! nDown is the number of orbital sets  below the Fermi level
     ! nUp is the number of orbital sets  above the Fermi level
-    SUBROUTINE GenActiveBasis(ARR, nBasis, nEl, nActiveBasis, nDown, nUp)
+    subroutine GenActiveBasis(ARR, nBasis, nEl, nActiveBasis, nDown, nUp)
         integer nEl, nActiveBasis(2), nBasis
         real(dp) ARR(nBasis)
         integer I, nDown, nUp, nLeft
@@ -201,7 +202,7 @@ contains
         nActiveBasis(1) = I + 1
         write (stdout, *) "Active space:", nActiveBasis(1), " TO ", nActiveBasis(2), " (ordered labels)."
         write (stdout, *) "Active space electrons:", nEl - nActiveBasis(1) + 1
-    END SUBROUTINE
+    end subroutine
 
 
 end submodule Determinants_impls

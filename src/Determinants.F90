@@ -53,9 +53,6 @@ module Determinants
     end interface
 
     interface
-        module subroutine virt_uniform_sym_setup()
-        end subroutine
-
         module subroutine DetInit()
         end subroutine
     end interface
