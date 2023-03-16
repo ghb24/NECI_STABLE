@@ -1900,13 +1900,13 @@ contains
     subroutine DumpFCIDUMP()
         use SystemData, only: G1, nBasis, nel
         integer :: i, j, k, l, iunit
-        character(len=*), parameter :: t_r = 'DumpFCIDUMP'
+        character(len=*), parameter :: this_routine = 'DumpFCIDUMP'
         character(*), parameter :: formatter = "(F21.12,6I3)"
 
         ASSERT(nBasis / 2 <= 999) ! Otherwise the formatters have to be adapted
 
-        if(tStoreSpinOrbs) call stop_all(t_r, 'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
-        if(tFixLz) call stop_all(t_r, 'Dumping FCIDUMP not working with Lz')
+        if(tStoreSpinOrbs) call stop_all(this_routine, 'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
+        if(tFixLz) call stop_all(this_routine, 'Dumping FCIDUMP not working with Lz')
 
         iunit = get_free_unit()
         open(iunit, file='FCIDUMP-NECI', status='unknown')
