@@ -3,7 +3,7 @@ MODULE Determinants
     use constants, only: dp, n_int, bits_n_int, int64, maxExcit, stdout
     use SystemData, only: BasisFN, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
+                          tCPMD, tPickVirtUniform, LMS, tStoquastize, &
                           tGUGA, STOT, &
                           t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
@@ -530,7 +530,7 @@ contains
         ! Add in ECore if for a diagonal element
         if (IC == 0) then
             hel = hel + (ECore)
-        else if (modk_offdiag) then
+        else if (tStoquastize) then
             hel = -abs(hel)
         end if
 
@@ -601,7 +601,7 @@ contains
         ! Add in ECore for a diagonal element
         if (IC == 0) then
             hel = hel + (ECore)
-        else if (modk_offdiag) then
+        else if (tStoquastize) then
             hel = -abs(hel)
         end if
 
@@ -661,7 +661,7 @@ contains
 
         if (IC == 0) then
             hel = hel + (ECore)
-        else if (modk_offdiag) then
+        else if (tStoquastize) then
             hel = -abs(hel)
         end if
 
@@ -710,7 +710,7 @@ contains
 
         if (IC == 0) then
             hel = hel + ECore
-        else if (modk_offdiag) then
+        else if (tStoquastize) then
             hel = -abs(hel)
         end if
     end function

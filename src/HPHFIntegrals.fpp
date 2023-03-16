@@ -4,7 +4,7 @@
 module hphf_integrals
     use constants, only: dp, n_int, sizeof_int, maxExcit
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model, &
+                          ALat, NMSH, tOddS_HPHF, tStoquastize, t_lattice_model, &
                           t_3_body_excits, max_ex_level
     use IntegralsData, only: UMat, FCK, NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
@@ -55,8 +55,6 @@ contains
         unused_var(IC); unused_var(ex); unused_var(tParity); unused_var(HElGen)
 
         hel = hphf_off_diag_helement_norm(nI, nJ, iLutI, iLutJ)
-
-        if(IC /= 0 .and. modk_offdiag) hel = -abs(hel)
 
     end function
 
@@ -171,6 +169,9 @@ contains
                 end if
             end if
         end if
+
+        if(tStoquastize) hel = -abs(hel)
+
     end function
 
     function hphf_off_diag_helement_opt(nI, iLutnI, iLutnJ, IC, CS_I, CS_J) result(hel)
@@ -269,6 +270,8 @@ contains
             end if
         end if
 
+        if(tStoquastize) hel = -abs(hel)
+
     end function
 
     function hphf_off_diag_special_case(nI2, iLutnI2, iLutnJ, ExcitLevel, OpenOrbsI) result(hel)
@@ -336,6 +339,8 @@ contains
                 hel = -MatEl2
             end if
         end if
+
+        if(tStoquastize) hel = -abs(hel)
 
     end function
 

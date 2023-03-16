@@ -1,0 +1,44 @@
+title
+
+system read
+    electrons 6
+    stoquastize
+    guga 0
+    nonuniformrandexcits mol-guga-weighted
+    sym 0 0 0 0
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+
+    tau-values \
+        start from-popsfile
+
+    readpops
+    seed -7
+    load-balance-blocks off
+    definedet 1 4 5 8 9 12
+
+    semi-stochastic 1000
+    pops-core 10
+
+    memoryfacspawn 5.0
+    memoryfacpart 2.0
+    totalwalkers 1000
+    shiftdamp 0.5
+    stepsshift 1
+    allrealcoeff
+    realspawncutoff 0.01
+    nmcyc 500
+endcalc
+
+integral
+endint
+
+logging
+    popsfile -1
+endlog
+
+end
