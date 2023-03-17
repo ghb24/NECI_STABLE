@@ -141,6 +141,12 @@ nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
 
+[neci/stoquastize/*/*/]
+program = neci
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
+
 # Jobs to test the various spaces in use for semi-stochastic and trial
 # wavefunctions.
 # Specify non-default tolerances.

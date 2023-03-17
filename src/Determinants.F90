@@ -1,23 +1,20 @@
 #include "macros.h"
-
 module Determinants
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det, GetBitExcitation
-    use DetBitOps, only: GetBitExcitation
     use DeterminantData, only: Fdet, calculated_ms, tagfdet, write_det, write_det_len
-    use DeterminantData, only: fdet
-    use IntegralsData, only: UMat, FCK, NMAX
-    use IntegralsData, only: nFrozen, nFrozenIn
+    use IntegralsData, only: UMat, FCK, NMAX, nFrozen, nFrozenIn
     use MemoryManager, only: TagIntType
     use OneEInts, only: GetTMatEl
     use SymData, only: nSymLabels, SymLabelList, SymLabelCounts, TwoCycleSymGens
     use SystemData, only: alat, arr, arr, basisfn, basisfnsize, basisfnsizeb, &
         brr, ecore, g1, irreporboffset, k_lattice_constant, k_lattice_vectors, &
-        k_momentum, lms, lnosymmetry, modk_offdiag, nbasis, nbasismax, &
+        k_momentum, lms, lnosymmetry, nbasis, nbasismax, &
         nclosedorbs, nel, nirreps, nmsh, noccorbs, stot, symmetry, symmetrysize, &
         symmetrysizeb, symrestrict, t_guga_noreorder, t_lattice_model, tcpmd, &
         tfixlz, tguga, thphfints, thub, tmolpro, tpickvirtuniform, &
         tref_not_hf, tspn, tstoreasexcitations, tsymset, tueg, tueg2, &
-        tuegspecifymomentum, tusebrillouin, t_k_space_hubbard
+        tuegspecifymomentum, tusebrillouin, t_k_space_hubbard, &
+        tStoquastize
     use bit_rep_data, only: nIfTot
     use blas_interface_mod, only: dcopy
     use constants, only: Pi, Pi2, THIRD, dp, n_int, bits_n_int, int64, maxExcit, stdout
@@ -26,7 +23,6 @@ module Determinants
     use guga_data, only: ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
     use lattice_mod, only: get_helement_lattice, lat
-    use sltcnd_mod, only: CalcFockOrbEnergy
     use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
         sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
     use sort_mod, only: sort
@@ -375,7 +371,7 @@ contains
         ! Add in ECore if for a diagonal element
         if (IC == 0) then
             hel = hel + (ECore)
-        else if (modk_offdiag) then
+        else if (tStoquastize) then
             hel = -abs(hel)
         end if
 
@@ -443,7 +439,7 @@ contains
         ! Add in ECore for a diagonal element
         if (IC == 0) then
             hel = hel + (ECore)
-        else if (modk_offdiag) then
+        else if (tStoquastize) then
             hel = -abs(hel)
         end if
 
@@ -502,7 +498,7 @@ contains
 
         if (IC == 0) then
             hel = hel + (ECore)
-        else if (modk_offdiag) then
+        else if (tStoquastize) then
             hel = -abs(hel)
         end if
 
@@ -551,7 +547,7 @@ contains
 
         if (IC == 0) then
             hel = hel + ECore
-        else if (modk_offdiag) then
+        else if (tStoquastize) then
             hel = -abs(hel)
         end if
     end function

@@ -230,8 +230,8 @@ module SystemData
 !  and group them under the same symrep
     LOGICAL :: tSymIgnoreEnergies
 
-! Should we use |K| for FCIQMC?
-    logical :: modk_offdiag
+! Stoquastize the Hamiltonian. i.e., H_offdiag -> -abs(H_offdiag)
+    logical :: tStoquastize
 
 ! True if we are performing a calculation in all symmetry sectors at once.
 ! This is used in finite-temperature KP-FCIQMC calculations.

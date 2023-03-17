@@ -1,0 +1,35 @@
+title
+
+system hubbard k-space
+    electrons 4
+    B -1
+    U 1
+    lattice square 2 2
+    stoquastize
+    hphf 0
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    load-balance-interval 1000
+    nmcyc 3000
+    memoryfacpart 8
+    memoryfacspawn 5
+    totalwalkers 1000
+    shiftdamp 0.03
+    stepsshift 1
+    startsinglepart 100
+    tau-values \
+        start user-defined 0.01
+    allrealcoeff
+    realspawncutoff 1
+    proje-changeref 1.2
+endcalc
+
+logging
+    popsfile -1
+endlog
+end
