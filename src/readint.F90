@@ -244,7 +244,9 @@ contains
         real(dp), intent(out) :: ARR(LEN, 2)
         type(BasisFN), intent(out) :: G1(LEN)
         HElement_t(dp) Z
+#ifndef CMPLX_
         COMPLEX(dp) :: CompInt
+#endif
         integer(int64) IND, MASK
         INTEGER I, J, K, L, I1
         INTEGER ISYMNUM, ISNMAX, SYMLZ(1000), iunit
@@ -586,7 +588,9 @@ contains
         HElement_t(dp), intent(inout) :: UMAT(:)
         integer(MPIArg) :: umat_win
         HElement_t(dp) Z
+#ifndef CMPLX_
         COMPLEX(dp) :: CompInt
+#endif
         INTEGER(int64) :: ZeroedInt, NonZeroInt, LzDisallowed
         INTEGER I, J, K, L, X, Y, iSpinType, iunit
         INTEGER NORB, NELEC, MS2, ISYM, SYML(1000)

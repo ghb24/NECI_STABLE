@@ -3,7 +3,10 @@
 
 module rdm_general
 
-    use bit_rep_data, only: NIfTot, nifd, nifguga, IlutBits, IlutBitsParent
+    use bit_rep_data, only: NIfTot, nifd, nifguga, IlutBits, IlutBitsParent, test_flag, &
+        bit_rdm_init
+    use bit_reps, only: zero_parent, all_runs_are_initiator, encode_parent, &
+        extract_bit_rep
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
                         inits_estimates, tSetupInitsEst
@@ -21,6 +24,7 @@ module rdm_general
     use Parallel_neci, only: iProcIndex, nProcessors, MPISumAll
 
     implicit none
+    ! better_implicit_none
 
 contains
 
@@ -599,7 +603,6 @@ contains
         ! When we start calculating the RDMs this routine is called and the
         ! SpawnedParts array is made larger to accommodate the parents.
 
-        use bit_rep_data, only: bit_rdm_init
         use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
         use FciMCData, only: SpawnedParts, SpawnedParts2
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
@@ -781,7 +784,6 @@ contains
         ! This is just the standard extract_bit_rep routine for when we're not
         ! calculating the RDMs.
 
-        use bit_reps, only: extract_bit_rep
         use FciMCData, only: excit_gen_store_type
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: rdm_definitions_t
@@ -824,7 +826,6 @@ contains
         !           IterRDMStartI - new iteration the determinant became occupied (as a real).
         !           AvSignI - the new average walker population during this time (also real).
 
-        use bit_reps, only: extract_bit_rep
         use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
@@ -1013,6 +1014,12 @@ contains
         implicit none
         real(dp), intent(in) :: fmu
         real(dp) :: fmup
+#ifdef CMPLX_
+        routine_name("dressedFactor")
+        call stop_all(this_routine, "not implemented for complex")
+        unused_var(fmu)
+        fmup = 0._dp
+#else
         real(dp) :: eCorr, e0Inits, enOffset
         if (tInitsRDMRef .and. tSetupInitsEst .and. sum(abs(proje_iter)) > eps) then
             ! initiator-only reference energy
@@ -1024,6 +1031,7 @@ contains
         else
             fmup = fmu
         end if
+#endif
     end function dressedFactor
 
     !------------------------------------------------------------------------------------------!
@@ -1091,7 +1099,6 @@ contains
         use DetBitOps, only: DetBitEQ
         use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, &
                              TempSpawnedPartsInd
-        use bit_reps, only: zero_parent, encode_parent, all_runs_are_initiator
         use CalcData, only: tNonInitsForRDMs
 
         real(dp), intent(in) :: RDMBiasFacCurr

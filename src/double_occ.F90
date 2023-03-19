@@ -123,13 +123,7 @@ contains
         ! always the same and i guess i have atleast on contribution atleast
         ! for each occupied orbital
 #if defined PROG_NUMRUNS_ || defined DOUBLERUN_
-#ifdef CMPLX_
-        ! i do not want to deal with complex runs for now..
-        call stop_all(this_routine, &
-                      "complex double occupancy measurement not yet implemented!")
-#else
         contrib = real_sgn(1) * real_sgn(2)
-#endif
 #else
         contrib = abs(real_sgn(1))**2
 #endif
@@ -242,6 +236,7 @@ contains
 
     end function count_double_orbs
 
+#ifndef CMPLX_
     function get_double_occupancy(ilut, real_sgn) result(double_occ)
         ! function to get the contribution to the double occupancy for a
         ! given determinant, by calculating the
@@ -271,29 +266,15 @@ contains
         ! todo: have to figure out how to access the different runs
 
         ! extract the walker occupation
-
-        ! do i want to do that for complex walkers also?? i guess so..
-        ! to get it running do it only for  single run for now!
-        ! do not do the division here, but only in the output!
 #if defined PROG_NUMRUNS_ || defined DOUBLERUN_
-#ifdef CMPLX_
-        call stop_all(this_routine, &
-                      "complex double occupancy measurement not yet implemented!")
-        ! i in the case of complex runs i guess that the double_occ
-        ! can be complex too.. atleast in the case of doubleruns..
-#else
         ! i essentially only need two runs!
         double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
-#endif
 #else
-#ifdef CMPLX_
-        call stop_all(this_routine, &
-                      "complex double occupancy measurement not yet implemented!")
-#endif
         double_occ = real_sgn(1)**2 * frac_double_orbs
 #endif
 
     end function get_double_occupancy
+#endif
 
     subroutine rezero_double_occ_stats
         ! at the end of each cycle i should rezero the non-summed and

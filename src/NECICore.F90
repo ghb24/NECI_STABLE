@@ -224,7 +224,7 @@ subroutine NECICodeEnd(tCPMD, tVASP)
     use timing_neci, only: end_timing, print_timing_report
     use SystemData, only: tMolpro, tMolproMimic, called_as_lib, arr, brr, g1, &
                           tagArr, tagBrr, tagG1
-    use Determinants, only: FDet, tagFDet
+    use DeterminantData, only: FDet, tagFDet
 #ifdef USE_MPI
     use Parallel_neci, only: MPIEnd
     USE MolproPlugin
@@ -391,7 +391,7 @@ subroutine NECICalcEnd(iCacheFlag)
     use Parallel_neci, only: clean_parallel
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel
     use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
-    use Determinants, only: FDet, tagFDet
+    use DeterminantData, only: FDet, tagFDet
     use MemoryManager
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
     use LoggingData, only: tCalcPropEst

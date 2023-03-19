@@ -28,7 +28,7 @@ module lattice_mod
     integer, parameter :: NAME_LEN = 13
     integer, parameter :: sdim = 3
 
-    HElement_t(dp), allocatable, public :: dispersion_rel_cached(:)
+    real(dp), allocatable :: dispersion_rel_cached(:)
 
     type :: site
         ! the basic site type for my lattice
@@ -742,7 +742,7 @@ contains
 
     end subroutine setup_lattice_symmetry
 
-    HElement_t(dp) function epsilon_kvec_vector(k_vec)
+    real(dp) function epsilon_kvec_vector(k_vec)
         ! and actually this function has to be defined differently for
         ! different type of lattices! TODO!
         ! actually i could get rid of this function and directly call
@@ -766,7 +766,7 @@ contains
 
     end function epsilon_kvec_vector
 
-    HElement_t(dp) function epsilon_kvec_symmetry(sym)
+    real(dp) function epsilon_kvec_symmetry(sym)
         ! access the stored dispersion relation values through the symmetry
         ! symbol associated with a k-vector
         type(symmetry), intent(in) :: sym
@@ -775,7 +775,7 @@ contains
 
     end function epsilon_kvec_symmetry
 
-    HElement_t(dp) function epsilon_kvec_orbital(orb)
+    real(dp) function epsilon_kvec_orbital(orb)
         ! access the stored dispersion relation values through the spatial
         ! orbital (orb)
         integer, intent(in) :: orb
@@ -804,11 +804,10 @@ contains
             if (sym > sym_max) sym_max = sym
         end do
 
-        allocate(dispersion_rel_cached(sym_min:sym_max), source = h_cast(0.0_dp))
+        allocate(dispersion_rel_cached(sym_min:sym_max), source=0.0_dp)
 
         do i = 1, lat%get_nsites()
-            dispersion_rel_cached(lat%get_sym(i)) = &
-                lat%dispersion_rel_orb(i)
+            dispersion_rel_cached(lat%get_sym(i)) = lat%dispersion_rel_orb(i)
         end do
 
     end subroutine init_dispersion_rel_cache

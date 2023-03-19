@@ -10,8 +10,7 @@
 
 module determ_proj
 
-    use bit_rep_data, only: flag_deterministic, NIfD
-    use bit_reps, only: test_flag
+    use bit_rep_data, only: flag_deterministic, NIfD, test_flag
     use CalcData, only: NMCyc, tSemiStochastic, tOrthogonaliseReplicas, DiagSft
     use tau_main, only: tau
     use constants

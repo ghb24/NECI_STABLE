@@ -38,6 +38,7 @@ contains
         ! i do not want to deal with complex runs for now..
         call stop_all(this_routine, &
                       "complex double occupancy measurement not yet implemented!")
+        unused_var(real_sgn)
 #else
         coeff = real_sgn(1) * real_sgn(2)
 #endif

@@ -18,13 +18,13 @@ module NatOrbsMod
                           nOccBeta, tSeparateOccVirt, tRotateOccOnly, tRotateVirtOnly, &
                           tFindCINatOrbs, tUseMP2VarDenMat, nBasisMax, ALAT, iSpinSkip, &
                           t_3_body_excits
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
+    use bit_reps, only: decode_bit_det
     use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelCounts2_rotTag, &
                               SymLabelListInv_rot, NoOrbs, SpatOrbs, FillOneRDM_time, &
                               FillMP2VDM_Time, DiagNatOrbMat_Time, OrderCoeff_Time, FillCoeff_Time, &
                               NoFrozenVirt, SymLabelList3_rot
     use sort_mod
-    use bit_reps, only: decode_bit_det
     use MemoryManager, only: TagIntType
     use util_mod, only: get_free_unit, stop_all, neci_flush
     use procedure_pointers, only: get_umat_el

@@ -43,7 +43,7 @@ MODULE HPHFRandExcitMod
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 
-    use bit_reps, only: NIfD, NIfTot
+    use bit_rep_data, only: NIfD, NIfTot
 
     use SymExcitDataMod, only: excit_gen_store_type
 

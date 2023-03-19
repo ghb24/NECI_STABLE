@@ -13,7 +13,8 @@ module hphf_integrals
                          TestClosedShellDet, CalcOpenOrbs, GetBitExcitation
     use excitation_types, only: Excite_0_t, Excite_2_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
-    use bit_reps, only: NIfD, NIfTot, decode_bit_det
+    use bit_rep_data, only: NIfD, NIfTot
+    use bit_reps, only: decode_bit_det
     use lattice_mod, only: get_helement_lattice
     use util_mod, only: stop_all
     implicit none

@@ -60,7 +60,7 @@ module fcimc_initialisation
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tAutoAdaptiveShift, &
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
-                        AAS_Cut, &
+                        AAS_Cut, tTruncInitiator, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
@@ -105,17 +105,19 @@ module fcimc_initialisation
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
 
     use bit_rep_data, only: NIfTot, NIfD, IlutBits, flag_initiator, &
-                            flag_deterministic, extract_sign
+                            flag_deterministic, extract_sign, nIfGUGA, &
+                            test_flag_multi
 
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_run_sign, tBuildSpinSepLists, nifguga, &
+                        extract_run_sign, &
                         get_initiator_flag, writebitdet, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
                          BinRange
+
     use hist, only: init_hist_excit_tofrom, clean_hist_excit_tofrom
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
@@ -146,7 +148,8 @@ module fcimc_initialisation
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only: InitHistInitPops
-    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
+    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2, &
+        tBuildSpinSepLists
     use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
                            extract_bit_rep_avsign_no_rdm
     use rdm_filling, only: fill_rdm_diag_currdet_norm
@@ -4227,7 +4230,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-        use bit_rep_data, only: test_flag_multi
         ! initialize the norm_psi, norm_psi_squared
         implicit none
         integer(int64) :: j

@@ -2361,7 +2361,8 @@ contains
         type(WeightObj_t) :: weights
         logical :: below_flag
         integer(int_rdm), allocatable :: tmp_rdm_ind(:)
-        real(dp), allocatable :: tmp_rdm_mat(:), temp_int
+        real(dp), allocatable :: tmp_rdm_mat(:)
+        HElement_t(dp), allocatable :: temp_int
         integer :: rdm_count, max_num_rdm
         logical :: rdm_flag, test_skip
 

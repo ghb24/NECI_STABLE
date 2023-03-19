@@ -26,14 +26,13 @@ module real_time_procs
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, stdout, null_part, &
                          sizeof_int, MPIArg
-    use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
-                        set_flag, encode_bit_rep, extract_bit_rep, &
-                        flag_deterministic, encode_part_sign, &
-                        get_initiator_flag, get_initiator_flag_by_run, &
-                        clr_flag, test_flag_multi
+    use bit_rep_data, only: test_flag, flag_deterministic, &
+                        test_flag_multi, extract_sign, nifd, niftot, IlutBits
+    use bit_reps, only: decode_bit_det, encode_bit_rep, encode_sign, &
+        get_initiator_flag_by_run, set_flag, extract_bit_rep, &
+        clr_flag
     use util_mod, only: get_free_unit, get_unique_filename, near_zero, &
                         operator(.isclose.)
-    use bit_rep_data, only: extract_sign, nifd, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
                          iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &

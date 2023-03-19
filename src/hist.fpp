@@ -3,7 +3,6 @@
 
 module hist
 
-    use DeterminantData, only: get_lexicographic, calculated_ms
     use SystemData, only: nbasis, nel, LMS, LMS, tHPHF, &
                           tOddS_HPHF, G1, tGUGA
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
@@ -16,13 +15,13 @@ module hist
                          all_norm_psi_squared, ilutRef
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
-    use bit_rep_data, only: NIfTot, NIfD, extract_sign
+    use bit_rep_data, only: NIfTot, NIfD, extract_sign, test_flag, flag_initiator
     use bit_reps, only: encode_sign, extract_bit_rep, &
-                        decode_bit_det, flag_initiator, test_flag, &
+                        decode_bit_det, &
                         get_initiator_flag, writebitdet, &
                         any_run_is_initiator
     use searching, only: BinSearchParts2
-    use Determinants, only: write_det
+    use DeterminantData, only: get_lexicographic, calculated_ms, write_det
     use util_mod, only: stop_all, binary_search_ilut, operator(.div.), &
         get_free_unit, choose_i64
     use hist_data, only: hist_excit_tofrom, tag_hist_excit, HistogramEnergy, &

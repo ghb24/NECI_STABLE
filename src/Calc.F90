@@ -13,11 +13,12 @@ MODULE Calc
                           t_k_space_hubbard, tHPHF, t_non_hermitian_2_body, &
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, &
                           t_3_body_excits, get_basisfn
-    use Determinants, only: write_det
+    use Determinants, only: iActiveBasis, tagSpecDet, SpecDet, tSpecDet, nActiveSpace, &
+                            tagDefDet, tDefineDet, DefDet, calcT, iActiveBasis, nactivespace, &
+                            get_helement
+    use DeterminantData, only: write_det, fDet
     use default_sets
     use read_fci, only: reorder_orb_label
-    use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
-                            tDefineDet
     use DetCalc, only: iObs, jObs, kObs, DETINV, &
                        icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
@@ -65,7 +66,6 @@ MODULE Calc
                                 get_3_body_diag_transcorr
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
     use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
-    use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
     use cepa_shifts, only: t_cepa_shift, cepa_method
     use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
@@ -497,8 +497,6 @@ contains
     end subroutine SetCalcDefaults
 
     SUBROUTINE CalcReadInput(file_reader)
-        Use Determinants, only: iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
-        Use Determinants, only: tDefineDet, DefDet, tagDefDet
         use SystemData, only: Beta, nEl
         Use DetCalc, only: iObs, jObs, kObs, B2L, DETINV
         Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
@@ -3625,7 +3623,6 @@ contains
         use SystemData, only: tContact
         use IntegralsData, only: FCK, CST, nMax, UMat
         use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
-        Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
         Use DetCalc, only: DetInv, nDet, tRead
         Use DetCalcData, only: ICILevel
         use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace
@@ -3633,7 +3630,7 @@ contains
         use global_utilities
         use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
         use excitation_types, only: Excite_0_t
-        real(dp) CalcT, CalcT2, GetRhoEps
+        real(dp) CalcT2, GetRhoEps
 
         INTEGER I, IC, J, norb
         INTEGER nList
@@ -3875,7 +3872,6 @@ contains
         USE FciMCParMod, only: FciMCPar
         use RPA_Mod, only: RunRPA_QBA
         use DetCalc, only: CK, DetInv, tEnergy, tRead
-        Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
         use IntegralsData, only: FCK, NMAX, UMat, FCK
         use IntegralsData, only: HFEDelta, HFMix, nTay
         Use LoggingData, only: iLogging
@@ -4274,7 +4270,8 @@ end subroutine inpgetexcitations
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
 FUNCTION GETRHOEPS(RHOEPSILON, BETA, NEL, BRR, I_P)
-    Use Determinants, only: get_helement, write_det
+    Use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use constants, only: dp
     use SystemData, only: BasisFN
     use sort_mod

@@ -20,7 +20,8 @@ module excit_gens_int_weighted
                                class_count_ml
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, pParallel
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
     use bit_rep_data, only: NIfTot, NIfD, test_flag
     use bit_reps, only: decode_bit_det, get_initiator_flag, writebitdet
@@ -2023,7 +2024,6 @@ contains
         use bit_reps, only: decode_bit_det
         use GenRandSymExcitNUMod, only: init_excit_gen_store
         use SymExcit3, only: CountExcitations3, GenExcitations3
-        use Determinants, only: write_det
         use DetBitOps, only: EncodeBitDet
         use sort_mod, only: sort
 

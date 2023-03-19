@@ -75,6 +75,8 @@ module CAS_distribution_init
 
     use constants
 
+    use calcrho_mod, only: gethelement
+
     implicit none
     private
     public :: InitFCIMC_CAS
@@ -103,8 +105,7 @@ contains
         integer(TagIntType) :: ATag = 0, VTag = 0, BMTag = 0, TTag = 0, WTTag = 0, SCRTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0
         integer(TagIntType) :: ISCRTag = 0, IndexTag = 0, AMTag = 0
         integer(TagIntType) :: WorkTag = 0
-        real(dp) :: CASRefEnergy, TotWeight, PartFac, amp, rat, r, GetHElement
-        external :: GetHElement
+        real(dp) :: CASRefEnergy, TotWeight, PartFac, amp, rat, r
         real(dp), dimension(lenof_sign) :: temp_sign
         real(dp) :: energytmp(nel), max_wt
         integer  :: tmp_det(nel), det_max, run

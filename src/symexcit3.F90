@@ -6,7 +6,7 @@ MODULE SymExcit3
 ! are truncating (or freezing) orbitals in such a way as to remove different alpha symm irreps from the beta.
 
     use SystemData, only: NEl, G1, nBasis, tNoSymGenRandExcits
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use constants, only: n_int, maxExcit, stdout
     USE GenRandSymExcitNUMod, only: SymLabelList2, SymLabelCounts2, ClassCountInd, ScratchSize
     use SymExcitDataMod, only: SpinOrbSymLabel
