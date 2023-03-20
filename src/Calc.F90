@@ -341,8 +341,8 @@ contains
         tUseRealCoeffs = .false.
         tRealCoeffByExcitLevel = .false.
         RealCoeffExcitThresh = 2
-        tRealSpawnCutoff = .false.
-        RealSpawnCutoff = 1.0e-1_dp
+        tRealSpawnCutoff = .true.
+        RealSpawnCutoff = 0.1_dp
         OccupiedThresh = 1.0_dp
         tJumpShift = .true.
 !Feb 08 default set.
@@ -2740,8 +2740,20 @@ contains
             case("KEEPWALKSMALL")
                 call stop_all(t_r, 'Deprecated Option')
             case("REALSPAWNCUTOFF")
-                tRealSpawnCutoff = .true.
-                RealSpawnCutoff = to_realdp(tokens%next())
+                block
+                    character(:), allocatable :: token
+                    token = to_upper(tokens%next())
+                    if (token == "ON") then
+                        tRealSpawnCutoff = .true.
+                    else if (token == "OFF") then
+                        tRealSpawnCutoff = .false.
+                    else if (can_be_real(token)) then
+                        tRealSpawnCutoff = .true.
+                        RealSpawnCutoff = to_realdp(token)
+                    else
+                        call stop_all(t_r, 'Invalid option '//token//' for REALSPAWNCUTOFF.')
+                    end if
+                end block
             case("SETOCCUPIEDTHRESH")
                 OccupiedThresh = to_realdp(tokens%next())
             case("SETINITOCCUPIEDTHRESH")
