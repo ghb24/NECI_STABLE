@@ -2750,7 +2750,7 @@ contains
                     else if (can_be_real(token)) then
                         tRealSpawnCutoff = .true.
                         RealSpawnCutoff = to_realdp(token)
-                        if (.not. (0._dp < RealSpawnCutoff .and. RealSpawnCutoff <= 1.0_dp) then
+                        if (.not. (0._dp < RealSpawnCutoff .and. RealSpawnCutoff <= 1.0_dp)) then
                             call stop_all(t_r, "It should be: 0 < RealSpawnCutoff <= 1.0.")
                         end if
                     else
