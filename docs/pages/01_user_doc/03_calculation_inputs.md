@@ -782,7 +782,7 @@ and ends with the `endcalc` keyword.
     the average weight of the spawning does not change. This is a method
     of removing very low weighted spawnings from the spawned list, which
     require extra memory, processing and communication.
-    This keyword is on by default with a value of \(x = 0.1\).
+    This keyword is on by default with a value of \(x = 0.95 \).
     It can be explicitly turned off via `OFF`, explicitly turned on
     via `ON` (using the default value then), or it can read a user-supplied
     value for \(x\).
