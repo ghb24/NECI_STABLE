@@ -342,7 +342,7 @@ contains
         tRealCoeffByExcitLevel = .false.
         RealCoeffExcitThresh = 2
         tRealSpawnCutoff = .true.
-        RealSpawnCutoff = 0.1_dp
+        RealSpawnCutoff = 0.95_dp
         OccupiedThresh = 1.0_dp
         tJumpShift = .true.
 !Feb 08 default set.
@@ -2750,6 +2750,9 @@ contains
                     else if (can_be_real(token)) then
                         tRealSpawnCutoff = .true.
                         RealSpawnCutoff = to_realdp(token)
+                        if (.not. (0._dp < RealSpawnCutoff .and. RealSpawnCutoff <= 1.0_dp) then
+                            call stop_all(t_r, "It should be: 0 < RealSpawnCutoff <= 1.0.")
+                        end if
                     else
                         call stop_all(t_r, 'Invalid option '//token//' for REALSPAWNCUTOFF.')
                     end if
