@@ -2,7 +2,9 @@
 
 module trial_wf_gen
 
-    use bit_rep_data, only: NIfTot, nifd, flag_trial, flag_connected, IlutBits
+    use bit_rep_data, only: NIfTot, nifd, flag_trial, &
+        flag_connected, IlutBits, extract_sign
+    use bit_reps, only: clr_flag
     use CalcData
     use Parallel_neci
     use semi_stoch_gen
@@ -17,7 +19,7 @@ module trial_wf_gen
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
 
-    implicit none
+    better_implicit_none
 
 contains
 
@@ -299,7 +301,6 @@ contains
         ! pair. For each replica, keep the trial state which has the largest
         ! overlap (by magnitude).
 
-        use bit_reps, only: extract_sign
         use FciMCData, only: ll_node
         use hash, only: hash_table_lookup
 
@@ -687,7 +688,6 @@ contains
         ! Routine to output the trial wavefunction amplitudes and FCIQMC amplitudes in the trial
         ! space. This is a test routine and is very unoptimised.
 
-        use bit_reps, only: extract_sign
         use FciMCData, only: trial_space, trial_space_size, trial_wfs
         use MPI_wrapper, only: root
         use searching, only: BinSearchParts
@@ -759,7 +759,6 @@ contains
 
     subroutine init_current_trial_amps()
 
-        use bit_reps, only: set_flag, decode_bit_det
         use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
         use FciMCData, only: con_space_vecs, current_trial_amps, HashIndex, trial_wfs, nWalkerHashes
         use FciMCData, only: CurrentDets
@@ -982,7 +981,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine refresh_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
-        implicit none
         type(subspace_in) :: trial_in
         integer, intent(in) :: nexcit_calc, nexcit_keep
         logical, intent(in) :: replica_pairs
@@ -998,8 +996,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine reset_trial_space()
-        use bit_reps, only: clr_flag
-        implicit none
         integer(int64) :: i
 
         do i = 1_int64, TotWalkers

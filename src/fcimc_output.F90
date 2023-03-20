@@ -31,7 +31,9 @@ module fcimc_output
 
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
 
-    use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
+    use bit_rep_data, only: test_flag, extract_sign
+
+    use bit_reps, only: decode_bit_det, get_initiator_flag
 
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN, core_space_weight
 
@@ -42,7 +44,8 @@ module fcimc_output
     use fcimc_helper, only: LanczosFindGroundE
 
     use hphf_integrals, only: hphf_diag_helement
-    use Determinants, only: write_det, get_helement
+    use Determinants, only: get_helement, writeDetBit
+    use DeterminantData, only: write_det
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
 
@@ -1213,7 +1216,7 @@ contains
                 call sort(ReIndex(1:Det),HOrderedHist(1:Det),HOrderedInstHist(1:Det))
 
 #ifdef CMPLX_
-                call stop_all(t_r, "does not work for complex")
+                call stop_all(t_r, "not implemented for complex")
 #else
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
 #endif
@@ -1221,7 +1224,7 @@ contains
 
                 CKN = 0.0_dp
 #ifdef CMPLX_
-                call stop_all(t_r, "does not work for complex")
+                call stop_all(t_r, "not implemented for complex")
 #else
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedInstHist,CKN,.true.)
 #endif

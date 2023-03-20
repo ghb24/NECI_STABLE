@@ -22,8 +22,8 @@ module cpmdinit_mod
     use sym_mod, only: ComposeAbelianSym, GenKPtIrreps, DECOMPOSEREP, &
         GENIRREPS, GENSYMTABLE, GENSYMREPS, LCHKSYM, WriteIrrepTab
     use util_mod, only: near_zero, stop_all
+    use Determinants, only: writebasis
     IMPLICIT NONE
-    external :: writebasis
     private
     public :: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit, &
         cpmdinit2indint

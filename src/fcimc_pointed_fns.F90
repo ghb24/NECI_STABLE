@@ -48,7 +48,7 @@ module fcimc_pointed_fns
     use FciMCData
     use constants
 
-    use bit_reps, only: nifguga
+    use bit_rep_data, only: nifguga
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
 

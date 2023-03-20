@@ -42,7 +42,7 @@ module sltcnd_mod
                                 create_excitation, Excite_Further_t, dyn_nI_excite
     use orb_idx_mod, only: SpinOrbIdx_t
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua, external_lMat_matel
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
     use SD_spin_purification_mod, only: possible_purification_methods, SD_spin_purification, &

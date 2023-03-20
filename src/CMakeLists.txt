@@ -29,6 +29,7 @@ set( SRC_FILES
     DetCalc.F90
     DeterminantData.F90
     Determinants.F90
+    Determinants_impls.F90
     determ_proj.F90
     detham.F90
     direct_ci.F90
@@ -153,7 +154,6 @@ set( SRC_FILES
     symexcit4.F90
     symexcitData.F90
     symexcit.F90
-    symexcit_old.F90
     sym.F90
     sym_general.F90
     GenRandSymExcitNUMod.F90
@@ -238,11 +238,8 @@ set( SRC_FILES
 
 set( RELAX_WARNINGS_SRCS
 
-    Annihilation.F90
-    BitReps.F90
     CalcData.F90
     Calc.F90
-    compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
     core_space_util.F90
@@ -252,8 +249,6 @@ set( RELAX_WARNINGS_SRCS
     default_sets.F90
     DetCalcData.F90
     DetCalc.F90
-    DeterminantData.F90
-    Determinants.F90
     determ_proj.F90
     direct_ci.F90
     enumerate_excitations.F90
@@ -346,7 +341,6 @@ set( RELAX_WARNINGS_SRCS
     RPA.F90
     scrtransf.F90
     searching.F90
-    semi_stoch_gen.F90
     semi_stoch_procs.F90
     shared_rhash.F90
     sparse_arrays.F90
@@ -398,6 +392,7 @@ set( RELAX_WARNINGS_SRCS
     #  is resolved, we can have again stricter compilation options.
     tau/tau_main_impls.F90
     lib/error_handling_neci_impls.F90
+    Determinants_impls.F90
 )
 
 set( FYPP_SRC_FILES

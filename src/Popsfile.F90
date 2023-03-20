@@ -14,7 +14,7 @@ MODULE PopsfileMod
                         pops_norm, tWritePopsNorm, &
                         tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn, &
                         hdf5_diagsft, tAutoAdaptiveShift, &
-                        pParallelIn
+                        pParallelIn, tStoredDets
 
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
@@ -26,11 +26,18 @@ MODULE PopsfileMod
     use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table, add_hash_table_entry
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
-    use bit_rep_data, only: extract_sign
-    use bit_reps
+    use bit_rep_data, only: extract_sign, flag_deterministic, flag_removed, &
+        flag_connected, flag_trial, flag_determ_parent, nifd, test_flag, &
+        NIfTot, IlutBits, test_flag
+    use bit_reps, only: get_initiator_flag, clr_flag, get_initiator_flag_by_run, &
+        extract_flags, decode_bit_det, encode_bit_rep, encode_sign, &
+        clr_flag_multi, set_flag, writebitdet, encode_flags
+    use DetBitOps, only: count_open_orbs
+    use FciMCData, only: WalkVecDets, MaxWalkersPart
     use constants
     use Parallel_neci
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
@@ -40,7 +47,7 @@ MODULE PopsfileMod
                            t_print_frq_histograms, tPopAutoAdaptiveShift, &
                            tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
-    use sort_mod
+    use sort_mod, only: sort
     use tau_main, only: input_tau_search_method, tau_search_method, &
         possible_tau_search_methods, max_death_cpt, tau_start_val, possible_tau_start, &
         t_scale_tau_to_death, min_tau, max_tau, tau, assign_value_to_tau
@@ -87,7 +94,7 @@ MODULE PopsfileMod
 
     use guga_bitrepops, only: CSF_Info_t, getExcitation_guga
 
-    implicit none
+    better_implicit_none
 
     logical :: tRealPOPSfile
 

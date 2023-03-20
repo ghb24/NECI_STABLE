@@ -40,10 +40,12 @@ contains
         LOGICAL exists
         logical :: uhf, trel, tDetectSym
         character(*), parameter :: this_routine = 'INITFROMFCID'
+        real(dp), allocatable :: FOCK(:)
 
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
         UHF = .FALSE.
         fmat = 'NO'
         PROPBITLEN = 0
@@ -54,6 +56,7 @@ contains
         OCC = -1
         CLOSED = -1
         FROZEN = -1
+        allocate(FOCK(1000), source=0.0_dp)
         ! [W.D. 15.5.2017:]
         ! with the new relativistic calculations, withoug a ms value in the
         ! FCIDUMP, we have to set some more defaults..
@@ -81,6 +84,11 @@ contains
             end if
             close(iunit)
         end if
+
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
 
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
 
@@ -236,7 +244,9 @@ contains
         real(dp), intent(out) :: ARR(LEN, 2)
         type(BasisFN), intent(out) :: G1(LEN)
         HElement_t(dp) Z
+#ifndef CMPLX_
         COMPLEX(dp) :: CompInt
+#endif
         integer(int64) IND, MASK
         INTEGER I, J, K, L, I1
         INTEGER ISYMNUM, ISNMAX, SYMLZ(1000), iunit
@@ -248,11 +258,13 @@ contains
         LOGICAL TBIN
         logical :: uhf, tRel
         integer :: orbsPerIrrep(nIrreps)
+        real(dp), allocatable :: FOCK(:)
 #ifdef CMPLX_
         real(dp) :: real_time_Z
 #endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
 
         iunit = 0
         UHF = .FALSE.
@@ -261,6 +273,8 @@ contains
         IUHF = 0
         TREL = .false.
         SYMLZ(:) = 0
+        allocate(FOCK(len/2), source=0.0_dp)
+
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
             IF (TBIN) THEN
@@ -273,6 +287,11 @@ contains
                 read(iunit, FCI)
             end if
         end if
+
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
 
         ! Re-order the orbitals symmetry labels if required
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
@@ -569,7 +588,9 @@ contains
         HElement_t(dp), intent(inout) :: UMAT(:)
         integer(MPIArg) :: umat_win
         HElement_t(dp) Z
+#ifndef CMPLX_
         COMPLEX(dp) :: CompInt
+#endif
         INTEGER(int64) :: ZeroedInt, NonZeroInt, LzDisallowed
         INTEGER I, J, K, L, X, Y, iSpinType, iunit
         INTEGER NORB, NELEC, MS2, ISYM, SYML(1000)
@@ -586,11 +607,13 @@ contains
         integer(int64) :: start_ind, end_ind
         integer(int64), parameter :: chunk_size = 1000000
         integer:: bytecount
+        real(dp), allocatable :: FOCK(:)
 #if defined(CMPLX_)
         real(dp) :: real_time_Z
 #endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
 
         LWRITE = .FALSE.
         UHF = .FALSE.
@@ -603,12 +626,18 @@ contains
         LzDisallowed = 0
         NonZeroInt = 0
         iunit = 0
+        allocate(FOCK(nbasis/2), source=0.0_dp)
 
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
             open(iunit, FILE=FCIDUMP_name, STATUS='OLD')
             read(iunit, FCI)
         end if
+
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
 
         ! Re-order the orbitals symmetry labels if required
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
@@ -996,11 +1025,14 @@ contains
         real(dp) :: diff, core
         character(len=100) :: file_name, PropFile
         logical :: TREL, UHF
+        real(dp), allocatable :: FOCK(:)
         character(*), parameter :: t_r = 'ReadPropInts'
-        NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
+        NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, &
+                       SYMLZ, PROPBITLEN, NPROP, ST, III, FOCK
 
         ZeroedInt = 0
         UHF = .false.
+        allocate(FOCK(nbasis/2), source=0.0_dp)
 
         if (iProcIndex == 0) then
             iunit = get_free_unit()
@@ -1009,6 +1041,11 @@ contains
             open(iunit, FILE=file_name, STATUS='OLD')
             read(iunit, FCI)
         end if
+
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
 
         ! Re-order the orbitals symmetry labels if required
 

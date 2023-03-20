@@ -6,6 +6,9 @@ module gndts_blk_mod
     use sym_mod, only: GENNEXTSYM, SETUPSYM, GETSYMDEGEN, &
         GETSYM, LCHKSYM, WRITEALLSYM, getsym, ROUNDSYM, LCHKSYM
     use util_mod, only: NECI_ICOPY
+    use calcrho_mod, only: igetexcitlevel
+    use determinants, only: calcT
+    use error_handling_neci, only: stop_all
     better_implicit_none
     private
     public :: gndts_blk, gensymdetss
@@ -28,7 +31,9 @@ contains
         LOGICAL TGENFDET
         INTEGER IFDET, NDETTOT, IDEG
         real(dp) DETSC, TDETSC
-        real(dp) CALCT
+#ifdef CMPLX_
+        routine_name("GNDTS_BLK")
+#endif
         DETSC = 1D200
         II = 0
         IF (TCOUNT) THEN
@@ -60,7 +65,11 @@ contains
                     NBLOCKSTARTS(I) = OII + 1
                     BLOCKSYM(I) = ISYM
                     IF (TGENFDET) THEN
+#ifdef CMPLX_
+                        call stop_all(this_routine, "not implemented for complex")
+#else
                         TDETSC = CALCT(NMRKS(1:NEL, OII + 1), NEL)
+#endif
                         IF (TDETSC < DETSC) THEN
                             IFDET = OII + 1
                             DETSC = TDETSC
@@ -83,7 +92,7 @@ contains
         TYPE(BASISFN) G1(NBASIS), KI, KJ, KJ2
         INTEGER LSTE(NEL, NLMAX), NJ(NEL), NELEC, NBF
         INTEGER I, BRR(NBASIS), NN(NEL), nBasisMax(5, *)
-        INTEGER IGETEXCITLEVEL, ICE
+        INTEGER ICE
         DO I = NBF, NBASIS
             NJ(NELEC) = BRR(I)
             KJ2 = KJ

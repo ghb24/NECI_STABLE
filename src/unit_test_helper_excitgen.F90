@@ -2,7 +2,6 @@
 
 module unit_test_helper_excitgen
     use constants
-    use bit_reps, only: IlutBits, init_bit_rep
     use read_fci, only: readfciint, initfromfcid, fcidump_name
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
     use IntegralsData, only: UMat, umat_win
@@ -15,8 +14,8 @@ module unit_test_helper_excitgen
     use Parallel_neci, only: MPIInit, MPIEnd, mpi_comm_rank, mpi_comm_world
     use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
     use OneEInts, only: Tmat2D
-    use bit_rep_data, only: NIfTot, nifd, extract_sign
-    use bit_reps, only: encode_sign, decode_bit_det
+    use bit_rep_data, only: NIfTot, nifd, extract_sign, IlutBits
+    use bit_reps, only: encode_sign, decode_bit_det, init_bit_rep
     use DetBitOps, only: EncodeBitDet, DetBitEq, GetBitExcitation
     use SymExcit3, only: countExcitations3, GenExcitations3
     use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &

@@ -37,7 +37,6 @@ module excit_mod
     private
     public :: FindExcitDet, GETEXCITATION, GENEXCIT, isvaliddet
 
-    external :: SYMSETUPEXCITS
 contains
     SUBROUTINE FindExcitDet(ExcitMat, nI, IC, TParity)
         integer, intent(in) :: ic
@@ -270,26 +269,8 @@ contains
         IF (NO == 0) NO = NEL
         IF (TSYM) CALL GETSYM(NI, NEL, G1, NBASISMAX, ISYM)
         IF (TNEWEXCITATIONS .AND. NORDER <= 2) THEN
-            IF (NORDER == 1) ILEVEL = 1
-            IF (NORDER == 2) THEN
-            IF (NMIN == 1) THEN
-                ILEVEL = 3
-            ELSE
-                ILEVEL = 2
-            END IF
-            END IF
-    !.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
-            CALL SYMSETUPEXCITS(NI, NEL, NBASIS, STORE, TCOUNT, ICOUNT, ILEVEL, 1, nEl)
-            IF (.NOT. TCOUNT) THEN
-            IF (ICOUNT > NLIST) THEN
-                WRITE(6, *) "Exctiation list size", NLIST
-                WRITE(6, *) "Requires size", ICOUNT
-                call stop_all(t_r, "EXCITATIONS LIST NOT LARGE ENOUGH")
-            END IF
-            call stop_all(t_r, "Call to symgenexcits removed due to incorrect arguments passes")
-    !                  CALL SYMGENEXCITS(NI,NEL,STORE, !                    LIST,ICLIST,ICOUNT)
-            END IF
-            NLIST = ICOUNT
+            ! Here the non-working routine `SYMSETUPEXCITS` was called.
+            call stop_all(t_r, "Should never be here")
         ELSE
             NLIST = 1
             CALL GENEXCIT_R(NI, NO, NEL, 1, NBASIS, LIST, ICLIST, NLIST, NEXCIT, NO, 1, NMIN, G1, ISYM, TSYM, NBASISMAX, TCOUNT)

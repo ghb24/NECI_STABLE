@@ -13,19 +13,36 @@ module AnnihilationMod
                         tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
                         tSimpleInit, tAllConnsPureInit, tAllowSpawnEmpty
     use DetCalcData, only: Det, FCIDetIndex
-    use Parallel_neci
+    use Parallel_neci, only: MPIBarrier, MPIAlltoAll, MPIAlltoAllv, &
+         iprocindex, procnode, NodeRoots, nNodes, nProcessors, &
+         bNodeRoot
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use FciMCData
+    use FciMCData, only: SpawnedParts2, Spawned_Parents_Index, spawnedparts, &
+        annihilated, Spawned_Parents, &
+        validspawnedlist, AvAnnihil, InstAnnihil, &
+        NoAborted, InitialSpawnedSlots, NoBorn, NoRemoved, &
+        SpawnInfo2, nspawned, tLogNumSpawns, comms_time, &
+        fcimc_iter_data, ilutRef, hashindex, spawnaccepted, &
+        spawninfowidth, spawnparentidx, spawnrun, spawnweightacc, &
+        spawnweightrej, Hii, tEScaleWalkers, truncatedweight, &
+        AnnMain_time, BinSearch_time, HolesInList, &
+        iluthf, iStartFreeSlot, tFillingStochRDMonFly, tIncCancelledInitEnergy, &
+        iEndFreeSlot, Spawned_Parts_Zero, SpawnInfo, SpawnInfo2, &
+        MaxSpawned, Sort_time, CurrentDets
+
+    use global_utilities, only: timer, set_timer, halt_timer
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
     use semi_stoch_procs, only: check_determ_flag
-    use sort_mod
+    use sort_mod, only: sort
     use core_space_util, only: cs_replicas
-    use constants, only: n_int, lenof_sign, null_part, sizeof_int
-    use bit_rep_data
+    use constants, only: n_int, lenof_sign, null_part, sizeof_int, MPIArg, dp, &
+        eps, stdout
+    use bit_rep_data, only: IlutBitsParent, flag_adi_checked, flag_prone, flag_deterministic, &
+        test_flag_multi, IlutBits, niftot, nIfD, test_flag, flag_initiator
     use bit_reps, only: decode_bit_det, writebitdet, &
-                        encode_sign, test_flag, set_flag, &
-                        flag_initiator, encode_part_sign, &
+                        encode_sign, set_flag, &
+                        encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, get_num_spawns, &
                         bit_parent_zero, get_initiator_flag, &
@@ -37,8 +54,8 @@ module AnnihilationMod
                             CalcHashTableStats, RemoveHashDet
     use load_balance_calcnodes, only: DetermineDetNode
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
-    use searching
-    use hash
+    use searching, only: binsearchparts2, add_trial_energy_contrib, add_trial_energy_contrib
+    use hash, only: extract_sign, hash_table_lookup
 
     use real_time_data, only: runge_kutta_step, &
                               t_real_time_fciqmc
@@ -58,7 +75,12 @@ module AnnihilationMod
     use tau_main, only: tau
     use util_mod, only: stop_all, neci_flush, warning_neci
 
-    implicit none
+    better_implicit_none
+    private
+    public :: SendProcNewParts, test_abort_spawn, directannihilation, &
+        compressspawnedlist, communicate_and_merge_spawns, rm_non_inits_from_spawnedparts, &
+        annihilatespawnedparts, deterministic_annihilation
+
 
 contains
 
@@ -239,11 +261,6 @@ contains
         integer(n_int) :: cum_det(0:IlutBits%len_bcast), temp_det(0:IlutBits%len_bcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
-        integer :: run
-
-        integer :: nI_spawn(nel)
-        HElement_t(dp) :: hdiag
-
         ! We want to sort the list of newly spawned particles, in order for
         ! quicker binary searching later on. They should remain sorted after
         ! annihilation between spawned.
@@ -626,7 +643,6 @@ contains
         integer :: VecInd, ValidSpawned, DetsMerged, i, BeginningBlockDet, FirstInitIndex, CurrentBlockDet
         real(dp) :: SpawnedSign(lenof_sign), temp_sign(lenof_sign), temp_sign_2(lenof_sign)
         integer :: EndBlockDet, part_type, Parent_Array_Ind
-        integer :: No_Spawned_Parents
         integer(n_int), pointer :: PointTemp(:, :)
         integer(n_int) :: cum_det(0:IlutBits%len_bcast), cum_det_cancel(0:IlutBits%len_bcast)
         logical :: any_allow, any_cancel
@@ -964,11 +980,11 @@ contains
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned
         integer, intent(out) :: err
-        integer :: PartInd, i, j, PartIndex, m, run
+        integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         integer :: ExcitLevel, DetHash, nJ(nel)
-        real(dp) :: ScaledOccupiedThresh, scFVal, diagH, weight_rev
+        real(dp) :: ScaledOccupiedThresh, scFVal, diagH
         HElement_t(dp) :: offdiagH
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
@@ -1336,7 +1352,6 @@ contains
 
     subroutine stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, ScaledOccupiedThresh, &
                                tTruncate)
-        implicit none
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), intent(inout) :: SignTemp(lenof_sign)
         integer, intent(in) :: i, j
@@ -1402,7 +1417,6 @@ contains
     end subroutine stochRoundSpawn
 
     subroutine truncateSpawn(iter_data, SignTemp, i, j, scFVal, SignProd)
-        implicit none
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), intent(inout) :: SignTemp(lenof_sign)
         integer, intent(in) :: i, j ! i: index of ilut in SpawnedParts, j: part index
@@ -1426,7 +1440,6 @@ contains
     end subroutine truncateSpawn
 
     subroutine getEScale(nJ, i, diagH, offdiagH, scFVal, ScaledOccupiedThresh)
-        implicit none
         integer, intent(in) :: nJ(nel), i
         real(dp), intent(out) :: diagH, scFVal, ScaledOccupiedThresh
         HElement_t(dp), intent(out) :: offdiagH
@@ -1457,7 +1470,6 @@ contains
         integer(n_int), intent(in) :: ilut_spwn(0:IlutBits%len_bcast)
         integer, intent(in) :: part_type
         logical :: abort
-        integer :: maxExLvl, nopen
 
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
@@ -1485,7 +1497,6 @@ contains
         integer :: istate
         real(dp) :: contrib_sign(en_pert_main%sign_length)
         logical :: pert_contrib(en_pert_main%sign_length)
-        real(dp) :: trial_contrib(lenof_sign)
 
         ! RDM-energy-based estimate:
         ! Only add a contribution if we've started accumulating this estimate.
@@ -1575,7 +1586,7 @@ contains
         integer :: i, error
         integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
                                                    recvcounts, recvdisps
-        integer :: j, run, ParentIdx, proc
+        integer :: run, ParentIdx, proc
         integer :: PartInd, DetHash, nI(nel)
         real(dp) :: CurrentSign(lenof_sign)
         real(dp) :: weight_acc, weight_rej

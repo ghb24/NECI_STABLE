@@ -28,6 +28,12 @@ MODULE DetCalc
 
     use read_psi_mod, only: read_psi, write_psi, write_psi_comp
 
+    use calcrho_mod, only: gethelement, igetexcitlevel_2
+
+    use Determinants, only: calcT, get_helement, specdet, tSpecDet, &
+        tDefineDet, DefDet
+    Use DeterminantData, only: FDet, write_det
+
     IMPLICIT NONE
     save
 
@@ -57,8 +63,6 @@ CONTAINS
     Subroutine DetCalcInit
 
         Use global_utilities
-        Use Determinants, only: FDet, specdet, tSpecDet, tDefineDet, &
-                                DefDet, write_det
         Use IntegralsData, only: NFROZEN
         use SystemData, only: lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only: Alat, arr, brr, boa, box, coa, ecore, g1, Beta
@@ -292,7 +296,7 @@ CONTAINS
 
             IF (TREAD) THEN
 #ifdef CMPLX_
-                call stop_all(this_routine, "does not work for complex with tREAD")
+                call stop_all(this_routine, "not implemented for complex with tREAD")
 #else
                 CALL READ_PSI(BOX, BOA, COA, NDET, NEVAL, NBASISMAX, NEL, CK, W)
 #endif
@@ -304,7 +308,6 @@ CONTAINS
     Subroutine DoDetCalc
         Use global_utilities
         use util_mod, only: get_free_unit
-        use Determinants, only: get_helement, FDet, DefDet, tDefineDet
         use SystemData, only: Alat, arr, brr, boa, box, coa, ecore, g1, Beta
         use SystemData, only: t_new_real_space_hubbard
         use SystemData, only: nBasis, nBasisMax, nEl, nMsh, LzTot, TSPN, LMS
@@ -347,11 +350,10 @@ CONTAINS
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
         INTEGER nKry1
         INTEGER(KIND=n_int) :: ilut(0:NIfTot), ilut_temp(0:NIfTot)
-        INTEGER J, JR, iGetExcitLevel_2, ExcitLevel, iunit
+        INTEGER J, JR, ExcitLevel, iunit
         INTEGER LSCR, LISCR, MaxIndex
         LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real(dp) :: GetHElement, calct, calcmcen, calcdlwdb, norm, temp_hel
-        external :: GetHElement
+        real(dp) :: calcmcen, calcdlwdb, norm, temp_hel
         integer:: ic, TempnI(NEl), MomSymDet(NEl), ICSym, ICConnect, PairedUnit, SelfInvUnit
         integer(n_int) :: iLutMomSym(0:NIfTot)
         logical :: tSuccess
@@ -447,7 +449,7 @@ CONTAINS
             end if
             temp_hel = real(GETHELEMENT(IFDET, IFDET, HAMIL, LAB, NROW, NDET), dp)
             write(stdout, *) '<D0|H|D0>=', temp_hel
-            write(stdout, *) '<D0|T|D0>=', CALCT(NMRKS(1, IFDET), NEL)
+            write(stdout, *) '<D0|T|D0>=', CALCT(NMRKS(1 : 1 + nEl, IFDET), NEL)
             CALL neci_flush(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
         end if

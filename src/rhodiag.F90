@@ -84,14 +84,12 @@ contains
         HElement_t(dp) NWORK(4 * I_V)
         INTEGER(int32) :: INFO
         INTEGER I, J, IMISS, II, IJ
-        real(dp) SI, SI2
+        HElement_t(dp) :: SI, SI2
 !.. do we subtract out lower vertices here or later?
         LOGICAL TSUB
         real(dp) BETA
-        HElement_t(dp) HIJS(I_V + 1), HIJS2(I_V), DLWT, T, U
-        real(dp) HDiag_CPPRES
-        real(dp) R, S, DLWDB, DD2
-        real(dp) RII
+        HElement_t(dp) HIJS(I_V + 1), HIJS2(I_V), DLWT, T, U, HDIAG_CPPRES
+        HElement_t(dp) :: DLWDB, R, RII, S, DD2
         character(*), parameter :: this_routine = 'HDIAG_CPP'
 ! Optimise the 1V case
         IF (I_V == 1) THEN
@@ -207,15 +205,17 @@ contains
         type(timer), save :: proc_timer
         HElement_t(dp) RHOIJ(I_V + 1, I_V + 1), HIJS(I_V + 1), HIJS2(I_V)
         HElement_t(dp) RIJMAT(I_V, I_V), NWORK(4 * I_V), S, DLWT, S2
-        real(dp) WORK(3 * I_V), R
+        real(dp) WORK(3 * I_V)
+        HElement_t(dp) :: R
         real(dp) WLIST(I_V)
         INTEGER(int32) :: INFO
         INTEGER I, J, IMISS, II, IJ
-        real(dp) SI, SI2, SS, SS2
+        real(dp) SS2
+        HElement_t(dp) :: SI, SS, SI2
 !.. do we subtract out lower vertices here or later?
         LOGICAL TSUB
-        real(dp) DLWDB, RII, DD2
-        real(dp) RhoDiag_CPPRES
+        HElement_t(dp) :: DLWDB, RII, DD2
+        HElement_t(dp) RhoDiag_CPPRES
         real(dp) DBETA
         LOGICAL tLogWeight
         character(*), parameter :: this_routine = 'RHODIAG_CPP'
@@ -383,14 +383,16 @@ contains
         type(timer), save :: proc_timer
         HElement_t(dp) RHOIJ(I_V + 1, I_V + 1), HIJS(I_V + 1), HIJS2(I_V)
         HElement_t(dp) RIJMAT(I_V, I_V), NWORK(4 * I_V), S, DLWT, S2
-        real(dp) WORK(3 * I_V), R
+        real(dp) WORK(3 * I_V)
+        HElement_t(dp) :: R
         real(dp) WLIST(I_V)
         INTEGER(int32) :: INFO
         INTEGER I, J
-        real(dp) SI, SI2, SS, SS2
+        real(dp) SI, SS2
+        HElement_t(dp) :: SS, SI2
 !.. do we subtract out lower vertices here or later?
-        real(dp) DLWDB, RII
-        real(dp) RhoDiag_CPPS2VS
+        HElement_t(dp) DLWDB, RII
+        HElement_t(dp) RhoDiag_CPPS2VS
         real(dp) DBETA
         character(*), parameter :: this_routine = 'RHODIAG_CPPS2VS'
 ! Optimise the 1V case

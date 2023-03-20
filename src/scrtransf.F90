@@ -1,4 +1,5 @@
 module scrtransf_mod
+    use calcrho_mod, only: igetexcitlevel
     use lineup_mod, only: lineup
     implicit none
     private
@@ -18,7 +19,6 @@ contains
         INTEGER NBASIS, NSBASIS, NSPINS
         INTEGER NEL, NI(NEL), NJ(NEL), IC, nBasisMax(5, *), IC2
         real(dp) TOTSUM, ECORE
-        INTEGER IGETEXCITLEVEL
         real(dp) BTRANS(*), GETHELEMENT2T
         IC = IC2
         GETHELEMENT2T = 0.0_dp

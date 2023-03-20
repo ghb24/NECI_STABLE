@@ -6,6 +6,7 @@ module initiator_space_procs
     use bit_reps, only: decode_bit_det
     use CalcData
     use constants
+    use SystemData, only: nEl
     use FciMCData, only: ilutHF
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, &
