@@ -9,7 +9,9 @@ submodule (tau_main) tau_main_impls
     use SystemData, only: t_k_space_hubbard, t_trans_corr_2body, tReltvy, tGUGA, &
         nOccAlpha, nOccBeta
 
+#ifndef CMPLX_
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+#endif
 
     use util_mod, only: operator(.isclose.)
 
@@ -44,7 +46,9 @@ submodule (tau_main) tau_main_impls
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet, GetBitExcitation
 
-    use neci_intfce, only: GetExcitation, GenSymExcitIt2
+    use SymExcit2, only: gensymexcitit2par_worker
+
+    use excit_mod, only: GetExcitation
 
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
 
@@ -120,7 +124,11 @@ contains
         if (tGUGA) then
             call stop_all(this_routine, "Not implemented for GUGA")
         else if (t_k_space_hubbard) then
+#ifdef CMPLX_
+            call stop_all(this_routine, "not implemented for complex")
+#else
             call hubbard_find_tau_from_refdet_conn()
+#endif
         else
             call ab_initio_find_tau_from_refdet_conn()
         end if
@@ -164,15 +172,15 @@ contains
             !Setting up excitation generators that will work with kpoint sampling
             iMaxExcit = 0
             nStore(:) = 0
-            CALL GenSymExcitIt2(ProjEDet(:, 1), NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, exFlag)
+            CALL gensymexcitit2par_worker(ProjEDet(:, 1), NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, exFlag, 1, nEl)
             allocate(EXCITGEN(nExcitMemLen(1)))
             EXCITGEN(:) = 0
-            CALL GenSymExcitIt2(ProjEDet(:, 1), NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, exFlag)
+            CALL gensymexcitit2par_worker(ProjEDet(:, 1), NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, exFlag, 1, nEl)
         end if
 
         do while (.not. tAllExcitFound)
             if (tKPntSym) then
-                call GenSymExcitIt2(ProjEDet(:, 1), nel, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, exFlag)
+                call gensymexcitit2par_worker(ProjEDet(:, 1), nel, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, exFlag, 1, nEl)
                 if (nJ(1) == 0) exit
                 !Calculate ic, tParity and Ex
                 call EncodeBitDet(nJ, iLutnJ)
@@ -281,6 +289,7 @@ contains
     end subroutine ab_initio_find_tau_from_refdet_conn
 
 
+#ifndef CMPLX_
     subroutine hubbard_find_tau_from_refdet_conn()
 
         ! Routine to find an upper bound to tau, by consideration of the
@@ -360,6 +369,7 @@ contains
         end if
         call assign_value_to_tau(new_tau, this_routine)
     end subroutine hubbard_find_tau_from_refdet_conn
+#endif
 
     subroutine finalize_tau_main()
         !! Reset the values

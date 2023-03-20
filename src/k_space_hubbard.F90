@@ -22,14 +22,15 @@ module k_space_hubbard
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
-                           dispersion_rel_cached, init_dispersion_rel_cache, &
+                           init_dispersion_rel_cache, &
                            epsilon_kvec
 
     use procedure_pointers, only: get_umat_el
 
     use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit, stdout
 
-    use bit_rep_data, only: NIfTot, nifd
+    use bit_rep_data, only: NIfTot, nifd, nIfGUGA
+    use bit_reps, only: decode_bit_det
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
 
@@ -68,8 +69,6 @@ module k_space_hubbard
 
     use IntegralsData, only: UMat
 
-    use bit_reps, only: decode_bit_det, nifguga
-
     use global_utilities, only: LogMemDealloc, LogMemAlloc
 
     use SymData, only: nSymLabels, SymClasses, Symlabels
@@ -96,14 +95,15 @@ module k_space_hubbard
     use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
                               isProperCSF_ilut, current_csf_i, CSF_Info_t
     use guga_data, only: ExcitationInformation_t
-    use neci_intfce, only: GetExcitation, setbasislim_hubtilt, setbasislim_hub, calctmathub
+    use excit_mod, only: GetExcitation, isvaliddet
+    use hubbard_mod, only: calctmathub, setbasislim_hubtilt, setbasislim_hub
 
-    implicit none
+    better_implicit_none
     external :: calcmathub
     private
     public :: get_diag_helement_k_sp_hub, &
         init_three_body_const_mat, init_two_body_trancorr_fac_matrix, &
-        get_j_opt, init_get_helement_k_space_hub, setup_k_space_hub_sym, &
+        init_get_helement_k_space_hub, setup_k_space_hub_sym, &
         init_tmat_kspace, setup_g1, setup_nbasismax, &
         setup_k_total, setup_kPointToBasisFn, setup_tmat_k_space, &
         get_offdiag_helement_k_sp_hub, get_helement_k_space_hub, &
@@ -124,6 +124,9 @@ module k_space_hubbard
         gen_excit_k_space_hub_transcorr, gen_excit_mixed_k_space_hub_transcorr, &
         gen_excit_uniform_k_space_hub_transcorr, setup_symmetry_table, &
         get_2_body_diag_transcorr, get_3_body_diag_transcorr, calc_pgen_k_space_hubbard_uniform_transcorr
+#ifndef CMPLX_
+    public :: get_j_opt
+#endif
 
     integer, parameter :: ABORT_EXCITATION = 0
     integer, parameter :: N_DIM = 3
@@ -480,7 +483,6 @@ contains
     end subroutine init_k_space_hubbard
 
     subroutine initialize_excit_table()
-        implicit none
         ! This cannot be a member of the lattice class because that would introduce
         ! a circulat dependency on get_offdiag_helement_k_sp_hub
         integer :: a, b, i, j, ex(2, 2)
@@ -549,7 +551,6 @@ contains
 #endif
         real(dp) :: p_elec, p_orb
         integer :: elecs(2), orbs(2), src(2)
-        logical :: isvaliddet
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGj(0:nifguga)
 
@@ -625,7 +626,6 @@ contains
 
     subroutine gen_excit_uniform_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, &
                                              tParity, pGen, hel, store, run)
-        implicit none
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -1085,8 +1085,6 @@ contains
     subroutine gen_excit_uniform_k_space_hub_test(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                                   ex, tParity, pGen, hel, store, run)
 
-        implicit none
-
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
@@ -1145,8 +1143,6 @@ contains
     ! interface as the other excitation generators!
     subroutine gen_excit_k_space_hub_transcorr_test(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                                     ex, tParity, pGen, hel, store, run)
-
-        implicit none
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -2354,6 +2350,7 @@ contains
 
     end function get_3_body_diag_transcorr
 
+#ifndef CMPLX_
     real(dp) function get_j_opt(nI, corr_J)
         ! routine to evaluate Hongjuns J-optimization formulas
         integer, intent(in) :: nI(nel)
@@ -2481,8 +2478,8 @@ contains
                 end do
             end do
         end if
-
     end function get_j_opt
+#endif
 
     function get_one_body_diag_sym(nI, spin, k_sym, t_sign) result(hel)
         integer, intent(in) :: nI(nel)
@@ -3339,12 +3336,10 @@ contains
             sym_i = G1(2 * i)%sym
             do j = 1, nBasis / 2
                 sym_j = G1(2 * j)%Sym
-
                 two_body_transcorr_factor_matrix(sym_j%s, sym_i%s) = &
-                    real(bhub, dp) / real(omega, dp) * &
-                    ((exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_i) + &
-                     (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_j))
-
+                    bhub / omega &
+                    * ((exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_i) &
+                        + (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_j))
             end do
         end do
 
@@ -3416,13 +3411,15 @@ contains
             sym_i = G1(2 * i)%Sym
             do j = 1, nBasis / 2
                 sym_j = G1(2 * j)%Sym
+                three_body_const_mat(sym_i%s, sym_j%s, -1) = &
+                    -three_body_prefac &
+                        * n_opp(-1) &
+                        * real(epsilon_kvec(sym_i) + epsilon_kvec(sym_j), dp)
 
-                three_body_const_mat(sym_i%s, sym_j%s, -1) = -three_body_prefac * &
-                                                             n_opp(-1) * (epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
-
-                three_body_const_mat(sym_i%s, sym_j%s, 1) = -three_body_prefac * &
-                                                            n_opp(1) * (epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
-
+                three_body_const_mat(sym_i%s, sym_j%s, 1) = &
+                    -three_body_prefac &
+                        * n_opp(1) &
+                        * real(epsilon_kvec(sym_i) + epsilon_kvec(sym_j), dp)
             end do
         end do
 

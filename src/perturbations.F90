@@ -1,10 +1,15 @@
 #include "macros.h"
 module perturbations
 
-    use constants
+    use constants, only: dp, n_int, lenof_sign, bits_n_int, stdout, inum_runs
     use FciMCData, only: perturbation
     use fcimc_helper, only: checkValidSpawnedList
     use util_mod, only: stop_all
+    use orb_idx_mod, only: size
+    better_implicit_none
+    private
+    public :: init_perturbation_creation, init_perturbation_annihilation, &
+        apply_perturbation, apply_perturbation_array
 
 contains
 
@@ -121,8 +126,8 @@ contains
         use bit_reps, only: encode_sign, decode_bit_det
         use DetBitOps, only: ilut_lt, ilut_gt
         use load_balance_calcnodes, only: DetermineDetNode
-        use FciMCData, only: HashIndex, SpawnedParts, SpawnedParts2
-        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, MaxSpawned
+        use FciMCData, only: SpawnedParts, SpawnedParts2
+        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
         use sort_mod, only: sort
         use SystemData, only: nel
 

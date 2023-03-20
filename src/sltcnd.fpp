@@ -2,7 +2,7 @@
 #:include "macros.fpph"
 #:set max_excit_rank = 3
 #:set excit_ranks = list(range(max_excit_rank + 1))
-#:set excitations = [f'Excite_{i}_t' for i in excit_ranks + ['Further']]
+#:set excitations = ['Excite_{}_t'.format(i) for i in excit_ranks + ['Further']]
 #:set defined_excitations = excitations[:-1]
 #:set trivial_excitations = [excitations[0], excitations[-1]]
 #:set non_trivial_excitations = excitations[1:-1]
@@ -42,7 +42,7 @@ module sltcnd_mod
                                 create_excitation, Excite_Further_t, dyn_nI_excite
     use orb_idx_mod, only: SpinOrbIdx_t
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua, external_lMat_matel
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
     use SD_spin_purification_mod, only: possible_purification_methods, SD_spin_purification, &
@@ -223,13 +223,10 @@ contains
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
-        class(excitation_t), allocatable :: exc
-
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
             call stop_all(this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
-        call create_excitation(exc, IC, ex)
-        hel = dyn_sltcnd_excit(nI, exc, tParity)
+        hel = dyn_sltcnd_excit(nI, create_excitation(IC, ex) , tParity)
     end function
 
     function sltcnd_compat(nI, nJ, IC) result(hel)

@@ -12,12 +12,13 @@ MODULE Calc
                           t_new_real_space_hubbard, t_heisenberg_model, &
                           t_k_space_hubbard, tHPHF, t_non_hermitian_2_body, &
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, &
-                          t_3_body_excits
-    use Determinants, only: write_det
+                          t_3_body_excits, get_basisfn
+    use Determinants, only: iActiveBasis, tagSpecDet, SpecDet, tSpecDet, nActiveSpace, &
+                            tagDefDet, tDefineDet, DefDet, calcT, iActiveBasis, nactivespace, &
+                            get_helement
+    use DeterminantData, only: write_det, fDet
     use default_sets
     use read_fci, only: reorder_orb_label
-    use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
-                            tDefineDet
     use DetCalc, only: iObs, jObs, kObs, DETINV, &
                        icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
@@ -31,7 +32,7 @@ MODULE Calc
                          alloc_popsfile_dets, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
-                         user_input_max_davidson_iters
+                         user_input_max_davidson_iters, user_input_davidson_tolerance
     use tau_main, only:  &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         tau_stop_method, possible_tau_stop_methods, &
@@ -65,7 +66,6 @@ MODULE Calc
                                 get_3_body_diag_transcorr
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
     use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
-    use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
     use cepa_shifts, only: t_cepa_shift, cepa_method
     use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
@@ -87,6 +87,8 @@ MODULE Calc
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
 
     use lattice_models_utils, only: create_neel_state
+
+    use gndts_blk_mod, only: gensymdetss
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -495,8 +497,6 @@ contains
     end subroutine SetCalcDefaults
 
     SUBROUTINE CalcReadInput(file_reader)
-        Use Determinants, only: iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
-        Use Determinants, only: tDefineDet, DefDet, tagDefDet
         use SystemData, only: Beta, nEl
         Use DetCalc, only: iObs, jObs, kObs, B2L, DETINV
         Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
@@ -1579,14 +1579,22 @@ contains
                 end if
 
             case("DAVIDSON-MAX-ITERS")
-                ! Set the max number of iteration for Davidson method: defaulted to 25
-                ! This is probably needed only for very special cases, e.g., very small
-                ! test cases where Davidson throws Floating point exception when this is
-                ! too large, for instance.
+                ! Set the max number of iteration for Davidson method: defaulted to 50
                 if (allocated(user_input_max_davidson_iters)) then
                     call stop_all(t_r, "davison max iters given twice")
                 else
                     user_input_max_davidson_iters = to_int(tokens%next())
+                endif
+
+            case("DAVIDSON-TARGET-TOLERANCE")
+                ! Set the target convergence tolerance of Davidson residual norm
+                ! This keyword has been introduced to be used when one wants to start
+                ! an FCIQMC calculation from an intermediate ci-vector of a Davidson
+                ! diagonalization before reaching convergence
+                if (allocated(user_input_davidson_tolerance)) then
+                    call stop_all(t_r, "davidson target tolerance given twice")
+                else
+                    user_input_davidson_tolerance = to_realdp(tokens%next())
                 endif
 
             case("ALL-CONN-CORE")
@@ -3615,7 +3623,6 @@ contains
         use SystemData, only: tContact
         use IntegralsData, only: FCK, CST, nMax, UMat
         use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
-        Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
         Use DetCalc, only: DetInv, nDet, tRead
         Use DetCalcData, only: ICILevel
         use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace
@@ -3623,7 +3630,7 @@ contains
         use global_utilities
         use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
         use excitation_types, only: Excite_0_t
-        real(dp) CalcT, CalcT2, GetRhoEps
+        real(dp) CalcT2, GetRhoEps
 
         INTEGER I, IC, J, norb
         INTEGER nList
@@ -3828,7 +3835,7 @@ contains
         IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC
             NLIST = 1
-            CALL GENSYMDETSS(MDK, NEL, G1, BRR, NBASIS, MCDET, NLIST, NBASISMAX)
+            CALL GENSYMDETSS(get_basisfn(MDK), NEL, G1, BRR, NBASIS, MCDET, NLIST, NBASISMAX)
             IF(NLIST == 0) THEN
 !C.. we couldn't find a det of that symmetry
                 call stop_all(this_routine, 'Cannot find MC start determinant of correct symmetry')
@@ -3865,7 +3872,6 @@ contains
         USE FciMCParMod, only: FciMCPar
         use RPA_Mod, only: RunRPA_QBA
         use DetCalc, only: CK, DetInv, tEnergy, tRead
-        Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
         use IntegralsData, only: FCK, NMAX, UMat, FCK
         use IntegralsData, only: HFEDelta, HFMix, nTay
         Use LoggingData, only: iLogging
@@ -4264,7 +4270,8 @@ end subroutine inpgetexcitations
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
 FUNCTION GETRHOEPS(RHOEPSILON, BETA, NEL, BRR, I_P)
-    Use Determinants, only: get_helement, write_det
+    Use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use constants, only: dp
     use SystemData, only: BasisFN
     use sort_mod

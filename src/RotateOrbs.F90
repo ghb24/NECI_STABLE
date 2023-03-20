@@ -26,11 +26,13 @@ module RotateOrbsMod
     use RotateOrbsData
     use sort_mod
     use util_mod, only: get_free_unit, near_zero, operator(.isclose.), stop_all, neci_flush
+    use Orthonorm_mod, only: GRAMSCHMIDT_NECI
+    use Determinants, only: writebasis
 
     implicit none
 
     integer, allocatable :: Lab(:, :), LabVirtOrbs(:), LabOccOrbs(:), SymLabelList3_rotInv(:)
-    real(dp), allocatable :: CoeffCorT2(:, :), CoeffUncorT2(:, :)
+    HElement_t(dp), allocatable :: CoeffCorT2(:, :), CoeffUncorT2(:, :)
     real(dp), allocatable :: Lambdas(:, :), ArrNew(:, :), ArrDiagNew(:), TMAT2DTemp(:, :), TMAT2DRot(:, :), TMAT2DPartRot01(:, :)
     real(dp), allocatable :: TMAT2DPartRot02(:, :)
     real(dp), allocatable :: DerivCoeff(:, :), UMATTemp01(:, :, :, :), UMATTemp02(:, :, :, :)
@@ -1519,7 +1521,7 @@ contains
 ! This routine sets all the elements of the coefficient matrix that connect occupied and virtual orbitals to 0.
 ! This ensures that only occupied mix with occupied and virtual mix with virtual.
 
-        real(dp) :: Coeff(NoOrbs, NoOrbs)
+        HElement_t(dp) :: Coeff(NoOrbs, NoOrbs)
         integer :: i, j
 
         do i = 1, NoOcc
@@ -2776,7 +2778,7 @@ contains
         ! constraints, l, with respect to each set of coefficients cm.
 
         integer :: l, i, j, a
-        real(dp) :: CurrCoeff(NoOrbs, NoOrbs)
+        HElement_t(dp) :: CurrCoeff(NoOrbs, NoOrbs)
         real(dp) :: DerivConstr(NoOrbs, NoOrbs, TotNoConstraints)
 
         call set_timer(CalcDerivConstr_Time, 30)
@@ -2811,7 +2813,8 @@ contains
 ! This is then used to rotate the coefficients by a defined timestep.
 
         integer :: a, m, Symm, w, SymMin, TempMaxOccVirt
-        real(dp) :: TotForce, TotDiffCoeffs, CoeffT2(NoOrbs, NoOrbs)
+        real(dp) :: TotForce, TotDiffCoeffs
+        HElement_t(dp) :: CoeffT2(NoOrbs, NoOrbs)
 
         call set_timer(findandusetheforce_time, 30)
 
@@ -2884,7 +2887,8 @@ contains
         ! Each of these should tend to 0 when the coefficients become orthonomal.
 
         integer :: l, i, j
-        real(dp) :: CurrCoeff(NoOrbs, NoOrbs), TotConstraints, Constraint(TotNoConstraints)
+        HElement_t(dp) :: CurrCoeff(NoOrbs, NoOrbs)
+        real(dp) :: TotConstraints, Constraint(TotNoConstraints)
 
         TotConstraints = 0.0_dp
         do l = 1, TotNoConstraints
@@ -3055,7 +3059,8 @@ contains
         use sym_mod, only: GenSymStatePairs
 
         integer :: i, a, j
-        real(dp) :: TotGSConstraints, GSConstraint(TotNoConstraints), CoeffTemp(SpatOrbs, SpatOrbs)
+        real(dp) :: TotGSConstraints, GSConstraint(TotNoConstraints)
+        HElement_t(dp) :: CoeffTemp(SpatOrbs, SpatOrbs)
 
         ! First need to do a final explicit orthonormalisation. The orbitals
         ! are very close to being orthonormal, but not exactly. Need to make

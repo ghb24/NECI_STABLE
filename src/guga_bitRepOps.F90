@@ -2450,7 +2450,7 @@ contains
         integer, intent(in) :: spin, num_el
         logical :: flag
 
-        flag = (all(calcB_vector_int(ilut(0:GugaBits%len_orb)) > 0) &
+        flag = (all(calcB_vector_int(ilut(0:GugaBits%len_orb)) >= 0) &
             .and. (abs(return_ms(ilut, num_el)) == spin) &
             .and. (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) == num_el))
 

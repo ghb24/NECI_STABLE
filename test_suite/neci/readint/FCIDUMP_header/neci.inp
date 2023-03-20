@@ -1,0 +1,40 @@
+# This tests if NECI can read an FCIDUMP with FOCK=... in the header 
+title
+
+system read
+    fcidump-name FCIDUMP-with-FOCK
+    electrons 6
+    spin-restrict 0
+    sym 0 0 0 0
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+
+    tau-values \
+        start user-defined 0.001
+
+    seed -7
+    load-balance-blocks off
+    definedet 1 4 5 8 9 12
+
+    memoryfacspawn 5.0
+    memoryfacpart 2.0
+    totalwalkers 1000
+    startsinglepart 10
+    shiftdamp 0.5
+    stepsshift 1
+    allrealcoeff
+    realspawncutoff 0.01
+    nmcyc 1000
+endcalc
+
+integral
+endint
+
+logging
+    popsfile -1
+    endlog
+end

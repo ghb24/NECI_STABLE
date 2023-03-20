@@ -2,17 +2,6 @@
 module neci_intfce
     implicit none
     interface
-        subroutine gensymexcitit2(ni, nel, g1, nbasis, tsetup, nmem, nj, ic, store, ilevel)
-            use systemdata, only: basisfn
-            implicit none
-            integer nel, ni(nel), nbasis
-            type(basisfn) g1(nbasis)
-            integer store(6)
-            integer, target :: nmem(*)
-            integer nj(nel), ic
-            logical tsetup
-            integer ilevel
-        end subroutine gensymexcitit2
         subroutine gensymexcitit3par(ni, tsetup, nmem, nj, ic, store, ilevel, iminelec1, imaxelec1)
             use systemdata, only: nel
             implicit none
@@ -35,12 +24,6 @@ module neci_intfce
             real(dp) pgen
             real(dp) arr(nbasis, 2)
         end subroutine genexcitprob
-
-        subroutine getexcitation(ni, nj, nel, ex, tsign)
-            implicit none
-            integer nel, ni(nel), nj(nel), ex(2, *)
-            logical tsign
-        end subroutine
 
         subroutine setbasislim_hub(nbasismax, nmaxx, nmaxy, nmaxz, len, &
                                    tpbc, treal)

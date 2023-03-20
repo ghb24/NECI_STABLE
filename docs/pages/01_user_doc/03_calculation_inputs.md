@@ -160,6 +160,11 @@ considered. The block starts with the `system` keyword and ends with the
     if you are running a transcorrelated mean-field calculation, use
     `nonhermitian 2-body`.
 
+-   **stoquastize**<br>
+    Stoquastize the Hamiltonian. This means that the off-diagonal elements of the
+    original Hamiltonian become negative without changing the magnitudes,
+    i.e. \(H^{stoq}_{ij} = H_{ij}\delta_{ij} - |H_{ij}|(1 - \delta_{ij})\).
+
 #### Excitation generation options
 
 -   **\textcolor{blue}{nonUniformRandExcits}**<br>
@@ -699,7 +704,11 @@ and ends with the `endcalc` keyword.
     Such algorithm computes a few of the smallest (or largest) eigenvalues
     of a large sparse real symmetric matrix. This method is used,
     for instance, in the semi-stochastic implementation or when
-    CI Davidson is used. The default value is \(25\).
+    CI Davidson is used. The default value is \(50\).
+
+-   **davidson-target-tolerance \(x\)**<br>
+    Set the target convergence tolerance of the residual norm of Davidson
+    diagonalization. The default value is \(10^{-7}\).
 
 #### Population control options
 
@@ -1245,7 +1254,9 @@ and is stopped after 10000 iterations.
     Use all determinants to form the core space. A fully deterministic
     projection is therefore performed with this option.
     This option requires information about spin(-projection) and spatial
-    symmetry, so the keywords `sym` and `spin-restrict` are required.
+    symmetry, so the keywords `sym`, and `spin-restrict` for a 
+    diagonalization in a Slater Determinant basis or `guga` for a 
+    diagonalization in a Gelfand-Tsetlin basis are required.
 
 -   **read-core**<br>
     Use the determinants in the CORESPACE file to form the core space. A

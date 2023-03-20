@@ -19,11 +19,11 @@ module load_balance
                                reset_all_acc_spawns
     use bit_rep_data, only: flag_initiator, nifd, &
                             flag_connected, flag_trial, flag_prone, flag_removed, &
-                            niftot, flag_deterministic
+                            niftot, flag_deterministic, test_flag, extract_sign, &
+                             test_flag_multi
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut, writebitdet, &
-                        decode_bit_det, extract_sign, test_flag, &
-                        test_flag_multi
+                        decode_bit_det
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
@@ -39,7 +39,8 @@ module load_balance
     use SystemData, only: nel
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
-    use determinants, only: get_helement, write_det
+    use determinants, only: get_helement
+    use DeterminantData, only: write_det
     use LoggingData, only: tOutputLoadDistribution, tAccumPopsActive
     use cont_time_rates, only: spawn_rate_full
     use DetBitOps, only: DetBitEq, tAccumEmptyDet

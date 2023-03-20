@@ -4,7 +4,7 @@
 module gasci_singles_pc_weighted
     use constants, only: dp, stdout, n_int, bits_n_int, maxExcit
     use fortran_strings, only: to_upper
-    use util_mod, only: stop_all, EnumBase_t
+    use util_mod, only: stop_all, EnumBase_t, operator(.div.)
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use SymExcitDataMod, only: ScratchSize
@@ -665,7 +665,7 @@ contains
         type(Excite_1_t), intent(in) :: exc
         real(dp) :: w
         integer :: R
-        real(dp) :: two_el_term
+        HElement_t(dp) :: two_el_term
         associate(I => exc%val(1, 1), A => exc%val(2, 1))
             two_el_term = 0._dp
             do R = 1, nBasis
@@ -691,7 +691,7 @@ contains
     end function
 
 
-    real(dp) elemental function h(I, A)
+    HElement_t(dp) elemental function h(I, A)
         !! Return the 1el integral \( h_{I, A) \)
         !!
         !! I and A are **spin** indices.
@@ -701,7 +701,7 @@ contains
     end function
 
 
-    real(dp) elemental function g(I, A, J, B)
+    HElement_t(dp) elemental function g(I, A, J, B)
         integer, intent(in) :: I, A, J, B
         !! Return the 2el integral \( g_{I, A, J, B} \)
 

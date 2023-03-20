@@ -158,13 +158,18 @@ module SystemData
 
     integer, PARAMETER :: SymmetrySize = 2
     integer, PARAMETER :: SymmetrySizeB = SymmetrySize * 8
-    TYPE BasisFN
+    TYPE :: BasisFN
         TYPE(Symmetry) :: sym
         INTEGER :: k(3)
         INTEGER :: Ms
         INTEGER :: Ml            !This is the Ml symmetry of the orbital
         INTEGER :: Dummy         !Rather than use SEQUENCE which has caused endless bother...
     END TYPE
+
+
+    interface get_BasisFn
+        module procedure construct_basisfn
+    end interface
 
 ! Empty basis function is used in many places.
 ! This is useful so if BasisFn changes, we don't have to go
@@ -225,8 +230,8 @@ module SystemData
 !  and group them under the same symrep
     LOGICAL :: tSymIgnoreEnergies
 
-! Should we use |K| for FCIQMC?
-    logical :: modk_offdiag
+! Stoquastize the Hamiltonian. i.e., H_offdiag -> -abs(H_offdiag)
+    logical :: tStoquastize
 
 ! True if we are performing a calculation in all symmetry sectors at once.
 ! This is used in finite-temperature KP-FCIQMC calculations.
@@ -241,8 +246,6 @@ module SystemData
 
 ! Has the user set the symmetry using the 'SYM' option?
     logical :: tSymSet = .false.
-
-    logical :: tGiovannisBrokenInit
 
 ! ==================== GUGA Implementation ========================
 ! input for graphical unitary group approach (GUGA) CSF implementation
@@ -454,6 +457,12 @@ contains
     elemental logical function SymLt(a, b)
         type(Symmetry), intent(in) :: a, b
         SymLt = a%S < b%S
+    end function
+
+    pure function construct_basisfn(mdk) result(res)
+        integer, intent(in) :: mdk(5)
+        type(BasisFN) :: res
+        res = BasisFN(Symmetry(int(mdk(1), int64)), mdk(2:4), mdk(5), 0, 0)
     end function
 
 end module SystemData

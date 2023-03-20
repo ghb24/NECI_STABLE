@@ -67,9 +67,15 @@ module CAS_distribution_init
 
     use dSFMT_interface, only: genrand_real2_dSFMT
 
+    use hdiag_mod, only: hdiag_neci
+
+    use frsblk_mod, only: neci_frsblkh
+
     use sym_mod
 
     use constants
+
+    use calcrho_mod, only: gethelement
 
     implicit none
     private
@@ -93,15 +99,13 @@ contains
         integer(n_int) :: iLutnJ(0:NIfTot)
         logical :: tMC, tHPHF_temp, tHPHFInts_temp
         HElement_t(dp) :: HDiagTemp, HOffDiagTemp
-        HElement_t(dp), allocatable :: Hamil(:)
-        real(dp), allocatable :: CK(:, :), W(:), CKN(:, :), A_Arr(:, :), V(:), BM(:), T(:), WT(:)
-        real(dp), allocatable :: SCR(:), WH(:), Work2(:), V2(:, :), AM(:)
-        real(dp), allocatable :: Work(:)
+        HElement_t(dp), allocatable :: Hamil(:), CK(:, :), Work2(:), Work(:)
+        real(dp), allocatable :: W(:), CKN(:, :), A_Arr(:, :), V(:), BM(:), T(:), WT(:)
+        real(dp), allocatable :: SCR(:), WH(:), V2(:, :), AM(:)
         integer(TagIntType) :: ATag = 0, VTag = 0, BMTag = 0, TTag = 0, WTTag = 0, SCRTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0
         integer(TagIntType) :: ISCRTag = 0, IndexTag = 0, AMTag = 0
         integer(TagIntType) :: WorkTag = 0
-        real(dp) :: CASRefEnergy, TotWeight, PartFac, amp, rat, r, GetHElement
-        external :: GetHElement
+        real(dp) :: CASRefEnergy, TotWeight, PartFac, amp, rat, r
         real(dp), dimension(lenof_sign) :: temp_sign
         real(dp) :: energytmp(nel), max_wt
         integer  :: tmp_det(nel), det_max, run
@@ -302,16 +306,23 @@ contains
                 call stop_all(this_routine, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
-         CALL NECI_FRSBLKH(nCASDet, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
+#ifdef CMPLX_
+            call stop_all(this_routine, "this does not make sense for complex code")
+#else
+            CALL NECI_FRSBLKH(nCASDet, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
          &  SCR, ISCR, INDEX, NCYCLE, B2L, .false., .false., .true.)
             !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL, -1.0_dp, W, 1)
+#endif
+#ifdef CMPLX_
+            call stop_all(this_routine, "this does not make sense for complex code")
+#else
             if (CK(1, 1) < 0.0_dp) then
                 do i = 1, nCASDet
                     CK(i, 1) = -CK(i, 1)
                 end do
             end if
-
+#endif
             deallocate(CKN, A_Arr, V, BM, T, WT, SCR, WH, V2, iscr, index, AM)
             call logmemdealloc(this_routine, ATag)
             call logmemdealloc(this_routine, VTag)

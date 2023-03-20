@@ -13,23 +13,26 @@ module fcimc_helper
 
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state, check_determ_flag
 
-    use bit_rep_data, only: IlutBits
+    use bit_rep_data, only: IlutBits, NIfTot, NIfD, test_flag, extract_sign, &
+        flag_static_init, flag_deterministic, flag_static_init, flag_determ_parent, &
+        flag_trial, flag_connected, flag_deterministic
 
-    use bit_reps, only: NIfTot, test_flag, extract_flags, &
-                        encode_bit_rep, NIfD, set_flag_general, &
-                        extract_sign, set_flag, encode_sign, &
-                        flag_trial, flag_connected, flag_deterministic, &
+    use calcrho_mod, only: igetexcitlevel
+
+    use bit_reps, only: extract_flags, encode_bit_rep, &
+                        set_flag, encode_sign, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
                         log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
-                        extract_spawn_hdiag, flag_static_init, flag_determ_parent, &
+                        extract_spawn_hdiag, &
                         all_runs_are_initiator, writebitdet
 
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet, tAccumEmptyDet
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use FciMCData
     use hist, only: add_hist_spawn, add_hist_energies, HistMinInd
     use hist_data, only: tHistSpawn
@@ -105,6 +108,10 @@ module fcimc_helper
     use pcpp_excitgen, only: update_pcpp_excitgen
 
     use sparse_arrays, only: t_evolve_adjoint
+
+    use hdiag_mod, only: hdiag_neci
+
+    use frsblk_mod, only: neci_frsblkh
 
     implicit none
 
@@ -1272,6 +1279,9 @@ contains
         integer :: crun, nOcc
         real(dp) :: scaledInitiatorWalkNo
         logical :: init_flag
+#ifdef CMPLX_
+        unused_var(run)
+#endif
 
         if (tEScaleWalkers) then
             scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)
@@ -1788,8 +1798,8 @@ contains
         integer :: gc, ierr, icmax, lenhamil, nKry1, nBlock, LScr, LIScr
         integer(n_int) :: ilut(0:NIfTot)
         logical :: tmc, tSuccess
-        real(dp), allocatable :: A_Arr(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), WORK2(:), V2(:, :), W(:)
-        HElement_t(dp), allocatable :: Work(:)
+        real(dp), allocatable :: A_Arr(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), V2(:, :), W(:)
+        HElement_t(dp), allocatable :: Work(:), WORK2(:)
         HElement_t(dp), allocatable :: CkN(:, :), Hamil(:), TruncWavefunc(:)
         HElement_t(dp), allocatable :: Ck(:, :)  !This holds eigenvectors in the end
         HElement_t(dp) :: Num, Denom, HDiagTemp
@@ -1797,11 +1807,12 @@ contains
         integer(TagIntType) :: LabTag = 0, NRowTag = 0, ATag = 0, VTag = 0, AMTag = 0, BMTag = 0, TTag = 0, tagCKN = 0, tagCK = 0
         integer(TagIntType) :: WTTag = 0, SCRTag = 0, ISCRTag = 0, INDEXTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0, tagW = 0
         integer(TagIntType) :: tagHamil = 0, WorkTag = 0
-        integer :: nEval, nBlocks, nBlockStarts(2), ExcitLev, iGetExcitLevel, i, nDoubles
+        integer :: nEval, nBlocks, nBlockStarts(2), ExcitLev, i, nDoubles
         character(*), parameter :: t_r = 'LanczosFindGroundE'
         real(dp) :: norm
         integer :: PartInd, ioTrunc
         character(24) :: abstr
+
 
         if (DetLen > 1300) then
             nEval = 3
@@ -1904,8 +1915,13 @@ contains
                 call stop_all(t_r, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
-          CALL NECI_FRSBLKH(DetLen, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
-             &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false.)
+#ifdef CMPLX_
+            call stop_all(t_r, "not implemented for complex")
+#else
+            CALL NECI_FRSBLKH(DetLen, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, &
+                    NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
+                    SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false.)
+#endif
 
             !Eigenvalues may come out wrong sign - multiply by -1
             if (W(1) > 0.0_dp) then
@@ -2717,7 +2733,6 @@ contains
     end subroutine
 
     function check_semistoch_flags(ilut_child, nI_child, run, tCoreDet) result(break)
-        use bit_rep_data, only: flag_determ_parent
         integer(n_int), intent(inout) :: ilut_child(0:niftot)
         integer, intent(in) :: nI_child(nel)
         integer, intent(in) :: run

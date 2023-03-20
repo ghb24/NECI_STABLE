@@ -11,7 +11,8 @@ module replica_estimates
     use hash
     use Parallel_neci
     use searching
-    use sort_mod
+    use DetBitOps, only: detbiteq
+    use sort_mod, only: sort
     use SystemData, only: NEl
     use core_space_util, only: cs_replicas, min_pt
     use tau_main, only: tau

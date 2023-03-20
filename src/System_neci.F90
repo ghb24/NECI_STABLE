@@ -52,7 +52,14 @@ MODULE System
     use gasci_pchb_main, only: GAS_PCHB_options, GAS_PCHB_options_vals
     use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
 
+    use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit
+
     use growing_buffers, only: buffer_int_1D_t
+
+    use hubbard_mod, only: genhubmomirrepssymtable, genhubsymreps, &
+        hubkin, hubkinn, setbasislim_hubtilt, setbasislim_hub
+
+    use Determinants, only: getuegke, orderbasis, writebasis
     IMPLICIT NONE
 
 contains
@@ -211,7 +218,7 @@ contains
         tHFNoOrder = .false.
         tSymIgnoreEnergies = .false.
         tPickVirtUniform = .false.
-        modk_offdiag = .false.
+        tStoquastize = .false.
         tAllSymSectors = .false.
         tGenHelWeighted = .false.
         tGen_4ind_weighted = .false.
@@ -235,7 +242,6 @@ contains
         t_guga_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
         t_adjoint_replicas = .false.
-        tGiovannisBrokenInit = .false.
         ! GAS options
         tGAS = .false.
 
@@ -1062,8 +1068,8 @@ contains
                 if (ISTATE /= 1) then
                     call stop_all(this_routine, "Require ISTATE to be left set as 1")
                 end if
-            case ("MODK-OFFDIAG")
-                modk_offdiag = .true.
+            case ("STOQUASTIZE")
+                tStoquastize = .true.
             case ("FAST-EXCITGEN")
                 tAbelianFastExcitGen = .true.
                 ! tAbelianFastExcitGen is a temporary flag.
@@ -1845,14 +1851,6 @@ contains
                 end do
                 call load_orb_perm(buf(1:n_orb))
 
-            case ("GIOVANNIS-BROKEN-INIT")
-                ! Giovanni's scheme for initialising determinants with the correct
-                ! spin an symmetry properties in a wider range of cases than
-                ! currently supported.
-
-                ! Looks nice, but it currently breaks lots of other stuff!
-                tGiovannisBrokenInit = .true.
-
             case ("GAS-SPEC")
 
                 tGAS = .true.
@@ -2012,7 +2010,6 @@ contains
         real(dp) SUM
 ! Called functions
         TYPE(BasisFN) FrzSym
-        logical kallowed
         real(dp) dUnscaledE
         real(dp), allocatable :: arr_tmp(:, :)
         integer, allocatable :: brr_tmp(:)
@@ -2910,8 +2907,6 @@ contains
                                 ! aperiodic does not work anyway and is not really needed..
                                 ! if tilted i want to check if k is allowed otherwise
                                 if ((treal .and. .not. ttilt) .or. kAllowed(G, NBASISMAX)) then
-!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).and.KALLOWED(G,NBASISMAX)) THEN
-!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).or.KALLOWED(G,NBASISMAX)) THEN
                                     IF (THUB) THEN
 !C..Note for the Hubbard model, the t is defined by ALAT(1)!
                                         call setupMomIndexTable()
@@ -3586,250 +3581,3 @@ contains
 
 END MODULE System
 
-SUBROUTINE ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
-    use SystemData, only: BasisFN, t_guga_noreorder, lNoSymmetry
-    use sort_mod
-    use util_mod, only: NECI_ICOPY, stop_all
-    use constants, only: dp, stdout
-    use sym_mod, only: GENMOLPSYMTABLE
-    implicit none
-    INTEGER NBASIS, BRR(NBASIS), ORBORDER(8, 2), nBasisMax(5, *)
-    INTEGER BRR2(NBASIS)
-    TYPE(BASISFN) G1(NBASIS)
-    real(dp) ARR(NBASIS, 2), ARR2(NBASIS, 2)
-    INTEGER IDONE, I, J, IBFN, ITOT, ITYPE, ISPIN
-    real(dp) OEN
-    character(*), parameter :: this_routine = 'ORDERBASIS'
-    type(basisfn), pointer :: temp_sym(:)
-    IDONE = 0
-    ITOT = 0
-!.. copy the default ordered energies.
-    CALL DCOPY(NBASIS, ARR(1, 1), 1, ARR(1, 2), 1)
-    CALL DCOPY(NBASIS, ARR(1, 1), 1, ARR2(1, 2), 1)
-    write(stdout, *) ''
-    write(stdout, "(A,8I4)") "Ordering Basis (Closed): ", (ORBORDER(I, 1), I=1, 8)
-    write(stdout, "(A,8I4)") "Ordering Basis (Open  ): ", (ORBORDER(I, 2), I=1, 8)
-    IF (NBASISMAX(3, 3) == 1) THEN
-!.. we use the symmetries of the spatial orbitals
-! actually this is never really used below here it seems.. since orborder
-! is only zeros, according to output. check that!
-! and that is independent of the GUGA implementation TODO: check orborder!
-        DO ITYPE = 1, 2
-            IBFN = 1
-            DO I = 1, 8
-                ! 8 probably because at most D2h symmetry giovanni told me about.
-                DO J = 1, ORBORDER(I, ITYPE)
-                    DO WHILE (IBFN <= NBASIS .AND. (G1(IBFN)%SYM%s < I - 1 .OR. BRR(IBFN) == 0))
-                        IBFN = IBFN + 1
-                    end do
-                    IF (IBFN > NBASIS) THEN
-                        call stop_all(this_routine, "Cannot find enough basis fns of correct symmetry")
-                    end if
-                    IDONE = IDONE + 1
-                    BRR2(IDONE) = IBFN
-                    BRR(IBFN) = 0
-                    ARR2(IDONE, 1) = ARR(IBFN, 1)
-                    IBFN = IBFN + 1
-                end do
-            end do
-            ! Beta sort
-            call sort(arr2(itot + 1:idone, 1), brr2(itot + 1:idone), nskip=2)
-            ! Alpha sort
-            call sort(arr2(itot + 2:idone, 1), brr2(itot + 2:idone), nskip=2)
-            ITOT = IDONE
-        end do
-        DO I = 1, NBASIS
-            IF (BRR(I) /= 0) THEN
-                ITOT = ITOT + 1
-                BRR2(ITOT) = BRR(I)
-                ARR2(ITOT, 1) = ARR(I, 1)
-            end if
-        end do
-        ! what are those doing?
-        ! ok those are copying the newly obtained arr2 and brr2 into arr and brr
-        CALL NECI_ICOPY(NBASIS, BRR2, 1, BRR, 1)
-        CALL DCOPY(NBASIS, ARR2(1, 1), 1, ARR(1, 1), 1)
-    end if
-    ! i think this is the only reached point: and this means i can make it
-    ! similar to the Hubbard implementation to not reorder!
-! beta sort
-    call sort(arr(idone + 1:nbasis, 1), brr(idone + 1:nbasis), nskip=2)
-! alpha sort
-    call sort(arr(idone + 2:nbasis, 1), brr(idone + 2:nbasis), nskip=2)
-!.. We need to now go through each set of degenerate orbitals, and make
-!.. the correct ones are paired together in BRR otherwise bad things
-!.. happen in FREEZEBASIS
-!.. We do this by ensuring that within a degenerate set, the BRR are in
-!.. ascending order
-!         IF(NBASISMAX(3,3).EQ.1) G1(3,BRR(1))=J
-    DO ISPIN = 0, 1
-        OEN = ARR(1 + ISPIN, 1)
-        J = 1 + ISPIN
-        ITOT = 2
-        DO I = 3 + ISPIN, NBASIS, 2
-            IF (ABS(ARR(I, 1) - OEN) > 1.0e-4_dp) THEN
-!.. We don't have degenerate orbitals
-!.. First deal with the last set of degenerate orbitals
-!.. We sort them into order of BRR
-                call sort(brr(i - itot:i - 1), arr(i - itot:i - 1, 1), nskip=2)
-!.. now setup the new degenerate set.
-                J = J + 2
-                ITOT = 2
-            ELSE
-                ITOT = ITOT + 2
-            end if
-            OEN = ARR(I, 1)
-            IF (NBASISMAX(3, 3) == 1) THEN
-!.. If we've got a generic spatial sym or hf we mark degeneracies
-!               G(3,BRR(I))=J
-            end if
-        end do
-! i is now nBasis+2
-        call sort(brr(i - itot:i - 2), arr(i - itot:i - 2, 1), nskip=2)
-    end do
-!   if (t_guga_noreorder) then
-!       ! this probably does not work so easy:
-!       allocate(temp_sym(nBasis))
-!       do i = 1, nBasis
-!         temp_sym(i) = G1(i)
-!       end do
-!       do i = 1, nBasis
-!           G1(i) = temp_sym(brr(i))
-!           brr(i) = i
-!       end do
-!       ! could i just do a new molpsymtable here??
-!       ! but only do it if symmetry is not turned off explicetyl!
-!       if (.not. lNoSymmetry) CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
-!   end if
-
-END subroutine ORDERBASIS
-
-!dUnscaledEnergy gives the energy without reference to box size and without any offset.
-SUBROUTINE GetUEGKE(I, J, K, ALAT, tUEGTrueEnergies, tUEGOffset, k_offset, Energy, dUnscaledEnergy)
-
-    use SystemData, only: tUEG2, k_lattice_vectors, k_lattice_constant
-    use constants, only: Pi, Pi2, THIRD
-    use constants, only: dp
-    IMPLICIT NONE
-    INTEGER I, J, K
-    real(dp) ALat(3), k_offset(3), Energy, E
-    LOGICAL tUEGOffset, tUEGTrueEnergies
-    real(dp) ::  dUnscaledEnergy
-    integer :: kvecX, kvecY, kvecZ
-    !==================================
-    ! initialize unscaled energy for the case of not using tUEGTrueEnergies
-    dunscaledEnergy = 0.0_dp
-    if (tUEG2) then
-        ! kvectors in cartesian coordinates
-        kvecX = k_lattice_vectors(1, 1) * I + k_lattice_vectors(2, 1) * J + k_lattice_vectors(3, 1) * K
-        kvecY = k_lattice_vectors(1, 2) * I + k_lattice_vectors(2, 2) * J + k_lattice_vectors(3, 2) * K
-        kvecZ = k_lattice_vectors(1, 3) * I + k_lattice_vectors(2, 3) * J + k_lattice_vectors(3, 3) * K
-
-        IF (tUEGTrueEnergies) then
-            if (tUEGOffset) then
-                E = (kvecX + k_offset(1))**2 + (kvecY + k_offset(2))**2 + (kvecZ + k_offset(3))**2
-            else
-                E = (kvecX)**2 + (kvecY)**2 + (kvecZ)**2
-            end if
-            Energy = 0.5_dp * E * k_lattice_constant**2
-            dUnscaledEnergy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
-        ELSE
-            Energy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
-        end if
-
-        return
-    end if
-    !==================================
-    IF (tUEGTrueEnergies) then
-        IF (tUEGOffset) then
-            E = ((I + k_offset(1))**2 / ALAT(1)**2)
-            E = E + ((J + k_offset(2))**2 / ALAT(2)**2)
-            E = E + ((K + k_offset(3))**2 / ALAT(3)**2)
-        else
-            E = (I * I / ALAT(1)**2)
-            E = E + (J * J / ALAT(2)**2)
-            E = E + (K * K / ALAT(3)**2)
-        end if
-        Energy = 0.5 * 4 * PI * PI * E
-        dUnscaledEnergy = (I * I)
-        dUnscaledEnergy = dUnscaledEnergy + (J * J)
-        dUnscaledEnergy = dUnscaledEnergy + (K * K)
-    ELSE
-        E = (I * I)
-        E = E + (J * J)
-        E = E + (K * K)
-        Energy = E
-    end if
-END SUBROUTINE GetUEGKE
-
-
-SUBROUTINE WRITEBASIS(NUNIT, G1, NHG, ARR, BRR)
-    ! Write out the current basis to unit nUnit
-    use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, k_lattice_vectors
-    use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, nel, tUEG2
-    use DeterminantData, only: fdet
-    use sym_mod, only: writesym
-    use constants, only: dp
-    implicit none
-    integer, intent(in) :: nunit
-    type(basisfn), intent(in) :: g1(nhg)
-    integer, intent(in) :: nhg, brr(nhg)
-
-    integer :: pos, i
-    real(dp) ARR(NHG, 2), unscaled_energy, kvecX, kvecY, kvecZ
-
-    ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
-    !     filled in yet. --> track pos.
-    if (.not. associated(fdet)) &
-        write(nunit, '("HF determinant not yet defined.")')
-    pos = 1
-!=============================================
-    if (tUEG2) then
-
-        DO I = 1, NHG
-!     kvectors in cartesian coordinates
-            kvecX = k_lattice_vectors(1, 1) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 1) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 1) * G1(BRR(I))%K(3)
-            kvecY = k_lattice_vectors(1, 2) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 2) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 2) * G1(BRR(I))%K(3)
-            kvecZ = k_lattice_vectors(1, 3) * G1(BRR(I))%K(1) &
-                    + k_lattice_vectors(2, 3) * G1(BRR(I))%K(2) &
-                    + k_lattice_vectors(3, 3) * G1(BRR(I))%K(3)
-
-            unscaled_energy = ((kvecX)**2 + (kvecY)**2 + (kvecZ)**2)
-
-            write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
-            CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
-            write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
-            write(NUNIT, '(3F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2), unscaled_energy
-
-            if (associated(fdet)) then
-                pos = 1
-                do while (pos < nel .and. fdet(pos) < brr(i))
-                    pos = pos + 1
-                end do
-                if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
-            end if
-            write(nunit, *)
-        end do
-        RETURN
-    end if !UEG2
-!=============================================
-    DO I = 1, NHG
-        write(NUNIT, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
-        CALL WRITESYM(NUNIT, G1(BRR(I))%SYM, .FALSE.)
-        write(NUNIT, '(I4)', advance='no') G1(BRR(I))%Ml
-        write(NUNIT, '(2F19.9)', advance='no') ARR(I, 1), ARR(BRR(I), 2)
-        if (associated(fdet)) then
-            pos = 1
-            do while (pos < nel .and. fdet(pos) < brr(i))
-                pos = pos + 1
-            end do
-            if (brr(i) == fdet(pos)) write(nunit, '(" #")', advance='no')
-        end if
-        write(nunit, *)
-    end do
-    RETURN
-END SUBROUTINE WRITEBASIS

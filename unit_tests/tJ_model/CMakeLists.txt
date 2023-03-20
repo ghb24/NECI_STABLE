@@ -1,1 +1,1 @@
-add_unit_test_all_configs( tJ_model )
+add_unit_test( neci tJ_model )

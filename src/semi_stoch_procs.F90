@@ -6,9 +6,14 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, NIfD, NIfTot, test_flag, &
-                            test_flag_multi, IlutBits
+                            test_flag_multi, IlutBits, extract_sign, &
+                            flag_connected, flag_trial
 
-    use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
+    use bit_reps, only: decode_bit_det, get_initiator_flag_by_run, &
+        set_flag, encode_sign
+    use calcrho_mod, only: igetexcitlevel
+
+    use mpi
 
     use CalcData
 
@@ -20,7 +25,7 @@ module semi_stoch_procs
 
     use FciMCData, only: SpawnedParts, TotWalkers, CurrentDets, &
                          MaxSpawned, ilutRef, &
-                         t_global_core_space, core_run
+                         t_global_core_space, core_run, Hii
 
     use core_space_util, only: core_space_t, cs_replicas, min_pt, max_pt, &
                                deallocate_sparse_ham
@@ -41,8 +46,6 @@ module semi_stoch_procs
 
     use timing_neci
 
-    use bit_reps, only: encode_sign
-
     use hamiltonian_linalg, only: parallel_sparse_hamil_type
 
     use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
@@ -53,9 +56,12 @@ module semi_stoch_procs
 
     use Parallel_neci, only: MPIScatterV
 
-    use MPI_wrapper, only: root, MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
+    use MPI_wrapper, only: root
+#ifndef IFORT_
+    use MPI_wrapper, only: MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
         MPI_COMM_SIZE, MPI_Win_Sync, MPI_Barrier, MPI_2DOUBLE_PRECISION, &
         MPI_MAXLOC
+#endif
 
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
@@ -89,7 +95,7 @@ module semi_stoch_procs
 
     use tau_main, only: tau
 
-    implicit none
+    better_implicit_none
 
     ! Distinguishing value for 'use all runs'
     integer, parameter :: GLOBAL_RUN = -45
@@ -236,7 +242,7 @@ contains
 
     subroutine determ_projection_kp_hamil(partial_vecs, full_vecs, rep)
 
-        use FciMCData, only: Hii, SemiStoch_Comms_Time, SemiStoch_Multiply_Time
+        use FciMCData, only: SemiStoch_Comms_Time, SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
         real(dp), allocatable, intent(inout) :: partial_vecs(:, :)
@@ -897,7 +903,6 @@ contains
 
         ! Note: If requested, keep all doubles at the top, then sort by energy.
 
-        use bit_reps, only: decode_bit_det
         use DetBitOps, only: FindBitExcitLevel
         use FciMCData, only: ilutHF
         use sort_mod, only: sort
@@ -1064,7 +1069,6 @@ contains
         ! And if the state is already present, simply set its flag.
         ! Also sort the states afterwards.
 
-        use bit_reps, only: set_flag
         use DetBitOps, only: ilut_lt, ilut_gt, DetBitLT
         use searching, only: BinSearchParts
         use sort_mod, only: sort
@@ -1144,7 +1148,6 @@ contains
         ! on output, everything will be fine and ready for the FCIQMC calculation
         ! to start.
 
-        use bit_reps, only: set_flag, extract_sign
         use FciMCData, only: ll_node, HashIndex, nWalkerHashes
         use hash, only: clear_hash_table, FindWalkerHash
         use DetBitOps, only: tAccumEmptyDet
@@ -1309,7 +1312,6 @@ contains
         ! Return the most populated states in CurrentDets on *this* processor only.
         ! Also return the norm of these states, if requested.
 
-        use bit_reps, only: extract_sign
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
@@ -1428,7 +1430,6 @@ contains
 !>  @param[out] largest_walkers, Array of most `n_keep` most populated states.
     subroutine global_most_populated_states(n_keep, run, largest_walkers, norm, rank_of_largest, hdiag_largest)
         use Parallel_neci, only: MPISumAll, MPIAllReduceDatatype, MPIBCast
-        use bit_reps, only: extract_sign
 
         integer, intent(in) :: n_keep, run
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
@@ -1625,6 +1626,7 @@ contains
         real(dp) :: sign_curr_real
 #ifdef CMPLX_
         sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
+        unused_var(run)
 #else
         if (tSignedRepAv) then
             sign_curr_real = real(abs(sum(sign_curr)), dp)
@@ -1833,7 +1835,7 @@ contains
 
         if (tPrintInfo) then
             write(stdout, '(a30)') "Davidson calculation complete."
-            write(stdout, '("Deterministic subspace correlation energy:",1X,f15.10)') dc%davidson_eigenvalue
+            write(stdout, '("Deterministic total energy:",1X,f15.10)') dc%davidson_eigenvalue + Hii
             call neci_flush(6)
         end if
 
@@ -1871,8 +1873,6 @@ contains
     end subroutine start_walkers_from_core_ground
 
     subroutine start_walkers_from_core_ground_nonhermit(tPrintInfo, run)
-        use bit_reps, only: encode_sign
-
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run
         integer :: i, counter, ierr
@@ -1950,8 +1950,8 @@ contains
         e_vector = davidsonCalc%davidson_eigenvector
 
         write(stdout, '(a30)') "Davidson calculation complete."
-        write(stdout, '("Deterministic subspace correlation energy:",1X,f15.10)') &
-            e_value
+        write(stdout, '("Deterministic total energy:",1X,f15.10)') &
+            e_value + Hii
 
         call neci_flush(6)
 
@@ -2223,8 +2223,6 @@ contains
         ! and trial_wfs, which are deallocated after the first init_trial_wf
         ! call.
 
-        use bit_rep_data, only: flag_trial, flag_connected
-        use bit_reps, only: decode_bit_det, set_flag
         use FciMCData, only: CurrentDets, TotWalkers, tTrialHash, current_trial_amps, ntrial_excits
         use searching, only: hash_search_trial, bin_search_trial
         use SystemData, only: nel

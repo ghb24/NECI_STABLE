@@ -60,7 +60,7 @@ neci_add_option(
 
 neci_add_option(
     FEATURE HDF5
-    DEFAULT OFF
+    DEFAULT ON
     DESCRIPTION "Use HDF5 file format for storage"
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
@@ -108,6 +108,9 @@ set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex CMPLX_ PROG_NUMRUNS_)
 set(${PROJECT_NAME}_neci_WARNERR TRUE)
 set(${PROJECT_NAME}_dneci_WARNERR TRUE)
 set(${PROJECT_NAME}_mneci_WARNERR TRUE)
+set(${PROJECT_NAME}_kneci_WARNERR TRUE)
+set(${PROJECT_NAME}_kdneci_WARNERR TRUE)
+set(${PROJECT_NAME}_kmneci_WARNERR TRUE)
 
 # Global (always on) defines
 

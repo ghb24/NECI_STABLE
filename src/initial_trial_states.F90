@@ -2,18 +2,31 @@
 
 module initial_trial_states
     use semi_stoch_procs, only: GLOBAL_RUN
+    use semi_stoch_gen, only: generate_ras, generate_cas, generate_fci_core, &
+        generate_space_from_file, generate_sing_doub_guga, &
+        generate_sing_doub_determinants, &
+        generate_optimised_space, generate_space_most_populated, &
+        add_state_to_space, generate_using_mp1_criterion
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use gndts_mod, only: gndts_all_sym_this_proc
     use bit_rep_data
     use constants
     use kp_fciqmc_data_mod
     use SystemData, only: t_non_hermitian_2_body
     use core_space_util, only: cs_replicas
     use FciMCData, only: core_run
-#ifndef CMPLX_
+    use SystemData, only: tGUGA, tHPHF
+    use determinants, only: get_helement
+    use guga_bitRepOps, only: CSF_Info_t
+#ifdef CMPLX_
+    use blas_interface_mod, only: zheev
+#else
     use matrix_util, only: eig, print_matrix
 #endif
     use util_mod, only: operator(.div.), stop_all
+    use parallel_neci, only: MPIAllGather, MPIBarrier
 
-    implicit none
+    better_implicit_none
 
     ! if the space is smaller than this parameter, use LAPACK instead
     integer, parameter :: lanczos_space_size_cutoff = 2000
@@ -31,7 +44,6 @@ contains
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
         use MPI_wrapper, only: root
-        use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors, tGUGA
         use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham

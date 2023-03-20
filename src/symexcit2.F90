@@ -3,9 +3,11 @@ MODULE SymExcit2
 
     use CalcData, only: G_VMC_EXCITWEIGHT, G_VMC_EXCITWEIGHTS, CUR_VERT, EXCITFUNCS
     use CalcData, only: TUPOWER
+    use Determinants, only: IsUHFDet
     use IntegralsData, only: ChemPot
     use constants, only: dp
     use util_mod, only: near_zero, stop_all
+    use excit_mod, only: GETEXCITATION
     IMPLICIT NONE
 
     TYPE ExcitWeight
@@ -350,7 +352,6 @@ CONTAINS
         INTEGER iSpn, iCount, nToPairs, iTotal, nFromPairs
         real(dp) pGen
         real(dp) Arr(nBasis, 2)
-        LOGICAL IsUHFDet
         character(*), parameter :: this_routine = 'GenExcitProbInternal'
         ASSERT(.not. t_3_body_excits)
         iExcit(1, 1) = 2
@@ -455,7 +456,6 @@ CONTAINS
         LOGICAL L
         INTEGER nI(nEl), nJ(nEl)
         LOGICAL tIsConnectedDet
-        LOGICAL IsUHFDet
 #ifdef DEBUG_
         character(*), PARAMETER :: this_routine = "IsConnectedDetInternal"
 #endif
@@ -591,8 +591,6 @@ CONTAINS
         INTEGER, target :: OPin(1:2, *)
         INTEGER, pointer :: ORBPAIRS(:, :)
         INTEGER nCl, nExcitTypes, nPr
-
-        LOGICAL ISUHFDET
 
         INTEGER I
         type(timer), save :: proc_timer

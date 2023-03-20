@@ -2,7 +2,7 @@
 module pcpp_excitgen
     use constants
     use aliasSampling, only: aliasSampler_t, clear_sampler_array
-    use bit_reps, only: niftot
+    use bit_rep_data, only: niftot
     use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
     use sym_mod, only: symprod, symconj
     use DetBitOps, only: EncodeBitDet

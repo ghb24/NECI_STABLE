@@ -60,7 +60,7 @@ module fcimc_initialisation
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tAutoAdaptiveShift, &
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
-                        AAS_Cut, &
+                        AAS_Cut, tTruncInitiator, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
@@ -105,17 +105,19 @@ module fcimc_initialisation
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
 
     use bit_rep_data, only: NIfTot, NIfD, IlutBits, flag_initiator, &
-                            flag_deterministic, extract_sign
+                            flag_deterministic, extract_sign, nIfGUGA, &
+                            test_flag_multi
 
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_run_sign, tBuildSpinSepLists, nifguga, &
+                        extract_run_sign, &
                         get_initiator_flag, writebitdet, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
                          BinRange
+
     use hist, only: init_hist_excit_tofrom, clean_hist_excit_tofrom
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
@@ -146,7 +148,8 @@ module fcimc_initialisation
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only: InitHistInitPops
-    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
+    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2, &
+        tBuildSpinSepLists
     use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
                            extract_bit_rep_avsign_no_rdm
     use rdm_filling, only: fill_rdm_diag_currdet_norm
@@ -215,7 +218,7 @@ module fcimc_initialisation
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
     use FciMCData, only: &
-        Walker_Time, Annihil_Time, GetDiagMatel_Time, GetOffDiagMatel_Time, Sort_Time, &
+        Walker_Time, Annihil_Time, Sort_Time, &
         Comms_Time, ACF_Time, AnnSpawned_time, AnnMain_time, BinSearch_time, &
         SemiStoch_Comms_Time, SemiStoch_Multiply_Time, Trial_Search_Time, SemiStoch_Init_Time, SemiStoch_Hamil_Time, &
         SemiStoch_Davidson_Time, Trial_Init_Time, InitSpace_Init_Time, kp_generate_time, Stats_Comms_Time, &
@@ -368,9 +371,11 @@ module fcimc_initialisation
     use SD_spin_purification_mod, only: SD_spin_purification, possible_purification_methods, spin_pure_J
 
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
+
+    use blas_interface_mod, only: dgeev
     implicit none
 
-    external :: dgeev, LargestBitSet
+    external :: LargestBitSet
 
 contains
 
@@ -405,8 +410,6 @@ contains
 !Set timed routine names
         Walker_Time%timer_name = 'WalkerTime'
         Annihil_Time%timer_name = 'AnnihilTime'
-        GetDiagMatel_Time%timer_name = 'GetDiagMatelTime'
-        GetOffDiagMatel_Time%timer_name = 'GetOffDiagMatelTime'
         Sort_Time%timer_name = 'SortTime'
         Comms_Time%timer_name = 'CommsTime'
         ACF_Time%timer_name = 'ACFTime'
@@ -1010,6 +1013,17 @@ contains
             write(stdout, "(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
             write(stdout, "(A,F25.15)") "This means tau should be no more than about ", UpperTau
             write(stdout, *) "Highest energy determinant is: ", HighEDet(:)
+
+            associate(deterministic_max_tau => UpperTau * 1.1_dp)
+            if (deterministic_max_tau < max_tau) then
+                write(stdout, "(A)") "The deterministic tau is smaller than max_tau."
+                write(stdout, "(A, F25.15)") "We will limit max_tau to:", deterministic_max_tau
+                max_tau = deterministic_max_tau
+                if (tau > max_tau) then
+                    call assign_value_to_tau(max_tau, 'Initial tau was higher than deterministic tau limit.')
+                end if
+            end if
+            end associate
         else
             UpperTau = 0.0_dp
         end if
@@ -4216,7 +4230,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-        use bit_rep_data, only: test_flag_multi
         ! initialize the norm_psi, norm_psi_squared
         implicit none
         integer(int64) :: j

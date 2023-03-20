@@ -7,7 +7,8 @@ module guga_rdm
                          Root2, int64, int_rdm, stdout
     use SystemData, only: nel, nSpatOrbs
     use fortran_strings, only: str
-    use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifd, &
+    use bit_rep_data, only: niftot, nifd
+    use bit_reps, only: extract_bit_rep, decode_bit_det, &
                         any_run_is_initiator, all_runs_are_initiator
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
     use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdm_spawn_t, one_rdm_t

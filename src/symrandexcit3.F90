@@ -17,16 +17,19 @@ module symrandexcit3
                                OrbClassCount, ScratchSize1, ScratchSize2, &
                                ScratchSize3
     use SymData, only: nSymLabels
+    use SymExcit2, only: gensymexcitit2par_worker
     use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd, &
                                     CreateSingleExcit, CreateExcitLattice, &
-                                    init_excit_gen_store, clean_excit_gen_store
+                                    init_excit_gen_store, clean_excit_gen_store, IsMomAllowedDet
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
-    use bit_reps, only: niftot, decode_bit_det_lists
+    use bit_rep_data, only: niftot
+    use bit_reps, only: decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
+    use excit_mod, only: findexcitdet
     use util_mod, only: stop_all, neci_flush, binary_search_first_ge
 
     implicit none
@@ -434,7 +437,6 @@ contains
         use DetBitOps, only: EncodeBitDet, FindExcitBitDet
         use GenRandSymExcitNUMod, only: IsMomentumAllowed
         use constants, only: n_int
-        use bit_reps, only: NIfTot
         use sym_mod, only: mompbcsym, GetLz
         use neci_intfce
         IMPLICIT NONE
@@ -442,7 +444,7 @@ contains
         real(dp) :: pDoub, pGen, AverageContrib, AllAverageContrib
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot), iLut(0:NIfTot)
         INTEGER :: iExcit
-        LOGICAL :: tParity, IsMomAllowedDet, test
+        LOGICAL :: tParity, test
 
         ! Accumulator arrays. These need to be allocated on the heap, or we
         ! get a segfault by overflowing the stack using ifort
@@ -480,16 +482,16 @@ contains
 !Setup excit generators for this determinant
         iMaxExcit = 0
         nStore(1:6) = 0
-        CALL GenSymExcitIt2(nI, NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, exFlag)
+        CALL gensymexcitit2par_worker(nI, NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, exFlag, 1, nEl)
         allocate(EXCITGEN(nExcitMemLen(1)), stat=ierr)
         IF (ierr /= 0) CALL Stop_All("SetupExcitGen", "Problem allocating excitation generator")
         EXCITGEN(:) = 0
-        CALL GenSymExcitIt2(nI, NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, exFlag)
+        CALL gensymexcitit2par_worker(nI, NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, exFlag, 1, nEl)
 !    CALL GetSymExcitCount(EXCITGEN,DetConn)
         excitcount = 0
 
         lp2: do while (.true.)
-            CALL GenSymExcitIt2(nI, nEl, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, exFlag)
+            CALL gensymexcitit2par_worker(nI, nEl, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, exFlag, 1, nEl)
             IF (nJ(1) == 0) exit lp2
             IF (tUEG .or. tHub) THEN
                 IF (IsMomentumAllowed(nJ)) THEN
@@ -757,20 +759,6 @@ contains
 
     END SUBROUTINE
 
+
 end module
-
-! N.B. This is outside the module *sigh*
-subroutine virt_uniform_sym_setup()
-
-    use SymExcitDataMod, only: ScratchSize, ScratchSize3
-    implicit none
-
-    ! We use the third scratch array to store data for single
-    ! excitations
-
-    call SpinOrbSymSetup()
-
-    ScratchSize3 = ScratchSize
-
-end subroutine
 

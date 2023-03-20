@@ -17,7 +17,7 @@ pipelines:
       - mkdir build
       - cd build
       - echo "building release version"
-      - cmake -DCMAKE_BUILD_TYPE=FastDebug ..
+      - cmake -DENABLE_HDF5=OFF -DCMAKE_BUILD_TYPE=FastDebug ..
       - make -j neci test_neci
       - echo "done building release version"
       - echo "running unit tests"
@@ -35,7 +35,7 @@ pipelines:
         - mkdir build
         - cd build
         - echo "building release version"
-        - cmake ..
+        - cmake -DENABLE_HDF5=OFF ..
         - make -j
         - echo "done building release version"
         - echo "running unit tests"
@@ -55,7 +55,7 @@ pipelines:
         - mkdir build
         - cd build
         - echo "building release version"
-        - cmake ..
+        - cmake -DENABLE_HDF5=OFF ..
         - make -j
         - echo "done building release version"
         - echo "running unit tests"
@@ -78,7 +78,7 @@ pipelines:
       - mkdir build
       - cd build
       - echo "building release version"
-      - cmake ..
+      - cmake -DENABLE_HDF5=OFF ..
       - make -j
       - echo "done building release version"
       - echo "running unit tests"

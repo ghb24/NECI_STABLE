@@ -51,6 +51,18 @@ module Integrals_neci
     use input_parser_mod, only: FileReader_t, TokenIterator_t
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_realsp, to_realdp
+
+    use cpmdinit_mod, only: cpmdinit2indint
+
+    use gen_coul_mod, only: gen_coul
+
+    use init_coul_mod, only: initfou
+
+    use init_coul2D_mod, only: initfou2d
+
+    use hubbard_mod, only: calcumathubreal, write_kspace_umat, calctmathub
+
+    use Determinants, only: detfreezebasis, writebasis
     implicit none
 
 contains
@@ -1888,10 +1900,13 @@ contains
     subroutine DumpFCIDUMP()
         use SystemData, only: G1, nBasis, nel
         integer :: i, j, k, l, iunit
-        character(len=*), parameter :: t_r = 'DumpFCIDUMP'
+        character(len=*), parameter :: this_routine = 'DumpFCIDUMP'
+        character(*), parameter :: formatter = "(F21.12,6I3)"
 
-        if(tStoreSpinOrbs) call stop_all(t_r, 'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
-        if(tFixLz) call stop_all(t_r, 'Dumping FCIDUMP not working with Lz')
+        ASSERT(nBasis / 2 <= 999) ! Otherwise the formatters have to be adapted
+
+        if(tStoreSpinOrbs) call stop_all(this_routine, 'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
+        if(tFixLz) call stop_all(this_routine, 'Dumping FCIDUMP not working with Lz')
 
         iunit = get_free_unit()
         open(iunit, file='FCIDUMP-NECI', status='unknown')
@@ -1909,7 +1924,7 @@ contains
                 do j = 2, nBasis, 2
                     do l = 2, j, 2
                         if((abs(real(umat(umatind(i / 2, j / 2, k / 2, l / 2)), dp))) > 1.0e-9_dp) then
-                            write(iunit, '(F21.12,4I3)') REAL(UMat(UMatInd(i / 2, j / 2, k / 2, l / 2)), dp), i / 2, k / 2, j / 2, l / 2
+                            write(iunit, formatter) REAL(UMat(UMatInd(i / 2, j / 2, k / 2, l / 2)), dp), i / 2, k / 2, j / 2, l / 2
                         end if
                     end do
                 end do
@@ -1919,12 +1934,12 @@ contains
         do i = 2, nBasis, 2
             do j = 2, i, 2
                 if(abs(real(tmat2d(i, j), dp)) > 1.0e-9_dp) then
-                    write(iunit, '(F21.12,4I3)') REAL(TMAT2D(i, j), dp), i / 2, j / 2, 0, 0
+                    write(iunit, formatter) REAL(TMAT2D(i, j), dp), i / 2, j / 2, 0, 0
                 end if
             end do
         end do
 
-        write(iunit, '(F21.12,4I3)') ECore, 0, 0, 0, 0
+        write(iunit, formatter) ECore, 0, 0, 0, 0
         call neci_flush(iunit)
         close(iunit)
 
