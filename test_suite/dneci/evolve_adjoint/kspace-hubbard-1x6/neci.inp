@@ -24,9 +24,11 @@ calc
     truncinitiator
     addtoinitiator 3.
     allrealcoeff
+    realspawncutoff off
 
     shiftdamp 0.1
     stepsshift 10
+
     time 5400
     seed 1
     load-balance-blocks off

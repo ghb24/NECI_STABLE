@@ -24,6 +24,7 @@ calc
     definedet 1 4 5 8
 
     allrealcoeff
+    realspawncutoff off
     tau-values \
         start user-defined 0.01
 
