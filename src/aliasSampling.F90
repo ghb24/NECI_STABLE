@@ -850,12 +850,13 @@ contains
     !> @param[in] i Index of the entry to initialize
     !> @param[in] j Index of the entry to initialize
     !> @param[in] k Index of the entry to initialize
-    !> @param[in] rank_with_info The MPI rank who has the information.
-    !>      The `arr` can be empty on the other ranks.
     !> @param[in] arr  data to be loaded by that entry
     subroutine setupEntry_3D(this, i, j, k, rank_with_info, arr)
         class(AliasSampler_3D_t), intent(inout) :: this
-        integer, intent(in) :: i, j, k, rank_with_info
+        integer, intent(in) :: i, j, k
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         real(dp), intent(in) :: arr(:)
 
         call this%samplerArray(i, j, k)%init(rank_with_info, arr)
