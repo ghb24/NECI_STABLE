@@ -1,11 +1,18 @@
 #include "macros.h"
 module aliasSampling
-    ! This module contains the utility to use alias table lookup on lists,
-    ! requiring to precompute biases but making the lookup O(1)
+    !! This module contains the utility to use alias table lookup on lists,
+    !! requiring to precompute biases but making the lookup O(1)
+
+
+    ! This is where stuff gets technical...
+    ! A sampler array class is required since intel mpi cannot have more than 16381 shared
+    ! memory windows (i.e. we could not handle more than ~5500 samplers, which is easily
+    ! required for larger systems)
     use constants, only: dp, int64, n_int, bits_n_int, stderr, MPIArg
     use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
-    use parallel_neci, only: iProcIndex_intra, Node, MPIBarrier, mpi_comm_intra, MPIBCast, MPI_INTEGER8, MPI_LOGICAL
+    use parallel_neci, only: iProcIndex_intra, Node, MPIBarrier, &
+        mpi_comm_intra, MPIBCast, MPI_INTEGER8, MPI_LOGICAL
 #ifndef IFORT_
     use parallel_neci, only: MPI_BCast
 #endif
@@ -16,73 +23,79 @@ module aliasSampling
     better_implicit_none
 
     private
-    public :: aliasSampler_t, AliasSampler_1D_t, AliasSampler_2D_t, AliasSampler_3D_t, &
-        clear_sampler_array, aliasTable_t, do_direct_calculation
+    public :: AliasSampler_t, AliasSampler_1D_t, AliasSampler_2D_t, AliasSampler_3D_t, &
+        clear_sampler_array, AliasTable_t, do_direct_calculation
 
-    ! type for tables: contains everything you need to get a random number
-    ! with given biases
-    type aliasTable_t
+    type :: AliasTable_t
+        !! This class implements the Walker-Vose Alias Sampling method.
+        !!
+        !! The initializing weights do not have to be normalized.
+        !! The algorithm is described
+        !! [here](https://web.archive.org/web/20131029203736/http://web.eecs.utk.edu/~vose/Publications/random.pdf)
+        !!
+        !! The class does not store the probabilities themselves.
+        !! Look to AliasSampler_t for this additional feature.
         private
         ! WARNING: DO NOT MANUALLY RE-ASSIGN THESE POINTERS, THIS WILL MOST LIKELY BREAK STUFF
-        ! this is the table of bias
-        type(shared_array_real_t) :: biasTable
-        ! this is the lookup table for the resulting random number
-        type(shared_array_int32_t) :: aliasTable
-
+        type(shared_array_real_t) :: bias
+            !! this is the table of bias
+        type(shared_array_int32_t) :: alias
+            !! this is the lookup table for the resulting random number
     contains
         private
-        ! constructor
-        procedure, public:: setupTable
-        ! only load the data, without allocation
-        procedure :: initTable
-        ! destructor - final would be suited better, but is not supported by all compilers
-        procedure, public :: tableDestructor
-        ! get a random value from the alias table
-        procedure, public :: getRand
-    end type aliasTable_t
+        procedure, public :: setup => setup_AliasTable_t
+            !! constructor
+        procedure :: init => init_AliasTable_t
+            !! only compute the data, without allocation
+        procedure, public :: finalize => finalize_AliasTable_t
+            !! destructor - final would be suited better, but is not supported by all compilers
+        procedure, public :: sample => sample_AliasTable_t
+            !! get a random value from the alias table
+    end type
 
-    !------------------------------------------------------------------------------------------!
-
-    ! type for alias samplers: given an (un-normalized) array of weights, draws
-    ! random numbers from this distribution
-    type aliasSampler_t
+    type :: AliasSampler_t
+        !! Alias Sampler class
+        !!
+        !! Given an (un-normalized) array of weights, draws
+        !! random numbers from this distribution.
+        !! Has additional features compared to the AliasTable_t,
+        !! like the stored probabilities.
         private
-        ! alias table used for sampling
-        type(aliasTable_t) :: table
+        type(AliasTable_t) :: table
+            !! alias table used for sampling
         ! WARNING: DO NOT MANUALLY RE-ASSIGN THIS POINTER, THIS WILL MOST LIKELY BREAK STUFF
-        ! the probabilities
         type(shared_array_real_t) :: probs
+            !! the probabilities
 
     contains
-        ! constructor
-        procedure :: setupSampler
-        ! only load the data, without allocation
-        procedure, private :: initSampler
-        ! initialize the probabilities
-        procedure, private :: initProbs
-        ! destructor - see above re final
-        procedure :: samplerDestructor
-        ! get a random element and the generation probability
-        procedure :: sample
-        ! get a random element from a constrained set and its normalized! generation probability
-        generic :: constrained_sample => constrained_sample_fast, constrained_sample_nI
+        private
+        procedure, public:: setup => setup_AliasSampler_t
+            !! constructor
+        procedure :: init => init_AliasSampler_t
+            !! only compute the data, i.e. bias tables etc., without allocation
+        procedure :: init_probs => init_probs_AliasSampler_t
+            !! initialize the probabilities
+        procedure, public :: finalize => finalize_AliasSampler_t
+            ! destructor
+        procedure, public :: sample
+            !! get a random element and the generation probability
+        generic, public :: constrained_sample => constrained_sample_fast, constrained_sample_nI
+            !! get a random element from a constrained set and its normalized! generation probability
         procedure, private :: constrained_sample_nI, constrained_sample_fast
-        ! get the probability to produce a given value
-        procedure :: getProb
-        ! get the probability to draw a given value from a constrained set
-        procedure :: constrained_getProb
-    end type aliasSampler_t
+        procedure, public :: get_prob => get_prob_AliasSampler_t
+            !! get the probability to produce a given value
+        procedure, public :: constrained_getProb
+            !! get the probability to draw a given value from a constrained set
+    end type AliasSampler_t
 
-    !------------------------------------------------------------------------------------------!
     ! sampler array class - required for technical reasons: we need multiple samplers to share
     ! the same shared memory windows, because the number of shared memory windows
     ! is bounded by the number of communicators which cannot exceed 16381 on most
     ! implementations. https://community.intel.com/t5/Intel-oneAPI-HPC-Toolkit/INTEL-MPI-5-0-Bug-in-MPI-3-shared-memory-allocation-MPI-WIN/td-p/1016993
-    !------------------------------------------------------------------------------------------!
     type AliasSampler_3D_t
         private
         ! this is an array of aliasSamplers, in the end
-        type(aliasSampler_t), allocatable :: samplerArray(:, :, :)
+        type(AliasSampler_t), allocatable :: samplerArray(:, :, :)
 
         ! shared resources of the array entries
         type(shared_array_real_t) :: allProbs
@@ -148,13 +161,10 @@ module aliasSampling
 
 contains
 
-    !------------------------------------------------------------------------------------------!
-    ! Initialization / Finalization routines of the aliasTable
-    !------------------------------------------------------------------------------------------!
 
-    subroutine setupTable(this, rank_with_info, arr)
+    subroutine setup_AliasTable_t(this, rank_with_info, arr)
         !! pseudo-constructor for alias tables
-        class(aliasTable_t), intent(inout) :: this
+        class(AliasTable_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
@@ -181,27 +191,25 @@ contains
             arrSize = size(arr, kind=int64)
             call MPI_Bcast(arrSize, size(arrSize, kind=MPIArg), MPI_INTEGER8, rank_with_info, mpi_comm_intra, ierr)
             ! allocate the probabilities
-            call this%biasTable%shared_alloc(arrSize(1))
-            call this%aliasTable%shared_alloc(arrSize(1))
+            call this%bias%shared_alloc(arrSize(1))
+            call this%alias%shared_alloc(arrSize(1))
         end block
 
 
 
-        call this%initTable(rank_with_info, arr)
+        call this%init(rank_with_info, arr)
 
         ! Sync the shared resource between tasks
-        call this%biasTable%sync()
-        call this%aliasTable%sync()
+        call this%bias%sync()
+        call this%alias%sync()
 
-    end subroutine setupTable
-
-    !------------------------------------------------------------------------------------------!
+    end subroutine setup_AliasTable_t
 
     !> Set the bias and alias values for each value in range
     !> @param[in] arr - array containing the (not necessarily normalized) probabilities we
     !>              want to use for sampling
-    subroutine initTable(this, rank_with_info, arr)
-        class(aliasTable_t), intent(inout) :: this
+    subroutine init_AliasTable_t(this, rank_with_info, arr)
+        class(AliasTable_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
@@ -216,7 +224,7 @@ contains
 
             arrSize = size(arr, kind=int64)
             ! initialize the probabilities
-            this%biasTable%ptr = arr / sum(arr) * arrSize
+            this%bias%ptr = arr / sum(arr) * arrSize
 
             ! indices of subarrays
             allocate(overfull(arrSize), underfull(arrSize))
@@ -239,9 +247,9 @@ contains
                 i = overfull(cV)
                 j = underfull(cU)
                 ! set the alias of the underfull to be the other
-                this%aliasTable%ptr(j) = i
+                this%alias%ptr(j) = i
                 ! correct the bias
-                this%biasTable%ptr(i) = this%biasTable%ptr(i) + this%biasTable%ptr(j) - 1.0_dp
+                this%bias%ptr(i) = this%bias%ptr(i) + this%bias%ptr(j) - 1.0_dp
 
                 ! unmark j
                 cU = cU - 1
@@ -263,7 +271,7 @@ contains
             integer, intent(in) :: i
             integer, intent(inout) :: overfull(:), cV, underfull(:), cU
 
-            if (this%biasTable%ptr(i) > 1) then
+            if (this%bias%ptr(i) > 1) then
                 cV = cV + 1
                 overfull(cV) = i
             else
@@ -281,38 +289,33 @@ contains
             ! (error is negligible then)
             if (cI > 0) then
                 do i = 1, cI
-                    this%biasTable%ptr(labels(i)) = 1.0_dp
-                    this%aliasTable%ptr(labels(i)) = labels(i)
+                    this%bias%ptr(labels(i)) = 1.0_dp
+                    this%alias%ptr(labels(i)) = labels(i)
                 end do
             end if
 
         end subroutine roundTo1
 
-    end subroutine initTable
-    !------------------------------------------------------------------------------------------!
+    end subroutine init_AliasTable_t
 
     !> clear the memory used by the alias table
-    subroutine tableDestructor(this)
-        class(aliasTable_t), intent(inout) :: this
+    subroutine finalize_AliasTable_t(this)
+        class(AliasTable_t), intent(inout) :: this
 
-        call this%aliasTable%shared_dealloc()
-        call this%biasTable%shared_dealloc()
-    end subroutine tableDestructor
-
-    !------------------------------------------------------------------------------------------!
-    ! Sampling function
-    !------------------------------------------------------------------------------------------!
+        call this%alias%shared_dealloc()
+        call this%bias%shared_dealloc()
+    end subroutine
 
     !> Draw a random number from an alias table created with the corresponding probabilities
     !> @return ind  random number between 1 and the size of the array used to create the
     !!               aliasTable object
-    function getRand(this) result(ind)
-        class(aliasTable_t), intent(in) :: this
+    function sample_AliasTable_t(this) result(ind)
+        class(AliasTable_t), intent(in) :: this
         integer :: ind
         real(dp) :: r, bias
         integer :: sizeArr, pos
 
-        sizeArr = size(this%biasTable%ptr)
+        sizeArr = size(this%bias%ptr)
         ! random number between 0 and 1
         r = genrand_real2_dSFMT()
         ! random position in arr
@@ -323,22 +326,19 @@ contains
         ! -> ensure that bias>=0
         bias = max(sizeArr * r + 1 - pos, 0.0_dp)
 
-        if (bias < this%biasTable%ptr(pos)) then
+        if (bias < this%bias%ptr(pos)) then
             ind = pos
         else
-            ind = this%aliasTable%ptr(pos)
+            ind = this%alias%ptr(pos)
         end if
-    end function getRand
+    end function
 
-    !------------------------------------------------------------------------------------------!
-    ! Initialization / Finalization routines of the sampler
-    !------------------------------------------------------------------------------------------!
 
     !> allocate the resources of this and load the probability distribution from arr into this
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
-    subroutine setupSampler(this, rank_with_info, arr)
-        class(aliasSampler_t), intent(inout) :: this
+    subroutine setup_AliasSampler_t(this, rank_with_info, arr)
+        class(AliasSampler_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
@@ -357,7 +357,7 @@ contains
         end block
 
         ! initialize the alias table
-        call this%table%setupTable(rank_with_info, arr)
+        call this%table%setup(rank_with_info, arr)
 
         block
             integer(int64) :: arrSize(1)
@@ -369,19 +369,17 @@ contains
 
 
         ! set the probabilities
-        call this%initProbs(rank_with_info, arr)
+        call this%init_probs(rank_with_info, arr)
 
         call this%probs%sync()
-    end subroutine setupSampler
-
-    !------------------------------------------------------------------------------------------!
+    end subroutine setup_AliasSampler_t
 
     !> load the probability distribution from arr into this
     !! we only use this in the sampler array, but fortran has no friend classes, so its public
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
-    subroutine initSampler(this, rank_with_info, arr)
-        class(aliasSampler_t), intent(inout) :: this
+    subroutine init_AliasSampler_t(this, rank_with_info, arr)
+        class(AliasSampler_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
@@ -401,17 +399,15 @@ contains
         end block
 
         ! load the data - assume this is pre-allocated
-        call this%table%initTable(rank_with_info, arr)
-        call this%initProbs(rank_with_info, arr)
-    end subroutine initSampler
-
-    !------------------------------------------------------------------------------------------!
+        call this%table%init(rank_with_info, arr)
+        call this%init_probs(rank_with_info, arr)
+    end subroutine init_AliasSampler_t
 
     !> load the probability distribution from arr into this%probs
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
-    subroutine initProbs(this, rank_with_info, arr)
-        class(aliasSampler_t), intent(inout) :: this
+    subroutine init_probs_AliasSampler_t(this, rank_with_info, arr)
+        class(AliasSampler_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
@@ -422,26 +418,22 @@ contains
             ! the probabilities are taken from input and normalized
             this%probs%ptr = arr / sum(arr)
         end if
-    end subroutine initProbs
+    end subroutine init_probs_AliasSampler_t
 
-    !------------------------------------------------------------------------------------------!
-
-    subroutine samplerDestructor(this)
-        class(aliasSampler_t), intent(inout) :: this
+    subroutine finalize_AliasSampler_t(this)
+        class(AliasSampler_t), intent(inout) :: this
 
         ! free the stored probabilities
         call this%probs%shared_dealloc()
         ! free the corresponding alias table
-        call this%table%tableDestructor()
-    end subroutine samplerDestructor
-
-    !------------------------------------------------------------------------------------------!
+        call this%table%finalize()
+    end subroutine
 
     !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
     !> @param[in] tgt  on return, this is a random number in the sampling range of this
     !> @param[out] prob  on return, the probability of picking tgt
     subroutine sample(this, tgt, prob)
-        class(aliasSampler_t), intent(in) :: this
+        class(AliasSampler_t), intent(in) :: this
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
 
@@ -452,12 +444,10 @@ contains
             return
         end if
         ! get the drawn number from the alias table
-        tgt = this%table%getRand()
+        tgt = this%table%sample()
         ! and its probability
         prob = this%probs%ptr(tgt)
     end subroutine sample
-
-    !------------------------------------------------------------------------------------------!
 
     !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
     !> @param[in] constraint pick only elements from constraint
@@ -465,7 +455,7 @@ contains
     !> @param[out] pos  the position of tgt in `contain`
     !> @param[out] prob  on return, the probability of picking tgt from constraint
     subroutine constrained_sample_nI(this, contain, renormalization, pos, tgt, prob)
-        class(aliasSampler_t), intent(in) :: this
+        class(AliasSampler_t), intent(in) :: this
         integer, intent(in) :: contain(:)
         real(dp), intent(in) :: renormalization
         integer, intent(out) :: pos, tgt
@@ -474,7 +464,7 @@ contains
 
         ASSERT(is_set(contain))
         ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
-        ASSERT(renormalization .isclose. (sum(this%getProb(contain))))
+        ASSERT(renormalization .isclose. (sum(this%get_prob(contain))))
 
         if (near_zero(renormalization)) then
             tgt = 0
@@ -492,10 +482,10 @@ contains
         end block
         end if
 
-        tgt = this%table%getRand()
+        tgt = this%table%sample()
         pos = int(binary_search_int(contain, tgt))
         do while (pos == -1)
-            tgt = this%table%getRand()
+            tgt = this%table%sample()
             pos = int(binary_search_int(contain, tgt))
         end do
         prob = this%probs%ptr(tgt) / renormalization
@@ -510,7 +500,7 @@ contains
     !> @param[out] pos  the position of tgt in `contain`
     !> @param[out] prob  on return, the probability of picking tgt from constraint
     subroutine constrained_sample_fast(this, contain, contain_ilut, renormalization, pos, val, prob)
-        class(aliasSampler_t), intent(in) :: this
+        class(AliasSampler_t), intent(in) :: this
         integer, intent(in) :: contain(:)
         integer(n_int), intent(in) :: contain_ilut(0 : )
         real(dp), intent(in) :: renormalization
@@ -519,7 +509,7 @@ contains
         routine_name("constrained_sample_fast")
         ASSERT(is_set(contain))
         ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
-        ASSERT(renormalization .isclose. (sum(this%getProb(contain))))
+        ASSERT(renormalization .isclose. (sum(this%get_prob(contain))))
         ASSERT(size(contain) == sum(popcnt(contain_ilut)))
 
         if (near_zero(renormalization)) then
@@ -537,22 +527,20 @@ contains
         end block
         end if
 
-        val = this%table%getRand()
+        val = this%table%sample()
         do while (.not. IsOcc(contain_ilut, val))
-            val = this%table%getRand()
+            val = this%table%sample()
         end do
         pos = int(binary_search_int(contain, val))
         prob = this%probs%ptr(val) / renormalization
         ASSERT(prob .isclose. (this%probs%ptr(val) / sum(this%probs%ptr(contain))))
     end subroutine constrained_sample_fast
 
-    !------------------------------------------------------------------------------------------!
-
     !> Returns the probability to draw tgt from this sampler
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @param[out] prob  the probability of drawing tgt with the sample routine
-    elemental function getProb(this, tgt) result(prob)
-        class(aliasSampler_t), intent(in) :: this
+    elemental function get_prob_AliasSampler_t(this, tgt) result(prob)
+        class(AliasSampler_t), intent(in) :: this
         integer, intent(in) :: tgt
         real(dp) :: prob
 
@@ -562,9 +550,7 @@ contains
         else
             prob = this%probs%ptr(tgt)
         end if
-    end function getProb
-
-    !------------------------------------------------------------------------------------------!
+    end function
 
     !> Returns the probability to draw tgt from this sampler
     !> @param[in] tgt  the number for which we request the probability of sampling
@@ -572,7 +558,7 @@ contains
     !>      (has to be a set, i.e. unique and ordered)
     !> @param[out] prob  the probability of picking tgt from constraint
     pure function constrained_getProb(this, contain, renorm, tgt) result(prob)
-        class(aliasSampler_t), intent(in) :: this
+        class(AliasSampler_t), intent(in) :: this
         integer, intent(in) :: contain(:)
         real(dp), intent(in) :: renorm
         integer, intent(in) :: tgt
@@ -581,7 +567,7 @@ contains
 
         ASSERT(is_set(contain))
         ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
-        ASSERT(isclose(renorm, sum(this%getProb(contain)), atol=1e-10_dp))
+        ASSERT(isclose(renorm, sum(this%get_prob(contain)), atol=1e-10_dp))
             !! This loosened threshhold might be a good idea if the renormalization
             !! was calculated via the complement, i.e.
             !! \Sum{ p_i } {i \in D_i} = 1 - \Sum{ p_i } {i \notin D_i}
@@ -594,33 +580,22 @@ contains
         end if
     end function constrained_getProb
 
-    !------------------------------------------------------------------------------------------!
-
-    !------------------------------------------------------------------------------------------!
-    ! Public non-member function to deallocate 1d-arrays of samplers (common task)
-    !------------------------------------------------------------------------------------------!
 
     !> call the destructor on all elements of an array, then deallocate it. This is for
     !! intrinsic arrays, the sampler array class has its own deallocate routine.
     !> @param[in, out] arr  array to deallocate
     subroutine clear_sampler_array(arr)
-        type(aliasSampler_t), allocatable, intent(inout) :: arr(:)
+        type(AliasSampler_t), allocatable, intent(inout) :: arr(:)
 
         integer :: i
 
         do i = 1, size(arr)
-            call arr(i)%samplerDestructor()
+            call arr(i)%finalize()
         end do
         deallocate(arr)
     end subroutine clear_sampler_array
 
 
-    !------------------------------------------------------------------------------------------!
-    ! This is where stuff gets technical...
-    ! A sampler array class is required since intel mpi cannot have more than 16381 shared
-    ! memory windows (i.e. we could not handle more than ~5500 samplers, which is easily
-    ! required for larger systems)
-    !------------------------------------------------------------------------------------------!
 
     !> Setup an array of samplers using a single shared resource (split into parts associated
     !! with one of them each). This only does the allocation.
@@ -633,8 +608,6 @@ contains
         call this%alias_sampler%shared_alloc([nEntries, 1, 1], entrySize, name)
     end subroutine setupSamplerArray_1D
 
-    !------------------------------------------------------------------------------------------!
-
     !> Initialise one sampler of an array
     !> @param[in] iEntry  index of the entry to initialize
     !> @param[in] arr  data to be loaded by that entry
@@ -645,17 +618,11 @@ contains
         call this%alias_sampler%setup_entry(iEntry, 1, 1, rank_with_info, arr)
     end subroutine setupEntry_1D
 
-    !------------------------------------------------------------------------------------------!
-
     !> Deallocate an array of samplers
     subroutine samplerArrayDestructor_1D(this)
         class(AliasSampler_1D_t), intent(inout) :: this
         call this%alias_sampler%finalize()
     end subroutine samplerArrayDestructor_1D
-
-    !------------------------------------------------------------------------------------------!
-    ! Array access functions
-    !------------------------------------------------------------------------------------------!
 
     subroutine aSample_1D(this, iEntry, tgt, prob)
         !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob
@@ -744,8 +711,6 @@ contains
         call this%alias_sampler%shared_alloc([dims(1), dims(2), 1], entrySize, name)
     end subroutine setupSamplerArray_2D
 
-    !------------------------------------------------------------------------------------------!
-
     !> Initialise one sampler of an array
     !> @param[in] iEntry  index of the entry to initialize
     !> @param[in] arr  data to be loaded by that entry
@@ -756,17 +721,11 @@ contains
         call this%alias_sampler%setup_entry(i, j, 1, rank_with_info, arr)
     end subroutine setupEntry_2D
 
-    !------------------------------------------------------------------------------------------!
-
     !> Deallocate an array of samplers
     subroutine samplerArrayDestructor_2D(this)
         class(AliasSampler_2D_t), intent(inout) :: this
         call this%alias_sampler%finalize()
     end subroutine samplerArrayDestructor_2D
-
-    !------------------------------------------------------------------------------------------!
-    ! Array access functions
-    !------------------------------------------------------------------------------------------!
 
     subroutine aSample_2D(this, i, j, tgt, prob)
         !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob
@@ -877,8 +836,8 @@ contains
 
                     ! set this entry's pointers
                     this%samplerArray(i, j, k)%probs%ptr => this%allProbs%ptr(window_start:window_end)
-                    this%samplerArray(i, j, k)%table%aliasTable%ptr => this%allAliasTable%ptr(window_start:window_end)
-                    this%samplerArray(i, j, k)%table%biasTable%ptr => this%allBiasTable%ptr(window_start:window_end)
+                    this%samplerArray(i, j, k)%table%alias%ptr => this%allAliasTable%ptr(window_start:window_end)
+                    this%samplerArray(i, j, k)%table%bias%ptr => this%allBiasTable%ptr(window_start:window_end)
                     window_start = window_end + 1
                 end do
             end do
@@ -891,13 +850,15 @@ contains
     !> @param[in] i Index of the entry to initialize
     !> @param[in] j Index of the entry to initialize
     !> @param[in] k Index of the entry to initialize
+    !> @param[in] rank_with_info The MPI rank who has the information.
+    !>      The `arr` can be empty on the other ranks.
     !> @param[in] arr  data to be loaded by that entry
     subroutine setupEntry_3D(this, i, j, k, rank_with_info, arr)
         class(AliasSampler_3D_t), intent(inout) :: this
         integer, intent(in) :: i, j, k, rank_with_info
         real(dp), intent(in) :: arr(:)
 
-        call this%samplerArray(i, j, k)%initSampler(rank_with_info, arr)
+        call this%samplerArray(i, j, k)%init(rank_with_info, arr)
 
         ! Sync the shared resources
         call this%allBiasTable%sync()
@@ -919,10 +880,6 @@ contains
         if (allocated(this%samplerArray)) deallocate(this%samplerArray)
     end subroutine
 
-
-    !------------------------------------------------------------------------------------------!
-    ! Array access functions
-    !------------------------------------------------------------------------------------------!
 
     subroutine aSample_3D(this, i, j, k, tgt, prob)
         !! Draw a random element from 1:size(this%probs) with the probabilities listed in prob
@@ -986,7 +943,7 @@ contains
         integer, intent(in) :: tgt
         real(dp) :: prob
 
-        prob = this%samplerArray(i, j, k)%getProb(tgt)
+        prob = this%samplerArray(i, j, k)%get_prob(tgt)
     end function
 
 

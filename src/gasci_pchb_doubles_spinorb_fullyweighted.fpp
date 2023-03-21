@@ -376,6 +376,7 @@ contains
                                     w_B(B) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
                                 else
                                     w_B(B) = 0._dp
+                                end if
                             end if
                         end do second_hole
                         call this%B_sampler%setup_entry(A, IJ, i_sg, root, w_B(:))
