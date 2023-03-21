@@ -229,7 +229,7 @@ endif
 
 ! Cast a real value to HElement_t
 #ifdef CMPLX_
-#define h_cast(val) cmplx(val,0.0_dp,kind=dp)
+#define h_cast(val) cmplx(val, 0.0_dp,kind=dp)
 #else
 #define h_cast(val) real(val, dp)
 #endif

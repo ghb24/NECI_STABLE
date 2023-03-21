@@ -59,6 +59,8 @@ module sltcnd_mod
               sltcnd_compat, sltcnd, sltcnd_knowIC, &
               CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
 
+    ! public ::
+
 !>  @brief
 !>      Evaluate Matrix Element for different excitations
 !>      using the Slater-Condon rules.
@@ -78,20 +80,37 @@ module sltcnd_mod
         module procedure sltcnd_excit_SpinOrbIdx_t_Excite_2_t
     end interface
 
+    ! interface nI_invariant_sltcnd_excit
+    !     #:for rank, excite_t in zip(excit_ranks[2:], defined_excitations[2:])
+    !         module procedure nI_invariant_sltcnd_excit_${excitation_t}$
+    !     #:endfor
+    ! end interface
+
     abstract interface
         #:for rank, excite_t in zip(excit_ranks, defined_excitations)
-        HElement_t(dp) function sltcnd_${rank}$_t(nI, exc, tParity) result(hel)
-            import :: dp, nel, ${excite_t}$
-            integer, intent(in) :: nI(nel)
-            type(${excite_t}$), intent(in) :: exc
-            logical, intent(in) :: tParity
-        end function sltcnd_${rank}$_t
+            HElement_t(dp) function sltcnd_${rank}$_t(nI, exc, tParity) result(hel)
+                import :: dp, nel, ${excite_t}$
+                integer, intent(in) :: nI(nel)
+                type(${excite_t}$), intent(in) :: exc
+                logical, intent(in) :: tParity
+            end function
+        #:endfor
+
+        #:for rank, excite_t in zip(excit_ranks[2:], defined_excitations[2:])
+            HElement_t(dp) function nI_invariant_sltcnd_${rank}$_t(exc, tParity) result(hel)
+                import :: dp, nel, ${excite_t}$
+                type(${excite_t}$), intent(in) :: exc
+                logical, intent(in) :: tParity
+            end function
         #:endfor
     end interface
 
     #:for rank in excit_ranks
-    procedure(sltcnd_${rank}$_t), pointer :: sltcnd_${rank}$ => null()
-    procedure(sltcnd_${rank}$_t), pointer :: nonadjoint_sltcnd_${rank}$ => null()
+        procedure(sltcnd_${rank}$_t), pointer :: sltcnd_${rank}$ => null()
+        procedure(sltcnd_${rank}$_t), pointer :: nonadjoint_sltcnd_${rank}$ => null()
+    #:endfor
+    #:for rank in excit_ranks[2:]
+        procedure(nI_invariant_sltcnd_${rank}$_t), pointer :: nI_invariant_sltcnd_${rank}$ => null()
     #:endfor
 
 contains
@@ -291,28 +310,25 @@ contains
 
     end function
 
-    function CalcFockOrbEnergy(Orb, HFDet) result(hel)
+    pure function CalcFockOrbEnergy(Orb, HFDet) result(hel)
         ! This calculates the orbital fock energy from
         ! the one- and two- electron integrals. This
         ! requires a knowledge of the HF determinant.
         !In: Orbital (Spin orbital notation)
         !In: HFDet (HF Determinant)
         integer, intent(in) :: HFDet(nel), Orb
-        integer :: idHF(NEl), idOrb, j, idN
-        HElement_t(dp) :: hel_sing, hel
-
-        !GetTMATEl works with spin orbitals
-        hel_sing = GetTMATEl(Orb, Orb)
+        integer :: idHF(NEl), idOrb, j
+        HElement_t(dp) :: hel
 
         ! Obtain the spatial rather than spin indices if required
         idOrb = gtID(Orb)
         idHF = gtID(HFDet)
 
+        !GetTMATEl works with spin orbitals
+        hel = GetTMATEl(Orb, Orb)
         ! Sum in the two electron contributions.
-        hel = (0)
         do j = 1, nel
-            idN = idHF(j)
-            hel = hel + get_umat_el(idOrb, idN, idOrb, idN)
+            hel = hel + get_umat_el(idOrb, idHF(j), idOrb, idHF(j))
         end do
 
         ! Exchange contribution only considered if tExch set.
@@ -321,15 +337,13 @@ contains
         do j = 1, nel
             ! Exchange contribution is zero if I,J are alpha/beta
             if (tReltvy .or. (G1(Orb)%Ms == G1(HFDet(j))%Ms)) then
-                idN = idHF(j)
-                hel = hel - get_umat_el(idOrb, idN, idN, idOrb)
+                hel = hel - get_umat_el(idOrb, idHF(j), idHF(j), idOrb)
             end if
         end do
-        hel = hel + hel_sing
 
     end function CalcFockOrbEnergy
 
-    function SumFock(nI, HFDet) result(hel)
+    pure function SumFock(nI, HFDet) result(hel)
 
         ! This just calculates the sum of the Fock energies
         ! by considering the one-electron integrals and
@@ -340,45 +354,13 @@ contains
         ! integrals. The HF determinant needs to be supplied.
 
         integer, intent(in) :: nI(nel), HFDet(nel)
-        HElement_t(dp) :: hel, hel_doub, hel_tmp, hel_sing
-        integer :: i, j, idN, idX, id(nel), idHF(NEl)
+        HElement_t(dp) :: hel
+        integer :: i
 
-        !Obtain the 1e terms
-        hel_sing = sum(GetTMATEl(nI, nI))
-
-        ! Obtain the spatial rather than spin indices if required
-        id = gtID(nI)
-        idHF = gtID(HFDet)
-
-        ! Sum in the two electron contributions. Use max(id...) as we cannot
-        ! guarantee that if j>i then nI(j)>nI(i).
-        hel_doub = (0)
-        hel_tmp = (0)
-        do i = 1, nel
-            do j = 1, nel
-                idX = id(i)
-                idN = idHF(j)
-                hel_doub = hel_doub + get_umat_el(idX, idN, idX, idN)
-            end do
+        hel = h_cast(0._dp)
+        do i = 1, nEl
+            hel = hel + CalcFockOrbEnergy(nI(i), HFDet)
         end do
-
-        ! Exchange contribution only considered if tExch set.
-        ! This is only separated from the above loop to keep "if (tExch)" out
-        ! of the tight loop for efficiency.
-        if (tExch) then
-            do i = 1, nel
-                do j = 1, nel
-                    ! Exchange contribution is zero if I,J are alpha/beta
-                    if (tReltvy .or. (G1(nI(i))%Ms == G1(HFDet(j))%Ms)) then
-                        idX = id(i)
-                        idN = idHF(j)
-                        hel_tmp = hel_tmp - get_umat_el(idX, idN, idN, idX)
-                    end if
-                end do
-            end do
-        end if
-        hel = hel_doub + hel_tmp + hel_sing
-
     end function SumFock
 
     pure function sltcnd_0_base(nI, exc, tSign) result(hel)
