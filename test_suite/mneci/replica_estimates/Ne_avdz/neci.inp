@@ -33,7 +33,7 @@ calc
     truncinitiator
     addtoinitiator 3.0
     allrealcoeff
-    realspawncutoff 0.0
+    realspawncutoff off
     jump-shift
     stepsshift 1
     semi-stochastic

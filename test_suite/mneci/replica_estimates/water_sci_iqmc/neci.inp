@@ -25,7 +25,7 @@ calc
     seed 7611
     shiftdamp 0.05
     allrealcoeff
-    realspawncutoff 0.0
+    realspawncutoff off
     averagemcexcits 10.0
     en2-initiator
     tau-values \
