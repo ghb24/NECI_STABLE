@@ -32,6 +32,7 @@ module sltcnd_mod
     !        to be more reliably set (see for example test H2O_RI)
     ! TODO: We need to sort this out so that they are consistent
     !       --> Talk to George/Alex to see what impact that might have?
+    use sets_mod, only: operator(.in.), operator(.notin.), subset, disjoint
     use constants, only: dp, n_int, maxExcit
     use UMatCache, only: GTID, UMatInd
     use IntegralsData, only: UMAT, t_use_tchint_lib
@@ -183,9 +184,11 @@ contains
         logical, intent(in) :: tSign
         integer :: nJ(nel)
         integer :: excit_mat_new(2, ${rank}$)
+        routine_name("adjoint_sltcnd_${rank}$")
         ! reverse excitation matrix and pass it to a new excitation object
-        excit_mat_new(1,:) = ex%val(2,:)
-        excit_mat_new(2,:) = ex%val(1,:)
+        @:ASSERT(subset(ex%val(1, :), nI) .and. disjoint(ex%val(2, :), nI))
+        excit_mat_new(1, :) = ex%val(2, :)
+        excit_mat_new(2, :) = ex%val(1, :)
         nJ = dyn_nI_excite(nI, ex)
         hel = nonadjoint_sltcnd_${rank}$(nJ, ${excite_t}$(excit_mat_new), tSign)
 #ifdef CMPLX_
@@ -218,6 +221,7 @@ contains
         select type (exc)
         #:for Excitation_t in excitations
         type is (${Excitation_t}$)
+            @:ASSERT(subset(exc%val(1, :), ref) .and. disjoint(exc%val(2, :), ref))
             hel = sltcnd_excit(ref, exc, tParity)
         #:endfor
         class default
@@ -381,8 +385,7 @@ contains
         id = gtID(nI)
 
         ! Sum in the two electron contributions.
-        hel_doub = (0)
-        hel_tmp = (0)
+        hel_doub = h_cast(0._dp)
         do i = 1, nel - 1
             do j = i + 1, nel
                 hel_doub = hel_doub + get_umat_el(id(i), id(j), id(i), id(j))
@@ -392,6 +395,7 @@ contains
         ! Exchange contribution only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
+        hel_tmp = h_cast(0._dp)
         if (tExch) then
             do i = 1, nel - 1
                 do j = i + 1, nel
@@ -413,10 +417,12 @@ contains
         type(Excite_1_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
+        debug_function_name("sltcnd_1_base")
 
         ! Sum in the diagonal terms (same in both dets)
         ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
         ! same.
+        @:ASSERT(subset(ex%val(1, :), nI) .and. disjoint(ex%val(2, :), nI))
 
         hel = sltcnd_1_kernel(nI, ex)
         if (tSign) hel = -hel
@@ -918,7 +924,9 @@ contains
         integer, intent(in) :: ref(nel)
         type(Excite_1_t), intent(in) :: exc
         logical, intent(in) :: tParity
+        routine_name("sltcnd_excit_Excite_1_t")
 
+        @:ASSERT(subset(exc%val(1, :), ref) .and. disjoint(exc%val(2, :), ref))
         sltcnd_excit_Excite_1_t = sltcnd_1(ref, exc, tParity)
     end function
 
@@ -932,7 +940,9 @@ contains
         type(SpinOrbIdx_t), intent(in) :: ref
         type(Excite_1_t), intent(in) :: exc
         logical, intent(in) :: tParity
+        routine_name("sltcnd_excit_SpinOrbIdx_t_Excite_1_t")
 
+        @:ASSERT(subset(exc%val(1, :), ref%idx) .and. disjoint(exc%val(2, :), ref%idx))
         sltcnd_excit_SpinOrbIdx_t_Excite_1_t = sltcnd_1(ref%idx, exc, tParity)
     end function
 
@@ -946,7 +956,9 @@ contains
         integer, intent(in) :: ref(nel)
         type(Excite_2_t), intent(in) :: exc
         logical, intent(in) :: tParity
+        routine_name("sltcnd_excit_Excite_2_t")
 
+        @:ASSERT(subset(exc%val(1, :), ref) .and. disjoint(exc%val(2, :), ref))
         sltcnd_excit_Excite_2_t = sltcnd_2(ref, exc, tParity)
     end function
 
@@ -960,7 +972,9 @@ contains
         type(SpinOrbIdx_t), intent(in) :: ref
         type(Excite_2_t), intent(in) :: exc
         logical, intent(in) :: tParity
+        routine_name("sltcnd_excit_SpinOrbIdx_t_Excite_2_t")
 
+        @:ASSERT(subset(exc%val(1, :), ref%idx) .and. disjoint(exc%val(2, :), ref%idx))
         sltcnd_excit_SpinOrbIdx_t_Excite_2_t = sltcnd_2(ref%idx, exc, tParity)
     end function
 
@@ -973,7 +987,9 @@ contains
         integer, intent(in) :: nI(nEl)
         type(Excite_3_t), intent(in) :: exc
         logical, intent(in) :: tParity
+        routine_name("sltcnd_excit_Excite_3_t")
 
+        @:ASSERT(subset(exc%val(1, :), nI) .and. disjoint(exc%val(2, :), nI))
         sltcnd_excit_Excite_3_t = sltcnd_3(nI, exc, tParity)
     end function
 

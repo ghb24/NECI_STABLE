@@ -62,6 +62,7 @@ module excitation_types
 
     type, extends(Excitation_t) :: Excite_Further_t
         !! Represents an excitation with so many different indices, it has to be zero
+        integer :: val(2, 0) = UNKNOWN
     end type
 
     #:for Excitation_t in non_trivial_excitations

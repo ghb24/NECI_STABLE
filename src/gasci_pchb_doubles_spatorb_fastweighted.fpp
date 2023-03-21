@@ -376,6 +376,7 @@ contains
                         ex(1, 2) = to_spin_orb(j, i_exch == SAME_SPIN)
                         ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
                         ! weights to prepare the sampler
+                        ex(1, :) = sorted(ex(1, :))
                         do a = 1, nBI
                             ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
                             ex(2, 2) = to_spin_orb(a, any(i_exch == [SAME_SPIN, OPP_SPIN_NO_EXCH]))
