@@ -1,6 +1,6 @@
 module fmt_utils
 
-    use constants
+    use constants, only: dp, int32, int64
     implicit none
     private
 
@@ -24,9 +24,9 @@ contains
         real(dp) :: logi
 
         if (i == 0 .or. i == 1) then
-            logi = 1.0
+            logi = 1.0_dp
         else
-            logi = log10(real(abs(i)+1.0, dp))
+            logi = log10(abs(real(i, dp)) + 1.0_dp)
         end if
         if (i < 0) logi = logi + 1
 
@@ -45,7 +45,7 @@ contains
         real(dp) :: logi
 
         if (i == 0 .or. i == 1) then
-            logi = 1.0
+            logi = 1.0_dp
         else
             logi = log10(real(abs(i) + 1_int64, dp))
         end if

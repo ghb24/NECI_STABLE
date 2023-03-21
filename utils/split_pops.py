@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Split and combine binary popsfiles for use with SPLIT-POPS
 
 --> NEED the POPSFILEHEAD to be present for splitting the popsfiles up, as
@@ -12,6 +12,7 @@ Usage:
         split   - Splits a POPSFILEBIN into 'num' different ones for 'num' processors.
                   Will NOT overwrite existing POPSFILEBIN-0.'''
 
+from __future__ import print_function
 import struct
 import sys
 import re
@@ -19,7 +20,7 @@ import re
 
 def usage():
     '''Print the usage statement'''
-    print __doc__
+    print(__doc__)
 
 
 
@@ -191,7 +192,7 @@ def process_header ():
 
 					# We are only really interested in popsfile version 4.
 					if txt != "# POPSFILE VERSION 4":
-						print "Invalid popsfile header"
+						print("Invalid popsfile header")
 
 				else:
 
@@ -201,18 +202,18 @@ def process_header ():
 						if split[pos] == 'Pop64Bit':
 							pos += 1
 							bits = 64 if split[pos] == "T" else 32
-							print "Using %d-bit POPSFILE" % bits
+							print("Using %d-bit POPSFILE" % bits)
 
 						elif split[pos] == "PopNIfTot":
 							pos += 1
 							niftot = int(split[pos])
-							print "%d integers per determinant" % (niftot + 1)
+							print("%d integers per determinant" % (niftot + 1))
 
 						elif split[pos] == "PopNIfD":
 							pos += 1
 							nifd = int(split[pos])
-							print "%d integers in spin-orb representation" % \
-									            (nifd + 1)
+							print("%d integers in spin-orb representation" %
+									            (nifd + 1))
 
 						elif split[pos] == "PopRandomHash":
 							pos += 1
@@ -222,7 +223,7 @@ def process_header ():
 
 
 						elif split[pos] == "END":
-							print "End of header"
+							print("End of header")
 							break
 
 						# Move on to the next entry
@@ -230,8 +231,8 @@ def process_header ():
 
 	# If the popsfile header is not found, then there isn't much we can do.
 	except IOError:
-		print "POPSFILEHEAD not found"
-		print ""
+		print("POPSFILEHEAD not found")
+		print("")
 		usage ()
 		sys.exit(-1)
 
@@ -243,14 +244,14 @@ def process_header ():
 def split_pops (nprocs):
 	'''Split the popsfile into nprocs files of the format POPSFILEBIN-[0-9]+'''
 
-	print "Splitting up POPSFILE bin into %d parts" % nprocs
+	print("Splitting up POPSFILE bin into %d parts" % nprocs)
 
 	# Ensure that target POPSFILEBIN-* do not already exist
 	for proc in range(nprocs):
 		try:
 			with open("POPSFILEBIN-%d" % proc, 'rb') as f:
-				print "POPSFILEBIN-%d already exists" % proc
-				print "Overwriting not supported."
+				print("POPSFILEBIN-%d already exists" % proc)
+				print("Overwriting not supported.")
 				return
 		except:
 			pass
@@ -265,7 +266,7 @@ def split_pops (nprocs):
 			f = fort_readwrite(open("POPSFILEBIN-%d" % proc, 'wb'))
 			outfiles.append(f)
 		except:
-			print "Error opening file: POPSFILEBIN-%d" % proc
+			print("Error opening file: POPSFILEBIN-%d" % proc)
 			for f in outfiles:
 				f.close()
 			sys.exit(-1)
@@ -277,11 +278,11 @@ def split_pops (nprocs):
 	try:
 		with fort_readwrite(open("POPSFILEBIN", 'rb')) as f:
 
-			print "Opened"
-			print "Read length: %d" % readlen
+			print("Opened")
+			print("Read length: %d" % readlen)
 
 			unpack_str = "@" + ((nifd + 1) * "Q" if bits == 64 else "L")
-			print "Unpack str |%s|" % unpack_str
+			print("Unpack str |%s|" % unpack_str)
 
 			# Use a nifty sentinel value for iter, to read until there
 			# is no more data!
@@ -290,7 +291,7 @@ def split_pops (nprocs):
 
 				# Check that we have the right data length
 				if len(data) != readlen:
-					print "Mismatch in data lengths"
+					print("Mismatch in data lengths")
 					sys.exit(-1)
 
 				# Decode the determinant
@@ -301,14 +302,14 @@ def split_pops (nprocs):
 				outfiles[node].write(data)
 				totwalkers += 1
 
-			print "Total number of occupied determinants: %d" % totwalkers
+			print("Total number of occupied determinants: %d" % totwalkers)
 
 
 			
 
 
 	except IOError:
-		print "Unable to open POPSFILEBIN"
+		print("Unable to open POPSFILEBIN")
 
 	# Close all of the output files
 	for f in outfiles:
@@ -326,15 +327,15 @@ def combine_pops (overwrite):
 	# explicit confirmation.
     try:
         with open("POPSFILEBIN", 'rb') as fin:
-            print "POPSFILEBIN already exists"
+            print("POPSFILEBIN already exists")
             if overwrite:
-                print "OVERWRITING"
+                print("OVERWRITING")
             else:
-                print "Aborting"
+                print("Aborting")
                 usage()
                 return
     except:
-        print "No existing POPSFILEBIN found. Creating it."
+        print("No existing POPSFILEBIN found. Creating it.")
 
 
     # Open ourselves an output file
@@ -347,7 +348,7 @@ def combine_pops (overwrite):
             fn = 'POPSFILEBIN-%d' % n
             try: 
                 with open(fn, 'rb') as fin:
-                    print "Opened %s" % fn
+                    print("Opened %s" % fn)
 
                     # Split the reads up into small chunks for memory usage
                     # control
@@ -360,7 +361,7 @@ def combine_pops (overwrite):
                         fout.write(data)
                     
             except IOError:
-                print "No more files"
+                print("No more files")
                 break
 
             n += 1

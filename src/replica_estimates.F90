@@ -11,9 +11,11 @@ module replica_estimates
     use hash
     use Parallel_neci
     use searching
-    use sort_mod
+    use DetBitOps, only: detbiteq
+    use sort_mod, only: sort
     use SystemData, only: NEl
     use core_space_util, only: cs_replicas, min_pt
+    use tau_main, only: tau
     implicit none
 
 contains
@@ -81,8 +83,6 @@ contains
     end subroutine get_ests_from_spawns_simple
 
     subroutine get_proj_e_for_preconditioner(ValidSpawned, proj_energy)
-
-        use CalcData, only: tau
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(out) :: proj_energy(lenof_sign)
@@ -172,13 +172,15 @@ contains
         ! walker dynamics - it doesn't just calculate some energies
         ! without affecting walkers. This step is done here for efficiency.
 
-        use CalcData, only: tau, tEN2Init, tEN2Rigorous, tTruncInitiator
+        use CalcData, only: tEN2Init, tEN2Rigorous, tTruncInitiator
         use global_det_data, only: det_diagH, replica_est_len
         use semi_stoch_procs, only: core_space_pos, check_determ_flag
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(in) :: proj_energy(lenof_sign)
 
+        character(*), parameter :: this_routine = 'calc_ests_and_set_init_flags'
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
         integer :: i, j, PartInd, DetHash, determ_pos, ierr
         integer :: nI_spawn(nel)
         real(dp) :: spwnsign(lenof_sign), cursign(lenof_sign)
@@ -219,7 +221,7 @@ contains
         tDetermSpawnedTo = .false.
         associate(rep => cs_replicas(core_run))
             ! Contributions from diagonal where necessary
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 hdiag = det_diagH(i) + Hii
                 call extract_sign(CurrentDets(:, i), cursign)
                 do j = 1, replica_est_len
@@ -389,7 +391,7 @@ contains
                 en2_new_all = 0.0_dp
                 mean_energy = var_e_num_all / rep_est_overlap_all
 
-                do i = 1, int(TotWalkers, sizeof_int)
+                do i = 1, int(TotWalkers)
                     hdiag = det_diagH(i) + Hii
                     call extract_sign(CurrentDets(:, i), cursign)
                     do j = 1, replica_est_len
@@ -462,6 +464,10 @@ contains
                 write(replica_est_unit, '()')
             end if
         end associate
+#else
+        unused_var(ValidSpawned); unused_var(proj_energy)
+        call stop_all(this_routine, "Should not be here")
+#endif
 
     end subroutine calc_ests_and_set_init_flags
 
@@ -470,20 +476,21 @@ contains
         ! This routine calculates the various energy estimates to be printed
         ! to the file for the preconditioned approach.
 
-        use CalcData, only: tau, tEN2Init, tEN2Rigorous, tTruncInitiator
+        use CalcData, only: tEN2Init, tEN2Rigorous, tTruncInitiator
         use global_det_data, only: det_diagH, replica_est_len
         use semi_stoch_procs, only: core_space_pos, check_determ_flag
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(in) :: proj_energy(lenof_sign)
+        character(len=*), parameter :: t_r = 'calc_ests_simple_initiator'
 
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
         integer :: i, j, PartInd, DetHash, determ_pos, nrepeats, ierr
         integer :: nI_spawn(nel)
         real(dp) :: spwnsign_init(lenof_sign), spwnsign_non(lenof_sign)
         real(dp) :: spwnsign(lenof_sign), cursign(lenof_sign)
         real(dp) :: hdiag, mean_energy(replica_est_len)
         logical :: tCoreDet, tSuccess, abort(lenof_sign)
-        character(len=*), parameter :: t_r = 'calc_ests_simple_initiator'
 
         real(dp) :: b_term(replica_est_len), b_term_all(replica_est_len)
         real(dp) :: c_term(replica_est_len), c_term_all(replica_est_len)
@@ -492,6 +499,7 @@ contains
         real(dp) :: send_arr(6 * replica_est_len)
         ! Allow room to receive up to 1000 elements.
         real(dp) :: recv_arr(6 * replica_est_len)
+
 
         var_e_num = 0.0_dp
         rep_est_overlap = 0.0_dp
@@ -522,7 +530,7 @@ contains
         tDetermSpawnedTo = .false.
         associate(rep => cs_replicas(core_run))
             ! Contributions from diagonal where necessary
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 hdiag = det_diagH(i) + Hii
                 call extract_sign(CurrentDets(:, i), cursign)
                 do j = 1, replica_est_len
@@ -704,7 +712,7 @@ contains
 
                 mean_energy = var_e_num_all / rep_est_overlap_all
 
-                do i = 1, int(TotWalkers, sizeof_int)
+                do i = 1, int(TotWalkers)
                     hdiag = det_diagH(i) + Hii
                     call extract_sign(CurrentDets(:, i), cursign)
                     do j = 1, replica_est_len
@@ -830,6 +838,10 @@ contains
             end if
         end associate
 
+#else
+        unused_var(ValidSpawned); unused_var(proj_energy)
+        call stop_all(t_r, "Should not be here")
+#endif
     end subroutine calc_ests_simple_initiator
 
     subroutine time_hash(ValidSpawned)

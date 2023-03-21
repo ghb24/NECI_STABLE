@@ -2,8 +2,8 @@
 
 module real_time_aux
     use real_time_data, only: overlap_states, gf_count
-    use bit_rep_data, only: extract_sign, niftot, nifd
-    use bit_reps, only: decode_bit_det, flag_deterministic
+    use bit_rep_data, only: extract_sign, niftot, nifd, flag_deterministic
+    use bit_reps, only: decode_bit_det
     use FciMCData, only: SpawnedParts, ValidSpawnedList, MaxSpawned, InitialSpawnedSlots, &
                          CurrentDets, hashindex
     use SystemData, only: nel

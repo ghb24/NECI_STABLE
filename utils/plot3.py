@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Plot data from and FCIMCStats file, using OUTPUT file as needed
 
 See "plot.py -h" for more details
@@ -7,6 +7,7 @@ See "plot.py -h" for more details
 g_ver_str = '0.2'
 
 # Required modules
+from __future__ import print_function
 from pylab import *
 from numpy import *
 from matplotlib import rc, rcParams
@@ -813,7 +814,7 @@ class plotter:
 
             # Give ourselves some output
             if self.verbose:
-                print 'Plotting "%s" with output file "%s"' % (fl.fn, fl.ofile)
+                print('Plotting "%s" with output file "%s"' % (fl.fn, fl.ofile))
 
             # Do we want to use the same colour for all lines in the file?
             if self.fix_colours:
@@ -989,7 +990,7 @@ plot = plotter()
 
 def usage ():
     '''Print the usage statement'''
-    print __doc__
+    print(__doc__)
 
 
 
@@ -1190,19 +1191,19 @@ def keypress_callback (event):
 def resize_callback (event):
     '''Respond to a resize event'''
     
-    print 'Resize event'
-    print 'name', event.name
-    print 'canvas', event.canvas
-    print 'guiEvent', event.guiEvent
+    print('Resize event')
+    print('name', event.name)
+    print('canvas', event.canvas)
+    print('guiEvent', event.guiEvent)
     
         
 def scroll_callback (event):
     '''Respond to a scroll event'''
     
-    print 'Scroll event'
-    print 'name', event.name
-    print 'canvas', event.canvas
-    print 'guiEvent', event.guiEvent
+    print('Scroll event')
+    print('name', event.name)
+    print('canvas', event.canvas)
+    print('guiEvent', event.guiEvent)
 
 
 def to_float_if_float(s):
@@ -1266,10 +1267,10 @@ def stretched_exp_fit (wlk, proj):
     # n.b. diagonals of the covariance matrix provide the variance of the
     #      parameter estimates.
     err = sqrt(pcov[0,0]) if pcov is not inf else -1
-    print 'Fit data; E_0 = %f (+-%f), c = %f, alpha = %f' % \
-                                       (popt[0], err, popt[1], popt[2])
+    print('Fit data; E_0 = %f (+-%f), c = %f, alpha = %f' %
+                                       (popt[0], err, popt[1], popt[2]))
     if pcov is inf:
-        print 'Poor fit obtained (covariance matrix == inf)'
+        print('Poor fit obtained (covariance matrix == inf)')
 
     return fit_data, popt[0], err
                 

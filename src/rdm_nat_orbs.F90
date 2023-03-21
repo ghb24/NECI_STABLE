@@ -10,7 +10,8 @@ module rdm_nat_orbs
     use RotateOrbsData, only: SymLabelListInv_rotTag
     use rdm_data, only: tOpenSpatialOrbs, tOpenShell
     use UMATCache, only: gtID
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, stop_all, neci_flush
+    use Determinants, only: writebasis
 
     implicit none
 

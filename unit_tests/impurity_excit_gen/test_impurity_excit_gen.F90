@@ -1,15 +1,22 @@
 #include "macros.h"
 
 program test_impurity_excit_gen
-    use impurity_models
-    use fruit
-    use unit_test_helper_excitgen
+    use constants, only: dp
+    use impurity_models, only: gen_excit_impurity_model, setupImpurityExcitgen
+    use procedure_pointers, only: generate_excitation
+    use Parallel_neci, only: MPIInit, MPIEnd
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true, assert_equals
+    use util_mod, only: stop_all
+    use unit_test_helper_excitgen, only: FciDumpWriter_t, init_excitgen_test, &
+        test_excitation_generator
 
     implicit none
 
     integer, parameter :: nBasis_ = 6
     integer, parameter :: nel_ = 3
     integer, parameter :: ms_ = 1
+    integer :: failed_count
 
     call MPIInit(.false.)
     call init_fruit()
@@ -17,8 +24,12 @@ program test_impurity_excit_gen
     call impurity_excit_gen_test_driver
     call fruit_summary
     call fruit_finalize
-    call MPIEnd(.false.)
 
+    call get_failed_count(failed_count)
+
+    if (failed_count /= 0) call stop_all('test_impurity_excit_gen', 'failed_tests')
+
+    call MPIEnd(.false.)
 contains
 
     subroutine impurity_excit_gen_test_driver
@@ -37,11 +48,12 @@ contains
 
     subroutine impurity_fcidump(iunit)
         use OneEInts, only: tCPMDSymTMat, tOneElecDiag
-        use SystemData, only: nBasis, t_complex_ints
+        use SystemData, only: nBasis, t_complex_ints, tUHF
         integer, intent(in) :: iunit
         integer :: i
         real(dp) :: e
         nBasis = nBasis_
+        tUHF = .true.
         tCPMDSymTMat = .false.
         tOneElecDiag = .false.
         t_complex_ints = .false.

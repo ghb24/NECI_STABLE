@@ -1,7 +1,7 @@
 module rdm_integral_fns
 
     use constants
-    use excitation_types, only: DoubleExc_t
+    use excitation_types, only: Excite_2_t
 
     implicit none
 
@@ -26,7 +26,7 @@ contains
         integer, intent(in) :: i, j, k, l
         real(dp) :: integral
 
-        integral = real(sltcnd_2_kernel(DoubleExc_t(j, l, i, k)), dp)
+        integral = real(sltcnd_2_kernel(Excite_2_t(j, l, i, k)), dp)
 
     end function two_elec_int
 

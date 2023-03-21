@@ -8,8 +8,9 @@ module global_det_data
                         tReplicaEstimates, tMoveGlobalDetData, tScaleBlooms
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
-    use constants
-    use util_mod
+    use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
+    use constants, only: dp, int32, int64, n_int, inum_runs, lenof_sign, eps
+    use util_mod, only: stop_all, operator(.div.)
     implicit none
 
     private
@@ -1066,8 +1067,8 @@ contains
         ! dummy to specify the target type
         real(dp) :: real_val
         real_val = 0.0_dp
-
-        global_determinant_data(pos_max_ratio, j) = transfer(val(1), real_val)
+        if (size(val)>0) &
+            global_determinant_data(pos_max_ratio, j) = transfer(val(1), real_val)
     end subroutine set_max_ratio_hdf5Int
 
     !------------------------------------------------------------------------------------------!

@@ -1,8 +1,8 @@
 module test_orb_idx_mod
-    use fruit
+    use fruit, only: assert_true
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
         calc_spin, alpha, beta, operator(==)
-    use excitation_types, only: NoExc_t, SingleExc_t, DoubleExc_t, excite
+    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, excite
     implicit none
     private
     public :: test_calc_spin, test_conversion, test_excite
@@ -48,12 +48,12 @@ contains
         type(SpinOrbIdx_t) :: reference
         reference = SpinOrbIdx_t([1, 2, 3])
 
-        call assert_true(all(reference == excite(reference, NoExc_t())))
-        call assert_true(all(SpinOrbIdx_t([2, 3, 5]) == excite(reference, SingleExc_t(1, 5))))
-        call assert_true(all(SpinOrbIdx_t([3, 4, 5]) == excite(reference, DoubleExc_t(1, 5, 2, 4))))
+        call assert_true(all(reference == excite(reference, Excite_0_t())))
+        call assert_true(all(SpinOrbIdx_t([2, 3, 5]) == excite(reference, Excite_1_t(1, 5))))
+        call assert_true(all(SpinOrbIdx_t([3, 4, 5]) == excite(reference, Excite_2_t(1, 5, 2, 4))))
 
         reference = SpinOrbIdx_t([1, 2, 3, 11, 12, 14])
-        call assert_true(all(SpinOrbIdx_t([2, 3, 5, 11, 12, 14]) == excite(reference, SingleExc_t(1, 5))))
+        call assert_true(all(SpinOrbIdx_t([2, 3, 5, 11, 12, 14]) == excite(reference, Excite_1_t(1, 5))))
 
     end subroutine
 
@@ -61,17 +61,20 @@ end module test_orb_idx_mod
 
 program test_orb_idx_and_exc_types
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use test_orb_idx_mod, only: test_calc_spin, test_conversion, &
         test_excite
+    use Parallel_neci, only: MPIInit, MPIEnd
 
 
 
     implicit none
-    integer :: failed_count, err
+    integer :: failed_count
+    logical :: err
 
-    call mpi_init(err)
+    call MPIInit(err)
 
     call init_fruit()
 
@@ -83,7 +86,7 @@ program test_orb_idx_and_exc_types
 
     if (failed_count /= 0) call stop_all('test_orb_idx_and_exc_types_program', 'failed_tests')
 
-    call mpi_finalize(err)
+    call MPIEnd(err)
 
 contains
 

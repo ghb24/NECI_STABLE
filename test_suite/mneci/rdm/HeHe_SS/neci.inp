@@ -1,35 +1,36 @@
 title
 
 system read
-electrons 4
+    electrons 4
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-memoryfacspawn 20.0
-memoryfacpart 3.0
-totalwalkers 1000
-startsinglepart 10
-stepsshift 10
-tau 0.01
-shiftdamp 0.05
-allrealcoeff
-realspawncutoff 0.01
-nmcyc 20000
-semi-stochastic
-doubles-core
-stochastic-hf-spawning
-load-balance-blocks off
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    memoryfacspawn 20.0
+    memoryfacpart 3.0
+    totalwalkers 1000
+    startsinglepart 10
+    stepsshift 10
+    tau-values \
+        start user-defined 0.01
+    shiftdamp 0.05
+    allrealcoeff
+    realspawncutoff 0.01
+    nmcyc 20000
+    semi-stochastic
+    doubles-core
+    stochastic-hf-spawning
+    load-balance-blocks off
 endcalc
 
 integral
 endint
 
 logging
-popsfile -1
-calcrdmonfly 3 4000 100
+    popsfile -1
+    calcrdmonfly 3 4000 100
 endlog
 end

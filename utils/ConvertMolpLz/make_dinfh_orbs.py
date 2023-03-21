@@ -1,3 +1,4 @@
+from __future__ import print_function
 import networkx as nx
 import numpy
 
@@ -44,10 +45,10 @@ disjointgraphs = []
 for indices in subgraph_indices :
     disjointgraphs.append(G.subgraph(indices))
 
-print "DISJOINTED GRAPHS ***********"
+print("DISJOINTED GRAPHS ***********")
 for graphs in disjointgraphs:
-    print graphs.nodes(), "  ->  ", len(graphs.nodes())
-print "**********\n"
+    print(graphs.nodes(), "  ->  ", len(graphs.nodes()))
+print("**********\n")
 
 index_maps=[]
 usedgraphs=[]
@@ -86,7 +87,7 @@ for i in range(len(disjointgraphs)):
     index+=1
 
 for imaps in index_maps:
-    print imaps
+    print(imaps)
 
 
 
@@ -130,9 +131,9 @@ for i in range(len(disjointgraphs)):
 #for imaps in index_maps:
 #    print imaps
 
-print negatives
+print(negatives)
 
-print "Check if negatives work"
+print("Check if negatives work")
 index = 0
 for i in range(len(disjointgraphs)):
     for edges in disjointgraphs[i].edges(data=True):
@@ -168,9 +169,9 @@ for i in range(len(disjointgraphs)):
     index+=1
 
 for imaps in index_maps:
-    print imaps,"  ->  ", len(imaps)
+    print(imaps,"  ->  ", len(imaps))
 
 
-print "**************************"
+print("**************************")
 
 

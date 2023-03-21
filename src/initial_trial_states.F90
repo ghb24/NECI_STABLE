@@ -2,18 +2,31 @@
 
 module initial_trial_states
     use semi_stoch_procs, only: GLOBAL_RUN
+    use semi_stoch_gen, only: generate_ras, generate_cas, generate_fci_core, &
+        generate_space_from_file, generate_sing_doub_guga, &
+        generate_sing_doub_determinants, &
+        generate_optimised_space, generate_space_most_populated, &
+        add_state_to_space, generate_using_mp1_criterion
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use gndts_mod, only: gndts_all_sym_this_proc
     use bit_rep_data
     use constants
     use kp_fciqmc_data_mod
-    use SystemData, only: t_non_hermitian
+    use SystemData, only: t_non_hermitian_2_body
     use core_space_util, only: cs_replicas
     use FciMCData, only: core_run
-#ifndef CMPLX_
+    use SystemData, only: tGUGA, tHPHF
+    use determinants, only: get_helement
+    use guga_bitRepOps, only: CSF_Info_t
+#ifdef CMPLX_
+    use blas_interface_mod, only: zheev
+#else
     use matrix_util, only: eig, print_matrix
 #endif
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), stop_all
+    use parallel_neci, only: MPIAllGather, MPIBarrier
 
-    implicit none
+    better_implicit_none
 
     ! if the space is smaller than this parameter, use LAPACK instead
     integer, parameter :: lanczos_space_size_cutoff = 2000
@@ -31,7 +44,6 @@ contains
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
         use MPI_wrapper, only: root
-        use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors, tGUGA
         use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
@@ -160,7 +172,7 @@ contains
         end if
 
         ! Perform the Lanczos procedure in parallel.
-        if (t_non_hermitian) then
+        if (t_non_hermitian_2_body) then
             call stop_all(this_routine, &
                           "perform_lanczos not implemented for non-hermitian Hamiltonians!")
         end if
@@ -202,8 +214,7 @@ contains
 
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
-            safe_malloc_e(evecs_transpose, (nexcit, ndets_all_procs), ierr)
-            if (ierr /= 0) call stop_all(this_routine, "Error allocating transposed eigenvectors array.")
+            safe_malloc(evecs_transpose, (nexcit, ndets_all_procs))
             evecs_transpose = transpose(evecs)
         else
             safe_free(ilut_list)
@@ -220,7 +231,7 @@ contains
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
-        allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
+        allocate(evecs_this_proc(nexcit, ndets_this_proc))
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
         if (ierr /= 0) call stop_all(this_routine, "Error in MPIScatterV call.")
 
@@ -246,7 +257,7 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
         use lanczos_wrapper, only: frsblk_wrapper
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
 
         type(subspace_in) :: space_in
@@ -366,7 +377,7 @@ contains
 
 #ifdef CMPLX_
             ! First to build the Hamiltonian matrix
-            ndets_int = int(ndets_all_procs, sizeof_int)
+            ndets_int = int(ndets_all_procs)
             allocate(H_tmp(ndets_all_procs, ndets_all_procs), stat=ierr)
             if (ierr /= 0) call stop_all(this_routine, "Error allocating H_tmp array")
             H_tmp = 0.0_dp
@@ -388,9 +399,7 @@ contains
                                                                  ilut_list(:, j))
                         else if (tGUGA) then
                             call calc_guga_matrix_element(ilut_list(:, i), csf_i, &
-                                                          ilut_list(:, j), excitInfo, H_tmp(j, i), .true., 1)
-
-    !                     H_tmp(j,i) = conjg(H_tmp(j,i))
+                                                          ilut_list(:, j), CSF_Info_t(ilut_list(:, j)), excitInfo, H_tmp(j, i), .true.)
                         else
                             H_tmp(i, j) = get_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), ilut_list(:, j))
                         end if
@@ -421,9 +430,9 @@ contains
 #else
 
             ! should we switch here, if it is not hermitian?
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 ASSERT(.not. tGUGA)
-                ndets_int = int(ndets_all_procs, sizeof_int)
+                ndets_int = int(ndets_all_procs)
                 allocate(H_tmp(ndets_all_procs, ndets_all_procs), stat=ierr)
                 if (ierr /= 0) call stop_all(this_routine, "Error allocating H_tmp array")
                 H_tmp = 0.0_dp
@@ -467,7 +476,7 @@ contains
                 deallocate(evecs_all)
 
             else
-                call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), &
+                call frsblk_wrapper(det_list, int(ndets_all_procs), &
                                     nexcit, evals, evecs)
             end if
 

@@ -1,10 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''ftlm_analysis.py [options] file_1 file_2 ... file_N
 
 Calculate and output temperature-dependent energy results from a given set of
 eigenvalues and corresponding initial overlaps. These should be output from
 NECI from a KP-FCIQMC calculation.'''
 
+from __future__ import print_function
 import sys
 import optparse
 import math
@@ -94,6 +95,6 @@ if __name__ == '__main__':
             final_numerator = numerator
             final_trace = trace
 
-    print 'Beta    Energy'
+    print('Beta    Energy')
     for (beta, num, tr) in zip(beta, final_numerator, final_trace):
-        print beta, num/tr
+        print(beta, num/tr)

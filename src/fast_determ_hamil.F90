@@ -24,6 +24,7 @@ module fast_determ_hamil
     use growing_buffers, only: buffer_hel_t => buffer_hel_1D_t, &
         buffer_int_t => buffer_int_1D_t
     use core_space_util, only: core_space_t, sparse_matrix_real, sparse_matrix_int
+    use util_mod, only: stop_all, neci_flush
     implicit none
 
     type auxiliary_array

@@ -8,7 +8,7 @@ module load_balance_calcnodes
     use SystemData, only: nBasis, nel
     use MemoryManager, only: TagIntType
     use CalcData, only: tUniqueHFNode
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use Parallel_neci
     use constants
 
@@ -108,9 +108,9 @@ contains
         ! we can only use the the remaining (nNodes-1) processors to
         ! distribute the rest ofthe particles
         if (tUniqueHFNode) then
-            block = int(abs(mod(acc, int(balance_blocks - 1, int64))), sizeof_int)
+            block = int(abs(mod(acc, int(balance_blocks - 1, int64))))
         else
-            block = int(abs(mod(acc, int(balance_blocks, int64))), sizeof_int)
+            block = int(abs(mod(acc, int(balance_blocks, int64))))
         end if
         block = block + 1
 

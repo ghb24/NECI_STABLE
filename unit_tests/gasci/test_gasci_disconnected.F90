@@ -1,5 +1,5 @@
 module test_gasci_disconnected_mod
-    use fruit
+    use fruit, only: assert_true
     use constants, only: dp, n_int, maxExcit
     use SystemData, only: nEl
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
@@ -76,9 +76,9 @@ contains
 end module test_gasci_disconnected_mod
 
 program test_gasci_program
-
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_disconnected_mod, only: test_pgen
 

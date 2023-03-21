@@ -27,6 +27,7 @@ sizeb=(2*dp)
 module scalar_shared_memory_mpi
   use Parallel_neci
   use constants
+  use mpi, only: MPI_BYTE
   implicit none
 
 ! interface for the variadic allocation used when the shared memory option is disabled

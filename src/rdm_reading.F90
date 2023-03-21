@@ -6,6 +6,7 @@ module rdm_reading
     ! the user forgot to print them out.
 
     use constants
+    use util_mod, only: stop_all
 
     implicit none
 

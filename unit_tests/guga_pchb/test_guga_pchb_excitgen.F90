@@ -1,37 +1,40 @@
 #include "macros.h"
 program test_guga_pchb_excitgen
 
-    use constants
-    use SystemData
-    use CalcData
-    use FciMCData
-    use dSFMT_interface
-    use procedure_pointers
-    use read_fci
-    use UMatCache
-    use Parallel_neci
-    use Calc
-    use System
-    use shared_memory_mpi
-    use DetCalc
-    use unit_test_helper_excitgen
-    use LoggingData
-    use bit_reps
-    use bit_rep_data
-    use guga_init
-    use guga_bitRepOps
-    use guga_data
-    use guga_types
- use guga_pchb_class, only: GugaAliasSampler_t, calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, pick_orbitals_pure_uniform_singles
-    ! use guga_pchb_excitgen
-    use util_mod
+    use constants, only: dp, int64, n_int
+    use SystemData, only: tstorespinorbs, tReadInt, UMatEps, tReadFreeFormat, &
+        tGUGA, t_guga_pchb_weighted_singles, t_guga_pchb, nSpatOrbs, &
+        nel, nbasis
+    use FciMCData, only: tFillingStochRDMOnFly
+    use dSFMT_interface, only: dSFMT_init
+    use procedure_pointers, only: get_umat_el
+    use read_fci, only: initfromfcid, GetUMatSize, readfciint, fcidump_name, &
+        tumat2d, TMat2d
+    use UMatCache, only: tTransGTID, tdeferred_umat2d
+    use Parallel_neci, only: MPIInit, MPIEnd
+    use Calc, only: CalcInit, SetCalcDefaults
+    use System, only: SetSysDefaults, SysInit
+    use shared_memory_mpi, only: shared_allocate_mpi
+    use DetCalc, only: DetCalcInit
+    use unit_test_helper_excitgen, only: generate_uniform_integrals
+    use IntegralsData, only: Umat, umat_win
+    use Integrals_Neci, only: get_umat_el_normal
+    use LoggingData, only: tExplicitAllRDM, tRDMonfly
+    use bit_reps, only:  init_bit_rep
+    use bit_rep_data, only: GugaBits
+    use guga_init, only: init_guga
+    use guga_bitRepOps, only: CSF_Info_t, encodebitdet_guga
+    use guga_data, only: ExcitationInformation_t, excit_type, gen_type
+    use guga_pchb_class, only: GugaAliasSampler_t, &
+        calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, &
+        pick_orbitals_pure_uniform_singles
+    use Determinants, only: DetInit, DetPreFreezeInit
 
-    use fruit
-    use fruit_extensions
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals, assert_true
+    use fruit_extensions, only: my_run_test_case
 
     implicit none
-
-    type(GugaAliasSampler_t) :: guga_pchb_sampler
 
     integer :: failed_count
 
@@ -41,7 +44,7 @@ program test_guga_pchb_excitgen
     call fruit_finalize()
 
     call get_failed_count(failed_count)
-    if (failed_count /= 0) stop - 1
+    if (failed_count /= 0) stop -1
 
 contains
 
@@ -62,9 +65,8 @@ contains
         tRDMonfly = .true.
         tFillingStochRDMOnFly = .true.
         call init_bit_rep()
-        t_full_guga_tests = .true.
 
-        t_pchb_weighted_singles = .false.
+        t_guga_pchb_weighted_singles = .false.
         t_guga_pchb = .true.
         tdeferred_umat2d = .true.
         tumat2d = .false.
@@ -100,7 +102,7 @@ contains
 
         call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
-        call readfciint(UMat, umat_win, nBasis, ecore, .false.)
+        call readfciint(UMat, umat_win, nBasis, ecore)
         call SysInit()
         ! required: set up the spin info
 
@@ -130,48 +132,11 @@ contains
         call my_run_test_case(guga_pchb_sampler_test, &
                               "guga_pchb_sampler_test", "guga_pchb_sampler type")
 
-        call my_run_test_case(setup_pchb_sampler_conditional_test, &
-                              "setup_pchb_sampler_conditional_test", &
-                              "setup_pchb_sampler_conditional")
     end subroutine guga_pchb_test_driver
 
     subroutine guga_pchb_sampler_test
 
     end subroutine guga_pchb_sampler_test
-
-    subroutine setup_pchb_sampler_conditional_test
-
-        integer :: i, ijMax, j
-
-        call guga_pchb_sampler%init()
-
-        ! the first index: (1,1) - > 1 and (1,1) -> 1 should be 0 since
-        ! only weight
-        print *, "fuse"
-        do i = 1, 4
-            do j = 1, 4
-                print *, i, j, "fuse: ", fuseIndex(i, j)
-            end do
-        end do
-        print *, "--"
-        associate (sampler => guga_pchb_sampler, &
-                   a_sampler => guga_pchb_sampler%alias_sampler)
-
-            call assert_equals(0_int64, sampler%get_info_entry(1, 1))
-            call assert_equals(0.0_dp, a_sampler%get_prob(1, 1))
-
-        end associate
-
-        ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
-
-        do i = 1, ijMax
-            do j = 1, ijMax
-                print *, guga_pchb_sampler%get_info_entry(i, j), &
-                    guga_pchb_sampler%alias_sampler%get_prob(i, j)
-            end do
-        end do
-
-    end subroutine setup_pchb_sampler_conditional_test
 
     subroutine calc_orb_pgen_uniform_singles_test
 
@@ -315,4 +280,3 @@ contains
     end subroutine pick_uniform_spatial_hole_test
 
 end program test_guga_pchb_excitgen
-

@@ -7,8 +7,9 @@
 ! And these integer kinds can be used for indexing and allocation
 #:set index_types = ['int32','int64']
 module shared_ragged_array
-    use constants
-    use shared_array
+    use constants, only: dp, int32, int64
+    use shared_array, only: shared_array_real_t, shared_array_int32_t, shared_array_int64_t, &
+        shared_array_cmplx_t, shared_array_bool_t
     implicit none
 
     private
@@ -73,7 +74,7 @@ contains
         call this%data_array%shared_alloc(int(sum(sizes), int64))
 
         ! Assign the pointers
-        n_entries = size(sizes)
+        n_entries = size(sizes, kind=int64)
         allocate(this%ptr(n_entries))
 
         ! Keep a local copy of sizes (fortran 2003 automatic allocation)
@@ -102,7 +103,7 @@ contains
         integer(int64) :: n_entries
         integer(int64) :: i, win_start, win_end
 
-        n_entries = size(this%store_sizes)
+        n_entries = size(this%store_sizes, kind=int64)
         win_start = 1
         do i = 1, n_entries
             win_end = win_start - 1 + this%store_sizes(i)

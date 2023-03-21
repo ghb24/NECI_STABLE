@@ -13,6 +13,7 @@ module hamiltonian_linalg
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
     use MPI_wrapper, only: root
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+    use error_handling_neci, only: stop_all, neci_flush
 
     implicit none
     ! The value of hamil_type specifies what form the Hamiltonian is stored in.
@@ -160,7 +161,7 @@ contains
                 mpi_temp = int(space_size, MPIArg)
                 call MPIAllGather(mpi_temp, this%space_sizes, ierr)
                 ! The total space size across all processors.
-                space_size = int(sum(this%space_sizes), sizeof_int)
+                space_size = int(sum(this%space_sizes))
                 allocate(hamil_diag_temp(space_size))
                 this%partial_H_ket_disps(0) = 0
                 do i = 1, nProcessors - 1

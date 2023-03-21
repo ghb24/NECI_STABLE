@@ -2,12 +2,23 @@
 !   Filename is a Character(255) string which contains a filename to read.
 !               If Filename=="" then we check to see if there's a filename on the command line.
 !               Failing that, we use stdin
-!   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
-    use constants, only: stdout
-    use util_mod, only: operator(.implies.)
+    use constants, only: stdout, stdin
+    use SystemData, only: tUHF, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
+                         tROHF
+    use pchb_excitgen, only: FCI_PCHB_options
+    use gasci_pchb_main, only: GAS_PCHB_options
+    use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection
+    use util_mod, only: operator(.implies.), stop_all
     Use Determinants, only: tDefineDet, DefDet
-    use SystemData, only: lms, user_input_m_s
+    use SystemData, only: lms, user_input_m_s, t_k_space_hubbard, t_trans_corr_2body
+    use input_parser_mod, only: TokenIterator_t, FileReader_t, ManagingFileReader_t, AttachedFileReader_t
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+    use tau_main, only: tau_start_val, possible_tau_start, &
+        min_tau, max_tau, tau, readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
+        tau_search_method, possible_tau_search_methods
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms
+
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -17,8 +28,7 @@ MODULE ReadInput_neci
 
 contains
 
-    Subroutine ReadInputMain(cFilename, ios, tOverride_input, kp)
-        USE input_neci
+    Subroutine ReadInputMain(cFilename, tOverride_input, kp)
         use SystemData, only: tMolpro
         use System, only: SysReadInput, SetSysDefaults
         use Calc, only: CalcReadInput, SetCalcDefaults
@@ -40,13 +50,12 @@ contains
 !        Integer :: iargc
 !#endif
         !  INPUT/OUTPUT params
+        character(*), parameter :: this_routine = 'ReadInputMain'
         Character(len=*) cFilename    !Input  filename or "" if we check arg list or stdin
-        Integer ios         !Output 0 if no error or nonzero iostat if error
 
         Character(len=255) cInp         !temp storage for command line params
         Character(len=32) cTitle
 !  Predeclared
-!        Integer             ir         !The file descriptor we are reading from
         Character(len=100) w, x         !strings for input storage
         Logical tEof        !set when read_line runs out of lines
         logical tExists     !test for existence of input file.
@@ -55,15 +64,14 @@ contains
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
         integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
+        integer, parameter :: id_scratch_file = 7
+        class(FileReader_t), allocatable :: file_reader
+        type(TokenIterator_t) :: tokens
 
         cTitle = ""
         idDef = idDefault                 !use the Default defaults (pre feb08)
-        ir = get_free_unit()              !default to a free unit which we'll open below
         If (trim(adjustl(cFilename)) /= '') Then
-            write(stdout, *) "Reading from file: ", Trim(cFilename)
-            inquire (file=cFilename, exist=tExists)
-            if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cFilename)//' does not exist.')
-            open(ir, File=cFilename, Status='OLD', err=99, iostat=ios)
+            file_reader = ManagingFileReader_t(trim(adjustl(cFilename)))
         else if (neci_iArgC() > 0) then
             ! We have some arguments we can process instead
 #ifdef BLUEGENE_HACKS
@@ -73,27 +81,20 @@ contains
 #endif
             write(stdout, *) "Processing arguments", cinp
             write(stdout, *) "Reading from file: ", Trim(cInp)
-            inquire (file=cInp, exist=tExists)
-            if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cInp)//' does not exist.')
-            open(ir, File=cInp, Status='OLD', FORM="FORMATTED", err=99, iostat=ios)
+            file_reader = ManagingFileReader_t(trim(adjustl(cInp)))
         Else
-            ir = 5                    !file descriptor 5 is stdin
             write(stdout, *) "Reading from STDIN"
             ! Save the input to a temporary file so we can scan for the
             ! defaults option and then re-read it for all other options.
-            open(7, status='scratch', iostat=ios)
+            open(id_scratch_file, status='scratch')
+            file_reader = AttachedFileReader_t(file_id=stdin, echo_lines=id_scratch_file)
         end if
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
 
-        !Look to find default options (line can be added anywhere in input)
-        Do
-            Call read_line(tEof)
-            if (ir == 5) write(7, *) trim(char) ! Dump line from STDIN to temporary file.
-            If (tEof) Exit
-            Call readu(w)
+        Do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
             Select case (w)
             Case ("DEFAULTS")
-                call readu(x)
+                x = to_upper(tokens%next())
                 select case (x)
 !Add default options here
                 case ("DEFAULT")
@@ -128,56 +129,56 @@ contains
         call SetIntDefaults
         call SetLogDefaults
 
-!Now return to the beginning and process the whole input file
-        if (ir == 5) ir = 7 ! If read from STDIN, re-read from our temporary scratch file.
-        Rewind (ir)
-        if (tMolpro .and. (.not. tOverride_input)) then
+        ! Now return to the beginning and process the whole input file
+        select type(file_reader)
+        type is (AttachedFileReader_t)
+            file_reader = AttachedFileReader_t(file_id=id_scratch_file)
+        end select
+
+        call file_reader%rewind()
+
 !Molpro writes out its own input file
-            Call input_options(echo_lines=.false., skip_blank_lines=.true.)
-        else
-            Call input_options(echo_lines=iProcIndex == 0, skip_blank_lines=.true.)
+        if (.not. tMolpro .or. tOverride_input) then
+            if (iProcIndex == 0) then
+                call file_reader%set_echo_lines(stdout)
+            else
+                call file_reader%set_echo_lines()
+            end if
             write(stdout, '(/,64("*"),/)')
         end if
 
-        Do
-            Call read_line(tEof)
-            If (tEof) exit
-            call readu(w)
+        Do while (file_reader%nextline(tokens, skip_empty=.true.))
+            w = to_upper(tokens%next())
             select case (w)
             case ("TITLE")
-                do while (item < nitems)
-                    call reada(w)
+                do while (tokens%remaining_items() > 0)
+                    w = tokens%next()
                     cTitle = trim(cTitle)//" "//trim(w)
                 end do
             case ("DEFAULTS")
                 CONTINUE
             case ("SYSTEM")
-                call SysReadInput()
+                call SysReadInput(file_reader, tokens)
             case ("CALC")
-                call CalcReadInput()
+                call CalcReadInput(file_reader)
             case ("INTEGRAL")
-                call IntReadInput()
+                call IntReadInput(file_reader)
             case ("LOGGING")
-                call LogReadInput()
+                call LogReadInput(file_reader)
             case ("KP-FCIQMC")
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
-                call kp_fciqmc_read_inp(kp)
+                call kp_fciqmc_read_inp(file_reader, kp)
             case ("REALTIME")
-                call real_time_read_input()
+                call real_time_read_input(file_reader)
             case ("END")
                 exit
             case default
-                call report("Keyword "//trim(w)//" not recognized", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized")
             end select
         end do
         write(stdout, '(/,64("*"),/)')
-!        IF(IR.EQ.1.or.IR.EQ.7) close(ir)
-        close(ir)
-99      IF (ios > 0) THEN
-            write(stdout, *) 'Problem reading input file ', TRIM(cFilename)
-            call stop_all('ReadInputMain', 'Input error.')
-        END IF
+        call file_reader%close()
         call sanitize_input()
         RETURN
     END SUBROUTINE ReadInputMain
@@ -197,12 +198,19 @@ contains
         use CalcData, only: user_input_seed, G_VMC_SEED
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
 
-        if (tGAS) then
-            if (allocated(user_input_GAS_exc_gen)) then
-                GAS_exc_gen = user_input_GAS_exc_gen
-            else
-                GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
-            end if
+        if (tGAS .and. allocated(user_input_GAS_exc_gen)) then
+            GAS_exc_gen = user_input_GAS_exc_gen
+            ! set fast weighting in case of indeterminate setting
+            if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
+                if (GAS_PCHB_options%doubles%hole_selection &
+                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+                    if (tUHF) then
+                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+                    else
+                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+                    end if
+                end if ! gasci pchb
+            end if ! indeterminate fast-weighted
         end if
 
         if (allocated(user_input_seed)) then
@@ -216,6 +224,24 @@ contains
         else
             lms = 0
         end if
+        ! move from `src/readint.F90::INITFROMFCID` which overwrote results here
+        ! note this comes before setting tstorespinorbs based on the hole selection
+        ! algorithm below, since even if these requirements are not satisfied,
+        ! we still want tstorespinorbs = .true.
+
+        tStoreSpinOrbs = (tMolpro .and. tUHF) .or. (tUHF .and. (.not. tROHF))
+        ! set fci pchb hole selection in case of indeterminate setting
+        if (t_fci_pchb_excitgen) then
+            if (FCI_PCHB_options%doubles%hole_selection &
+                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+                if (tUHF) then
+                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+                else
+                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+                end if
+            end if
+        end if
+
     end subroutine
 
     subroutine checkinput()
@@ -245,7 +271,8 @@ contains
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
-                            user_input_seed, t_core_inits
+                            user_input_seed, tTargetShiftdamp, tFixedN0, t_core_inits, &
+                            tWalkContGrow
         use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
@@ -264,14 +291,13 @@ contains
         use real_time_data, only: t_real_time_fciqmc
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
-        use input_neci
         use constants
         use global_utilities
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft, t_global_core_space
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, user_input_GAS_exc_gen
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -279,7 +305,7 @@ contains
         integer :: vv, kk, cc, ierr
         real(dp) :: InputDiagSftSingle
         logical :: check
-        character(*), parameter :: t_r = 'checkinput'
+        character(*), parameter :: t_r = 'checkinput', this_routine = t_r
 
         if (tDiagAllSpaceEver .and. .not. tHistSpawn) then
             call stop_all(t_r, "DIAGALLSPACEEVER requires HISTSPAWN option")
@@ -316,113 +342,109 @@ contains
         ! the other random graph algorithm cannot remove same excitation
         ! links yet.
         if (tNoSameExcit .and. .not. tInitStar) then
-            call report("If we are using TNoSameExcit, then we have to start&
+            call stop_all(this_routine, "If we are using TNoSameExcit, then we have to start&
                          & with the star. The other random graph algorithm &
-                         &cannot remove same excitation links yet.", .true.)
+                         &cannot remove same excitation links yet.")
         end if
 
         ! The MoveDets and Biasing algorithms cannot both be used in the
         ! GraphMorph Algorithm.
         if (tBiasing .and. tMoveDets) then
-            call report("Biasing algorithm and MoveDets algorithm cannot both&
-                        & be used", .true.)
+            call stop_all(this_routine, "Biasing algorithm and MoveDets algorithm cannot both&
+                        & be used")
         end if
 
         ! ..RmRootExcitStarsRootChange must be used with DiagStarStars, and not
         ! with ExcitStarsRootChange
         if (tRmRootExcitStarsRootChange .and. .not. tDiagStarStars) then
-            call report("RmRootExcitStarsRootChange can only with used with &
-                        &DiagStarStars currently", .true.)
+            call stop_all(this_routine, "RmRootExcitStarsRootChange can only with used with &
+                        &DiagStarStars currently")
         end if
 
         if (TRmRootExcitStarsRootChange .and. TExcitStarsRootChange) then
-            call report("RmRootExcitStarsRootChange and ExcitStarsRootChange &
+            call stop_all(this_routine, "RmRootExcitStarsRootChange and ExcitStarsRootChange &
                         &cannot both be used as they are both different &
-                        &options with diagstarstars", .true.)
+                        &options with diagstarstars")
         end if
 
         !..ExcitStarsRootChange must be used with TDiagStarStars
         if (tExcitStarsRootChange .and. .not. tDiagStarStars) then
-            call report("ExcitStarsRootChange can only with used with &
-                        &DiagStarStars currently", .true.)
+            call stop_all(this_routine, "ExcitStarsRootChange can only with used with &
+                        &DiagStarStars currently")
         end if
 
         ! ..TDiagStarStars must be used with TStarStars, and cannot be used
         ! with TCalcExcitStar
         if (tDiagStarStars .and. .not. tStarStars) then
-            call report("DiagStarStars must be used with StarStars", .true.)
+            call stop_all(this_routine, "DiagStarStars must be used with StarStars")
         end if
         if (tDiagStarStars .and. tCalcExcitStar) then
-            call report("DiagStarStars is incompatable with CalcExcitStar", &
-                        .true.)
+            call stop_all(this_routine, "DiagStarStars is incompatable with CalcExcitStar")
         end if
         if (tDiagStarStars .and. (tNoDoubs .or. tJustQuads)) then
-            call report("NoDoubs/JustQuads cannot be used with DiagStarStars &
+            call stop_all(this_routine, "NoDoubs/JustQuads cannot be used with DiagStarStars &
                         &- try CalcExcitStar")
         end if
 
         ! ..TNoDoubs is only an option which applied to TCalcExcitStar, and
         ! cannot occurs with TJustQuads.
         if (tNoDoubs .and. .not. tCalcExcitStar) then
-            call report("STARNODOUBS is only an option which applied to &
-                        &TCalcExcitStar", .true.)
+            call stop_all(this_routine, "STARNODOUBS is only an option which applied to &
+                        &TCalcExcitStar")
         end if
 
         if (tNoDoubs .and. tJustQuads) then
-            call report("STARNODOUBS and STARQUADEXCITS cannot be applied &
-                        &together!", .true.)
+            call stop_all(this_routine, "STARNODOUBS and STARQUADEXCITS cannot be applied &
+                        &together!")
         end if
 
         ! .. TJustQuads is only an option which applies to TCalcExcitStar
         if (tJustQuads .and. .not. tCalcExcitStar) then
-            call report("STARQUADEXCITS is only an option which applies to &
-                        &tCalcExcitStar", .true.)
+            call stop_all(this_routine, "STARQUADEXCITS is only an option which applies to &
+                        &tCalcExcitStar")
         end if
 
         !.. tCalcExcitStar can only be used with tStarStars
         if (tCalcExcitStar .and. .not. tStarStars) then
-            call report("CalcExcitStar can only be used with StarStars set", &
-                        .true.)
+            call stop_all(this_routine, "CalcExcitStar can only be used with StarStars set")
         end if
 
         !.. Brillouin Theorem must be applied when using TStarStars
         if (tStarStars .and. .not. tUseBrillouin) then
-            call report("Brillouin Theorem must be used when using &
-                        &CalcExcitStar", .true.)
+            call stop_all(this_routine, "Brillouin Theorem must be used when using &
+                        &CalcExcitStar")
         end if
 
         !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
         if ((tQuadValMax .or. tQuadVecMax) .and. .not. tStarStars) then
-            call report("TQuadValMax or TQuadVecMax can only be specified if &
-                        &STARSTARS specified in method line", .true.)
+            call stop_all(this_routine, "TQuadValMax or TQuadVecMax can only be specified if &
+                        &STARSTARS specified in method line")
         end if
 
         !.. TQuadValMax and TQuadVecMax cannot both be set
         if (tQuadValMax .and. tQuadVecMax) then
-            call report("TQuadValMax and TQuadVecMax cannot both be set", &
-                        .true.)
+            call stop_all(this_routine, "TQuadValMax and TQuadVecMax cannot both be set")
         end if
 
         !.. TDISCONODES can only be set if NODAL is set in the star methods
         ! section
         if (tDiscoNodes .and. .not. tDiagNodes) then
-            call report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
-                        &METHOD", .true.)
+            call stop_all(this_routine, "DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
+                        &METHOD")
         end if
 
         if (tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
             tPreCond) then
             if (tHistSpawn .or. &
                 (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
-                call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references" &
-                            , .true.)
+                call stop_all(this_routine, "HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references")
             end if
         end if
 
         if (.not. t_global_core_space) then
-            if (t_real_time_fciqmc) call report("Real-time FCIQMC requires a global core space")
-            if (tKP_FCIQMC) call report("KP-FCIQMC requires a global core space")
-            if (tReplicaEstimates) call report("Replica estimates require a global core space")
+            if (t_real_time_fciqmc) call stop_all(this_routine, "Real-time FCIQMC requires a global core space")
+            if (tKP_FCIQMC) call stop_all(this_routine, "KP-FCIQMC requires a global core space")
+            if (tReplicaEstimates) call stop_all(this_routine, "Replica estimates require a global core space")
         end if
 
         !.. We still need a specdet space even if we don't have a specdet.
@@ -434,13 +456,13 @@ contains
         !..   Testing ILOGGING
         !     ILOGGING = 0771
         if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
-            call report('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
-                         &set', .true.)
+            call stop_all(this_routine, 'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
+                         &set')
         end if
 
         !Ensure beta is set.
         if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
-            call report("No beta value provided.", .true.)
+            call stop_all(this_routine, "No beta value provided.")
         end if
 
         do vv = 2, I_VMAX
@@ -652,6 +674,10 @@ contains
             end if
         end if
 
+        if (tGAS .neqv. allocated(user_input_GAS_exc_gen)) then
+            call stop_all(this_routine, 'GAS-CI and GAS-SPEC required.')
+        end if
+
         if (tGAS) then
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
@@ -662,7 +688,7 @@ contains
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%GENERAL_PCHB])) then
+            if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%PCHB])) then
                 call stop_all(t_r, "Running GAS without spin-recoupling requires {DISCONNECTED, GENERAL_PCHB} implementations.")
             end if
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
@@ -678,6 +704,14 @@ contains
 
         if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+        end if
+
+        if (tTargetShiftdamp .and. tFixedN0) then
+            call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
+        end if
+
+        if (tTargetShiftdamp .and. tWalkContGrow) then
+            call stop_all(t_r, "TARGET-SHIFTDAMP and WALKCONTGROW not compatible.")
         end if
 
         if (.not. (tInfInit .implies. t_core_inits)) then
@@ -697,6 +731,47 @@ contains
                 end if
             end if
         end block
+
+
+        time_step: block
+            if (.not. allocated(tau_start_val)) then
+                call stop_all(t_r, 'Start value for tau is required.')
+            end if
+
+            if (tau_start_val == possible_tau_start%from_popsfile .neqv. tReadPops) then
+                if (tau_start_val == possible_tau_start%from_popsfile) then
+                    call stop_all(t_r, 'Starting tau from popsfile requires readpops.')
+                else if (.not. readpops_but_tau_not_from_popsfile) then
+                    write(stdout, *) 'Using readpops while not reading tau from popsfile is &
+                        &very likely an input error.'
+                    write(stdout, *) 'If you think that your input is correct and you know what you do &
+                        &add `readpops-but-tau-not-from-popsfile` to the tau-values keywords'
+                    call stop_all(t_r, 'Readpops requires `tau-values start from-popsfile`.')
+                end if
+            end if
+
+            if (tau_start_val == possible_tau_start%tau_factor &
+                    .and. t_trans_corr_2body .and. t_k_space_hubbard) then
+                call stop_all(this_routine, &
+                              "finding the number of excits from HF breaks for too large lattice.")
+            end if
+
+            if (tau_start_val == possible_tau_start%refdet_connections .and. tGUGA) then
+                call stop_all(this_routine, &
+                              "tau-values start refdet-connections is not compatible with GUGA calculations!")
+            end if
+
+            if (tau_search_method /= possible_tau_search_methods%off) then
+                if (tTruncInitiator .and. MaxWalkerBloom > InitiatorWalkNo) then
+                    call stop_all(this_routine, &
+                                  "MaxWalkerBloom has to be smaller equal than InitiatorWalkNo.")
+                end if
+                if (tScaleBlooms .and. MaxWalkerBloom > max_allowed_spawn) then
+                    call stop_all(this_routine, &
+                                  "MaxWalkerBloom has to be smaller equal than max_allowed_spawn.")
+                end if
+            end if
+        end block time_step
 
     end subroutine checkinput
 

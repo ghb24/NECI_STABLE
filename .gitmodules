@@ -1,6 +1,3 @@
 [submodule "External/fypp"]
 	path = External/fypp
 	url = https://github.com/aradi/fypp.git
-[submodule "External/ford"]
-	path = External/ford
-	url = https://bitbucket.org/neci_developers/ford.git

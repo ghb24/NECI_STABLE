@@ -3,7 +3,8 @@
 
 ! fpp types
 #:set DATA_TYPES = {('real', 'dp'): 'real', ('HElement_t', 'dp'): 'hel', &
-                    &('integer', ''): 'int', ('integer', 'int32'): 'int32', ('integer', 'int64'): 'int64', }
+                    &('integer', ''): 'int', ('integer', 'int32'): 'int32', ('integer', 'int64'): 'int64', &
+                    &('Token_t', ''): 'token'}
 
 #:set RANKS = [1, 2]
 
@@ -17,7 +18,8 @@ $:  ', '.join(size_along if i == int(along) else 'size({var}, {i})'.format(var=v
 
 
 module growing_buffers
-    use constants
+    use constants, only: int32, int64, dp
+    use fortran_strings, only: Token_t
     implicit none
 
     private
@@ -190,7 +192,7 @@ contains
 
 
         ! If the buffer still has room, add the entry
-        if (this%pos < size(this%buf, ${rank}$)) then
+        if (this%pos < size(this%buf, ${rank}$, kind=int64)) then
             this%pos = this%pos + 1_int64
             @{select(this%buf, this%pos)}@ = val
         else
@@ -202,10 +204,10 @@ contains
                 ! Fortran 2003 automatic allocation/assignment
                 tmp = this%buf
 
-                deallocate(this%buf)
                 ! We add a constant offset to allow growth if start_size == 0.
                 ! The grow_factor then takes over for larger numbers and prevents the O(n^2) scaling.
                 new_buf_size = ceiling(real(size(this%buf, ${rank}$), kind=dp) * this%grow_factor, kind=int64) + 10_int64
+                deallocate(this%buf)
                 allocate(this%buf(@{shape_like_except_along(${rank}$, ${rank}$, tmp, new_buf_size)}@))
 
                 @{select(this%buf, : size(tmp, ${rank}$))}@ = tmp

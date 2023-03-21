@@ -1,6 +1,6 @@
 module lMat_indexing
     use constants, only: int64
-    use util_mod, only: intSwap, fuseIndex
+    use util_mod, only: swap, fuseIndex
     use SystemData, only: nBI
     implicit none
 
@@ -31,9 +31,9 @@ contains
         ck = fuseIndex(c, k)
 
         ! sort the indices
-        if (ai > bj) call intswap(ai, bj)
-        if (bj > ck) call intswap(bj, ck)
-        if (ai > bj) call intswap(ai, bj)
+        if (ai > bj) call swap(ai, bj)
+        if (bj > ck) call swap(bj, ck)
+        if (ai > bj) call swap(ai, bj)
 
         index = ai + bj * (bj - 1) / 2 + ck * (ck - 1) * (ck + 1) / 6
     end function lMatIndSym
@@ -63,9 +63,9 @@ contains
         ! or i < j < k, depending on (permuted) a < i
         ! sort such that the ordered indices start with the smallest index
         if (minval((/a, b, c/)) > minval((/i, j, k/))) then
-            call intswap(a, i)
-            call intswap(b, j)
-            call intswap(c, k)
+            call swap(a, i)
+            call swap(b, j)
+            call swap(c, k)
         end if
         ! -> create the ordered permutation on ap,bp,cp
         call sort2Els(a, b, i, j)
@@ -87,8 +87,8 @@ contains
             integer(int64), intent(inout) :: r, s, p, q
 
             if (r > s) then
-                call intswap(r, s)
-                call intswap(p, q)
+                call swap(r, s)
+                call swap(p, q)
             end if
         end subroutine sort2Els
 

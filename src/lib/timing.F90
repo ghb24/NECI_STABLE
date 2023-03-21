@@ -38,7 +38,9 @@ module timing_neci
 != set_timer and print_timing_report take optional arguments.
 != See the individual routines for more information.
 ! ========================================================================
-    use constants
+    use constants, only: dp
+    use mpi, only: MPI_WTIME
+    use error_handling_neci, only: neci_flush, stop_all, warning_neci
     implicit none
     save
     private
@@ -60,15 +62,15 @@ module timing_neci
     type timer_object
         character(25) :: timer_name
         integer :: ncalls = 0
-        real(dp) :: time_cpu = 0.0     ! For timing of the current call to the procedure.
-        real(dp) :: sum_time_cpu = 0.0    ! Sum of time spent in the procedure.
+        real(dp) :: time_cpu = 0.0_dp     ! For timing of the current call to the procedure.
+        real(dp) :: sum_time_cpu = 0.0_dp    ! Sum of time spent in the procedure.
         logical :: timing_on = .false.   ! true whilst the timer is active.
     end type timer_object
 
     type(timer_object), allocatable, target :: timers(:)
 
 ! For total calculation time.
-    real(dp) :: global_time = 0.0
+    real(dp) :: global_time = 0.0_dp
 ! If global_timing_on is true, then handle the total time differently in the timing output,
 ! as then have requested timing output without halting the global timer.
     logical :: global_timing_on = .false.
@@ -79,10 +81,8 @@ module timing_neci
 contains
 
     subroutine init_timing()
-        use mpi
         != Start global timer for timing the total calculation time.
 
-        implicit none
         integer :: i
 
         if (time_at_all) then
@@ -94,8 +94,8 @@ contains
             do i = 1, itimer
                 ! Have already done one run if itimer>0.  Clear existing timing info.
                 timers(i)%ncalls = 0
-                timers(i)%time_cpu = 0.0
-                timers(i)%sum_time_cpu = 0.0
+                timers(i)%time_cpu = 0.0_dp
+                timers(i)%sum_time_cpu = 0.0_dp
                 timers(i)%timing_on = .false.
             end do
         end if
@@ -103,10 +103,8 @@ contains
     end subroutine init_timing
 
     subroutine end_timing()
-        use mpi
         != Stop global timer for timing the total calculation time.
 
-        implicit none
         real(dp) :: t
 
         if (time_at_all) then
@@ -135,9 +133,7 @@ contains
         !=           called multiple times, the timer is not reinitialised, but
         !=           rather updated with new timing information (i.e. the current
         !=           timer is set).
-        use mpi
         Use LoggingData, only: iGlobalTimerLevel
-        implicit none
         type(timer) :: proc_timer
         integer, optional, intent(in) :: obj_level
         real(dp) :: t
@@ -196,8 +192,6 @@ contains
         !=               set_timer.  The timer is stopped and the total cpu and
         !=               system time spent in the procedure is updated with the time
         !=               spent for the current call.
-        use mpi
-        implicit none
         type(timer), intent(inout) :: proc_timer
         integer :: i
         real(dp) :: t
@@ -240,8 +234,6 @@ contains
         !=   t_elapsed(optional): include the elapsed time.  Warning: involves an
         !=               additional call to etime, so will affect performance if
         !=               called large numbers (10s of millions) of times.
-        use mpi
-        implicit none
         type(timer) :: proc_timer
         logical, optional :: t_elapsed
         real(dp) :: t
@@ -249,7 +241,7 @@ contains
         if (time_at_all) then
             if (.not. associated(proc_timer%store)) then
                 call warning_neci('get_total_time.', 'proc_timer not intialised: '//adjustl(proc_timer%timer_name))
-                get_total_time = -1000.0 ! Helpfully return insane value, so it is obvious something went wrong. ;-)
+                get_total_time = -1000.0_dp ! Helpfully return insane value, so it is obvious something went wrong. ;-)
             else
                 get_total_time = proc_timer%store%sum_time_cpu
                 if (present(t_elapsed)) then
@@ -274,9 +266,7 @@ contains
         !=    Default value: 10, as set in Logging module.
         !=    iunit (optional): file unit to which the timing  report is printed.
         !=    Default value: 6 (stdout).
-        use mpi
         Use LoggingData, only: nPrintTimer
-        implicit none
         integer, optional, intent(in) :: ntimer_objects
         integer, optional, intent(in) :: iunit
         integer :: io = 6
@@ -292,7 +282,7 @@ contains
             ! zero to single-precision.  This forces the procedure times to be printed
             ! out, if required, even if they are 0.0000, by avoiding issues with
             ! maxloc as the elements of the sum_times array are set to zero.
-            sum_times = timers(:)%sum_time_cpu + real(1.e-4, dp)
+            sum_times = timers(:)%sum_time_cpu + 1.e-4_dp
 
             if (present(iunit)) io = iunit
             if (present(ntimer_objects)) then

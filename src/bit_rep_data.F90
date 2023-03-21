@@ -2,7 +2,7 @@
 module bit_rep_data
 
     use CalcData, only: tUseRealCoeffs
-    use constants
+    use constants, only: n_int, dp, lenof_sign, inum_runs, lenof_sign_max
 
     implicit none
 

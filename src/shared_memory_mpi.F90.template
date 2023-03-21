@@ -66,6 +66,7 @@ module shared_memory_mpi
     use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
     use constants
     use scalar_shared_memory_mpi
+    use util_mod, only: stop_all
   implicit none
 
 contains

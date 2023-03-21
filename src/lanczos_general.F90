@@ -7,12 +7,12 @@ module lanczos_general
     !   http://dx.doi.org/10.1016/0024-3795(80)90167-6
     !
     use constants
-    use SystemData, only: nel, t_non_hermitian
+    use SystemData, only: nel, t_non_hermitian_2_body
     use FciMCData, only: hamiltonian, LanczosTag
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
-    use MPI_wrapper, only: root
+    use MPI_wrapper, only: root, MPI_WTime
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
     use hamiltonian_linalg, only: &
@@ -28,6 +28,9 @@ module lanczos_general
         inner_product, &
         euclidean_norm_square, &
         euclidean_norm
+    use util_mod, only: stop_all, neci_flush
+
+    implicit none
 
     type LanczosCalcType
         ! "super type" for common hamiltonian data
@@ -629,7 +632,7 @@ contains
                             this%lanczos_vector = this%lanczos_vector - getBeta(this, k + 1) * old_v
                         end if
 
-                        if (t_non_hermitian) then
+                        if (t_non_hermitian_2_body) then
                             call diagonalise_tridiagonal_non_hermitian(this, k, .false.)
                         else
                             call diagonalise_tridiagonal(this, k, .false.)
@@ -657,7 +660,7 @@ contains
                 end do
 
                 if (iprocindex == root) then
-                    if (t_non_hermitian) then
+                    if (t_non_hermitian_2_body) then
                         call diagonalise_tridiagonal_non_hermitian(this, k, .true.)
                     else
                         call diagonalise_tridiagonal(this, k, .true.)

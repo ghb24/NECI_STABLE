@@ -5,6 +5,7 @@ subroutine VaspSystemInit(ArrLEN)
     use vasp_interface
     use SymData, only: nRot, PropBitLen, tAbelian, nProp, KPntSym, tagKPntSym
     use constants, only: dp, sizeof_int, stdout
+    use util_mod, only: stop_all
     implicit none
     integer :: ArrLEN
     integer :: i, ik
@@ -21,7 +22,7 @@ subroutine VaspSystemInit(ArrLEN)
     call LogMemAlloc('KPntSym', 3 * nKP, 4, this_routine, tagKPntSym)
     do ik = 1, nKP
         do i = 1, 3
-            KPntSym(i, ik) = int(kpnts(i, ik) * real(nProp(i), dp), sizeof_int)
+            KPntSym(i, ik) = int(kpnts(i, ik) * real(nProp(i), dp))
         end do
     end do
 
@@ -34,6 +35,7 @@ subroutine VASPInitIntegrals(nOrbUsed, ECore, tOrder)
     use SystemData, only: BasisFN, nEl
     use OneEInts, only: TMatSym, TMatInd
     use vasp_interface
+    use util_mod, only: stop_all
     use UMatCache, only: SetupUMatCache, UMat2D
     use global_utilities
     use constants, only: dp

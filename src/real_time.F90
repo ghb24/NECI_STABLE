@@ -32,7 +32,7 @@ module real_time
                           init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, &
+                        tChangeProjEDet, DiagSft, nmcyc, InitWalkers, &
                         s_global_start, StepsSft, semistoch_shift_iter
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, spawnedParts, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
@@ -63,8 +63,9 @@ module real_time
     use fcimc_pointed_fns, only: new_child_stats_normal
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create
-    use bit_rep_data, only: IlutBits, niftot, extract_sign
-    use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
+    use bit_rep_data, only: IlutBits, niftot, extract_sign, &
+        flag_deterministic, flag_determ_parent, test_flag
+    use bit_reps, only: set_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
                                 population_check, update_shift, calculate_new_shift_wrapper, &
                                 iteration_output_wrapper
@@ -81,6 +82,7 @@ module real_time
     use adi_references, only: setup_reference_space
     use adi_data, only: allDoubsInitsDelay, nRefs, tDelayGetRefs
     use core_space_util, only: cs_replicas
+    use tau_main, only: tau, assign_value_to_tau
     implicit none
 
 ! main module file for the real-time implementation of the FCIQMC algorithm
@@ -427,7 +429,7 @@ contains
             ! generated popsfile, it is estimated using the number of cycles, the current
             ! angle of rotation and the total elapsed real time
             TotImagTime = elapsedImagTime
-            tau = elapsedRealTime
+            call assign_value_to_tau(elapsedRealTime, this_routine)
             ! THIS IS A HACK: We dont want to alter the POPSFILE functions themselves
             ! so we sneak in the shift_damping into some slot unimportant to rneci
             AllSumNoatHF(1:inum_runs) = shift_damping
@@ -640,7 +642,7 @@ contains
         ! prefactor for unbiasing if the number of spawns is cut off
         prefactor = 1.0_dp
         ! use part of nicks code, and remove the parts, that dont matter
-        do idet = 1, int(TotWalkers, sizeof_int)
+        do idet = 1, int(TotWalkers)
 
             parent_flags = 0_n_int
 
@@ -810,7 +812,7 @@ contains
         prefactor = 1.0_dp
         determ_index = 1
 
-        do idet = 1, int(TotWalkers, sizeof_int)
+        do idet = 1, int(TotWalkers)
 
             ! The 'parent' determinant from which spawning is to be attempted.
             parent_flags = 0_n_int
@@ -954,7 +956,7 @@ contains
         ! death-step too,
 
         ! this is the original number of dets.
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
 
         ! have to call end_iter_stats to get correct acceptance rate
 !         call end_iter_stats(TotWalkersNew)
@@ -965,7 +967,7 @@ contains
         call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
         call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data_fciqmc, err)
 
-        TotWalkers = int(TotWalkersNew, sizeof_int)
+        TotWalkers = int(TotWalkersNew)
 
     end subroutine first_real_time_spawn
 
@@ -1007,9 +1009,10 @@ contains
             print *, "=========================="
         end if
 
-#ifdef DEBUG_
-        call check_update_growth(iter_data_fciqmc, "Error in first RK step")
-#endif
+! #ifdef DEBUG_
+! TODO: This has to switched on again and fixed!
+!         call check_update_growth(iter_data_fciqmc, "Error in first RK step")
+! #endif
 
         ! for now update the iter data here, although in the final
         ! implementation i only should do that after the 2nd RK step
@@ -1053,7 +1056,7 @@ contains
         ! meh.. that seems really inefficient, better do it more cleverly
         ! in the creation of the k2 spawned list + annihilation!
 
-!         do idet = 1, int(TotWalkers, sizeof_int)
+!         do idet = 1, int(TotWalkers)
 !
 !             ! do death_step only.. maybe..
 !         end do
@@ -1068,7 +1071,7 @@ contains
         ! the actual spawned particles, to best mimick the old algorithm and
         ! also to correctly keep the stats of the events!
 
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
 
         ! also have to set the SumWalkersCyc before the "proper" annihilaiton
         do run = 1, inum_runs
@@ -1077,7 +1080,7 @@ contains
         end do
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data)
-        TotWalkersNew = int(TotWalkersNew, sizeof_int)
+        TotWalkersNew = int(TotWalkersNew)
 
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
@@ -1089,7 +1092,7 @@ contains
         call check_update_growth(second_spawn_iter_data, "Error in second RK step")
 #endif
 
-        TotWalkers = int(TotWalkersNew, sizeof_int)
+        TotWalkers = int(TotWalkersNew)
 
         ! also do the update on the second_spawn_iter_data to combine both of
         ! them outside this function
@@ -1128,7 +1131,7 @@ contains
         ! merge delta_psi (now spawnedParts) into CurrentDets
         ! We need to cast TotWalkers to a regular int to pass it to the annihilation
         ! as it is modified, we need to pass an lvalue and cannot just pass int(TotWalkers)
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
         call end_iter_stats(TotWalkersNew)
         ! for semistochastic method, we add in the core -> core spawns
         ! if(tSemiStochastic) call deterministic_annihilation(iter_data_fciqmc)

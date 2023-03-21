@@ -1,6 +1,6 @@
-dim 2 
+dim 2
 lattice_type square
-(lattice_param -2 2 2 -2
+# lattice_param -2 2 2 -2
 n_sites 8
 n_connect_max 4
 site 1 4 3 5 7 8

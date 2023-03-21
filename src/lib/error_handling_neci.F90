@@ -1,66 +1,37 @@
-subroutine stop_all(sub_name, error_msg)
-
-    ! Stop calculation due to an error. Exit with code 222?
-    !
-    ! In: sub_name    - Calling routine
-    !     error_msg   - Error message
-    use constants, only: stdout, stderr
-
-#ifdef USE_MPI
-    use Parallel_neci, only: iProcIndex, MPIStopAll
-#endif
-    implicit none
+#include "macros.h"
+module error_handling_neci
+    better_implicit_none
+    private
+    public :: stop_all, neci_backtrace, neci_flush, warning_neci
 
     interface
-        subroutine print_backtrace_neci () bind(c)
+        pure subroutine hidden_stop_all(sub_name, error_msg)
+            character(*), intent(in) :: sub_name, error_msg
         end subroutine
+
+        module subroutine neci_backtrace()
+        end subroutine
+
+        module subroutine neci_flush(un)
+            integer, intent(in) :: un
+        end subroutine neci_flush
+
+        module subroutine warning_neci(sub_name, error_msg)
+            != Print a warning message in a (helpfully consistent) format.
+            !=
+            != In:
+            !=    sub_name:  calling subroutine name.
+            !=    error_msg: error message.
+            character(*), intent(in) :: sub_name, error_msg
+        end subroutine warning_neci
     end interface
 
-    character(*), intent(in) :: sub_name, error_msg
+contains
 
-    ! I found problems when the error code is larger 2^8 - 1 == 255
-    integer, parameter :: error_code = 222
-
-    write (stdout,'(/a7)') 'ERROR.'
-    write (stdout,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (stdout,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef USE_MPI
-    write (stdout,'(a12,15X,i5)') 'Processor: ',iProcIndex
-#endif
-    write (stdout,'(a11)') 'EXITING...'
-#ifdef DEBUG_
-    call neci_flush (stdout)
-#else
-    write (stdout,'(/a7)') 'ERROR.'
-    write (stdout,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (stdout,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef USE_MPI
-    write (stdout,'(a12,15X,i5)') 'Processor: ',iProcIndex
-#endif
-    write (stdout,'(a11)') 'EXITING...'
-#endif
-
-    ! Also push this to the stderr unit, so it hopefully ends up somewhere
-    ! more useful.
-    write (stderr,'(/a7)') 'ERROR.'
-    write (stderr,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (stderr,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef USE_MPI
-    write (stderr,'(a12,15X,i5)') 'Processor: ',iProcIndex
-#endif
-    write (stderr,'(a11)') 'EXITING...'
-
-    call print_backtrace_neci()
-
-#ifdef USE_MPI
-    call MPIStopAll(error_code)
-#else
-    stop error_code
-#endif
-
-end subroutine stop_all
-
-
-
+    pure subroutine stop_all(sub_name, error_msg)
+        character(*), intent(in) :: sub_name, error_msg
+        call hidden_stop_all(sub_name, error_msg)
+    end subroutine stop_all
+end module
 
 

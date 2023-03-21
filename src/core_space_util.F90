@@ -7,6 +7,7 @@ module core_space_util
     use shared_memory_mpi
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use MPI_wrapper
+    use fcimcdata, only: t_global_core_space, core_run
     implicit none
 
     private
@@ -279,5 +280,16 @@ contains
         end if
 
     end subroutine deallocate_sparse_matrix_int
+
+    pure function get_core_run(run) result(crun)
+        integer, intent(in) :: run
+        integer :: crun
+
+        if(t_global_core_space) then
+            crun = core_run
+        else
+            crun = run
+        end if
+    end function get_core_run
 
 end module core_space_util

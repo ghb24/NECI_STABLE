@@ -605,3 +605,33 @@ if (ierr /= 0) call stop_all(...)
 but either check after each allocation (to know which array failed) or
 just ommit `stat=ierr`. The intrinsic allocations stops the program if
 it cannot allocate.
+
+
+**One line if statements**<br>
+
+One-line if statements should fit in one line.
+If they have to be continued via `&`, please use a proper `then` ... `end if`
+pairing.
+
+```Fortran
+! This is allowed
+if (cond) statement
+
+
+! This is forbidden
+if (cond) &
+    statement
+```
+
+The underlying reason is that the danger is too high, to go from
+```Fortran
+if (cond) &
+    statement_1
+```
+to
+```Fortran
+if (cond) &
+    statement_1
+    statement_2
+```
+where people might overlook that `statement_2` is always executed.

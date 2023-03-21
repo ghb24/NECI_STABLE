@@ -20,12 +20,13 @@ module excit_gen_5
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
-    use Determinants, only: write_det, get_helement
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
     use procedure_pointers, only: get_umat_el
     use sym_general_mod, only: ClassCountInd
-    use bit_rep_data, only: NIfTot, NIfD, test_flag
-    use bit_reps, only: decode_bit_det, get_initiator_flag, nifguga
+    use bit_rep_data, only: NIfTot, NIfD, test_flag, nIfGUGA
+    use bit_reps, only: decode_bit_det, get_initiator_flag
     use get_excit, only: make_double
     use UMatCache, only: gtid
     use constants
@@ -39,8 +40,8 @@ module excit_gen_5
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
                               CSF_Info_t, current_csf_i
     use guga_data, only: ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element, &
-                                global_excitinfo, print_excitInfo
+    use guga_excitations, only: global_excitinfo, print_excitInfo
+    use guga_matrixElements, only: calc_guga_matrix_element
 
     implicit none
 
@@ -109,7 +110,7 @@ contains
                 return
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, HelGen, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, HelGen, .true.)
 
             if (abs(HelGen) < EPS) then
                 nJ(1) = 0

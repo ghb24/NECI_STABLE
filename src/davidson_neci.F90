@@ -6,13 +6,15 @@ module davidson_neci
     ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
     use constants
-    use FciMCData, only: hamiltonian, DavidsonTag
+    use FciMCData, only: hamiltonian, DavidsonTag, user_input_max_davidson_iters, &
+                         user_input_davidson_tolerance
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
     use MPI_wrapper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
+    use util_mod, only: neci_flush, stop_all
     use hamiltonian_linalg, only: &
         full_hamil_type, &
         sparse_hamil_type, &
@@ -27,8 +29,8 @@ module davidson_neci
 
     implicit none
 
-    integer, parameter :: max_num_davidson_iters = 25
-    real(dp), parameter :: residual_norm_target = 0.0000001_dp
+    integer :: max_num_davidson_iters = 50
+    real(dp) :: residual_norm_target = 1e-7_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
     type DavidsonCalcType
@@ -68,6 +70,7 @@ contains
         integer :: i
         real(dp) :: start_time, end_time
         type(DavidsonCalcType), intent(inout) :: this
+        character(*), parameter :: this_routine = "perform_davidson"
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
@@ -99,9 +102,15 @@ contains
 
             if (this%residual_norm < residual_norm_target) exit
 
+            if (i == max_num_davidson_iters) then
+                call stop_all(this_routine, "Davidson iteration reached the maximum number of iterations. &
+                                            &The deterministic energy may not be converged. &
+                                            &You can increase 'davidson-max-iters' or 'davidson-target-tolerance'.")
+            end if
+
         end do
 
-        if (print_info) write(stdout, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
+        if (print_info) write(stdout, '(/,1x,"Final calculated correlation energy:",1X,f16.10)') this%davidson_eigenvalue
 
         call FreeDavidsonCalc(this)
 
@@ -129,6 +138,12 @@ contains
         integer(mpiarg) :: mpi_temp
         real(dp), allocatable :: hamil_diag_temp(:)
         character(len=*), parameter :: t_r = "init_davidson"
+
+        if( allocated(user_input_max_davidson_iters) ) &
+            max_num_davidson_iters = user_input_max_davidson_iters
+
+        if( allocated(user_input_davidson_tolerance) ) &
+            residual_norm_target = user_input_davidson_tolerance
 
         call InitHamiltonianCalc(this%super, print_info, hamil_type, max_num_davidson_iters, .true., .false.)
 
@@ -444,7 +459,7 @@ contains
             do j = 1, davidson_classes(class_i)%num_comb
                 class_j = davidson_classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(int(HFSym_ras, sizeof_int), sym_i)
+                    sym_j = ieor(int(HFSym_ras), sym_i)
                     if (davidson_classes(class_i)%num_sym(sym_i) == 0) cycle
                     if (davidson_classes(class_j)%num_sym(sym_j) == 0) cycle
                     allocate(direct_ci_inp(class_i, class_j, sym_i)% &

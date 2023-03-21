@@ -3,7 +3,6 @@
 ! containing all necessary declarations and basic function definitions for the
 ! GUGA approach.
 module guga_data
-    ! dependencies: be EXPLICIT about them!
     use SystemData, only: nBasis, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
                           tNoBrillouin, tExactSizeSpace, tUHF, tGUGA, nSpatOrbs
     use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_
@@ -18,7 +17,7 @@ module guga_data
               orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
               funa_2_0_overr2, getdoublecontribution, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
-              tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
+              tGUGACore, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, &
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
@@ -269,20 +268,19 @@ module guga_data
     ! create derived type to use array of procedure pointers to efficiently
     ! access the functions necessary for the matrix element calculation
     abstract interface
-        function dummyFunction(bValue) result(ret)
+        pure function dummyFunction(bValue) result(ret)
             import :: dp
             implicit none
             real(dp), intent(in) :: bValue
             real(dp) :: ret
         end function dummyFunction
 
-        subroutine dummySubroutine(bValue, x0, x1)
+        pure subroutine dummySubroutine(bValue, x0, x1)
             import :: dp
             implicit none
             real(dp), intent(in) :: bValue
             real(dp), intent(out), optional :: x0, x1
         end subroutine dummySubroutine
-
     end interface
 
     type :: ProcedurePtrArray_t
@@ -421,14 +419,6 @@ module guga_data
        1,  -1, -1, -1,  -1,  3, -1, -1, -1,  6,  1, -1, -1, -1, -1,  3, &! db = +1 & L
        1,  -1, -1, -1,  -1,  1, -1, -1, -1,  4,  3, -1, -1, -1, -1,  3 &! db = +1 & R
        ], [4,4,4])
-
-    ! =========================== VARIABLES =================================
-    ! b vector of the reference determinant should be kept as a saved variable
-    ! as it is always needed in the H|D> calculation to calc. the refence energy
-    ! not sure if still needed if a currentB_vector variable is used within
-    ! the guga_excitation module... -> decide later how to implement
-    ! ahh this is the bvecor of the reference determinant.. but make it real
-    real(dp), allocatable :: bVectorRef_ilut(:), bVectorRef_nI(:)
 
     ! also need a list of determinants and matrix elements connceted to the
     ! reference determinant
@@ -582,7 +572,7 @@ contains
     ! for consistency reasons also write an get.. function for the specific
     ! mixed gen full-stops.
 
-    subroutine getMixedFullStop(step1, step2, deltaB, bValue, x0_element, &
+    elemental subroutine getMixedFullStop(step1, step2, deltaB, bValue, x0_element, &
                                 x1_element)
         ! function to access the special mixed generator full-stop elements
         ! which due to storage reasons are stored in a seperate func. pointer
@@ -600,7 +590,7 @@ contains
 
     end subroutine getMixedFullStop
 
-    function getDoubleContribution(step1, step2, deltaB, genFlag, bValue) &
+    elemental function getDoubleContribution(step1, step2, deltaB, genFlag, bValue) &
         result(doubleContr)
         ! Access necessary two-particle contribution to single excitation
         ! matrix elements.
@@ -624,7 +614,7 @@ contains
         doubleContr = doubleContribution(ind)%ptr(bValue)
     end function getDoubleContribution
 
-    function getSingleMatrixElement(step1, step2, deltaB, genFlag, bValue) &
+    elemental function getSingleMatrixElement(step1, step2, deltaB, genFlag, bValue) &
         result(hElement)
         ! Access the necessary single excitation product terms for the H matrix
         ! element calculation.
@@ -652,7 +642,7 @@ contains
 
     end function getSingleMatrixElement
 
-    subroutine getDoubleMatrixElement(step1, step2, deltaB, genFlag1, genFlag2, &
+    elemental subroutine getDoubleMatrixElement(step1, step2, deltaB, genFlag1, genFlag2, &
                                       bValue, order, x0_element, x1_element)
         ! access the necessary double excitation product terms for the H matrix
         ! element calculation
@@ -697,7 +687,7 @@ contains
     ! ===== special functions for mixed generator full-stop elements ========
     ! maybe create subroutines to output x0 and x1 matrix elements for all
     ! needed terms, and let the procedure pointers point to them
-    subroutine fullStop_00(b, x0, x1)
+    pure subroutine fullStop_00(b, x0, x1)
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
@@ -708,7 +698,7 @@ contains
 
     end subroutine fullStop_00
 
-    subroutine fullStop_11(b, x0, x1)
+    pure subroutine fullStop_11(b, x0, x1)
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
@@ -717,7 +707,7 @@ contains
 
     end subroutine fullStop_11
 
-    subroutine fullStop_12(b, x0, x1)
+    pure subroutine fullStop_12(b, x0, x1)
         ! is the same for switched stepvector values
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
@@ -729,7 +719,7 @@ contains
 
     end subroutine fullStop_12
 
-    subroutine fullStop_22(b, x0, x1)
+    pure subroutine fullStop_22(b, x0, x1)
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
@@ -738,7 +728,7 @@ contains
 
     end subroutine fullStop_22
 
-    subroutine fullStop_33(b, x0, x1)
+    pure subroutine fullStop_33(b, x0, x1)
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
@@ -751,301 +741,301 @@ contains
 
     ! ===== special functions for the double contribution to single excitation
     ! matrix elements
-    function minFunBplus2(b) result(ret)
+    pure function minFunBplus2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -(b + 2.0_dp)
     end function minFunBplus2
 
-    function funBplus0(b) result(ret)
+    pure function funBplus0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = b
     end function funBplus0
 
-    function minFunBplus1(b) result(ret)
+    pure function minFunBplus1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -(b + 1.0_dp)
     end function minFunBplus1
 
-    function funBplus1(b) result(ret)
+    pure function funBplus1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = b + 1.0_dp
     end function funBplus1
 
     ! =========== additional double excitation matrix elements ===============
-    function funSqrt2(b) result(ret)
+    pure function funSqrt2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         unused_var(b)
         ret = Root2
     end function funSqrt2
 
-    function minFunSqrt2(b) result(ret)
+    pure function minFunSqrt2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         unused_var(b)
         ret = -Root2
     end function minFunSqrt2
 
-    function funOverRoot2(b) result(ret)
+    pure function funOverRoot2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         unused_var(b)
         ret = OverR2
     end function funOverRoot2
 
-    function minFunOverR2(b) result(ret)
+    pure function minFunOverR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         unused_var(b)
         ret = -OverR2
     end function minFunOverR2
 
-    function funA_1_2overR2(b) result(ret)
+    pure function funA_1_2overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA_1_2(b)
     end function funA_1_2overR2
 
-    function funA_3_2overR2(b) result(ret)
+    pure function funA_3_2overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA_3_2(b)
     end function funA_3_2overR2
 
-    function minFunA_3_2overR2(b) result(ret)
+    pure function minFunA_3_2overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_3_2overR2(b)
     end function minFunA_3_2overR2
 
-    function funA_0_2overR2(b) result(ret)
+    pure function funA_0_2overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA(b, 0.0_dp, 2.0_dp)
     end function funA_0_2overR2
 
-    function minFunA_0_2_overR2(b) result(ret)
+    pure function minFunA_0_2_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_0_2overR2(b)
     end function minFunA_0_2_overR2
 
-    function funA_3_2(b) result(ret)
+    pure function funA_3_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funA(b, 3.0_dp, 2.0_dp)
     end function funA_3_2
 
-    function minFunA_3_2(b) result(ret)
+    pure function minFunA_3_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_3_2(b)
     end function minFunA_3_2
 
-    function funA_1_0_overR2(b) result(ret)
+    pure function funA_1_0_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA_1_0(b)
     end function funA_1_0_overR2
 
-    function funA_m1_0(b) result(ret)
+    pure function funA_m1_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funA(b, -1.0_dp, 0.0_dp)
     end function funA_m1_0
 
-    function minFunA_m1_0(b) result(ret)
+    pure function minFunA_m1_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_m1_0(b)
     end function minFunA_m1_0
 
-    function funA_m1_0_overR2(b) result(ret)
+    pure function funA_m1_0_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA_m1_0(b)
     end function funA_m1_0_overR2
 
-    function minFunA_m1_0_overR2(b) result(ret)
+    pure function minFunA_m1_0_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_m1_0_overR2(b)
     end function minFunA_m1_0_overR2
 
-    function funA_2_0_overR2(b) result(ret)
+    pure function funA_2_0_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA(b, 2.0_dp, 0.0_dp)
     end function funA_2_0_overR2
 
-    function minFunA_2_0_overR2(b) result(ret)
+    pure function minFunA_2_0_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_2_0_overR2(b)
     end function minFunA_2_0_overR2
 
-    function funA_0_1_overR2(b) result(ret)
+    pure function funA_0_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA_0_1(b)
     end function funA_0_1_overR2
 
-    function minFunA_0_1_overR2(b) result(ret)
+    pure function minFunA_0_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_0_1_overR2(b)
     end function minFunA_0_1_overR2
 
-    function funA_2_1_overR2(b) result(ret)
+    pure function funA_2_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA_2_1(b)
     end function funA_2_1_overR2
 
-    function minFunA_2_1_overR2(b) result(ret)
+    pure function minFunA_2_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_2_1_overR2(b)
     end function minFunA_2_1_overR2
 
-    function minFunA_1_2(b) result(ret)
+    pure function minFunA_1_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_1_2(b)
     end function minFunA_1_2
 
-    function minFunA_1_0(b) result(ret)
+    pure function minFunA_1_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_1_0(b)
     end function minFunA_1_0
 
-    function minFunA_0_1(b) result(ret)
+    pure function minFunA_0_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_0_1(b)
     end function minFunA_0_1
 
-    function funA_3_1_overR2(b) result(ret)
+    pure function funA_3_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA(b, 3.0_dp, 1.0_dp)
     end function funA_3_1_overR2
 
-    function minFunA_3_1_overR2(b) result(ret)
+    pure function minFunA_3_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_3_1_overR2(b)
     end function minFunA_3_1_overR2
 
-    function funA_m1_1_overR2(b) result(ret)
+    pure function funA_m1_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = OverR2 * funA(b, -1.0_dp, 1.0_dp)
     end function funA_m1_1_overR2
 
-    function minFunA_m1_1_overR2(b) result(ret)
+    pure function minFunA_m1_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_m1_1_overR2(b)
     end function minFunA_m1_1_overR2
 
-    function funB_2_3(b) result(ret)
+    pure function funB_2_3(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funB(b, 2.0_dp, 3.0_dp)
     end function funB_2_3
 
-    function funD_2(b) result(ret)
+    pure function funD_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funD(b, 2.0_dp)
     end function funD_2
 
-    function funD_0(b) result(ret)
+    pure function funD_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funD(b, 0.0_dp)
     end function funD_0
 
-    function minFunD_0(b) result(ret)
+    pure function minFunD_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funD_0(b)
     end function minFunD_0
 
-    function funB_1_2(b) result(ret)
+    pure function funB_1_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funB(b, 1.0_dp, 2.0_dp)
     end function funB_1_2
 
-    function funB_0_1(b) result(ret)
+    pure function funB_0_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funB(b, 0.0_dp, 1.0_dp)
     end function funB_0_1
 
-    function funD_1(b) result(ret)
+    pure function funD_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funD(b, 1.0_dp)
     end function funD_1
 
-    function minFunD_1(b) result(ret)
+    pure function minFunD_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funD_1(b)
     end function minFunD_1
 
-    function funD_m1(b) result(ret)
+    pure function funD_m1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funD(b, -1.0_dp)
     end function funD_m1
 
-    function funB_m1_0(b) result(ret)
+    pure function funB_m1_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funB(b, -1.0_dp, 0.0_dp)
     end function funB_m1_0
 
     ! mixed generator additional functions:
-    function minFunA_2_1(b) result(ret)
+    pure function minFunA_2_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funA_2_1(b)
     end function minFunA_2_1
 
-    function minFunC_2(b) result(ret)
+    pure function minFunC_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funC_2(b)
     end function minFunC_2
 
-    function minFunC_0(b) result(ret)
+    pure function minFunC_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funC_0(b)
     end function minFunC_0
 
-    function minFunOverB_2_R2(b) result(ret)
+    pure function minFunOverB_2_R2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = Root2 * minFunOverB_2(b)
     end function minFunOverB_2_R2
 
-    function minFunOverB_0_R2(b) result(ret)
+    pure function minFunOverB_0_R2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -Root2 * funOverB_0(b)
     end function minFunOverB_0_R2
 
-    function minFunB_0_2(b) result(ret)
+    pure function minFunB_0_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funB(b, 0.0_dp, 2.0_dp)
@@ -1054,14 +1044,14 @@ contains
     !========= function for the single particle matrix calculation ===========
     ! ASSERT() probably not usable in "elemental" function, due to side-effects
 
-    function funZero(b) result(ret)
+    pure function funZero(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         unused_var(b)
         ret = 0.0_dp
     end function funZero
 
-    function funPlus1(b) result(ret)
+    pure function funPlus1(b) result(ret)
         ! think of a better way to include that -> wasted time
         real(dp), intent(in) :: b
         real(dp) :: ret
@@ -1069,81 +1059,81 @@ contains
         ret = 1.0_dp
     end function funPlus1
 
-    function funMinus1(b) result(ret)
+    pure function funMinus1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         unused_var(b)
         ret = -1.0_dp
     end function funMinus1
 
-    function funTwo(b) result(ret)
+    pure function funTwo(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         unused_var(b)
         ret = 2.0_dp
     end function funTwo
 
-    function funA_0_1(b) result(ret)
+    pure function funA_0_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funA(b, 0.0_dp, 1.0_dp)
     end function funA_0_1
 
-    function funA_2_1(b) result(ret)
+    pure function funA_2_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funA(b, 2.0_dp, 1.0_dp)
     end function funA_2_1
 
-    function funA_1_0(b) result(ret)
+    pure function funA_1_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funA(b, 1.0_dp, 0.0_dp)
     end function funA_1_0
 
-    function funA_1_2(b) result(ret)
+    pure function funA_1_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funA(b, 1.0_dp, 2.0_dp)
     end function funA_1_2
 
-    function funC_0(b) result(ret)
+    pure function funC_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funC(b, 0.0_dp)
     end function funC_0
 
-    function funC_1(b) result(ret)
+    pure function funC_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funC(b, 1.0_dp)
     end function funC_1
 
-    function funC_2(b) result(ret)
+    pure function funC_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funC(b, 2.0_dp)
     end function funC_2
 
-    function minFunOverB_2(b) result(ret)
+    pure function minFunOverB_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funOverB(b, 2.0_dp)
     end function minFunOverB_2
 
-    function funOverB_1(b) result(ret)
+    pure function funOverB_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = funOverB(b, 1.0_dp)
     end function funOverB_1
 
-    function minFunOverB_1(b) result(ret)
+    pure function minFunOverB_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         ret = -funOverB(b, 1.0_dp)
     end function minFunOverB_1
 
-    function funOverB_0(b) result(ret)
+    pure function funOverB_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
         !ASSERT( b > 0.0_dp)
@@ -1154,14 +1144,14 @@ contains
 
     ! =========== generic necessary functions ===============================
     ! use of ASSERT() probably not possible here, as it causes side-effects!
-    function funA(b, x, y) result(ret)
+    pure function funA(b, x, y) result(ret)
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
         !ASSERT( (b + y) >= 0.0_dp)
         ret = sqrt((b + x) / (b + y))
     end function funA
 
-    function funB(b, x, y) result(ret)
+    pure function funB(b, x, y) result(ret)
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
         !ASSERT( (b + x) > 0.0_dp)
@@ -1169,21 +1159,21 @@ contains
         ret = sqrt(2.0_dp / ((b + x) * (b + y)))
     end function funB
 
-    function funC(b, x) result(ret)
+    pure function funC(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
         !ASSERT( (b + x) > 0.0_dp)
         ret = funA(b, x - 1.0_dp, x) * funA(b, x + 1.0_dp, x)
     end function funC
 
-    function funD(b, x) result(ret)
+    pure function funD(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
         !ASSERT( (b + x) > 0.0_dp)
         ret = funA(b, x + 2.0_dp, x) * funA(b, x - 1.0_dp, x + 1.0_dp)
     end function funD
 
-    function funOverB(b, x) result(ret)
+    pure function funOverB(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
         !ASSERT( (b + x) > 0.0_dp)

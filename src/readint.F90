@@ -1,4 +1,24 @@
 module read_fci
+    use constants, only: dp, int64, stdout, sizeof_int, nel_uninitialized
+    use util_mod, only: stop_all, get_free_unit, near_zero
+
+    use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, &
+        tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
+        tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
+        BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
+        UMatEps, t_non_hermitian_1_body, tRIIntegrals, SYMMAX, irrepOrbOffset, &
+        t_complex_ints
+
+    use SymData, only: nProp, PropBitLen, TwoCycleSymGens
+
+    use UMatCache, only: GetCacheIndexStates, GTID, &
+        UMatInd, UMatConj, UMAT2D, TUMAT2D, CacheFCIDUMP, &
+        FillUpCache, GTID, nStates, GetUMatSize
+
+    use OneEInts, only: TMatind, TMat2D, CalcTMatSize
+
+    use Parallel_neci, only: MPIBCast, iProcIndex, MPIBcast, MPIArg
+    use shared_memory_mpi, only: shared_sync_mpi, MPIBCast_inter_byte
     implicit none
 
     character(len=1024) :: FCIDUMP_name
@@ -10,26 +30,22 @@ module read_fci
 contains
 
     SUBROUTINE INITFROMFCID(NEL, NBASISMAX, LEN, LMS, TBIN)
-        use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG
-        use SystemData, only: tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF
-        use SystemData, only: tMolpro, tReadFreeFormat, tReltvy, nclosedOrbs, nOccOrbs
-        use SystemData, only: nIrreps, t_non_hermitian
-        use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-        use Parallel_neci
-        use util_mod, only: get_free_unit, near_zero
         logical, intent(in) :: tbin
         integer, intent(out) :: nBasisMax(5, *), LEN, LMS
         integer, intent(inout) :: NEL
-        integer SYMLZ(1000)
+        integer SYMLZ(1000), ST, III
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) :: ORBSYM(1000)
         INTEGER NORB, NELEC, MS2, ISYM, i, SYML(1000), iunit, iuhf
         LOGICAL exists
         logical :: uhf, trel, tDetectSym
+        character(*), parameter :: this_routine = 'INITFROMFCID'
+        real(dp), allocatable :: FOCK(:)
 
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
         UHF = .FALSE.
         fmat = 'NO'
         PROPBITLEN = 0
@@ -40,6 +56,7 @@ contains
         OCC = -1
         CLOSED = -1
         FROZEN = -1
+        allocate(FOCK(1000), source=0.0_dp)
         ! [W.D. 15.5.2017:]
         ! with the new relativistic calculations, withoug a ms value in the
         ! FCIDUMP, we have to set some more defaults..
@@ -49,24 +66,29 @@ contains
             IF (TBIN) THEN
                 INQUIRE (FILE='FCISYM', EXIST=exists)
                 IF (.not. exists) THEN
-                    CALL Stop_All('InitFromFCID', 'FCISYM file does not exist')
+                    CALL Stop_All(this_routine, 'FCISYM file does not exist')
                 end if
                 INQUIRE (FILE=FCIDUMP_name, EXIST=exists, FORMATTED=fmat)
                 IF (.not. exists) THEN
-                    CALL Stop_All('INITFROMFCID', 'FCIDUMP file does not exist')
+                    CALL Stop_All(this_routine, 'FCIDUMP file does not exist')
                 end if
                 open(iunit, FILE='FCISYM', STATUS='OLD', FORM='FORMATTED')
                 read(iunit, FCI)
             ELSE
                 INQUIRE (FILE=FCIDUMP_name, EXIST=exists, UNFORMATTED=fmat)
                 IF (.not. exists) THEN
-                    CALL Stop_All('InitFromFCID', 'FCIDUMP file does not exist')
+                    CALL Stop_All(this_routine, 'FCIDUMP file does not exist')
                 end if
                 open(iunit, FILE=FCIDUMP_name, STATUS='OLD', FORM='FORMATTED')
                 read(iunit, FCI)
             end if
             close(iunit)
         end if
+
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
 
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
 
@@ -85,6 +107,11 @@ contains
         call MPIBCast(OCC, 8)
         call MPIBCast(CLOSED, nIrreps)
         call MPIBCast(FROZEN, nIrreps)
+        if (UHF .and. .not. (tUHF .or. tROHF)) then
+            ! unfortunately, the `UHF` keyword in the FCIDUMP namelist indicates
+            ! spin-orbital-resolved integrals, not necessarily UHF
+            call stop_all(this_routine, 'UHF in FCIDUMP but neither uhf nor rohf in input.')
+        end if
         ! If PropBitLen has been set then assume we're not using an Abelian
         ! symmetry group which has two cycle generators (ie the group has
         ! complex representations).
@@ -116,7 +143,7 @@ contains
 
         if (.not. tMolpro) then
             IF (tROHF .and. (.not. UHF)) THEN
-                CALL Stop_All("INITFROMFCID", "ROHF specified, but FCIDUMP is not in a high-spin format.")
+                CALL Stop_All(this_routine, "ROHF specified, but FCIDUMP is not in a high-spin format.")
             end if
         end if
 
@@ -193,18 +220,15 @@ contains
         if (tMolpro) then
             if (tUHF) then
                 NBASISMAX(2, 3) = 1
-                tStoreSpinOrbs = .true.   !indicate that we are storing the orbitals in umat as spin-orbitals
             else
                 NBASISMAX(2, 3) = 2
-                tStoreSpinOrbs = .false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
             end if
         else
+            tStoreSpinOrbs = tStoreSpinOrbs .or. tRel
             IF ((UHF .and. (.not. tROHF)) .or. tRel) then
                 NBASISMAX(2, 3) = 1
-                tStoreSpinOrbs = .true.   !indicate that we are storing the orbitals in umat as spin-orbitals
             else
                 NBASISMAX(2, 3) = 2
-                tStoreSpinOrbs = .false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
             end if
         end if
 
@@ -214,38 +238,33 @@ contains
     END SUBROUTINE INITFROMFCID
 
     SUBROUTINE GETFCIBASIS(NBASISMAX, ARR, BRR, G1, LEN, TBIN)
-        use SystemData, only: BasisFN, BasisFNSize, Symmetry, NullBasisFn, tMolpro, tUHF
-        use SystemData, only: tCacheFCIDUMPInts, tROHF, tFixLz, iMaxLz, tRotatedOrbsReal
-        use SystemData, only: tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, &
-            nIrreps, t_non_hermitian, t_complex_ints
-        use UMatCache, only: nSlotsInit, CalcNSlotsInit
-        use UMatCache, only: GetCacheIndexStates, GTID
-        use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-        use Parallel_neci
-        use constants, only: dp, sizeof_int
-        use util_mod, only: get_free_unit
         integer, intent(in) :: LEN
         integer, intent(inout) :: nBasisMax(5, *)
         integer, intent(out) :: BRR(LEN)
         real(dp), intent(out) :: ARR(LEN, 2)
         type(BasisFN), intent(out) :: G1(LEN)
         HElement_t(dp) Z
+#ifndef CMPLX_
         COMPLEX(dp) :: CompInt
+#endif
         integer(int64) IND, MASK
         INTEGER I, J, K, L, I1
         INTEGER ISYMNUM, ISNMAX, SYMLZ(1000), iunit
-        INTEGER NORB, NELEC, MS2, ISYM, ISPINS, ISPN, SYML(1000)
+        INTEGER NORB, NELEC, MS2, ISYM, ISPINS, ISPN, SYML(1000), ST, III
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) ORBSYM(1000)
-        INTEGER nPairs, iErr, MaxnSlot, MaxIndex, IUHF
-        INTEGER, ALLOCATABLE :: MaxSlots(:)
+        INTEGER IUHF
         character(len=*), parameter :: t_r = 'GETFCIBASIS'
         LOGICAL TBIN
         logical :: uhf, tRel
         integer :: orbsPerIrrep(nIrreps)
+        real(dp), allocatable :: FOCK(:)
+#ifdef CMPLX_
         real(dp) :: real_time_Z
+#endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
 
         iunit = 0
         UHF = .FALSE.
@@ -254,6 +273,8 @@ contains
         IUHF = 0
         TREL = .false.
         SYMLZ(:) = 0
+        allocate(FOCK(len/2), source=0.0_dp)
+
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
             IF (TBIN) THEN
@@ -266,6 +287,11 @@ contains
                 read(iunit, FCI)
             end if
         end if
+
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
 
         ! Re-order the orbitals symmetry labels if required
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
@@ -342,25 +368,6 @@ contains
         G1(1:LEN) = NullBasisFn
         ARR = 0.0_dp
 
-!If we are reading in and cacheing the FCIDUMP integrals, we need to know the maximum number j,l pairs of
-!integrals for a given i,k pair. (Or in chemical notation, the maximum number of k,l pairs for a given i,j pair.)
-        IF (tCacheFCIDUMPInts) THEN
-            write(stdout, *) "Calculating number of slots needed for "       &
-    &           //"integral Cache..."
-            IF (tROHF) THEN
-                write(stdout, *) "This will be inefficient, since multiple " &
-    &           //"versions of the same integral are present since we "&
-    &           //"are converting to spatial orbitals, so nSlots will "&
-    &           //"be too large."
-                CALL Stop_All("readint", "ROHF doesn't seem to be "     &
-    &            //"working with Caching. ghb can fix if needed...")
-            end if
-            nPairs = NORB * (NORB + 1) / 2
-!             write(stdout,*) "NPAIRS: ",NORB,NPAIRS
-            CALL neci_flush(6)
-            allocate(MaxSlots(nPairs), stat=ierr)
-            MaxSlots(:) = 0
-        end if
 
         IF (iProcIndex == 0 .and. (.not. tMolpro)) THEN
 !Just read in integrals on head node. This is only trying to read in fock energies, which aren't written out by molpro anyway
@@ -372,13 +379,13 @@ contains
 
                 !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 2               read(iunit, END=99) Z, IND
-                L = int(iand(IND, MASK), sizeof_int)
+                L = int(iand(IND, MASK))
                 IND = Ishft(IND, -16)
-                K = int(iand(IND, MASK), sizeof_int)
+                K = int(iand(IND, MASK))
                 IND = Ishft(IND, -16)
-                J = int(iand(IND, MASK), sizeof_int)
+                J = int(iand(IND, MASK))
                 IND = Ishft(IND, -16)
-                I = int(iand(IND, MASK), sizeof_int)
+                I = int(iand(IND, MASK))
 
 !                I=Index(I)
 !                J=Index(J)
@@ -412,7 +419,7 @@ contains
                 ! This means it won't work with more than 999 basis
                 ! functions...
 #ifdef CMPLX_
-1               if (t_complex_ints) then
+1                   if (t_complex_ints) then
                     read(iunit, *, END=99) Z, I, J, K, L
                 else
                     read(iunit, *, END=99) real_time_Z, I, J, K, L
@@ -477,10 +484,6 @@ contains
                     I1 = I    !Create new I index, since ROHF wants both spin and spatial indicies to get the fock energies right.
                 end if
 
-                IF (tCacheFCIDUMPInts) THEN
-                    CALL CalcNSlotsInit(I1, J, K, L, Z, nPairs, MaxSlots)
-                end if
-
 !.. Each orbital in the file corresponds to alpha and beta spinorbitals
                 !Fill ARR with the energy levels
                 IF (I1 /= 0 .AND. K == 0 .AND. I1 == J) THEN
@@ -532,9 +535,6 @@ contains
         if (tMolpro .and. (iProcIndex == 0)) close(iunit)
 
 !We now need to broadcast all the information we've just read in...
-        IF (tCacheFCIDUMPInts) THEN
-            CALL MPIBCast(MaxSlots, nPairs)
-        end if
         CALL MPIBCast(ISNMAX, 1)
         CALL MPIBCast(ISYMNUM, 1)
         CALL MPIBCast(Arr, LEN * 2)
@@ -559,7 +559,7 @@ contains
                 G1(ISPINS * I - ISPN + 1)%k(2) = 0
                 G1(ISPINS * I - ISPN + 1)%k(3) = 0
                 G1(ISPINS * I - ISPN + 1)%Ms = -MOD(ISPINS * I - ISPN + 1, 2) * 2 + 1
-                IF (SYMMAX < ORBSYM(I)) SYMMAX = int(ORBSYM(I), sizeof_int)
+                IF (SYMMAX < ORBSYM(I)) SYMMAX = int(ORBSYM(I))
                 IF (abs(SYMLZ(I)) > iMaxLz) iMaxLz = abs(SYMLZ(I))
             end do
         end do
@@ -580,74 +580,40 @@ contains
         NBASISMAX(5, 2) = SYMMAX - 1
         NBASISMAX(2, 1) = 0
         NBASISMAX(2, 2) = 0
-        IF (tCacheFCIDUMPInts) THEN
-!Calculate the minimum required value for nSlotsInit
-            MaxnSlot = 0
-            do i = 1, nPairs
-                IF (MaxSlots(i) > MaxnSlot) THEN
-                    MaxnSlot = MaxSlots(i)
-                    MaxIndex = i
-                end if
-            end do
-
-            DEallocate(MaxSlots)
-            nSlotsInit = MaxnSlot + 1
-            write(stdout, *) "Maximum number of slots needed in cache is: ", nSlotsInit
-            write(stdout, *) "Index corresponding to this maximum number:", MaxIndex
-            CALL GetCacheIndexStates(MaxIndex, i, k)
-            write(stdout, "(A,2I6)") "This corresponds to an (i,k) pair of ", i, k
-        end if
-!         write(stdout,*) Arr(:,1)
-        RETURN
     END SUBROUTINE GETFCIBASIS
 
-!tReadFreezeInts only matters when we are cacheing the FCIDUMP file.
-!It is set if we want to cache the integrals to enable the freezing routine to take place, i.e. the <ij|kj> integrals.
-!The UMAT2D integrals will also be read in in this case.
-!If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
-    SUBROUTINE READFCIINT(UMAT, umat_win, NBASIS, ECORE, tReadFreezeInts)
-        use constants, only: dp, sizeof_int
-        use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, NEl
-        use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, tMolpro
-        use SystemData, only: UMatEps, tCacheFCIDUMPInts, tUHF, t_non_hermitian
-        use SystemData, only: tRIIntegrals, nBasisMax, tROHF, tRotatedOrbsReal
-        use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps, t_complex_ints
-        USE UMatCache, only: UMatInd, UMatConj, UMAT2D, TUMAT2D, nPairs, CacheFCIDUMP
-        USE UMatCache, only: FillUpCache, GTID, nStates, nSlots, nTypes
-        USE UMatCache, only: UMatCacheData, UMatLabels, GetUMatSize
-        use OneEInts, only: TMatind, TMat2D, TMATSYM
-        use OneEInts, only: CalcTMatSize
-        use Parallel_neci
-        use shared_memory_mpi
-        use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-        use util_mod, only: get_free_unit, near_zero
+    SUBROUTINE READFCIINT(UMAT, umat_win, NBASIS, ECORE)
         integer, intent(in) :: NBASIS
-        logical, intent(in) :: tReadFreezeInts
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(inout) :: UMAT(:)
         integer(MPIArg) :: umat_win
         HElement_t(dp) Z
+#ifndef CMPLX_
         COMPLEX(dp) :: CompInt
+#endif
         INTEGER(int64) :: ZeroedInt, NonZeroInt, LzDisallowed
         INTEGER I, J, K, L, X, Y, iSpinType, iunit
         INTEGER NORB, NELEC, MS2, ISYM, SYML(1000)
         integer(int64) ORBSYM(1000)
         LOGICAL LWRITE
         logical :: uhf
-        INTEGER ISPINS, ISPN, ierr, SYMLZ(1000)!,IDI,IDJ,IDK,IDL
+        INTEGER ISPINS, ISPN, SYMLZ(1000), ST, III !,IDI,IDJ,IDK,IDL
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         INTEGER TMatSize, IUHF
         integer(int64) :: UMatSize
-        INTEGER, ALLOCATABLE :: CacheInd(:)
         character(len=*), parameter :: t_r = 'READFCIINT'
         real(dp) :: diff
         logical :: tbad, tRel
         integer(int64) :: start_ind, end_ind
         integer(int64), parameter :: chunk_size = 1000000
         integer:: bytecount
+        real(dp), allocatable :: FOCK(:)
+#if defined(CMPLX_)
         real(dp) :: real_time_Z
+#endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
+            FOCK
 
         LWRITE = .FALSE.
         UHF = .FALSE.
@@ -660,12 +626,18 @@ contains
         LzDisallowed = 0
         NonZeroInt = 0
         iunit = 0
+        allocate(FOCK(nbasis/2), source=0.0_dp)
 
         IF (iProcIndex == 0) THEN
             iunit = get_free_unit()
             open(iunit, FILE=FCIDUMP_name, STATUS='OLD')
             read(iunit, FCI)
         end if
+
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
 
         ! Re-order the orbitals symmetry labels if required
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
@@ -698,12 +670,6 @@ contains
 !We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
 !NORB is the length in spatial orbitals, LEN is spin orbitals (both spin for UHF)
             NORB = NORB / 2
-        end if
-
-        IF (tCacheFCIDUMPInts) THEN
-!We need to fill the cache. We do this by filling it contiguously, then ordering.
-            allocate(CacheInd(nPairs), stat=ierr)
-            CacheInd(:) = 1
         end if
 
         IF (iProcIndex == 0) THEN
@@ -765,7 +731,9 @@ contains
             call reorder_orb_label(L)
 
             ! Remove integrals that are too small
-            if (abs(Z) < UMatEps) then
+            ! NOTE we need I > 0 in case we have a UHF-type FCIDUMP, as the spin
+            ! delimiter has Z == 0
+            if (abs(Z) < UMatEps .and. I > 0) then
                 if (ZeroedInt < 100) then
                     write(stdout, '(a,2i4,a,2i4,a)', advance='no') &
                         'Ignoring integral (chem. notation) (', i, j, '|', k, &
@@ -870,13 +838,14 @@ contains
                     ! Have read in T_ij.  Check it's consistent with T_ji
                     ! (if T_ji has been read in).
                     diff = abs(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) - Z)
-          IF (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) .and. diff > 1.0e-7_dp .and. .not. t_non_hermitian) then
+                    if (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) &
+                        .and. diff > 1.0e-7_dp &
+                        .and. .not. t_non_hermitian_1_body) then
                         write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
-                        CALL Stop_All("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
+                        call stop_all("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
                     end if
-
-                    TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
-                    if (.not. t_non_hermitian) then
+                    if (.not. t_non_hermitian_1_body) then
+                        TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
 #ifdef CMPLX_
                         TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
 #else
@@ -914,21 +883,12 @@ contains
                         CALL Stop_All("ReadFCIINTS", "we should not be " &
      &                        //"reading in generic 2e integrals from " &
      &                        //"the FCIDUMP file with ri.")
-                    else if (tCacheFCIDUMPInts) THEN
-!Read in the FCIDUMP integrals to a cache.
-                        IF (tReadFreezeInts) THEN
-!Here, we only want to cache the <ij|kj> integrals, since they are the only integrals which are needed for the freezing process.
-                            CALL Stop_All("READFCIINTS", "Freezing is not yet compatible with caching the FCIDUMP file")
-                        ELSE
-                            CALL CacheFCIDUMP(I, K, J, L, Z, CacheInd, ZeroedInt, NonZeroInt)
-
-                        end if
                     ELSE
                         NonZeroInt = NonZeroInt + 1
 !Read in all integrals as normal.
                         UMAT(UMatInd(I, K, J, L)) = Z
                     end if
-                else if (tCacheFCIDUMPInts .or. tRIIntegrals) THEN
+                else if (tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts", "TUMAT2D should be set")
                 ELSE
                     UMAT(UMatInd(I, K, J, L)) = Z
@@ -957,7 +917,7 @@ contains
 !Broadcast TUMAT2D...
             CALL MPIBCast(UMAT2D, nStates**2)
         end if
-        IF ((.not. tRIIntegrals) .and. (.not. tCacheFCIDUMPInts)) THEN
+        IF (.not. tRIIntegrals) THEN
             CALL GetUMATSize(nBasis, UMatSize)
 
             ! If we are on a 64bit system, the maximum dimensions for MPI are
@@ -978,12 +938,6 @@ contains
             call shared_sync_mpi(umat_win)
         end if
 
-        IF (tCacheFCIDUMPInts) THEN
-!Need to broadcast the cache...
-            CALL MPIBCast(UMATLABELS, nSlots * nPairs)
-            CALL MPIBCast(UMatCacheData, nTypes * nSlots * nPairs)
-        end if
-
         if (ZeroedInt /= 0 .and. iProcIndex == 0) then
             write(stdout, *) 'Number of removed two-index integrals: ', zeroedint
         end if
@@ -993,56 +947,30 @@ contains
         end if
         write(stdout, *) 'Number of non-zero integrals: ', NonZeroInt
 
-        IF (tCacheFCIDUMPInts) THEN
-            write(stdout, *) "Ordering cache..."
-            CALL FillUpCache()
-            DEallocate(CacheInd)
-        end if
-!.. If we've changed the eigenvalues, we write out the basis again
-!         IF(LWRITE) THEN
-!            write(stdout,*) "1-electron energies have been read in."
-!            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
-!         end if
-        RETURN
     END SUBROUTINE READFCIINT
 
     !This is a copy of the routine above, but now for reading in binary files of integrals
     SUBROUTINE READFCIINTBIN(UMAT, ECORE)
-        use constants, only: dp, int64, sizeof_int
-        use SystemData, only: Symmetry, BasisFN, t_non_hermitian
-        USE UMatCache, only: UMatInd, UMAT2D, TUMAT2D
-        use OneEInts, only: TMatind, TMat2D, TMATSYM
-        use util_mod, only: get_free_unit
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(out) :: UMAT(*)
         HElement_t(dp) Z
         integer(int64) MASK, IND
-        INTEGER I, J, K, L, X, Y, iunit
+        INTEGER I, J, K, L, iunit
         LOGICAL LWRITE
-        character(*), parameter :: this_routine = 'READFCIINTBIN'
-        !NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
         LWRITE = .FALSE.
-        !UHF=.FALSE.
         iunit = get_free_unit()
-        !open(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-        !read(iunit,FCI)
-        !close(iunit)
         open(iunit, FILE=FCIDUMP_name, STATUS='OLD', FORM='UNFORMATTED')
 
         MASK = (2**16) - 1
         !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 101     read(iunit, END=199) Z, IND
-        L = int(iand(IND, MASK), sizeof_int)
+        L = int(iand(IND, MASK))
         IND = Ishft(IND, -16)
-        K = int(iand(IND, MASK), sizeof_int)
+        K = int(iand(IND, MASK))
         IND = Ishft(IND, -16)
-        J = int(iand(IND, MASK), sizeof_int)
+        J = int(iand(IND, MASK))
         IND = Ishft(IND, -16)
-        I = int(iand(IND, MASK), sizeof_int)
-!         I=Index(I)
-!         J=Index(J)
-!         K=Index(K)
-!         L=Index(L)
+        I = int(iand(IND, MASK))
 
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
         IF (I == 0) THEN
@@ -1058,12 +986,13 @@ contains
         else if (K == 0) THEN
 !.. 1-e integrals
 !.. These are stored as spinorbitals (with elements between different spins being 0
-            TMAT2D(2 * I - 1, 2 * J - 1) = Z
-            TMAT2D(2 * I, 2 * J) = Z
-            if (.not. t_non_hermitian) then
-                TMAT2D(2 * J - 1, 2 * I - 1) = Z
-                TMAT2D(2 * J, 2 * I) = Z
+            if (.not. t_non_hermitian_1_body) then
+                TMAT2D(2 * I - 1, 2 * J - 1) = Z
+                TMAT2D(2 * I, 2 * J) = Z
             end if
+
+            TMAT2D(2 * J - 1, 2 * I - 1) = Z
+            TMAT2D(2 * J, 2 * I) = Z
         ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
@@ -1084,12 +1013,6 @@ contains
 
     SUBROUTINE ReadPropInts(nBasis, PropFile, CoreVal, OneElInts)
 
-        use constants, only: dp, int64, stdout
-        use util_mod, only: get_free_unit
-        use SymData, only: PropBitLen, nProp
-        use SystemData, only: UMatEps, tROHF, tReltvy
-        use Parallel_neci, only: iProcIndex, MPIBcast
-
         integer, intent(in) :: nBasis
         HElement_t(dp) :: OneElInts(nBasis, nBasis)
         HElement_t(dp) z
@@ -1097,17 +1020,19 @@ contains
         integer :: i, j, k, l, iunit
         integer :: NORB, NELEC, MS2, ISYM, SYML(1000), IUHF
         integer(int64) :: ORBSYM(1000)
-        integer :: iSpins, ispn, SYMLZ(1000)
+        integer :: iSpins, ispn, SYMLZ(1000), ST, III
         integer(int64) :: ZeroedInt
-        integer :: IntSize
         real(dp) :: diff, core
         character(len=100) :: file_name, PropFile
         logical :: TREL, UHF
+        real(dp), allocatable :: FOCK(:)
         character(*), parameter :: t_r = 'ReadPropInts'
-        NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
+        NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, &
+                       SYMLZ, PROPBITLEN, NPROP, ST, III, FOCK
 
         ZeroedInt = 0
         UHF = .false.
+        allocate(FOCK(nbasis/2), source=0.0_dp)
 
         if (iProcIndex == 0) then
             iunit = get_free_unit()
@@ -1116,6 +1041,11 @@ contains
             open(iunit, FILE=file_name, STATUS='OLD')
             read(iunit, FCI)
         end if
+
+        ! Currently, FOCK array has been introduced to prevent crashing calculations
+        ! It is deallocated here, as it is not used in the code anymore.
+        ! If you want to use FOCK, don't forget to add MPIBCast(FOCK).
+        deallocate(FOCK)
 
         ! Re-order the orbitals symmetry labels if required
 
@@ -1201,7 +1131,6 @@ contains
     end subroutine clear_orb_perm
 
     subroutine reorder_sym_labels(ORBSYM, SYML, SYMLZ)
-        use constants, only: int64
         integer(int64), intent(inout) :: ORBSYM(:)
         integer, intent(inout) :: SYML(:), SYMLZ(:)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
 Analyse Fortran source code and output (in the dot language) the dependencies on modules in the source code.
 
@@ -17,6 +17,7 @@ configuration section.  Graphs can be produced using a suitable parser.
 For more information on the dot langauge, see http://www.graphviz.org.
 '''
 
+from __future__ import print_function
 import re,sys
 
 __author__='James Spencer'
@@ -117,7 +118,7 @@ def main(file_list):
 
 if __name__=='__main__':
     if len(sys.argv)==1 or sys.argv[1]=='-h' or sys.argv[1]=='--h' or sys.argv[1]=='-help' or sys.argv[1]=='--help':
-        print __doc__ # Wow.  Magic...
+        print(__doc__) # Wow.  Magic...
         sys.exit()
     else:
         file_list=sys.argv[1:]

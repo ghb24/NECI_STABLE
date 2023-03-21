@@ -1,15 +1,15 @@
 # add new hdf5 class so this is not tested standardly on altest currently, since there is a problem compiling hdf5
 [hdf5/dneci/*/*/]
 program = dneci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 [hdf5/neci/*/]
 program = neci
-nprocs = 2
-min_nprocs = 2
-max_nprocs = 2
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
 
 # Job config.
 _default_ = neci kneci mneci kmneci

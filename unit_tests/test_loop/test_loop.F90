@@ -1,14 +1,17 @@
 program test_loop_program
 
-    use mpi
-    use fruit
+    use Parallel_neci, only: MPIInit, MPIEnd
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use test_loop_testcases, only: test_loop_4ind_wghtd_2, test_loop_pchb, &
                                    test_loop_guga
 
     implicit none
-    integer :: failed_count, err
+    integer :: failed_count
+    logical :: err
 
-    call mpi_init(err)
+    call MPIInit(err)
 
     call init_fruit()
 
@@ -20,7 +23,7 @@ program test_loop_program
 
     if (failed_count /= 0) call stop_all('test_loop_program', 'failed_tests')
 
-    call mpi_finalize(err)
+    call MPIEnd(err)
 
 contains
 

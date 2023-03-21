@@ -19,7 +19,8 @@ totalwalkers   1000
 load-balance-blocks off
 
 seed 1
-tau 0.001
+tau-values \
+    start user-defined 0.001
 definedet   1   3     6-7  10-11 14  16
 
 nmcyc 5000

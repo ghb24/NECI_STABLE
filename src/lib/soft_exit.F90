@@ -109,27 +109,30 @@
 module soft_exit
 
     use SystemData, only: nel, nBasis, tHPHF
-    use bit_reps, only: NIfTot
-    use util_mod, only: binary_search, get_free_unit
+    use bit_rep_data, only: NIfTot
+    use util_mod, only: binary_search_ilut, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
                          SumENum, SumNoatHF, tTimeExit, &
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
-                         TotWalkers,tPrintHighPop, tSearchTau, MaxTimeExit, &
+                         TotWalkers,tPrintHighPop, MaxTimeExit, &
                          proje_iter
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
                         tChangeProjEDet, tCheckHighestPopOnce, FracLargerDet,&
-                        SinglesBias_value => SinglesBias, tau_value => tau, &
+                        SinglesBias_value => SinglesBias, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
-                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift, &
-                        frq_ratio_cutoff, t_hist_tau_search
+                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift
+    use tau_main, only: tau_search_method, possible_tau_search_methods, &
+        tau_value => tau, assign_value_to_tau, possible_tau_stop_methods, &
+        stop_tau_search
+    use tau_search_hist, only: frq_ratio_cutoff, t_fill_frequency_hists
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
-    use Input_neci
+    use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t
     Use LoggingData, only: tCalcFCIMCPsi, tIterStartBlock, &
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
                        IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
@@ -139,12 +142,15 @@ module soft_exit
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
-    use constants, only: lenof_sign, int32, dp
+    use constants, only: lenof_sign, int32, int64, dp, stdout, inum_runs, &
+        stderr
     use bit_rep_data, only: extract_sign
     use bit_reps, only: encode_sign
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
-    use Parallel_neci
+    use Parallel_neci, only: MPIBcast, bNodeRoot, iNodeIndex, iProcIndex, &
+        nProcessors, MPIAllLorLogical
+    use fortran_strings, only: to_lower, to_int, to_realdp
 
     implicit none
 
@@ -288,51 +294,58 @@ contains
         logical :: deleted, any_deleted, opts_selected(last_item)
         logical :: exists, any_exist
 
-        logical :: eof, tSource
+        logical :: tSource
         logical, intent(out) :: tSingBiasChange
         logical, intent(out) :: tWritePopsFound
         real(dp), dimension(lenof_sign) :: hfsign
         integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new, run
         real(dp) :: hfScaleFactor
         character(len=100) :: w
+        character(*), parameter :: file_name = 'CHANGEVARS'
+        type(ManagingFileReader_t) :: file_reader
+        type(TokenIterator_t) :: tokens
 
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
-        inquire (file='CHANGEVARS', exist=exists)
+        inquire (file=file_name, exist=exists)
         call MPIAllLorLogical(exists, any_exist)
 
         ! Default values
         opts_selected = .false.
         deleted = .false.
+        any_deleted=.false.
         tWritePopsfound = .false.
         tSingBiasChange = .false.
         ios = 0
 
         if (any_exist) then
-            if (iProcIndex == 0) &
-                write (6, *) "CHANGEVARS file detected on iteration ", iter
+            if (iProcIndex == 0) then
+                write(stdout, *) "CHANGEVARS file detected on iteration ", iter
+            endif
 
             ! Each processor attemtps to delete changevars in turn. Wait for
             ! all processors to reach AllReduce on each cycle, to avoid race
             ! condition between processors sharing the same disk.
             do proc = 0, nProcessors - 1
+
+                if (proc == iProcIndex .and. exists) then
+                    ! Instantiate the file-reader object and flag whether
+                    ! there is a file-opening error by unsetting "exists".
+                    file_reader = ManagingFileReader_t(file_name, err=ios)
+                    if (ios /= 0) then
+                        write(stdout, *) 'Problem reading CHANGEVARS file.'
+                        write(stderr, *) 'Problem reading CHANGEVARS file.'
+                        exists = .false.
+                    endif
+                end if
+
+                ! Skip parsing if there was a file-opening error, but still
+                ! run the later MPI call so we don't get stuck.
                 if (proc == iProcIndex .and. exists) then
 
-                    ! Set unit for read_line routine
-                    ir = get_free_unit ()
-                    open (ir, file='CHANGEVARS', status='old', iostat=ios)
-                    if (ios /= 0) then
-                        write (6, *) 'Problem reading CHANGEVARS file.'
-                        cycle
-                    endif
-                    call input_options (echo_lines=.true., &
-                                        skip_blank_lines=.true.)
-
                     ! Loop over all options specified in the file.
-                    do
-                        call read_line (eof)
-                        if (eof) exit
-                        call readl (w)
+                    do while (file_reader%nextline(tokens, skip_empty=.true.))
+                        w = to_lower(tokens%next())
 
                         ! Mark any selected options.
                         do i = 1, last_item
@@ -342,63 +355,66 @@ contains
                             endif
                         enddo
 
+                        if (.not. any(opts_selected)) then
+                            write(stdout, *) 'Input '//trim(w)//' not recognised. &
+                                &Ignoring and continuing...'
+                        endif
+
                         ! Do we have any other items to read in?
                         if (i == tau) then
-                            call readf (tau_value)
+                            call assign_value_to_tau(to_realdp(tokens%next()), 'Manual change via `CHANGEVARS` file.')
                         elseif (i == TargetGrowRate) then
-                            call readf (target_grow_rate(1))
-                            if(inum_runs.eq.2) target_grow_rate(inum_runs)=target_grow_rate(1)
+                            target_grow_rate(1) = to_realdp(tokens%next())
+                            if(inum_runs == 2) target_grow_rate(inum_runs)=target_grow_rate(1)
                         elseif (i == diagshift) then
-                            call readf (DiagSft(1))
-                            if(inum_runs.eq.2) DiagSft(inum_runs)=DiagSft(1)
+                            DiagSft(1) = to_realdp(tokens%next())
+                            if(inum_runs == 2) DiagSft(inum_runs)=DiagSft(1)
                         elseif (i == shiftdamp) then
-                            call readf (SftDamp)
+                            SftDamp = to_realdp(tokens%next())
                         elseif (i == stepsshift) then
-                            call readi (StepsSft)
+                            StepsSft = to_int(tokens%next())
                         elseif (i == excite) then
-                            call readi (ICILevel)
+                            ICILevel = to_int(tokens%next())
                         elseif (i == singlesbias) then
-                            call readf (singlesbias_value)
+                            singlesbias_value = to_realdp(tokens%next())
                         elseif (i == truncatecas) then
-                            call readi (OccCASOrbs)
-                            call readi (VirtCASOrbs)
+                            OccCASOrbs = to_int(tokens%next())
+                            VirtCASOrbs = to_int(tokens%next())
                         elseif (i == nmcyc) then
-                            call readi (nmcyc_new)
+                            nmcyc_new = to_int(tokens%next())
                         elseif (i == partiallyfreeze) then
-                            call readi (nPartFrozen)
-                            call readi (nHolesFrozen)
+                            nPartFrozen = to_int(tokens%next())
+                            nHolesFrozen = to_int(tokens%next())
                         elseif (i == equilsteps) then
-                            call readi (nEquilSteps)
+                            nEquilSteps = to_int(tokens%next())
                         elseif (i == histequilsteps) then
-                            call readi (nHistEquilSteps)
+                            nHistEquilSteps = to_int(tokens%next())
                         elseif (i == partiallyfreezevirt) then
-                            call readi (nVirtPartFrozen)
-                            call readi (nElVirtFrozen)
+                            nVirtPartFrozen = to_int(tokens%next())
+                            nElVirtFrozen = to_int(tokens%next())
                         elseif (i == addtoinit) then
-                            call readf (InitiatorWalkNo)
+                            InitiatorWalkNo = to_realdp(tokens%next())
                         elseif (i == scalehf) then
-                            call readf (hfScaleFactor)
+                            hfScaleFactor = to_realdp(tokens%next())
                         elseif (i == trunc_nopen) then
-                            call readi (trunc_nop_new)
+                            trunc_nop_new = to_int(tokens%next())
                         elseif (i == calc_rdm) then
-                            call readi (RDMExcitLevel)
-                            call readi (IterRDMonFly_new)
-                            call readi (RDMEnergyIter)
+                            RDMExcitLevel = to_int(tokens%next())
+                            IterRDMonFly_new = to_int(tokens%next())
+                            RDMEnergyIter = to_int(tokens%next())
                         elseif (i == calc_explic_rdm) then
-                            call readi (RDMExcitLevel)
-                            call readi (IterRDMonFly_new)
-                            call readi (RDMEnergyIter)
+                            RDMExcitLevel = to_int(tokens%next())
+                            IterRDMonFly_new = to_int(tokens%next())
+                            RDMEnergyIter = to_int(tokens%next())
                         elseif (i == fill_rdm_iter) then
-                            call readi (IterRDMonFly_new)
+                            IterRDMonFly_new = to_int(tokens%next())
                         elseif (i == frequency_cutoff) then
-                            call readf(frq_ratio_cutoff)
+                            frq_ratio_cutoff = to_realdp(tokens%next())
                         elseif (i == time) then
-                            call readf (MaxTimeExit)
+                            MaxTimeExit = to_realdp(tokens%next())
                         endif
                     enddo
-
-                    ! Close and delete the file
-                    close (ir, status='delete')
+                    call file_reader%close(delete=.true.)
                     deleted = .true.
                 endif
 
@@ -407,6 +423,10 @@ contains
                 call MPIAllLORLogical(deleted, any_deleted)
                 if (any_deleted) exit
             enddo ! Loop to read CHANGEVARS
+
+            ! Do not proceed further if read errors have prevented loading
+            ! the contents of the file on all processes.
+            if (.not.any_deleted) return
 
             ! Relabel 'deleted' as 'tSource' for clarity
             ! --> If we have had the file, we should be the source node
@@ -493,8 +513,9 @@ contains
 
                         ! If specified, jump the value of the shift to that
                         ! predicted by the projected energy
-                        if (tJumpShift) &
-                            DiagSft(run) = proje_iter(run)
+                        if (tJumpShift) then
+                            DiagSft(run) = real(proje_iter(run), dp)
+                        end if
                     endif
                 enddo
             endif
@@ -517,20 +538,14 @@ contains
 
             ! Change Tau
             if (opts_selected(tau)) then
-                call MPIBCast (tau_value, tSource)
-                write(stdout,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
-                if (tSearchTau) then
-                    write(stdout,*) "Ceasing the searching for tau."
-                    tSearchTau = .false.
-                endif
-                ! also use that CHANGEVARS option to stop the new tau-search
-                if (t_hist_tau_search) then
-                    write(stdout,*) "Ceasing new tau-search!"
-                    t_hist_tau_search = .false.
-                    ! i could also use that option to stop the histogramming
-                    ! of the H_ij/pgen ratios.. since i do not need it anymore
-                    ! then .. but i probably should atleast print it out
-                    ! then.. think about that, or if i should use a new option..
+                block
+                    real(dp) :: local_tau
+                    local_tau = tau_value
+                    call MPIBCast (local_tau, tSource)
+                    call assign_value_to_tau(local_tau, 'Manual change via `CHANGEVARS` file.')
+                end block
+                if (tau_search_method /= possible_tau_search_methods%off) then
+                    call stop_tau_search(possible_tau_stop_methods%changevars)
                 end if
             endif
 
@@ -685,11 +700,11 @@ contains
             ! Enable initiator truncation scheme
             if (opts_selected(truncinitiator)) then
                 tTruncInitiator = .true.
-                tau_value = tau_value / 10 ! Done by all. No need to BCast...
-                root_print 'Beginning to allow spawning into inactive space &
-                           &for a truncated initiator calculation.'
-                root_print 'Reducing tau by an order of magnitude. The new &
-                           &tau is ', tau_value
+                call assign_value_to_tau( &
+                    tau_value / 10, &
+                    'Beginning to allow spawning into inactive space &
+                     &for a truncated initiator calculation. &
+                    &Reducing tau by an order of magnitude.')
             endif
 
             ! Change the initiator cutoff parameter
@@ -708,7 +723,7 @@ contains
 
                 SumNoatHF = nint(real(SumNoatHF,dp) * hfScaleFactor,int64)
                 if (iNodeIndex == DetermineDetNode(nel,HFDet,0).and. bNodeRoot) then
-                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                    pos = binary_search_ilut (CurrentDets(:,1:TotWalkers), &
                                          iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign

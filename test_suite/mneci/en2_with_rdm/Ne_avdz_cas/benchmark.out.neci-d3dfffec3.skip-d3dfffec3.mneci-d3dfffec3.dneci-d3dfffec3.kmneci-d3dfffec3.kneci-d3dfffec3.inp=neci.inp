@@ -1,0 +1,900 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Processor            2 /           4  moving to local output.
+ Processor            3 /           4  moving to local output.
+ Processor            4 /           4  moving to local output.
+ outfile=NodeFile2           
+ outfile=NodeFile3           
+ outfile=NodeFile4           
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Feb 26 2023 at 11:03:45
+ Compiled using configuration:
+     cmake-GNU--FASTDEBUG
+ VCS BASE repository version:
+     d3dfffec35894d169f3752a56ce23e602236066b
+ Working directory: 
+     /home/weser/code/neci/test_suite/mneci/en2_with_rdm/Ne_avdz_cas
+ Running on: altest
+ Started running on 26/02/2023 at 11:27:03
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read noorder
+    symignoreenergies
+    freeformat
+    electrons 8
+    spin-restrict 0
+    sym 0 0 0 0
+    nonuniformrandexcits 4ind-weighted
+    nobrillouintheorem
+    hphf 0
+    system-replicas 2
+endsys
+
+calc
+    methods
+    method vertex fcimc
+    endmethods
+    memoryfacpart 5.0
+    memoryfacspawn 25.0
+    totalwalkers 1000
+    nmcyc -1
+    seed 278
+    startsinglepart 100
+    diagshift 0.1
+    rdmsamplingiters 3000
+    shiftdamp 0.05
+    tau-values \
+        start user-defined 0.02
+    tau-search \
+        algorithm conventional \
+        maxwalkerbloom 3
+    allrealcoeff
+    realspawncutoff 0.01
+    jump-shift
+    stepsshift 20
+    truncatecas 8 8
+    en2-truncated
+    load-balance-interval 1000
+endcalc
+
+integral
+    freeze 0 0
+endint
+
+logging
+    popsfile -1
+    calcrdmonfly 3 2000 100
+endlog
+end
+
+****************************************************************
+
+ RDM on fly
+ Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+         2         2
+         3         3
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :     0
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    44
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ Label, Sym, SymConjLabel, SymConj, SymProd
+           1           0           1           0           0
+           2           1           2           1           0
+           3           2           3           2           0
+           4           3           4           3           0
+           5           4           5           4           0
+           6           5           6           5           0
+           7           6           7           6           0
+           8           7           8           7           0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -8.298891081       -8.298891081
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -8.298891081       -8.298891081
+      3      3      0      0      0     -1 ( 0, 0, 4) 4   0       -7.283005182       -7.283005182
+      4      4      0      0      0      1 ( 0, 0, 4) 4   0       -7.283005182       -7.283005182
+      5      5      0      0      0     -1 ( 0, 0, 2) 2   0       -7.283005182       -7.283005182
+      6      6      0      0      0      1 ( 0, 0, 2) 2   0       -7.283005182       -7.283005182
+      7      7      0      0      0     -1 ( 0, 0, 1) 1   0       -7.283005182       -7.283005182
+      8      8      0      0      0      1 ( 0, 0, 1) 1   0       -7.283005182       -7.283005182
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0       -2.817449463       -2.817449463
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0       -2.817449463       -2.817449463
+     11     11      0      0      0     -1 ( 0, 0, 4) 4   0       -2.295286070       -2.295286070
+     12     12      0      0      0      1 ( 0, 0, 4) 4   0       -2.295286070       -2.295286070
+     13     13      0      0      0     -1 ( 0, 0, 2) 2   0       -2.295286070       -2.295286070
+     14     14      0      0      0      1 ( 0, 0, 2) 2   0       -2.295286070       -2.295286070
+     15     15      0      0      0     -1 ( 0, 0, 1) 1   0       -2.295286070       -2.295286070
+     16     16      0      0      0      1 ( 0, 0, 1) 1   0       -2.295286070       -2.295286070
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0       -3.166091389       -3.166091389
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0       -3.166091389       -3.166091389
+     19     19      0      0      0     -1 ( 0, 0, 0) 0   0       -3.166091389       -3.166091389
+     20     20      0      0      0      1 ( 0, 0, 0) 0   0       -3.166091389       -3.166091389
+     21     21      0      0      0     -1 ( 0, 0, 3) 3   0       -3.166091389       -3.166091389
+     22     22      0      0      0      1 ( 0, 0, 3) 3   0       -3.166091389       -3.166091389
+     23     23      0      0      0     -1 ( 0, 0, 5) 5   0       -3.166091389       -3.166091389
+     24     24      0      0      0      1 ( 0, 0, 5) 5   0       -3.166091389       -3.166091389
+     25     25      0      0      0     -1 ( 0, 0, 6) 6   0       -3.166091389       -3.166091389
+     26     26      0      0      0      1 ( 0, 0, 6) 6   0       -3.166091389       -3.166091389
+     27     27      0      0      0     -1 ( 0, 0, 4) 4   0       -3.881971425       -3.881971425
+     28     28      0      0      0      1 ( 0, 0, 4) 4   0       -3.881971425       -3.881971425
+     29     29      0      0      0     -1 ( 0, 0, 2) 2   0       -3.881971425       -3.881971425
+     30     30      0      0      0      1 ( 0, 0, 2) 2   0       -3.881971425       -3.881971425
+     31     31      0      0      0     -1 ( 0, 0, 1) 1   0       -3.881971425       -3.881971425
+     32     32      0      0      0      1 ( 0, 0, 1) 1   0       -3.881971425       -3.881971425
+     33     33      0      0      0     -1 ( 0, 0, 0) 0   0       -3.284048936       -3.284048936
+     34     34      0      0      0      1 ( 0, 0, 0) 0   0       -3.284048936       -3.284048936
+     35     35      0      0      0     -1 ( 0, 0, 0) 0   0       -1.005232587       -1.005232587
+     36     36      0      0      0      1 ( 0, 0, 0) 0   0       -1.005232587       -1.005232587
+     37     37      0      0      0     -1 ( 0, 0, 0) 0   0       -1.005232587       -1.005232587
+     38     38      0      0      0      1 ( 0, 0, 0) 0   0       -1.005232587       -1.005232587
+     39     39      0      0      0     -1 ( 0, 0, 3) 3   0       -1.005232587       -1.005232587
+     40     40      0      0      0      1 ( 0, 0, 3) 3   0       -1.005232587       -1.005232587
+     41     41      0      0      0     -1 ( 0, 0, 5) 5   0       -1.005232587       -1.005232587
+     42     42      0      0      0      1 ( 0, 0, 5) 5   0       -1.005232587       -1.005232587
+     43     43      0      0      0     -1 ( 0, 0, 6) 6   0       -1.005232587       -1.005232587
+     44     44      0      0      0      1 ( 0, 0, 6) 6   0       -1.005232587       -1.005232587
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 32131
+Memory required for integral storage:     0.2451400757     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                  8591
+ ECORE=  -93.848901545992092     
+ Setting normal get_umat_el_normal routine
+ N_alpha:4 ; N_beta:4 ; LMS:0 ; NEl:8
+ Total momentum           0           0           0
+ Requested momentum           0           0           0
+ Total spin           0 Requested spin           0
+ fDet           1           2           3           4           5           6           7           8
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -154.14471479975410     
+ Setting normal get_umat_el_normal routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          28  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ SpinOrbSymLabel: 
+           1           0
+           2           0
+           3           4
+           4           4
+           5           2
+           6           2
+           7           1
+           8           1
+           9           0
+          10           0
+          11           4
+          12           4
+          13           2
+          14           2
+          15           1
+          16           1
+          17           0
+          18           0
+          19           0
+          20           0
+          21           3
+          22           3
+          23           5
+          24           5
+          25           6
+          26           6
+          27           4
+          28           4
+          29           2
+          30           2
+          31           1
+          32           1
+          33           0
+          34           0
+          35           0
+          36           0
+          37           0
+          38           0
+          39           3
+          40           3
+          41           5
+          42           5
+          43           6
+          44           6
+ SymInvLabel: 
+           0           0
+           1           1
+           2           2
+           3           3
+           4           4
+           5           5
+           6           6
+           7           7
+ Not storing the H matrix.
+ <D0|H|D0>=  -128.49634973054077     
+ <D0|T|D0>=  -60.295813253761963     
+ <D0|U|D0>=  -68.200536476778808     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+              153 alpha-alpha (vacant) hole pairs
+              153 beta-beta (vacant) hole pairs
+              324 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    8) E =   -128.496349731
+(    1,    2,    3,    4,    5,    6,    7,    8) E =   -128.496349731
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+ Truncated CAS space detected. Writing out CAS space...
+ In CAS notation, (spatial orbitals, electrons), this has been chosen as: ( 8, 8)
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -8.298891081       -8.298891081
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -8.298891081       -8.298891081
+      3      3      0      0      0     -1 ( 0, 0, 4) 4   0       -7.283005182       -7.283005182
+      4      4      0      0      0      1 ( 0, 0, 4) 4   0       -7.283005182       -7.283005182
+      5      5      0      0      0     -1 ( 0, 0, 2) 2   0       -7.283005182       -7.283005182
+      6      6      0      0      0      1 ( 0, 0, 2) 2   0       -7.283005182       -7.283005182
+      7      7      0      0      0     -1 ( 0, 0, 1) 1   0       -7.283005182       -7.283005182
+      8      8      0      0      0      1 ( 0, 0, 1) 1   0       -7.283005182       -7.283005182
+ =================================================================================================
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0       -2.817449463       -2.817449463
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0       -2.817449463       -2.817449463
+     11     11      0      0      0     -1 ( 0, 0, 4) 4   0       -2.295286070       -2.295286070
+     12     12      0      0      0      1 ( 0, 0, 4) 4   0       -2.295286070       -2.295286070
+     13     13      0      0      0     -1 ( 0, 0, 2) 2   0       -2.295286070       -2.295286070
+     14     14      0      0      0      1 ( 0, 0, 2) 2   0       -2.295286070       -2.295286070
+     15     15      0      0      0     -1 ( 0, 0, 1) 1   0       -2.295286070       -2.295286070
+     16     16      0      0      0      1 ( 0, 0, 1) 1   0       -2.295286070       -2.295286070
+Value for seed is:          278
+Reference Energy set to:      -128.4963497305
+Highest energy determinant is (approximately):     -75.3862942835886    
+Corresponding to a correlation energy of:      53.1100554469521    
+This means tau should be no more than about         0.018828826134419
+ Highest energy determinant is:           37          38          39          40          41          42          43          44
+The deterministic tau is smaller than max_tau.
+We will limit max_tau to:        0.020711708747861
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    960 double excitations, and      24 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.975610
+ pSingles set to:       0.024390
+Initial Diagonal Shift:         0.1000000000
+ Connectivity of HF determinant is:          984
+Memory allocated for a maximum particle number per node of:         524288
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      40.000000 Mb / processor
+Spawning vectors allowing for a total of        12500 particles to be spawned in any one iteration per core.
+ Memory requirement   0.28610229492187500      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             175
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    8)
+Initial number of particles set to        100 and shift will be held at     0.100 until particle number gets to            1000
+ Initial memory (without excitgens + temp arrays) consists of :      16.762939 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ >>> Initial tau from source: user defined is    2.0000000000000000E-002 .
+ >>> Tau-search activated. Using conventional algorithm. Stop if variable shift reached.
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(    1,    2,    3,    4,    5,    6,    7,    8)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      0.640091
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):      4.267288
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):      2.560364
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:       8.139008 MB per MPI process.
+ RDM memory allocation complete.
+
+ HF:            1           2           3           4           5           6           7           8
+ HF_true:            1           2           3           4           5           6           7           8
+ Ref:            1           2           3           4           5           6           7           8
+ ProjEDet:            1           2           3           4           5           6           7           8           1           2           3           4           5           6           7           8
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+#  1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Proj. E (cyc)                         5. Shift. (cyc)                          11. Tot. Proj. E                         12. Dets occ.        13. Dets spawned     15. Iter. time                           41. EN2 Dets.       
+#                0   100.000000000        100.000000000        0.00000000000       0.100000000000       -128.496349731                     1                0   0.00000000000                    0
+ Updating parallel-spin bias; new pParallel =   0.17447956536162687     
+>>> Changing tau: 0.200000E-01 -> 0.207115E-01
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    4.0667124779957119E-002
+  pDoubles =   0.95933287522004285     
+                20   118.880124683        104.300267128      -0.201838968147E-002  0.100000000000       -128.498368120                    19              224  0.681098783389E-003               0
+ Updating singles/doubles bias. pSingles =    6.2227001971897136E-002
+  pDoubles =   0.93777299802810288     
+                40   129.796092173        108.699053137      -0.356297611146E-002  0.100000000000       -128.499912707                    28              246  0.701041379943E-003               0
+ Updating parallel-spin bias; new pParallel =   0.18495933939393042     
+ Updating singles/doubles bias. pSingles =    7.4829703574241749E-002
+  pDoubles =   0.92517029642575821     
+                60   143.394219053        113.764619179      -0.382676917917E-002  0.100000000000       -128.500176500                    35              260  0.761084072292E-003               0
+ Updating parallel-spin bias; new pParallel =   0.17612479427479183     
+ Updating singles/doubles bias. pSingles =    7.1511074755294349E-002
+  pDoubles =   0.92848892524470561     
+                80   166.872995230        118.858127241      -0.553552305823E-002  0.100000000000       -128.501885254                    46              292  0.761438487098E-003               0
+ Updating singles/doubles bias. pSingles =    7.8054893314218790E-002
+  pDoubles =   0.92194510668578122     
+               100   172.954733528        123.879675989      -0.591717792175E-002  0.100000000000       -128.502266908                    59              321  0.726498523727E-003               0
+               120   170.700689005        129.196715765      -0.540550194698E-002  0.100000000000       -128.501755232                    43              309  0.715554365888E-003               0
+               140   183.522458205        134.948495601      -0.605632879258E-002  0.100000000000       -128.502406059                    47              332  0.751976994798E-003               0
+ Updating singles/doubles bias. pSingles =    7.9057149428294199E-002
+  pDoubles =   0.92094285057170577     
+               160   192.281973094        140.933722942      -0.615403796924E-002  0.100000000000       -128.502503769                    50              348  0.795033667237E-003               0
+ Updating parallel-spin bias; new pParallel =   0.17692188746212309     
+ Updating singles/doubles bias. pSingles =    7.8986703691618865E-002
+  pDoubles =   0.92101329630838114     
+               180   212.669452161        147.741110761      -0.670404614772E-002  0.100000000000       -128.503053777                    58              383  0.809056963772E-003               0
+ Updating singles/doubles bias. pSingles =   0.10455205181664276     
+  pDoubles =   0.89544794818335727     
+               200   221.242801561        154.670073357      -0.737393591452E-002  0.100000000000       -128.503723666                    57              398  0.888427905738E-003               0
+               220   223.908303215        161.529104916      -0.685480438375E-002  0.100000000000       -128.503204535                    54              395  0.915224663913E-003               0
+ Updating parallel-spin bias; new pParallel =   0.10004252313213279     
+>>> Changing tau: 0.207115E-01 -> 0.123329E-01
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    7.3436650143173160E-002
+  pDoubles =   0.92656334985682687     
+               240   247.839927344        169.974479612      -0.711240939250E-002  0.100000000000       -128.503462140                    68              420  0.934046041220E-003               0
+               260   259.332834378        174.646697060      -0.723485355835E-002  0.100000000000       -128.503584584                    80              466  0.100015029311E-002               0
+               280   256.007443501        179.288744875      -0.706441185694E-002  0.100000000000       -128.503414142                    71              476  0.105726886541E-002               0
+               300   263.111478123        183.763231497      -0.632523310904E-002  0.100000000000       -128.502674964                    69              477  0.103150904179E-002               0
+               320   263.674522184        188.674648276      -0.639018890271E-002  0.100000000000       -128.502739919                    65              467  0.106767918915E-002               0
+               340   273.926108724        193.383377706      -0.663095154073E-002  0.100000000000       -128.502980682                    71              499  0.106591386721E-002               0
+               360   273.950042388        198.518977815      -0.650673555784E-002  0.100000000000       -128.502856466                    69              492  0.111297871917E-002               0
+               380   279.614145741        204.217891476      -0.615865456275E-002  0.100000000000       -128.502508385                    68              489  0.114543735981E-002               0
+               400   285.729011358        209.672822840      -0.610797963793E-002  0.100000000000       -128.502457710                    60              516  0.115597741678E-002               0
+               420   289.784057203        215.227670644      -0.573642386249E-002  0.100000000000       -128.502086154                    59              517  0.116728385910E-002               0
+               440   297.101560885        220.957174880      -0.558618782437E-002  0.100000000000       -128.501935918                    62              536  0.122977439314E-002               0
+               460   303.676490863        226.829669632      -0.614041825992E-002  0.100000000000       -128.502490149                    58              547  0.125682111830E-002               0
+               480   312.133365393        232.694629399      -0.623446470380E-002  0.100000000000       -128.502584195                    58              555  0.127349626273E-002               0
+               500   324.973025046        238.657207752      -0.579609929874E-002  0.100000000000       -128.502145830                    69              582  0.132607659325E-002               0
+               520   342.002429711        245.257936240      -0.585012539289E-002  0.100000000000       -128.502199856                    76              630  0.135629018769E-002               0
+               540   342.620385229        251.962025036      -0.619393414903E-002  0.100000000000       -128.502543665                    74              619  0.138435810804E-002               0
+               560   352.451375269        258.250209555      -0.639663688244E-002  0.100000000000       -128.502746367                    78              656  0.141750713810E-002               0
+               580   352.123594067        265.162038625      -0.584539759745E-002  0.100000000000       -128.502195128                    70              631  0.144573505968E-002               0
+               600   370.442769925        272.189796303      -0.573022178955E-002  0.100000000000       -128.502079952                    75              661  0.150306560099E-002               0
+               620   378.476667449        279.715403789      -0.614327371730E-002  0.100000000000       -128.502493004                    77              690  0.153072485700E-002               0
+               640   386.142272801        287.470253346      -0.560477850187E-002  0.100000000000       -128.501954509                    76              692  0.157902650535E-002               0
+               660   408.746041093        294.966681823      -0.581161924872E-002  0.100000000000       -128.502161350                    84              723  0.159474276006E-002               0
+               680   425.222593427        302.849031469      -0.602836808365E-002  0.100000000000       -128.502378099                   101              759  0.168258789927E-002               0
+               700   426.555826566        310.449171137      -0.577320995231E-002  0.100000000000       -128.502122940                    92              748  0.172070823610E-002               0
+               720   445.234723816        318.825572284      -0.589737237356E-002  0.100000000000       -128.502247103                    92              778  0.175963565707E-002               0
+               740   452.569207043        326.935997122      -0.620206417297E-002  0.100000000000       -128.502551795                    87              797  0.183471366763E-002               0
+ Updating singles/doubles bias. pSingles =    7.3724932219068867E-002
+  pDoubles =   0.92627506778093116     
+               760   458.402412854        335.095297619      -0.599022978205E-002  0.100000000000       -128.502339960                    85              819  0.187387950718E-002               0
+               780   476.258385876        344.090451994      -0.605386031570E-002  0.100000000000       -128.502403591                   101              869  0.190621688962E-002               0
+               800   480.556443275        353.530633599      -0.619176374235E-002  0.100000000000       -128.502541494                    88              874  0.192695911974E-002               0
+               820   500.912692832        363.812710926      -0.595944252684E-002  0.100000000000       -128.502309173                    99              883  0.198721289635E-002               0
+               840   503.577566536        373.688491330      -0.610469176874E-002  0.100000000000       -128.502454422                    88              893  0.203856173903E-002               0
+               860   523.954754403        383.899663510      -0.608909707809E-002  0.100000000000       -128.502438828                    95              946  0.207067765296E-002               0
+               880   535.567215637        394.295264994      -0.595122901371E-002  0.100000000000       -128.502300960                    91              953  0.213258545846E-002               0
+               900   563.307735925        404.466229528      -0.636372864001E-002  0.100000000000       -128.502713459                    99              999  0.217628143728E-002               0
+               920   565.844484372        414.557264753      -0.650368038694E-002  0.100000000000       -128.502853411                    91             1018  0.224662534893E-002               0
+               940   587.258363414        425.012347363      -0.644118547498E-002  0.100000000000       -128.502790916                    94             1047  0.228988304734E-002               0
+               960   596.430553075        436.035066789      -0.632558845720E-002  0.100000000000       -128.502675319                    93             1067  0.239234436303E-002               0
+               980   609.130660001        447.379465259      -0.628787748500E-002  0.100000000000       -128.502637608                   102             1102  0.243081077933E-002               0
+Moving load balancing block       119 from processor      1 to      2
+Moving load balancing block       128 from processor      1 to      2
+Moving load balancing block       133 from processor      1 to      2
+Moving load balancing block       136 from processor      1 to      2
+Moving load balancing block       141 from processor      1 to      2
+Moving load balancing block       166 from processor      1 to      2
+Moving load balancing block       168 from processor      1 to      2
+Moving load balancing block       177 from processor      1 to      2
+Moving load balancing block       197 from processor      1 to      2
+Moving load balancing block       105 from processor      1 to      2
+Moving load balancing block       137 from processor      1 to      2
+Moving load balancing block       139 from processor      1 to      2
+Moving load balancing block       151 from processor      1 to      2
+Moving load balancing block       159 from processor      1 to      2
+Moving load balancing block       169 from processor      1 to      2
+Moving load balancing block       200 from processor      1 to      2
+Moving load balancing block       125 from processor      1 to      2
+Moving load balancing block       147 from processor      1 to      2
+Moving load balancing block       191 from processor      1 to      2
+Moving load balancing block       106 from processor      1 to      2
+Moving load balancing block       104 from processor      1 to      0
+Moving load balancing block       116 from processor      1 to      2
+Moving load balancing block       129 from processor      1 to      0
+Moving load balancing block       152 from processor      1 to      2
+Moving load balancing block       163 from processor      1 to      0
+Moving load balancing block       176 from processor      1 to      2
+Moving load balancing block       130 from processor      1 to      3
+              1000   625.284608781        459.132729582      -0.584999811894E-002  0.100000000000       -128.502199729                   104             1126  0.252194087952E-002               0
+              1020   641.210975290        470.922406365      -0.598590846656E-002  0.100000000000       -128.502335639                    96             1154  0.237960796803E-002               0
+              1040   662.359596872        483.292351048      -0.626837809910E-002  0.100000000000       -128.502618109                   102             1199  0.244728289545E-002               0
+              1060   673.431700598        496.766709586      -0.602160084705E-002  0.100000000000       -128.502371331                   100             1198  0.250519942492E-002               0
+              1080   696.139277251        509.963600122      -0.588630252652E-002  0.100000000000       -128.502236033                   104             1252  0.256983377039E-002               0
+              1100   722.231505918        523.746152132      -0.619592088810E-002  0.100000000000       -128.502545651                   110             1289  0.264412276447E-002               0
+              1120   738.188232675        537.737289652      -0.625040650693E-002  0.100000000000       -128.502600137                   107             1316  0.271092839539E-002               0
+              1140   747.120275690        551.865377002      -0.622300016759E-002  0.100000000000       -128.502572731                    97             1351  0.276257544756E-002               0
+              1160   749.165650904        566.612534758      -0.600350915610E-002  0.100000000000       -128.502353240                    92             1346  0.284297037870E-002               0
+              1180   789.379880906        582.229970215      -0.584912042572E-002  0.100000000000       -128.502198851                   103             1423  0.294624920934E-002               0
+ Updating singles/doubles bias. pSingles =    7.4296720748672176E-002
+  pDoubles =   0.92570327925132778     
+              1200   789.836649952        597.345853696      -0.565950085854E-002  0.100000000000       -128.502009231                    98             1420  0.297576021403E-002               0
+              1220   825.645815298        613.481600795      -0.587740680460E-002  0.100000000000       -128.502227137                   111             1475  0.309149511158E-002               0
+              1240   846.836928626        630.152263554      -0.595581901564E-002  0.100000000000       -128.502305550                   101             1520  0.314750969410E-002               0
+              1260   881.643354011        648.012511190      -0.615549250993E-002  0.100000000000       -128.502505223                   107             1579  0.325448960066E-002               0
+              1280   904.217046622        665.534872277      -0.650897372282E-002  0.100000000000       -128.502858704                   109             1586  0.335038080812E-002               0
+              1300   936.102230741        683.903425033      -0.653261628062E-002  0.100000000000       -128.502882347                   117             1688  0.341395400465E-002               0
+              1320   962.253275483        701.885751947      -0.653877451185E-002  0.100000000000       -128.502888505                   113             1723  0.351338684559E-002               0
+Exiting the single particle growth phase on iteration:          1340 - Shift can now change for population2
+
+ The current tau search method is: Conventional
+ It is switched off now because of: Variable Shift reached
+
+              1340   999.345914101        720.138161015      -0.659737246297E-002  0.468270942707E-001  -128.502947103                   120             1794  0.363567396998E-002               0
+              1360   996.838125656        729.604462620      -0.647423347972E-002  0.459425491345E-001  -128.502823964                   124             1803  0.364942438900E-002               0
+Exiting the single particle growth phase on iteration:          1380 - Shift can now change for population1
+              1380   1001.09199201        738.447868368      -0.622191470866E-002 -0.628681706659E-002  -128.502571645                   113             1791  0.369237512350E-002               0
+              1400   987.358900790        739.144665295      -0.609724630561E-002 -0.656999395446E-002  -128.502446977                   117             1808  0.371172353625E-002               0
+              1420   989.150660270        738.482453242      -0.600337657795E-002 -0.456978863636E-002  -128.502353107                   113             1771  0.372599102557E-002               0
+              1440   1000.36793368        738.515014165      -0.622991017305E-002 -0.489362529934E-002  -128.502579641                   108             1775  0.371547639370E-002               0
+              1460   1004.77538198        738.327585203      -0.629215272504E-002 -0.698059420194E-002  -128.502641883                   117             1774  0.374440141022E-002               0
+              1480   993.248899548        738.242085564      -0.629165423730E-002 -0.689323242726E-002  -128.502641385                   107             1806  0.371378473938E-002               0
+              1500   995.684575157        737.984294374      -0.620479936135E-002 -0.685140523910E-002  -128.502554530                   113             1821  0.369942896068E-002               0
+              1520   997.494426662        737.501594849      -0.630959921569E-002 -0.670587057744E-002  -128.502659330                   108             1804  0.370347574353E-002               0
+              1540   1000.31179671        737.696135656      -0.619083179968E-002 -0.677197374455E-002  -128.502540562                   114             1789  0.370518080890E-002               0
+              1560   995.238870515        737.368541460      -0.609158301759E-002 -0.586282042598E-002  -128.502441314                   118             1787  0.372985862195E-002               0
+              1580   1013.84330422        737.845807201      -0.631992068307E-002 -0.748247182459E-002  -128.502669651                   131             1826  0.372490659356E-002               0
+              1600   1027.17214648        738.138134883      -0.654783601416E-002 -0.918690334846E-002  -128.502897567                   137             1831  0.374372750521E-002               0
+              1620   1023.35542653        738.795237286      -0.667180491956E-002 -0.124915094192E-001  -128.503021535                   120             1835  0.373988524079E-002               0
+              1640   1014.60726872        737.299590714      -0.678949417508E-002 -0.115292281499E-001  -128.503139225                   115             1823  0.372155047953E-002               0
+              1660   1002.89035285        736.261476337      -0.653795510252E-002 -0.859789119742E-002  -128.502887686                   113             1819  0.369910076261E-002               0
+              1680   1004.49402598        737.034184089      -0.618577525871E-002 -0.823616240012E-002  -128.502535506                   125             1833  0.371987894177E-002               0
+              1700   990.884123985        736.934959858      -0.604669700973E-002 -0.683386872044E-002  -128.502396428                   117             1774  0.371559299529E-002               0
+              1720   1008.54235499        736.561758991      -0.601934295968E-002 -0.659372591425E-002  -128.502369074                   136             1820  0.372148789465E-002               0
+              1740   998.814977205        736.101738233      -0.616115052597E-002 -0.833982022208E-002  -128.502510881                   121             1782  0.375574119389E-002               0
+              1760   1003.76244549        735.521910376      -0.621771683690E-002 -0.661368243540E-002  -128.502567447                   121             1781  0.373703390360E-002               0
+              1780   1016.76813096        736.413069498      -0.655339915885E-002 -0.906970873549E-002  -128.502903130                   124             1805  0.372487753630E-002               0
+              1800   1014.92561327        735.985062873      -0.674380753970E-002 -0.100863361984E-001  -128.503093538                   121             1845  0.372369140387E-002               0
+              1820   1006.53317230        734.811680572      -0.651250254989E-002 -0.944075430864E-002  -128.502862233                   121             1819  0.371518544853E-002               0
+              1840   1002.48394660        733.883623533      -0.607568196765E-002 -0.632480823454E-002  -128.502425413                   128             1799  0.369088537991E-002               0
+              1860   1000.27148296        734.043229757      -0.634894213776E-002 -0.829588133286E-002  -128.502698673                   117             1804  0.373422428966E-002               0
+              1880   988.858187570        734.096549693      -0.617264694075E-002 -0.533823457609E-002  -128.502522377                   115             1790  0.369856804609E-002               0
+              1900   989.382702952        735.263066600      -0.621944529535E-002 -0.546298476582E-002  -128.502569176                   107             1760  0.370376072824E-002               0
+              1920   997.551425500        735.149611645      -0.639207654106E-002 -0.704804163693E-002  -128.502741807                   116             1771  0.371120162308E-002               0
+              1940   1005.50145925        734.753906068      -0.639613450596E-002 -0.591053919530E-002  -128.502745865                   122             1821  0.370600633323E-002               0
+              1960   998.681889616        734.375181055      -0.637534581734E-002 -0.636738379698E-002  -128.502725076                   113             1778  0.370769463480E-002               0
+              1980   1001.49716245        734.170976796      -0.651270850151E-002 -0.789590853978E-002  -128.502862439                   121             1806  0.370258204639E-002               0
+Moving load balancing block       126 from processor      1 to      2
+Moving load balancing block       145 from processor      1 to      2
+Moving load balancing block       109 from processor      1 to      2
+Moving load balancing block       181 from processor      1 to      2
+Moving load balancing block       117 from processor      1 to      2
+              2000   1005.84655223        734.232424528      -0.624314782775E-002 -0.676195132794E-002  -128.502592878                   122             1800  0.372995920479E-002               0
+              2020   1008.83494007        734.560594862      -0.644345752498E-002 -0.867235536287E-002  -128.502793188                   130             1819  0.368906892836E-002               0
+              2040   1003.81081386        734.245840429      -0.650831031561E-002 -0.816496273788E-002  -128.502858041                   116             1782  0.369026921690E-002               0
+              2060   994.616491990        734.272123452      -0.644347714592E-002 -0.658690786789E-002  -128.502793208                   118             1786  0.366089195013E-002               0
+              2080   997.587935943        733.662910555      -0.636941323556E-002 -0.609235321632E-002  -128.502719144                   111             1797  0.368783622980E-002               0
+              2100   994.494023708        733.899078871      -0.651180406949E-002 -0.588652543542E-002  -128.502861535                   103             1795  0.368683636189E-002               0
+              2120   992.335857292        734.504016262      -0.643623920037E-002 -0.615106667777E-002  -128.502785970                   112             1780  0.369094386697E-002               0
+              2140   999.477788077        735.844351016      -0.632971698492E-002 -0.722929780653E-002  -128.502679448                   121             1786  0.371983423829E-002               0
+              2160   1004.18146497        734.694315184      -0.620801957804E-002 -0.568265369719E-002  -128.502557750                   115             1804  0.368461161852E-002               0
+              2180   1016.47337353        735.147804962      -0.655094941866E-002 -0.886454502062E-002  -128.502900680                   127             1797  0.369981378317E-002               0
+              2200   1012.44505959        734.476903376      -0.654300528249E-002 -0.103638067909E-001  -128.502892736                   125             1791  0.370536781847E-002               0
+              2220   1003.39329002        734.127242535      -0.645164803731E-002 -0.878755617691E-002  -128.502801379                   125             1808  0.371069647372E-002               0
+              2240   1002.28651641        733.349125250      -0.633691843725E-002 -0.695511932538E-002  -128.502686649                   121             1805  0.369134508073E-002               0
+              2260   991.034022612        733.057889247      -0.621580610709E-002 -0.601976218124E-002  -128.502565537                   108             1805  0.368417650461E-002               0
+              2280   982.638911545        733.056997347      -0.626726266793E-002 -0.552294006582E-002  -128.502616993                   107             1770  0.372085459530E-002               0
+              2300   984.461204324        732.989068870      -0.610665954659E-002 -0.438594094830E-002  -128.502456390                   111             1781  0.369802266359E-002               0
+              2320   998.104774949        733.711425769      -0.618358896080E-002 -0.456788625270E-002  -128.502533320                   129             1774  0.369449257851E-002               0
+Beginning to average shift value on iteration:           2340
+              2340   998.067009072        733.638396301      -0.621630175501E-002 -0.631182921636E-002  -128.502566032                   120             1785  0.370611734688E-002               0
+              2360   1000.33375373        733.944594224      -0.641955344003E-002 -0.586776299321E-002  -128.502769284                   110             1801  0.368991829455E-002               0
+Beginning to average shift value on iteration:           2380
+              2380   1003.02334547        734.083336746      -0.654454293935E-002 -0.694047820427E-002  -128.502894273                   118             1818  0.369203090668E-002               0
+              2400   994.699544885        734.084550047      -0.627083940756E-002 -0.576928614498E-002  -128.502620570                   115             1772  0.369429402053E-002               0
+              2420   997.299778821        734.892884629      -0.637613780464E-002 -0.751738959897E-002  -128.502725868                   111             1758  0.369304791093E-002               0
+              2440   1005.40940874        735.167109237      -0.655615935414E-002 -0.766467849061E-002  -128.502905890                   116             1816  0.369297415018E-002               0
+              2460   1007.23044098        734.495053011      -0.657102735452E-002 -0.754768092688E-002  -128.502920758                   124             1819  0.370806343853E-002               0
+              2480   1008.86366249        735.480761805      -0.658330808391E-002 -0.809938015638E-002  -128.502933039                   120             1803  0.371027737856E-002               0
+              2500   978.830298975        735.136637646      -0.614399767292E-002 -0.520817679543E-002  -128.502493728                   107             1768  0.371376983821E-002               0
+              2520   979.819756155        735.211954550      -0.609717917392E-002 -0.333536840986E-002  -128.502446910                   103             1776  0.368694886565E-002               0
+              2540   981.580054646        735.484862769      -0.590495964015E-002 -0.222031989403E-002  -128.502254690                   104             1758  0.370730794966E-002               0
+              2560   988.248773276        735.897907059      -0.624736883485E-002 -0.495188956491E-002  -128.502597099                   109             1804  0.369786284864E-002               0
+              2580   1002.07314876        735.873051220      -0.619863980640E-002 -0.475343014146E-002  -128.502548370                   118             1801  0.369007736444E-002               0
+              2600   998.218489881        736.993353895      -0.646795854458E-002 -0.664794326908E-002  -128.502817689                   109             1770  0.368821546435E-002               0
+              2620   1008.00948645        737.351958810      -0.655921384823E-002 -0.848798445449E-002  -128.502908944                   119             1798  0.372066088021E-002               0
+              2640   996.502835755        736.456326290      -0.623921543731E-002 -0.752328496972E-002  -128.502588946                   115             1752  0.371484942734E-002               0
+              2660   1004.48104326        735.967786245      -0.630051272248E-002 -0.654470556575E-002  -128.502650243                   120             1806  0.371206812561E-002               0
+              2680   1013.23941124        735.351399548      -0.649857676236E-002 -0.924663504593E-002  -128.502848307                   112             1815  0.373856276274E-002               0
+              2700   989.202964823        734.210195051      -0.618262951478E-002 -0.633710145535E-002  -128.502532360                   111             1780  0.370527766645E-002               0
+              2720   996.961835904        734.011343284      -0.605894942632E-002 -0.499105024565E-002  -128.502408680                   117             1778  0.368639342487E-002               0
+              2740   998.793176593        733.543113255      -0.634534780865E-002 -0.674210629842E-002  -128.502695078                   109             1788  0.369283072650E-002               0
+              2760   1004.87339509        733.768008905      -0.631221126980E-002 -0.752074717976E-002  -128.502661942                   122             1805  0.369330160320E-002               0
+              2780   996.125155102        734.334914306      -0.621672384576E-002 -0.713190426611E-002  -128.502566454                   118             1787  0.368173643947E-002               0
+              2800   1006.49604025        733.243627526      -0.636187785187E-002 -0.638077760576E-002  -128.502711608                   122             1786  0.369778834283E-002               0
+              2820   989.789749127        732.995657127      -0.634767553192E-002 -0.595081487733E-002  -128.502697406                   114             1775  0.370621234179E-002               0
+              2840   1005.20773112        733.192546947      -0.638875279663E-002 -0.662453496060E-002  -128.502738483                   119             1806  0.368853472173E-002               0
+              2860   999.107364479        732.945529764      -0.652565862388E-002 -0.739983526829E-002  -128.502875389                   117             1787  0.368607267737E-002               0
+              2880   997.805215261        732.179482891      -0.657300161811E-002 -0.637804030579E-002  -128.502922732                   119             1775  0.368293821812E-002               0
+              2900   999.785503054        731.868411095      -0.659222375535E-002 -0.837673350121E-002  -128.502941954                   114             1793  0.368464402854E-002               0
+              2920   1010.00604244        731.038937060      -0.655208009074E-002 -0.771402682425E-002  -128.502901811                   124             1817  0.367942750454E-002               0
+              2940   992.709407086        731.150978691      -0.664721559896E-002 -0.755107306636E-002  -128.502996946                   104             1779  0.370852835476E-002               0
+              2960   988.946677954        730.138962988      -0.653494306532E-002 -0.565539833001E-002  -128.502884674                   103             1777  0.368325375021E-002               0
+              2980   994.955706957        729.515351362      -0.643566515708E-002 -0.577320701135E-002  -128.502785396                   111             1781  0.366792865098E-002               0
+Moving load balancing block       113 from processor      1 to      0
+Moving load balancing block       122 from processor      1 to      0
+Moving load balancing block       156 from processor      1 to      0
+Moving load balancing block       172 from processor      1 to      0
+Moving load balancing block       118 from processor      1 to      0
+Moving load balancing block       132 from processor      1 to      2
+              3000   986.978324534        728.724115811      -0.631967788891E-002 -0.494140629037E-002  -128.502669408                   109             1761  0.366600751877E-002               0
+              3020   977.068812326        729.459813499      -0.615112227887E-002 -0.385699679865E-002  -128.502500853                   104             1754  0.365110225976E-002               0
+              3040   988.115649299        729.698012927      -0.626727441156E-002 -0.370355954919E-002  -128.502617005                   108             1787  0.366479270160E-002               0
+              3060   978.473671977        730.077619669      -0.628941288027E-002 -0.379558196142E-002  -128.502639143                   109             1759  0.364850461483E-002               0
+              3080   977.939831868        730.216320411      -0.618575637996E-002 -0.343978323520E-002  -128.502535487                   110             1758  0.368417687714E-002               0
+              3100   991.215859527        730.776219439      -0.617358317261E-002 -0.401202562406E-002  -128.502523314                   124             1795  0.366611108184E-002               0
+              3120   988.859506480        731.444211978      -0.617073700894E-002 -0.383847281865E-002  -128.502520468                   114             1777  0.367043092847E-002               0
+              3140   996.505301577        731.537835345      -0.629641688145E-002 -0.482016258999E-002  -128.502646147                   115             1786  0.366593524814E-002               0
+              3160   1010.40172020        733.048948558      -0.646443694158E-002 -0.770319849803E-002  -128.502814167                   119             1804  0.367911458015E-002               0
+              3180   1006.04445940        732.919397290      -0.662583085631E-002 -0.779771313781E-002  -128.502975561                   119             1807  0.367543697357E-002               0
+              3200   1007.11605116        732.517366204      -0.647525968699E-002 -0.839578522192E-002  -128.502824990                   125             1796  0.367552265525E-002               0
+              3220   1013.49122632        732.127933460      -0.670895832853E-002 -0.894487156610E-002  -128.503058689                   121             1824  0.370902046561E-002               0
+              3240   991.946945610        731.129120505      -0.648794926549E-002 -0.738893019189E-002  -128.502837680                   115             1792  0.366836115718E-002               0
+              3260   989.621024005        730.039319268      -0.620793595741E-002 -0.434977594458E-002  -128.502557666                   117             1793  0.365827977657E-002               0
+              3280   993.382466965        729.754658820      -0.624753570682E-002 -0.459889985236E-002  -128.502597266                   111             1766  0.366133973002E-002               0
+              3300   986.062960015        730.065351128      -0.622403001163E-002 -0.420678071512E-002  -128.502573761                   107             1806  0.365372076631E-002               0
+              3320   995.273384646        730.668647966      -0.647332627506E-002 -0.474359911031E-002  -128.502823057                   114             1801  0.363796018064E-002               0
+              3340   993.568328281        731.302399511      -0.644845365895E-002 -0.523914626938E-002  -128.502798184                   112             1765  0.365652367473E-002               0
+              3360   986.824739395        730.575902066      -0.640848292376E-002 -0.450492293841E-002  -128.502758213                   108             1801  0.368226505816E-002               0
+              3380   996.211019251        730.816370698      -0.630001546277E-002 -0.445464127344E-002  -128.502649746                   112             1790  0.366343744099E-002               0
+Moving load balancing block       135 from processor      1 to      2
+Moving load balancing block       144 from processor      1 to      2
+Moving load balancing block       195 from processor      1 to      2
+ Memory requirement for spawned arrays increased from     0.7629 to     1.3351 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration      3381
+              3400   987.431347182        731.976159287      -0.621801037900E-002 -0.535509988355E-002  -128.502567741                   111             1826  0.848264992237E-002             558
+              3420   988.740865024        732.749408089      -0.620583390632E-002 -0.441265298427E-002  -128.502555564                   108             1763  0.711065083742E-002             692
+              3440   985.684000191        733.357723927      -0.611520439114E-002 -0.463105382216E-002  -128.502464935                   109             1760  0.731018334627E-002             793
+              3460   991.135114100        733.439711000      -0.620009401042E-002 -0.393004972537E-002  -128.502549825                    98             1772  0.713305175304E-002             890
+              3480   994.537183460        733.307488947      -0.649868401268E-002 -0.547214254987E-002  -128.502848415                   108             1802  0.715856328607E-002             981
+ Writing RDMs to file at iteration         3480
+              3500   1010.59547603        733.878798120      -0.654586061983E-002 -0.804818773944E-002  -128.502895591                   124             1807  0.721664652228E-002             562
+              3520   1001.33974610        734.038307907      -0.650899589923E-002 -0.760891527158E-002  -128.502858726                   111             1808  0.717698484659E-002             709
+              3540   1010.88818252        733.603869701      -0.666705082752E-002 -0.814735265440E-002  -128.503016781                   118             1819  0.712326467037E-002             820
+              3560   1016.40685677        734.155654160      -0.671498636095E-002 -0.946540542050E-002  -128.503064717                   111             1831  0.717792585492E-002             948
+              3580   1029.17762255        733.758404752      -0.681233963801E-002 -0.115889188201E-001  -128.503162070                   119             1850  0.725802108645E-002            1035
+ Writing RDMs to file at iteration         3580
+              3600   1013.16699271        733.396499520      -0.671382083629E-002 -0.121401126779E-001  -128.503063551                   113             1838  0.718002319336E-002             603
+              3620   1011.05769207        731.565657000      -0.644058344168E-002 -0.843356420350E-002  -128.502790314                   122             1815  0.715133920312E-002             720
+              3640   1005.19906291        731.196757054      -0.663125420619E-002 -0.848879853566E-002  -128.502980985                   109             1778  0.740123540163E-002             853
+              3660   995.547564177        731.212803748      -0.661725103515E-002 -0.803716469874E-002  -128.502966982                   111             1792  0.720304623246E-002             966
+              3680   1004.61600805        731.082624614      -0.648360069473E-002 -0.693543693351E-002  -128.502833331                   111             1795  0.717572197318E-002            1054
+ Writing RDMs to file at iteration         3680
+              3700   1024.15239907        730.748412857      -0.682722136389E-002 -0.899417991421E-002  -128.503176952                   123             1825  0.712495222688E-002             607
+              3720   1004.49838947        729.817397134      -0.682910707882E-002 -0.940295387751E-002  -128.503178838                   112             1804  0.729873627424E-002             742
+              3740   1022.43570355        729.008450721      -0.668366566585E-002 -0.821168084299E-002  -128.503033396                   135             1822  0.714555308223E-002             864
+              3760   998.498102666        728.935641517      -0.668145620667E-002 -0.930791614034E-002  -128.503031187                   109             1783  0.717252641916E-002             964
+              3780   987.648054551        728.486713338      -0.643218214956E-002 -0.529595894847E-002  -128.502781913                   117             1769  0.726192221045E-002            1055
+ Writing RDMs to file at iteration         3780
+              3800   984.257532772        727.933851370      -0.605195749374E-002 -0.329135043711E-002  -128.502401688                   114             1754  0.713437348604E-002             576
+              3820   1005.49777651        728.040614363      -0.633073952694E-002 -0.602755612933E-002  -128.502680470                   121             1811  0.710754990578E-002             690
+              3840   1001.25355198        728.898575594      -0.650716530066E-002 -0.658979318081E-002  -128.502856896                   115             1788  0.716698840261E-002             804
+              3860   1007.03956610        729.166826023      -0.631171685016E-002 -0.697968126695E-002  -128.502661447                   135             1804  0.721925199032E-002             898
+              3880   987.715855676        729.048174318      -0.605274617029E-002 -0.680710555944E-002  -128.502402477                   121             1787  0.715965479612E-002            1006
+ Writing RDMs to file at iteration         3880
+              3900   985.960127383        729.437738565      -0.588734945150E-002 -0.328772511147E-002  -128.502237080                   112             1739  0.712984800339E-002             562
+              3920   988.889966251        729.473798250      -0.610737088344E-002 -0.424642098575E-002  -128.502457101                   110             1803  0.721140950918E-002             685
+              3940   993.050728216        729.483051731      -0.632363000976E-002 -0.520385112636E-002  -128.502673361                   111             1763  0.714334696531E-002             789
+              3960   1001.11038491        730.577784554      -0.644243853067E-002 -0.544225330525E-002  -128.502792169                   118             1820  0.712423622608E-002             891
+              3980   991.388144344        731.350539329      -0.632043683027E-002 -0.560982288534E-002  -128.502670167                   106             1803  0.716333910823E-002             981
+ Writing RDMs to file at iteration         3980
+              4000   986.250296116        730.976981806      -0.632841989053E-002 -0.604482187121E-002  -128.502678150                   119             1773  0.726732984185E-002             565
+              4020   972.799906540        730.586792989      -0.582304727125E-002 -0.297286948721E-002  -128.502172778                   104             1764  0.715811774135E-002             665
+              4040   991.914345813        731.826502764      -0.604709316875E-002 -0.356076786627E-002  -128.502396824                   120             1788  0.717054456472E-002             755
+              4060   1002.34190786        732.821476768      -0.623575668025E-002 -0.563711005567E-002  -128.502585487                   122             1811  0.727567747235E-002             853
+              4080   997.824849619        734.398157632      -0.666476571745E-002 -0.794065637409E-002  -128.503014496                   111             1817  0.721379369497E-002             956
+ Writing RDMs to file at iteration         4080
+              4100   1003.27605487        733.105836783      -0.668791948437E-002 -0.797776783616E-002  -128.503037650                   117             1801  0.724591538310E-002             587
+              4120   1013.09667436        732.021390047      -0.652033324032E-002 -0.848963554171E-002  -128.502870064                   122             1833  0.721565857530E-002             723
+              4140   994.591351580        731.696581575      -0.651186859331E-002 -0.746533483723E-002  -128.502861599                   103             1798  0.734966695309E-002             838
+              4160   1017.32825077        732.092658058      -0.665731228802E-002 -0.871924176668E-002  -128.503007043                   120             1829  0.723791047931E-002             955
+              4180   1011.18013625        732.167507167      -0.659129671247E-002 -0.100440355487E-001  -128.502941027                   121             1829  0.720860883594E-002            1059
+ Writing RDMs to file at iteration         4180
+              4200   1003.61571053        731.223847875      -0.656153887878E-002 -0.892146288250E-002  -128.502911269                   111             1775  0.735120773315E-002             584
+              4220   1001.41499889        731.073615294      -0.650116597178E-002 -0.675345289736E-002  -128.502850897                   124             1780  0.721978470683E-002             691
+              4240   1008.10948613        731.612248615      -0.638355283737E-002 -0.793178503450E-002  -128.502733283                   132             1803  0.716583207250E-002             804
+              4260   988.809732280        731.651680626      -0.625731022862E-002 -0.672482932514E-002  -128.502607041                   115             1782  0.725134983659E-002             895
+              4280   998.031208774        731.031944792      -0.634543212095E-002 -0.663970074555E-002  -128.502695163                   120             1803  0.735095962882E-002             978
+ Writing RDMs to file at iteration         4280
+              4300   977.054575090        730.245023624      -0.620378992595E-002 -0.419928515390E-002  -128.502553520                   104             1757  0.727586150169E-002             565
+              4320   979.526754277        730.621789064      -0.612181582356E-002 -0.203036798059E-002  -128.502471546                   109             1749  0.718156620860E-002             666
+              4340   991.569645610        731.716553261      -0.625751293892E-002 -0.412998135565E-002  -128.502607243                   118             1775  0.728858858347E-002             772
+              4360   982.813479912        731.913030357      -0.618559126224E-002 -0.389933866501E-002  -128.502535322                   107             1750  0.721681267023E-002             868
+              4380   985.193439105        732.836345672      -0.608139745466E-002 -0.290374601857E-002  -128.502431128                   100             1768  0.721925720572E-002             957
+ Writing RDMs to file at iteration         4380
+              4400   987.377250465        733.136799205      -0.603829875193E-002 -0.321523248896E-002  -128.502388029                   110             1770  0.728538483381E-002             564
+              4420   979.687065293        734.130954697      -0.637507834226E-002 -0.431231532252E-002  -128.502724809                   104             1761  0.719699189067E-002             685
+              4440   991.935594801        734.479140083      -0.624224179919E-002 -0.322061677702E-002  -128.502591972                   113             1764  0.716032758355E-002             779
+              4460   994.159561707        734.495476263      -0.631044618097E-002 -0.639744824348E-002  -128.502660177                   109             1791  0.717160850763E-002             883
+              4480   995.473445057        734.118815919      -0.612018335162E-002 -0.616296023106E-002  -128.502469914                   111             1802  0.726792216301E-002             979
+ Writing RDMs to file at iteration         4480
+              4500   998.628660616        733.612431697      -0.600081845353E-002 -0.465786066233E-002  -128.502350549                   119             1814  0.717180520296E-002             546
+              4520   997.673742807        733.191741710      -0.622748572732E-002 -0.680974155134E-002  -128.502577216                   122             1788  0.717852562666E-002             666
+              4540   988.011259625        733.497948703      -0.631017308001E-002 -0.482202208498E-002  -128.502659904                   109             1795  0.727625042200E-002             773
+              4560   997.423586475        734.278785362      -0.636568971882E-002 -0.509992306261E-002  -128.502715420                   114             1782  0.727998241782E-002             858
+              4580   1001.42350328        735.061073468      -0.645083204703E-002 -0.726411334870E-002  -128.502800563                   109             1789  0.724078863859E-002             956
+ Writing RDMs to file at iteration         4580
+              4600   991.489847631        733.967389017      -0.633721979280E-002 -0.577523572063E-002  -128.502686950                   106             1799  0.725359246135E-002             583
+              4620   1008.77823021        734.790959729      -0.639841827978E-002 -0.730971880231E-002  -128.502748149                   122             1823  0.733840838075E-002             701
+              4640   999.634321623        734.116399059      -0.642608294184E-002 -0.809592275101E-002  -128.502775813                   109             1801  0.723032429814E-002             806
+              4660   994.958054638        733.899936459      -0.648649735236E-002 -0.701865119340E-002  -128.502836228                   106             1750  0.716854333878E-002             921
+              4680   1000.31906211        733.359322853      -0.634218682443E-002 -0.617465590624E-002  -128.502691917                   115             1792  0.730954632163E-002            1018
+ Writing RDMs to file at iteration         4680
+              4700   993.258243616        732.872465904      -0.636807281490E-002 -0.548582431150E-002  -128.502717803                   109             1785  0.720584541559E-002             586
+              4720   1002.70949865        733.352283558      -0.645314166726E-002 -0.555062632295E-002  -128.502802872                   109             1770  0.716130957007E-002             705
+              4740   1006.79148148        734.285782888      -0.649261897277E-002 -0.821894992105E-002  -128.502842350                   125             1816  0.723735988140E-002             824
+              4760   999.619720220        735.045591779      -0.628145783180E-002 -0.765674901121E-002  -128.502631188                   117             1798  0.739032477140E-002             917
+              4780   991.215074422        734.455303779      -0.627111135975E-002 -0.611325858003E-002  -128.502620842                   115             1786  0.720208659768E-002            1018
+ Writing RDMs to file at iteration         4780
+              4800   984.276205315        733.897651269      -0.609824295396E-002 -0.441784531156E-002  -128.502447973                   111             1755  0.722810402513E-002             549
+              4820   1000.32586619        736.049429075      -0.618634534782E-002 -0.555488356757E-002  -128.502536076                   116             1783  0.730310082436E-002             651
+              4840   983.227629207        735.878347004      -0.586244363573E-002 -0.518001070084E-002  -128.502212174                   119             1769  0.724525526166E-002             752
+              4860   983.588029147        736.055104943      -0.592278680790E-002 -0.437266768261E-002  -128.502272517                   111             1795  0.727557763457E-002             853
+              4880   1003.06871645        735.810893212      -0.611987292299E-002 -0.553405149898E-002  -128.502469603                   111             1827  0.724304988980E-002             943
+ Writing RDMs to file at iteration         4880
+              4900   995.831211097        736.541806876      -0.628000780899E-002 -0.700906896036E-002  -128.502629738                   122             1784  0.739989876747E-002             577
+              4920   994.941801445        736.832747613      -0.617463837592E-002 -0.641836606588E-002  -128.502524369                   116             1774  0.721590816975E-002             705
+              4940   998.262442636        737.078331227      -0.613961988827E-002 -0.542929670600E-002  -128.502489350                   116             1796  0.718418136239E-002             793
+              4960   1016.77057959        736.364721274      -0.660603780957E-002 -0.881314978269E-002  -128.502955768                   118             1807  0.730068981647E-002             902
+              4980   1016.26037234        735.666140800      -0.691056089102E-002 -0.103375915660E-001  -128.503260291                   105             1830  0.726826786995E-002             995
+ Writing RDMs to file at iteration         4980
+              5000   1024.65476902        736.111890992      -0.688123445094E-002 -0.103034429790E-001  -128.503230965                   120             1848  0.722392871976E-002             595
+              5020   1009.77870377        735.155054826      -0.668558725057E-002 -0.905847633765E-002  -128.503035318                   115             1849  0.727911442518E-002             718
+              5040   990.612411770        734.314998678      -0.634516156673E-002 -0.686775443880E-002  -128.502694892                   108             1802  0.722218453884E-002             820
+              5060   1002.06545536        734.020577966      -0.608844929701E-002 -0.448339224628E-002  -128.502438180                   120             1777  0.720651820302E-002             922
+              5080   1004.64708554        733.927831437      -0.629355152504E-002 -0.728229270166E-002  -128.502643282                   117             1794  0.719601586461E-002            1029
+ Writing RDMs to file at iteration         5080
+              5100   1002.50025098        733.407807875      -0.624902270487E-002 -0.726152417202E-002  -128.502598753                   123             1803  0.725587382913E-002             582
+              5120   995.958465886        732.419591538      -0.619936814136E-002 -0.645775857351E-002  -128.502549099                   118             1777  0.715453997254E-002             711
+              5140   1006.45550388        732.316801584      -0.644807829337E-002 -0.723769256248E-002  -128.502797809                   123             1787  0.715537071228E-002             831
+              5160   990.287165573        731.909870258      -0.625523780368E-002 -0.579073384672E-002  -128.502604968                   113             1813  0.722795128822E-002             924
+              5180   996.953761555        732.033462660      -0.621129705863E-002 -0.516590059305E-002  -128.502561028                   117             1802  0.719517022371E-002            1004
+ Writing RDMs to file at iteration         5180
+              5200   1003.11827903        733.345888970      -0.640475575335E-002 -0.546180953508E-002  -128.502754486                   113             1801  0.715539902449E-002             576
+              5220   986.761281166        733.928542013      -0.635605538562E-002 -0.644618028993E-002  -128.502705786                   114             1758  0.717155635357E-002             702
+              5240   990.770237039        734.244404714      -0.633070463219E-002 -0.537778874279E-002  -128.502680435                   123             1772  0.730476379395E-002             814
+              5260   983.301350121        734.592155368      -0.606427968965E-002 -0.461071009205E-002  -128.502414010                   110             1805  0.719515681267E-002             896
+              5280   968.533429242        734.174661396      -0.584437716631E-002 -0.147482651758E-002  -128.502194108                   107             1742  0.727000087500E-002             980
+ Writing RDMs to file at iteration         5280
+              5300   979.327919602        735.173386840      -0.573393178426E-002 -0.156475307012E-002  -128.502083662                   112             1761  0.730134174228E-002             548
+              5320   996.914244417        735.830407008      -0.605820366624E-002 -0.358669535147E-002  -128.502407934                   112             1778  0.718907862902E-002             646
+              5340   999.196315782        736.349659190      -0.634003029915E-002 -0.646356781840E-002  -128.502689761                   104             1797  0.716081187129E-002             758
+              5360   1004.55855278        736.916555126      -0.661156663052E-002 -0.760650171746E-002  -128.502961297                   110             1837  0.721891745925E-002             855
+              5380   997.951009884        736.540842356      -0.635991080478E-002 -0.636273292627E-002  -128.502709641                   112             1801  0.733432769775E-002             939
+ Writing RDMs to file at iteration         5380
+              5400   997.223878655        735.879627337      -0.615928184202E-002 -0.517142033201E-002  -128.502509012                   119             1805  0.724725350738E-002             558
+              5420   997.537788642        735.595630147      -0.599649591050E-002 -0.569214850515E-002  -128.502346226                   118             1799  0.718535110354E-002             673
+              5440   987.143592859        735.790430748      -0.599330500782E-002 -0.465702426085E-002  -128.502343036                   109             1782  0.723974034190E-002             788
+              5460   993.408186648        735.806143727      -0.606568096160E-002 -0.514536350469E-002  -128.502415412                   116             1759  0.723324567080E-002             867
+              5480   1008.54988877        735.817252593      -0.621896830506E-002 -0.645795320326E-002  -128.502568699                   124             1814  0.725456327200E-002             968
+ Writing RDMs to file at iteration         5480
+              5500   1002.83687333        736.199439297      -0.639076671763E-002 -0.803248348736E-002  -128.502740497                   119             1802  0.722754299641E-002             580
+              5520   990.675023061        735.670608066      -0.629407210009E-002 -0.571746919912E-002  -128.502643803                   117             1758  0.731608793139E-002             715
+              5540   997.568574636        735.890467633      -0.630157807548E-002 -0.540066322397E-002  -128.502651309                   107             1767  0.717533528805E-002             809
+              5560   1002.38129667        736.130849654      -0.636949146015E-002 -0.691870890343E-002  -128.502719222                   120             1788  0.724338442087E-002             903
+              5580   996.167941200        735.625027417      -0.627848215437E-002 -0.619011719764E-002  -128.502628213                   107             1781  0.728632584214E-002            1001
+ Writing RDMs to file at iteration         5580
+              5600   992.672809645        736.007532293      -0.623932980721E-002 -0.606889903820E-002  -128.502589060                   116             1741  0.721166878939E-002             562
+              5620   987.278207360        735.620545594      -0.609356876655E-002 -0.449488899987E-002  -128.502443299                   111             1761  0.721077322960E-002             671
+              5640   991.792620982        734.950770984      -0.616972987022E-002 -0.448723057376E-002  -128.502519460                   116             1777  0.722825899720E-002             776
+              5660   1012.26814323        735.468614932      -0.640720396710E-002 -0.788116018657E-002  -128.502756935                   125             1809  0.726469606161E-002             879
+              5680   1012.56074975        734.913291524      -0.645141986450E-002 -0.887420256317E-002  -128.502801150                   123             1851  0.725127533078E-002             972
+ Writing RDMs to file at iteration         5680
+              5700   1008.12773042        733.923295750      -0.654963452205E-002 -0.852807480042E-002  -128.502899365                   121             1822  0.719841197133E-002             596
+              5720   1002.76223673        733.820107667      -0.662951780938E-002 -0.810127627282E-002  -128.502979248                    99             1794  0.734718069434E-002             720
+              5740   1003.29969426        733.899617301      -0.666601037821E-002 -0.751448141739E-002  -128.503015741                   107             1758  0.714759379625E-002             821
+              5760   1005.99880118        733.167176196      -0.659473464316E-002 -0.803901025889E-002  -128.502944465                   108             1811  0.715483725071E-002             926
+              5780   997.423324437        733.018563940      -0.658737300231E-002 -0.689403741150E-002  -128.502937104                   107             1784  0.728019922972E-002            1002
+ Writing RDMs to file at iteration         5780
+              5800   991.726857790        732.699068627      -0.634807910860E-002 -0.476218170620E-002  -128.502697810                   106             1768  0.719756633043E-002             586
+              5820   1007.73791057        733.478286851      -0.651952133642E-002 -0.694244006531E-002  -128.502869252                   119             1818  0.719074755907E-002             711
+              5840   987.610398115        733.601024471      -0.637792646295E-002 -0.623971987472E-002  -128.502727657                   107             1756  0.713460072875E-002             796
+              5860   989.218985724        733.839843682      -0.620477472750E-002 -0.447409944577E-002  -128.502554505                   107             1775  0.731545984745E-002             891
+              5880   1008.08922509        734.492459564      -0.642562370891E-002 -0.679625006298E-002  -128.502775354                   115             1814  0.720043182373E-002             992
+ Writing RDMs to file at iteration         5880
+              5900   1001.90571544        736.023030317      -0.638770146855E-002 -0.816906966811E-002  -128.502737432                   108             1773  0.714829862118E-002             578
+              5920   1004.02945691        736.292150577      -0.638441611493E-002 -0.657409002063E-002  -128.502734147                   113             1770  0.724202319980E-002             699
+              5940   1000.39965448        735.691057447      -0.633282982886E-002 -0.822267503271E-002  -128.502682560                   114             1815  0.721462070942E-002             806
+              5960   997.161035341        735.895665806      -0.631917746163E-002 -0.598191948310E-002  -128.502668908                   105             1778  0.719596892595E-002             909
+              5980   994.180635093        735.778689021      -0.641232762978E-002 -0.627843739580E-002  -128.502762058                   109             1792  0.720416903496E-002            1019
+ Writing RDMs to file at iteration         5980
+              6000   1007.53879731        735.658414482      -0.624229912792E-002 -0.565746800682E-002  -128.502592030                   125             1807  0.735141932964E-002             561
+              6020   1002.84850313        735.523044618      -0.634324237812E-002 -0.865960424312E-002  -128.502692973                   116             1768  0.721413120627E-002             660
+              6040   993.216534627        734.246217679      -0.599669815857E-002 -0.474984992925E-002  -128.502346429                   119             1768  0.729431435466E-002             767
+              6060   994.427929962        734.066757705      -0.591229299012E-002 -0.561437188066E-002  -128.502262024                   123             1777  0.736955478787E-002             855
+              6080   988.104323978        734.205222584      -0.602676709468E-002 -0.518099888729E-002  -128.502376498                   113             1766  0.728350654244E-002             955
+ Writing RDMs to file at iteration         6080
+              6100   985.831957782        734.130034394      -0.618924717907E-002 -0.384149038995E-002  -128.502538978                   103             1776  0.727259144187E-002             558
+              6120   985.654636845        733.884231105      -0.622735353144E-002 -0.553812402119E-002  -128.502577084                   115             1746  0.716623291373E-002             676
+              6140   988.897049603        734.344651094      -0.619425735783E-002 -0.424441979182E-002  -128.502543988                   110             1753  0.735109671950E-002             768
+              6160   1010.22165613        734.331006919      -0.643634195938E-002 -0.682766388449E-002  -128.502786073                   121             1832  0.733277201653E-002             872
+              6180   1014.57239922        734.298570522      -0.650462986647E-002 -0.101432574937E-001  -128.502854360                   121             1814  0.734132453799E-002             981
+ Writing RDMs to file at iteration         6180
+              6200   994.777462529        733.563476100      -0.624311149440E-002 -0.689228891148E-002  -128.502592842                   119             1784  0.735574439168E-002             575
+              6220   993.118380176        732.824935597      -0.619736966951E-002 -0.548115846571E-002  -128.502547100                   110             1784  0.720550864935E-002             700
+              6240   991.090235654        732.787850207      -0.633095680125E-002 -0.492477309864E-002  -128.502680687                   108             1764  0.716136097908E-002             797
+              6260   995.798955461        733.058404111      -0.629529781075E-002 -0.579581934909E-002  -128.502645028                   118             1801  0.722893774509E-002             910
+              6280   993.982999868        733.043555120      -0.626936263279E-002 -0.510879853907E-002  -128.502619093                   117             1770  0.729727894068E-002             988
+ Writing RDMs to file at iteration         6280
+              6300   995.119684893        733.172781048      -0.636120930543E-002 -0.564581648677E-002  -128.502710940                   106             1825  0.731838569045E-002             574
+              6320   1015.78286316        733.546083949      -0.652556856964E-002 -0.830330656113E-002  -128.502875299                   119             1855  0.737704113126E-002             689
+              6340   1011.96755749        732.682488030      -0.675831897200E-002 -0.101494581553E-001  -128.503108050                   123             1833  0.736769959331E-002             804
+              6360   1009.67377373        731.389000268      -0.661381827942E-002 -0.981834796499E-002  -128.502963549                   122             1797  0.729097127914E-002             926
+              6380   1006.36318777        731.093438767      -0.645646493027E-002 -0.807370863470E-002  -128.502806195                   120             1829  0.726347416639E-002            1010
+ Writing RDMs to file at iteration         6380
+RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    31.791452034027316     
+ Time lost due to load imbalance:    18.866606247698655     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+****RDMs CALCULATED STOCHASTICALLY ****
+
+ == INFORMATION FOR FINAL 1-RDMs =========================================================
+
+ INFORMATION FOR 1-RDM 1:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      7.9940376047251
+
+ =========================================================================================
+
+ Writing RDMs to file at iteration         6380
+ == INFORMATION FOR FINAL 2-RDMS =========================================================
+
+ 2-RDM ESTIMATES FOR STATE 1:
+ Trace of 2-el-RDM before normalisation:  4.5332232264E+10
+ Trace of 2-el-RDM after normalisation:  2.8000000000E+01
+ Energy contribution from the 1-RDM: -6.0194871111E+01
+ Energy contribution from the 2-RDM:  2.5541116803E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.2850265585419E+02
+
+ EN2 corrections are below. Note that these may have a much larger error bar than the
+ variational energy above. Please do a blocking analysis rather than just using the energies below.
+ EN2 energy correction: -2.4138183561E-01
+ *TOTAL ENERGY* including the EN2 correction: -1.2874403769E+02
+
+ Hermiticty error estimates:
+            6380        0.00110996248091242982     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            6380        0.03761802126941193869     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ =========================================================================================
+ 
+Current reference: 
+(    1,    2,    3,    4,    5,    6,    7,    8)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-8
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1) Walkers(2)    Amplitude Init?(1) Init?(2)  <D|H|D>Proc Spin-Coup?
+11111111000000000000000000000000000000000000    0    0    726.2694        735.9601      0.99832  Y  Y  -1.28496350E+02       1
+11011110001000010000000000000000000000000000    2    4   -12.90131       -11.91308      0.01198  Y  Y  -1.26292382E+02       2  *
+11101011000101000000000000000000000000000000    2    4    13.22499        9.624514      0.01103  Y  Y  -1.26355500E+02       0  *
+11110011000011000000000000000000000000000000    2    0   -11.50777       -11.10675      0.01544  Y  Y  -1.26181704E+02       3
+11111100000000110000000000000000000000000000    2    0   -8.046756       -14.55405      0.01543  Y  Y  -1.26181704E+02       0
+11110110000010010000000000000000000000000000    2    4   -12.39483       -9.869098      0.01075  Y  Y  -1.26292382E+02       0  *
+11111010000001010000000000000000000000000000    2    4    11.04920        8.717980      0.00954  Y  Y  -1.26355500E+02       3  *
+01111011100001000000000000000000000000000000    2    4   -9.733940       -9.500402      0.00929  Y  Y  -1.25260142E+02       3  *
+01111110100000010000000000000000000000000000    2    4   -8.871638       -10.05661      0.00914  Y  Y  -1.25260142E+02       0  *
+01101111100100000000000000000000000000000000    2    4   -9.667937       -8.888683      0.00896  Y  Y  -1.25260142E+02       3  *
+11101110000100010000000000000000000000000000    2    4    7.214413        11.29252      0.00893  Y  Y  -1.26355500E+02       0  *
+11101111000100000000000000000000000000000000    1    2    7.734016        10.13090      0.00862  Y  Y  -1.27628507E+02       3  *
+11111110000000010000000000000000000000000000    1    2    7.873525        9.773001      0.00852  Y  Y  -1.27628507E+02       2  *
+11011011001001000000000000000000000000000000    2    4   -8.032385       -8.565901      0.00801  Y  Y  -1.26292382E+02       3  *
+11111011000001000000000000000000000000000000    1    2    9.553050        6.979004      0.00798  Y  Y  -1.27628507E+02       2  *
+ * = Spin-coupled function implicitly has time-reversed determinant with same weight.
+ 
+ Warning: attempting to log deallocation but never logged allocation.
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process      47.0000000000
+ Min number of determinants/process                 36
+ Max number of determinants/process                 63
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:     503.1815938864
+     Min number of walkers/process:          158.80069
+     Max number of walkers/process:         1465.37969
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:         1380
+ No FCIMCStats file found for error analysis
+ Current reference energy                            -128.496349730541
+ Projected correlation energy                          -0.006361256814
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy        -128.50271099
+
+
+ Final energy estimate for state 1:     -128.50271098735    
+ Final energy estimate for state 2:     -128.50262513710    
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      58.0
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datclean_global_det_da  40.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   16.0MB
+ SpawnVec          realloc_SpawnedPartDeallocFciMCMemPar  683.6KB
+ SpawnVec2         realloc_SpawnedPartDeallocFciMCMemPar  683.6KB
+ SpawnVec          InitFCIMCPar       realloc_SpawnedPart 390.6KB
+ SpawnVec2         InitFCIMCPar       realloc_SpawnedPart 390.6KB
+ Spawned_Parents   init_rdms          dealloc_global_rdm_ 293.0KB
+ UMat              IntInit            IntCleanup          251.0KB
+ Spawned_Parents_Ininit_rdms          dealloc_global_rdm_  97.7KB
+ TMAT2D            SetupTMAT          DestroyTMat          15.1KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                6380     27.55
+ NECICUBE                                     1      3.01
+ AnnMainTime                               6380      0.38
+ Compress Sort interface                   6380      0.31
+ Compression interface                     6380      0.26
+ AnnihilTime                               6380      0.13
+ StatsCommsTime                             319      0.09
+ SysInit                                      1      0.07
+ DeathTime                                 6380      0.06
+ CommsTime                                 6380      0.06
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  31.91
+
+ Global wall clock time         32.04
+ ================================================================
+ Calculation ended 26/02/2023 at 11:27:35
+ ================================================================

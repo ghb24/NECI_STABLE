@@ -3,8 +3,6 @@
 
 module hist
 
-    use DeterminantData, only: get_lexicographic, calculated_ms
-    use MemoryManager
     use SystemData, only: nbasis, nel, LMS, LMS, tHPHF, &
                           tOddS_HPHF, G1, tGUGA
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
@@ -17,18 +15,25 @@ module hist
                          all_norm_psi_squared, ilutRef
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
-    use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
-    use bit_rep_data, only: NIfTot, NIfD, extract_sign
+    use bit_rep_data, only: NIfTot, NIfD, extract_sign, test_flag, flag_initiator
     use bit_reps, only: encode_sign, extract_bit_rep, &
-                        decode_bit_det, flag_initiator, test_flag, &
+                        decode_bit_det, &
                         get_initiator_flag, writebitdet, &
                         any_run_is_initiator
-    use parallel_neci
     use searching, only: BinSearchParts2
-    use hist_data
-    use timing_neci
-    use Determinants, only: write_det
-    use util_mod
+    use DeterminantData, only: get_lexicographic, calculated_ms, write_det
+    use util_mod, only: stop_all, binary_search_ilut, operator(.div.), &
+        get_free_unit, choose_i64
+    use hist_data, only: hist_excit_tofrom, tag_hist_excit, HistogramEnergy, &
+        HistMinInd, BinRange, excit_tofrom_unit, Histogram, InstHist, &
+        iNoBins, tHistSpawn
+    use constants, only: n_int, bits_n_int, size_n_int, lenof_sign, &
+        dp, MPIArg, inum_runs
+    use parallel_neci, only: nProcessors, MPISum, MPIBcast, MPIAlltoAll, &
+        MPIAlltoAllv, MPIAllLORLogical, root, iProcIndex
+    use timing_neci, only: set_timer, timer, halt_timer
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
+
 
     implicit none
 
@@ -192,7 +197,7 @@ contains
         call set_timer(s2_timer)
 
         ssq = 0
-        do i = 1, int(TotWalkers, sizeof_int)
+        do i = 1, int(TotWalkers)
             if ((test_flag(CurrentDets(:, i), get_initiator_flag(1)) .or. &
                  test_flag(CurrentDets(:, i), get_initiator_flag(lenof_sign))) &
                 .and. .not. TestClosedShellDet(CurrentDets(:, i))) then
@@ -232,7 +237,7 @@ contains
         s2_timer%timer_name = 'S^2'
         call set_timer(s2_timer)
 
-        max_linked = int(choose(nel, (nel + LMS) / 2))
+        max_linked = int(choose_i64(nel, (nel + LMS) / 2))
         max_per_proc = 2 * (max_linked / nProcessors) + 1
         max_spawned = max_per_proc * nProcessors
 
@@ -342,7 +347,7 @@ contains
                 call extract_sign(recv_dets(:, i), sgn1)
 
                 ! And the generated, connected particle
-                pos = binary_search(CurrentDets(:, 1:TotWalkers), &
+                pos = binary_search_ilut(CurrentDets(:, 1:TotWalkers), &
                                     recv_dets(:, i), NIfD + 1)
                 if (pos > 0) then
                     call extract_sign(CurrentDets(:, pos), sgn2)
@@ -401,7 +406,7 @@ contains
         do p = 0, nProcessors - 1
 
             ! How many dets are on processor p
-            proc_dets = int(TotWalkers, sizeof_int)
+            proc_dets = int(TotWalkers)
             call MPIBcast(proc_dets, iProcIndex == p)
 
             ! Send the dets around bit by bit
@@ -412,7 +417,7 @@ contains
                     ! Loop over walkers and only add initiators to bcast list
                     nsend = 0
                     if (p == iProcIndex) then
-                        do i = start_pos, int(TotWalkers, sizeof_int)
+                        do i = start_pos, int(TotWalkers)
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 
@@ -583,7 +588,7 @@ contains
                         end if
 
                         ! --> sminus is an allowed result of applying S-S+
-                        pos = binary_search(ilut_list(:, 1:n_states), &
+                        pos = binary_search_ilut(ilut_list(:, 1:n_states), &
                                             ilut_srch, NIfD + 1)
                         if (pos > 0) then
 

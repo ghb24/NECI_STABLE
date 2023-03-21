@@ -1,43 +1,42 @@
 title
 
 system hubbard k-space
-electrons 4
-B -1
-U 1
-lattice square 2 2
-lattice-excitgen
-system-replicas 3
-
+    electrons 4
+    B -1
+    U 1
+    lattice square 2 2
+    lattice-excitgen
+    system-replicas 3
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-nmcyc 100
-memoryfacpart 8
-memoryfacspawn 5
-totalwalkers 5000
-shiftdamp 0.03
-stepsshift 1
-tau 0.01
-max-tau 0.001
-truncinitiator
-addtoinitiator 4
-allrealcoeff
-realspawncutoff 1
-proje-changeref 1.2
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    nmcyc 100
+    memoryfacpart 8
+    memoryfacspawn 5
+    totalwalkers 5000
+    shiftdamp 0.03
+    stepsshift 1
+    tau-values \
+        start user-defined 0.01
+    truncinitiator
+    addtoinitiator 4
+    allrealcoeff
+    realspawncutoff 1
+    proje-changeref 1.2
 endcalc
 
 realtime
-start-hf
-energy-benchmark -8
-rotate-time 0.2
-stabilize-walkers
+    start-hf
+    energy-benchmark -8
+    rotate-time 0.2
+    stabilize-walkers
 endrealtime
 
 logging
-popsfile -1
+    popsfile -1
 endlog
 end

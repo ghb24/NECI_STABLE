@@ -6,31 +6,33 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tRef_Not_HF, &
-                          tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, &
-                          ref_b_vector_real, t_3_body_excits, t_non_hermitian, &
+                          tGUGA, t_3_body_excits, t_non_hermitian_2_body, &
                           t_ueg_3_body, t_mol_3_body, t_pcpp_excitgen
     use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state, check_determ_flag
 
-    use bit_rep_data, only: IlutBits
+    use bit_rep_data, only: IlutBits, NIfTot, NIfD, test_flag, extract_sign, &
+        flag_static_init, flag_deterministic, flag_static_init, flag_determ_parent, &
+        flag_trial, flag_connected, flag_deterministic
 
-    use bit_reps, only: NIfTot, test_flag, extract_flags, &
-                        encode_bit_rep, NIfD, set_flag_general, &
-                        extract_sign, set_flag, encode_sign, &
-                        flag_trial, flag_connected, flag_deterministic, &
+    use calcrho_mod, only: igetexcitlevel
+
+    use bit_reps, only: extract_flags, encode_bit_rep, &
+                        set_flag, encode_sign, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
                         log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
-                        extract_spawn_hdiag, flag_static_init, flag_determ_parent, &
+                        extract_spawn_hdiag, &
                         all_runs_are_initiator, writebitdet
 
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet, tAccumEmptyDet
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use FciMCData
     use hist, only: add_hist_spawn, add_hist_energies, HistMinInd
     use hist_data, only: tHistSpawn
@@ -42,13 +44,13 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
                            initsPerExLvl, tAccumPopsActive
-
+    use sparse_arrays, only: t_evolve_adjoint
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         InitiatorWalkNo, t_core_inits, eq_cyc, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tEN2, tEN2Started, &
+                        tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, ErrThresh, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, &
@@ -61,6 +63,9 @@ module fcimc_helper
                         tPrecond, &
                         tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
                         allowedSpawnSign, tAS_Offset, ShiftOffset
+
+    use dSFMT_interface, only: genrand_real2_dSFMT
+
     use adi_data, only: tSignedRepAv
 
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -76,7 +81,9 @@ module fcimc_helper
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
-    use Parallel_neci
+    use Parallel_neci, only: iProcIndex, nProcessors, &
+        MPIAllReduceDatatype, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, &
+        MPI_MINLOC, nNodes, MPISumAll, MPIBcast
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
@@ -86,8 +93,8 @@ module fcimc_helper
     use searching, only: BinSearchParts2
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
-    use guga_bitrepops, only: write_det_guga, calc_csf_i, &
-                              transfer_stochastic_rdm_info, CSF_Info_t
+    use guga_bitrepops, only: write_det_guga, csf_ref, &
+                              transfer_stochastic_rdm_info, CSF_Info_t, fill_csf_i
 
     use real_time_data, only: runge_kutta_step, tVerletSweep, &
                               t_rotated_time, t_real_time_fciqmc
@@ -99,6 +106,12 @@ module fcimc_helper
     use initiator_space_procs, only: is_in_initiator_space
 
     use pcpp_excitgen, only: update_pcpp_excitgen
+
+    use sparse_arrays, only: t_evolve_adjoint
+
+    use hdiag_mod, only: hdiag_neci
+
+    use frsblk_mod, only: neci_frsblkh
 
     implicit none
 
@@ -518,7 +531,7 @@ contains
         integer, intent(in), optional :: ind
 
         integer :: i, ExcitLevel_local, ExcitLevelSpinCoup
-        integer :: run, tmp_exlevel
+        integer :: run, tmp_exlevel, step
         HElement_t(dp) :: HOffDiag(inum_runs), tmp_off_diag(inum_runs), tmp_diff(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
 
@@ -526,8 +539,10 @@ contains
         complex(dp) :: CmplxwSign
 #endif
 
-        real(dp) :: amps(size(current_trial_amps, 1))
+        real(dp), allocatable :: amps(:)
         real(dp) :: w(0:2)
+
+        if (allocated(current_trial_amps)) allocate (amps(size(current_trial_amps, 1)))
 
         if (tReplicaReferencesDiffer) then
             call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)
@@ -668,7 +683,25 @@ contains
         end if
 
         ! Perform normal projection onto reference determinant
-        HOffDiag(1:inum_runs) = HOffDiagCurr
+        if (t_adjoint_replicas) then
+            if (      ExcitLevel_local == 2 &
+                .or. (ExcitLevel_local == 1 .and. tNoBrillouin) &
+                .or. (ExcitLevel_local == 3 &
+                    .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
+                ! Obtain off-diagonal element
+                do run = 1, inum_runs
+                    if(t_evolve_adjoint(part_type_to_run(run))) then
+                        HOffDiag(run) = &
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                    else
+                        HOffDiag(run) = &
+                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
+                    end if
+                end do
+            end if
+        else
+            HOffDiag(1:inum_runs) = HOffDiagCurr
+        endif
 
         ! For the real-space Hubbard model, determinants are only
         ! connected to excitations one level away, and Brillouins
@@ -765,6 +798,7 @@ contains
 
             dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign, run)) / dProbFin
         end function enum_contrib
+
     end subroutine SumEContrib
 
     subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
@@ -931,14 +965,24 @@ contains
                         hoffdiag = hphf_off_diag_helement(ProjEDet(:, run), nI, &
                                                           iLutRef(:, run), ilut)
                     else
-                        hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
+                        if(t_evolve_adjoint(part_type_to_run(run))) then
+                            hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
                                                 ilutRef(:, run), ilut)
+                        else
+                            hoffdiag = get_helement(nI, ProjEDet(:, run), exlevel, &
+                                                ilut, ilutRef(:, run))
+                        end if
                     end if
 
                 else if (exlevel == 3 .and. &
                          (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
-                    hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
+                    if(t_evolve_adjoint(part_type_to_run(run))) then
+                        hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
                                             iLutRef(:, run), ilut)
+                    else
+                        hoffdiag = get_helement(nI, ProjEDet(:, run), exlevel, &
+                                            ilut, iLutRef(:, run))
+                    end if
                 end if
             end if
 
@@ -1235,6 +1279,9 @@ contains
         integer :: crun, nOcc
         real(dp) :: scaledInitiatorWalkNo
         logical :: init_flag
+#ifdef CMPLX_
+        unused_var(run)
+#endif
 
         if (tEScaleWalkers) then
             scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)
@@ -1751,8 +1798,8 @@ contains
         integer :: gc, ierr, icmax, lenhamil, nKry1, nBlock, LScr, LIScr
         integer(n_int) :: ilut(0:NIfTot)
         logical :: tmc, tSuccess
-        real(dp), allocatable :: A_Arr(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), WORK2(:), V2(:, :), W(:)
-        HElement_t(dp), allocatable :: Work(:)
+        real(dp), allocatable :: A_Arr(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), V2(:, :), W(:)
+        HElement_t(dp), allocatable :: Work(:), WORK2(:)
         HElement_t(dp), allocatable :: CkN(:, :), Hamil(:), TruncWavefunc(:)
         HElement_t(dp), allocatable :: Ck(:, :)  !This holds eigenvectors in the end
         HElement_t(dp) :: Num, Denom, HDiagTemp
@@ -1760,11 +1807,12 @@ contains
         integer(TagIntType) :: LabTag = 0, NRowTag = 0, ATag = 0, VTag = 0, AMTag = 0, BMTag = 0, TTag = 0, tagCKN = 0, tagCK = 0
         integer(TagIntType) :: WTTag = 0, SCRTag = 0, ISCRTag = 0, INDEXTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0, tagW = 0
         integer(TagIntType) :: tagHamil = 0, WorkTag = 0
-        integer :: nEval, nBlocks, nBlockStarts(2), ExcitLev, iGetExcitLevel, i, nDoubles
+        integer :: nEval, nBlocks, nBlockStarts(2), ExcitLev, i, nDoubles
         character(*), parameter :: t_r = 'LanczosFindGroundE'
         real(dp) :: norm
         integer :: PartInd, ioTrunc
         character(24) :: abstr
+
 
         if (DetLen > 1300) then
             nEval = 3
@@ -1863,12 +1911,17 @@ contains
             CALL LogMemAlloc('V2', DetLen * NEVAL, 8, t_r, V2Tag, ierr)
             V2 = 0.0_dp
             !C..Lanczos iterative diagonalising routine
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 call stop_all(t_r, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
-          CALL NECI_FRSBLKH(DetLen, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
-             &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false.)
+#ifdef CMPLX_
+            call stop_all(t_r, "not implemented for complex")
+#else
+            CALL NECI_FRSBLKH(DetLen, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, &
+                    NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
+                    SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false.)
+#endif
 
             !Eigenvalues may come out wrong sign - multiply by -1
             if (W(1) > 0.0_dp) then
@@ -1899,7 +1952,7 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = DetLen + 1
             nBlocks = 1
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 call stop_all(t_r, &
                               "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if
@@ -1998,7 +2051,7 @@ contains
         integer :: i
         real(dp) :: sgn
 
-        do i = 1, int(TotWalkers, sizeof_int)
+        do i = 1, int(TotWalkers)
 
             sgn = extract_part_sign(CurrentDets(:, i), part_type)
             sgn = -sgn
@@ -2037,7 +2090,7 @@ contains
             write(stdout, '(A)') 'Diagonalising initiator subspace...'
 
             iSubspaceSize = 0
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 call extract_sign(CurrentDets(:, i), CurrentSign)
                 if ((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
                     (DetBitEQ(CurrentDets(:, i), iLutHF, nifd))) then
@@ -2051,7 +2104,7 @@ contains
             call LogMemAlloc('ExpandedWalkerDets', NEl * iSubspaceSize, 4, t_r, ExpandedWalkTag, ierr)
 
             iSubspaceSize = 0
-            do i = 1, int(TotWalkers, sizeof_int)
+            do i = 1, int(TotWalkers)
                 call extract_sign(CurrentDets(:, i), CurrentSign)
                 if ((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
                     (DetBitEQ(CurrentDets(:, i), iLutHF, nifd))) then
@@ -2075,7 +2128,7 @@ contains
 
         end if
 
-        iSubspaceSizeFull = int(TotWalkers, sizeof_int)
+        iSubspaceSizeFull = int(TotWalkers)
 
         !Allocate memory for walker list.
         write(stdout, '(A)') "Allocating memory for diagonalisation of full walker subspace"
@@ -2207,7 +2260,7 @@ contains
         integer :: ex_level, nI(nel), j
         real(dp) :: sgn(lenof_sign), hdiag
 
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn)) cycle
@@ -2447,17 +2500,7 @@ contains
 
         ! if in guga run, i also need to recreate the list of connected
         ! determinnant to the new reference det
-        if (tGUGA) then
-
-            ! also recreate the stepvector, etc. info stuff for the new
-            ! reference determinant
-            ASSERT(allocated(ref_stepvector))
-            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
-                               ref_occ_vector)
-
-            ref_b_vector_real = real(ref_b_vector_int, dp)
-
-        end if
+        if (tGUGA) call fill_csf_i(ilutRef(:, run), csf_ref(run))
 
         if (tHPHF) then
             if (.not. Allocated(RefDetFlip)) then
@@ -2522,7 +2565,7 @@ contains
             ! new reference det.
             write(stdout, *) 'Regenerating the stored diagonal &
                            &HElements for all walkers.'
-            do i = 1, int(Totwalkers, sizeof_int)
+            do i = 1, int(Totwalkers)
                 call decode_bit_det(det, CurrentDets(:, i))
                 h_tmp =  get_diagonal_matel(det, CurrentDets(:, i))
                 hoff_tmp =  get_off_diagonal_matel(det, CurrentDets(:, i))
@@ -2599,7 +2642,7 @@ contains
         HFAccum = 0.0_dp
         ENumAccum = 0.0_dp
 
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
 
             call extract_sign(CurrentDets(:, j), sgn)
 
@@ -2690,7 +2733,6 @@ contains
     end subroutine
 
     function check_semistoch_flags(ilut_child, nI_child, run, tCoreDet) result(break)
-        use bit_rep_data, only: flag_determ_parent
         integer(n_int), intent(inout) :: ilut_child(0:niftot)
         integer, intent(in) :: nI_child(nel)
         integer, intent(in) :: run

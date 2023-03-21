@@ -2,22 +2,24 @@
 
 module trial_wf_gen
 
-    use bit_rep_data, only: NIfTot, nifd, flag_trial, flag_connected, IlutBits
+    use bit_rep_data, only: NIfTot, nifd, flag_trial, &
+        flag_connected, IlutBits, extract_sign
+    use bit_reps, only: clr_flag
     use CalcData
     use Parallel_neci
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
-    use SystemData, only: nel, tHPHF, t_non_hermitian
+    use SystemData, only: nel, tHPHF, t_non_hermitian_2_body
 
     use guga_data, only: ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element
+    use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitrepops, only: write_det_guga, fill_csf_i
 
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
 
-    implicit none
+    better_implicit_none
 
 contains
 
@@ -124,7 +126,7 @@ contains
 
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
-        tot_trial_space_size = int(sum(trial_counts), sizeof_int)
+        tot_trial_space_size = int(sum(trial_counts))
         write(stdout, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
 
         ! Use SpawnedParts as temporary space:
@@ -299,7 +301,6 @@ contains
         ! pair. For each replica, keep the trial state which has the largest
         ! overlap (by magnitude).
 
-        use bit_reps, only: extract_sign
         use FciMCData, only: ll_node
         use hash, only: hash_table_lookup
 
@@ -476,7 +477,7 @@ contains
 
     subroutine remove_list1_states_from_list2(list_1, list_2, list_1_size, list_2_size)
 
-        use util_mod, only: binary_search
+        use util_mod, only: binary_search_ilut
 
         integer, intent(in) :: list_1_size
         integer, intent(inout) :: list_2_size
@@ -488,7 +489,7 @@ contains
 
         do i = 1, list_2_size
             ! Binary search list_1 to see if list_2(:,i) is in it.
-            pos = binary_search(list_1(:, min_ind:list_1_size), list_2(:, i), NifD + 1)
+            pos = binary_search_ilut(list_1(:, min_ind:list_1_size), list_2(:, i), NifD + 1)
             ! If it is in list 1, remove the state by setting it to 0.
             ! If it isn't in list 1 (pos < 0) then we can still search a smaller list next time.
             if (pos > 0) then
@@ -535,7 +536,7 @@ contains
         HElement_t(dp) :: H_ij
         character(len=*), parameter :: this_routine = "generate_connected_space_vector"
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
 
         con_vecs = 0.0_dp
 
@@ -551,6 +552,7 @@ contains
             do j = 1, size(trial_vecs, 2)
 
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
+                if (tGUGA) csf_j = CSF_Info_t(trial_space(0:NIfTot, j))
 
                 if (all(con_space(0:nifd, i) == trial_space(0:nifd, j))) then
                     if (tHPHF) then
@@ -569,9 +571,10 @@ contains
                         H_ij = hphf_off_diag_helement(nJ, nI, trial_space(:, j), con_space(:, i))
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
-                        ASSERT(.not. t_non_hermitian)
-                        call calc_guga_matrix_element(con_space(:, i), csf_i, trial_space(:, j), &
-                                                      excitInfo, H_ij, .true., 1)
+                        ASSERT(.not. t_non_hermitian_2_body)
+                        call calc_guga_matrix_element(&
+                            con_space(:, i), csf_i, trial_space(:, j), csf_j, &
+                            excitInfo, H_ij, .true.)
 #ifdef CMPLX_
                         H_ij = conjg(H_ij)
 #endif
@@ -685,7 +688,6 @@ contains
         ! Routine to output the trial wavefunction amplitudes and FCIQMC amplitudes in the trial
         ! space. This is a test routine and is very unoptimised.
 
-        use bit_reps, only: extract_sign
         use FciMCData, only: trial_space, trial_space_size, trial_wfs
         use MPI_wrapper, only: root
         use searching, only: BinSearchParts
@@ -697,7 +699,7 @@ contains
         real(dp) :: all_norm_squared, norm_squared, norm
 
         MinInd = 1
-        n_walkers = int(TotWalkers, sizeof_int)
+        n_walkers = int(TotWalkers)
 
         if (tFirstCall) then
             if (iProcIndex == root) then
@@ -757,7 +759,6 @@ contains
 
     subroutine init_current_trial_amps()
 
-        use bit_reps, only: set_flag, decode_bit_det
         use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
         use FciMCData, only: con_space_vecs, current_trial_amps, HashIndex, trial_wfs, nWalkerHashes
         use FciMCData, only: CurrentDets
@@ -980,7 +981,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine refresh_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
-        implicit none
         type(subspace_in) :: trial_in
         integer, intent(in) :: nexcit_calc, nexcit_keep
         logical, intent(in) :: replica_pairs
@@ -996,8 +996,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine reset_trial_space()
-        use bit_reps, only: clr_flag
-        implicit none
         integer(int64) :: i
 
         do i = 1_int64, TotWalkers
@@ -1018,11 +1016,15 @@ contains
         character(*), parameter :: this_routine = 'Set_AS_TrialOffset'
 
         if (replica_pairs) then
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
             ASSERT(nexcit_keep == int(inum_runs / 2.0))
             do i = 1, nexcit_keep
                 ShiftOffset(2 * i - 1) = trial_energies(i)
                 ShiftOffset(2 * i) = trial_energies(i)
             end do
+#else
+            call stop_all(this_routine, "Should not be here")
+#endif
         else
             ASSERT(nexcit_keep == inum_runs)
             ShiftOffset(1:inum_runs) = trial_energies(1:inum_runs)

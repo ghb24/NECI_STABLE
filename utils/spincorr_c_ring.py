@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import print_function
 from functools import reduce
 import numpy
 import scipy.linalg
@@ -63,18 +63,18 @@ def make_dm12(ci0, norb, nelec):
     if 0:
         dm1a = numpy.einsum('iajb->ij', dm1)
         dm2a = numpy.einsum('iajbkalb->ijkl', dm2)
-        print abs(numpy.einsum('ipjp->ij', dm2a)/(sum(nelec)-1) - dm1a).sum()
+        print(abs(numpy.einsum('ipjp->ij', dm2a)/(sum(nelec)-1) - dm1a).sum())
         (dm1a, dm1b), (dm2aa, dm2ab, dm2bb) = \
                 direct_spin1.make_rdm12s(ci0, norb, nelec)
-        print abs(dm1a - dm1[:,0,:,0]).sum()
-        print abs(dm2aa - dm2[:,0,:,0,:,0,:,0].transpose(0,2,1,3)).sum()
-        print abs(dm2ab - dm2[:,0,:,1,:,0,:,1].transpose(0,2,1,3)).sum()
-        print abs(dm2ab.transpose(2,3,0,1) - dm2[:,1,:,0,:,1,:,0].transpose(0,2,1,3)).sum()
-        print abs(dm2bb - dm2[:,1,:,1,:,1,:,1].transpose(0,2,1,3)).sum()
+        print(abs(dm1a - dm1[:,0,:,0]).sum())
+        print(abs(dm2aa - dm2[:,0,:,0,:,0,:,0].transpose(0,2,1,3)).sum())
+        print(abs(dm2ab - dm2[:,0,:,1,:,0,:,1].transpose(0,2,1,3)).sum())
+        print(abs(dm2ab.transpose(2,3,0,1) - dm2[:,1,:,0,:,1,:,0].transpose(0,2,1,3)).sum())
+        print(abs(dm2bb - dm2[:,1,:,1,:,1,:,1].transpose(0,2,1,3)).sum())
         dm2baab = spin_op.make_rdm2_baab(ci0, norb, nelec)
         dm2abba = spin_op.make_rdm2_abba(ci0, norb, nelec)
-        print abs(dm2baab - dm2[:,1,:,0,:,0,:,1].transpose(0,2,1,3)).sum()
-        print abs(dm2abba - dm2[:,0,:,1,:,1,:,0].transpose(0,2,1,3)).sum()
+        print(abs(dm2baab - dm2[:,1,:,0,:,0,:,1].transpose(0,2,1,3)).sum())
+        print(abs(dm2abba - dm2[:,0,:,1,:,1,:,0].transpose(0,2,1,3)).sum())
     return dm1, dm2
 
 
@@ -281,15 +281,15 @@ if __name__ == '__main__':
     iatm = 0
     for iA in range(0, mo_cas.shape[0], nbas_atm):
         mag_opt_act += f_mag_act(range(iA,iA+nbas_atm))
-        print 'active space magnetization on atm {} is {} '.format(iatm,f_mag_act(range(iA,iA+nbas_atm)))
+        print('active space magnetization on atm {} is {} '.format(iatm,f_mag_act(range(iA,iA+nbas_atm))))
         if DoNECI: mag_opt_full += f_mag_full(range(iA,iA+nbas_atm))
         iatm += 1
         for iB in range(0, mo_cas.shape[0], nbas_atm):
 #            ss_dbg += f_dbg(range(iA,iA+nbas_atm), range(iB,iB+nbas_atm))
             ss_opt_act += f_opt_act(range(iA,iA+nbas_atm), range(iB,iB+nbas_atm))
             if DoNECI: ss_opt_full += f_opt_full(range(iA,iA+nbas_atm), range(iB,iB+nbas_atm))
-    print 'Total S^2 of the system (tot, act, full): ',ss_tot, ss_opt_act, ss_opt_full
-    print 'Total Sz of the system (tot, act, full): ',magz_tot, mag_opt_act[0], mag_opt_full[0]
+    print('Total S^2 of the system (tot, act, full): ',ss_tot, ss_opt_act, ss_opt_full)
+    print('Total Sz of the system (tot, act, full): ',magz_tot, mag_opt_act[0], mag_opt_full[0])
 
     #Pick first atom, and examine the spin correlation functions to neighbouring atoms
     iatm = 0
@@ -300,26 +300,26 @@ if __name__ == '__main__':
             probe_act = f_opt_act(range(nbas_atm), range(iB,iB+nbas_atm))
             if DoNECI: probe_full = f_opt_full(range(nbas_atm), range(iB,iB+nbas_atm))
         spincorr_act.append(f_opt_act(range(nbas_atm), range(iB,iB+nbas_atm)))
-        print 'active space spin-corr func to atm {} is {}   {}'.format(iatm,spincorr_act[-1],spincorr_act[-1]/spincorr_act[0])
+        print('active space spin-corr func to atm {} is {}   {}'.format(iatm,spincorr_act[-1],spincorr_act[-1]/spincorr_act[0]))
         if DoNECI: 
             spincorr_full.append(f_opt_full(range(nbas_atm), range(iB,iB+nbas_atm)))
-            print 'full space spin-corr func to atm {} is {}   {}'.format(iatm,spincorr_full[-1],spincorr_full[-1]/spincorr_full[0])
+            print('full space spin-corr func to atm {} is {}   {}'.format(iatm,spincorr_full[-1],spincorr_full[-1]/spincorr_full[0]))
         iatm += 1
 
-    print ''
-    print
+    print('')
+    print()
     if len(spincorr_act) == iatm:
-        print 'Active space spin-correlation function: '
-        print 'Atom         SS-function       Normalized SS-func'
+        print('Active space spin-correlation function: ')
+        print('Atom         SS-function       Normalized SS-func')
         for i in range(iatm):
-            print '{}            {}             {}'.format(i,spincorr_act[i],spincorr_act[i]/spincorr_act[0])
-    print ''
-    print
+            print('{}            {}             {}'.format(i,spincorr_act[i],spincorr_act[i]/spincorr_act[0]))
+    print('')
+    print()
     if len(spincorr_full) == iatm:
-        print 'Full space spin-correlation function: '
-        print 'Atom         SS-function       Normalized SS-func'
+        print('Full space spin-correlation function: ')
+        print('Atom         SS-function       Normalized SS-func')
         for i in range(iatm):
-            print '{}            {}             {}'.format(i,spincorr_full[i],spincorr_full[i]/spincorr_full[0])
+            print('{}            {}             {}'.format(i,spincorr_full[i],spincorr_full[i]/spincorr_full[0]))
 
     with open('spincorrfns','w') as f:
         f.write('# Atom  SS-act  SS-act-norm  SS-full  SS-full-norm\n')

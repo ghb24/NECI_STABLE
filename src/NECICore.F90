@@ -52,7 +52,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     character(*), intent(in), optional :: filename_in, int_name
     integer(int64), intent(in), optional :: MemSize
     type(timer), save :: proc_timer
-    integer :: ios, iunit, iunit2, i, j, isfreeunit, iCacheFlag_
+    integer :: iunit, iunit2, i, j, isfreeunit, iCacheFlag_
     character(*), parameter :: this_routine = 'NECICore'
     character(:), allocatable :: Filename
     logical :: toverride_input, tFCIDUMP_exist, tCPMD_, tVASP_
@@ -127,13 +127,11 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
         end if
     end if
 
-    ios = 0
     if (.not. (tCPMD_ .or. tVASP_)) then
         ! CPMD and VASP calculations call the input parser *before* they call
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
-        call ReadInputMain(Filename, ios, toverride_input, kp)
-        If (ios /= 0) call stop_all(this_routine, 'Error in Read')
+        call ReadInputMain(Filename, toverride_input, kp)
     end if
 
     call MPINodes(tUseProcsAsNodes)  ! Setup MPI Node information - this is dependent upon knowing the job type configurations.
@@ -226,7 +224,7 @@ subroutine NECICodeEnd(tCPMD, tVASP)
     use timing_neci, only: end_timing, print_timing_report
     use SystemData, only: tMolpro, tMolproMimic, called_as_lib, arr, brr, g1, &
                           tagArr, tagBrr, tagG1
-    use Determinants, only: FDet, tagFDet
+    use DeterminantData, only: FDet, tagFDet
 #ifdef USE_MPI
     use Parallel_neci, only: MPIEnd
     USE MolproPlugin
@@ -277,7 +275,7 @@ subroutine NECICalcInit(iCacheFlag)
     use RotateOrbsMod, only: RotateOrbs
     use replica_data, only: init_replica_arrays
     use gen_coul_ueg_mod, only: GEN_Umat_TC, prep_ueg_dump, GEN_Umat_TC_Contact
-    use LMat_mod, only: readLMat
+    use LMat_mod, only: readLMat, setup_tchint_ints
     use guga_init, only: init_guga
     implicit none
     integer, intent(in) :: iCacheFlag
@@ -287,6 +285,7 @@ subroutine NECICalcInit(iCacheFlag)
     ! These are essentially constant arrays available after the input has
     ! been read
     call init_replica_arrays()
+    if (t_mol_3_body) call setup_tchint_ints()
 
 !   Initlialize the system.  Sets up ...
 !   Symmetry is a subset of the system
@@ -392,7 +391,7 @@ subroutine NECICalcEnd(iCacheFlag)
     use Parallel_neci, only: clean_parallel
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel
     use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
-    use Determinants, only: FDet, tagFDet
+    use DeterminantData, only: FDet, tagFDet
     use MemoryManager
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
     use LoggingData, only: tCalcPropEst

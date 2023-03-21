@@ -2,12 +2,25 @@
 ! replace _template by whatever one needs
 program test_lattice_models_utils
 
-    use fruit
-    use lattice_models_utils
-    use constants
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true, assert_equals
+    use lattice_models_utils, only: find_minority_spin, pick_spin_par_elecs, &
+        pick_three_opp_elecs, pick_spin_opp_elecs, make_ilutJ, &
+        get_orb_from_kpoints, get_ispn, get_occ_neighbors, &
+        get_spin_density_neighbors, find_elec_in_ni, &
+        get_orb_from_kpoints_three, create_all_open_shell_dets, &
+        get_spin_opp_neighbors, create_one_spin_basis, calc_n_double, &
+        create_neel_state_chain, create_neel_state, &
+        pick_from_cum_list, combine_spin_basis, set_alpha_beta_spins, &
+        right_most_zero
+    use constants, only: dp, n_int
     use lattice_mod, only: lat
     use dsfmt_interface, only: dsfmt_init
     use SystemData, only: t_k_space_hubbard
+    use lattice_mod, only: lattice
+    use k_space_hubbard, only: setup_nbasismax, setup_g1, setup_kPointToBasisFn
+    use unit_test_helpers, only: setup_arr_brr
+    use SystemData, only: bhub, nn_bhub, nEl, nBasis, nOccBeta, nOccAlpha
 
     implicit none
 
@@ -399,10 +412,6 @@ contains
 
     subroutine get_orb_from_kpoints_three_test
 
-        use lattice_mod, only: lattice
-        use k_space_hubbard
-        use unit_test_helpers, only: setup_arr_brr
-        use SystemData, only: bhub, nn_bhub
         print *, ""
         print *, "testing: get_orb_from_kpoints_three: "
         nel = 4

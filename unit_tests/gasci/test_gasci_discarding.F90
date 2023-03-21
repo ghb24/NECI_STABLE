@@ -1,7 +1,7 @@
 module test_gasci_discarding_mod
-    use fruit
+    use fruit, only: assert_true, assert_false, assert_equals
     use constants, only: dp, n_int, maxExcit
-    use util_mod, only: operator(.div.), operator(.isclose.), near_zero
+    use util_mod, only: operator(.div.), operator(.isclose.), near_zero, stop_all
     use SystemData, only: nEl
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
@@ -44,6 +44,7 @@ contains
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         call exc_generator%init(GAS_spec)
+
         call run_excit_gen_tester( &
             exc_generator, 'discarding GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_dets=n_iters, &
@@ -80,16 +81,14 @@ end module test_gasci_discarding_mod
 
 program test_gasci_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_discarding_mod, only: test_pgen
-
+    use util_mod, only: stop_all
 
     implicit none
-    integer :: failed_count, err
-
-    integer :: n
+    integer :: failed_count
     block
 
         call MPIInit(.false.)

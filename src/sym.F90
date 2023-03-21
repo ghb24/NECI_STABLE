@@ -14,7 +14,7 @@ module sym_mod
 !                    tagSymConjTab, SymReps, SymClasses2, tagSymClasses2, &
 !                    tagSymReps
     use SymData
-    use util_mod, only: int_fmt
+    use util_mod, only: int_fmt, stop_all, neci_flush
     use global_utilities
     use sort_mod
     implicit none
@@ -39,9 +39,8 @@ contains
 ! Note that many symmetry parameters for CPMD-NECI jobs are set in
 ! kpntrep.F in CPMD source.
 
-    FUNCTION SYMPROD(ISYM1, ISYM2)
-        IMPLICIT NONE
-        TYPE(Symmetry) ISYM1, ISYM2
+    elemental FUNCTION SYMPROD(ISYM1, ISYM2)
+        TYPE(Symmetry), intent(in) :: ISYM1, ISYM2
         TYPE(Symmetry) SYMPROD
         TYPE(Symmetry) IS1, IS2
         INTEGER I, J, Abel1(3), Abel2(3)
@@ -102,9 +101,9 @@ contains
         RETURN
     END FUNCTION SYMPROD
 
-    FUNCTION SymConj(s2)
-        IMPLICIT NONE
-        TYPE(Symmetry) s, SymConj, s2
+    elemental FUNCTION SymConj(s2)
+        type(symmetry), intent(in) :: s2
+        TYPE(Symmetry) s, SymConj
         INTEGER i, AbelConj(3)
         if (TAbelian) then
             IF (TwoCycleSymGens) THEN
@@ -157,9 +156,8 @@ contains
         end if
     END SUBROUTINE WRITESYMTABLE
 
-    LOGICAL FUNCTION LSYMSYM(SYM)
-        implicit none
-        Type(Symmetry) SYM
+    LOGICAL elemental FUNCTION LSYMSYM(SYM)
+        Type(Symmetry), intent(in) :: SYM
         if (TAbelian) then
             LSymSym = Sym%s == 0
         else
@@ -218,7 +216,7 @@ contains
 !   we don't have symmetry, so fake it.
                     SymClasses((I + 1) / 2) = 1
                 ELSE
-                    SymClasses((I + 1) / 2) = int(G1(I)%Sym%s, sizeof_int) + 1
+                    SymClasses((I + 1) / 2) = int(G1(I)%Sym%s) + 1
                 end if
             end do
 !   list the symmetry string of each sym label
@@ -1267,9 +1265,8 @@ contains
 !   Other irreps contributing to the symmetry have bits set in
 !   SYM.
 !   e.g. if irreps are a1,a2,b1,b2
-    LOGICAL FUNCTION LCHKSYM(ISYM, JSYM)
-        IMPLICIT NONE
-        TYPE(BASISFN) ISYM, JSYM
+    LOGICAL elemental FUNCTION LCHKSYM(ISYM, JSYM)
+        type(basisfn), intent(in) :: isym, jsym
         INTEGER I
         LCHKSYM = .TRUE.
         DO I = 1, 3
@@ -1319,11 +1316,12 @@ contains
 ! 1 Generic spatial
 
 !   This only works for momentum variables - 1-4
-    SUBROUTINE ADDELECSYM(IEL, G1, NBASISMAX, ISYM)
-        IMPLICIT NONE
-        TYPE(BASISFN) ISYM, G1(*)
-        INTEGER IELEC, nBasisMax(5, *)
-        INTEGER I, IEL, SSYM
+    pure SUBROUTINE ADDELECSYM(IEL, G1, NBASISMAX, ISYM)
+        integer, intent(in) :: iEl, nBasisMax(5, *)
+        TYPE(BASISFN), intent(in) :: G1(*)
+        TYPE(BASISFN), intent(inout) :: ISYM
+
+        integer :: ielec, i, ssym
         ielec = iel
         ssym = 0
         IF (NBASISMAX(1, 3) < 4) THEN
@@ -1351,14 +1349,12 @@ contains
 !   (it is +/-CSF_NSBASIS)
         I = ISYM%MS + 0
         ISYM%Ms = I + SSYM
-        RETURN
     END SUBROUTINE ADDELECSYM
 
-    SUBROUTINE ROUNDSYM(ISYM, NBASISMAX)
-        IMPLICIT NONE
-        TYPE(BasisFN) ISYM
-        INTEGER nBasisMax(5, *)
-        INTEGER I
+    pure subroutine roundsym(isym, nbasismax)
+        type(basisfn), intent(inout) :: isym
+        integer, intent(in) :: nbasismax(5, *)
+        integer :: i
         if (t_new_hubbard .and. t_k_space_hubbard) then
             ! deal differently with the new k-space hubbard
             ! use the lattice intrinsic function
@@ -1435,10 +1431,10 @@ contains
 
 !   My ASCII art isn't up to drawing a picture unfortunately.
 
-    SUBROUTINE MOMPBCSYM(K1, NBASISMAX)
+    pure SUBROUTINE MOMPBCSYM(K1, NBASISMAX)
 !   NB the third column of NBASISMAX tells us whether it is tilted
-        IMPLICIT NONE
-        INTEGER K1(3), nBasisMax(5, *)
+        INTEGER, intent(inout) :: K1(3)
+        INTEGER, intent(in) :: nBasisMax(5, *)
         INTEGER J, LDIM, AX, AY, LENX, LENY, KK2, T1, T2
         real(dp) R1, R2, NORM
         ! [W.D]
@@ -1512,7 +1508,6 @@ contains
                 end if
             end if
         end if
-        RETURN
     END SUBROUTINE MOMPBCSYM
 
     LOGICAL FUNCTION SYMLT(A, B)
@@ -1631,7 +1626,7 @@ contains
         INTEGER NEL, nBasisMax(5, *)
         INTEGER LMS
         TYPE(BasisFN) IPARITY, ISYM, IMax(2)
-        LOGICAL TSPN, TPARITY, TSETUP, TMORE, TDONE, KALLOWED, TMORE2
+        LOGICAL TSPN, TPARITY, TSETUP, TMORE, TDONE, TMORE2
         INTEGER ILEV
         IF (TSETUP) THEN
             IMAX(1) = NullBasisFn
@@ -1752,7 +1747,7 @@ contains
         IMPLICIT NONE
         TYPE(BasisFN) ISym, ISym2
         INTEGER nBasisMax(5, *), IDEGEN, I, J
-        LOGICAL KALLOWED, TDO
+        LOGICAL TDO
         IDEGEN = 0
         IF (NBASISMAX(3, 3) == 0) THEN
 !   Hubbard
@@ -1776,12 +1771,10 @@ contains
     END SUBROUTINE GETSYMDEGEN
 
 !   Initialize symmetry to take into account the core electrons
-    SUBROUTINE SETUPSYM(ISYM)
-        IMPLICIT NONE
-        TYPE(BasisFN) ISym
-        ISym = FrozenSym
-        RETURN
-    END SUBROUTINE SETUPSYM
+    elemental subroutine setupsym(isym)
+        type(basisfn), intent(inout) :: isym
+        isym = frozensym
+    end subroutine setupsym
 
     SUBROUTINE WRITEALLSYM(IUNIT, SYM, LTERM)
         IMPLICIT NONE
@@ -1885,7 +1878,7 @@ contains
 !        CALL N_MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
     END SUBROUTINE GenKPtIrreps
 
-    subroutine DecomposeAbelianSym(ISym, AbelSym)
+    pure subroutine DecomposeAbelianSym(ISym, AbelSym)
         ! Store the symmetry index as integer(int64).  For Abelian symmetry
         ! we need to have 3 numbers stored in this index.  We store
         ! according to isym=\sum_i AbelSym(i)*32768**(i-1).
@@ -1901,21 +1894,18 @@ contains
         ! kpntrep.F in CPMD source.
         ! Decompose the symmetry label back into the appropriate
         ! numbers...
-        implicit none
-        integer(int64) Isym
-        integer AbelSym(3)
+        integer(int64), intent(in) :: Isym
+        integer, intent(out) :: AbelSym(3)
 !RShift
-        AbelSym(3) = int(IShft(Isym, -(PropBitLen * 2)), sizeof_int)
+        AbelSym(3) = int(IShft(Isym, -(PropBitLen * 2)))
 !RShift
-        AbelSym(2) = int(Iand(IShft(ISym, -PropBitLen), 2_int64**PropBitLen - 1), sizeof_int)
-        AbelSym(1) = int(Iand(Isym, 2_int64**PropBitLen - 1), sizeof_int)
-        return
+        AbelSym(2) = int(Iand(IShft(ISym, -PropBitLen), 2_int64**PropBitLen - 1))
+        AbelSym(1) = int(Iand(Isym, 2_int64**PropBitLen - 1))
     end subroutine DecomposeAbelianSym
 
-    integer(int64) function ComposeAbelianSym(AbelSym)
-        implicit none
-        integer AbelSym(3)
-        integer(int64) TempVar
+    integer(int64) pure function ComposeAbelianSym(AbelSym)
+        integer, intent(in) :: AbelSym(3)
+        integer(int64) :: TempVar
         TempVar = AbelSym(3)
 !LShift
         ComposeAbelianSym = IShft(Tempvar, PropBitLen * 2) &
@@ -1923,14 +1913,12 @@ contains
                             + AbelSym(1)
     end function ComposeAbelianSym
 
-    function TotSymRep()
+    pure function TotSymRep()
         ! Our definition of the totally symmetric representation
         ! changes according to whether we're using Abelian/k-point
         ! symmetry or the standard symmetry.  It's just a matter of
         ! convenience, rather than some deep theoretical insight!
-        implicit none
         Type(Symmetry) TotSymRep
-!           if (TAbelian.or.tUEG.or.treal) then
         if (TAbelian .or. tUEG) then
             TotSymRep%s = 0
         else
@@ -1993,7 +1981,7 @@ contains
         do i = 1, Nirrep
             basirrep = SYMLABELCOUNTS(2, i)
             iSize = iSize + (basirrep * (basirrep + 1)) / 2
-            SYMLABELINTSCUM(i) = int(iSize, sizeof_int)
+            SYMLABELINTSCUM(i) = int(iSize)
             IF (i == 1) THEN
                 SYMLABELCOUNTSCUM(i) = 0
             ELSE
@@ -2073,5 +2061,75 @@ contains
             if (.not. momcheck) return
         end do
     end function checkMomentumInvalidity
+
+    LOGICAL FUNCTION KALLOWED(G, NBASISMAX)
+! See if a given G vector is within a (possibly tilted) unit cell.
+! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
+        Type(BasisFN), intent(in) :: G
+        INTEGER nBasisMax(5, *), NMAXX, I, J, AX, AY
+        INTEGER KX, KY
+        real(dp) MX, MY, XX, YY
+        LOGICAL TALLOW
+        TALLOW = .TRUE.
+        IF (NBASISMAX(3, 3) == 1) THEN
+!.. spatial symmetries
+            IF (G%k(1) /= 0) TALLOW = .FALSE.
+        ELSEIF (NBASISMAX(3, 3) == 0) THEN
+!.. Hubbard
+            IF (NBASISMAX(1, 3) == 1) THEN
+!.. Tilted hubbard
+                NMAXX = NBASISMAX(1, 5)
+!         NMAXY=
+                AX = NBASISMAX(1, 4)
+                AY = NBASISMAX(2, 4)
+!.. (XX,YY) is the position of the bottom right corner of the unit cell
+                XX = ((AX + AY) / 2.0_dp) * NMAXX
+                YY = ((AY - AX) / 2.0_dp) * NMAXX
+                MX = XX * AX + YY * AY
+                MY = XX * AY - YY * AX
+                I = G%k(1)
+                J = G%k(2)
+                KX = I * AX + J * AY
+                KY = I * AY - J * AX
+                IF (KX > MX) TALLOW = .FALSE.
+                IF (KY > MY) TALLOW = .FALSE.
+                IF (KX <= -MX) TALLOW = .FALSE.
+                IF (KY <= -MY) TALLOW = .FALSE.
+            ELSEIF (NBASISMAX(1, 3) >= 4 .OR. NBASISMAX(1, 3) == 2) THEN
+!.. Real space Hubbard
+                IF (G%k(1) == 0 .AND. G%k(2) == 0 .AND. G%k(3) == 0) THEN
+                    TALLOW = .TRUE.
+                ELSE
+                    TALLOW = .FALSE.
+                END IF
+!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!.. mom space non-pbc non-tilt hub - parity sym
+!          IF(  (G(1).EQ.0.OR.G(1).EQ.1)
+!     &       .AND.(G(2).EQ.0.OR.G(2).EQ.1)
+!     &       .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
+!              TALLOW=.TRUE.
+!          ELSE
+!              TALLOW=.FALSE.
+!          ENDIF
+!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!.. non-pbc hubbard
+!          TALLOW=.TRUE.
+!          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
+!     &       TALLOW=.FALSE.
+!          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
+!     &       TALLOW=.FALSE.
+!          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
+!     &       TALLOW=.FALSE.
+            ELSE
+!.. Normal Hubbard
+                TALLOW = .TRUE.
+                IF (G%k(1) > NBASISMAX(1, 2) .OR. G%k(1) < NBASISMAX(1, 1)) TALLOW = .FALSE.
+                IF (G%k(2) > NBASISMAX(2, 2) .OR. G%k(2) < NBASISMAX(2, 1)) TALLOW = .FALSE.
+                IF (G%k(3) > NBASISMAX(3, 2) .OR. G%k(3) < NBASISMAX(3, 1)) TALLOW = .FALSE.
+            END IF
+        END IF
+        KALLOWED = TALLOW
+        RETURN
+    END FUNCTION KALLOWED
 
 end module sym_mod

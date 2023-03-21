@@ -3,6 +3,7 @@ SUBROUTINE InitDFBasis(nBasisMax, Len)
     use SystemData, only: tStoreSpinOrbs
     use constants, only: dp, sp, stdout
     use UMatCache
+    use util_mod, only: stop_all
     implicit none
     integer nBasisMax(5, *), Len
     character(*), parameter :: C_file = 'SAV_D____a'
@@ -13,7 +14,7 @@ SUBROUTINE InitDFBasis(nBasisMax, Len)
     character(*), parameter :: this_routine = 'InitDFBasis'
 
     file_status = 'ADD'
-    call stop_all(this_routine, "Reading in of SITUS DF files depreciated")
+    call stop_all(this_routine, "Reading in of SITUS DF files deprecated")
 !         call init_record_handler(C_file,file_status,info)
 !         call query_record_handler(C_file,info,file_status,lenrec,nrec,.TRUE.)
 !.. lenrec is the number of auxiliary basis functions
@@ -45,6 +46,7 @@ SUBROUTINE ReadDF2EIntegrals(nBasis, nOrbUsed)
     use global_utilities
     use UMatCache
     use constants, only: dp, sp, stdout
+    use util_mod, only: stop_all
     implicit none
     character(*), parameter :: C_file = 'SAV_D____a'
     character(*), parameter :: I_file = 'SAV_T____a'
@@ -58,7 +60,7 @@ SUBROUTINE ReadDF2EIntegrals(nBasis, nOrbUsed)
     integer nBasis, nOrbUsed, ierr
     character(*), parameter :: this_routine = 'ReadDF2EIntegrals'
 
-    call stop_all(this_routine, "Reading in of SITUS DF files depreciated")
+    call stop_all(this_routine, "Reading in of SITUS DF files deprecated")
     write(stdout, *) "Opening Density fitting matrix files"
     file_status = 'ADD'
 !.. We've already got C_file open
@@ -151,6 +153,7 @@ END
 SUBROUTINE GetDF2EInt(a, b, c, d, res)
     use constants, only: dp
     use UMatCache
+    use util_mod, only: stop_all
     implicit none
     integer a, b, c, d
     integer i, j, GetDFIndex
@@ -329,6 +332,7 @@ SUBROUTINE DFCalcInvFitInts(dPower)
     use UMatCache
     use global_utilities
     use MemoryManager, only: TagIntType
+    use util_mod, only: stop_all
     implicit none
     real(dp), Pointer :: M(:, :) !(nAuxBasis,nAuxBasis)
     real(dp) Eigenvalues(nAuxBasis), r, dPower

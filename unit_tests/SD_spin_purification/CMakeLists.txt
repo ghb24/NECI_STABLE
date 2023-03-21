@@ -1,1 +1,1 @@
-add_unit_test(SD_spin_purification)
+add_unit_test(neci SD_spin_purification)

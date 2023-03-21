@@ -16,9 +16,7 @@ module guga_procedure_pointers
     private
 
     public :: general_weight_dummy, general_weight_zero, pickorbitals_single, &
-              pickorbitals_double, calc_orbital_pgen_contr, calc_mixed_contr, &
-              calc_mixed_start_r2l_contr, calc_mixed_end_l2r_contr, &
-              calc_mixed_start_l2r_contr, calc_mixed_end_r2l_contr, &
+              pickorbitals_double, calc_orbital_pgen_contr, &
               pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
               calc_off_diag_guga_ref, &
               calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
@@ -50,7 +48,7 @@ module guga_procedure_pointers
             real(dp), intent(out) :: above_cpt, below_cpt
         end subroutine calc_orbital_pgen_contr_t
 
-        subroutine calc_mixed_contr_t(ilut, t, csf_i, excitInfo, pgen, integral)
+        subroutine calc_mixed_contr_t(ilut, csf_i, t, excitInfo, pgen, integral)
             import :: dp, n_int, CSF_Info_t, GugaBits, ExcitationInformation_t
             implicit none
             integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot), &
@@ -122,11 +120,6 @@ module guga_procedure_pointers
     procedure(PickOrbitals_t), pointer :: pickOrbitals_single => null()
     procedure(PickOrbitals_t), pointer :: pickOrbitals_double => null()
     procedure(calc_orbital_pgen_contr_t), pointer :: calc_orbital_pgen_contr => null()
-    procedure(calc_mixed_contr_t), pointer :: calc_mixed_contr => null()
-    procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_start_l2r_contr => null()
-    procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_start_r2l_contr => null()
-    procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_end_r2l_contr => null()
-    procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_end_l2r_contr => null()
 
     procedure(pick_first_orbital_t), pointer :: pick_first_orbital => null()
     procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_3 => null()

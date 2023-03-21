@@ -17,7 +17,8 @@ calc
 
     totalwalkers   1000
 
-    tau 0.005
+    tau-values \
+        start user-defined 0.005
     load-balance-blocks off
     nmcyc 3000
 

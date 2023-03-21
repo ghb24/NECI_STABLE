@@ -43,14 +43,14 @@ Here is an example how to use the module:
 	p = PBSQuery()
 	nodes = p.getnodes()
 	for name,node in nodes.items():
-	    print name
+	    print(name)
 	    if node.is_free():
-	       print node, node['state']
+	       print(node, node['state'])
 
 	l = [ 'state', 'np' ]
 	nodes = p.getnodes(l)
 	for name,node in nodes.items():
-	       print node, node['state']
+	       print(node, node['state'])
 
 The parameter 'attributes' is an python list of resources that 
 you are interested in, eg: only show state of nodes
@@ -58,6 +58,8 @@ you are interested in, eg: only show state of nodes
 	l.append('state')
 	nodes = p.getnodes(l)
 """
+
+from __future__ import print_function
 import pbs
 import UserDict
 import string
@@ -281,30 +283,30 @@ def main():
 	p = PBSQuery() 
 	serverinfo = p.get_serverinfo()
 	for server in serverinfo.keys():
-		print server, ' version: ', serverinfo[server].get_version()
+		print(server, ' version: ', serverinfo[server].get_version())
 	for resource in serverinfo[server].keys():
-		print '\t ', resource, ' = ', serverinfo[server][resource]
+		print('\t ', resource, ' = ', serverinfo[server][resource])
 
 	queues = p.getqueues()
 	for queue in queues.keys():
-		print queue
+		print(queue)
 		if queues[queue].is_execution():
-			print '\t ', queues[queue]
+			print('\t ', queues[queue])
 		if queues[queue].has_key('acl_groups'):
-			print '\t acl_groups: yes'
+			print('\t acl_groups: yes')
 		else:
-			print '\t acl_groups: no'
+			print('\t acl_groups: no')
 
 	jobs = p.getjobs()
 	for name,job in jobs.items():
 		if job.is_running():
-			print job
+			print(job)
 
 	l = ['state']
 	nodes = p.getnodes(l)
 	for name,node in nodes.items():
 		if node.is_free(): 
-			print node
+			print(node)
 
 if __name__ == "__main__":
 	main()

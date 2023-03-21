@@ -1,15 +1,30 @@
-macro (add_unit_test test_name)
+macro (add_unit_test _config test_name)
+        set (extra_args ${ARGN}) # optional extra libs
+        neci_add_test(
+            TARGET test_${_config}_${test_name}
+        SOURCES
+            test_${test_name}.F90
+        LIBS
+            lib${_config} fruit ${extra_args}
+        LINKER_LANGUAGE
+            Fortran
+        META_TARGET
+            test_${_config}
+        PRIVATE_INCLUDES
+            "${MPI_Fortran_INCLUDE_PATH}"
+            "${HDF5_NECI_INCLUDE_PATH}"
+        DEFINITIONS
+            "${NECI_GLOBAL_DEFINES}"
+            "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+        WARNERR
+            ${${PROJECT_NAME}_${_config}_WARNERR}
+        )
+endmacro()
 
-          neci_add_test(
-    	    TARGET test_neci_${test_name}
-	    SOURCES test_${test_name}.F90
-	    LIBS libneci fruit
-	    LINKER_LANGUAGE Fortran
-	    META_TARGET test_neci
-	    DEFINITIONS
-	    	    "${${PROJECT_NAME}_neci_DEFINITIONS}"
-	)
-
+macro (add_unit_test_all_configs test_name)
+    foreach( _config ${${PROJECT_NAME}_CONFIGURATIONS} )
+        add_unit_test( ${_config} ${test_name} )
+    endforeach()
 endmacro()
 
 # Make some stuff available to all the tests
@@ -52,7 +67,7 @@ add_subdirectory( guga )
 
 add_subdirectory( impurity_excit_gen )
 
-add_subdirectory( pcpp_excitgen)
+add_subdirectory( excitgen)
 
 add_subdirectory( gdata_io )
 
@@ -69,3 +84,11 @@ add_subdirectory( shared_array )
 add_subdirectory( SD_spin_purification )
 
 add_subdirectory( lib )
+
+add_subdirectory( input_parser )
+
+add_subdirectory( util_mod )
+
+add_subdirectory( hdf5_shared_array )
+
+add_subdirectory( sampler )

@@ -1,1 +1,1 @@
-add_unit_test(shared_array)
+add_unit_test(neci shared_array)

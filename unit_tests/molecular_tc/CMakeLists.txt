@@ -1,2 +1,2 @@
-add_unit_test(molecular_tc)
-add_unit_test(tc_freeze)
+add_unit_test(neci molecular_tc)
+add_unit_test(neci tc_freeze)

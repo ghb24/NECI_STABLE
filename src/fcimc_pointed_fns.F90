@@ -12,11 +12,10 @@ module fcimc_pointed_fns
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
-                        RealCoeffExcitThresh, tau, DiagSft, &
+                        RealCoeffExcitThresh, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
-                        t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, &
+                        t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        t_hist_tau_search_option, &
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
@@ -24,6 +23,7 @@ module fcimc_pointed_fns
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
+    use sparse_arrays, only: t_evolve_adjoint
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, count_open_orbs
 
@@ -31,8 +31,11 @@ module fcimc_pointed_fns
 
     use bit_rep_data, only: NIfTot, test_flag
 
-    use tau_search, only: log_death_magnitude, fill_frequency_histogram_nosym_diff, &
-                          fill_frequency_histogram_nosym_nodiff, log_spawn_magnitude
+    use tau_main, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
+        log_death_magnitude, tau
+    use tau_search_conventional, only: log_spawn_magnitude
+    use tau_search_hist, only: t_fill_frequency_hists, fill_frequency_histogram_4ind, &
+        fill_frequency_histogram_sd, fill_frequency_histogram
 
     use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run, writebitdet
 
@@ -40,11 +43,12 @@ module fcimc_pointed_fns
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
     use UMatCache, only: UMatInd, gtID
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod
     use FciMCData
     use constants
 
-    use bit_reps, only: nifguga
+    use bit_rep_data, only: nifguga
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
 
@@ -55,9 +59,6 @@ module fcimc_pointed_fns
 
     use real_time_data, only: runge_kutta_step, t_real_time_fciqmc
 
-    use tau_search_hist, only: fill_frequency_histogram_4ind, &
-                               fill_frequency_histogram_sd, &
-                               fill_frequency_histogram
 
     use excit_gen_5, only: pgen_select_a_orb
 
@@ -227,10 +228,20 @@ contains
         temp_ex(1, :) = ex(2, :)
         temp_ex(2, :) = ex(1, :)
 
-        ! We actually want to calculate Hji - take the complex conjugate,
-        ! rather than swap around DetCurr and nJ.
-        rh_used = get_spawn_helement(nJ, DetCurr, ilutnJ, iLutCurr, ic, temp_ex, &
-                                     tParity, HElGen)
+        ! Compile-time optimization: Transposing H for specific replicas only
+        ! makes sense if having more than one replica
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
+        if(t_evolve_adjoint(part_type_to_run(part_type))) then
+            rh_used = get_spawn_helement(nJ, DetCurr, ilutnJ, iLutCurr, ic, temp_ex, &
+                tParity, HElGen)
+        else
+
+#endif
+            rh_used = get_spawn_helement(DetCurr, nJ, ilutCurr, ilutnJ, ic, ex, &
+                tParity, HElGen)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
+        endif
+#endif
 
         ! assign the matrix element
         HElGen = abs(rh_used)
@@ -390,8 +401,11 @@ contains
             end if
 #endif
 
-            if (tGUGA .and. t_precond_hub .and. abs(Eii_curr) > 10.0_dp) then
-                nSpawn = nSpawn / (1.0_dp + dble(Eii_curr))
+            if (tGUGA .and. t_precond_hub) then
+                ! Because there is no short circuiting in Fortran... :-(
+                if (abs(Eii_curr) > 10.0_dp) then
+                    nSpawn = nSpawn / (1.0_dp + real(Eii_curr, dp))
+                end if
             end if
 
             ! [Werner Dobrautz 4.4.2017:]
@@ -411,7 +425,7 @@ contains
 
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+            if (tau_search_method /= possible_tau_search_methods%OFF .or. tFillingStochRDMonFly) then
                 ! in the back-spawning i have to adapt the probabilites
                 ! back, to be sure the time-step covers the changed
                 ! non-initiators spawns!
@@ -636,7 +650,7 @@ contains
 
         if (any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then
-                if (tSearchTauOption .or. t_hist_tau_search_option) then
+                if ((tau_search_method /= possible_tau_search_methods%OFF) .or. t_scale_tau_to_death) then
                     ! If we are early in the calculation, and are using tau
                     ! searching, then this is not a big deal. Just let the
                     ! searching deal with it

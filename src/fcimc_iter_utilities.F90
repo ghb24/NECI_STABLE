@@ -4,18 +4,23 @@ module fcimc_iter_utils
 
     use SystemData, only: nel, tHPHF, tNoBrillouin, tRef_Not_HF
     use CalcData, only: tSemiStochastic, tChangeProjEDet, tTrialWavefunction, &
-                        tCheckHighestPopOnce, tRestartHighPop, StepsSft, tau, &
+                        tCheckHighestPopOnce, tRestartHighPop, StepsSft, &
                         tTruncInitiator, tJumpShift, TargetGrowRate, &
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, SftDamp2, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option, tSkipRef, N0_Target, &
-                        tSpinProject, &
+                        qmc_trial_wf, nEquilSteps, &
+                        tSkipRef, N0_Target, tSpinProject, &
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
+
+    use tau_main, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
+        tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        tau_stop_method, end_of_search_reached, scale_tau_to_death, tau, &
+        stop_tau_search
+    use tau_search_hist, only: t_fill_frequency_hists
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
@@ -26,7 +31,7 @@ module fcimc_iter_utils
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
                            AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput, &
                            t_measure_local_spin
-    use tau_search, only: update_tau
+    use tau_search_conventional, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
     use fcimc_initialisation
@@ -48,6 +53,7 @@ module fcimc_iter_utils
 
     use local_spin, only: all_local_spin, inst_local_spin, rezero_local_spin_stats
 
+    use PopsfileMod, only: ChangeRefDet
 
     implicit none
 
@@ -120,15 +126,12 @@ contains
             tRestart = .false.
             do run = 1, inum_runs
                 if (near_zero(sum(AllTotParts(min_part_type(run):max_part_type(run))))) then
-                    write(stdout, "(A)") "All particles have died. Restarting."
-                    tRestart = .true.
-                    exit
+                    call stop_all(t_r, "All particles have died. Aborting.")
                 end if
             end do
 #else
             if (near_zero(AllTotParts(1)) .or. near_zero(AllTotParts(inum_runs))) then
-                write(stdout, "(A)") "All particles have died. Restarting."
-                tRestart = .true.
+                call stop_all(t_r, "All particles have died. Aborting.")
             else
                 tRestart = .false.
             end if
@@ -232,7 +235,7 @@ contains
                 end if
                 allocate(TempSpawnedParts(0:nifd, TempSpawnedPartsSize), &
                           stat=ierr, source=0_n_int)
-                call LogMemAlloc('TempSpawnedParts', size(TempSpawnedParts), tbs_(TempSpawnedParts), &
+                call LogMemAlloc('TempSpawnedParts', size(TempSpawnedParts, kind=int64), size_per_element(TempSpawnedParts), &
                                  this_routine, TempSpawnedPartsTag, ierr)
                 write (6, "(' Allocating temporary array for walkers spawned &
                            &from a particular Di.')")
@@ -319,7 +322,7 @@ contains
 !                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
 !                                    int(proc_highest(run),n_int))
                     call MPIBcast(HighestPopDet(0:NIfTot, run), NIfTot + 1, &
-                                  int(proc_highest(run), sizeof_int))
+                                  int(proc_highest(run)))
 
                     call update_run_reference(HighestPopDet(:, run), run)
 
@@ -360,7 +363,7 @@ contains
 !                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
 !                                    int(proc_highest(run),n_int))
                     call MPIBcast(HighestPopDet(:, run), NIfTot + 1, &
-                                  int(proc_highest(run), sizeof_int))
+                                  int(proc_highest(run)))
 
                     call update_run_reference(HighestPopDet(:, run), run)
 
@@ -796,22 +799,23 @@ contains
         ! We should update tau searching if it is enabled, or if it has been
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
-        if (.not. tSearchTau) then
-            call MPIAllLORLogical(tSearchTauDeath, ltmp)
-            tSearchTauDeath = ltmp
+        if (t_scale_tau_to_death .and. tau_search_method == possible_tau_search_methods%OFF) then
+            call MPIAllLORLogical(scale_tau_to_death_triggered, ltmp)
+            scale_tau_to_death_triggered = ltmp
         end if
 
         ! for now with the new tau-search also update tau in variable shift
         ! mode..
-        if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) &
-            .and. (.not. tFillingStochRDMOnFly))) then
-
-            call update_tau()
-
-            ! [Werner Dobrautz 4.4.2017:]
-        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) &
-            .and. (.not. tFillingStochRDMonFly))) then
-            call update_tau_hist()
+        if (.not. tFillingStochRDMOnFly) then
+            if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
+                call update_tau()
+            else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                call update_tau_hist()
+            else if (scale_tau_to_death_triggered) then
+                ASSERT(tau_search_method == possible_tau_search_methods%OFF)
+                ASSERT(t_scale_tau_to_death)
+                call scale_tau_to_death()
+            end if
         end if
 
         ! quick fix for the double occupancy:
@@ -935,15 +939,15 @@ contains
             do run = 1, inum_runs
                 lb = min_part_type(run)
                 ub = max_part_type(run)
-                if (iter_data%tot_parts_old(lb) > 0) then
-                    AllGrowRateRe(run) = (iter_data%update_growth_tot(lb) + &
-                                          iter_data%tot_parts_old(lb)) / &
-                                          iter_data%tot_parts_old(lb)
+                if (.not. near_zero(iter_data%tot_parts_old(lb))) then
+                    AllGrowRateRe(run) = &
+                        (iter_data%update_growth_tot(lb) + iter_data%tot_parts_old(lb)) &
+                        / iter_data%tot_parts_old(lb)
                 end if
-                if (iter_data%tot_parts_old(ub) > 0) then
-                    AllGrowRateIm(run) = (iter_data%update_growth_tot(ub) + &
-                                          iter_data%tot_parts_old(ub)) / &
-                                          iter_data%tot_parts_old(ub)
+                if (.not. near_zero(iter_data%tot_parts_old(ub))) then
+                    AllGrowRateIm(run) = &
+                        (iter_data%update_growth_tot(ub) + iter_data%tot_parts_old(ub)) &
+                        / iter_data%tot_parts_old(ub)
                 end if
             end do
 #endif
@@ -1134,17 +1138,26 @@ contains
                                 !Calculate the shift required to keep the HF population constant
 
                                 AllHFGrowRate(run) = abs(AllHFCyc(run) / real(StepsSft, dp)) / abs(OldAllHFCyc(run))
-
-                                DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
-                                               (Tau * StepsSft)
-                            else
-                                !"write(stdout,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
-                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
-                                               (Tau * StepsSft)
-                                if (tTargetShiftdamp) then
+                                if (.not. near_zero(AllHFGrowRate(run))) then
+                                    DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
+                                                   (Tau * StepsSft)
+                                else
+                                    call stop_all(this_routine, "Shift undefined because HF growth rate is zero. Aborting.")
+                                end if
+                            else if (tTargetShiftdamp) then
+                                if (.not. near_zero(AllGrowRate(run)) .and. .not. near_zero(AllWalkers(run))) then
                                     DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp + &
-                                                       log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
-                                                       (Tau * StepsSft)
+                                                   log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
+                                                   (Tau * StepsSft)
+                                else
+                                    call stop_all(this_routine, "Shift undefined because walker growth rate is zero. Aborting.")
+                                end if
+                            else
+                                if (.not. near_zero(AllGrowRate(run))) then
+                                    DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
+                                                   (Tau * StepsSft)
+                                else
+                                    call stop_all(this_routine, "Shift undefined because walker growth rate is zero. Aborting.")
                                 end if
                             end if
                         end if
@@ -1236,13 +1249,14 @@ contains
         do run = 1, inum_runs
             if (.not. tSinglePartPhase(run)) then
                 TargetGrowRate(run) = 0.0_dp
-                if (tPreCond) then
-                    if (iter > 80) tSearchTau = .false.
-                else
-                    tSearchTau = .false.
-                end if
             end if
         end do
+
+        if (tau_search_method /= possible_tau_search_methods%off) then
+            if (end_of_search_reached(tau_search_method, tau_stop_method)) then
+                call stop_tau_search(tau_stop_method)
+            end if
+        end if
     end subroutine update_shift
 
     subroutine rezero_output_stats()
@@ -1460,7 +1474,7 @@ contains
 
         trial_count = 0
         total_amp = 0.0
-        do j = 1, int(TotWalkers, sizeof_int)
+        do j = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, j), SignCurr)
             if (.not. IsUnoccDet(SignCurr) .and. test_flag(CurrentDets(:, j), flag_trial)) then
                 trial_count = trial_count + 1

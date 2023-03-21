@@ -9,11 +9,33 @@
 ! unit test module which tests all the functionality of a other module
 program test_k_space_hubbard
 
-    use k_space_hubbard
+    use k_space_hubbard, only: get_diag_helement_k_sp_hub, &
+        init_three_body_const_mat, init_two_body_trancorr_fac_matrix, &
+        get_j_opt, init_get_helement_k_space_hub, setup_k_space_hub_sym, &
+        init_tmat_kspace, setup_g1, setup_nbasismax, &
+        setup_k_total, setup_kPointToBasisFn, setup_tmat_k_space, &
+        get_offdiag_helement_k_sp_hub, get_helement_k_space_hub, &
+        initialize_excit_table, get_3_body_helement_ks_hub, &
+        check_momentum_sym, make_triple, two_body_transcorr_factor, &
+        epsilon_kvec, three_body_transcorr_fac, same_spin_transcorr_factor, &
+        get_helement_k_space_hub_general, get_helement_k_space_hub_ex_mat, &
+        n_opp, three_body_prefac, create_ab_list_hubbard, &
+        calc_pgen_k_space_hubbard, gen_parallel_double_hubbard, &
+        gen_triple_hubbard, pick_a_orbital_hubbard, &
+        pick_ab_orbitals_hubbard, pick_bc_orbitals_hubbard, &
+        create_ab_list_par_hubbard, pick_ab_orbitals_par_hubbard, &
+        create_bc_list_hubbard, calc_pgen_k_space_hubbard_transcorr, &
+        calc_pgen_k_space_hubbard_par, calc_pgen_k_space_hubbard_triples, &
+        gen_excit_k_space_hub, gen_excit_uniform_k_space_hub_test, &
+        gen_excit_k_space_hub_transcorr_test
 
-    use constants
+    use constants, only: dp, infinity, lenof_sign, PI, n_int, EPS, maxExcit
 
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals, &
+        assert_true
+
+    use util_mod, only: stop_all, near_zero
 
     use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, &
                           t_trans_corr, G1, nBasisMax, nOccBeta, nOccAlpha, &
@@ -21,13 +43,14 @@ program test_k_space_hubbard
                           t_trans_corr, t_trans_corr_2body, trans_corr_param, &
                           thub, tpbc, treal, ttilt, TSPINPOLAR, &
                           tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym, &
-                          t_twisted_bc, twisted_bc, arr, brr, lms, lattice_type, &
+                          t_twisted_bc, twisted_bc, lms, lattice_type, &
                           length_x, length_y
 
-    use bit_rep_data, only: niftot, nifd
+    use bit_rep_data, only: niftot
 
     use lattice_mod, only: lat, lattice, get_helement_lattice_general, &
-                           get_helement_lattice_ex_mat, get_helement_lattice
+                           get_helement_lattice_ex_mat, get_helement_lattice, &
+                           init_dispersion_rel_cache
 
     use dsfmt_interface, only: dsfmt_init
 
@@ -37,17 +60,19 @@ program test_k_space_hubbard
 
     use IntegralsData, only: umat
 
-    use DetBitOps, only: EncodeBitDet, findbitexcitlevel
+    USE OneEInts, only: TMAT2D
 
-    use fcimcdata, only: pDoubles, pParallel
+    use DetBitOps, only: EncodeBitDet, findbitexcitlevel, getbitexcitation
+
+    use fcimcdata, only: pDoubles, pParallel, excit_gen_store_type
 
     use sort_mod, only: sort
 
-    use util_mod, only: choose, get_free_unit
+    use util_mod, only: get_free_unit
 
     use bit_reps, only: decode_bit_det, encode_sign, writebitdet
 
-    use SymExcitDataMod, only: kTotal
+    use SymExcitDataMod, only: kTotal, KPointToBasisFn
 
     use lanczos_wrapper, only: frsblk_wrapper
 
@@ -70,6 +95,10 @@ program test_k_space_hubbard
     use bit_reps, only: init_bit_rep
 
     use ras, only: sort_orbitals
+
+    use Determinants, only: WriteDetBit
+
+    use excit_mod, only: GetExcitation, FindExcitDet
 
     implicit none
 
@@ -174,7 +203,6 @@ contains
         real(dp), allocatable :: J_vec(:), U_vec(:)
         integer :: i, n_eig, m
         real(dp), allocatable :: e_values(:), e_vecs(:,:)
-        real(dp) :: k1(2),k2(2), k_vec(3)
         integer ::  n_excits, k, iunit, l, iunit2
         integer(n_int), allocatable :: excits(:,:)
         real(dp) :: sum_doubles, sum_doubles_trans
@@ -202,7 +230,7 @@ contains
         integer :: l_norm, n_excited_states
         logical :: t_exact_propagation, t_optimize_j, t_do_exact_transcorr
         logical :: t_input_l, t_input_lattice, t_input_ref, t_input_nel
-        real(dp) :: timestep, j_opt, tmp_hel
+        real(dp) :: timestep, j_opt
         real(dp), allocatable :: sign_list(:)
 
         tmp_sign = 0.0_dp
@@ -307,11 +335,8 @@ contains
             read(*,*) twisted_bc(1)
             print *, "input y-twist: "
             read(*,*) twisted_bc(2)
-            if (all(twisted_bc == 0)) then
-                t_twisted_bc = .false.
-            else
-                t_twisted_bc = .true.
-            end if
+
+            t_twisted_bc = .not. all(near_zero(twisted_bc))
         else
             t_twisted_bc = .false.
             twisted_bc = 0.0_dp
@@ -922,14 +947,14 @@ contains
 
         if (t_exact_propagation) then
             call setup_system(lat, nI, J, U, hilbert_space)
-            call do_exact_propagation(hilbert_space, timestep, J, U, l_norm, n_excited_states)
+            call do_exact_propagation(hilbert_space, timestep, J, l_norm, n_excited_states)
         end if
 
         call stop_all("here", "now")
 
     end subroutine exact_study
 
-    subroutine do_exact_propagation(hilbert_space, tau, J_param, U_param, l_norm, n_states)
+    subroutine do_exact_propagation(hilbert_space, tau, J_param, l_norm, n_states)
         ! do an exact imaginary time-propagation of a given hamiltonian,
         ! constructed from the hilbert_space, J and U.
         ! tau specifies the time-step used
@@ -937,12 +962,12 @@ contains
         ! n_states specifies how many states we want to calculate
         integer, intent(in) :: hilbert_space(:,:)
         real(dp) :: tau
-        real(dp), intent(in) :: J_param, U_param
+        real(dp), intent(in) :: J_param
         integer, intent(inout) :: l_norm, n_states
         character(*), parameter :: this_routine = "do_exact_propagation"
 
         HElement_t(dp), allocatable :: hamil(:,:), hamil_conj(:,:)
-        integer :: size_hilbert, i, n_iters, k, l, m
+        integer :: size_hilbert, i, n_iters, k, l
         real(dp), allocatable :: Psi_R(:,:), Psi_L(:,:), shift_R(:), shift_mat_R(:,:), shift_L(:)
         real(dp), allocatable :: l1_norm_0_R(:), l1_norm_1_R(:), l2_norm_0_R(:), l2_norm_1_R(:)
         real(dp), allocatable :: l1_norm_0_L(:), l1_norm_1_L(:), l2_norm_0_L(:), l2_norm_1_L(:)
@@ -953,12 +978,11 @@ contains
         integer, allocatable :: sort_ind(:)
         logical :: t_shoelace, t_normalize, t_neci, t_output
         integer :: ind, iunit, iunit2
-        real(dp) :: alpha, corr, fI_i, d_ij, corr_E, fI_j, overlap, projE
-        real(dp), allocatable :: overlap_mat_exact(:,:), overlap_mat_neci(:,:), &
+        real(dp) :: alpha, corr, fI_i, corr_E, fI_j, overlap, projE
+        real(dp), allocatable :: overlap_mat_exact(:,:), &
                                  overlap_values(:), overlap_vecs(:,:), &
-                                 overlap_val_neci(:), overlap_vecs_neci(:,:), &
                                  Psi_est(:,:), rotated_basis(:,:), rot_mat(:,:), &
-                                 gs_vec(:,:), e0_prop(:), shift_e0_prop(:)
+                                 e0_prop(:), shift_e0_prop(:)
 
         n_iters = 10000
         shift_damp = 1.0_dp
@@ -1521,9 +1545,8 @@ contains
 #ifndef CMPLX_
     subroutine test_3e_4orbs_par
 
-        integer :: hilbert_nI(3,6), i, j, work(18), info, nI(3), n_states
-        HElement_t(dp) :: hamil(6,6), hamil_trancorr(6,6), tmp_hamil(6,6)
-        real(dp) :: ev_real(6), ev_cmpl(6), left_ev(1,6), right_ev(1,6)
+        integer :: hilbert_nI(3,6), nI(3), n_states
+        HElement_t(dp) :: hamil(6,6), hamil_trancorr(6,6)
         real(dp) :: t_mat(6,6), trans_mat(6,6)
         integer, allocatable :: test_hilbert(:,:)
         integer(n_int), allocatable :: dummy(:,:)
@@ -1580,9 +1603,8 @@ contains
 
     subroutine test_3e_4orbs_trip
 
-        integer :: hilbert_nI(3,6), i, j, work(18), info
-        HElement_t(dp) :: hamil(6,6), hamil_trancorr(6,6), tmp_hamil(6,6)
-        real(dp) :: ev_real(6), ev_cmpl(6), left_ev(1,6), right_ev(1,6)
+        integer :: hilbert_nI(3,6)
+        HElement_t(dp) :: hamil(6,6), hamil_trancorr(6,6)
         real(dp) :: t_mat(6,6), trans_mat(6,6)
 
         nOccBeta = 1
@@ -1627,9 +1649,7 @@ contains
     subroutine test_4e_ms0_mom_1
 
         integer :: hilbert_nI(4,8)
-        HElement_t(dp) :: hamil(8,8),hamil_trancorr(8,8), tmp_hamil(8,8)
-        real(dp) :: ev_real(8), ev_cmpl(8), left_ev(1,8), right_ev(1,8)
-        integer :: work(24), info, n
+        HElement_t(dp) :: hamil(8,8),hamil_trancorr(8,8)
         real(dp) :: t_mat(8,8), trans_mat(8,8)
 
         nOccBeta = 2
@@ -1674,15 +1694,8 @@ contains
 
     subroutine test_4e_ms1
 
-        integer :: hilbert_nI(4,4), i, j, three_e(3,3)
-        integer(n_int) :: hilbert_ilut(0:niftot,4)
-        HElement_t(dp) :: hamil(4,4), hamil_trancorr(4,4), tmp_hamil(4,4)
-        HElement_t(dp) :: tmp_3(3,3), hamil_3(3,3), hamil_3_trans(3,3)
-        real(dp) :: ev_real(4), ev_cmpl(4)
-        real(dp) :: left_ev(1,4), right_ev(1,4)
-        real(dp) :: shift_12, shift_34, two_body, three_body, three_body_1, three_body_2
-        real(dp) :: two_body_1, two_body_2
-        integer :: work(12), info
+        integer :: hilbert_nI(4,4)
+        HElement_t(dp) :: hamil(4,4), hamil_trancorr(4,4)
         real(dp) :: t_mat(4,4), trans_mat(4,4)
 
         nOccBeta = 3
@@ -1776,18 +1789,17 @@ contains
         integer, intent(in) :: nI(:)
         real(dp), intent(in) :: J(:), U
         integer, intent(in), optional :: hilbert_space_opt(:,:)
-        character(*), parameter :: this_routine = "exact_transcorrelation"
 
         integer :: i, iunit, n_states, ind, k
         HElement_t(dp), allocatable :: hamil(:,:), hamil_trans(:,:), hamil_neci(:,:), &
                                        hamil_next(:,:), hamil_neci_next(:,:)
-        real(dp), allocatable :: e_values(:), e_values_neci(:), e_vec(:,:), gs_vec(:)
+        real(dp), allocatable :: e_values(:), e_vec(:,:), gs_vec(:)
         real(dp), allocatable :: e_vec_trans(:,:), t_mat_next(:,:), e_vec_next(:,:)
         real(dp), allocatable :: e_vec_left(:,:)
         real(dp), allocatable :: e_vec_trans_left(:,:), e_vec_next_left(:,:)
         real(dp) :: gs_energy, gs_energy_orig, hf_coeff_onsite(size(J))
         real(dp), allocatable :: ref_coeff_all_onsite(:,:)
-        real(dp) :: hf_coeff_next(size(J)), hf_coeff_orig
+        real(dp) :: hf_coeff_next(size(J))
         real(dp), allocatable :: neci_eval(:), pca_eval(:), pca_evec(:,:)
         integer, allocatable :: hilbert_space(:,:)
         character(30) :: filename, J_str, U_str
@@ -1930,7 +1942,7 @@ contains
         hf_coeff_next = 0.0_dp
 
         ! also test that for the nearest neighbor transcorrelation
-        t_mat_next = get_tmat_next(lat_ptr, hilbert_space)
+        t_mat_next = get_tmat_next(hilbert_space)
 
         do i = 1, size(J)
             print *, "J = ", J(i), ", U = ", U
@@ -2246,10 +2258,9 @@ contains
     end subroutine exact_transcorrelation
 #endif
 
-    function get_tmat_next(lat_ptr, hilbert_space) result(t_mat)
+    function get_tmat_next(hilbert_space) result(t_mat)
         ! in the k-space this essentially only is J*\sum_k \epsilon(k) n_k
         ! which is the setup tmat divided by 2
-        class(lattice), pointer, intent(in) :: lat_ptr
         integer, intent(in) :: hilbert_space(:,:)
         real(dp) :: t_mat(size(hilbert_space,2),size(hilbert_space,2))
 
@@ -2274,7 +2285,7 @@ contains
         HElement_t(dp), allocatable :: hamil(:,:), hamil_trancorr(:,:), &
                                        trans_hamil(:,:), hamil_old(:,:)
         real(dp), allocatable :: eval(:), eval_neci(:), t_mat(:,:), evectors(:,:)
-        integer :: n_states, iunit, n_pairs, i
+        integer :: n_states, iunit, n_pairs
 
         ! these are the quantitites to fix:
         nOccAlpha = 4
@@ -2355,73 +2366,11 @@ contains
 
     end subroutine test_general
 
-    subroutine test_8e_8orbs
-
-        integer :: nI(8), n_states
-        integer, allocatable :: hilbert_nI(:,:)
-        integer(n_int), allocatable :: dummy(:,:)
-        HElement_t(dp), allocatable :: hamil(:,:), hamil_trancorr(:,:), &
-                                       trans_hamil(:,:)
-        real(dp), allocatable :: eval(:), t_mat(:,:)
-
-        nOccAlpha = 4
-        nOccBeta = 4
-        nel = 8
-
-        lat => lattice('tilted', 2, 2, 1, .true., .true., .true., 'k-space')
-
-        call setup_all(lat)
-        nI = [1,2,3,4,5,6,7,8]
-        ! i need to set the momentum
-        call setup_k_total(nI)
-
-        ! i need a starting det
-        call create_hilbert_space(nI, n_states, hilbert_nI, dummy, gen_all_excits_k_space_hubbard)
-
-        print *, "n_states: ", n_states
-
-        t_trans_corr_2body = .false.
-        hamil = create_lattice_hamil_nI(hilbert_nI)
-
-        allocate(eval(n_states))
-
-        eval = calc_eigenvalues(hamil)
-
-        call sort(eval)
-        print *, "eigen-value orig: ", eval(1)
-
-
-        t_trans_corr_2body = .true.
-        hamil_trancorr = create_lattice_hamil_nI(hilbert_nI)
-
-        eval = calc_eigenvalues(hamil_trancorr)
-        call sort(eval)
-        print *, "eigen-value neci: ", eval(1)
-
-        allocate(t_mat(n_states,n_states))
-
-        t_mat = get_tranformation_matrix(hamil, 16)
-
-        trans_hamil = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
-
-        eval = calc_eigenvalues(trans_hamil)
-
-        call sort(eval)
-        print *, "eigen-value tran: ", eval(1)
-
-        ! todo! ok, still a small mistake in the transcorrelated hamil!!
-        ! maybe thats why it behaves unexpected!
-
-    end subroutine test_8e_8orbs
-
     subroutine test_3e_ms1
 
-        integer :: hilbert_nI(3,3), i, j, work(9), info
-        HElement_t(dp) :: hamil(3,3), hamil_trancorr(3,3), tmp_hamil(3,3)
-        real(dp) :: ev_real(3), ev_cmpl(3), left_ev(1,3), right_ev(1,3)
-        real(dp) :: test(3,3), t_mat(3,3), trans_hamil(3,3)
-
-        integer :: n_pairs
+        integer :: hilbert_nI(3,3)
+        HElement_t(dp) :: hamil(3,3), hamil_trancorr(3,3)
+        real(dp) :: t_mat(3,3), trans_hamil(3,3)
 
         nOccAlpha = 2
         nOccBeta = 1
@@ -2507,7 +2456,6 @@ contains
     subroutine setup_tmat_k_space_test
 
         class(lattice), pointer :: ptr
-        integer :: i
 
         ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
         print *, ""
@@ -2543,7 +2491,6 @@ contains
 
         use SymExcitDataMod, only: kPointToBasisFn
         class(lattice), pointer :: ptr
-        integer :: i
         print *, ""
         print *, "testing: setup_kPointToBasisFn"
 
@@ -2730,7 +2677,7 @@ contains
     subroutine get_helement_k_space_hub_test
 
         integer, allocatable :: ni(:), nJ(:)
-        integer :: ex(2,3), ic_ret
+        integer :: ic_ret
 
         nel = 2
         allocate(nI(nel)); allocate(nJ(nel));
@@ -2768,7 +2715,6 @@ contains
         integer(n_int), allocatable :: ilutI(:)
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, cpt
-        integer :: tgt
 
         nel = 4
         allocate(nI(nel)); allocate(ilutI(0:niftot)); allocate(orb_list(8,2));
@@ -3001,7 +2947,7 @@ contains
     subroutine pick_a_orbital_hubbard_test
 
         integer(n_int) :: ilutI(0:niftot)
-        integer :: orb, sum_ms
+        integer :: orb
         real(dp) :: p_orb
 
         print *, ""
@@ -3078,7 +3024,7 @@ contains
 
     subroutine create_ab_list_par_hubbard_test
 
-        integer:: nI(4), orb_list(4,2), tgt
+        integer:: nI(4), orb_list(4,2)
         integer(n_int) :: ilutI(0:niftot)
         real(dp) :: cum_sum, cpt, cum_arr(4)
 
@@ -3161,7 +3107,7 @@ contains
 
     subroutine create_bc_list_hubbard_test
 
-        integer :: nI(4), orb_list(4,2), tgt
+        integer :: nI(4), orb_list(4,2)
         integer(n_int) :: ilutI(0:niftot)
         real(dp) :: cum_arr(4), cum_sum, cpt
 
@@ -3731,7 +3677,6 @@ contains
     subroutine three_body_transcorr_fac_test
 
         integer :: p(3), q(3), k(3)
-        real(dp) :: test
 
         nel = 4
         nOccBeta = 2
@@ -3836,7 +3781,6 @@ contains
 
     subroutine same_spin_transcorr_factor_test
 
-        integer :: k(3)
         integer, allocatable :: nI(:)
 
         nel = 4

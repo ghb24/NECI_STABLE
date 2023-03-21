@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''spectral_analysis.py [options] file
 
 Calculate and output a spectral function from a given set of eigenvalues and
@@ -7,6 +7,7 @@ from a KP-FCIQMC calculation (in a Lowdin file) or in a file called
 SPECTRAL_DATA, produced from a spectral-lanczos or exact-spectrum calculation
 in NECI.'''
 
+from __future__ import print_function
 import sys
 import optparse
 import math
@@ -153,6 +154,6 @@ if __name__ == '__main__':
     if (options.flip):
         omega *= -1
 
-    print 'Omega    Spectrum'
+    print('Omega    Spectrum')
     for (freq, spec) in zip(omega, spectrum):
-        print freq, spec
+        print(freq, spec)

@@ -31,6 +31,9 @@
 #
 #   required so that <project>_<lang>_linker_flags can be made to work
 #
+# WARNERR : optional
+#   Treat warnings as errrors. Defaults to off.
+#
 # TEMPLATED_SOURCES : optional
 #   list of source files to be passed through f90_template.py (note that this ensures that they are
 #   not redefined multiple times).
@@ -44,6 +47,8 @@
 #
 # TYPE : optional
 #   library type, one of:
+#   :SHARED: libraries are linked dynamically and loaded at runtime
+#   :STATIC: archives of object files for use when linking other targets.
 #
 # PRIVATE_INCLUDES : optional
 #   list of paths to add to include directories that will NOT be exported to other projects. Currently
@@ -57,9 +62,6 @@
 #
 # OUTPUT_NAME : optional
 #   set the name of the output file (so it may differ from the target name)
-#
-#   :SHARED: libraries are linked dynamically and loaded at runtime
-#   :STATIC: archives of object files for use when linking other targets.
 #
 ##############################################################################
 
@@ -213,7 +215,6 @@ macro( neci_add_library )
 
 
     # Add (private) includes
-
     if( DEFINED _p_PRIVATE_INCLUDES )
         list( REMOVE_DUPLICATES _p_PRIVATE_INCLUDES )
         foreach( include_path ${_p_PRIVATE_INCLUDES} )

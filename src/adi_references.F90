@@ -1,6 +1,9 @@
 #include "macros.h"
 module adi_references
-    use Parallel_neci
+    use constants, only: dp, EPS, lenof_sign, inum_runs, stdout, n_int, &
+        MPIArg, int64
+    use Parallel_neci, only: MPIAllGather, nProcessors, iProcIndex, &
+        root, MPIBarrier, MPIAllGatherV
     use FciMCData, only: ilutRef, TotWalkers, CurrentDets, core_run
     use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
                         tAdiActive, tSetupSIs, NoTypeN, tSetupSIs, &
@@ -12,9 +15,9 @@ module adi_references
     use bit_reps, only: decode_bit_det
     use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
     use sort_mod, only: sort
-    use constants
     use SystemData, only: nel, t_3_body_excits, tGUGA
-    use util_mod, only: operator(.isclose.)
+    use util_mod, only: operator(.isclose.), stop_all, neci_flush
+    use Determinants, only: WriteDetBit
 
     implicit none
     private
@@ -450,7 +453,7 @@ contains
         use Determinants, only: get_helement
         use SystemData, only: tHPHF
         use hphf_integrals, only: hphf_off_diag_helement
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         use guga_bitRepOps, only: CSF_Info_t
         use guga_data, only: ExcitationInformation_t
         implicit none
@@ -477,7 +480,9 @@ contains
         if (tHPHF) then
             h_el = hphf_off_diag_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         else if (tGUGA) then
-            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutRefAdi(:, iref), excitInfo, h_el, .true., 2)
+            call calc_guga_matrix_element(&
+                ilut, CSF_Info_t(ilut), ilutRefAdi(:, iref), &
+                CSF_Info_t(ilutRefAdi(:, iref)), excitInfo, h_el, .true.)
         else
             h_el = get_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         end if
@@ -487,6 +492,7 @@ contains
         ! If the new ilut has sign 0, there is no need to do any check on this run
         if (mag_of_run(ilut_sign, run) > eps) then
 #ifdef CMPLX_
+            unused_var(run)
             ! The complex coherence check is more effortive, so only do it in complex builds
             ! Get the relative phase of the signs
             tmp = cmplx(signRef(min_part_type(run)), signRef(max_part_type(run)), dp) / &
@@ -526,7 +532,7 @@ contains
         use SystemData, only: tHPHF
         use Determinants, only: get_helement
         use hphf_integrals, only: hphf_off_diag_helement
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         use guga_bitRepOps, only: CSF_Info_t
         use guga_data, only: ExcitationInformation_t
         implicit none
@@ -548,7 +554,9 @@ contains
         if (tHPHF) then
             h_el = hphf_off_diag_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         else if (tGUGA) then
-            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutRefAdi(:, i), excitInfo, h_el, .true., 2)
+            call calc_guga_matrix_element(&
+                ilut, CSF_Info_t(ilut), ilutRefAdi(:, i), CSF_Info_t(ilutRefAdi(:, i)), &
+                excitInfo, h_el, .true.)
         else
             h_el = get_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         end if

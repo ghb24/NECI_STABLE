@@ -4,7 +4,7 @@ module FciMCParMod
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, tGen_4ind_2, &
-                          tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
+                          tGen_4ind_weighted, tGUGA, &
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
@@ -21,7 +21,7 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
+                        t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
@@ -50,7 +50,10 @@ module FciMCParMod
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent, t_print_core_vec
+                           AccumPopsExpirePercent, t_print_core_vec, &
+                           t_store_ci_coeff, t_start_ci_coeff, n_iter_ci_coeff, n_store_ci_level
+
+    use sdt_amplitudes, only : output_ci_coeff, store_ci_coeff
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -75,7 +78,8 @@ module FciMCParMod
     use bit_reps, only: set_flag, clr_flag, any_run_is_initiator, &
                         all_runs_are_initiator
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet, &
-                            need_load_balancing, loadBalanceInterval
+                            need_load_balancing
+    use load_balance_calcnodes, only: loadBalanceInterval
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone
@@ -113,7 +117,8 @@ module FciMCParMod
 
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-    use guga_excitations, only: generate_excitation_guga, global_excitInfo
+    use guga_main, only: generate_excitation_guga
+    use guga_excitations, only: global_excitInfo
     use guga_bitrepops, only: fill_csf_i, current_csf_i
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
@@ -124,17 +129,22 @@ module FciMCParMod
 
     use bit_reps, only: decode_bit_det, writebitdet
 
-    use util_mod, only: operator(.div.), toggle_lprof, neci_flush
+    use util_mod, only: operator(.div.), neci_flush
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
-    use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
+    use double_occ_mod, only: inst_double_occ, &
                               rezero_double_occ_stats, write_double_occ_stats, &
                               sum_double_occ, sum_norm_psi_squared, finalize_double_occ_and_spin_diff, &
                               measure_double_occ_and_spin_diff, rezero_spin_diff, &
                               write_spin_diff_stats, write_spat_doub_occ_stats, &
                               all_sum_double_occ, calc_double_occ_from_rdm
-    use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
+#ifndef CMPLX_
+    use double_occ_mod, only: get_double_occupancy
+#endif
+    use tau_main, only: tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        finalize_tau
+    use tau_search_hist, only: print_frequency_histograms
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
@@ -228,6 +238,13 @@ contains
         shift_err = 1.0_dp
 
         TDebug = .false.  ! Set debugging flag
+
+        if (t_store_ci_coeff .and. n_store_ci_level > 3) then
+            call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not implemented for &
+                                        &excitation levels higher than 3')
+        else if (t_store_ci_coeff .and. tHPHF) then
+            call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not working with HPHF')
+        endif
 
         ! This is set here not in SetupParameters, as otherwise it would be
         ! wiped just when we need it!
@@ -373,7 +390,6 @@ contains
         lt_imb_cycle = 0.
 
 
-        call toggle_lprof()
         main_iteration_loop: do while (.true.)
             if (TestMCExit(Iter, iRDMSamplingIter)) then
                 ! The popsfile requires the right total walker number, so
@@ -503,7 +519,7 @@ contains
                 ! The currentdets is almost full, we should start removing
                 ! dets which have been empty long enough
                 if (iAccumPopsExpireIters > 0 .and. TotWalkers > AccumPopsExpirePercent * real(MaxWalkersPart, dp)) then
-                    do j = 1, int(TotWalkers, sizeof_int)
+                    do j = 1, int(TotWalkers)
                         ! The loop is over empty dets only
                         call extract_sign(CurrentDets(:, j), CurrentSign)
                         if (.not. IsUnoccDet(CurrentSign)) cycle
@@ -746,6 +762,17 @@ contains
                 CALL WriteHistogram()
             end if
 
+            if (t_store_ci_coeff .and. all(.not. tSinglePartPhase) .and. iter >= NMCyc-n_iter_ci_coeff+1) then
+                if (t_start_ci_coeff) write(stdout,'(A45,I9)') 'START CI COEFFICIENTS COLLECTION at iteration',iter
+                t_start_ci_coeff = .false.
+                call store_ci_coeff()
+            else if (t_store_ci_coeff .and. iter == NMCyc ) then
+                t_store_ci_coeff = .false.
+                write(stdout,*) ''
+                write(stdout,*) '***CI COEFFICIENTS COLLECTION HAS NOT OCCURRED: NMCyc too small***'
+                write(stdout,*) ''
+            end if
+
             ! accumulate the rdm correction due to adaptive shift
             if (tAdaptiveShift .and. all(.not. tSinglePartPhase)) call UpdateRDMCorrectionTerm()
 
@@ -824,7 +851,6 @@ contains
             if (tFillingStochRDMonFly) iRDMSamplingIter = iRDMSamplingIter + 1
 
         end do main_iteration_loop
-        call toggle_lprof()
 
         ! Final output is always enabled
         tSuppressSIOutput = .false.
@@ -844,17 +870,15 @@ contains
         if (iProcIndex == 0) write(stdout, *) 'Time lost due to load imbalance: ', lt_imb
         write(stdout, *) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
-        ! [Werner Dobrautz 4.4.2017]
-        ! for now always print out the frequency histograms for the
-        ! tau-search.. maybe change that later to be an option
-        ! to be turned off
-        if (t_print_frq_histograms .and. t_hist_tau_search_option) then
-            call print_frequency_histograms()
-
-            ! also deallocate here after no use of the histograms anymore
-            call deallocate_histograms()
+        if (t_store_ci_coeff) then
+            call output_ci_coeff()
         end if
 
+        if (allocated(input_tau_search_method)) then
+            if (t_print_frq_histograms .and. input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                call print_frequency_histograms()
+            end if
+        end if
 
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
@@ -976,6 +1000,8 @@ contains
         end if
         IF (TDebug) close(11)
 
+        call finalize_tau()
+
         if (tHistSpawn) then
             close(Tot_Unique_Dets_Unit)
         end if
@@ -1053,7 +1079,7 @@ contains
         call getProjEOffset()
         iroot = 1
         CALL GetSym(ProjEDet(:, 1), NEl, G1, NBasisMax, RefSym)
-        isymh = int(RefSym%Sym%S, sizeof_int) + 1
+        isymh = int(RefSym%Sym%S) + 1
         write(stdout, '('' Current reference energy'',T52,F19.12)') OutputHii
         if (tNoProjEValue) then
             write(stdout, '('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1), dp)
@@ -1264,7 +1290,7 @@ contains
             end if
         end if
         lstart = mpi_wtime()
-        loop_over_determinants: do j = 1, int(TotWalkers, sizeof_int)
+        loop_over_determinants: do j = 1, int(TotWalkers)
 
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -1476,11 +1502,16 @@ contains
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
+            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), &
+                HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
+#ifdef CMPLX_
+                call stop_all(this_routine, "not implemented for complex")
+#else
                 inst_double_occ = inst_double_occ + &
                                   get_double_occupancy(CurrentDets(:, j), SignCurr)
+#endif
             end if
 
             if (t_measure_local_spin) then
@@ -1579,11 +1610,7 @@ contains
                 ! optional: Adjust the number of spawns to the expected maximum
                 ! Hij/pgen ratio of this determinant -> prevent blooms
                 ! Only done while not updating tau (to prevent interdependencies)
-                ! or, for hist-tau-search, in vairable shift mode
-                ! Usually, this means: done in variable shift mode
-                if (tScaleBlooms .and. .not. tSearchTau &
-                    .and. .not. (t_hist_tau_search .and. tSinglePartPhase( &
-                                 part_type_to_run(part_type)))) then
+                if (tScaleBlooms .and. tau_search_method == possible_tau_search_methods%off) then
                     max_spawn = tau * get_max_ratio(j)
                     if (max_spawn > max_allowed_spawn) then
                         scale = max_spawn / max_allowed_spawn
@@ -1591,7 +1618,7 @@ contains
                     end if
                 end if
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcitsLoc, WalkersToSpawn)
-                loop_over_particles : do p = 1, WalkersToSpawn
+                loop_over_walkers : do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
@@ -1602,29 +1629,11 @@ contains
                     ! all the interfaces to the other excitation generators,
                     ! which all just assume ex(2,2) as size.. so use a
                     ! if here..
-                    if (t_k_space_hubbard .and. t_3_body_excits) then
-                        if (t_uniform_excits) then
-                            call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                         nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                         HElGen, fcimc_excit_gen_store, part_type)
+                    ! Generate a (random) excitation
+                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                        ilutnJ, exFlag, IC, ex, tParity, prob, &
+                        HElGen, fcimc_excit_gen_store, part_type)
 
-                        else if (t_mixed_excits) then
-                            call gen_excit_mixed_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                       nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                       HElGen, fcimc_excit_gen_store, part_type)
-
-                        else
-                            call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                 HElGen, fcimc_excit_gen_store, part_type)
-                        end if
-                    else
-                        ! Generate a (random) excitation
-                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
-                            ilutnJ, exFlag, IC, ex, tParity, prob, &
-                            HElGen, fcimc_excit_gen_store, part_type)
-
-                    end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
                     if (tSkipRef(run) .and. all(nJ == projEdet(:, run))) then
@@ -1730,7 +1739,7 @@ contains
                         end if
                     end if is_child_created ! (child /= 0), Child created.
 
-                end do loop_over_particles ! Cycling over mulitple particles on same determinant.
+                end do loop_over_walkers
 
             end do loop_over_type  ! Cycling over 'type' of particle on a given determinant.
 
@@ -1793,7 +1802,7 @@ contains
 
         ! With this algorithm, the determinants do not move, and therefore
         ! TotWalkersNew is simply equal to TotWalkers
-        TotWalkersNew = int(TotWalkers, sizeof_int)
+        TotWalkersNew = int(TotWalkers)
 
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
@@ -1874,9 +1883,9 @@ contains
         if (tFillingStochRDMonFly) then
             ! if we use the initiator-only rdms as gamma_0, get them in their own entity
             if (tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
-                                                      inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false., .false.)
+                                                      inits_one_rdms, CurrentDets, int(TotWalkers), .false., .false.)
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, &
-                                       CurrentDets, int(TotWalkers, sizeof_int), .true., tApplyLC)
+                                       CurrentDets, int(TotWalkers), .true., tApplyLC)
         end if
 
         if (tTrialWavefunction .and. tTrialShift) then

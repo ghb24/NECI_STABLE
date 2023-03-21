@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 open(F1,"<$ARGV[0]")|| die("Cannot open file '$ARGV[0]'");
 open(F2,"<$ARGV[1]")|| die("Cannot open file '$ARGV[1]'");
 while($v1=<F1>)

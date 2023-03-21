@@ -19,6 +19,10 @@ module sym_general_mod
 
     use bit_rep_data, only: niftot, nifd
 
+    use excit_mod, only: IsValidDet
+
+    use calcrho_mod, only: igetexcitlevel
+
     implicit none
 
     interface ClassCountInd
@@ -86,9 +90,9 @@ contains
         integer :: ind
 
         if (tFixLz) then
-            ind = int(2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin), sizeof_int)
+            ind = int(2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin))
         else
-            ind = int(2 * Sym + Spin, sizeof_int)
+            ind = int(2 * Sym + Spin)
         end if
 
         if (tNoSymGenRandExcits) then
@@ -262,12 +266,15 @@ contains
         type(Symmetry) :: sym_prod1, sym_prod2
         integer(n_int) :: ilut(0:niftot)
 
-        logical :: IsValidDet ! In .F file.
-        integer :: iGetExcitLevel ! In .F file
-
         ! Default initial value
         bValid = .true.
         if (present(err_msg)) err_msg = ''
+
+        if (nI(1) == 0 .or. nJ(1) == 0) then
+            bValid = .false.
+            if (present(err_msg)) err_msg = 'nI or nJ is zero.'
+            return
+        endif
 
         ! Check reported excitation level
         exLevel = iGetExcitLevel(nI, nJ, nel)

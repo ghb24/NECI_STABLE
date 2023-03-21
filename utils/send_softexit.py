@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # Usage:
 # send_softexit.py [options] walltime &
@@ -28,6 +28,7 @@
 
 __author__ = 'James Spencer'
 
+from __future__ import print_function
 from optparse import OptionParser, OptionValueError
 import signal
 import sys
@@ -35,7 +36,7 @@ import time
 
 def signal_handler(signal, frame):
     '''Capture signal and leave quietly.'''
-    print 'Signal has been caught.  Bye!'
+    print('Signal has been caught.  Bye!')
     sys.exit()
 
 def job_cleanup():
@@ -71,9 +72,9 @@ hh:mm:ss.''')
     (options,args) = parser.parse_args(my_args)
     if len(args) != 1:
         if len(args) == 0:
-            print 'Must specify walltime.'
+            print('Must specify walltime.')
         else:
-            print 'Do not understand options specified: %s.' % (' '.join(args))
+            print('Do not understand options specified: %s.' % (' '.join(args)))
         parser.print_help()
         sys.exit(1)
     else:
@@ -83,7 +84,7 @@ hh:mm:ss.''')
     return sleep_time
 
 def main(sleep_time):
-    print 'send_softexit sleeping for %is.' % (sleep_time)
+    print('send_softexit sleeping for %is.' % (sleep_time))
     time.sleep(sleep_time)
     job_cleanup()
     sys.exit()

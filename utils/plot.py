@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Plot data from an FCIMCStats file (or similar, e.g. NodeFile)
 
 Usage:
@@ -38,6 +38,7 @@ Arguments:
 	--no-walkers, -W    Don't plot walker numbers
 '''
 
+from __future__ import print_function
 from pylab import *
 from numpy import *
 from matplotlib import rc, rcParams
@@ -83,7 +84,7 @@ class plotter:
 		try:
 			opts, self.files = getopt.getopt(args, "htalE:efFWsI:O:cro:R:L:SPp:", ["help", "time", "average", "linear", "total-energy", "energy-limits=", "atom-first", "final", "no-walkers", "split", "iterations=", "output-file=", "reset-colours", "reset-colors", "print-ref-E", "E-other=", "repeat", "legend-pos", "no-shift", "no-projE", "eps="])
 		except getopt.GetoptError, err:
-			print str(err)
+			print(str(err))
 			usage()
 			sys.exit(2)
 
@@ -108,7 +109,7 @@ class plotter:
 				if len(limits) == 2:
 					self.E_limits = (float(limits[0]), float(limits[1]))
 				else:
-					print 'Invalid limits specified: %s' % a
+					print('Invalid limits specified: %s' % a)
 					usage()
 					sys.exit(2)
 			elif o in ("-F", "--atom-first"):
@@ -124,14 +125,14 @@ class plotter:
 				elif len(limits) == 1:
 					self.bounds = (0, int(limits[0]))
 				else:
-					print 'Invalid limits specified: %s' % a
+					print('Invalid limits specified: %s' % a)
 					usage()
 					sys.exit(2)
 			elif o in ("-f", "--final"):
 				self.plot_E_final = True
 				self.total_E = True
 				self.process_out = True
-				print 'Printing final E on plot. Requires printing total energies, setting --total-energy (-E)'
+				print('Printing final E on plot. Requires printing total energies, setting --total-energy (-E)')
 			elif o in ("-O", "--output-file"):
 				files = a.replace(',', ' ').split()
 				if len(files) == len(self.files):
@@ -139,8 +140,8 @@ class plotter:
 					for i in range(len(files)):
 						self.output_files[self.files[i]] = files[i]
 				else:
-					print 'Insufficient output files specified. Need to specify %d files', len(self.files)
-					print 'Input files: ', self.files
+					print('Insufficient output files specified. Need to specify %d files', len(self.files))
+					print('Input files: ', self.files)
 					usage()
 					sys.exit(2)
 			elif o in ("-o", "--E-other"):
@@ -157,7 +158,7 @@ class plotter:
 			elif o in ("-L", "--legend-pos"):
 				positions = a.replace(',', ' ').split()
 				if len(positions) != 2:
-					print 'The positions of 2 legends must be supplied.'
+					print('The positions of 2 legends must be supplied.')
 					usage()
 					sys.exit(2)
 				else:
@@ -229,7 +230,7 @@ class plotter:
 			fout = filename
 
 		if not fout:
-			print 'Cannot find associated output file for stats file: %s' % filename
+			print('Cannot find associated output file for stats file: %s' % filename)
 
 
 		
@@ -245,7 +246,7 @@ class plotter:
 		E_final = 0.0
 
 		if fout:
-			print 'Using output filename: %s' % fout
+			print('Using output filename: %s' % fout)
 
 			with open(fout, 'r') as f:
 				it = None     # What iteration are we on
@@ -264,7 +265,7 @@ class plotter:
 								it = 0
 							if E_HF is not None:
 								if print_ref_E:
-									print 'Changed reference energy: %f' % E_HF
+									print('Changed reference energy: %f' % E_HF)
 								HF_energies.append((it, E_HF))
 								E_HF = None
 
@@ -481,7 +482,7 @@ plot = plotter()
 
 def usage ():
 	'''Print the usage statement'''
-	print __doc__
+	print(__doc__)
 
 def cumulative_time (it, itime):
 	'''Calculate a cumulative time field from the iteration number and iteration time fields'''

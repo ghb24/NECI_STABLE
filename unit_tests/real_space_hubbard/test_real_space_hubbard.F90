@@ -9,28 +9,50 @@
 ! unit test module which tests all the functionality of a other module
 program test_real_space_hubbard
 
-    use real_space_hubbard
+    use real_space_hubbard, only: get_diag_helemen_rs_hub_transcorr_spin, &
+        init_tmat_rs_hub_spin_transcorr, &
+        init_umat_rs_hub_transcorr, get_diag_helemen_rs_hub_transcorr_hop, &
+        get_optimal_correlation_factor, init_get_helement_hubbard, &
+        init_tmat, create_cum_list_rs_hubbard, &
+        create_avail_neighbors_list, calc_pgen_rs_hubbard, &
+        trans_corr_fac, init_real_space_hubbard, gen_excit_rs_hubbard, &
+        get_offdiag_helement_rs_hub, get_umat_el_hub, &
+        get_umat_rs_hub_trans, t_recalc_tmat, t_recalc_umat, &
+        gen_excit_rs_hubbard_transcorr, gen_excit_rs_hubbard_transcorr_uniform, &
+        get_umat_el, tmat_rs_hub_spin_transcorr, umat_rs_hub_trancorr_hop, &
+        umat_rs_hub_trancorr_hop, umat_rs_hub_trancorr_hop, lat_tau_factor
 
-    use constants
 
-    use fruit
+    use constants, only: dp, bn2_, infinity, n_int, EPS, maxExcit
+
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals, assert_true
 
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, &
                           trans_corr_param, t_lattice_model, t_trans_corr_hop, brr, &
                           t_trans_corr_2body, trans_corr_param_2body, &
                           t_trans_corr_new, t_uniform_excits, tHPHF, &
-                          length_x, length_y
+                          length_x, length_y, G1
 
-    use bit_reps, only: niftot
+    use bit_reps, only: decode_bit_det
 
-    use lattice_mod, only: lat, init_dispersion_rel_cache
+    use DetBitOps, only: EncodeBitDet, findbitexcitlevel
+
+    use bit_rep_data, only: niftot, nifd
+
+    use lattice_mod, only: lat, init_dispersion_rel_cache, lattice, &
+         get_helement_lattice
 
     use sort_mod, only: sort
 
-    use util_mod, only: get_free_unit, operator(.div.)
+    use SystemData, only: uhub, nBasis, nel, bhub, nOccAlpha, nOccBeta, &
+        t_spin_dependent_transcorr
+
+    use util_mod, only: get_free_unit, operator(.div.), stop_all
 
     use unit_test_helpers, only: create_spin_dependent_hopping, create_lattice_hamil_nI, &
-        similarity_transform, run_excit_gen_tester, setup_arr_brr
+        similarity_transform, run_excit_gen_tester, setup_arr_brr, &
+        run_excit_gen_tester
 
     use matrix_util, only: norm, calc_eigenvalues, matrix_exponential, &
                            print_matrix, eig, linspace, norm_cmplx
@@ -39,10 +61,11 @@ program test_real_space_hubbard
 
     use fcimcdata, only: pSingles, pDoubles
 
-    use lattice_models_utils, only: gen_all_excits_r_space_hubbard, &
-                                    create_hilbert_space_realspace, &
-                                    gen_all_doubles_k_space, &
-                                    gen_all_singles_rs_hub_default
+    use lattice_models_utils, only: &
+        gen_all_excits_r_space_hubbard, create_hilbert_space_realspace, &
+        gen_all_doubles_k_space, gen_all_singles_rs_hub_default, &
+        create_hilbert_space_realspace, gen_all_singles_rs_hub_default, &
+        gen_all_doubles_k_space, create_neel_state
 
     use HPHFRandexcitmod, only: gen_hphf_excit, finddetspinsym
 
@@ -55,6 +78,8 @@ program test_real_space_hubbard
     use SymExcitDataMod, only: excit_gen_store_type, ScratchSize, &
                                Scratchsize1, Scratchsize2
 
+    use tau_main, only: tau_search_method, possible_tau_search_methods, &
+        t_scale_tau_to_death, tau, assign_value_to_tau
 
     implicit none
 
@@ -125,7 +150,6 @@ contains
         real(dp), allocatable :: e_values(:)
         HElement_t(dp), allocatable :: e_vecs(:,:), e_vecs_right(:,:), e_vecs_left(:,:)
         integer(n_int), allocatable :: dummy(:,:)
-        real(dp) :: j
         real(dp), allocatable :: j_vec(:), e_orig(:), test_evec(:,:)
         real(dp) :: exact_double_occ, e_pot_orig, e_kin_orig, overlap, &
                     double_occ_t, e_pot_t, e_kin_t, e_kin_sim
@@ -211,9 +235,6 @@ contains
             allocate(flip(nel), source = 0)
             call finddetspinsym(nI,flip,nel)
         end if
-
-!         nI = [1,4]
-!         nI = [1,2,3,4,5,6,7]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -425,7 +446,6 @@ contains
         integer :: n_j = 100, i, iunit
         integer(n_int), allocatable :: hf_states(:,:), phi_states(:,:)
         real(dp) :: J
-        logical :: t_full_ed = .true.
 
         ! first we need the HF solution in real-space
         ! is still need to decide, if i want to store the basis in ilut or
@@ -484,6 +504,7 @@ contains
         unused_var(phi_L_states)
         unused_var(phi_L_coeff)
         unused_var(phi_R_coeff)
+        unused_var(phi_R_states)
         get_overlap = 0.0_dp
         call stop_all("get_overlap", "TODO")
 
@@ -657,9 +678,8 @@ contains
         integer, intent(in) :: nI(nel)
         real(dp) :: J(:), U
         integer, intent(in) :: hilbert_space(:,:)
-        character(*), parameter :: this_routine = "exact_transcorrelation"
 
-        integer :: n_states, iunit, ind, i, k, l, flip(nel), hf_ind
+        integer :: n_states, iunit, ind, i, k, flip(nel), hf_ind
         real(dp), allocatable :: e_values(:)
         HElement_t(dp), allocatable :: e_vec(:,:), gs_vec(:)
         real(dp) :: gs_energy_orig, gs_energy, hf_coeff_hop(size(J)), gs_energy_spin, &
@@ -677,7 +697,7 @@ contains
         HElement_t(dp), allocatable :: t_mat(:,:), t_mat_spin(:,:), gutzwiller(:,:)
         real(dp), allocatable :: neci_eval(:), e_vec_hop(:,:), e_vec_spin(:,:), neci_spin_eval(:)
         real(dp), allocatable :: e_vec_hop_left(:,:), e_vec_onsite(:,:), &
-                                 neci_onsite_eval(:), e_vec_onsite_left(:,:)
+                                 e_vec_onsite_left(:,:)
         character(30) :: filename, J_str
         logical :: t_calc_singles, t_flip, t_norm_inside, t_norm_inside_sen, &
                    t_degen
@@ -1506,7 +1526,6 @@ contains
 
         integer, allocatable :: nI(:)
         integer :: n_iters, n_orbs, i
-        type(excit_gen_store_type) :: store
 
         n_iters = 1000000
 
@@ -1653,7 +1672,6 @@ contains
 
     subroutine create_cum_list_rs_hubbard_test
         use SystemData, only: nel
-        use bit_rep_data, only: niftot
         use Detbitops, only: encodebitdet
         use constants, only: n_int, dp
         use OneEInts, only: tmat2d
@@ -1661,7 +1679,6 @@ contains
         integer(n_int), allocatable :: ilut(:)
         real(dp) :: cum_sum
         real(dp), allocatable :: cum_arr(:)
-        integer, allocatable :: neighbors(:)
 
         trans_corr_param = 0.0
         nel = 2
@@ -1749,7 +1766,6 @@ contains
         use SystemData, only: nel
         use constants, only: n_int
         use Detbitops, only: encodebitdet
-        use bit_rep_data, only: niftot
 
         integer(n_int), allocatable :: ilut(:)
         integer, allocatable :: orbs(:)
@@ -1793,7 +1809,6 @@ contains
         use SystemData, only: nel, nbasis, bhub
         use constants, only: n_int, dp
         use lattice_mod, only: lattice
-        use bit_rep_data, only: niftot
         use Detbitops, only: encodebitdet
         use OneEInts, only: tmat2d
 
@@ -1879,7 +1894,6 @@ contains
         use Detbitops, only: encodebitdet
         use constants, only: n_int
         use SystemData, only: nel
-        use bit_rep_data, only: niftot
 
         integer(n_int), allocatable :: ilut(:)
 
@@ -1922,11 +1936,10 @@ contains
 
     subroutine init_real_space_hubbard_test
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
-                              bhub, uhub, ecore, t_new_real_space_hubbard
+                              bhub, ecore
         use OneEInts, only: tmat2d
-        use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
-        use CalcData, only: tau
-        use procedure_pointers, only: get_umat_el, generate_excitation
+        use fcimcdata, only: pSingles, pDoubles
+        use procedure_pointers, only: get_umat_el
         use lattice_mod, only: lattice_deconstructor
 
         print *, ""
@@ -1938,7 +1951,7 @@ contains
         length_y = 1
         nel = 2
         bhub = 1
-        tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp, 'Initialization in init_real_space_hubbard_test')
 
         call init_real_space_hubbard()
 
@@ -1969,10 +1982,9 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(t_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
         call lattice_deconstructor(lat)
@@ -1983,10 +1995,9 @@ contains
         nel = -1
         bhub = 0
         nbasis = -1
-        tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp, 'Initialization in real-space Hubbard test.')
         deallocate(tmat2d)
         nullify(get_umat_el)
-        nullify(generate_excitation)
 
         print *, ""
         print *, "testing: 3x3 square lattice with 2 electrons"
@@ -2008,10 +2019,9 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(t_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(1.0/8.0_dp * lat_tau_factor, tau)
 
 
@@ -2023,10 +2033,9 @@ contains
         nel = -1
         bhub = 0
         nbasis = -1
-        tau = 0.0
+        call assign_value_to_tau(0.0_dp, 'Initialization in real-space Hubbard test.')
         deallocate(tmat2d)
         nullify(get_umat_el)
-        nullify(generate_excitation)
 
         print *, ""
         print *, "testing: 3x3 square lattice with 2 electrons"
@@ -2048,10 +2057,9 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_equals(1.0_dp, pSingles)
         call assert_equals(0.0_dp, pDoubles)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
+        call assert_true(t_scale_tau_to_death)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(1.0/12.0_dp * lat_tau_factor, tau)
 
         call lattice_deconstructor(lat)
@@ -2064,7 +2072,6 @@ contains
         nbasis = -1
         deallocate(tmat2d)
         nullify(get_umat_el)
-        nullify(generate_excitation)
 
 
     end subroutine init_real_space_hubbard_test
@@ -2405,7 +2412,6 @@ contains
     subroutine get_offdiag_helement_rs_hub_test
         use SystemData, only: nel, nbasis , bhub, t_trans_corr, trans_corr_param_2body, &
                               t_trans_corr_2body, trans_corr_param
-        use bit_rep_data, only: niftot, nifd
         use lattice_mod, only: lattice
 
         nel = 2
@@ -2458,7 +2464,6 @@ contains
 
     subroutine get_helement_test
         use SystemData, only: nel, bhub, uhub, nbasis, G1
-        use bit_rep_data, only: nifd, niftot
         use Determinants, only: get_helement
         use constants, only: dp, n_int
         use OneEInts, only: tmat2d
@@ -2661,10 +2666,6 @@ contains
     end subroutine init_tmat_test
 
 
-    subroutine test_init_lattice()
-
-    end subroutine test_init_lattice
-
     subroutine get_umat_el_hub_test
         use SystemData, only: uhub, nbasis
 
@@ -2690,7 +2691,7 @@ contains
 
     subroutine determine_optimal_time_step_test
         use SystemData, only: nel, nOccAlpha, nOccBeta, uhub, bhub, &
-                              t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model
+                              t_new_real_space_hubbard
         use lattice_mod, only: lattice, determine_optimal_time_step
 
         real(dp) :: time, time_death
@@ -2771,4 +2772,3 @@ contains
 
     end subroutine determine_optimal_time_step_test
 end program test_real_space_hubbard
-

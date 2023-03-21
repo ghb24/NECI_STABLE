@@ -1,1 +1,1 @@
-add_unit_test(sets_mod)
+add_unit_test(neci sets_mod)

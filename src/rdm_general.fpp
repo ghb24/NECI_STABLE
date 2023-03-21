@@ -3,18 +3,28 @@
 
 module rdm_general
 
-    use bit_rep_data, only: NIfTot, nifd, nifguga, IlutBits, IlutBitsParent
-    use constants
+    use bit_rep_data, only: NIfTot, nifd, nifguga, IlutBits, IlutBitsParent, test_flag, &
+        bit_rdm_init
+    use bit_reps, only: zero_parent, all_runs_are_initiator, encode_parent, &
+        extract_bit_rep
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
                         inits_estimates, tSetupInitsEst
     use FciMCData, only: proje_iter, Hii
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use SystemData, only: tGUGA
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, operator(.div.), stop_all
+    use constants, only: dp, n_int, lenof_sign, size_n_int, int64, &
+        eps, inum_runs, size_int_rdm
+    use rdm_reading, only: print_1rdms_from_sf2rdms_wrapper, &
+        read_spinfree_2rdm_files, read_1rdm, read_2rdm_popsfile, &
+        print_1rdms_from_2rdms_wrapper
+    use Parallel_neci, only: iProcIndex, nProcessors, MPISumAll
 
     implicit none
+    ! better_implicit_none
 
 contains
 
@@ -31,7 +41,6 @@ contains
         use LoggingData, only: tReadRDMs, tPopsfile, tno_RDMs_to_read
         use LoggingData, only: twrite_RDMs_to_read, tPrint1RDMsFrom2RDMPops
         use LoggingData, only: tPrint1RDMsFromSpinfree, t_spin_resolved_rdms
-        use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: two_rdm_recv_2, tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
@@ -44,12 +53,10 @@ contains
         use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
         use rdm_data_utils, only: init_en_pert_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
-        use rdm_reading
         use RotateOrbsData, only: SymLabelCounts2_rot, SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
-        use MemoryManager, only: LogMemAlloc
 
         integer, intent(in) :: nrdms_standard, nrdms_transition
 
@@ -596,11 +603,9 @@ contains
         ! When we start calculating the RDMs this routine is called and the
         ! SpawnedParts array is made larger to accommodate the parents.
 
-        use bit_rep_data, only: bit_rdm_init
         use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
         use FciMCData, only: SpawnedParts, SpawnedParts2
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        use util_mod_byte_size
 
         integer :: ierr, nifbcast_old
         character(len=*), parameter :: this_routine = 'realloc_SpawnedParts'
@@ -668,7 +673,6 @@ contains
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
         use RotateOrbsData, only: SymLabelListInv_rotTag
         use RotateOrbsMod, only: FourIndInts, FourIndIntsTag
-        use util_mod, only: LogMemDealloc
 
         character(len=*), parameter :: t_r = 'dealloc_global_rdm_data'
 
@@ -780,7 +784,6 @@ contains
         ! This is just the standard extract_bit_rep routine for when we're not
         ! calculating the RDMs.
 
-        use bit_reps, only: extract_bit_rep
         use FciMCData, only: excit_gen_store_type
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: rdm_definitions_t
@@ -823,7 +826,6 @@ contains
         !           IterRDMStartI - new iteration the determinant became occupied (as a real).
         !           AvSignI - the new average walker population during this time (also real).
 
-        use bit_reps, only: extract_bit_rep
         use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
@@ -932,7 +934,6 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine UpdateRDMCorrectionTerm()
-        use Parallel_neci
         ! first, communicate the rdm correction term between the procs
         ! take the instantaneous correction term and sum it into the accumulated one
         implicit none
@@ -1013,6 +1014,12 @@ contains
         implicit none
         real(dp), intent(in) :: fmu
         real(dp) :: fmup
+#ifdef CMPLX_
+        routine_name("dressedFactor")
+        call stop_all(this_routine, "not implemented for complex")
+        unused_var(fmu)
+        fmup = 0._dp
+#else
         real(dp) :: eCorr, e0Inits, enOffset
         if (tInitsRDMRef .and. tSetupInitsEst .and. sum(abs(proje_iter)) > eps) then
             ! initiator-only reference energy
@@ -1024,6 +1031,7 @@ contains
         else
             fmup = fmu
         end if
+#endif
     end function dressedFactor
 
     !------------------------------------------------------------------------------------------!
@@ -1091,7 +1099,6 @@ contains
         use DetBitOps, only: DetBitEQ
         use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, &
                              TempSpawnedPartsInd
-        use bit_reps, only: zero_parent, encode_parent, all_runs_are_initiator
         use CalcData, only: tNonInitsForRDMs
 
         real(dp), intent(in) :: RDMBiasFacCurr

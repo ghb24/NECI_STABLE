@@ -41,28 +41,10 @@ module util_mod_cpts
     implicit none
 
     private
-    public :: swap, arr_2d_ptr, arr_2d_dims, ptr_abuse_1d
+    public :: arr_2d_ptr, arr_2d_dims, ptr_abuse_1d
     public :: ptr_abuse_scalar, ptr_abuse_2d
 
 contains
-
-    ! Swap the  specified variables
-    elemental subroutine swap (a, b)
-
-        ! Sway the element a with the element b via a temporary variable.
-        !
-        ! InOut: a, b - The elements to swap.
-
-        %(type)s, intent(inout) :: a, b
-        %(type)s :: tmp
-
-        %(tmp_init)s(tmp)
-        tmp = a
-        a = b
-        b = tmp
-        %(tmp_destroy)s(tmp)
-    end subroutine
-
 
     function arr_2d_dims(arr) result(dims)
 

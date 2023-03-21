@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''Monitor a running job and run a cleanup function when the elapsed time gets to within a specified amount of the walltime allowed for the job.
 
 Usage:
@@ -21,6 +21,7 @@ __author__='James Spencer'
 # See https://subtrac.sara.nl/oss/pbs_python.
 PBSQuery_path='/home/dmc52/src/TorquePython/pbs_python-2.9.4/lib64/python2.4/site-packages/pbs'
 
+from __future__ import print_function
 import signal,sys,time
 from optparse import OptionParser,OptionValueError
 sys.path.extend([PBSQuery_path])
@@ -30,7 +31,7 @@ exit_time=900
 
 def signal_handler(signal,frame):
     '''Capture interupt signal and leave quietly.'''
-    print 'Interrupt signal has been caught.  Bye!'
+    print('Interrupt signal has been caught.  Bye!')
     sys.exit()
 
 def job_cleanup():
@@ -51,9 +52,9 @@ def parse_options(my_args):
     (options,args)=parser.parse_args(my_args)
     if len(args)!=1:
         if len(args)==0:
-            print 'Must specify the job id.'
+            print('Must specify the job id.')
         else:
-            print 'Do not understand options specified: %s.' % (' '.join(args))
+            print('Do not understand options specified: %s.' % (' '.join(args)))
         parser.print_help()
         sys.exit()
     else:
@@ -72,7 +73,7 @@ def main(job_id):
     except NameError:
         # Try to use the default in case watchdog is being used as a module.
         sleep_time=wall_time-exit_time
-    print 'Watchdog sleeping for %i' % (sleep_time)
+    print('Watchdog sleeping for %i' % (sleep_time))
     time.sleep(sleep_time)
     job_cleanup()
     sys.exit

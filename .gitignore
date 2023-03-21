@@ -32,7 +32,11 @@ gram_schmidt.*
 RDMEstimates*
 TwoRDM*
 OneRDM*
+spinfree-1-RDM*
 spinfree_TwoRDM*
+PSMAT*
+PAMAT*
+DMAT*
 Inits_TwoRDM_*
 InitsOneRDM.*
 InitsRDMEstimates
@@ -71,6 +75,11 @@ double_occupancy_stat*
 popsfile.h5*
 RDM_POPSFILE
 replica_estimates
+replica_estimates.*
+!replica_estimates/
+spatial-tmat
+local_spin_stats
+local_spin_stats.*
 
 # Documentation
 neci.fdb_latexmk
@@ -79,3 +88,6 @@ neci.synctex.gz
 neci_dev.pdf
 doc/*
 *pdf
+
+
+ci_coeff_*

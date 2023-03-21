@@ -2,7 +2,7 @@
 # Add an option to switch on warnings. This should be enabled by default.
 # =======================================================================
 
-if( CMAKE_BUILD_TYPE STREQUAL "DEBUG" )
+if( (CMAKE_BUILD_TYPE STREQUAL "DEBUG") OR (CMAKE_BUILD_TYPE STREQUAL "FASTDEBUG") )
     set( ENABLE_WARNINGS ON)
 endif()
 

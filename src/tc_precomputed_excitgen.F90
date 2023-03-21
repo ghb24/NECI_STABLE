@@ -2,7 +2,7 @@
 module pcpp_excitgen
     use constants
     use aliasSampling, only: aliasSampler_t, clear_sampler_array
-    use bit_reps, only: niftot
+    use bit_rep_data, only: niftot
     use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
     use sym_mod, only: symprod, symconj
     use DetBitOps, only: EncodeBitDet
@@ -10,9 +10,9 @@ module pcpp_excitgen
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Integrals_neci, only: get_umat_el
     use UMatCache, only: gtID
-    use excitation_types, only: SingleExc_t, DoubleExc_t
+    use excitation_types, only: Excite_1_t, Excite_2_t
     use sltcnd_mod, only: sltcnd_excit
-    use util_mod, only: binary_search_first_ge, getSpinIndex, intswap, custom_findloc, &
+    use util_mod, only: binary_search_first_ge, getSpinIndex, swap, custom_findloc, &
                         operator(.div.)
     use get_excit, only: make_double, make_single
     implicit none
@@ -86,7 +86,11 @@ contains
         end if
 
         ! assign ilutnJ
-        call EncodeBitDet(nJ, ilutnJ)
+        if (nJ(1) == 0) then
+            ilutnJ = 0_n_int
+        else
+            call EncodeBitDet(nJ, ilutnJ)
+        end if
 
     end subroutine gen_rand_excit_pcpp
 
@@ -147,7 +151,7 @@ contains
             return
         end if
 
-        if (src2 < src1) call intSwap(src1, src2)
+        if (src2 < src1) call swap(src1, src2)
 
         ! we could also have drawn the electrons the other way around
         pSSwap1 = double_elec_one_sampler%getProb(umElec2)
@@ -163,7 +167,7 @@ contains
         tgt2MS = getSpinIndex(src2)
         ! if we have opposite spins, chose their distribution randomly
         if (G1(src1)%MS /= G1(src2)%MS) then
-            if (genrand_real2_dSFMT() < 0.5) call intswap(tgt1MS, tgt2MS)
+            if (genrand_real2_dSFMT() < 0.5) call swap(tgt1MS, tgt2MS)
             pGen = pGen * 0.5
         end if
 
@@ -516,6 +520,7 @@ contains
             logical :: tPar
             integer :: iEl, jEl
 
+            tPar = .false.
             do iEl = 1, nel
                 w(iEl) = 0
                 do jEl = 1, nel
@@ -527,7 +532,7 @@ contains
                                 do b = 1, nBasis
                                     if (.not. any(b == (/a, i, j/))) then
                                         w(iEl) = &
-                                            w(iEl) + abs(sltcnd_excit(refDet, DoubleExc_t(i, a, j, b), tPar))
+                                            w(iEl) + abs(sltcnd_excit(refDet, Excite_2_t(i, a, j, b), tPar))
                                     end if
                                 end do
                             end if
@@ -545,13 +550,14 @@ contains
         subroutine setup_elec_two_sampler()
             implicit none
             real(dp) :: w(nel)
-            type(DoubleExc_t) :: ex
+            type(Excite_2_t) :: ex
             logical :: tPar
             integer :: aerr
             integer :: i, j, a, b
             integer :: jEl
 
             allocate(double_elec_two_sampler(nBasis), stat=aerr)
+            tPar = .false.
             do i = 1, nBasis
                 w = 0.0_dp
                 do jEl = 1, nel
@@ -562,7 +568,7 @@ contains
                                 do b = 1, nBasis
                                     if (.not. any(b == (/i, j, a/))) then
                                         w(jEl) = &
-                                            w(jEl) + abs(sltcnd_excit(refDet, DoubleExc_t(i, a, j, b), tPar))
+                                            w(jEl) + abs(sltcnd_excit(refDet, Excite_2_t(i, a, j, b), tPar))
                                     end if
                                 end do
                             end if
@@ -726,7 +732,7 @@ contains
             real(dp) :: prob
             integer :: b, j
             integer :: nI(nel)
-            type(SingleExc_t) :: ex
+            type(Excite_1_t) :: ex
             logical :: tPar
 
             prob = 0
@@ -741,7 +747,7 @@ contains
                                 call make_single(refDet(:), nI, j, b, ex%val, tPar)
                                 ! this is a symbolic excitation, we do NOT require src to be occupied
                                 ! we just use the formula for excitation matrix elements
-                                prob = prob + abs(sltcnd_excit(nI, SingleExc_t(src, tgt), tPar))
+                                prob = prob + abs(sltcnd_excit(nI, Excite_1_t(src, tgt), tPar))
                             end if
                         end do
                     end if

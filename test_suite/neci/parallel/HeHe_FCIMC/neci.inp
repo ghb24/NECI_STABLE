@@ -10,9 +10,12 @@ methods
 method vertex fcimc
 endmethods
 seed -7
-nmcyc 40000 
+nmcyc 20000
 initwalkers 100
-tau 0.002
+totalwalkers 1000
+diagShift 0.1
+tau-values \
+    start user-defined 0.002
 startsinglepart
 shiftdamp 0.01
 stepsshift 75
@@ -20,7 +23,7 @@ load-balance-blocks off
 endcalc
 
 integral
-freeze 0,10
+freeze 0 10
 endint
 
 logging

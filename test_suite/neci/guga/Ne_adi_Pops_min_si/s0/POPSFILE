@@ -3,8 +3,8 @@
 PopHPHF=F,PopLz=F,PopLensign= 1,PopNEl=  8,
 PopTotwalk=           3855
  PopSft=  0.000000000000000E+000
- PopSumNoatHF=   692239.000000000     
- PopSumENum=  -147699.914453503     
+ PopSumNoatHF=   692239.000000000
+ PopSumENum=  -147699.914453503
 PopCyc=            3800,PopNIfD= 0,PopNIfY= 0,PopNIfSgn= 1,
 PopNIfFlag= 1,PopNIfTot= 2,PopTau=    0.007473841555,
 PopiBlockingIter=               0
@@ -13,11 +13,10 @@ PopPSingles=    0.054808171400,PopPParallel=    0.500000000000
 ,PopPSing_spindiff1=    0.000000000000,PopPDoub_spindiff1=    0.000000000000
 ,PopPDoub_spindiff2=    0.000000000000
 PopTotImagTime=   41.305687577420
-PopGammaSing= 0.00000000000    ,PopGammaDoub= 0.00000000000    ,PopGammaOpp= 0.00000000000    ,PopGammaPar= 0.00000000000    ,PopMaxDeathCpt= 29.6640774241    
-,PopGammaSing_spindiff1= 0.00000000000    ,PopGammaDoub_spindiff1= 0.00000000000    ,PopGammaDoub_spindiff2= 0.00000000000    
+PopGammaSing= 0.00000000000    ,PopGammaDoub= 0.00000000000    ,PopGammaOpp= 0.00000000000    ,PopGammaPar= 0.00000000000    ,PopMaxDeathCpt= 29.6640774241
+,PopGammaSing_spindiff1= 0.00000000000    ,PopGammaDoub_spindiff1= 0.00000000000    ,PopGammaDoub_spindiff2= 0.00000000000
 PopNNodes=     1
 PopWalkersOnNodes=            3855,
- PopPreviousHistTau= T
  tPopAutoAdaptiveShift= F
 PopRandomHash=        32290,       41578,       23513,       15394,       25131,       37984,       38025,       34550,       16716,       21253,       38119,       18638,        2950,       24074,       39828,       29078,       23088,       43883,       41586,       18351,       15606,       35059,        1093,        5783,        1894,       24367,       13105,       23458,       35954,       17460,        3187,       43048,        7528,        6216,       18057,       19562,       10257,       24872,        3942,       31085,       17969,       23938,       39480,       14577,
  &END

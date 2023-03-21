@@ -1,7 +1,9 @@
 module fruit_extensions
 
-    use fruit
+    use fruit, only: run_test_case
     implicit none
+    private
+    public :: my_run_test_case
 
 contains
 

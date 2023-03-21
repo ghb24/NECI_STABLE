@@ -6,6 +6,7 @@ module initiator_space_procs
     use bit_reps, only: decode_bit_det
     use CalcData
     use constants
+    use SystemData, only: nEl
     use FciMCData, only: ilutHF
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, &
@@ -73,7 +74,7 @@ contains
         call MPIAllGather(mpi_temp, initiator_sizes, ierr)
 
         initiator_space_size = sum(initiator_sizes)
-        initiator_space_size_int = int(initiator_space_size, sizeof_int)
+        initiator_space_size_int = int(initiator_space_size)
 
         write(stdout, '("Total size of initiator space:",1X,i8)') initiator_space_size
         write(stdout, '("Size of initiator space on this processor:",1X,i8)') initiator_sizes(iProcIndex)

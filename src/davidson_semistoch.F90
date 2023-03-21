@@ -6,8 +6,9 @@ module davidson_semistoch
     ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
     use constants
-    use FciMCData, only: DavidsonTag
-    use SystemData, only: t_non_hermitian
+    use FciMCData, only: DavidsonTag, user_input_max_davidson_iters, &
+                         user_input_davidson_tolerance
+    use SystemData, only: t_non_hermitian_2_body
     use MemoryManager, only: TagIntType
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather, MPISumAll
@@ -15,10 +16,11 @@ module davidson_semistoch
     use MPI_wrapper, only: root, MPI_WTIME
     use sparse_arrays, only: HDiagTag
     use core_space_util, only: cs_replicas
+    use util_mod, only: neci_flush, stop_all
     implicit none
 
-    integer, parameter :: max_num_davidson_iters = 25
-    real(dp), parameter :: residual_norm_target = 0.0000001_dp
+    integer :: max_num_davidson_iters = 50
+    real(dp) :: residual_norm_target = 1e-7_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
     type davidson_ss
@@ -79,6 +81,7 @@ contains
         integer :: i
         real(dp) :: start_time, end_time
         type(davidson_ss), intent(inout) :: this
+        character(*), parameter :: this_routine = "perform_davidson_ss"
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
@@ -108,9 +111,15 @@ contains
 
             if (this%residual_norm < residual_norm_target) exit
 
+            if (i == min(max_num_davidson_iters, this%space_size)) then
+                call stop_all(this_routine, "Davidson iteration reached the maximum number of iterations. &
+                                            &The deterministic energy may not be converged. &
+                                            &You can increase 'davidson-max-iters' or 'davidson-target-tolerance'.")
+            end if
+
         end do
 
-        if (print_info) write(stdout, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
+        if (print_info) write(stdout, '(/,1x,"Final calculated correlation energy:",1X,f16.10)') this%davidson_eigenvalue
 
         call free_davidson_ss(this)
 
@@ -135,6 +144,12 @@ contains
         integer(MPIArg) :: mpi_temp
         character(len=*), parameter :: t_r = "init_davidson_ss"
 
+        if( allocated(user_input_max_davidson_iters) ) &
+            max_num_davidson_iters = user_input_max_davidson_iters
+
+        if( allocated(user_input_davidson_tolerance) ) &
+            residual_norm_target = user_input_davidson_tolerance
+
         this%run = run
         associate ( &
             davidson_eigenvalue => this%davidson_eigenvalue, &
@@ -151,7 +166,7 @@ contains
             mpi_temp = int(space_size_this_proc, MPIArg)
             call MPIAllGather(mpi_temp, this%sizes, ierr)
             ! The total space size across all processors.
-            space_size = int(sum(this%sizes), sizeof_int)
+            space_size = int(sum(this%sizes))
 
             this%displs(0) = 0
             do i = 1, nProcessors - 1
@@ -174,6 +189,11 @@ contains
             !    skip_calc = .true.
             !    return
             !end if
+
+            if (print_info) then
+                write(stdout,*) 'Space sizes and max Davidson iterations: ', space_size_this_proc, max_num_davidson_iters
+                call neci_flush(6)
+            end if
 
             ! the memory required to allocate each of basis_vectors and
             ! multipied_basis_vectors, in mb.
@@ -279,6 +299,7 @@ contains
         integer, intent(in) :: basis_index
         integer :: i
         real(dp) :: dot_prod, dot_prod_tot, norm, norm_tot
+        character(len=*), parameter :: t_r = "init_davidson_ss"
 
         ! Create the new basis state from the residual. This step performs
         ! t = (D - EI)^(-1) r,
@@ -336,7 +357,7 @@ contains
         real(dp), allocatable :: right_eigenvectors(:, :)
         integer :: minInd, tmp(1)
 
-        if (t_non_hermitian) then
+        if (t_non_hermitian_2_body) then
 
             lwork = max(1, 4 * basis_index)
             allocate(work(lwork))
@@ -516,6 +537,7 @@ contains
             ! the matmul below does indeed retturn Hv.
             this%residual = matmul(this%multiplied_basis_vectors(:, 1:basis_index), this%eigenvector_proj(1:basis_index))
             this%residual = this%residual - this%davidson_eigenvalue * this%davidson_eigenvector
+
         end if
 
     end subroutine calculate_residual_ss

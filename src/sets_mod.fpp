@@ -5,12 +5,16 @@
 
 module sets_mod
     use constants, only: int32, int64, sp, dp
-    use util_mod, only: binary_search_first_ge, stop_all
+    use util_mod, only: binary_search_int, stop_all
+    use sort_mod, only: sort
+    use growing_buffers, only: buffer_int32_1D_t, buffer_int64_1D_t
     implicit none
     private
-    public :: subset, is_sorted, special_union_complement, disjoint, &
-              union, intersect, complement, operator(.in.), &
-              operator(.complement.)
+    public :: subset, set, is_set, is_sorted, special_union_complement, disjoint, &
+              operator(.cap.), operator(.complement.), operator(.U.), &
+              operator(.in.), empty_int
+
+    integer :: empty_int(0) = [integer::]
 
     !> Check if V is sorted.
     interface is_sorted
@@ -30,6 +34,24 @@ module sets_mod
     #:endfor
     end interface
 
+    !> Create a set out of A
+    interface set
+    #:for T, kinds in countable_types.items()
+    #:for kind in kinds
+        module procedure set_${T}$_${kind}$
+    #:endfor
+    #:endfor
+    end interface
+
+    !> Check if a given array is a set (ordered and unique elements)
+    interface is_set
+    #:for T, kinds in countable_types.items()
+    #:for kind in kinds
+        module procedure is_set_${T}$_${kind}$
+    #:endfor
+    #:endfor
+    end interface
+
     !> Check if A is a subset of B.
     interface subset
     #:for T, kinds in countable_types.items()
@@ -39,7 +61,8 @@ module sets_mod
     #:endfor
     end interface
 
-    interface union
+    !> Calculate the union A ∪ B
+    interface operator(.U.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
         module procedure union_${T}$_${kind}$
@@ -47,7 +70,8 @@ module sets_mod
     #:endfor
     end interface
 
-    interface intersect
+    !> Calculate the intersection A ∩ B
+    interface operator(.cap.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
         module procedure intersect_${T}$_${kind}$
@@ -55,14 +79,7 @@ module sets_mod
     #:endfor
     end interface
 
-    interface complement
-    #:for T, kinds in countable_types.items()
-    #:for kind in kinds
-        module procedure complement_${T}$_${kind}$
-    #:endfor
-    #:endfor
-    end interface
-
+    !> Calculate the complement A / B
     interface operator (.complement.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
@@ -71,6 +88,7 @@ module sets_mod
     #:endfor
     end interface
 
+    !> Check if element is contained in set.
     interface operator(.in.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
@@ -108,7 +126,7 @@ contains
 
         integer :: i
 
-            @:def_default(ascending_, ascending, .true.)
+        @:def_default(ascending_, ascending, .true.)
 
         res = .true.
         if (ascending_) then
@@ -127,6 +145,58 @@ contains
             end do
         end if
     end function is_sorted_${T}$_${kind}$
+    #:endfor
+    #:endfor
+
+    #:for T, kinds in countable_types.items()
+    #:for kind in kinds
+    pure function set_${T}$_${kind}$ (V) result(res)
+        ${T}$ (${kind}$), intent(in) :: V(:)
+        integer(${kind}$), allocatable :: res(:)
+        integer(${kind}$) :: sorted(size(V)), previous
+        type(buffer_${kind}$_1D_t) :: buffer
+        integer :: i
+
+        sorted = V
+        call sort(sorted)
+
+        call buffer%init()
+        if (size(sorted) > 0) then
+            call buffer%push_back(sorted(1))
+            previous = sorted(1)
+        end if
+        do i = 2, size(sorted)
+            if (previous /= sorted(i)) then
+                call buffer%push_back(sorted(i))
+                previous = sorted(i)
+            end if
+        end do
+        call buffer%dump_reset(res)
+    end function set_${T}$_${kind}$
+    #:endfor
+    #:endfor
+
+    #:for T, kinds in countable_types.items()
+    #:for kind in kinds
+    pure function is_set_${T}$_${kind}$ (V) result(res)
+        ${T}$ (${kind}$), intent(in) :: V(:)
+        logical :: res
+        integer(${kind}$) :: previous
+        integer :: i
+
+        res = is_sorted(V)
+        if (res) then
+            if (size(V) > 0) previous = V(1)
+            do i = 2, size(V)
+                if (V(i) == previous) then
+                    res = .false.
+                    return
+                else
+                    previous = V(i)
+                end if
+            end do
+        end if
+    end function is_set_${T}$_${kind}$
     #:endfor
     #:endfor
 
@@ -434,7 +504,7 @@ contains
         character(*), parameter :: this_routine = 'test_in_${T}$_${kind}$'
         logical :: res
         @:pure_ASSERT(is_sorted(set))
-        res = binary_search_first_ge(set, element) /= -1
+        res = binary_search_int(set, element) /= -1
     end function
     #:endfor
     #:endfor

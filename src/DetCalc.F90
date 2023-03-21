@@ -2,8 +2,9 @@
 MODULE DetCalc
     use constants, only: dp,n_int
     use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
-         t_non_hermitian
-    use sort_mod
+         t_non_hermitian_2_body
+
+    use sort_mod, only: sort
 
     use bit_reps, only: writebitdet
 
@@ -16,6 +17,22 @@ MODULE DetCalc
     use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, SetupUMat2d_dense
 
     use procedure_pointers, only: get_umat_el
+
+    use excit_mod, only: isvaliddet, genexcit
+
+    use gndts_blk_mod, only: gndts_blk
+
+    use hdiag_mod, only: hdiag_neci
+
+    use frsblk_mod, only: neci_frsblkh
+
+    use read_psi_mod, only: read_psi, write_psi, write_psi_comp
+
+    use calcrho_mod, only: gethelement, igetexcitlevel_2
+
+    use Determinants, only: calcT, get_helement, specdet, tSpecDet, &
+        tDefineDet, DefDet
+    Use DeterminantData, only: FDet, write_det
 
     IMPLICIT NONE
     save
@@ -46,15 +63,12 @@ CONTAINS
     Subroutine DetCalcInit
 
         Use global_utilities
-        Use Determinants, only: FDet, specdet, tSpecDet, tDefineDet, &
-                                DefDet, write_det
         Use IntegralsData, only: NFROZEN
         use SystemData, only: lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only: Alat, arr, brr, boa, box, coa, ecore, g1, Beta
         use SystemData, only: tParity, tSpn, Symmetry, STot, NullBasisFn, tUHF, tMolpro
         use sym_mod
         use LoggingData, only: tLogDets
-        use legacy_data, only: irat
         use HElem
         use util_mod, only: get_free_unit, NECI_ICOPY
         Type(BasisFn) ISym
@@ -62,7 +76,6 @@ CONTAINS
         integer i, j, ii, iunit
         integer ierr, norb
         integer nDetTot
-        logical isvaliddet
 
         character(25), parameter :: this_routine = 'DetCalcInit'
 
@@ -84,10 +97,10 @@ CONTAINS
         if (tDeferred_Umat2d .and. .not. tUMat2D) then
 
             ASSERT(.not. btest(nbasis, 0))
-
             ! And fill in the array
             call SetupUMat2d_dense(nBasis)
         end if
+
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
         if (TSPECDET) then
@@ -117,7 +130,8 @@ CONTAINS
                     call write_det(6, FDET, .true.)
                 end if
 !C.. if we're doing a truncated CI expansion
-                CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, 0, (/0.0_dp/), NDET, 1, G1, .TRUE., NBASISMAX, .TRUE.)
+                CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, reshape([0], [1, 1]), &
+                              reshape([0], [1, 1]), NDET, 1, G1, .TRUE., NBASISMAX, .TRUE.)
                 write(stdout, *) "NDET out of GENEXCIT ", NDET
 !C.. We need to add in the FDET
                 NDET = NDET + 1
@@ -188,7 +202,9 @@ CONTAINS
                 allocate(Hamil(II), stat=ierr)
                 LogAlloc(ierr, 'HAMIL', II, HElement_t_sizeB, tagHamil)
                 NDET = 0
-                CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, NMRKS(1, 2), HAMIL, NDET, 1, G1, .TRUE., NBASISMAX, .FALSE.)
+                CALL GENEXCIT(&
+                        FDET, iExcitLevel, NBASIS, NEL, &
+                        NMRKS(:1, :2), int(HAMIL), NDET, 1, G1, .TRUE., NBASISMAX, .FALSE.)
                 Deallocate(Hamil)
                 LogDealloc(tagHamil)
                 NDET = NDET + 1
@@ -268,29 +284,30 @@ CONTAINS
                 allocate(CkN(nDet, nEval), stat=ierr)
                 LogAlloc(ierr, 'CKN', nDet * nEval, HElement_t_sizeB, tagCKN)
                 CKN = (0.0_dp)
-!C..
+
                 allocate(Ck(nDet, nEval), stat=ierr)
                 LogAlloc(ierr, 'CK', nDet * nEval, HElement_t_sizeB, tagCK)
                 CK = (0.0_dp)
-!C..
+
                 allocate(W(nEval), stat=ierr)
                 LogAlloc(ierr, 'W', nEval, 8, tagW)
                 W = 0.0_dp
             end if
-!C..
+
             IF (TREAD) THEN
+#ifdef CMPLX_
+                call stop_all(this_routine, "not implemented for complex with tREAD")
+#else
                 CALL READ_PSI(BOX, BOA, COA, NDET, NEVAL, NBASISMAX, NEL, CK, W)
+#endif
             end if
         end if
-
-!      TMC=TCALCHMAT.AND.(.NOT.TENERGY)
 
     End Subroutine DetCalcInit
 
     Subroutine DoDetCalc
         Use global_utilities
         use util_mod, only: get_free_unit
-        use Determinants, only: get_helement, FDet, DefDet, tDefineDet
         use SystemData, only: Alat, arr, brr, boa, box, coa, ecore, g1, Beta
         use SystemData, only: t_new_real_space_hubbard
         use SystemData, only: nBasis, nBasisMax, nEl, nMsh, LzTot, TSPN, LMS
@@ -299,7 +316,6 @@ CONTAINS
         use Parallel_neci, only: iProcIndex
         use DetBitops, only: DetBitEQ, EncodeBitDet, FindBitExcitLevel
         use bit_rep_data, only: nifd, NIfTot, NIfD
-        use legacy_data, only: irat
         use bit_reps, only: decode_bit_det
         use sym_mod
         use HElem
@@ -320,8 +336,8 @@ CONTAINS
         use ras, only: generate_entire_ras_space
         use real_space_hubbard, only: init_real_space_hubbard
 
-        real(dp), ALLOCATABLE :: TKE(:), A(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), WORK2(:), V2(:, :), FCIGS(:)
-        HElement_t(dp), ALLOCATABLE :: WORK(:)
+        real(dp), ALLOCATABLE :: TKE(:), A(:, :), V(:), AM(:), BM(:), T(:), WT(:), SCR(:), WH(:), V2(:, :), FCIGS(:)
+        HElement_t(dp), ALLOCATABLE :: WORK(:), WORK2(:)
         INTEGER, ALLOCATABLE :: INDEX(:), ISCR(:), Temp(:)
         integer(TagIntType) :: TKETag = 0, ATag = 0, VTag = 0, AMTag = 0, BMTag = 0, TTag = 0
         INTEGER(TagIntType) :: WTTag = 0, SCRTag = 0, ISCRTag = 0, INDEXTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0, WorkTag = 0
@@ -334,11 +350,10 @@ CONTAINS
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
         INTEGER nKry1
         INTEGER(KIND=n_int) :: ilut(0:NIfTot), ilut_temp(0:NIfTot)
-        INTEGER J, JR, iGetExcitLevel_2, ExcitLevel, iunit
+        INTEGER J, JR, ExcitLevel, iunit
         INTEGER LSCR, LISCR, MaxIndex
         LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real(dp) :: GetHElement, calct, calcmcen, calcdlwdb, norm, temp_hel
-        external :: GetHElement
+        real(dp) :: calcmcen, calcdlwdb, norm, temp_hel
         integer:: ic, TempnI(NEl), MomSymDet(NEl), ICSym, ICConnect, PairedUnit, SelfInvUnit
         integer(n_int) :: iLutMomSym(0:NIfTot)
         logical :: tSuccess
@@ -434,7 +449,7 @@ CONTAINS
             end if
             temp_hel = real(GETHELEMENT(IFDET, IFDET, HAMIL, LAB, NROW, NDET), dp)
             write(stdout, *) '<D0|H|D0>=', temp_hel
-            write(stdout, *) '<D0|T|D0>=', CALCT(NMRKS(1, IFDET), NEL)
+            write(stdout, *) '<D0|T|D0>=', CALCT(NMRKS(1 : 1 + nEl, IFDET), NEL)
             CALL neci_flush(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
         end if
@@ -503,12 +518,16 @@ CONTAINS
                 CALL LogMemAlloc('V2', NDET * NEVAL, 8, this_routine, V2Tag, ierr)
                 V2 = 0.0_dp
 !C..Lanczos iterative diagonalising routine
-                if (t_non_hermitian) then
+                if (t_non_hermitian_2_body) then
                     call stop_all(this_routine, &
                                   "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians")
                 end if
+#ifdef CMPLX_
+            call stop_all(this_routine, "this does not make sense for complex code")
+#else
                 CALL NECI_FRSBLKH(NDET, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A, W, V, AM, BM, T, WT, &
          &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .true.)
+#endif
 
 !Multiply all eigenvalues by -1.
                 CALL DSCAL(NEVAL, -1.0_dp, W, 1)
@@ -524,7 +543,7 @@ CONTAINS
                     CALL LogMemAlloc('WORK', 4 * NDET, 8 * HElement_t_size, this_routine, WorkTag, ierr)
                     allocate(WORK2(3 * NDET), stat=ierr)
                     CALL LogMemAlloc('WORK2', 3 * NDET, 8, this_routine, WORK2Tag, ierr)
-                    if (t_non_hermitian) then
+                    if (t_non_hermitian_2_body) then
                         call stop_all(this_routine, &
                                       "HDIAG_nec is not setup for non-hermitian Hamiltonians")
                     end if
@@ -570,7 +589,7 @@ CONTAINS
                 end if
             end do
             IF (davidsonCalc%super%hfindex == 0) call stop_all("DoDetCalc", "Fermi determinant is not found in RAS space!")
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 call stop_all(this_routine, &
                               "perform_davidson not adapted for non-hermitian Hamiltonians!")
             end if
