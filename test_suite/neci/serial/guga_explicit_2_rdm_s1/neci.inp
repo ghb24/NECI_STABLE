@@ -36,6 +36,7 @@ calc
     semi-stochastic 100
     pops-core 1000
     allrealcoeff
+    realspawncutoff off
     time 2700
 endcalc
 

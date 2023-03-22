@@ -38,7 +38,6 @@ calc
     truncinitiator
     addtoinitiator  3
     allrealcoeff
-    realspawncutoff .30
     jump-shift
     tau-values  \
         start user-defined 0.01 \

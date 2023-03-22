@@ -29,6 +29,7 @@ calc
     shiftdamp 0.1
     stepsshift 10
     allrealcoeff
+    realspawncutoff off
     back-spawn-flex
     load-balance-interval 1000
     memoryFacSpawn 10

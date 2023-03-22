@@ -24,6 +24,7 @@ calc
     truncinitiator
     addtoinitiator 3.
     allrealcoeff
+    realspawncutoff off
     shiftdamp 0.1
     stepsshift 10
     memoryfacpart  5.00
