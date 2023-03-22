@@ -1,8 +1,9 @@
 module test_orb_idx_mod
-    use fruit, only: assert_true
+    use fruit, only: assert_true, assert_false
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
         calc_spin, alpha, beta, operator(==)
-    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, excite
+    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, excite, is_canonical, &
+        canonicalize
     implicit none
     private
     public :: test_calc_spin, test_conversion, test_excite
@@ -50,7 +51,11 @@ contains
 
         call assert_true(all(reference == excite(reference, Excite_0_t())))
         call assert_true(all(SpinOrbIdx_t([2, 3, 5]) == excite(reference, Excite_1_t(1, 5))))
-        call assert_true(all(SpinOrbIdx_t([3, 4, 5]) == excite(reference, Excite_2_t(1, 5, 2, 4))))
+        call assert_true(all(SpinOrbIdx_t([3, 4, 5]) == excite(reference, canonicalize(Excite_2_t(1, 5, 2, 4)))))
+
+        call assert_false(is_canonical(Excite_2_t(1, 5, 2)))
+        call assert_false(is_canonical(Excite_2_t(1, 5, 2, 4)))
+        call assert_true(is_canonical(Excite_2_t(1, 5, 2, 6)))
 
         reference = SpinOrbIdx_t([1, 2, 3, 11, 12, 14])
         call assert_true(all(SpinOrbIdx_t([2, 3, 5, 11, 12, 14]) == excite(reference, Excite_1_t(1, 5))))
