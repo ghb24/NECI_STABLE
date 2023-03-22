@@ -38,7 +38,7 @@ module sltcnd_mod
     use IntegralsData, only: UMAT, t_use_tchint_lib
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
-    use excitation_types, only: excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, &
+    use excitation_types, only: Excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, &
                                 Excite_3_t, UNKNOWN, get_excitation, get_bit_excitation, &
                                 create_excitation, Excite_Further_t, dyn_nI_excite
     use orb_idx_mod, only: SpinOrbIdx_t
@@ -53,39 +53,10 @@ module sltcnd_mod
     implicit none
     private
     public :: initSltCndPtr, &
-              ! statically known
               sltcnd_excit, sltcnd_2_kernel, &
-              ! dynamically known
               dyn_sltcnd_excit_old, dyn_sltcnd_excit, &
               sltcnd_compat, sltcnd, sltcnd_knowIC, &
               CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
-
-    ! public ::
-
-!>  @brief
-!>      Evaluate Matrix Element for different excitations
-!>      using the Slater-Condon rules.
-!>
-!>  @details
-!>  This generic function uses compile time dispatch.
-!>  This means that exc cannot be just of class(excitation_t) but has
-!>  to be a proper non-polymorphic type.
-!>  For run time dispatch use dyn_sltcnd_excit.
-!>
-!>  @param[in] exc, An excitation of a subtype of excitation_t.
-    interface sltcnd_excit
-    #:for excitation_t in excitations
-        module procedure sltcnd_excit_${excitation_t}$
-    #:endfor
-        module procedure sltcnd_excit_SpinOrbIdx_t_Excite_1_t
-        module procedure sltcnd_excit_SpinOrbIdx_t_Excite_2_t
-    end interface
-
-    ! interface nI_invariant_sltcnd_excit
-    !     #:for rank, excite_t in zip(excit_ranks[2:], defined_excitations[2:])
-    !         module procedure nI_invariant_sltcnd_excit_${excitation_t}$
-    !     #:endfor
-    ! end interface
 
     abstract interface
         #:for rank, excite_t in zip(excit_ranks, defined_excitations)
@@ -105,6 +76,34 @@ module sltcnd_mod
             end function
         #:endfor
     end interface
+
+    type :: SlaterCondonPointers_t
+        #:for rank in excit_ranks
+            procedure(sltcnd_${rank}$_t), pointer, nopass :: sltcnd_${rank}$ => null()
+        #:endfor
+    end type
+
+!>  @brief
+!>      Evaluate Matrix Element for different excitations
+!>      using the Slater-Condon rules.
+!>
+!>  @details
+!>  This generic function uses compile time dispatch.
+!>  This means that exc cannot be just of class(Excitation_t) but has
+!>  to be a proper non-polymorphic type.
+!>  For run time dispatch use dyn_sltcnd_excit.
+!>
+!>  @param[in] exc, An excitation of a subtype of Excitation_t.
+    interface sltcnd_excit
+        #:for rank in excit_ranks
+            procedure sltcnd_${rank}$
+        #:endfor
+        module procedure sltcnd_excit_Excite_Further_t
+        module procedure sltcnd_excit_SpinOrbIdx_t_Excite_1_t
+        module procedure sltcnd_excit_SpinOrbIdx_t_Excite_2_t
+    end interface
+
+    type(SlaterCondonPointers_t) :: sltcnd_ptrs
 
     #:for rank in excit_ranks
         procedure(sltcnd_${rank}$_t), pointer :: sltcnd_${rank}$ => null()
@@ -129,11 +128,17 @@ contains
                 sltcnd_1 => sltcnd_1_tc_ua
                 sltcnd_2 => sltcnd_2_tc_ua
                 sltcnd_3 => sltcnd_3_tc_ua
+                sltcnd_ptrs = SlaterCondonPointers_t(&
+                        sltcnd_0_tc_ua, sltcnd_1_tc_ua, &
+                        sltcnd_2_tc_ua, sltcnd_3_tc_ua)
             else
                 sltcnd_0 => sltcnd_0_base_ua
                 sltcnd_1 => sltcnd_1_base_ua
                 sltcnd_2 => sltcnd_2_base_ua
                 sltcnd_3 => sltcnd_3_base
+                sltcnd_ptrs = SlaterCondonPointers_t(&
+                        sltcnd_0_base_ua, sltcnd_1_base_ua, &
+                        sltcnd_2_base_ua, sltcnd_3_base)
             end if
         else
             ! six-index integrals are only used for three and more
@@ -143,6 +148,8 @@ contains
                 sltcnd_1 => sltcnd_1_tc
                 sltcnd_2 => sltcnd_2_tc
                 sltcnd_3 => sltcnd_3_tc
+                sltcnd_ptrs = SlaterCondonPointers_t(&
+                    sltcnd_0_tc, sltcnd_1_tc, sltcnd_2_tc, sltcnd_3_tc)
             else if (allocated(SD_spin_purification)) then
                 if (SD_spin_purification == possible_purification_methods%TRUNCATED_LADDER) then
                     sltcnd_0 => sltcnd_0_base
@@ -280,7 +287,7 @@ contains
 
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
         logical :: tParity
 
         call get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
@@ -902,35 +909,6 @@ contains
     end function
 
     !>  @brief
-    !>      Evaluate Matrix Element for the reference (no Excitation).
-    !>
-    !>  @param[in] ref, An array of occupied orbital indices in the reference.
-    !>  @param[in] exc, An excitation of type Excite_0_t.
-    HElement_t(dp) function sltcnd_excit_Excite_0_t(ref, exc, tParity)
-        integer, intent(in) :: ref(nel)
-        type(Excite_0_t), intent(in) :: exc
-        logical, intent(in) :: tParity
-
-        sltcnd_excit_Excite_0_t = sltcnd_0(ref, exc, tParity)
-    end function
-
-    !>  @brief
-    !>      Evaluate Matrix Element for Excite_1_t.
-    !>
-    !>  @param[in] ref, An array of occupied orbital indices in the reference.
-    !>  @param[in] exc, An excitation of type Excite_1_t.
-    !>  @param[in] tParity, The parity of the excitation.
-    HElement_t(dp) function sltcnd_excit_Excite_1_t(ref, exc, tParity)
-        integer, intent(in) :: ref(nel)
-        type(Excite_1_t), intent(in) :: exc
-        logical, intent(in) :: tParity
-        routine_name("sltcnd_excit_Excite_1_t")
-
-        @:ASSERT(subset(exc%val(1, :), ref) .and. disjoint(exc%val(2, :), ref))
-        sltcnd_excit_Excite_1_t = sltcnd_1(ref, exc, tParity)
-    end function
-
-    !>  @brief
     !>      Evaluate Matrix Element for Excite_1_t.
     !>
     !>  @param[in] ref, The occupied spin orbitals of the reference.
@@ -949,22 +927,6 @@ contains
     !>  @brief
     !>      Evaluate Matrix Element for Excite_2_t.
     !>
-    !>  @param[in] ref, An array of occupied orbital indices in the reference.
-    !>  @param[in] exc, An excitation of type Excite_2_t.
-    !>  @param[in] tParity, The parity of the excitation.
-    HElement_t(dp) function sltcnd_excit_Excite_2_t(ref, exc, tParity)
-        integer, intent(in) :: ref(nel)
-        type(Excite_2_t), intent(in) :: exc
-        logical, intent(in) :: tParity
-        routine_name("sltcnd_excit_Excite_2_t")
-
-        @:ASSERT(subset(exc%val(1, :), ref) .and. disjoint(exc%val(2, :), ref))
-        sltcnd_excit_Excite_2_t = sltcnd_2(ref, exc, tParity)
-    end function
-
-    !>  @brief
-    !>      Evaluate Matrix Element for Excite_2_t.
-    !>
     !>  @param[in] ref, The occupied spin orbitals of the reference.
     !>  @param[in] exc, An excitation of type Excite_2_t.
     !>  @param[in] tParity, The parity of the excitation.
@@ -976,21 +938,6 @@ contains
 
         @:ASSERT(subset(exc%val(1, :), ref%idx) .and. disjoint(exc%val(2, :), ref%idx))
         sltcnd_excit_SpinOrbIdx_t_Excite_2_t = sltcnd_2(ref%idx, exc, tParity)
-    end function
-
-    !>  @brief
-    !>      Evaluate Matrix Element for Excite_3_t.
-    !>
-    !>  @param[in] exc, An excitation of type Excite_3_t.
-    !>  @param[in] tParity, The parity of the excitation.
-    HElement_t(dp) function sltcnd_excit_Excite_3_t(nI, exc, tParity)
-        integer, intent(in) :: nI(nEl)
-        type(Excite_3_t), intent(in) :: exc
-        logical, intent(in) :: tParity
-        routine_name("sltcnd_excit_Excite_3_t")
-
-        @:ASSERT(subset(exc%val(1, :), nI) .and. disjoint(exc%val(2, :), nI))
-        sltcnd_excit_Excite_3_t = sltcnd_3(nI, exc, tParity)
     end function
 
     !>  @brief
