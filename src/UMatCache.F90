@@ -30,6 +30,8 @@ MODULE UMatCache
 
     use cpmdstub_mod, only: CPMDANTISYMINTEL
 
+    use orb_idx_mod, only: get_spat
+
     better_implicit_none
 
     external :: ReadDalton2EIntegrals
@@ -1075,7 +1077,7 @@ Contains
             id = gInd
         else
             ! Storing as spatial orbitals (RHF or explicit input option ROHF)
-            id = (gInd + 1) .div.2
+            id = get_spat(gInd)
         end if
         if (tTransGTID) id = TransTable(id)
     end function

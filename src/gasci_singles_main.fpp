@@ -11,7 +11,7 @@ module gasci_singles_main
     use gasci_util, only: gen_all_excits
     use gasci_on_the_fly_heat_bath, only: GAS_singles_heat_bath_ExcGen_t
     use get_excit, only: make_single
-    use orb_idx_mod, only: calc_spin_raw, operator(==)
+    use orb_idx_mod, only: calc_spin_raw
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use excitation_types, only: Excite_1_t
     use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time

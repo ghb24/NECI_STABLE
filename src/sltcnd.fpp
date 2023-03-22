@@ -47,7 +47,7 @@ module sltcnd_mod
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua, external_lMat_matel
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
     use SD_spin_purification_mod, only: possible_purification_methods, SD_spin_purification, &
-                spin_pure_J, S2_expval_exc, ladder_op_exc
+                spin_pure_J, S2_expval_exc, nI_invariant_S2_expval_exc, ladder_op_exc
     use util_mod, only: stop_all
 
     implicit none

@@ -26,7 +26,7 @@
 !>  The procedures create_excitation, get_excitation, and get_bit_excitation
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module excitation_types
-    use orb_idx_mod, only: size
+    use orb_idx_mod, only: size, sum, calc_spin_raw
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_rep_data, only: nIfTot
     use util_mod, only: stop_all
@@ -42,7 +42,7 @@ module excitation_types
     public :: Excitation_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, &
         ilut_excite, excite, dyn_excite, dyn_nI_excite
-    public :: is_sorted, is_canonical, canonicalize
+    public :: is_sorted, is_canonical, canonicalize, occupation_allowed
     #:for excit in excitations
         public :: ${excit}$
     #:endfor
@@ -117,12 +117,24 @@ module excitation_types
 
 !>  Return true if the excitation is canonical
 !>
-!>  Canonical means that the excitation is defined, i.e. it has no UNKNOWN,
-!>  the sources and the targets are sets, i.e. they are unique and ordered,
-!>  and the sources and the targets are disjoint.
+!>  Canonical means:
+!>  1. that the excitation is defined, i.e. it has no UNKNOWN,
+!>  2. the sources and the targets are sets, i.e. they are unique and ordered,
+!>  3. the sources and the targets are disjoint,
+!>  4. the overall spin projection is preserved.
     interface is_canonical
     #:for Excitation_t in defined_excitations
         module procedure is_canonical_${Excitation_t}$
+    #:endfor
+    end interface
+
+
+!>  Return true if the excitation is allowed by occupation of the starting determinant
+!>
+!>  The input excitation has to be canonical.
+    interface occupation_allowed
+    #:for Excitation_t in defined_excitations
+        module procedure occupation_allowed_${Excitation_t}$
     #:endfor
     end interface
 
@@ -218,7 +230,19 @@ contains
             if (.not. defined(exc)) return
             if (.not. (is_set(exc%val(1, :)) .and. is_set(exc%val(2, :)))) return
             if (.not. disjoint(exc%val(1, :), exc%val(2, :))) return
+            if (sum(calc_spin_raw(exc%val(1, :))) /= sum(calc_spin_raw(exc%val(2, :)))) return
             res = .true.
+        end function
+    #:endfor
+
+    #:for Excitation_t in defined_excitations
+        pure function occupation_allowed_${Excitation_t}$ (nI, exc) result(res)
+            integer, intent(in) :: nI(:)
+            type(${Excitation_t}$), intent(in) :: exc
+            logical :: res
+            debug_function_name("occupation_allowed_${Excitation_t}$")
+            @:pure_ASSERT(is_canonical(exc))
+            res = subset(exc%val(1, :), nI) .and. disjoint(exc%val(2, :), nI)
         end function
     #:endfor
 

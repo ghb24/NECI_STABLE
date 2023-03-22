@@ -11,8 +11,7 @@ module gasci_util
     use SystemData, only: nEl, nBasis
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, GAS_specification
     use gasci_supergroup_index, only: get_supergroups
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
-        alpha, beta
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum, alpha, beta
     use sort_mod, only: sort
     use excitation_types, only: Excite_1_t, Excite_2_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &

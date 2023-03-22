@@ -20,12 +20,12 @@ module gasci_disconnected
     use excitation_types, only: Excitation_t, Excite_1_t, Excite_2_t, &
                                 get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
-    use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t, operator(==), operator(/=)
+    use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
 
     use excitation_generators, only: ExcitationGenerator_t
-    implicit none
+    better_implicit_none
 
     private
     public :: GAS_disc_ExcGenerator_t

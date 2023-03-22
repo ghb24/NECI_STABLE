@@ -11,7 +11,8 @@ module SD_spin_purification_mod
     use sets_mod, only: subset
     use excitation_types, only: excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, &
                                 Excite_3_t, UNKNOWN, get_excitation, get_bit_excitation, &
-                                create_excitation
+                                create_excitation, is_canonical, occupation_allowed
+    use orb_idx_mod, only: calc_spin_raw, get_spat
     implicit none
 
     type, extends(EnumBase_t) :: SD_SpinPurificationMethods_t
@@ -33,9 +34,13 @@ module SD_spin_purification_mod
 
     private
     public :: S2_expval, spin_momentum, spin_q_num, get_open_shell, &
-        spin_pure_J, S2_expval_exc, dyn_S2_expval_exc, &
+        S2_expval_exc, dyn_S2_expval_exc, &
+        nI_invariant_S2_expval_exc, &
         ladder_op_exc, dyn_ladder_op_exc, &
-        possible_purification_methods, SD_spin_purification
+        nI_invariant_ladder_op_exc, &
+        possible_purification_methods, SD_spin_purification, &
+        spin_pure_J
+
 
 
     interface S2_expval_exc
@@ -44,9 +49,21 @@ module SD_spin_purification_mod
     #:endfor
     end interface
 
+    interface nI_invariant_S2_expval_exc
+    #:for T in excitations[1:]
+        module procedure nI_invariant_S2_expval_exc_${T}$
+    #:endfor
+    end interface
+
     interface ladder_op_exc
     #:for T in excitations
         module procedure ladder_op_exc_${T}$
+    #:endfor
+    end interface
+
+    interface nI_invariant_ladder_op_exc
+    #:for T in excitations[1:]
+        module procedure nI_invariant_ladder_op_exc_${T}$
     #:endfor
     end interface
 
@@ -180,6 +197,44 @@ contains
         end select
     end function
 
+    pure function nI_invariant_ladder_op_exc_Excite_1_t(exc) result(res)
+        !! Evaluates \(< D_i | S_+S- | a^\dagger_A a_I D_i > = 0 \)
+        type(Excite_1_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element is always exactly zero
+        @:unused_var(exc)
+        res = 0.0_dp
+    end function
+
+    pure function nI_invariant_ladder_op_exc_Excite_2_t(exc) result(res)
+        !! Evaluates \(< D_i | S_+ S_- | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
+        type(Excite_2_t), intent(in) :: exc
+        real(dp) :: res
+        debug_function_name("nI_invariant_ladder_op_exc_Excite_2_t")
+            !! The matrix element.
+            !! It is real even for complex `NECI`.
+        @:pure_ASSERT(is_canonical(exc))
+
+        ! Only exchange excitations are non-zero.
+        associate(srcs => exc%val(1, :), tgts => exc%val(2, :))
+            if (calc_spin_raw(srcs(1)) /= calc_spin_raw(srcs(2)) &
+                 .and. all(get_spat(srcs) == get_spat(tgts))) then
+                 res = 1._dp
+            else
+                res = 0._dp
+            end if
+        end associate
+    end function
+
+    pure function nI_invariant_ladder_op_exc_Excite_3_t(exc) result(res)
+        !! Evaluates \(< D_i | S_+S_- | a^\dagger_A a^\dagger_B a^\dagger_C a_I a_J a_K D_i > = 0 \)
+        type(Excite_3_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element is always exactly zero
+        @:unused_var(exc)
+        res = 0.0_dp
+    end function
+
     pure function ladder_op_exc_Excite_0_t(nI, exc) result(res)
         !! Evaluates \(< D_i | S_+S_- | D_i > \)
         integer, intent(in) :: nI(:)
@@ -204,7 +259,7 @@ contains
         real(dp) :: res
             !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
-        res = 0.0_dp
+        res = nI_invariant_ladder_op_exc(exc)
     end function
 
     pure function ladder_op_exc_Excite_2_t(nI, exc) result(res)
@@ -215,24 +270,12 @@ contains
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
-        integer, allocatable :: oS_nI(:)
-        integer :: src(2), src_spat(2), tgt_spat(2)
-        oS_nI = get_open_shell(nI)
-        res = 0.0_dp
-        if (size(oS_nI) /= 0) then
-            src(:) = exc%val(1, :)
-            ! Test if double excitation is of exchange type.
-            if (count(mod(src, 2) == 0) == 1) then
-                if (src(1) > src(2)) call swap(src(1), src(2))
-                if (subset(src, os_nI)) then
-                    tgt_spat = (exc%val(2, :) + 1) .div. 2
-                    if (tgt_spat(1) > tgt_spat(2)) call swap(tgt_spat(1), tgt_spat(2))
-                    src_spat = (src + 1) .div. 2
-                    if (all(src_spat == tgt_spat)) then
-                        res = 1.0_dp
-                    end if
-                end if
-            end if
+        debug_function_name("ladder_op_exc_Excite_2_t")
+        @:pure_ASSERT(is_canonical(exc))
+        if (occupation_allowed(nI, exc)) then
+            res = nI_invariant_ladder_op_exc(exc)
+        else
+            res = 0._dp
         end if
     end function
 
@@ -244,6 +287,33 @@ contains
         real(dp) :: res
             !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
+        res = nI_invariant_ladder_op_exc(exc)
+    end function
+
+    pure function nI_invariant_S2_expval_exc_Excite_1_t(exc) result(res)
+        !! Evaluates \(< D_i | S^2 | a^\dagger_A a_I D_i > = 0 \)
+        type(Excite_1_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element is always exactly zero
+        @:unused_var(exc)
+        res = 0.0_dp
+    end function
+
+    pure function nI_invariant_S2_expval_exc_Excite_2_t(exc) result(res)
+        !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
+        type(Excite_2_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element.
+            !! It is real even for complex `NECI`.
+        res = nI_invariant_ladder_op_exc(exc)
+    end function
+
+    pure function nI_invariant_S2_expval_exc_Excite_3_t(exc) result(res)
+        !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a^\dagger_C a_I a_J a_K D_i > = 0 \)
+        type(Excite_3_t), intent(in) :: exc
+        real(dp) :: res
+            !! The matrix element is always exactly zero
+        @:unused_var(exc)
         res = 0.0_dp
     end function
 
@@ -270,7 +340,7 @@ contains
         real(dp) :: res
             !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
-        res = 0.0_dp
+        res = 0._dp
     end function
 
     pure function S2_expval_exc_Excite_2_t(nI, exc) result(res)
@@ -281,7 +351,11 @@ contains
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
-        res = ladder_op_exc(nI, exc)
+        if (occupation_allowed(nI, exc)) then
+            res = nI_invariant_S2_expval_exc(exc)
+        else
+            res = 0._dp
+        end if
     end function
 
     pure function S2_expval_exc_Excite_3_t(nI, exc) result(res)
@@ -292,7 +366,7 @@ contains
         real(dp) :: res
             !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
-        res = 0.0_dp
+        res = 0._dp
     end function
 
     pure function get_open_shell(nI) result(res)

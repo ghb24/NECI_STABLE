@@ -18,7 +18,7 @@ module gasci_singles_pc_weighted
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use orb_idx_mod, only: calc_spin_raw, operator(==)
+    use orb_idx_mod, only: calc_spin_raw
     use OneEInts, only: GetTMatEl
     use UMatCache, only: GTID, get_umat_el
 

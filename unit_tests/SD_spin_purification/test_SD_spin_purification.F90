@@ -86,8 +86,6 @@ contains
     subroutine test_S2_expval_exc()
         call assert_equals(0._dp, S2_expval_exc([integer::], Excite_0_t()))
 
-        call assert_equals(0._dp, S2_expval_exc([integer::], Excite_2_t(1, 2, 3, 4)))
-
         call assert_equals(0._dp, S2_expval_exc([1, 2, 3, 4], Excite_0_t()))
 
         call assert_equals(0._dp, S2_expval_exc([1, 3], Excite_2_t(1, 3, 5, 7)))
@@ -117,7 +115,7 @@ contains
         exc = Excite_0_t()
         call assert_equals(0._dp, dyn_S2_expval_exc([integer::], exc))
 
-        exc = Excite_2_t(1, 2, 3, 4)
+        exc = Excite_2_t(1, 5, 3, 7)
         call assert_equals(0._dp, dyn_S2_expval_exc([integer::], exc))
 
         exc = Excite_0_t()

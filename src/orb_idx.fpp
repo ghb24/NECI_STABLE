@@ -10,13 +10,14 @@ module orb_idx_mod
     use bit_rep_data, only: nIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use DetBitOps, only: EncodeBitDet
-    use util_mod, only: ilex_leq => lex_leq, ilex_geq => lex_geq, stop_all
+    use util_mod, only: ilex_leq => lex_leq, ilex_geq => lex_geq, stop_all, &
+        operator(.div.)
     implicit none
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
               SpinProj_t, calc_spin, calc_spin_raw, alpha, beta, &
               operator(==), operator(/=), operator(+), operator(-), &
-              sum, to_ilut, lex_leq, lex_geq, write_det
+              sum, to_ilut, lex_leq, lex_geq, write_det, get_spat
 
     type, abstract :: OrbIdx_t
         integer, allocatable :: idx(:)
@@ -39,6 +40,17 @@ module orb_idx_mod
     type :: SpinProj_t
         integer :: val
             !! Twice the spin projection as integer. \( S_z = 2 \cdot \text{val} \)
+    contains
+        private
+        procedure :: eq_SpinProj_t_SpinProj_t
+        generic, public :: operator(==) => eq_SpinProj_t_SpinProj_t
+        procedure :: neq_SpinProj_t_SpinProj_t
+        generic, public :: operator(/=) => neq_SpinProj_t_SpinProj_t
+        procedure :: add_SpinProj_t_SpinProj_t
+        generic, public :: operator(+) => add_SpinProj_t_SpinProj_t
+        procedure :: sub_SpinProj_t_SpinProj_t
+        procedure :: neg_SpinProj_t
+        generic, public :: operator(-) => sub_SpinProj_t_SpinProj_t, neg_SpinProj_t
     end type
 
     type(SpinProj_t), parameter :: beta = SpinProj_t(-1), alpha = SpinProj_t(1)
@@ -59,23 +71,12 @@ module orb_idx_mod
 #:for type in OrbIdxTypes
         module procedure eq_${type}$
 #:endfor
-        module procedure eq_SpinProj_t_SpinProj_t
     end interface
 
     interface operator(/=)
 #:for type in OrbIdxTypes
         module procedure neq_${type}$
 #:endfor
-        module procedure neq_SpinProj_t_SpinProj_t
-    end interface
-
-    interface operator(+)
-        module procedure add_SpinProj_t_SpinProj_t
-    end interface
-
-    interface operator(-)
-        module procedure sub_SpinProj_t_SpinProj_t
-        module procedure neg_SpinProj_t
     end interface
 
 #:for type in OrbIdxTypes
@@ -175,7 +176,7 @@ contains
     end function
 
     elemental function add_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
-        type(SpinProj_t), intent(in) :: lhs, rhs
+        class(SpinProj_t), intent(in) :: lhs, rhs
         type(SpinProj_t) :: res
         res%val = lhs%val + rhs%val
     end function
@@ -191,25 +192,25 @@ contains
     end function
 
     elemental function sub_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
-        type(SpinProj_t), intent(in) :: lhs, rhs
+        class(SpinProj_t), intent(in) :: lhs, rhs
         type(SpinProj_t) :: res
         res%val = lhs%val - rhs%val
     end function
 
     elemental function neg_SpinProj_t(m_s) result(res)
-        type(SpinProj_t), intent(in) :: m_s
+        class(SpinProj_t), intent(in) :: m_s
         type(SpinProj_t) :: res
         res%val = -m_s%val
     end function
 
     elemental function eq_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
-        type(SpinProj_t), intent(in) :: lhs, rhs
+        class(SpinProj_t), intent(in) :: lhs, rhs
         logical :: res
         res = lhs%val == rhs%val
     end function
 
     elemental function neq_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
-        type(SpinProj_t), intent(in) :: lhs, rhs
+        class(SpinProj_t), intent(in) :: lhs, rhs
         logical :: res
         res = lhs%val /= rhs%val
     end function
@@ -283,5 +284,13 @@ contains
         n_el = sum(popCnt(ilut))
         allocate(res%idx(n_el))
         call decode_bit_det(res%idx, ilut)
+    end function
+
+
+    elemental function get_spat(iorb) result(res)
+        !! Return the spatial orbital of iorb
+        integer, intent(in) :: iorb
+        integer :: res
+        res = (iorb + 1) .div. 2
     end function
 end module
