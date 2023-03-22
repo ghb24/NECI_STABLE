@@ -16,7 +16,7 @@ module orb_idx_mod
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
               SpinProj_t, calc_spin, calc_spin_raw, alpha, beta, &
-              operator(==), operator(/=), operator(+), operator(-), &
+              operator(==), operator(/=), &
               sum, to_ilut, lex_leq, lex_geq, write_det, get_spat
 
     type, abstract :: OrbIdx_t
