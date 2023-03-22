@@ -25,6 +25,7 @@ calc
     truncinitiator
     addtoinitiator 3.
     allrealcoeff
+    realspawncutoff off
     startsinglepart 100
     definedet 1 4 5 8 9 12
     seed 1

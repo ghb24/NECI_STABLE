@@ -28,7 +28,7 @@ calc
     truncinitiator
     addtoinitiator 3
     allrealcoeff
-    realspawncutoff 0.0
+    realspawncutoff off
     stepsshift 1
     load-balance-blocks off
     tau-values \

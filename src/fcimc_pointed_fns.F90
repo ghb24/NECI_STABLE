@@ -438,11 +438,9 @@ contains
 
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
-                if (tRealSpawnCutoff .and. &
-                    abs(nSpawn) < RealSpawnCutoff) then
+                if (tRealSpawnCutoff .and. abs(nSpawn) < RealSpawnCutoff) then
                     p_spawn_rdmfac = abs(nSpawn) / RealSpawnCutoff
-                    nSpawn = RealSpawnCutoff &
-                             * stochastic_round(nSpawn / RealSpawnCutoff)
+                    nSpawn = RealSpawnCutoff * stochastic_round(nSpawn / RealSpawnCutoff)
                 else
                     p_spawn_rdmfac = 1.0_dp !The acceptance probability of some kind of child was equal to 1
                 end if

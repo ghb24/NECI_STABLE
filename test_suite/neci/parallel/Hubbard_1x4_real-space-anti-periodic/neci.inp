@@ -17,6 +17,7 @@ calc
     definedet 1 4 5 8
 
     allrealcoeff
+    realspawncutoff off
     semi-stochastic 10
     pops-core 10
 
