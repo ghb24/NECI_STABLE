@@ -33,6 +33,7 @@ calc
     trial-wavefunction 10
     pops-trial 2
     allrealcoeff
+    realspawncutoff off
     time 2700
     nmcyc 10000
 

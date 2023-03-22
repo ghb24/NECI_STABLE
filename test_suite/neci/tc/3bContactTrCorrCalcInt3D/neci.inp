@@ -28,6 +28,7 @@ calc
     truncinitiator
     addtoinitiator        2
     allrealcoeff
+    realspawncutoff off
     startsinglepart 10
     load-balance-interval 1000
 endcalc

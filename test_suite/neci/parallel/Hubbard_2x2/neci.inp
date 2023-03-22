@@ -30,6 +30,7 @@ calc
     stepsshift 10
     load-balance-interval 1000
     allrealcoeff
+    realspawncutoff off
 
     memoryFacSpawn 10
 

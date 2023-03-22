@@ -21,6 +21,7 @@ calc
 
     load-balance-blocks off
     allrealcoeff
+    realspawncutoff off
     semi-stochastic 10
     pops-core 10
 

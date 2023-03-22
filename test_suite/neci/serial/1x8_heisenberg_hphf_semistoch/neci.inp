@@ -25,6 +25,7 @@ calc
     start-neel-state
 
     allrealcoeff
+    realspawncutoff off
 
     nmcyc 10000
 

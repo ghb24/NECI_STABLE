@@ -28,6 +28,7 @@ calc
     memoryfacspawn 20.0
     memoryfacpart 10.0
     allrealcoeff
+    realspawncutoff off
     time 2700
     nmcyc 10000
 

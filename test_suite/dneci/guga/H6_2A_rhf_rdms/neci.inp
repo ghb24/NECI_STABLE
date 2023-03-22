@@ -25,7 +25,10 @@ calc
     addtoinitiator 2
     memoryfacspawn 20.0
     memoryfacpart 10.0
+
     allrealcoeff
+    realspawncutoff off
+
     time 2700
     nmcyc 3000
 
