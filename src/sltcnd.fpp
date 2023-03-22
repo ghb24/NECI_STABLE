@@ -77,12 +77,6 @@ module sltcnd_mod
         #:endfor
     end interface
 
-    type :: SlaterCondonPointers_t
-        #:for rank in excit_ranks
-            procedure(sltcnd_${rank}$_t), pointer, nopass :: sltcnd_${rank}$ => null()
-        #:endfor
-    end type
-
 !>  @brief
 !>      Evaluate Matrix Element for different excitations
 !>      using the Slater-Condon rules.
@@ -103,7 +97,11 @@ module sltcnd_mod
         module procedure sltcnd_excit_SpinOrbIdx_t_Excite_2_t
     end interface
 
-    type(SlaterCondonPointers_t) :: sltcnd_ptrs
+    interface nI_invariant_sltcnd_excit
+        #:for rank in excit_ranks[2:]
+            procedure nI_invariant_sltcnd_${rank}$
+        #:endfor
+    end interface
 
     #:for rank in excit_ranks
         procedure(sltcnd_${rank}$_t), pointer :: sltcnd_${rank}$ => null()
@@ -128,17 +126,11 @@ contains
                 sltcnd_1 => sltcnd_1_tc_ua
                 sltcnd_2 => sltcnd_2_tc_ua
                 sltcnd_3 => sltcnd_3_tc_ua
-                sltcnd_ptrs = SlaterCondonPointers_t(&
-                        sltcnd_0_tc_ua, sltcnd_1_tc_ua, &
-                        sltcnd_2_tc_ua, sltcnd_3_tc_ua)
             else
                 sltcnd_0 => sltcnd_0_base_ua
                 sltcnd_1 => sltcnd_1_base_ua
                 sltcnd_2 => sltcnd_2_base_ua
                 sltcnd_3 => sltcnd_3_base
-                sltcnd_ptrs = SlaterCondonPointers_t(&
-                        sltcnd_0_base_ua, sltcnd_1_base_ua, &
-                        sltcnd_2_base_ua, sltcnd_3_base)
             end if
         else
             ! six-index integrals are only used for three and more
@@ -148,8 +140,6 @@ contains
                 sltcnd_1 => sltcnd_1_tc
                 sltcnd_2 => sltcnd_2_tc
                 sltcnd_3 => sltcnd_3_tc
-                sltcnd_ptrs = SlaterCondonPointers_t(&
-                    sltcnd_0_tc, sltcnd_1_tc, sltcnd_2_tc, sltcnd_3_tc)
             else if (allocated(SD_spin_purification)) then
                 if (SD_spin_purification == possible_purification_methods%TRUNCATED_LADDER) then
                     sltcnd_0 => sltcnd_0_base
