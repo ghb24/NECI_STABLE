@@ -219,7 +219,9 @@ contains
         #:for Excitation_t in excitations
         type is (${Excitation_t}$)
             @:ASSERT(subset(exc%val(1, :), ref) .and. disjoint(exc%val(2, :), ref))
-            hel = sltcnd_excit(ref, exc, tParity)
+            block ! This block is just a necessary workaround for ifort18
+                hel = sltcnd_excit(ref, exc, tParity)
+            end block
         #:endfor
         class default
             call stop_all(this_routine, "Error in downcast.")
