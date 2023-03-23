@@ -404,15 +404,20 @@ contains
 
         ! The compiler has to statically know, what the type of exc is.
         select type (exc)
+        type is (Excite_0_t)
+            continue
         type is (Excite_1_t)
             exc%val(1, 1) = IC
             call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+            exc = canonicalize(exc)
         type is (Excite_2_t)
             exc%val(1, 1) = IC
             call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+            exc = canonicalize(exc)
         type is (Excite_3_t)
             exc%val(1, 1) = IC
             call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+            exc = canonicalize(exc)
         class default
             call stop_all(this_routine, "Excitation type invalid.")
         end select

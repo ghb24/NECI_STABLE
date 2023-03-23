@@ -40,7 +40,8 @@ module sltcnd_mod
     use procedure_pointers, only: get_umat_el
     use excitation_types, only: Excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, &
                                 Excite_3_t, UNKNOWN, get_excitation, get_bit_excitation, &
-                                create_excitation, Excite_Further_t, dyn_nI_excite
+                                create_excitation, Excite_Further_t, dyn_nI_excite, &
+                                occupation_allowed, is_canonical, canonicalize
     use orb_idx_mod, only: SpinOrbIdx_t
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use bit_rep_data, only: NIfTot
@@ -50,10 +51,10 @@ module sltcnd_mod
                 spin_pure_J, S2_expval_exc, nI_invariant_S2_expval_exc, ladder_op_exc
     use util_mod, only: stop_all
 
-    implicit none
+    better_implicit_none
     private
     public :: initSltCndPtr, &
-              sltcnd_excit, sltcnd_2_kernel, &
+              nI_invariant_sltcnd_excit, sltcnd_excit, sltcnd_2_kernel, &
               dyn_sltcnd_excit_old, dyn_sltcnd_excit, &
               sltcnd_compat, sltcnd, sltcnd_knowIC, &
               CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
@@ -121,7 +122,6 @@ contains
 
             if (t_mol_3_body &
                 .or. t_ueg_3_body .and. nel > 2 .and. tSmallBasisForThreeBody) then
-
                 sltcnd_0 => sltcnd_0_tc_ua
                 sltcnd_1 => sltcnd_1_tc_ua
                 sltcnd_2 => sltcnd_2_tc_ua
@@ -130,7 +130,8 @@ contains
                 sltcnd_0 => sltcnd_0_base_ua
                 sltcnd_1 => sltcnd_1_base_ua
                 sltcnd_2 => sltcnd_2_base_ua
-                sltcnd_3 => sltcnd_3_base
+                nI_invariant_sltcnd_3 => nI_invariant_sltcnd_3_base
+                sltcnd_3 => sltcnd_3_use_nI_invariant
             end if
         else
             ! six-index integrals are only used for three and more
@@ -150,25 +151,28 @@ contains
                 else
                     call stop_all(this_routine, 'Invalid options for SD_spin_purification')
                 end if
-                sltcnd_2 => sltcnd_2_purify_spin
 
-                ! Unaffected by < I | S^2 | J >
                 sltcnd_1 => sltcnd_1_base
-                sltcnd_3 => sltcnd_3_base
+                nI_invariant_sltcnd_2 => nI_invariant_sltcnd_2_purify_spin
+                sltcnd_2 => sltcnd_2_use_nI_invariant
+                nI_invariant_sltcnd_3 => nI_invariant_sltcnd_3_base
+                sltcnd_3 => sltcnd_3_use_nI_invariant
 
             else
                 sltcnd_0 => sltcnd_0_base
                 sltcnd_1 => sltcnd_1_base
-                sltcnd_2 => sltcnd_2_base
-                sltcnd_3 => sltcnd_3_base
+                nI_invariant_sltcnd_2 => nI_invariant_sltcnd_2_base
+                sltcnd_2 => sltcnd_2_use_nI_invariant
+                nI_invariant_sltcnd_3 => nI_invariant_sltcnd_3_base
+                sltcnd_3 => sltcnd_3_use_nI_invariant
             end if
 
         end if
 
         if (t_calc_adjoint) then ! invert all matrix element calls
             #:for rank in excit_ranks
-            nonadjoint_sltcnd_${rank}$ => sltcnd_${rank}$
-            sltcnd_${rank}$ => adjoint_sltcnd_${rank}$
+                nonadjoint_sltcnd_${rank}$ => sltcnd_${rank}$
+                sltcnd_${rank}$ => adjoint_sltcnd_${rank}$
             #:endfor
         end if
     end subroutine initSltCndPtr
@@ -200,7 +204,7 @@ contains
 !>
 !>  @details
 !>  This generic function uses run time dispatch.
-!>  This means that exc can be any subtype of class(excitation_t).
+!>  This means that exc can be any subtype of class(Excitation_t).
 !>  For performance reason it is advised to use sltcnd_excit,
 !>  if the actual type is known at compile time.
 !>
@@ -209,7 +213,7 @@ contains
 !>  @param[in] tParity, The parity of the excitation.
     function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
         integer, intent(in) :: ref(nel)
-        class(excitation_t), intent(in) :: exc
+        class(Excitation_t), intent(in) :: exc
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
@@ -245,9 +249,10 @@ contains
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
-        if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
+        if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) then
             call stop_all(this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
+        end if
         hel = dyn_sltcnd_excit(nI, create_excitation(IC, ex) , tParity)
     end function
 
@@ -255,7 +260,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), IC
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
         logical :: tParity
 
         call get_excitation(nI, nJ, IC, exc, tParity)
@@ -406,7 +411,6 @@ contains
             end do
         end if
         hel = hel_doub + hel_tmp + hel_sing
-
     end function sltcnd_0_base
 
     function sltcnd_1_base(nI, ex, tSign) result(hel)
@@ -464,21 +468,18 @@ contains
         hel = hel + GetTMATEl(ex%val(1, 1), ex%val(2, 1))
     end function sltcnd_1_kernel
 
-    function sltcnd_2_base(nI, exc, tSign) result(hel)
-        ! Calculate the  by the Slater-Condon Rules when the two
-        ! determinants differ by two orbitals exactly (the simplest case).
-        integer, intent(in) :: nI(nel)
-        type(Excite_2_t), intent(in) :: exc
+
+    ! dummy function for 3-body matrix elements without tc
+    function nI_invariant_sltcnd_2_base(ex, tSign) result(hel)
+        type(Excite_2_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        @:unused_var(nI)
-
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
-        hel = sltcnd_2_kernel(exc)
+        hel = sltcnd_2_kernel(ex)
 
         if (tSign) hel = -hel
-    end function sltcnd_2_base
+    end function
 
     function sltcnd_2_kernel(exc) result(hel)
         type(Excite_2_t), intent(in) :: exc
@@ -498,7 +499,6 @@ contains
                           (G1(ex(1, 2))%Ms == G1(Ex(2, 1))%Ms))) then
             hel = hel - get_umat_el(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
         end if
-
     end function sltcnd_2_kernel
 
     !------------------------------------------------------------------------------------------!
@@ -606,14 +606,25 @@ contains
     end function sltcnd_3_tc
 
     ! dummy function for 3-body matrix elements without tc
-    function sltcnd_3_base(nI, ex, tSign) result(hel)
-        integer, intent(in) :: nI(nel)
+    function nI_invariant_sltcnd_3_base(ex, tSign) result(hel)
         type(Excite_3_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        @:unused_var(ex, tSign, nI)
+        @:unused_var(ex, tSign)
         hel = 0
-    end function sltcnd_3_base
+    end function
+
+    #:for rank, excite_t in zip(excit_ranks[2:], defined_excitations[2:])
+        function sltcnd_${rank}$_use_nI_invariant(nI, ex, tSign) result(hel)
+            integer, intent(in) :: nI(nel)
+            type(${excite_t}$), intent(in) :: ex
+            logical, intent(in) :: tSign
+            debug_function_name("sltcnd_${rank}$_use_nI_invariant")
+            HElement_t(dp) :: hel
+            @:ASSERT(occupation_allowed(nI, canonicalize(ex)))
+            hel = nI_invariant_sltcnd_excit(ex, tSign)
+        end function
+    #:endfor
 
     !------------------------------------------------------------------------------------------!
     !      slater condon rules for ultracold atoms
@@ -740,7 +751,6 @@ contains
     end function sltcnd_2_base_ua
 
     function sltcnd_2_kernel_ua(ex) result(hel)
-        implicit none
         type(Excite_2_t), intent(in) :: ex
         HElement_t(dp) :: hel
         integer :: id(2, 2)
@@ -764,7 +774,6 @@ contains
     end function sltcnd_2_kernel_ua
 
     function sltcnd_2_kernel_ua_3b(nI, exc) result(hel)
-        implicit none
         integer, intent(in) :: nI(nel)
         type(Excite_2_t), intent(in) :: exc
         HElement_t(dp) :: hel
@@ -892,12 +901,11 @@ contains
     end function
 
 
-    function sltcnd_2_purify_spin(nI, exc, tSign) result(hel)
-        integer, intent(in) :: nI(nel)
+    function nI_invariant_sltcnd_2_purify_spin(exc, tSign) result(hel)
         type(Excite_2_t), intent(in) :: exc
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        hel = sltcnd_2_base(nI, exc, tSign) + spin_pure_J * S2_expval_exc(nI, exc)
+        hel = nI_invariant_sltcnd_2_base(exc, tSign) + spin_pure_J * nI_invariant_S2_expval_exc(exc)
     end function
 
     !>  @brief

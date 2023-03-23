@@ -12,7 +12,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use UMatCache, only: numBasisIndices
     use SystemData, only: nEl, nBasis
     use SymExcitDataMod, only: ScratchSize
-    use sltcnd_mod, only: sltcnd_excit
+    use sltcnd_mod, only: nI_invariant_sltcnd_excit
     use bit_rep_data, only: nIfTot
     use excitation_generators, only: doubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
@@ -326,7 +326,7 @@ contains
                             ex(2, 2) = B
                             AB = fuseIndex(A, B)
                             if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
-                                w(AB) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
+                                w(AB) = abs(nI_invariant_sltcnd_excit(Excite_2_t(ex), .false.))
                             else
                                 w(AB) = 0._dp
                             end if
