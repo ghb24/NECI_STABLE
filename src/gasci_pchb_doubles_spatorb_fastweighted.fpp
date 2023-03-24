@@ -396,7 +396,7 @@ contains
                                     block
                                         use sltcnd_mod, only: sltcnd_2_kernel
                                         use SD_spin_purification_mod, only: old_ladder_op_exc_Excite_2_t, spin_pure_J
-                                        w(ab) = abs(sltcnd_2_kernel(exc) + spin_pure_J * old_ladder_op_exc_Excite_2_t(projEDet(:, 1), canonicalize(exc)))
+                                        w(ab) = abs(sltcnd_2_kernel(exc) + spin_pure_J * old_ladder_op_exc_Excite_2_t(projEDet(:, 1), exc))
                                     end block
                                     end associate
                                 end if

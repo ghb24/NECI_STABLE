@@ -442,10 +442,12 @@ contains
         oS_nI = get_open_shell(nI)
         res = 0.0_dp
 
-        associate(c_exc => canonicalize(exc))
-            if (.not. subset(exc%val(1, :), nI)) return
-            ! if (.not. disjoint(exc%val(2, :), nI)) return
-        end associate
+        block
+            type(Excite_2_t) :: asdf
+            asdf = canonicalize(exc)
+            if (.not. subset(asdf%val(1, :), nI)) return
+            if (.not. disjoint(exc%val(2, :), nI)) return
+        end block
 
         negative = .false.
         if (size(oS_nI) /= 0) then
@@ -469,6 +471,6 @@ contains
                 end if
             end if
         end if
-        if (negative) res = -res
+        ! if (negative) res = -res
     end function
 end module SD_spin_purification_mod
