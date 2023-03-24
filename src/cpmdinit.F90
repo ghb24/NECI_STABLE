@@ -15,7 +15,7 @@ module cpmdinit_mod
     use UMatCache, only: SetUmatTrans, SetUMatCacheFlag, SetupUMat2D, &
         SetupUMatCache, tUMAT2D
     use basic_float_math, only: conjgt
-    use constants, only: dp
+    use constants, only: dp, stdout
     use cpmdstub_mod, only: CalcHarPIInts
     use global_utilities, only: timer, set_timer, halt_timer
     use sort_mod, only: sort

@@ -1,5 +1,6 @@
 module frsblk_mod
     use matmul_mod, only: my_hpsi
+    use constants, only: stdout
     implicit none
     private
     public :: NECI_FRSBLKH, NECI_WRITE_MATRIX

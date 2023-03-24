@@ -1,6 +1,6 @@
 #include "macros.h"
 module init_coul2D_mod
-    use constants, only: dp, sp, pi, int64
+    use constants, only: dp, sp, pi, int64, stdout
     use util_mod, only: stop_all, near_zero, neci_etime
     use init_coul_mod, only: gen_zia, gen_ck_fft
     better_implicit_none

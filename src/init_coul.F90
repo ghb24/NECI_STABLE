@@ -1,6 +1,6 @@
 #include "macros.h"
 module init_coul_mod
-    use constants, only: dp, int64, sp, pi
+    use constants, only: dp, int64, sp, pi, stdout
     use util_mod, only: near_zero, stop_all, neci_etime
     better_implicit_none
 

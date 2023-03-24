@@ -1,6 +1,6 @@
 SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
     use global_utilities, only: timer, halt_timer, set_timer
-    use constants, only: dp, n_int
+    use constants, only: dp, n_int, stdout
     Use Determinants, only: get_helement
     use SystemData, only: BasisFN, tGAS, t_lattice_model
     use SystemData, only: tGUGA

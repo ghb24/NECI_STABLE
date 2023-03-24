@@ -3,7 +3,7 @@
 module rhodiag_mod
 
     use HElem, only: HElement_t_size
-    use constants, only: dp, int32
+    use constants, only: dp, int32, stdout
     use global_utilities, only: timer, set_timer, halt_timer
     use util_mod, only: near_zero
     use error_handling_neci, only: stop_all

@@ -4,7 +4,7 @@ module gen_coul_mod
     use UMatCache, only: GTID, UMatInd
     use global_utilities, only: timer, set_timer, halt_timer
     use util_mod, only: near_zero
-    use constants, only: dp
+    use constants, only: dp, stdout
     use fcoul_mod, only: SlatCoulFou
     better_implicit_none
     private

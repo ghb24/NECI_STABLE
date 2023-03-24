@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module read_psi_mod
-    use constants, only: dp, EPS
+    use constants, only: dp, EPS, stdout
     use util_mod, only: stop_all
     better_implicit_none
     private

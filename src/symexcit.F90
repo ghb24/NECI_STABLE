@@ -246,7 +246,7 @@ End Subroutine
 !.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
 Subroutine SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr, iMinElec1, iMaxElec1, G1, SymProdInd, SymProds, nI, nEl)
     use SystemData, only: Symmetry, BasisFN, SymmetrySize
-    use constants, only: int64
+    use constants, only: int64, stdout
     use sym_mod, only: symprod, BINARYSEARCHSYM, WRITESYM
     use util_mod, only: stop_all
 
@@ -407,6 +407,7 @@ Subroutine SymSetupExcitsAb_CountVProds(nDoub, nExcitTypes, nCl, nPr, SymProds, 
     use SymData, only: Symmetry, SymLabelCounts, SymLabels, SymClass
     use sym_mod, only: SymConj, SymProd, FindSymLabel
     use sym_mod, only: BINARYSEARCHSYM
+    use constants, only: stdout
     IMPLICIT NONE
     Type(Symmetry) SymProds(0:*)
     INTEGER nPr, nCl
@@ -1105,7 +1106,7 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
     use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB
     use SymData, only: SymLabelCounts, SymStatePairs, SymClass
     use SymData, only: SymLabelList, SymPairProds
-    use constants, only: maxExcit
+    use constants, only: maxExcit, stdout
     use util_mod, only: stop_all
     use excit_mod, only: FindExcitDet
 
@@ -1531,6 +1532,7 @@ Subroutine SymGenExcitIt_SetupSingle(iSpn, iFrom, iTo, iExcit, ExcitTypes, Class
     use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB
     use SymData, only: SymLabelCounts, SymStatePairs, SymClass
     use SymData, only: SymLabelList, SymPairProds
+    use constants, only: stdout
     IMPLICIT NONE
     INTEGER nEl, nI(nEl)
     INTEGER ExcitTypes(5, *)
@@ -1569,6 +1571,7 @@ Subroutine SymGenExcitIt_SetupDouble(iSpn, iFrom, iTo, iExcit, ExcitTypes, SymPr
     use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB
     use SymData, only: SymLabelCounts, SymStatePairs, SymClass
     use SymData, only: SymLabelList, SymPairProds
+    use constants, only: stdout
     IMPLICIT NONE
     INTEGER ExcitTypes(5, *)
 
@@ -1595,7 +1598,7 @@ Subroutine SymGenExcitIt_GenSingle(iRet, iSpn, iFrom, iTo, iCC, I, J, K, L, tDeb
     use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB
     use SymData, only: SymLabelCounts, SymStatePairs, SymClass
     use SymData, only: SymLabelList, SymPairProds
-    use constants, only: maxExcit
+    use constants, only: maxExcit, stdout
     use util_mod, only: stop_all
     use excit_mod, only: FindExcitDet
 
@@ -1846,6 +1849,7 @@ Subroutine SymGenExcitIt_GetNextPair(K, iTo, iLooped, iTo1, iTo2, tDebugPrint)
     use SymData, only: SymLabelCounts, SymStatePairs
     use SymData, only: SymLabelList, SymPairProds
     use SymData, only: SymClasses
+    use constants, only: stdout
     IMPLICIT NONE
     INTEGER K, iTo
     INTEGER iLooped
@@ -2065,7 +2069,7 @@ End Subroutine SymGenExcitIt_GenDouble
 !  nI is the reference, nK has the new det returned in it and nEl is the # electrons.
 Subroutine SymGenExcitIt_MakeDouble(iFrom1, iFrom2, iTo1, iTo2, nI, nK, nEl, tDebugPrint)
     use SystemData, only: TSTOREASEXCITATIONS
-    use constants, only: maxExcit
+    use constants, only: maxExcit, stdout
     use excit_mod, only: FindExcitDet
 
     IMPLICIT NONE

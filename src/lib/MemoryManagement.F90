@@ -1,6 +1,6 @@
 #include "macros.h"
 module MemoryManager
-    use constants, only: dp, int64, int32
+    use constants, only: dp, int64, int32, stdout
     use error_handling_neci, only: stop_all, warning_neci
 
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation,

@@ -15,7 +15,7 @@ module util_mod
         ptr_abuse_scalar, ptr_abuse_2d
     use basic_float_math, only: near_zero, operator(.isclose.), isclose
     use constants, only: sp, dp, int32, int64, n_int, inum_runs, lenof_sign, &
-        sizeof_int
+        sizeof_int, stdout
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
 #ifdef GFORTRAN_
     use constants, only: int128

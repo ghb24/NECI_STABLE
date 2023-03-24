@@ -21,9 +21,10 @@ subroutine environment_report(tCPMD)
 !=          directory and host names, so we avoid printing duplicate information.
 
 #ifdef NAGF95
-USe f90_unix_dir
+use f90_unix_dir
 use constants, only: int32
 #endif
+use constants, only: stdout
 implicit none
 logical :: tCPMD
 integer :: stat,hostnm
