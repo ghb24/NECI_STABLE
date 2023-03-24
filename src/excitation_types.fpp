@@ -42,7 +42,7 @@ module excitation_types
     public :: Excitation_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, &
         ilut_excite, excite, dyn_excite, dyn_nI_excite
-    public :: is_sorted, is_canonical, canonicalize, occupation_allowed
+    public :: is_sorted, is_canonical, canonicalize, occupation_allowed, make_canonical
     #:for excit in excitations
         public :: ${excit}$
     #:endfor
@@ -150,6 +150,17 @@ module excitation_types
     #:endfor
     end interface
 
+!>  Canonicalize an excitation and count the necessary swaps
+!>
+!>  Canonical means that the excitation is defined, i.e. it has no UNKNOWN,
+!>  the sources and the targets are sets, i.e. they are unique and ordered,
+!>  and the sources and the targets are disjoint.
+    interface make_canonical
+    #:for Excitation_t in defined_excitations
+        module procedure make_canonical_${Excitation_t}$
+    #:endfor
+    end interface
+
 !>  Get the last target of a non trivial excitation.
     interface get_last_tgt
     #:for Excitation_t in non_trivial_excitations
@@ -248,13 +259,24 @@ contains
 
 
     #:for Excitation_t in defined_excitations
+        elemental subroutine make_canonical_${Excitation_t}$ (exc, even_swaps)
+            type(${Excitation_t}$), intent(inout) :: exc
+            logical, intent(out) :: even_swaps
+            integer :: n_swaps(2)
+            routine_name("make_canonical")
+            @:sort(integer, exc%val(1, :), count_swaps=n_swaps(1))
+            @:sort(integer, exc%val(2, :), count_swaps=n_swaps(2))
+            even_swaps = mod(sum(n_swaps), 2) == 0
+            @:pure_ASSERT(is_canonical(exc))
+        end subroutine
+
         elemental function canonicalize_${Excitation_t}$ (exc) result(res)
             type(${Excitation_t}$), intent(in) :: exc
             type(${Excitation_t}$) :: res
             routine_name("canonicalize")
             res = exc
-            call sort(res%val(1, :))
-            call sort(res%val(2, :))
+            @:sort(integer, res%val(1, :))
+            @:sort(integer, res%val(2, :))
             @:pure_ASSERT(is_canonical(res))
         end function
     #:endfor

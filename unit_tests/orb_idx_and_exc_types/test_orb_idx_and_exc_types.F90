@@ -1,12 +1,12 @@
 module test_orb_idx_mod
-    use fruit, only: assert_true, assert_false
+    use fruit, only: assert_true, assert_false, run_test_case
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
         calc_spin, alpha, beta, operator(==)
-    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, excite, is_canonical, &
-        canonicalize
+    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, excite, is_canonical, &
+        canonicalize, make_canonical
     implicit none
     private
-    public :: test_calc_spin, test_conversion, test_excite
+    public :: test_orb_idx_driver
 
 
 contains
@@ -59,7 +59,51 @@ contains
 
         reference = SpinOrbIdx_t([1, 2, 3, 11, 12, 14])
         call assert_true(all(SpinOrbIdx_t([2, 3, 5, 11, 12, 14]) == excite(reference, Excite_1_t(1, 5))))
+    end subroutine
 
+    subroutine test_canonical()
+
+        block
+            type(Excite_3_t) :: exc
+            logical :: even_swaps
+            exc = Excite_3_t(4, 3, 1, 5, 7, 8)
+
+            call assert_false(is_canonical(exc))
+            call make_canonical(exc, even_swaps)
+            call assert_true(is_canonical(exc))
+            call assert_false(even_swaps)
+        end block
+
+        block
+            type(Excite_3_t) :: exc
+            logical :: even_swaps
+            exc = Excite_3_t(4, 5, 1, 3, 7, 8)
+
+            call assert_false(is_canonical(exc))
+            call make_canonical(exc, even_swaps)
+            call assert_true(is_canonical(exc))
+            call assert_true(even_swaps)
+        end block
+
+        block
+            type(Excite_3_t) :: exc
+            logical :: even_swaps
+            exc = Excite_3_t(1, 3, 4, 5, 7, 8)
+
+            call assert_true(is_canonical(exc))
+            call make_canonical(exc, even_swaps)
+            call assert_true(is_canonical(exc))
+            call assert_true(even_swaps)
+        end block
+
+    end subroutine
+
+
+    subroutine test_orb_idx_driver()
+        call run_test_case(test_calc_spin, "test_calc_spin")
+        call run_test_case(test_conversion, "test_conversion")
+        call run_test_case(test_excite, "test_excite")
+        call run_test_case(test_canonical, "test_canonical")
     end subroutine
 
 end module test_orb_idx_mod
@@ -67,10 +111,9 @@ end module test_orb_idx_mod
 program test_orb_idx_and_exc_types
 
     use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
-        get_failed_count, run_test_case
+        get_failed_count
     use util_mod, only: stop_all
-    use test_orb_idx_mod, only: test_calc_spin, test_conversion, &
-        test_excite
+    use test_orb_idx_mod, only: test_orb_idx_driver
     use Parallel_neci, only: MPIInit, MPIEnd
 
 
@@ -93,11 +136,4 @@ program test_orb_idx_and_exc_types
 
     call MPIEnd(err)
 
-contains
-
-    subroutine test_orb_idx_driver()
-        call run_test_case(test_calc_spin, "test_calc_spin")
-        call run_test_case(test_conversion, "test_conversion")
-        call run_test_case(test_excite, "test_excite")
-    end subroutine
 end program test_orb_idx_and_exc_types
