@@ -87,7 +87,7 @@ contains
             CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
 
             write(stdout, "(A)", advance='no') " Fermi det (D0):"
-            call write_det(6, FDET, .true.)
+            call write_det(stdout, FDET, .true.)
             CALL neci_flush(stdout)
 !C.. If in Hubbard, we generate site-spin occupations
             IF (THUB) THEN

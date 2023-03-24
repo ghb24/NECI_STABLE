@@ -226,9 +226,9 @@ contains
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 write(stdout, *) 'Calculated and actual pgens differ.'
                 write(stdout, *) 'This will break HPHF calculations'
-                call write_det(6, nI, .false.)
+                call write_det(stdout, nI, .false.)
                 write(stdout, '(" --> ")', advance='no')
-                call write_det(6, nJ, .true.)
+                call write_det(stdout, nJ, .true.)
                 write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                     ExcitMat(2, 1:ic)
                 write(stdout, *) 'Generated pGen:  ', pgen
@@ -1360,9 +1360,9 @@ contains
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 write(stdout, *) 'Calculated and actual pgens differ.'
                 write(stdout, *) 'This will break HPHF calculations'
-                call write_det(6, nI, .false.)
+                call write_det(stdout, nI, .false.)
                 write(stdout, '(" --> ")', advance='no')
-                call write_det(6, nJ, .true.)
+                call write_det(stdout, nJ, .true.)
                 write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                     ExcitMat(2, 1:ic)
                 write(stdout, *) 'Generated pGen:  ', pgen

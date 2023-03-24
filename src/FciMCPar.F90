@@ -1695,7 +1695,7 @@ contains
                                 child(y)
                         end do
                         write(stdout, '("] ")', advance='no')
-                        call write_det(6, nJ, .true.)
+                        call write_det(stdout, nJ, .true.)
                         call neci_flush(stdout)
                     end if
 

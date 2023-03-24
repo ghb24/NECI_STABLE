@@ -314,9 +314,9 @@ contains
         WRITE(6, "(A,I3,A)") "Generating abelian symmetry table with", nBasis / 2, " generators for Hubbard momentum"
 
 !.. Now generate a list of sym labels.
-        write(6, *) 'SIZES', nSymLabels, nBasis, allocated(symlabels), associated(symclasses), allocated(symconjtab), allocated(symtable)
+        write(stdout, *) 'SIZES', nSymLabels, nBasis, allocated(symlabels), associated(symclasses), allocated(symconjtab), allocated(symtable)
         if (allocated(SymLabels)) then
-            write(6, '(a/a)') 'Warning: symmetry info already allocated.', 'Deallocating and reallocating.'
+            write(stdout, '(a/a)') 'Warning: symmetry info already allocated.', 'Deallocating and reallocating.'
             deallocate(SymLabels)
             call LogMemDealloc(this_routine, tagSymLabels)
         end if

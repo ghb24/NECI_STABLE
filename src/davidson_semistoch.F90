@@ -207,13 +207,13 @@ contains
             end if
 
             if (print_info) then
-                write (6, '(1x,"allocating array to hold multiplied krylov vectors (",' &
+                write (stdout, '(1x,"allocating array to hold multiplied krylov vectors (",' &
                        //int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
                 call neci_flush(stdout)
             end if
 
             if (print_info) then
-                write (6, '(1x,"allocating temporary vector (",' &
+                write (stdout, '(1x,"allocating temporary vector (",' &
                        //int_fmt(mem_reqd_full, 0)//',1x,"mb).",/)') mem_reqd_full
                 call neci_flush(stdout)
             end if

@@ -123,11 +123,11 @@ CONTAINS
                 write(stdout, *) "Performing truncated CI at level ", iExcitLevel
                 IF (TSPECDET) THEN
                     write(stdout, *) "Using SPECDET:"
-                    call write_det(6, SPECDET, .true.)!
+                    call write_det(stdout, SPECDET, .true.)!
                     CALL NECI_ICOPY(NEL, SPECDET, 1, FDET, 1)
                 ELSE
                     write(stdout, *) "Using Fermi DET:"
-                    call write_det(6, FDET, .true.)
+                    call write_det(stdout, FDET, .true.)
                 end if
 !C.. if we're doing a truncated CI expansion
                 CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, reshape([0], [1, 1]), &

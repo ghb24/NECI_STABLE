@@ -674,7 +674,7 @@ contains
 
         IF (iProcIndex == 0) THEN
 
-            write (6, '("Two-electron integrals with a magnitude over ", &
+            write (stdout, '("Two-electron integrals with a magnitude over ", &
                       &g16.7," are screened")') UMatEps
 
             if (tMolpro .and. tUHF) then

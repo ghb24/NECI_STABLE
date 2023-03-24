@@ -534,7 +534,7 @@ contains
             !This is not a compatible reference function.
             !Create single excitation of the correct symmetry
             !Use this as the reference.
-            write(6, "(A)") "Converging to ODD S eigenstate"
+            write(stdout, "(A)") "Converging to ODD S eigenstate"
 
             SymFinal = int((G1(HFDet(nel))%Sym%S)) + 1
 
@@ -564,7 +564,7 @@ contains
             call EncodeBitDet(HFDet, iLutHF)
             if (TestClosedShellDet(iLutHF)) &
                 call stop_all(t_r, "Fail to create open-shell determinant for reference to use with odd S")
-            write(6, *) "Reference determinant changed to the open-shell:"
+            write(stdout, *) "Reference determinant changed to the open-shell:"
             call write_det(stdout, HFDet, .true.)
         end if
 
@@ -671,9 +671,9 @@ contains
         end do
         CALL LargestBitSet(iLutHF, NIfD, LargestOrb)
         IF (LargestOrb /= hfdet(nel)) then
-            write(6, *) 'ilut HF', ilutHF
-            write(6, *) 'largest orb', largestorb
-            write(6, *) 'HFDet', hfdet
+            write(stdout, *) 'ilut HF', ilutHF
+            write(stdout, *) 'largest orb', largestorb
+            write(stdout, *) 'HFDet', hfdet
             CALL Stop_All(t_r, "LargestBitSet FAIL")
         end if
         nBits = CountBits(iLutHF, NIfD, NEl)
@@ -3054,7 +3054,7 @@ contains
                 call MPIBCast(largest_det, NIfTot + 1, int(proc_highest))
 !                 call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
-                write(6, *) 'Setting ref', run
+                write(stdout, *) 'Setting ref', run
                 call writebitdet(6, largest_det, .true.)
 
                 ! Set this det as the reference
@@ -3710,27 +3710,27 @@ contains
         ! The -1 is just because the sampling starts one iteration after IterRDMOnFly
         ! If we subtracted too much, jump one cycle backwards
         if (IterRDMOnFly < semistoch_shift_iter) IterRDMOnFly = IterRDMOnFly + coreSpaceUpdateCycle
-        write(6, *) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
+        write(stdout, *) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
 
         ! Now sync the update cycles
         if (RDMEnergyIter > coreSpaceUpdateCycle) then
             RDMEnergyIter = coreSpaceUpdateCycle
-            write(6, *) "The RDM sampling interval cannot be larger than the update " &
+            write(stdout, *) "The RDM sampling interval cannot be larger than the update " &
                 //"interval of the semi-stochastic space. Reducing it to ", RDMEnergyIter
         end if
         if (mod(coreSpaceUpdateCycle, RDMEnergyIter) /= 0) then
             ! first, try to ramp up the RDMEnergyIter to meet the coreSpaceUpdateCycle
             frac = coreSpaceUpdateCycle / RDMEnergyIter
             RDMEnergyIter = coreSpaceUpdateCycle / frac
-            write(6, *) "Update cycle of semi-stochastic space and RDM sampling interval" &
+            write(stdout, *) "Update cycle of semi-stochastic space and RDM sampling interval" &
                 //" out of sync. "
-            write(6, *) "Readjusting RDM sampling interval to ", RDMEnergyIter
+            write(stdout, *) "Readjusting RDM sampling interval to ", RDMEnergyIter
 
             ! now, if this did not succeed, adjust the coreSpaceUpdateCycle
             if (mod(coreSpaceUpdateCycle, RDMEnergyIter) /= 0) then
                 coreSpaceUpdateCycle = coreSpaceUpdateCycle - &
                                        mod(coreSpaceUpdateCycle, RDMEnergyIter)
-                write(6, *) "Adjusted update cycle of semi-stochastic space to ", &
+                write(stdout, *) "Adjusted update cycle of semi-stochastic space to ", &
                     coreSpaceUpdateCycle
             end if
         end if
@@ -4136,11 +4136,11 @@ contains
 
         end if
 
-        write(6, *) 'Generated reference determinants:'
+        write(stdout, *) 'Generated reference determinants:'
         do run = 1, inum_runs
-            call write_det(6, ProjEDet(:, run), .false.)
+            call write_det(stdout, ProjEDet(:, run), .false.)
             hdiag = real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
-            write(6, '(" E = ", f16.9)') hdiag
+            write(stdout, '(" E = ", f16.9)') hdiag
         end do
 
     end subroutine assign_reference_dets

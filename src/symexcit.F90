@@ -1487,7 +1487,7 @@ Subroutine SymGenExcitIt2(nI, nEl, ExcitTypes, nExcitTypes, &
 
     INTEGER iRet
     tDebugPrint = .false.
-    if (tDebugPrint) write(6, *) "Entering SymGenExcitIt2"
+    if (tDebugPrint) write(stdout, *) "Entering SymGenExcitIt2"
 
     DO WHILE (.TRUE.)
 ! Indicate that we need to keep on cycling.  If it is changed

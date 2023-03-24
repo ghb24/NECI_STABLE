@@ -741,7 +741,7 @@ contains
 !            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
         END DO
         call sort(HFDet(1:nel))
-        call write_det(6, HFDET, .true.)
+        call write_det(stdout, HFDET, .true.)
     END subroutine
 #endif
 
@@ -911,7 +911,7 @@ contains
         END IF
         END DO
         END DO
-        call write_det(6, NDET1(1), .true.)
+        call write_det(stdout, NDET1(1), .true.)
         BR = .TRUE.
         WRITE(6, *) "Iteration   Energy     MSD   Fock Energy"
         IHFIT = 0

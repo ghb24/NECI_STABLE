@@ -233,7 +233,7 @@ contains
                         call decode_bit_det(nI, SpawnedParts(:, i))
                         write(stdout, '("State found twice:")')
                         write(stdout, *) SpawnedParts(:, i)
-                        call write_det(6, nI, .true.)
+                        call write_det(stdout, nI, .true.)
                         call stop_all("init_semi_stochastic", &
                                       "The same state has been found twice in the deterministic space.")
                     end if

@@ -300,7 +300,7 @@ contains
 !                      if (F.gt.1.0e-5_dp) then
 !                          ! Get exchange integral <ik|kj>
 !                          if (K.gt.nStatesUsed) then
-!                              write (6,"(a,i4,a,f10.6)")
+!                              write (stdout,"(a,i4,a,f10.6)")
 !     &                             "Top frozen state ",K,
 !     &                             " has occupation number",F
 !                              stop "Top Frozen states occupied."

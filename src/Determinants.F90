@@ -153,7 +153,7 @@ contains
             end if
         end if
         write (stdout, "(A)", advance='no') " Fermi det (D0):"
-        call write_det(6, FDET, .true.)
+        call write_det(stdout, FDET, .true.)
         Call GetSym(FDet, nEl, G1, nBasisMax, s)
         write (stdout, "(A)", advance='no') " Symmetry: "
         Call WriteSym(6, s%Sym, .true.)
@@ -274,7 +274,7 @@ contains
             end if
         end if
         write (stdout, "(A)", advance='no') " Fermi det (D0):"
-        call write_det(6, FDET, .true.)
+        call write_det(stdout, FDET, .true.)
         Call GetSym(FDet, nEl, G1, nBasisMax, s)
         write (stdout, "(A)", advance='no') " Symmetry: "
         Call WriteSym(6, s%Sym, .true.)
@@ -606,7 +606,7 @@ contains
         NELS(1) = NEL - NELS(2)
 
         if (tGUGA) then
-            write(6, '(4(A,'//int_fmt(nel)//'))') "N_neg:", NELS(1), " ; N_pos:", NELS(2), " ; S:", LMS, " ; nEl:", nEL
+            write(stdout, '(4(A,'//int_fmt(nel)//'))') "N_neg:", NELS(1), " ; N_pos:", NELS(2), " ; S:", LMS, " ; nEl:", nEL
         else
             WRITE(6, '(4(A,'//int_fmt(nel)//'))') " N_alpha:", NELS(1), " ; N_beta:", NELS(2), " ; LMS:", LMS, " ; NEl:", NEL
         end if
@@ -736,7 +736,7 @@ contains
             call sort(fdet)
             IF (J /= NEL - NFROZEN - NFROZENIN) THEN
                 write (stdout, *) "Failed Freezing Det:"
-                call write_det(6, FDET, .true.)
+                call write_det(stdout, FDET, .true.)
                 call stop_all(this_routine, "After Freezing, FDET has wrong number of electrons")
             end if
         end if
@@ -754,7 +754,7 @@ contains
             call sort(nUHFDet(1:nel))
             IF (J /= NEL - NFROZEN - NFROZENIN) THEN
                 write (stdout, *) "Failed Freezing Det:"
-                call write_det(6, nUHFDET, .true.)
+                call write_det(stdout, nUHFDET, .true.)
                 call stop_all(this_routine, "After Freezing, UHFDET has wrong number of electrons")
             end if
         end if

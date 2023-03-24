@@ -184,11 +184,11 @@ contains
                 residual_mem_reqd = space_size * 8 / 1000000
 
                 ! allocate the necessary arrays:
-                if (print_info) write (6, '(1x,"allocating array to hold multiplied krylov vectors (",' &
+                if (print_info) write (stdout, '(1x,"allocating array to hold multiplied krylov vectors (",' &
                                        //int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd; call neci_flush(stdout)
                 safe_calloc(this%multiplied_basis_vectors, (space_size, max_num_davidson_iters), 0.0_dp)
                 safe_calloc(this%eigenvector_proj, (max_num_davidson_iters), 0.0_dp)
-                if (print_info) write (6, '(1x,"allocating array to hold the residual vector (",' &
+                if (print_info) write (stdout, '(1x,"allocating array to hold the residual vector (",' &
                                        //int_fmt(residual_mem_reqd, 0)//',1x,"mb).",/)') residual_mem_reqd; call neci_flush(stdout)
                 safe_calloc(this%residual, (space_size), 0.0_dp)
 

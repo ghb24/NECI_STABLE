@@ -3862,7 +3862,7 @@ contains
         end if
         IF(TMONTE) THEN
             write(stdout, "(A)", advance='no') 'MC Start Det: '
-            call write_det(6, mcDet, .true.)
+            call write_det(stdout, mcDet, .true.)
         end if
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this
