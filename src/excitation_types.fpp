@@ -273,11 +273,10 @@ contains
         elemental function canonicalize_${Excitation_t}$ (exc) result(res)
             type(${Excitation_t}$), intent(in) :: exc
             type(${Excitation_t}$) :: res
+            logical :: dummy
             routine_name("canonicalize")
             res = exc
-            @:sort(integer, res%val(1, :))
-            @:sort(integer, res%val(2, :))
-            @:pure_ASSERT(is_canonical(res))
+            call make_canonical(res, dummy)
         end function
     #:endfor
 
