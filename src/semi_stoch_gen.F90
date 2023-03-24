@@ -139,7 +139,7 @@ contains
         allocate(cs_replicas(num_core_runs))
 
         write(stdout, '(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         do run = 1, size(cs_replicas)
             associate(rep => cs_replicas(run))
@@ -161,13 +161,13 @@ contains
                 ! Call the enumerating subroutines to create all excitations and add these states to
                 ! SpawnedParts on the correct processor. As they do this, they count the size of the
                 ! deterministic space (on their own processor only).
-                write(stdout, '("Generating the deterministic space...")'); call neci_flush(6)
+                write(stdout, '("Generating the deterministic space...")'); call neci_flush(stdout)
                 if (core_in%tPopsAuto) then
                     write(stdout, '("Choosing 10% of initiator space as core space, if this number is larger than 50000, then use 50000")')
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                     ! from my understanding npops refers to the total core space size
                     write(stdout, '("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run) * 0.1_dp)
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                     if (int(AllNoInitDets(run) * 0.1_dp) > 50000) then
                         core_in%npops = 50000
                     else
@@ -209,7 +209,7 @@ contains
                     end if
                 end if
                 write(stdout, '("Size of deterministic space on this processor:",1X,i8)') rep%determ_sizes(iProcIndex)
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 call rep%alloc_wf()
 
@@ -246,7 +246,7 @@ contains
 
                 if (tWriteCore) call write_core_space(rep)
 
-                write(stdout, '("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
+                write(stdout, '("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(stdout)
                 if (tAllSymSectors .or. tReltvy .or. nOccAlpha <= 1 .or. nOccBeta <= 1 &
                     .or. tGUGA .or. t_mol_3_body .or. t_non_hermitian_2_body) then
                     ! In the above cases the faster generation is not implemented, so
@@ -345,7 +345,7 @@ contains
         write(stdout, '("Semi-stochastic initialisation complete.")')
         write(stdout, '("Time (seconds) taken for semi-stochastic initialisation:", f9.3, /)') &
             get_total_time(SemiStoch_Init_Time)
-        call neci_flush(6)
+        call neci_flush(stdout)
 
     end subroutine init_semi_stochastic
 
@@ -901,17 +901,17 @@ contains
             do i = 1, opt_data%ngen_loops
 
                 write(stdout, '(a37,1X,i2)') "Optimised space generation: Iteration", i
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 ! Find all states connected to the states currently in ilut_store.
                 write(stdout, '(a29)') "Generating connected space..."
-                call neci_flush(6)
+                call neci_flush(stdout)
                 ! Allow for up to 1 million connected states to be created.
                 new_num_states = 1000000
                 call generate_connected_space(old_num_states, ilut_store(:, 1:old_num_states), &
                                               new_num_states, temp_space(:, 1:1000000))
                 write(stdout, '(a26)') "Connected space generated."
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 ! Add these states to the ones already in the ilut stores.
                 ilut_store(:, old_num_states + 1:old_num_states + new_num_states) = &
@@ -922,13 +922,13 @@ contains
                 call remove_repeated_states(ilut_store, new_num_states)
 
                 write(stdout, '(i8,1X,a13)') new_num_states, "states found."
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 if (tLimitSpace) call remove_high_energy_orbs(ilut_store(:, 1:new_num_states), &
                                                               new_num_states, max_space_size, .false.)
 
                 write(stdout, '(a27)') "Constructing Hamiltonian..."
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 if (t_non_hermitian_2_body) then
                     call calculate_sparse_hamiltonian_non_hermitian(new_num_states, ilut_store(:, 1:new_num_states))
@@ -937,7 +937,7 @@ contains
                 end if
 
                 write(stdout, '(a29)') "Performing diagonalisation..."
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
                 if (t_non_hermitian_2_body) then
@@ -981,7 +981,7 @@ contains
                     end if
 
                     write(stdout, '(i8,1X,a12)') old_num_states, "states kept."
-                    call neci_flush(6)
+                    call neci_flush(stdout)
 
                     call deallocate_sparse_ham(sparse_ham, SparseHamilTags)
                     deallocate(hamil_diag, stat=ierr)
@@ -1656,23 +1656,23 @@ contains
             ! Find the states connected to the trial space. This typically takes a long time, so
             ! it is done in parallel by letting each processor find the states connected to a
             ! portion of the trial space.
-            write(stdout, '("Calculating the number of states in the connected space...")'); call neci_flush(6)
+            write(stdout, '("Calculating the number of states in the connected space...")'); call neci_flush(stdout)
 
             call generate_connected_space(space_size, ilut_list(0:SpawnedPartsMax, 1:space_size), conn_size)
 
             write(stdout, '("Attempting to allocate conn_space. Size =",1X,F12.3,1X,"Mb")') &
-                real(conn_size, dp) * SpawnedPartsWidth * 7.629392e-06_dp; call neci_flush(6)
+                real(conn_size, dp) * SpawnedPartsWidth * 7.629392e-06_dp; call neci_flush(stdout)
             allocate(conn_space(0:SpawnedPartsMax, conn_size), stat=ierr)
             conn_space = 0_n_int
 
             write(stdout, '("States found on this processor, including repeats:",1X,i8)') conn_size
 
-            write(stdout, '("Generating and storing the connected space...")'); call neci_flush(6)
+            write(stdout, '("Generating and storing the connected space...")'); call neci_flush(stdout)
 
             call generate_connected_space(space_size, ilut_list(0:SpawnedPartsMax, 1:space_size), &
                                           conn_size, conn_space)
 
-            write(stdout, '("Removing repeated states and sorting by processor...")'); call neci_flush(6)
+            write(stdout, '("Removing repeated states and sorting by processor...")'); call neci_flush(stdout)
 
             call remove_repeated_states(conn_space, conn_size)
 
@@ -1683,16 +1683,16 @@ contains
             conn_size = 0
             con_sendcounts = 0
             allocate(conn_space(0, 0), stat=ierr)
-            write(stdout, '("This processor will not search for connected states.")'); call neci_flush(6)
+            write(stdout, '("This processor will not search for connected states.")'); call neci_flush(stdout)
             !Although the size is zero, we should allocate it, because the rest of the code use it.
             !Otherwise, we get segmentation fault later.
             allocate(conn_space(0:SpawnedPartsMax, conn_size), stat=ierr)
 
         end if
 
-        write(stdout, '("States found on this processor, without repeats:",1X,i8)') conn_size; call neci_flush(6)
+        write(stdout, '("States found on this processor, without repeats:",1X,i8)') conn_size; call neci_flush(stdout)
 
-        write(stdout, '("Performing MPI communication of connected states...")'); call neci_flush(6)
+        write(stdout, '("Performing MPI communication of connected states...")'); call neci_flush(stdout)
 
         ! Send the connected states to their processors.
         ! con_sendcounts holds the number of states to send to other processors from this one.
@@ -1711,7 +1711,7 @@ contains
         end do
 
         !write(stdout,'("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
-        !    real(conn_size,dp)*SpawnedPartsWidth*7.629392e-06_dp; call neci_flush(6)
+        !    real(conn_size,dp)*SpawnedPartsWidth*7.629392e-06_dp; call neci_flush(stdout)
         !allocate(temp_space(0:SpawnedPartsMax, conn_size), stat=ierr)
 
         call MPIAlltoAllV(conn_space(:, 1:conn_size_old), con_sendcounts, con_senddispls, &
@@ -1723,7 +1723,7 @@ contains
             deallocate(conn_space, stat=ierr)
         end if
         !write(stdout,'("Attempting to allocate conn_space. Size =",1X,F12.3,1X,"Mb")') &
-        !    real(conn_size,dp)*SpawnedPartsWidth*7.629392e-06_dp; call neci_flush(6)
+        !    real(conn_size,dp)*SpawnedPartsWidth*7.629392e-06_dp; call neci_flush(stdout)
         !allocate(conn_space(0:SpawnedPartsMax, 1:conn_size), stat=ierr)
         !conn_space = temp_space
         !deallocate(temp_space, stat=ierr)
@@ -1744,7 +1744,7 @@ contains
         logical :: texist
         character(*), parameter :: t_r = "write_most_pop_core_at_end"
 
-        write(stdout, '(/,"Finding most populated states...")'); call neci_flush(6)
+        write(stdout, '(/,"Finding most populated states...")'); call neci_flush(stdout)
 
         space_size = 0
 
@@ -1755,7 +1755,7 @@ contains
         call generate_space_most_populated(target_space_size, .false., 0, &
                                            SpawnedParts(0:niftot, 1 : ), space_size, core_run)
 
-        write(stdout, '("Writing the most populated states to DETFILE...")'); call neci_flush(6)
+        write(stdout, '("Writing the most populated states to DETFILE...")'); call neci_flush(stdout)
 
         iunit = get_free_unit()
 
@@ -1875,7 +1875,7 @@ contains
 
         call initialise_shared_rht(var_space, var_space_size_int, var_ht)
 
-        write(stdout, '("Generating the approximate Hamiltonian...")'); call neci_flush(6)
+        write(stdout, '("Generating the approximate Hamiltonian...")'); call neci_flush(stdout)
         if (tHPHF) then
             call calc_approx_hamil_sparse_hphf(rep)
         else

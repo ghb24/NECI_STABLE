@@ -74,7 +74,7 @@ contains
                 ! The ROFCIDUMP is also printed out in here.
                 call RefillUMATandTMAT2D_RDM(rdm%matrix, rdm%sym_list_no)
 
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 call writebasis(6, G1, nbasis, ARR, BRR)
             end if
@@ -301,7 +301,7 @@ contains
                             do k = 1, NoOrbs
                                 write(stdout, *) k, SymLabelList2_rot(k), SymLabelListInv_rot(k)
                             end do
-                            call neci_flush(6)
+                            call neci_flush(stdout)
                             call Stop_All(t_r, 'Non-zero rdm%matrix value between &
                             &different symmetries.')
                         end if
@@ -331,7 +331,7 @@ contains
 
         write(stdout, *) ''
         write(stdout, *) 'Calculating eigenvectors and eigenvalues of the 1-RDM'
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! If we want to maintain the symmetry, we cannot have all the orbitals
         ! jumbled up when the  diagonaliser reorders the eigenvectors. Must
@@ -424,7 +424,7 @@ contains
         end do
 
         write(stdout, *) 'Matrix diagonalised'
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         SumDiagTrace = 0.0_dp
         do i = 1, NoOrbs

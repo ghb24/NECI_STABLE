@@ -1528,7 +1528,7 @@ contains
                 if (tNormalise) then
                     ! Haven't got the capabilities to produce multiple 1-RDMs yet.
                     write(stdout, '(1X,"Writing out the *normalised* 1 electron density matrix to file")')
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                     one_rdm_unit = get_free_unit()
 
                     if (is_transition_rdm) then
@@ -1544,7 +1544,7 @@ contains
                 else
                     ! Only every write out 1 of these at the moment.
                     write(stdout, '(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                     one_rdm_unit = get_free_unit()
                     if (is_transition_rdm) then
                         write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1, irdm), 0)//',"_",' &

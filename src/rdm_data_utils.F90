@@ -743,11 +743,11 @@ contains
         if (recv_list) then
             write (6, '("WARNING: There is not enough space in the current RDM array to receive all of the &
                       &communicated RDM elements. We will now try and reallocate this array to be large &
-                      &enough. If there is not sufficient memory then the program may crash.")'); call neci_flush(6)
+                      &enough. If there is not sufficient memory then the program may crash.")'); call neci_flush(stdout)
         else
             write (6, '("WARNING: There is not enough space in the current RDM array to add the received &
                       &RDM elements to the main RDM array. We will now try and reallocate this array to be 1.5 &
-                      &times larger. If there is not sufficient memory then the program may crash.")'); call neci_flush(6)
+                      &times larger. If there is not sufficient memory then the program may crash.")'); call neci_flush(stdout)
         end if
 
         ! Memory of the old and new arrays, in bytes.
@@ -818,7 +818,7 @@ contains
                       &RDM elements to be sent to process",'//int_fmt(proc, 1)//',". We will now try and &
                       &reallocate the entire RDM spawning array to be twice its current size. If there is &
                       &not sufficient memory then the program may crash. This also requires recreating the &
-                      &hash table to some of this object, which may take some time.")') proc; call neci_flush(6)
+                      &hash table to some of this object, which may take some time.")') proc; call neci_flush(stdout)
 
             ! Memory of the old and new arrays, in bytes.
             memory_old = old_max_length * (rdm%sign_length + 1) * size_int_rdm
@@ -1086,11 +1086,11 @@ contains
 
             if (slots_left < 0) then
                 write(stdout, '("ERROR: No space left in the EN2 array. Aborting to prevent incorrect results...")')
-                call neci_flush(6)
+                call neci_flush(stdout)
                 call stop_all(t_r, 'No space left in the EN2 array. Please increase memoryfacspawn.')
             else if (slots_left < 20) then
                 write (6, '("WARNING: Less than 20 slots left in EN2 array. The program will abort &
-                           &when there are no slots remaining.")'); call neci_flush(6)
+                           &when there are no slots remaining.")'); call neci_flush(stdout)
             end if
 
             en_pert%dets(0:nifd, en_pert%ndets) = ilut(0:nifd)

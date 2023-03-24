@@ -1990,7 +1990,7 @@ contains
                 end do
             end if
             write(stdout, *) basirrep, SYMLABELINTSCUM(i), SYMLABELCOUNTSCUM(i)
-            call neci_flush(6)
+            call neci_flush(stdout)
         end do
         iSize = iSize + 2
         !This is to allow the index of '-1' in the array to give a zero value

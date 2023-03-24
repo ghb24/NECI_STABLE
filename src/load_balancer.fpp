@@ -799,7 +799,7 @@ contains
             write(6, *) "HolesInList: ", HolesInList
             write(6, *) "iStartFreeSlot, iEndFreeSlot:", iStartFreeSlot, iEndFreeSlot
             write(6, *) "TotParts: ", TotParts
-            call neci_flush(6)
+            call neci_flush(stdout)
             call stop_all(t_r, "Error in determining annihilated determinants")
         end if
     end subroutine CalcHashTableStats
