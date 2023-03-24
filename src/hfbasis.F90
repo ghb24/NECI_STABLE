@@ -11,7 +11,7 @@ module hfbasis_mod
         symmax, brr, g1, nbasis, lms, nel, tHub, tGUGA, t_k_space_hubbard, &
         get_basisfn
     use UMatCache, only: UMatInd, GTID
-    use constants, only: dp, int32
+    use constants, only: dp, int32, stdout
     use dSFMT_interface, only: genrand_real2_dSFMT
     use error_handling_neci, only: neci_flush, stop_all
     use global_utilities, only: timer, set_timer, halt_timer
