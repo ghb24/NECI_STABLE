@@ -392,7 +392,13 @@ contains
                                         .or. .not. this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
                                     w(ab) = 0._dp
                                 else
-                                    w(ab) = abs(nI_invariant_sltcnd_excit(canonicalize(Excite_2_t(ex)), .false.))
+                                    associate(exc => Excite_2_t(ex))
+                                    block
+                                        use sltcnd_mod, only: sltcnd_2_kernel
+                                        use SD_spin_purification_mod, only: old_ladder_op_exc_Excite_2_t, spin_pure_J
+                                        w(ab) = abs(sltcnd_2_kernel(exc) + spin_pure_J * old_ladder_op_exc_Excite_2_t(projEDet(:, 1), canonicalize(exc)))
+                                    end block
+                                    end associate
                                 end if
                             end do
                         end do
