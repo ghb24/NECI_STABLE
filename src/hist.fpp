@@ -28,7 +28,7 @@ module hist
         HistMinInd, BinRange, excit_tofrom_unit, Histogram, InstHist, &
         iNoBins, tHistSpawn
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign, &
-        dp, MPIArg, inum_runs
+        dp, MPIArg, inum_runs, stdout
     use parallel_neci, only: nProcessors, MPISum, MPIBcast, MPIAlltoAll, &
         MPIAlltoAllv, MPIAllLORLogical, root, iProcIndex
     use timing_neci, only: set_timer, timer, halt_timer

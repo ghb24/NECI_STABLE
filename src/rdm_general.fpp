@@ -17,7 +17,7 @@ module rdm_general
     use SystemData, only: tGUGA
     use util_mod, only: near_zero, operator(.div.), stop_all
     use constants, only: dp, n_int, lenof_sign, size_n_int, int64, &
-        eps, inum_runs, size_int_rdm
+        eps, inum_runs, size_int_rdm, stdout
     use rdm_reading, only: print_1rdms_from_sf2rdms_wrapper, &
         read_spinfree_2rdm_files, read_1rdm, read_2rdm_popsfile, &
         print_1rdms_from_2rdms_wrapper

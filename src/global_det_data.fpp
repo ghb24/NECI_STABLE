@@ -11,6 +11,7 @@ module global_det_data
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use constants, only: dp, int32, int64, n_int, inum_runs, lenof_sign, eps
     use util_mod, only: stop_all, operator(.div.)
+    use constants, only: stdout
     implicit none
 
     private

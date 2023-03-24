@@ -10,7 +10,7 @@ module hubbard_mod
         t_open_bc_x, t_open_bc_y, Symmetry, SymmetrySize, SymmetrySizeB, &
         t_k_space_hubbard, twisted_bc, nn_bhub
     use UMatCache, only: UMatInd
-    use constants, only: Pi, Pi2, THIRD, dp, int64, sizeof_int
+    use constants, only: Pi, Pi2, THIRD, dp, int64, sizeof_int, stdout
     use global_utilities, only: timer, set_timer, halt_timer, &
         LogMemAlloc, LogMemDealloc
     use hfbasis_mod, only: iFindBasisFn

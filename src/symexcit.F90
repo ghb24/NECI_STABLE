@@ -1465,6 +1465,7 @@ Subroutine SymGenExcitIt2(nI, nEl, ExcitTypes, nExcitTypes, &
     use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB
     use SymData, only: SymLabelCounts, SymStatePairs, SymClass
     use SymData, only: SymLabelList, SymPairProds
+    use constants, only: stdout
     IMPLICIT NONE
     INTEGER NEXCITTYPES
     INTEGER NEL, NI(NEL), EXCITTYPES(5, NEXCITTYPES)
