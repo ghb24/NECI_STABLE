@@ -88,7 +88,7 @@ contains
 
             write(stdout, "(A)", advance='no') " Fermi det (D0):"
             call write_det(6, FDET, .true.)
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
 !C.. If in Hubbard, we generate site-spin occupations
             IF (THUB) THEN
 !  Don't think this works
@@ -162,7 +162,7 @@ contains
             deallocate(HFE, HFBasis)
             call LogMemDealloc(this_routine, tagHFE)
             call LogMemDealloc(this_routine, tagHFBasis)
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
         end if
     End Subroutine HFDoCalc
 End Module HFCalc

@@ -545,7 +545,7 @@ contains
             write(stdout, *) "UMatSize: ", UMATINT
             UMatMem = REAL(UMatInt, dp) * REAL(HElement_t_sizeB, dp) * (9.536743164e-7_dp)
             write(stdout, "(A,G20.10,A)") "Memory required for integral storage: ", UMatMem, " Mb/Shared Memory"
-            call neci_flush(6)
+            call neci_flush(stdout)
             call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
             !allocate(UMat(UMatInt), stat=ierr)
             LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
@@ -820,7 +820,7 @@ contains
 
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
           CALL IntFREEZEBASIS(NHG, NBASIS, UMAT, UMAT2, ECORE, G1, NBASISMAX, ISPINSKIP, BRR, NFROZEN, NTFROZEN, NFROZENIN, NTFROZENIN, NEL)
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
             write(stdout, *) "ECORE now", ECORE
             write(stdout, *) "Number of orbitals remaining: ", NBASIS
             nel_pre_freezing = nel
@@ -1229,7 +1229,7 @@ contains
                         ELSE
                             IF(IPB == 0 .or. JPB == 0) THEN
 !                           write(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
-!                           CALL neci_flush(6)
+!                           CALL neci_flush(stdout)
 !                           CALL Stop_All("","here 01")
                             end if
                             if(tOneElecDiag) then
@@ -1387,7 +1387,7 @@ contains
                             ELSE
 !                         IF(IPB.eq.0.or.JPB.eq.0) THEN
 !                              write(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
-!                              CALL neci_flush(6)
+!                              CALL neci_flush(stdout)
 !                              CALL Stop_All("","here 01")
 !                         end if
                                 if(tOneElecDiag) then
@@ -1442,7 +1442,7 @@ contains
                         ELSE
 !                          IF(IPB.eq.0.or.JPB.eq.0) THEN
 !                               WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
-!                               CALL neci_flush(6)
+!                               CALL neci_flush(stdout)
 !                               CALL Stop_All("","here 01")
 !                          ENDIF
                            if(tOneElecDiag) then

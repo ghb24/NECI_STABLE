@@ -340,7 +340,7 @@ contains
         call h5fclose_f(file_id, err)
         call h5close_f(err)
 
-        call neci_flush(6)
+        call neci_flush(stdout)
         call MPIBarrier(mpi_err)
 #else
         CurrWalkers = 0

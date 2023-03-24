@@ -148,7 +148,7 @@ contains
 
             end if
 
-            call neci_flush(6)
+            call neci_flush(stdout)
             call neci_flush(transform_unit)
         end if
 
@@ -341,7 +341,7 @@ contains
                 ! The ROFCIDUMP is also printed out in here.
                 call RefillUMATandTMAT2D()
 
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 if ((tFindCINatOrbs .or. tUseMP2VarDenMat) .and. (NoDumpTruncs > 1)) call ReTruncROFciDump()
 
@@ -429,7 +429,7 @@ contains
             ! The ROFCIDUMP is also printed out in here.
             call RefillUMATandTMAT2D()
 
-            call neci_flush(6)
+            call neci_flush(stdout)
 
         end do
 
@@ -612,7 +612,7 @@ contains
         ! Writing out which orthonormalisation method is being used...
         if (tLagrange) then
             if (tShake) then
-                call neci_flush(6)
+                call neci_flush(stdout)
                 call Stop_All(this_routine, "ERROR. Both LAGRANGE and SHAKE keywords present in the input. &
                 & These two orthonormalisation methods clash.")
             end if
@@ -626,7 +626,7 @@ contains
 
         ! Check for a few possible errors.
         if (.not. TwoCycleSymGens) then
-            call neci_flush(6)
+            call neci_flush(stdout)
             call Stop_All(this_routine, "ERROR. TwoCycleSymGens is false.  Symmetry is not abelian.")
         end if
         if ((tRotateOccOnly .or. tRotateVirtOnly) .and. (.not. tSeparateOccVirt)) then
@@ -635,11 +635,11 @@ contains
             write(stdout, *) "SEPARATEOCCVIRT keyword is being turned on."
         end if
         if ((tOffDiagSqrdMax .and. tOffDiagSqrdMin) .or. (tOffDiagMax .and. tOffDiagMin)) then
-            call neci_flush(6)
+            call neci_flush(stdout)
             call Stop_All(this_routine, "ERROR. Cannot both maximise and minimise off diagonal elements simultaneously")
         end if
         if (tOnePartOrbEnMax .and. (.not. tSeparateOccVirt)) then
-            call neci_flush(6)
+            call neci_flush(stdout)
             call Stop_All(this_routine, &
                           "ERROR. Cannot currently maximise the one particle orbital energies without separating occupied and virtual.")
         end if
@@ -1019,7 +1019,7 @@ contains
                 write(transform_unit, "(I12, 5F24.10)") Iteration, PotEnergy, Force, TotCorrectedForce, OrthoNorm, DistCs
             end if
         end if
-        call neci_flush(6)
+        call neci_flush(stdout)
         call neci_flush(transform_unit)
 
         ! After writing out stats, test for SOFTEXIT.
@@ -1447,7 +1447,7 @@ contains
                 ! TMAT2DBlock comes out as the eigenvalues in ascending order.
                 if (ierr /= 0) then
                     write(stdout, *) 'Problem with symmetry, ', Sym, ' of TMAT2D'
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                     call Stop_All(this_routine, "Diagonalization of TMAT2DSymBlock failed...")
                 end if
 
@@ -2049,7 +2049,7 @@ contains
             do i = Starti, Finishi
                 ERPotEnergy = ERPotEnergy + FourIndIntsER(i)
                 if (FourIndIntsER(i) < 0) then
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                     call Stop_All('CalcPotentials', 'A <ii|ii> value is less than 0.')
                 end if
                 PotEnergy = PotEnergy + FourIndIntsER(i)
@@ -2078,7 +2078,7 @@ contains
                     end if
                     ERPotEnergy = ERPotEnergy + FourIndInts(i, j, i, j)
                     if ((FourIndInts(i, j, i, j) < 0) .or. (FourIndInts(j, i, j, i) < 0)) then
-                        call neci_flush(6)
+                        call neci_flush(stdout)
                         call Stop_All('CalcPotentials', 'A <ii|ii> value is less than 0.')
                     end if
                     PotEnergy = PotEnergy + FourIndInts(i, j, i, j)
@@ -2087,7 +2087,7 @@ contains
                 else
                     ERPotEnergy = ERPotEnergy + FourIndInts(i, i, i, i)
                     if ((FourIndInts(i, i, i, i) < 0)) then
-                        call neci_flush(6)
+                        call neci_flush(stdout)
                         call Stop_All('CalcPotentials', 'A <ii|ii> value is less than 0.')
                     end if
                     PotEnergy = PotEnergy + FourIndInts(i, i, i, i)
@@ -2747,7 +2747,7 @@ contains
 ! orthogonal.
 
 ! and to SHAKEstats file:
-            call neci_flush(6)
+            call neci_flush(stdout)
             call neci_flush(shake_io)
             if (Mod(Iteration, 10) == 0) then
                 write(shake_io, '(I20, 4F35.20, I20)') ShakeIteration, TotLambdas, TotCorrectedForce, TotConstraints, &
@@ -4380,7 +4380,7 @@ contains
         end if
 
         write(stdout, *) 'end of calcfockmatrix'
-        call neci_flush(6)
+        call neci_flush(stdout)
 
     end subroutine CalcFOCKMatrix
 

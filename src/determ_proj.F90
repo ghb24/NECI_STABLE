@@ -88,7 +88,7 @@ contains
             end do
 
             write(stdout, '(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
-            call neci_flush(6)
+            call neci_flush(stdout)
 
             do while (iter <= NMCyc .or. NMCyc == -1)
 
@@ -115,7 +115,7 @@ contains
                 call MPISum(energy_denom, tot_e_denom)
 
                 write(stdout, '(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num / tot_e_denom, tot_var_e_num / tot_var_e_denom
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 iter = iter + 1
 
@@ -191,7 +191,7 @@ contains
             end do
 
             write(stdout, '(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
-            call neci_flush(6)
+            call neci_flush(stdout)
 
             do while (iter <= NMCyc .or. NMCyc == -1)
 
@@ -218,7 +218,7 @@ contains
                 call MPISum(energy_denom, tot_e_denom)
 
                 write(stdout, '(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num / tot_e_denom, tot_var_e_num / tot_var_e_denom
-                call neci_flush(6)
+                call neci_flush(stdout)
 
                 ! Perform the actual projection used, with the approximate Hamiltonian
 

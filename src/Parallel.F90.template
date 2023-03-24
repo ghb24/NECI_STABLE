@@ -1190,7 +1190,7 @@ contains
 !          CALL Stop_All('MPIInit',"IO not possible on this processor")
 !      ELSE
 !          WRITE(6,*) "IO possible on this processor"
-!          CALL neci_flush(6)
+!          CALL neci_flush(stdout)
 !      ENDIF
 
             if (iProcIndex == 0) then
@@ -1432,7 +1432,7 @@ contains
         iNodeIndex = Node%n  !Used as a plain integer version.
      !   write(6,*) iNodeIndex,iProcIndex,Node%n,size(NodeRoots)
      !   write(6,*) "***************************************"
-     !   call neci_flush(6)
+     !   call neci_flush(stdout)
 
         if (iProcIndex == NodeRoots(Node%n)) then
             bNodeRoot = .true.

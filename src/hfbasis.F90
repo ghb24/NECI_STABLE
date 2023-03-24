@@ -1310,7 +1310,7 @@ contains
 !.. The largest element isn't big enough, so we abort
             WRITE(6, *) "Largest coeff of HF basis fn ", I, " is ", MX
             WRITE(6, *) "Aborting ORDERBASISHF"
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
             call stop_all(this_routine, "ORDERBASISHF failed - HF Basis not converged")
         END IF
         ARR(I, 1) = HFE(I)

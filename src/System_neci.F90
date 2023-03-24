@@ -2421,7 +2421,7 @@ contains
                 end if
 
                 IF (NEL > NBASIS) call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
-                CALL neci_flush(6)
+                CALL neci_flush(stdout)
 
                 NOCC = NEl / 2
                 IF (TREADINT) THEN
@@ -3171,7 +3171,7 @@ contains
         end if
         IF (NEL > NBASIS) &
             call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
         IF (TREAL .AND. THUB) THEN
 !C.. we need to allow integrals between different spins
             NBASISMAX(2, 3) = 1
