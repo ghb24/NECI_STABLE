@@ -17,6 +17,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use FciMCData, only: excit_gen_store_type, projEDet
     use SystemData, only: nEl
     use bit_rep_data, only: NIfTot
+    use MPI_wrapper, only: root
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -398,7 +399,7 @@ contains
                         end do
                         ij = fuseIndex(i, j)
 
-                        call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, w)
+                        call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, root, w)
                         if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
                         if (i_exch == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
 

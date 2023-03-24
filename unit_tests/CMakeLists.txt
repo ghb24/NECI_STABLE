@@ -1,13 +1,14 @@
-macro (add_unit_test _config test_name)
-        set (extra_args ${ARGN}) # optional extra libs
+macro (_add_unit_test _config test_name mpi_procs)
         neci_add_test(
             TARGET test_${_config}_${test_name}
         SOURCES
             test_${test_name}.F90
         LIBS
-            lib${_config} fruit ${extra_args}
+            lib${_config} fruit
         LINKER_LANGUAGE
             Fortran
+        MPI
+            ${mpi_procs}
         META_TARGET
             test_${_config}
         PRIVATE_INCLUDES
@@ -19,6 +20,14 @@ macro (add_unit_test _config test_name)
         WARNERR
             ${${PROJECT_NAME}_${_config}_WARNERR}
         )
+endmacro()
+
+macro (add_unit_test _config test_name)
+    _add_unit_test( ${_config} ${test_name} 1)
+endmacro()
+
+macro (add_parallel_unit_test _config test_name mpi_procs)
+    _add_unit_test( ${_config} ${test_name} ${mpi_procs})
 endmacro()
 
 macro (add_unit_test_all_configs test_name)
@@ -79,7 +88,7 @@ add_subdirectory( orb_idx_and_exc_types )
 
 add_subdirectory( sets_mod )
 
-add_subdirectory( shared_array )
+add_subdirectory( MPI_and_shared_array )
 
 add_subdirectory( SD_spin_purification )
 

@@ -10,6 +10,7 @@ module unit_test_helper_excitgen
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
                           tReadInt, t_pcpp_excitgen, tUHF, tMolpro
     use sort_mod
+    use gasci, only: GASSpec_t
     use System, only: SysInit, SetSysDefaults, SysCleanup
     use Parallel_neci, only: MPIInit, MPIEnd, mpi_comm_rank, mpi_comm_world
     use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
@@ -25,13 +26,14 @@ module unit_test_helper_excitgen
     use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
     use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
     use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
-    use util_mod, only: get_free_unit, stop_all
-    use orb_idx_mod, only: SpinProj_t
-    implicit none
+    use util_mod, only: stop_all, operator(.div.)
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
+    better_implicit_none
     private
     public :: test_excitation_generator, generate_uniform_integrals, FciDumpWriter_t, &
         init_excitgen_test, generate_random_integrals, set_ref, free_ref, calc_pgen, &
-        finalize_excitgen_test, InputWriter_t, Writer_t, write_file, delete_file
+        finalize_excitgen_test, InputWriter_t, Writer_t, delete_file, &
+        RandomFcidumpWriter_t
     abstract interface
         function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
             use constants
@@ -49,26 +51,44 @@ module unit_test_helper_excitgen
         end function calc_pgen_t
     end interface
 
-    procedure(calc_pgen_t), pointer :: calc_pgen
-
-    abstract interface
-        subroutine to_unit_writer_t(iunit)
-            integer, intent(in) :: iunit
-        end subroutine
+    interface RandomFcidumpWriter_t
+        module procedure construct_RandomFciDumpWriter_t, construct_GAS_RandomFciDumpWriter_t
     end interface
 
+    procedure(calc_pgen_t), pointer :: calc_pgen
+
     type, abstract :: Writer_t
-        procedure(to_unit_writer_t), pointer, nopass :: write
         ! I would like it to be:
         ! character(:), allocatable :: filepath
         ! but for gfortran <= 4.8.5 it has to be
         character(512) :: filepath
+    contains
+        procedure :: write
+        procedure(to_unit_writer_t), deferred :: write_to_unit
     end type
 
-    type, extends(Writer_t) :: FciDumpWriter_t
+    abstract interface
+        subroutine to_unit_writer_t(this, iunit)
+            import :: Writer_t
+            implicit none
+            class(Writer_t), intent(in) :: this
+            integer, intent(in) :: iunit
+        end subroutine
+    end interface
+
+    type, abstract, extends(Writer_t) :: FciDumpWriter_t
     end type
 
-    type, extends(Writer_t) :: InputWriter_t
+    type, extends(FciDumpWriter_t) :: RandomFcidumpWriter_t
+        integer :: n_el, n_spat_orb
+        real(dp) :: sparse, sparseT
+        type(SpinProj_t) :: total_ms
+        logical :: uhf, hermitian
+    contains
+        procedure :: write_to_unit => RandomFcidumpWriter_t_write
+    end type
+
+    type, abstract, extends(Writer_t) :: InputWriter_t
     end type
 
 contains
@@ -255,7 +275,7 @@ contains
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
         integer, intent(in) :: ref_det(:)
-        type(FciDumpWriter_t), intent(in) :: fcidump_writer
+        class(FciDumpWriter_t), intent(in) :: fcidump_writer
         logical, optional, intent(in) :: setdefaults
             !! whether or not to set the default flags in this function
             !! IMO this should be done using test fixtures and not in this function,
@@ -298,7 +318,7 @@ contains
         end if
         tReadInt = .true.
 
-        call write_file(fcidump_writer)
+        call fcidump_writer%write()
 
         get_umat_el => get_umat_el_normal
 
@@ -471,9 +491,7 @@ contains
 
         integer :: i, j, k, l, iunit
 
-        iunit = get_free_unit()
-
-        open (iunit, file="FCIDUMP")
+        open (newunit=iunit, file="FCIDUMP")
         write(iunit, *) "&FCI NORB=", nSpatOrbs, ",NELEC=", nel, "MS2=", lms, ","
         write(iunit, "(A)", advance="no") "ORBSYM="
         do i = 1, nSpatOrbs
@@ -525,18 +543,61 @@ contains
         character(*), intent(in) :: path
         integer :: file_id
 
-        file_id = get_free_unit()
-        open (file_id, file=path, status='old')
+        open (newunit=file_id, file=path, status='old')
         close (file_id, status='delete')
     end subroutine
 
-    subroutine write_file(writer)
-        class(Writer_t), intent(in) :: writer
-        integer :: file_id
-
-        file_id = get_free_unit()
-        open (file_id, file=writer%filepath)
-        call writer%write(file_id)
-        close (file_id)
+    subroutine RandomFcidumpWriter_t_write(this, iunit)
+        class(RandomFcidumpWriter_t), intent(in) :: this
+        integer, intent(in) :: iunit
+        call generate_random_integrals(iunit, &
+            this%n_el, this%n_spat_orb, this%sparse, this%sparseT, &
+            this%total_ms, this%uhf, this%hermitian)
     end subroutine
+
+    pure function construct_RandomFciDumpWriter_t(n_spat_orbs, nI, sparse, sparseT, filepath, uhf, hermitian) result(res)
+        integer, intent(in) :: n_spat_orbs, nI(:)
+        real(dp), intent(in) :: sparse, sparseT
+        character(*), optional, intent(in) :: filepath
+        logical, optional, intent(in) :: uhf, hermitian
+        class(RandomFcidumpWriter_t), allocatable :: res
+
+        character(len=:), allocatable :: filepath_
+        logical :: uhf_, hermitian_
+        def_default(uhf_, uhf, .false.)
+        def_default(hermitian_, hermitian, .true.)
+        def_default(filepath_, filepath, 'FCIDUMP')
+
+        res = RandomFcidumpWriter_t( &
+                    filepath=filepath_, &
+                    n_El=size(nI), n_spat_orb=n_spat_orbs, &
+                    sparse=sparse, sparseT=sparseT, total_ms=sum(calc_spin_raw(nI)), &
+                    uhf=uhf_, hermitian=hermitian_&
+                )
+    end function
+
+    pure function construct_GAS_RandomFciDumpWriter_t(GAS_spec, nI, sparse, sparseT, filepath, uhf, hermitian) result(res)
+        class(GASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: nI(:)
+        real(dp), intent(in) :: sparse, sparseT
+        character(*), optional, intent(in) :: filepath
+        logical, optional, intent(in) :: uhf, hermitian
+        class(RandomFcidumpWriter_t), allocatable :: res
+
+        res = RandomFcidumpWriter_t( &
+                    GAS_spec%n_spin_orbs() .div. 2, nI, &
+                    sparse=sparse, sparseT=sparseT, &
+                    filepath=filepath, &
+                    uhf=uhf, hermitian=hermitian&
+                )
+    end function
+
+    subroutine write(this)
+        class(Writer_t), intent(in) :: this
+        integer :: file_id
+        open(newunit=file_id, file=this%filepath)
+            call this%write_to_unit(file_id)
+        close(file_id)
+    end subroutine
+
 end module unit_test_helper_excitgen

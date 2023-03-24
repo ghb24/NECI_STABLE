@@ -16,6 +16,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use bit_rep_data, only: nIfTot
     use excitation_generators, only: doubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
+    use MPI_wrapper, only: root
     use excitation_types, only: Excite_2_t
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -333,7 +334,7 @@ contains
                         end do second_hole
                     end do first_hole
                     IJ = fuseIndex(I, J)
-                    call this%AB_sampler%setup_entry(IJ, i_sg, w)
+                    call this%AB_sampler%setup_entry(IJ, i_sg, root, w)
 
                     IJ_weights(I, J, i_sg) = sum(w)
                     IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)

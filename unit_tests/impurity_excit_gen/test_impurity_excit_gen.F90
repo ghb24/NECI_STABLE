@@ -1,21 +1,77 @@
 #include "macros.h"
 
+module test_impurity_excit_gen_mod
+    use constants, only: dp
+    use SystemData, only: t_complex_ints, tUHF
+    use unit_test_helper_excitgen, only: FciDumpWriter_t
+
+    better_implicit_none
+    type, extends(FciDumpWriter_t) :: ImpurityFciDumpWriter_t
+        integer :: nBasis, nEl, ms
+    contains
+        procedure :: write_to_unit
+    end type
+
+
+contains
+
+    subroutine write_to_unit(this, iunit)
+        class(ImpurityFciDumpWriter_t), intent(in) :: this
+        integer, intent(in) :: iunit
+        integer :: i
+        real(dp) :: e
+        unused_var(this)
+        ! write the canonical FCIDUMP header
+        tUHF = .true.
+        write(iunit, *) "&FCI NORB=", this%nBasis, ",NELEC=", this%nel, "MS2=", this%ms, ","
+        write(iunit, "(A)", advance="no") "ORBSYM="
+        do i = 1, this%nBasis
+            write(iunit, "(A)", advance="no") "1,"
+        end do
+        write(iunit, *)
+        write(iunit, *) "ISYM=1,UHF=T"
+        write(iunit, *) "&END"
+        write(iunit, *) 1, 1, 1, 2, 2
+        do i = 1, this%nBasis/2-1
+            write(iunit, *) 0.1, 1, 2*i+1, 0, 0
+            write(iunit, *) 0.1, 2, 2*i+2, 0, 0
+            write(iunit, *) 0.1, 2*i+1, 1, 0, 0
+            write(iunit, *) 0.1, 2*i+2, 2, 0, 0
+        end do
+        do i = 1, this%nBasis
+            if(i < 3) then
+                e = -0.5
+            else if(i < this%nBasis/2+2) then
+                e = -0.3
+            else
+                e = 0.3
+            endif
+            write(iunit, *) e, i, i, 0, 0
+        end do
+    end subroutine
+
+end module
+
 program test_impurity_excit_gen
     use constants, only: dp
     use impurity_models, only: gen_excit_impurity_model, setupImpurityExcitgen
+    use OneEInts, only: tCPMDSymTMat, tOneElecDiag
     use procedure_pointers, only: generate_excitation
     use Parallel_neci, only: MPIInit, MPIEnd
     use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
         get_failed_count, run_test_case, assert_true, assert_equals
     use util_mod, only: stop_all
-    use unit_test_helper_excitgen, only: FciDumpWriter_t, init_excitgen_test, &
-        test_excitation_generator
+    use unit_test_helper_excitgen, only: init_excitgen_test, test_excitation_generator
+    use SystemData, only: nBasis, t_complex_ints
+
+    use test_impurity_excit_gen_mod, only: ImpurityFciDumpWriter_t
 
     implicit none
-
     integer, parameter :: nBasis_ = 6
     integer, parameter :: nel_ = 3
     integer, parameter :: ms_ = 1
+
+
     integer :: failed_count
 
     call MPIInit(.false.)
@@ -37,53 +93,21 @@ contains
         integer, parameter :: nSamples = 1000
         real(dp) :: pTot, pNull
         integer :: nFound, numEx, i
-        call init_excitgen_test([(i, i = 1, nel_)], FciDumpWriter_t(impurity_fcidump, 'FCIDUMP'))
+
+        nBasis = nBasis_
+        tCPMDSymTMat = .false.
+        tOneElecDiag = .false.
+        t_complex_ints = .false.
+
+        associate(ref_det => [(i, i = 1, nel_)])
+            call init_excitgen_test(ref_det, ImpurityFciDumpWriter_t(nBasis=nBasis_, nEl=nEl_, ms=ms_, filepath='FCIDUMP'))
+        end associate
         call init_impurity_tests
         call test_excitation_generator(nSamples, pTot, pNull, numEx, nFound, .false.)
         call assert_equals(numEx,nFound)
         call assert_true(abs(1.0-pTot) < 0.001)
     end subroutine impurity_excit_gen_test_driver
 
-    !------------------------------------------------------------------------------------------!
-
-    subroutine impurity_fcidump(iunit)
-        use OneEInts, only: tCPMDSymTMat, tOneElecDiag
-        use SystemData, only: nBasis, t_complex_ints, tUHF
-        integer, intent(in) :: iunit
-        integer :: i
-        real(dp) :: e
-        nBasis = nBasis_
-        tUHF = .true.
-        tCPMDSymTMat = .false.
-        tOneElecDiag = .false.
-        t_complex_ints = .false.
-        ! write the canonical FCIDUMP header
-        write(iunit, *) "&FCI NORB=", nBasis, ",NELEC=", nel_, "MS2=", ms_, ","
-        write(iunit, "(A)", advance="no") "ORBSYM="
-        do i = 1, nBasis
-            write(iunit, "(A)", advance="no") "1,"
-        end do
-        write(iunit, *)
-        write(iunit, *) "ISYM=1,UHF=T"
-        write(iunit, *) "&END"
-        write(iunit, *) 1, 1, 1, 2, 2
-        do i = 1, nBasis/2-1
-            write(iunit, *) 0.1, 1, 2*i+1, 0, 0
-            write(iunit, *) 0.1, 2, 2*i+2, 0, 0
-            write(iunit, *) 0.1, 2*i+1, 1, 0, 0
-            write(iunit, *) 0.1, 2*i+2, 2, 0, 0
-        end do
-        do i = 1, nBasis
-            if(i < 3) then
-                e = -0.5
-            else if(i < nBasis/2+2) then
-                e = -0.3
-            else
-                e = 0.3
-            endif
-            write(iunit, *) e, i, i, 0, 0
-        end do
-    end subroutine impurity_fcidump
 
     !------------------------------------------------------------------------------------------!
 
@@ -94,21 +118,5 @@ contains
       call setupImpurityExcitgen()
 
     end subroutine init_impurity_tests
-
-    ! subroutine generate_test_ilut(ilut,nI)
-    !     use bit_rep_data, only: niftot
-    !     use SystemData, only: nel
-    !
-    !     integer(n_int), intent(out) :: ilut(0:niftot)
-    !     integer,intent(out) :: nI(nel)
-    !     integer :: i
-    !
-    !     nI = (/ 1,3,6/)
-    !     ilut = 0
-    !     do i=1,nel
-    !         ilut(0) = ibset(ilut(0),nI(i)-1)
-    !     enddo
-    ! end subroutine generate_test_ilut
-
 
 end program

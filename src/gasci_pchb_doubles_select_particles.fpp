@@ -15,6 +15,7 @@ module gasci_pchb_doubles_select_particles
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use util_mod, only: stop_all, operator(.isclose.), swap, &
         binary_search_int, EnumBase_t, operator(.div.)
+    use MPI_wrapper, only: iProcIndex_intra, root
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     better_implicit_none
@@ -275,20 +276,33 @@ contains
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
 
         nBI = this%GAS_spec%n_spin_orbs()
-        @:ASSERT(nBI == size(weights, 1) .and. nBI == size(weights, 2))
 
         supergroups = this%indexer%get_supergroups()
-        @:ASSERT(size(supergroups, 2) == size(weights, 3))
+
+        if (iProcIndex_intra == root) then
+            @:ASSERT(nBI == size(weights, 1) .and. nBI == size(weights, 2))
+            @:ASSERT(size(supergroups, 2) == size(weights, 3))
+        end if
 
         call this%I_sampler%shared_alloc(size(supergroups, 2), nBI, 'PC_particles_i')
         call this%J_sampler%shared_alloc([nBI, size(supergroups, 2)], nBI, 'PC_particles_j')
         block
             integer :: I
+            real(dp) :: dummy(2)
+            dummy = 10000._dp
             do i_sg = 1, size(supergroups, 2)
                 do I = 1, nBI
-                    call this%J_sampler%setup_entry(I, i_sg, weights(:, I, i_sg))
+                    if (iProcIndex_intra == root) then
+                        call this%J_sampler%setup_entry(I, i_sg, root, weights(:, I, i_sg))
+                    else
+                        call this%J_sampler%setup_entry(I, i_sg, root, dummy)
+                    end if
                 end do
-                call this%I_sampler%setup_entry(i_sg, sum(weights(:, :, i_sg), dim=1))
+                if (iProcIndex_intra == root) then
+                    call this%I_sampler%setup_entry(i_sg, root, sum(weights(:, :, i_sg), dim=1))
+                else
+                    call this%I_sampler%setup_entry(i_sg, root, dummy)
+                end if
             end do
         end block
     end subroutine
