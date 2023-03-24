@@ -390,7 +390,7 @@ contains
             PeakMemLog(:) = MemLog(:)
         end if
 
-        call WriteMemLogHeader(6)
+        call writememlogheader(stdout)
 
         if (CachingMemLog) then
             ! Large objects might be residing in the MemLog, but not deallocated

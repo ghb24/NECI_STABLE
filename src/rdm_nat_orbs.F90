@@ -76,7 +76,7 @@ contains
 
                 call neci_flush(stdout)
 
-                call writebasis(6, G1, nbasis, ARR, BRR)
+                call writebasis(stdout, G1, nbasis, ARR, BRR)
             end if
         end if
 

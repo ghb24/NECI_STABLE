@@ -156,7 +156,7 @@ contains
         call write_det(stdout, FDET, .true.)
         Call GetSym(FDet, nEl, G1, nBasisMax, s)
         write (stdout, "(A)", advance='no') " Symmetry: "
-        Call WriteSym(6, s%Sym, .true.)
+        Call writesym(stdout, s%Sym, .true.)
         IF (tFixLz) THEN
             Call GetLz(FDet, nEl, Lz)
             write (stdout, "(A,I5)") "Lz of Fermi det:", Lz
@@ -183,7 +183,7 @@ contains
             OrbOrder(:, :) = 0
             call ORDERBASIS(NBASIS, Arr, Brr, OrbOrder, nBasisMax, G1)
             !However, we reorder them here
-            call writebasis(6, G1, nBasis, Arr, Brr)
+            call writebasis(stdout, G1, nBasis, Arr, Brr)
         end if
         E0HFDET = ECORE
         DO I = 1, NEL
@@ -277,7 +277,7 @@ contains
         call write_det(stdout, FDET, .true.)
         Call GetSym(FDet, nEl, G1, nBasisMax, s)
         write (stdout, "(A)", advance='no') " Symmetry: "
-        Call WriteSym(6, s%Sym, .true.)
+        Call writesym(stdout, s%Sym, .true.)
         IF (tFixLz) THEN
             Call GetLz(FDet, nEl, Lz)
             write (stdout, "(A,I5)") "Lz of Fermi det:", Lz
@@ -304,7 +304,7 @@ contains
             OrbOrder(:, :) = 0
             call ORDERBASIS(NBASIS, Arr, Brr, OrbOrder, nBasisMax, G1)
             !However, we reorder them here
-            call writebasis(6, G1, nBasis, Arr, Brr)
+            call writebasis(stdout, G1, nBasis, Arr, Brr)
         end if
         E0HFDET = ECORE
         DO I = 1, NEL
@@ -762,7 +762,7 @@ contains
         call write_det_len(6, fDet, nel - nfrozen - nfrozenin, .true.)
         write (stdout, "(A)", advance='no') " Symmetry: "
         Call GetSym(FDet, nEl - nFrozen - nFrozenIn, G1, nBasisMax, s)
-        Call WriteSym(6, s%Sym, .true.)
+        Call writesym(stdout, s%Sym, .true.)
         IF (tFixLz) THEN
             Call GetLz(FDet, nEl - nFrozen - nFrozenIn, Lz)
             write (stdout, "(A,I5)") " Lz of Fermi det:", Lz

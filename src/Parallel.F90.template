@@ -1209,13 +1209,13 @@ contains
 #ifdef DEBUG_
                 write(stdout,*) "outfile=", NodeFile
 #endif
-                close(6, status="keep")
+                close(stdout, status="keep")
 #ifdef DEBUG_
-                open(6, file=NodeFile, recl=8192)
+                open(stdout, file=NodeFile, recl=8192)
                 write(stdout,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' on local output.'
 #else
-                open(6, file="/dev/null")
+                open(stdout, file="/dev/null")
 #endif
             endif
 

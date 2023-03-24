@@ -180,7 +180,7 @@ contains
             END DO
         END IF
         WRITE(stdout, *) "SYMMETRY CLASSES"
-        CALL WRITEIRREPTAB(6, SYMLABELCHARS, NROT, NSYMLABELS)
+        CALL writeirreptab(stdout, SYMLABELCHARS, NROT, NSYMLABELS)
 !.. Allocate memory gor irreps.
 !.. Assume there will be no more than 64 irreps
         allocate(IRREPCHARS(NROT, NROT)) ! nSym==nRot
@@ -333,7 +333,7 @@ contains
 !.. we only need a translation table if we've reordered the states.
 !.. This should save some time in the UMAT lookup.
             CALL SETUMATTRANS(STATEORDER)
-            CALL WRITEBASIS(6, G1, NSTATES * 2, ARR, BRR)
+            CALL writebasis(stdout, G1, NSTATES * 2, ARR, BRR)
         END IF
 !.. Set the UMAT cache to cache normally again
         WRITE(stdout, *) "Finished TMAT"

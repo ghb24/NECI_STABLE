@@ -1749,7 +1749,7 @@ contains
             ! Just in case, add a check
             if (attempts > max_attempts) then
                 write(stdout, *) 'Unable to find unoccupied orbital'
-                call writebitdet(6, ilut, .true.)
+                call writebitdet(stdout, ilut, .true.)
                 call stop_all(this_routine, 'Out of attempts')
             end if
         end do
@@ -1778,7 +1778,7 @@ contains
             ! Just in case, add a check
             if (attempts > max_attempts) then
                 write(stdout, *) 'Unable to find unoccupied orbital'
-                call writebitdet(6, ilut, .true.)
+                call writebitdet(stdout, ilut, .true.)
                 call stop_all(t_r, 'Out of attempts')
             end if
         end do

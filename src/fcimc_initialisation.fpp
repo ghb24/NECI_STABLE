@@ -3055,7 +3055,7 @@ contains
 !                 call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
                 write(stdout, *) 'Setting ref', run
-                call writebitdet(6, largest_det, .true.)
+                call writebitdet(stdout, largest_det, .true.)
 
                 ! Set this det as the reference
                 call update_run_reference(largest_det, run)
@@ -4035,7 +4035,7 @@ contains
                 if (.not. (n_excits > 0) .or. n_excits < inum_runs - 1) then
                     print *, "n_excits: ", n_excits
                     print *, "requested excited states:", inum_runs - 1
-                    call write_guga_list(6, excitations(:, 1:n_excits))
+                    call write_guga_list(stdout, excitations(:, 1:n_excits))
                     call stop_all(this_routine, "not enough excitations from HF!")
                 end if
 

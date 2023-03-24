@@ -141,7 +141,7 @@ CONTAINS
                 write(stdout, *) "Determining determinants and blocks."
                 IF (TPARITY) THEN
                     write(stdout, *) "Using symmetry restriction:"
-                    CALL WRITEALLSYM(6, SymRestrict, .TRUE.)
+                    CALL writeallsym(stdout, SymRestrict, .TRUE.)
                 end if
                 IF (TSPN) THEN
                     write(stdout, *) "Using spin restriction:", LMS
@@ -160,7 +160,7 @@ CONTAINS
                 write(stdout, *) "Determining determinants."
                 IF (TPARITY) THEN
                     write(stdout, *) "Using symmetry restriction:"
-                    CALL WRITEALLSYM(6, SymRestrict, .TRUE.)
+                    CALL writeallsym(stdout, SymRestrict, .TRUE.)
                 end if
                 IF (TSPN) THEN
                     write(stdout, *) "Using spin restriction:", LMS

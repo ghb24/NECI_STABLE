@@ -29,7 +29,7 @@ contains
         LOGICAL :: tSuccess, tFoundOrbs(nBasis)
 
         write (stdout, *) "SYMMETRY MULTIPLICATION TABLE"
-        CALL WRITESYMTABLE(6)
+        CALL WRITESYMTABLE(stdout)
 
         CALL GENSymStatePairs(NBASIS / 2, .false.)
 

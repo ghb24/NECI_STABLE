@@ -277,10 +277,10 @@ Subroutine SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr, iMinElec1, iMaxEl
                 WRITE(stdout, *) "Occupied Symmetry Products"
                 DO L = 0, NPR
                     WRITE(stdout, "(I4)", advance='no') L
-                    CALL WRITESYM(6, SYMPRODS(L), .TRUE.)
+                    CALL writesym(stdout, SYMPRODS(L), .TRUE.)
                 END DO
                 WRITE(stdout, "(A)", advance='no') "Illegal Symmetry"
-                CALL WRITESYM(6, PR, .TRUE.)
+                CALL writesym(stdout, PR, .TRUE.)
                 call stop_all(t_r, 'Illegal Symmetry Found')
             END IF
             ISPN = (G1(NI(I))%Ms + G1(NI(J))%Ms) / 2 + 2

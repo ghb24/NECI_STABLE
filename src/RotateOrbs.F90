@@ -142,7 +142,7 @@ contains
 ! Make symmetry, orbitals, one/two-electron integrals consistent with rest of NECI
                 call FinalizeNewOrbs()
 
-                call writeBASIS(6, G1, nBasis, ARR, BRR)
+                call writebasis(stdout, G1, nBasis, ARR, BRR)
 
                 call DeallocateMem()
 
@@ -352,7 +352,7 @@ contains
 
 ! If a truncation is being made, the new basis will not be in the correct energetic ordering - this does not matter, as we
 ! never go straight into a spawning and they will be reordered when the ROFCIDUMP file is read in again.
-            call writeBASIS(6, G1, nBasis, ARR, BRR)
+            call writebasis(stdout, G1, nBasis, ARR, BRR)
 
             deallocate(CoeffT1)
             call LogMemDeAlloc(this_routine, CoeffT1Tag)

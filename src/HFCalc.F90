@@ -84,7 +84,7 @@ contains
 #endif
             end if
             write(stdout, *) "FINAL HF BASIS"
-            CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
+            CALL writebasis(stdout, G1, nBasis, ARR, BRR)
 
             write(stdout, "(A)", advance='no') " Fermi det (D0):"
             call write_det(stdout, FDET, .true.)

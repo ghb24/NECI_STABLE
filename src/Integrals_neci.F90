@@ -843,7 +843,7 @@ contains
             tagUMat = tagUMat2
             tagUMat2 = 0
             call setup_UMatInd()
-            CALL WRITEBASIS(6, G1, NHG, ARR, BRR)
+            CALL writebasis(stdout, G1, NHG, ARR, BRR)
         end if
 
         ! Setup the umatel pointers as well
