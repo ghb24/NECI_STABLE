@@ -608,7 +608,7 @@ contains
         if (tGUGA) then
             write(stdout, '(4(A,'//int_fmt(nel)//'))') "N_neg:", NELS(1), " ; N_pos:", NELS(2), " ; S:", LMS, " ; nEl:", nEL
         else
-            WRITE(6, '(4(A,'//int_fmt(nel)//'))') " N_alpha:", NELS(1), " ; N_beta:", NELS(2), " ; LMS:", LMS, " ; NEl:", NEL
+            WRITE(stdout, '(4(A,'//int_fmt(nel)//'))') " N_alpha:", NELS(1), " ; N_beta:", NELS(2), " ; LMS:", LMS, " ; NEl:", NEL
         end if
         nclosed = minval(nels)
 

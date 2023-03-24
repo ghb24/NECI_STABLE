@@ -1441,7 +1441,7 @@ contains
                             call stop_all("IntFreezeBasis","Not implemented for tCPMD")
                         ELSE
 !                          IF(IPB.eq.0.or.JPB.eq.0) THEN
-!                               WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+!                               WRITE(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
 !                               CALL neci_flush(stdout)
 !                               CALL Stop_All("","here 01")
 !                          ENDIF
@@ -1451,7 +1451,7 @@ contains
                               OneEFieldInts2(IPB,JPB,:)=OneEFieldInts(IB,JB,:)
                            endif
                         ENDIF
-!              WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
+!              WRITE(stdout,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
 !           IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) WRITE(16,*) I,J,TMAT2(IPB,JPB)
                      ENDDO
                  ENDDO

@@ -40,12 +40,12 @@ contains
 !         RIJMAT(1,2)=1.0_dp
 !         RIJMAT(2,1)=1.0_dp
 !         RIJMAT(2,2)=1.0_dp
-!         WRITE(6,*) ((RIJMAT(I,J),J=1,I_V),I=1,I_V)
+!         WRITE(stdout,*) ((RIJMAT(I,J),J=1,I_V),I=1,I_V)
         CALL DSYEV('V', 'U', I_V, RIJMAT(1, 1), I_V, WLIST(1), WORK(1), 3 * I_V, INFO)
-!         WRITE(6,*) ((RIJMAT(I,J),J=1,I_V),I=1,I_V)
-!         WRITE(6,*) (WLIST(I),I=1,I_V)
+!         WRITE(stdout,*) ((RIJMAT(I,J),J=1,I_V),I=1,I_V)
+!         WRITE(stdout,*) (WLIST(I),I=1,I_V)
         IF (INFO /= 0) THEN
-            WRITE(6, *) 'DYSEV error: ', INFO
+            WRITE(stdout, *) 'DYSEV error: ', INFO
             call stop_all(this_routine, "DSYEV error")
         END IF
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
@@ -53,7 +53,7 @@ contains
 !.. divide through by RHOII^P
         DO I = 1, I_V
             SI = SI + RIJMAT(1, I) * RIJMAT(1, I) * ((WLIST(I) / RII)**I_P)
-!           WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
+!           WRITE(stdout,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
         END DO
         RHODIAG_CP = SI
 !         DO I=0,NLIST-1
@@ -102,7 +102,7 @@ contains
         R = R * S
         RII = EXP(R)
 !.. Diagonalize
-!         WRITE(6,*) "...",I_V,IMISS
+!         WRITE(stdout,*) "...",I_V,IMISS
         proc_timer%timer_name = 'HDIAG_CPP '
         call set_timer(proc_timer, 55)
         RIJMAT(1:I_V, 1:I_V) = (0.0_dp)
@@ -136,7 +136,7 @@ contains
         IF (HElement_t_size == 1) THEN
             CALL DSYEV('V', 'U', I_V, RIJMAT, I_V, WLIST, WORK, 3 * I_V, INFO)
             IF (INFO /= 0) THEN
-                WRITE(6, *) 'DYSEV error: ', INFO
+                WRITE(stdout, *) 'DYSEV error: ', INFO
                 call stop_all(this_routine, "DSYEV error")
             END IF
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
@@ -145,7 +145,7 @@ contains
             SI2 = 0.0_dp
             DLWT = 0.0_dp
             DO I = 1, I_V
-!            WRITE(6,*) WLIST(I),RIJMAT(1,I)
+!            WRITE(stdout,*) WLIST(I),RIJMAT(1,I)
                 R = HIJ(1, 1)
                 R = EXP(-BETA * (WLIST(I) - R))
                 S = RIJMAT(1, I) * RIJMAT(1, I)
@@ -157,14 +157,14 @@ contains
                 DO J = 1, I_V
                     U = HIJS2(J) * RIJMAT(J, I) * RIJMAT(1, I)
                     DLWT = DLWT + U * T
-!                 WRITE(6,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),U,T,DLWT
+!                 WRITE(stdout,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),U,T,DLWT
                 END DO
             END DO
         ELSE
 !.. The complex case
             CALL ZHEEV('V', 'U', I_V, RIJMAT, I_V, WLIST, NWORK, 4 * I_V, WORK, INFO)
             IF (INFO /= 0) THEN
-                WRITE(6, *) 'ZHEEV error: ', INFO
+                WRITE(stdout, *) 'ZHEEV error: ', INFO
                 call stop_all(this_routine, "ZHEEV error")
             END IF
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
@@ -173,7 +173,7 @@ contains
             SI2 = 0.0_dp
             DLWT = 0.0_dp
             DO I = 1, I_V
-!            WRITE(6,*) WLIST(I),RIJMAT(1,I)
+!            WRITE(stdout,*) WLIST(I),RIJMAT(1,I)
                 S = abs(RIJMAT(1, I))**2
                 R = HIJ(1, 1)
                 R = EXP(-BETA * (WLIST(I) - R))
@@ -189,7 +189,7 @@ contains
                     T = HIJS2(J) * RIJMAT(J, I) * (RIJMAT(1, I))
 #endif
                     DLWT = DLWT + T * U
-!                 WRITE(6,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),T,U,DLWT
+!                 WRITE(stdout,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),T,U,DLWT
                 END DO
             END DO
         END IF
@@ -231,7 +231,7 @@ contains
         END IF
         RII = RHOIJ(1, 1)
 !.. Diagonalize
-!         WRITE(6,*) "...",I_V,IMISS
+!         WRITE(stdout,*) "...",I_V,IMISS
         proc_timer%timer_name = 'RHODIAG_C2'
         call set_timer(proc_timer, 55)
         RIJMAT(1:I_V, 1:I_V) = (0.0_dp)
@@ -274,14 +274,14 @@ contains
                 SI = SI - RHODIAG_CPP(RIJMAT, I_P, I_V - 1, I, TSUB, DBETA, DD2, HIJS2, tLogWeight)
                 IF (.not. near_zero(DBETA)) DLWDB = DLWDB - DD2
             END IF
-!            WRITE(6,*) "SI=",SI
+!            WRITE(stdout,*) "SI=",SI
         END DO
         END IF
-!         WRITE(6,*) I_V
+!         WRITE(stdout,*) I_V
         IF (HElement_t_size == 1) THEN
             CALL DSYEV('V', 'U', I_V, RIJMAT, I_V, WLIST, WORK, 3 * I_V, INFO)
             IF (INFO /= 0) THEN
-                WRITE(6, *) 'DYSEV error: ', INFO
+                WRITE(stdout, *) 'DYSEV error: ', INFO
                 call stop_all(this_routine, "DSYEV error")
             END IF
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
@@ -289,7 +289,7 @@ contains
             DLWT = 0.0_dp
             SI2 = 0.0_dp
             DO I = 1, I_V
-!               WRITE(6,*) WLIST(I),RIJMAT(1,I)
+!               WRITE(stdout,*) WLIST(I),RIJMAT(1,I)
                 R = (RII)
                 R = ((WLIST(I) / R)**I_P)
                 S = R
@@ -322,7 +322,7 @@ contains
 !.. The complex case
             CALL ZHEEV('V', 'U', I_V, RIJMAT, I_V, WLIST, NWORK, 4 * I_V, WORK, INFO)
             IF (INFO /= 0) THEN
-                WRITE(6, *) 'ZHEEV error: ', INFO
+                WRITE(stdout, *) 'ZHEEV error: ', INFO
                 call stop_all(this_routine, "ZHEEV error")
             END IF
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
@@ -404,7 +404,7 @@ contains
         END IF
         RII = RHOIJ(1, 1)
 !.. Diagonalize
-!         WRITE(6,*) "...",I_V,IMISS
+!         WRITE(stdout,*) "...",I_V,IMISS
         proc_timer%timer_name = 'RHODIAG_C2'
         call set_timer(proc_timer, 55)
         RIJMAT(1:I_V, 1:I_V) = (0.0_dp)
@@ -418,7 +418,7 @@ contains
         IF (HElement_t_size == 1) THEN
             CALL DSYEV('V', 'U', I_V, RIJMAT, I_V, WLIST, WORK, 3 * I_V, INFO)
             IF (INFO /= 0) THEN
-                WRITE(6, *) 'DYSEV error: ', INFO
+                WRITE(stdout, *) 'DYSEV error: ', INFO
                 call stop_all(this_routine, "DSYEV error")
             END IF
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
@@ -426,7 +426,7 @@ contains
             DLWT = 0.0_dp
             SI2 = 0.0_dp
             DO I = 1, I_V
-!               WRITE(6,*) WLIST(I),RIJMAT(1,I)
+!               WRITE(stdout,*) WLIST(I),RIJMAT(1,I)
                 R = (RII)
                 R = ((WLIST(I) / R)**I_P)
                 S = R
@@ -445,12 +445,12 @@ contains
             SS = DLWT
 !We're doing a subtraction
             DLWDB = DLWDB - SS
-!            WRITE(6,*) I_V,DLWDB
+!            WRITE(stdout,*) I_V,DLWDB
         ELSE
 !.. The complex case
             CALL ZHEEV('V', 'U', I_V, RIJMAT, I_V, WLIST, NWORK, 4 * I_V, WORK, INFO)
             IF (INFO /= 0) THEN
-                WRITE(6, *) 'ZHEEV error: ', INFO
+                WRITE(stdout, *) 'ZHEEV error: ', INFO
                 call stop_all(this_routine, "ZHEEV error")
             END IF
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues

@@ -311,7 +311,7 @@ contains
         TYPE(BasisFN) NQNS, S
         character(*), parameter:: this_routine = 'GenHubMomIrrepsSymTable'
         nSym = nBasis / 2
-        WRITE(6, "(A,I3,A)") "Generating abelian symmetry table with", nBasis / 2, " generators for Hubbard momentum"
+        WRITE(stdout, "(A,I3,A)") "Generating abelian symmetry table with", nBasis / 2, " generators for Hubbard momentum"
 
 !.. Now generate a list of sym labels.
         write(stdout, *) 'SIZES', nSymLabels, nBasis, allocated(symlabels), associated(symclasses), allocated(symconjtab), allocated(symtable)
@@ -376,7 +376,7 @@ contains
                 J = iFindBasisFn(NQNS, G1, nBasis)
             end if
             IF (J == 0) THEN
-                WRITE(6, *) "Cannot Find symmetry conjugate to basis fn ", I * 2
+                WRITE(stdout, *) "Cannot Find symmetry conjugate to basis fn ", I * 2
                 call stop_all(this_routine, "Cannot find symmetry conjugate.")
             END IF
             SymConjTab(SymClasses(I)) = SymClasses(J / 2)
@@ -392,7 +392,7 @@ contains
                 end if
 
                 IF (K == 0) THEN
-                    WRITE(6, *) "Cannot find symmetry product of basis fns ", I * 2, J * 2
+                    WRITE(stdout, *) "Cannot find symmetry product of basis fns ", I * 2, J * 2
                     call stop_all(this_routine, "Cannot find symmetry product.")
                 END IF
                 SymTable(SymClasses(I), SymClasses(J)) = SymLabels(SymClasses(K / 2))
@@ -402,9 +402,9 @@ contains
             G1(I * 2 - 1)%Sym = SymLabels(SymClasses(I))
             G1(I * 2)%Sym = SymLabels(SymClasses(I))
         END DO
-        WRITE(6, *) "Symmetry, Symmetry Conjugate"
+        WRITE(stdout, *) "Symmetry, Symmetry Conjugate"
         DO I = 1, NSYM
-            WRITE(6, *) I, SymConjTab(I)
+            WRITE(stdout, *) I, SymConjTab(I)
         END DO
     End
 

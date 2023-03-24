@@ -64,7 +64,7 @@ Subroutine SymSetupExcits_CreateClassList(nI, nEl, Classes, iMinElec1, iMaxElec1
     NCL = 0  !This is our running count of how many symmetry classes we have
     DO I = 1, NEL
         TNEW = .TRUE.
-!            WRITE(6,*) I,SymClasses((NI(I)+1)/2)
+!            WRITE(stdout,*) I,SymClasses((NI(I)+1)/2)
         DO J = 1, NCL
         IF (SymClasses((NI(I) + 1) / 2) == CLASSES(J)%SymLab) THEN
             ISPN = (G1(NI(I))%Ms + 3) / 2
@@ -121,10 +121,10 @@ Subroutine SymSetupExcits_CreateClassList(nI, nEl, Classes, iMinElec1, iMaxElec1
                 END DO
             END DO
             CLASSES(I)%SymRem = PR
-!            WRITE(6,"(A,I4,2Z4,I)") "CLASS ",NCL,CLASSES(I)%SymLab,
+!            WRITE(stdout,"(A,I4,2Z4,I)") "CLASS ",NCL,CLASSES(I)%SymLab,
 !     &            CLASSES(I)%SymRem,I
         END DO
-!            WRITE(6,*) NCL," Symmetry Classes"
+!            WRITE(stdout,*) NCL," Symmetry Classes"
     END IF
 End Subroutine
 
@@ -205,11 +205,11 @@ Subroutine SymSetupExcits_CreateCSProds(nPr, nPairs, nCl, SymProds, ThisClassCou
 
 !Find total number of spin-orbital pairs of all spin-combos
         NPAIRS = NPAIRS + ICC1 + ICC2 + ICC3
-!                  WRITE(6,"(6I6)") CLASSCOUNT(1:2,I),
+!                  WRITE(stdout,"(6I6)") CLASSCOUNT(1:2,I),
 !     &  THISCLASSCOUNT(1:2,I), PREVCLASSCOUNT(1:2,I)
-!                  WRITE(6,"(6I6)") CLASSCOUNT(1:2,J),
+!                  WRITE(stdout,"(6I6)") CLASSCOUNT(1:2,J),
 !     &  THISCLASSCOUNT(1:2,J), PREVCLASSCOUNT(1:2,J)
-!                  WRITE(6,"(A,I6,Z4,5I6)") "SYMPROD ",K,SYMPRODS(K),I,J,
+!                  WRITE(stdout,"(A,I6,Z4,5I6)") "SYMPROD ",K,SYMPRODS(K),I,J,
 !     &               ICC1,ICC2,ICC3
     END DO
     END DO
@@ -218,20 +218,20 @@ Subroutine SymSetupExcits_CreateCSProds(nPr, nPairs, nCl, SymProds, ThisClassCou
     SYMPRODCOUNT(2, 0) = 0
     SYMPRODCOUNT(3, 0) = 0
 !         DO I=1,NPR
-!            WRITE(6,"(Z4,3I4)") SYMPRODS(I),SYMPRODCOUNT(1,I),
+!            WRITE(stdout,"(Z4,3I4)") SYMPRODS(I),SYMPRODCOUNT(1,I),
 !     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
 !         ENDDO
 
 !.  We sort the array of Symmetry products (and its associated SymProdCount info), into ascending order of product, for easy searching later.
     call sort(symProds(1:npr), symProdCount(:, 1:npr))
-!         WRITE(6,*) NPR," Symmetry Products"
-!         WRITE(6,*) NPAIRS," Orbital Pairs"
+!         WRITE(stdout,*) NPR," Symmetry Products"
+!         WRITE(stdout,*) NPAIRS," Orbital Pairs"
 !.. Create a cumulative sum.
     DO I = 1, NPR
         SYMPRODCOUNT(1, I) = SYMPRODCOUNT(3, I - 1) + SYMPRODCOUNT(1, I)
         SYMPRODCOUNT(2, I) = SYMPRODCOUNT(1, I) + SYMPRODCOUNT(2, I)
         SYMPRODCOUNT(3, I) = SYMPRODCOUNT(2, I) + SYMPRODCOUNT(3, I)
-!            WRITE(6,*) SYMPRODS(I),SYMPRODCOUNT(1,I),
+!            WRITE(stdout,*) SYMPRODS(I),SYMPRODCOUNT(1,I),
 !     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
     END DO
 End Subroutine
@@ -274,12 +274,12 @@ Subroutine SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr, iMinElec1, iMaxEl
 !.. Find the product in the sorted symprod list
             CALL BINARYSEARCHSYM(PR, SYMPRODS(1), int(NPR), K)
             IF (K == 0) THEN
-                WRITE(6, *) "Occupied Symmetry Products"
+                WRITE(stdout, *) "Occupied Symmetry Products"
                 DO L = 0, NPR
-                    WRITE(6, "(I4)", advance='no') L
+                    WRITE(stdout, "(I4)", advance='no') L
                     CALL WRITESYM(6, SYMPRODS(L), .TRUE.)
                 END DO
-                WRITE(6, "(A)", advance='no') "Illegal Symmetry"
+                WRITE(stdout, "(A)", advance='no') "Illegal Symmetry"
                 CALL WRITESYM(6, PR, .TRUE.)
                 call stop_all(t_r, 'Illegal Symmetry Found')
             END IF
@@ -293,9 +293,9 @@ Subroutine SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr, iMinElec1, iMaxEl
             ORBPAIRS(1, ICC) = NI(I)
             ORBPAIRS(2, ICC) = NI(J)
 
-!               WRITE(6,"(A,2I4,2Z4,2I4)")
+!               WRITE(stdout,"(A,2I4,2Z4,2I4)")
 !     &            "SP",ICC,ISPN,PR,SYMPRODS(K),NI(I),NI(J)
-!               WRITE(6,*) L,NI(I),NI(J),PR,K
+!               WRITE(stdout,*) L,NI(I),NI(J),PR,K
         END DO
     END DO
 End Subroutine
@@ -343,7 +343,7 @@ Subroutine SymSetupExcits_CountVirtProds(nDoub, nExcitTypes, nPr, SymProdInd, Sy
             NALLOWPPS(3, J) = -1
         END IF
 !.. [] is the SymProd(I).  For each sympairprod, check if [] x []' contains the sym rep
-!               WRITE(6,*) SYMPRODS(I),SYMPAIRPRODS(J)
+!               WRITE(stdout,*) SYMPRODS(I),SYMPAIRPRODS(J)
         SPP = SymPairProds(J)%Sym
         IF (LSYMSYM(SYMPROD(SymConj(SYMPRODS(I)), SPP))) THEN
 !.. Check if we've worked out the allowed number of excitation pairs, otherwise work it out
@@ -379,7 +379,7 @@ Subroutine SymSetupExcits_CountVirtProds(nDoub, nExcitTypes, nPr, SymProdInd, Sy
                         IF (L1A .AND. L2B) NALLOWPPS(2, J) = NALLOWPPS(2, J) + 1
                         IF (L1A .AND. L2A) NALLOWPPS(3, J) = NALLOWPPS(3, J) + 1
                     END IF
-!                        WRITE(6,*) SPP,SymStatePairs(1,K)*2-1,
+!                        WRITE(stdout,*) SPP,SymStatePairs(1,K)*2-1,
 !     &                     SymStatePairs(2,K)*2-1
 !     &                     ,L1B,L1A,L2B,L2A
                 END DO
@@ -389,8 +389,8 @@ Subroutine SymSetupExcits_CountVirtProds(nDoub, nExcitTypes, nPr, SymProdInd, Sy
                 L = NALLOWPPS(ISPN, J)
                 K = SYMPRODIND(2, ISPN, I)
                 ICC = L * K
-!                     WRITE(6,*) "ET",NEXCITTYPES
-!                     WRITE(6,"(14I5)") I,J,SYMPRODS(I),
+!                     WRITE(stdout,*) "ET",NEXCITTYPES
+!                     WRITE(stdout,"(14I5)") I,J,SYMPRODS(I),
 !     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
                 NDOUB = NDOUB + ICC
                 IF (ICC > 0) NEXCITTYPES = NEXCITTYPES + 1
@@ -399,7 +399,7 @@ Subroutine SymSetupExcits_CountVirtProds(nDoub, nExcitTypes, nPr, SymProdInd, Sy
     END DO
     END DO
 
-!         WRITE(6,*) "Number of double excitations: ",NDOUB
+!         WRITE(stdout,*) "Number of double excitations: ",NDOUB
 End Subroutine
 
 Subroutine SymSetupExcitsAb_CountVProds(nDoub, nExcitTypes, nCl, nPr, SymProds, SymProdInd, Classes, ClassCount, nAllowPPS) ! Calculated not enumerated
@@ -433,7 +433,7 @@ Subroutine SymSetupExcitsAb_CountVProds(nDoub, nExcitTypes, nCl, nPr, SymProds, 
         CALL BINARYSEARCHSYM(SymPairProds(I)%Sym, SYMPRODS(1), NPR, K)
 !K now has the index of that sym in the occ sym prod list.
 
-        IF (tDebugPrint) WRITE(6, *) "Sym:", SymPairProds(I)%Sym
+        IF (tDebugPrint) WRITE(stdout, *) "Sym:", SymPairProds(I)%Sym
         IF (K /= 0) THEN
 !.. Now count all the excitations allowed for this set of []->[]'
             DO ISPN = 1, 3
@@ -458,59 +458,59 @@ Subroutine SymSetupExcitsAb_CountVProds(nDoub, nExcitTypes, nCl, nPr, SymProds, 
 !  SymLabels(Classes(iClass)%SymLab) is the sym of the class
 !  WARNING - here we use SymConj to mean 'inverse'.
 !   This seems right, although it would be nice to have it really proven.
-                    if (tDebugPrint) WRITE(6, *) "Occ Class,sym:", iClass, SymLabels(Classes(iClass)%SymLab)
+                    if (tDebugPrint) WRITE(stdout, *) "Occ Class,sym:", iClass, SymLabels(Classes(iClass)%SymLab)
                     s = SymProd(SymConj(SymLabels(Classes(iClass)%SymLab)), SymPairProds(I)%Sym)
                     lab = FindSymLabel(s)
 !   SymLabelCounts(2,lab) is the total number of states with the inverse sym.
                     iVirts = SymLabelCounts(2, lab)
-                    if (tDebugPrint) Write(6, *) "Virts,lab", iVirts, lab
+                    if (tDebugPrint) Write(stdout, *) "Virts,lab", iVirts, lab
                     do iNCl = 1, nCl
                         if (Classes(iNCl)%SymLab == lab) exit
                     end do
-                    if (tDebugPrint) WRITE(6, *) "Virt Class,sym:", iNCl, s
+                    if (tDebugPrint) WRITE(stdout, *) "Virt Class,sym:", iNCl, s
                     if (iSpn == 2) then
 !The mixed spin case
-                        if (tDebugPrint) WRITE(6, *) "OS Tot:", L
+                        if (tDebugPrint) WRITE(stdout, *) "OS Tot:", L
                         if (iNCL <= nCl) then
 !  We've found the class corresponding to the inverse, so we know how many occs it has
                             iOccs = ClassCount(1, iClass)
                             L = L - iOccs * (iVirts - ClassCount(2, iNCL))
-                            if (tDebugPrint) WRITE(6, *) "Aocc Bvirt removed:", iOccs * (iVirts - ClassCount(2, iNCL)), ClassCount(2, iNCL)
+                            if (tDebugPrint) WRITE(stdout, *) "Aocc Bvirt removed:", iOccs * (iVirts - ClassCount(2, iNCL)), ClassCount(2, iNCL)
                             iOccs = ClassCount(2, iClass)
                             L = L - iOccs * (iVirts - ClassCount(1, iNCL))
-                            if (tDebugPrint) WRITE(6, *) "Bocc Avirt removed:", iOccs * (iVirts - ClassCount(1, iNCL)), ClassCount(1, iNCL)
+                            if (tDebugPrint) WRITE(stdout, *) "Bocc Avirt removed:", iOccs * (iVirts - ClassCount(1, iNCL)), ClassCount(1, iNCL)
                         else
                             iOccs = ClassCount(1, iClass)
                             L = L - iOccs * iVirts
-                            if (tDebugPrint) WRITE(6, *) "Aocc Bvirt removed:", iOccs * iVirts
+                            if (tDebugPrint) WRITE(stdout, *) "Aocc Bvirt removed:", iOccs * iVirts
                             iOccs = ClassCount(2, iClass)
                             L = L - iOccs * iVirts
-                            if (tDebugPrint) WRITE(6, *) "Bocc Avirt removed:", iOccs * iVirts
+                            if (tDebugPrint) WRITE(stdout, *) "Bocc Avirt removed:", iOccs * iVirts
                         end if
                     else
 ! same spin case
                         iOccs = ClassCount((iSpn + 1) / 2, iClass)
-                        if (tDebugPrint) WRITE(6, *) "SS Tot:", L
+                        if (tDebugPrint) WRITE(stdout, *) "SS Tot:", L
                         if (iNCL <= nCl) then
                             L = L - iOccs * (iVirts - ClassCount((iSpn + 1) / 2, iNCL))
                         else
                             L = L - iOccs * iVirts
                         end if
-                        if (tDebugPrint) WRITE(6, *) "SS singles removed:", L
+                        if (tDebugPrint) WRITE(stdout, *) "SS singles removed:", L
                     end if
                 end do
 ! The number of occupied pairs with sym prod SymProds(K)
                 KK = SymProdInd(2, iSpn, K)
-                if (tDebugPrint) WRITE(6, *) "Occ pairs", KK
+                if (tDebugPrint) WRITE(stdout, *) "Occ pairs", KK
 ! Also remove the occupied pairs from the count of virtuals
                 L = L - KK
 ! Save this for later
                 nAllowPPS(iSpn, I) = L
                 ICC = L * KK
-                if (tDebugPrint) WRITE(6, *) "Occ removed", L
-                if (tDebugPrint) WRITE(6, *) "ET", NEXCITTYPES
+                if (tDebugPrint) WRITE(stdout, *) "Occ removed", L
+                if (tDebugPrint) WRITE(stdout, *) "ET", NEXCITTYPES
 !                  if(tDebugPrint)
-!     &                  WRITE(6,"(14I5)") K,I,
+!     &                  WRITE(stdout,"(14I5)") K,I,
 !     &                  SYMPAIRPRODS(I),ISPN,L,KK,ICC
                 NDOUB = NDOUB + ICC
                 IF (ICC > 0) NEXCITTYPES = NEXCITTYPES + 1
@@ -549,7 +549,7 @@ Subroutine SymSetupExcits_CountSingles(nSing, nCl, nExcitTypes, ThisClassCount, 
                 ICC = THISCLASSCOUNT(ISPN, I) * (SYMLABELCOUNTS(2, J) - ICC)
                 NSING = NSING + ICC
                 IF (ICC /= 0) NEXCITTYPES = NEXCITTYPES + 1
-!                     WRITE(6,"(2Z4,4I)") SymLabels(CLASSES(I)),
+!                     WRITE(stdout,"(2Z4,4I)") SymLabels(CLASSES(I)),
 !     &                  SymLabels(J),ISPN,ICC,
 !     &                  CLASSCOUNT(ISPN,I),
 !     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
@@ -559,7 +559,7 @@ Subroutine SymSetupExcits_CountSingles(nSing, nCl, nExcitTypes, ThisClassCount, 
         END DO
     END DO
 
-!         WRITE(6,*) "Number of single excitations: ",NSING
+!         WRITE(stdout,*) "Number of single excitations: ",NSING
 End Subroutine
 
 !A simple routine for counting the number of single excitations in abelian systems.
@@ -699,7 +699,7 @@ Subroutine SymSetupExcits_StoreSingles(nExcitTypes, nCl, Classes, ThisClassCount
 
             PR = SYMPROD(SymConj(SymLabels(J)), SymLabels(CLASSES(I)%SymLab))
             PR2 = SYMPROD(PR, Classes(I)%SymRem)
-!                  WRITE(6,"(2I4,5Z4)") I,J,
+!                  WRITE(stdout,"(2I4,5Z4)") I,J,
 !     &                        CLASSES(I)%SymRem,
 !     &                         SymLabels(J),
 !     &                         SymLabels(CLASSES(I)%SymLab),
@@ -718,7 +718,7 @@ Subroutine SymSetupExcits_StoreSingles(nExcitTypes, nCl, Classes, ThisClassCount
                     EXCITTYPES(3, NEXCITTYPES) = I
                     EXCITTYPES(4, NEXCITTYPES) = J
                     EXCITTYPES(5, NEXCITTYPES) = ICC
-!                           WRITE(6,"(A,I,Z4,A,Z4,A,Z4)") "SINGLE",
+!                           WRITE(stdout,"(A,I,Z4,A,Z4,A,Z4)") "SINGLE",
 !     &                        NEXCITTYPES,
 !     &                        SymLabels(2,Classes(I)%SymLab),"(",
 !     &                        Classes(I)%SymRem,
@@ -764,7 +764,7 @@ Subroutine SymSetupExcits_StoreDoubles(nPr, nSymPairProds, nAllowPPS, ExcitTypes
                 EXCITTYPES(3, NEXCITTYPES) = I
                 EXCITTYPES(4, NEXCITTYPES) = J
                 EXCITTYPES(5, NEXCITTYPES) = ICC
-!                        WRITE(6,"(A,3I5,4I5)") "SD",NEXCITTYPES,I,J,
+!                        WRITE(stdout,"(A,3I5,4I5)") "SD",NEXCITTYPES,I,J,
 !     &                     ISPN,L,K,ICC
             END IF
         END DO
@@ -826,18 +826,18 @@ SUBROUTINE SYMGENALLEXCITS(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, SYMPRODIND
         ITO = EXCITTYPES(4, IEXCIT)
         J = 0
         I = 1
-!               WRITE(6,*) ISPN,IFROM,ITO,EXCITTYPES(5,IEXCIT)
+!               WRITE(stdout,*) ISPN,IFROM,ITO,EXCITTYPES(5,IEXCIT)
 !.. SYMLABELCOUNTS(1,I) is the index within SYMLABELLIST of the first state of symlabel I
 !.. SYMLABELCOUNTS(2,I) is the number of states with symlabel I
         DO WHILE (I <= NEL)
             L1 = J < SYMLABELCOUNTS(2, IFROM)
             DO WHILE (L1)
                 IFROMSL = (SYMLABELLIST(SYMLABELCOUNTS(1, IFROM) + J) * 2 + ISPN)
-!                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
+!                     WRITE(stdout,*) I,NI(I),J,IFROM,IFROMSL
                 IF (IFROMSL < NI(I)) J = J + 1
                 L1 = IFROMSL < NI(I) .AND. J < SYMLABELCOUNTS(2, IFROM)
             END DO
-!                  WRITE(6,*) I,J,SYMLABELCOUNTS(2,IFROM)
+!                  WRITE(stdout,*) I,J,SYMLABELCOUNTS(2,IFROM)
             IF (J < SYMLABELCOUNTS(2, IFROM) .AND. IFROMSL == NI(I)) THEN
 !.. We've found an orb in NI with the correct sym.  Now go through the list of possible excitations of it
                 K = 0
@@ -884,7 +884,7 @@ SUBROUTINE SYMGENALLEXCITS(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, SYMPRODIND
         ISPN = EXCITTYPES(2, IEXCIT)
         IFROM = EXCITTYPES(3, IEXCIT)
         ITO = EXCITTYPES(4, IEXCIT)
-!               WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
+!               WRITE(stdout,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
 !     &            IFROM)
 !.. Go through the list of pairs with a given symprod.
 !.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
@@ -893,7 +893,7 @@ SUBROUTINE SYMGENALLEXCITS(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, SYMPRODIND
         DO I = 1, SYMPRODIND(2, ISPN, IFROM)
 !.. Now go through the list of virtual pairs, excluding those with orbitals in NI
             SPP = SymPairProds(ITO)%Sym
-!                  WRITE(6,*) "SPP:", SPP
+!                  WRITE(stdout,*) "SPP:", SPP
 !.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
 !.. states (listed in SymStatePairs), and the index of the start of this list
 !.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
@@ -906,14 +906,14 @@ SUBROUTINE SYMGENALLEXCITS(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, SYMPRODIND
                 ICC2 = ICC1 + 1
                 ICC3 = SymStatePairs(2, K) * 2 - 1
                 ICC4 = ICC3 + 1
-!                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+!                     WRITE(stdout,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
 !     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
-!                     WRITE(6,*) ISPN,ICC1,ICC3
+!                     WRITE(stdout,*) ISPN,ICC1,ICC3
                 L1B = BTEST(ILUT((ICC1 - 1) / 32), MOD(ICC1 - 1, 32))
                 L1A = BTEST(ILUT((ICC2 - 1) / 32), MOD(ICC2 - 1, 32))
                 L2B = BTEST(ILUT((ICC3 - 1) / 32), MOD(ICC3 - 1, 32))
                 L2A = BTEST(ILUT((ICC4 - 1) / 32), MOD(ICC4 - 1, 32))
-!                     WRITE(6,*) L1B,L1A,L2B,L2A
+!                     WRITE(stdout,*) L1B,L1A,L2B,L2A
 !.. L1B is set if the beta of the first virtual is in NI, i.e. is disallowed
                 IF (ISPN == 1) THEN
 !.. If both virtuals aren't the samem and neither are in NI, then allow
@@ -1036,7 +1036,7 @@ SUBROUTINE SYMGENALLEXCITS(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, SYMPRODIND
         END DO
     END IF
     END DO
-!         WRITE(6,*) "COUNT:",ICOUNT
+!         WRITE(stdout,*) "COUNT:",ICOUNT
 END
 
 ! For a symmetry excitation generator stored in NMEM, return the total number of excitations from it in iCount.
@@ -1135,7 +1135,7 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
 
     DO WHILE (.TRUE.)
 !.. see if we need a new EXCIT
-!         WRITE(6,*) I,iExcit,nExcitTypes
+!         WRITE(stdout,*) I,iExcit,nExcitTypes
         IF (I < 0) THEN
 !.. move to the next excitation
             IEXCIT = IEXCIT + 1
@@ -1161,7 +1161,7 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
                     I = I + 1
                 END DO
 !  I now is the index of the first electron allowed in our subset
-                IF (tDebugPrint) WRITE(6, *) "EXC", IEXCIT, ISPN, IFROM, ITO, SYMPRODIND(2, ISPN, IFROM)
+                IF (tDebugPrint) WRITE(stdout, *) "EXC", IEXCIT, ISPN, IFROM, ITO, SYMPRODIND(2, ISPN, IFROM)
             ELSE
 !.. a double
                 ISPN = EXCITTYPES(2, IEXCIT)
@@ -1170,7 +1170,7 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
                 I = 0
                 L = 5
                 K = -2
-                IF (tDebugPrint) WRITE(6, *) "EXC", IEXCIT, ISPN, IFROM, ITO, SYMPRODIND(2, ISPN, IFROM)
+                IF (tDebugPrint) WRITE(stdout, *) "EXC", IEXCIT, ISPN, IFROM, ITO, SYMPRODIND(2, ISPN, IFROM)
             END IF
         END IF
         IF (EXCITTYPES(1, IEXCIT) == 1) THEN
@@ -1204,7 +1204,7 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
                     DO WHILE (L1)
                         IFROMSL = (SYMLABELLIST(SYMLABELCOUNTS(1, IFROM) + J) * 2 + ISPN)
                         ICC(1) = IFROMSL
-!                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
+!                     WRITE(stdout,*) I,NI(I),J,IFROM,IFROMSL
 !  If J points to an electron lower than the current in the det, inc J
                         IF (IFROMSL < NI(I)) J = J + 1
 !  If J was a lower elec, and there are more J to get, then carry on in this loop
@@ -1228,7 +1228,7 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
             ITOSL = 2 * SYMLABELLIST(SYMLABELCOUNTS(1, ITO) + K) + ISPN
 !.. Check if it's in the det
             L2 = .TRUE.
-!            WRITE(6,*) SYMLABELCOUNTS(2,ITO),ITOSL
+!            WRITE(stdout,*) SYMLABELCOUNTS(2,ITO),ITOSL
             DO WHILE (L2)
                 L = L + 1
                 L2 = L <= NEL .AND. NI(L) < ITOSL
@@ -1251,7 +1251,7 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
             ELSE
 !               CALL NECI_ICOPY(NEL,NI,1,NK,1)
                 NK(1:NEL) = NI(1:NEL)
-                IF (tDebugPrint) WRITE(6, *) "[", NK(I), "->", ITOSL, "]"
+                IF (tDebugPrint) WRITE(stdout, *) "[", NK(I), "->", ITOSL, "]"
                 ExcitMat(1, 1) = I
                 ExcitMat(2, 1) = ITOSL
                 CALL FindExcitDet(ExcitMat, NK, 1, TParity)
@@ -1286,9 +1286,9 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
                 ICC(2) = ICC(1) + 1
                 ICC(3) = SymStatePairs(2, K) * 2 - 1
                 ICC(4) = ICC(3) + 1
-!                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+!                     WRITE(stdout,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
 !     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
-!                     WRITE(6,*) ISPN,ICC(1),ICC(3)
+!                     WRITE(stdout,*) ISPN,ICC(1),ICC(3)
                 LS(1, 1) = BTEST(ILUT((ICC(1) - 1) / 32), MOD(ICC(1) - 1, 32))
                 LS(1, 2) = BTEST(ILUT((ICC(2) - 1) / 32), MOD(ICC(2) - 1, 32))
                 LS(2, 1) = BTEST(ILUT((ICC(3) - 1) / 32), MOD(ICC(3) - 1, 32))
@@ -1312,13 +1312,13 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
                     NK(1:NEL) = NI(1:NEL)
                     DO J = 1, NEL
                     IF (NI(J) == ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + I)) THEN
-                        IF (tDebugPrint) WRITE(6, "(A,I3,A,I3,A)", advance='no') "[", NK(J), "->", ICC(1), ","
+                        IF (tDebugPrint) WRITE(stdout, "(A,I3,A,I3,A)", advance='no') "[", NK(J), "->", ICC(1), ","
                         ExcitMat(1, 1) = J
                         ExcitMat(2, 1) = ICC(1)
 !                           NK(J)=ICC(1)
                     END IF
                     IF (NI(J) == ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + I)) THEN
-                        IF (tDebugPrint) WRITE(6, *) NK(J), "->", ICC(3), "]"
+                        IF (tDebugPrint) WRITE(stdout, *) NK(J), "->", ICC(3), "]"
 !                           NK(J)=ICC(3)
                         ExcitMat(1, 2) = J
                         ExcitMat(2, 2) = ICC(3)
@@ -1351,13 +1351,13 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
                         NK(1:NEL) = NI(1:NEL)
                         DO J = 1, NEL
                         IF (NI(J) == ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + I)) THEN
-                            IF (tDebugPrint) WRITE(6, "(A,I3,A,I3,A)", advance='no') "[", NK(J), "->", ICC(1), ","
+                            IF (tDebugPrint) WRITE(stdout, "(A,I3,A,I3,A)", advance='no') "[", NK(J), "->", ICC(1), ","
                             ExcitMat(1, 1) = J
                             ExcitMat(2, 1) = ICC(1)
 !                           NK(J)=ICC(1)
                         END IF
                         IF (NI(J) == ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + I)) THEN
-                            IF (tDebugPrint) WRITE(6, *) NK(J), "->", ICC(4), "]"
+                            IF (tDebugPrint) WRITE(stdout, *) NK(J), "->", ICC(4), "]"
                             ExcitMat(1, 2) = J
                             ExcitMat(2, 2) = ICC(4)
 !                           NK(J)=ICC(4)
@@ -1392,13 +1392,13 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
                         NK(1:NEL) = NI(1:NEL)
                         DO J = 1, NEL
                         IF (NI(J) == ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + I)) THEN
-                            IF (tDebugPrint) WRITE(6, "(A,I3,A,I3,A)", advance='no') "[", NK(J), "->", ICC(2), ","
+                            IF (tDebugPrint) WRITE(stdout, "(A,I3,A,I3,A)", advance='no') "[", NK(J), "->", ICC(2), ","
                             ExcitMat(1, 1) = J
                             ExcitMat(2, 1) = ICC(2)
 !                           NK(J)=ICC(2)
                         END IF
                         IF (NI(J) == ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + I)) THEN
-                            IF (tDebugPrint) WRITE(6, *) NK(J), "->", ICC(3), "]"
+                            IF (tDebugPrint) WRITE(stdout, *) NK(J), "->", ICC(3), "]"
 !                           NK(J)=ICC(3)
                             ExcitMat(1, 2) = J
                             ExcitMat(2, 2) = ICC(3)
@@ -1432,13 +1432,13 @@ SUBROUTINE SYMGENEXCITIT(NI, NEL, EXCITTYPES, NEXCITTYPES, CLASSES, &
                         NK(1:NEL) = NI(1:NEL)
                         DO J = 1, NEL
                         IF (NI(J) == ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + I)) THEN
-                            IF (tDebugPrint) WRITE(6, "(A,I3,A,I3,A)", advance='no') "[", NK(J), "->", ICC(2), ","
+                            IF (tDebugPrint) WRITE(stdout, "(A,I3,A,I3,A)", advance='no') "[", NK(J), "->", ICC(2), ","
                             ExcitMat(1, 1) = J
                             ExcitMat(2, 1) = ICC(2)
 !                           NK(J)=ICC(2)
                         END IF
                         IF (NI(J) == ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + I)) THEN
-                            IF (tDebugPrint) WRITE(6, *) NK(J), "->", ICC(4), "]"
+                            IF (tDebugPrint) WRITE(stdout, *) NK(J), "->", ICC(4), "]"
 !                           NK(J)=ICC(4)
                             ExcitMat(1, 2) = J
                             ExcitMat(2, 2) = ICC(4)
@@ -1495,7 +1495,7 @@ Subroutine SymGenExcitIt2(nI, nEl, ExcitTypes, nExcitTypes, &
 !  by the later routines we stop the loop
         iRet = 0
 !.. see if we need a new EXCIT
-        if (tDebugPrint) WRITE(6, *) "I,iExcit,nExcitTypes", I, iExcit, nExcitTypes
+        if (tDebugPrint) WRITE(stdout, *) "I,iExcit,nExcitTypes", I, iExcit, nExcitTypes
         IF (I < 0) THEN
 !.. move to the next excitation
             IEXCIT = IEXCIT + 1
@@ -1560,7 +1560,7 @@ Subroutine SymGenExcitIt_SetupSingle(iSpn, iFrom, iTo, iExcit, ExcitTypes, Class
         I = I + 1
     END DO
 !  I now is the index of the first electron allowed in our subset
-    IF (tDebugPrint) WRITE(6, *) "EXC", IEXCIT, ISPN, IFROM, ITO, SYMPRODIND(2, ISPN, IFROM)
+    IF (tDebugPrint) WRITE(stdout, *) "EXC", IEXCIT, ISPN, IFROM, ITO, SYMPRODIND(2, ISPN, IFROM)
 End Subroutine SymGenExcitIt_SetupSingle
 
 Subroutine SymGenExcitIt_SetupDouble(iSpn, iFrom, iTo, iExcit, ExcitTypes, SymProdInd, I, K, L, tDebugPrint)
@@ -1586,7 +1586,7 @@ Subroutine SymGenExcitIt_SetupDouble(iSpn, iFrom, iTo, iExcit, ExcitTypes, SymPr
     I = 0
     L = 5 !An invalid spin
     K = -2 !When we +1 this is still invalid so it resets the pair index
-    IF (tDebugPrint) WRITE(6, *) "EXC", IEXCIT, ISPN, IFROM, ITO, SYMPRODIND(2, ISPN, IFROM)
+    IF (tDebugPrint) WRITE(stdout, *) "EXC", IEXCIT, ISPN, IFROM, ITO, SYMPRODIND(2, ISPN, IFROM)
 End Subroutine SymGenExcitIt_SetupDouble
 
 Subroutine SymGenExcitIt_GenSingle(iRet, iSpn, iFrom, iTo, iCC, I, J, K, L, tDebugPrint, iMaxElec1, iC, nI, nK, nEl)
@@ -1648,7 +1648,7 @@ Subroutine SymGenExcitIt_GenSingle(iRet, iSpn, iFrom, iTo, iCC, I, J, K, L, tDeb
             DO WHILE (L1)
                 IFROMSL = (SYMLABELLIST(SYMLABELCOUNTS(1, IFROM) + J) * 2 + ISPN)
                 ICC(1) = IFROMSL
-!                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
+!                     WRITE(stdout,*) I,NI(I),J,IFROM,IFROMSL
 !  If J points to an electron lower than the current in the det, inc J
                 IF (IFROMSL < NI(I)) J = J + 1
 !  If J was a lower elec, and there are more J to get, then carry on in this loop
@@ -1673,7 +1673,7 @@ Subroutine SymGenExcitIt_GenSingle(iRet, iSpn, iFrom, iTo, iCC, I, J, K, L, tDeb
     ITOSL = 2 * SYMLABELLIST(SYMLABELCOUNTS(1, ITO) + K) + ISPN
 !.. Check if it's in the det
     L2 = .TRUE.
-!            WRITE(6,*) SYMLABELCOUNTS(2,ITO),ITOSL
+!            WRITE(stdout,*) SYMLABELCOUNTS(2,ITO),ITOSL
     DO WHILE (L2)
         L = L + 1
         L2 = .false.
@@ -1702,7 +1702,7 @@ Subroutine SymGenExcitIt_GenSingle(iRet, iSpn, iFrom, iTo, iCC, I, J, K, L, tDeb
     ELSE
 !            CALL NECI_ICOPY(NEL,NI,1,NK,1)
         NK(1:NEL) = NI(1:NEL)
-        IF (tDebugPrint) WRITE(6, *) "[", NK(I), "->", ITOSL, "]"
+        IF (tDebugPrint) WRITE(stdout, *) "[", NK(I), "->", ITOSL, "]"
         ExcitMat(1, 1) = I
         ExcitMat(2, 1) = ITOSL
 !            NK(I)=ITOSL
@@ -1767,9 +1767,9 @@ Subroutine SymGenExcitItOld_GenDouble(iRet, SPP, I, K, L, iTo, iSpn, iFrom, iCC,
         ICC(2) = ICC(1) + 1
         ICC(3) = SymStatePairs(2, K) * 2 - 1
         ICC(4) = ICC(3) + 1
-!                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+!                     WRITE(stdout,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
 !     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
-!                     WRITE(6,*) ISPN,ICC(1),ICC(3)
+!                     WRITE(stdout,*) ISPN,ICC(1),ICC(3)
         LS(1, 1) = BTEST(ILUT((ICC(1) - 1) / 32), MOD(ICC(1) - 1, 32))
         LS(1, 2) = BTEST(ILUT((ICC(2) - 1) / 32), MOD(ICC(2) - 1, 32))
         LS(2, 1) = BTEST(ILUT((ICC(3) - 1) / 32), MOD(ICC(3) - 1, 32))
@@ -1921,10 +1921,10 @@ Subroutine SymGenExcitIt_GetNextPair(K, iTo, iLooped, iTo1, iTo2, tDebugPrint)
 ! Put the K index back together
         K = IShft(iLabelPairIndexOff, 24) + IShft(iLabel1Index, 12) + iLabel2Index
         if (tDebugPrint) THEN
-            Write(6, *) "To: ", iTo, "LabelPair:", iLabelPairBase, "+", iLabelPairIndexOff, "/", SymPairProds(iTo)%nPairs
-            Write(6, "(A10,I4,A1,I4,A1,I4,I4)") "Label1: (", iLabel1, ")", iLabel1Index, "/", SymLabelCounts(2, iLabel1), iTo1
-            Write(6, "(A10,I4,A1,I4,A1,I4,I4)") "Label2: (", iLabel2, ")", iLabel2Index, "/", SymLabelCounts(2, iLabel2), iTo2
-            WRITE(6, "(A,Z10,A,I3)") "K:", K, " Looped:", iLooped
+            Write(stdout, *) "To: ", iTo, "LabelPair:", iLabelPairBase, "+", iLabelPairIndexOff, "/", SymPairProds(iTo)%nPairs
+            Write(stdout, "(A10,I4,A1,I4,A1,I4,I4)") "Label1: (", iLabel1, ")", iLabel1Index, "/", SymLabelCounts(2, iLabel1), iTo1
+            Write(stdout, "(A10,I4,A1,I4,A1,I4,I4)") "Label2: (", iLabel2, ")", iLabel2Index, "/", SymLabelCounts(2, iLabel2), iTo2
+            WRITE(stdout, "(A,Z10,A,I3)") "K:", K, " Looped:", iLooped
         end if
     else
 ! We have a stored list, so just get the next from there.
@@ -1937,10 +1937,10 @@ Subroutine SymGenExcitIt_GetNextPair(K, iTo, iLooped, iTo1, iTo2, tDebugPrint)
         iTo1 = SymStatePairs(1, K) * 2 - 1
         iTo2 = SymStatePairs(2, K) * 2 - 1
         if (tDebugPrint) THEN
-            Write(6, *) "To: ", iTo
-            WRITE(6, "(A10,I4,A1,I4)") "Label1: (", SymClasses((iTo1 + 1) / 2), ")", iTo1
-            WRITE(6, "(A10,I4,A1,I4)") "Label2: (", SymClasses((iTo2 + 1) / 2), ")", iTo2
-            WRITE(6, "(A,I10,A,I3)") "K:", K, " Looped:", iLooped
+            Write(stdout, *) "To: ", iTo
+            WRITE(stdout, "(A10,I4,A1,I4)") "Label1: (", SymClasses((iTo1 + 1) / 2), ")", iTo1
+            WRITE(stdout, "(A10,I4,A1,I4)") "Label2: (", SymClasses((iTo2 + 1) / 2), ")", iTo2
+            WRITE(stdout, "(A,I10,A,I3)") "K:", K, " Looped:", iLooped
         end if
     END IF
     RETURN
@@ -1993,9 +1993,9 @@ Subroutine SymGenExcitIt_GenDouble(iRet, SPP, I, K, L, iTo, iSpn, iFrom, iCC, iL
         ICC(2) = iTo1 + 1
         ICC(3) = iTo2
         ICC(4) = iTo2 + 1
-!                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+!                     WRITE(stdout,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
 !     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
-!                     WRITE(6,*) ISPN,ICC(1),ICC(3)
+!                     WRITE(stdout,*) ISPN,ICC(1),ICC(3)
         LS(1, 1) = BTEST(ILUT((ICC(1) - 1) / 32), MOD(ICC(1) - 1, 32))
         LS(1, 2) = BTEST(ILUT((ICC(2) - 1) / 32), MOD(ICC(2) - 1, 32))
         LS(2, 1) = BTEST(ILUT((ICC(3) - 1) / 32), MOD(ICC(3) - 1, 32))
@@ -2088,13 +2088,13 @@ Subroutine SymGenExcitIt_MakeDouble(iFrom1, iFrom2, iTo1, iTo2, nI, nK, nEl, tDe
         NK(1:NEL) = NI(1:NEL)
         DO J = 1, NEL
         IF (NI(J) == iFrom1) THEN
-            IF (tDebugPrint) WRITE(6, "(A,I3,A,I3,A)", advance='no') "[", iFrom1, "->", iTo1, ","
+            IF (tDebugPrint) WRITE(stdout, "(A,I3,A,I3,A)", advance='no') "[", iFrom1, "->", iTo1, ","
             ExcitMat(1, 1) = J
             ExcitMat(2, 1) = iTo1
 !                  NK(J)=iTo1
         END IF
         IF (NI(J) == iFrom2) THEN
-            IF (tDebugPrint) WRITE(6, *) iFrom2, "->", iTo2, "]"
+            IF (tDebugPrint) WRITE(stdout, *) iFrom2, "->", iTo2, "]"
             ExcitMat(1, 2) = J
             ExcitMat(2, 2) = iTo2
 !                  NK(J)=iTo2

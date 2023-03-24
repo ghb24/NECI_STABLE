@@ -62,7 +62,7 @@ contains
             END DO
         END DO
         CLOSE(10)
-        WRITE(6, *) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
+        WRITE(stdout, *) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
         ! ==--------------------------------------------------------------------==
         call halt_timer(proc_timer)
         ! ==--------------------------------------------------------------------==

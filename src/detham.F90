@@ -48,7 +48,7 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
 !..   Now we need to match up any two determinants
     DO KI = 1, NDET
         call EncodeBitDet(NMRKS(:, KI), ilutI)
-        IF (mod(KI, 1000) == 0) WRITE(6, *) KI
+        IF (mod(KI, 1000) == 0) WRITE(stdout, *) KI
         IF (KI == 1) THEN
             IBEG = 0
         ELSE
@@ -130,8 +130,8 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
 !        IMAX=MAXLOC(NROW)
         IMAX = IDAMAX(NDET, real(NROW, dp), 1)
         ICMAX = NROW(IMAX)
-        WRITE(6, *) ' MAXIMUM WIDTH OF HAMIL : ', ICMAX
-        WRITE(6, *) ' TOTAL NUMBER OF NON-ZERO ELEMENTS : ', GC
+        WRITE(stdout, *) ' MAXIMUM WIDTH OF HAMIL : ', ICMAX
+        WRITE(stdout, *) ' TOTAL NUMBER OF NON-ZERO ELEMENTS : ', GC
     END IF
 ! ==-------------------------------------------------------------------==
     call halt_timer(proc_timer)

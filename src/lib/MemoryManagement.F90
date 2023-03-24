@@ -169,13 +169,13 @@ contains
         end if
 
         if (initialised) then
-            if (err_output) write (6, *) 'Already initialised memory manager.  Not re-initialsing.'
+            if (err_output) write (stdout, *) 'Already initialised memory manager.  Not re-initialsing.'
         else
             if (MaxMemBytes <= 0) then
                 if (err_output) then
-                    write (6, *) 'Illegal maximum memory value passed to memorymanager.'
-                    write (6, *) 'MaxMemgbytes = ', real(MaxMemBytes, dp) / (1024**2)
-                    write (6, *) 'Setting maximum memory available to 1GB.'
+                    write (stdout, *) 'Illegal maximum memory value passed to memorymanager.'
+                    write (stdout, *) 'MaxMemgbytes = ', real(MaxMemBytes, dp) / (1024**2)
+                    write (stdout, *) 'Setting maximum memory available to 1GB.'
                 end if
                 MaxMemBytes = 1024**3
             endif
@@ -193,7 +193,7 @@ contains
 !       Deal with debug options at a later date.
 !       debug = gmemdebug
 
-            write (6, '(a33,f8.1,a3)') ' Memory Manager initialised with ', real(MaxMemBytes, dp) / (1024**2), ' MB'
+            write (stdout, '(a33,f8.1,a3)') ' Memory Manager initialised with ', real(MaxMemBytes, dp) / (1024**2), ' MB'
         end if
     end subroutine InitMemoryManager
 
@@ -222,7 +222,7 @@ contains
         if (present(nCalls)) nCalls = nCalls + 1
 
         if (.not. initialised) then
-            write (6, *) 'Memory manager not initialised. Doing so now with 1GB limit.'
+            write (stdout, *) 'Memory manager not initialised. Doing so now with 1GB limit.'
             call InitMemoryManager()
         end if
 
@@ -233,7 +233,7 @@ contains
         MemoryLeft = MaxMemory - MemoryUsed
 
         if (MemoryLeft < 0 .and. nWarn < MaxWarn) then
-            if (err_output) write (6, *) 'WARNING: Memory used exceeds maximum memory set', MemoryLeft
+            if (err_output) write (stdout, *) 'WARNING: Memory used exceeds maximum memory set', MemoryLeft
             nWarn = nWarn + 1
         end if
 
@@ -247,9 +247,9 @@ contains
             if (.not. warned) then
                 warned = .true.
                 if (err_output) then
-                    write (6, *) 'Warning: Array capacity of memory manager exceeded.'
-                    write (6, *) 'Required array length is ', ipos
-                    write (6, *) 'Max memory used is likely to be incorrect.'
+                    write (stdout, *) 'Warning: Array capacity of memory manager exceeded.'
+                    write (stdout, *) 'Required array length is ', ipos
+                    write (stdout, *) 'Max memory used is likely to be incorrect.'
                 end if
             end if
             tag = -1
@@ -272,7 +272,7 @@ contains
         end if
 
         if (debug) then
-            write (6, "(A,I6,I12,' ',A,' ',A,' ',I12)") 'Allocating memory: ', tag, ObjectSizeBytes, ObjectName, AllocRoutine, MemoryUsed
+            write (stdout, "(A,I6,I12,' ',A,' ',A,' ',I12)") 'Allocating memory: ', tag, ObjectSizeBytes, ObjectName, AllocRoutine, MemoryUsed
         end if
     end subroutine LogMemAlloc_int64
 
@@ -292,17 +292,17 @@ contains
         integer :: i, ismallloc(1)
         character(len=25) :: ObjectName
         if (.not. initialised) then
-            if (err_output) write (6, *) 'Memory manager not initialised. Cannot log deallocation.'
+            if (err_output) write (stdout, *) 'Memory manager not initialised. Cannot log deallocation.'
             return
         end if
 
         ObjectName = 'Unknown'
 
         if (tag == 0) then
-            if (err_output) write (6, *) 'Warning: attempting to log deallocation but never logged allocation.'
+            if (err_output) write (stdout, *) 'Warning: attempting to log deallocation but never logged allocation.'
             tag = -1
         else if (tag > MaxLen .or. tag < -1) then
-            if (err_output) write (6, *) 'Warning: attempting to log deallocation but tag does not exist: ', tag
+            if (err_output) write (stdout, *) 'Warning: attempting to log deallocation but tag does not exist: ', tag
             tag = -1
         else
 
@@ -315,7 +315,7 @@ contains
             if (tag == -1) then
                 ! No record of it in the log: can only print out a debug message.
                 if (debug) then
-                    write (6, "(2A,I5)") 'Deallocating memory in: ', DeallocRoutine, tag
+                    write (stdout, "(2A,I5)") 'Deallocating memory in: ', DeallocRoutine, tag
                 end if
             else
                 MemoryUsed = MemoryUsed - MemLog(tag)%ObjectSize
@@ -350,7 +350,7 @@ contains
                     end if
                 end if
                 if (debug) then
-                    write (6, "(A,I5,' ',A,' ',A,' ',A,' ',I12)") 'Deallocating memory: ', tag, MemLog(tag)
+                    write (stdout, "(A,I5,' ',A,' ',A,' ',A,' ',I12)") 'Deallocating memory: ', tag, MemLog(tag)
                 end if
             end if
 
@@ -378,7 +378,7 @@ contains
         character(len=*), parameter :: fmt1 = '(3a19)'
 
         if (.not. initialised) then
-            if (err_output) write (6, *) 'Memory manager not initialised. Cannot leave memory manager.'
+            if (err_output) write (stdout, *) 'Memory manager not initialised. Cannot leave memory manager.'
             return
         end if
 
@@ -412,7 +412,7 @@ contains
         ObjectSizes(iobj) = ObjectSizes(iobj) + 1
         do i = 2, nLargeObjects + 1
             ! Print out i-1 large object.
-            write (6, fmt1, advance='no') ' '//AllMemEl(iobj)%ObjectName, AllMemEl(iobj)%AllocRoutine, AllMemEl(iobj)%DeallocRoutine
+            write (stdout, fmt1, advance='no') ' '//AllMemEl(iobj)%ObjectName, AllMemEl(iobj)%AllocRoutine, AllMemEl(iobj)%DeallocRoutine
             call WriteMemSize(6, AllMemEl(iobj)%ObjectSize)
             ! Find the next large object.
             iobjloc = maxloc(ObjectSizes, mask=ObjectSizes < ObjectSizes(iobj))
@@ -427,9 +427,9 @@ contains
             ObjectSizes(iobj) = ObjectSizes(iobj) + 1 ! So we don't find this object next time round.
         end do
         if (warned) then
-            write (6, *) '== NOTE: Length of logging arrays exceeded. Length needed is ', ipos
+            write (stdout, *) '== NOTE: Length of logging arrays exceeded. Length needed is ', ipos
         endif
-        write (6, *) '================================================================'
+        write (stdout, *) '================================================================'
 
         if (debug) then
             ! Dump entire memory log to file.

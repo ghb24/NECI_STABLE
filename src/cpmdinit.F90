@@ -98,16 +98,16 @@ contains
         BRR(2 * I) = 2 * I
         END DO
         IF (TAbelian) THEN
-            WRITE(6, *) 'Using Abelian symmetry formulation.'
+            WRITE(stdout, *) 'Using Abelian symmetry formulation.'
             NBASISMAX(5, 1) = 0
             NBASISMAX(5, 2) = NSYM - 1
         ELSE IF (ALL1D) THEN
 !.. If all reps are 1D, we can block determinants in different symmetries
             NBASISMAX(5, 1) = 0
             NBASISMAX(5, 2) = NSYM - 1
-            WRITE(6, *) "All orbitals have 1D symmetry. Using blocking symmetry."
+            WRITE(stdout, *) "All orbitals have 1D symmetry. Using blocking symmetry."
         ELSE
-            WRITE(6, *) "Multidimensional symmetries detected. ", "Not using symmetry blocking."
+            WRITE(stdout, *) "Multidimensional symmetries detected. ", "Not using symmetry blocking."
         END IF
 !.. show it's a generic spatial basis
         NBASISMAX(3, 3) = 1
@@ -154,7 +154,7 @@ contains
 !.. space group is more complex as we have separate translational and
 !.. rotational labels.  We will need to compare each pair of t&r labels
 !.. with a stored list.
-            WRITE(6, *) "Using space group representation."
+            WRITE(stdout, *) "Using space group representation."
             DO I = 1, NSTATES
                 IF (near_zero(SYMLABELCHARS(1, ROT_LABEL(I)))) THEN
 !.. we've found an uninitialized symlabel - fill it
@@ -167,7 +167,7 @@ contains
             END DO
         ELSE
 !.. point group
-            WRITE(6, *) "Using point group representation."
+            WRITE(stdout, *) "Using point group representation."
             DO I = 1, NSTATES
                 IF (near_zero(SYMLABELCHARS(1, ROT_LABEL(I)))) THEN
 !.. we've found an uninitialized symlabel - fill it
@@ -179,7 +179,7 @@ contains
                 SymClasses(I) = ROT_LABEL(I)
             END DO
         END IF
-        WRITE(6, *) "SYMMETRY CLASSES"
+        WRITE(stdout, *) "SYMMETRY CLASSES"
         CALL WRITEIRREPTAB(6, SYMLABELCHARS, NROT, NSYMLABELS)
 !.. Allocate memory gor irreps.
 !.. Assume there will be no more than 64 irreps
@@ -218,7 +218,7 @@ contains
         call set_timer(proc_timer)
 
         ECORE = EIONION
-        WRITE(6, *) "Core Energy:", ECORE
+        WRITE(stdout, *) "Core Energy:", ECORE
         NLOCK = (NEL + 1) / 2
         IF (TORDER) THEN
 !.. We have to cache all states, as we don't, as yet, know which ones we're going to freeze because we have to reorder.
@@ -259,7 +259,7 @@ contains
 ! and h^{KS}_ii = \epsilon_i
 !         FockMat(:,:)=dcmplx(0.0_dp,0.0_dp)
 
-        WRITE(6, *) "Calculating TMAT"
+        WRITE(stdout, *) "Calculating TMAT"
         DO I = 1, NSTATESUSED
             II = I * 2 - 1
             DO J = I, NSTATESUSED
@@ -319,7 +319,7 @@ contains
 
 !.. Now we order it if we need to
         IF (TORDER) THEN
-            WRITE(6, *) "Re-ordering CPMD orbitals according ", "to one-electron energies."
+            WRITE(stdout, *) "Re-ordering CPMD orbitals according ", "to one-electron energies."
             call sort(diagTMAT(nlock + 1:nStatesUsed), stateOrder(nlock + 1:nStatesUsed))
 !           CALL NECI_SORT2(NSTATESUSED-NLOCK,DIAGTMAT(NLOCK+1),
 !     &         STATEORDER(NLOCK+1))
@@ -336,7 +336,7 @@ contains
             CALL WRITEBASIS(6, G1, NSTATES * 2, ARR, BRR)
         END IF
 !.. Set the UMAT cache to cache normally again
-        WRITE(6, *) "Finished TMAT"
+        WRITE(stdout, *) "Finished TMAT"
         CLOSE(10)
 
         IF (.not. BTEST(iCacheFlag, 0)) THEN

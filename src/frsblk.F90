@@ -52,7 +52,7 @@ contains
         NDIAG = N - INT(N * 0.2_dp)
     !..
         IF (PRINTOUT) THEN
-            WRITE(6, 20000) M, N, NKRY, NBLOCK, NDIAG, LSCR, B2LIMIT
+            WRITE(stdout, 20000) M, N, NKRY, NBLOCK, NDIAG, LSCR, B2LIMIT
         END IF
     20000 FORMAT(2X, 'M:', I7 / 2X, 'N:', I7 / 2X, 'NKRY:', I7 / 2X, 'NBLOCK:', I7 / 2X, 'NDIAG:', I7 / 2X, 'LSCR:', I7 / 2X, 'B2LIMIT:', E10.2)
     ! ==----------------------------------------------------------------==
@@ -68,20 +68,20 @@ contains
     !..Exact eigenstates
     !      T1 = neci_etime()
     !      CALL DSYEV('V','U',M,H,M,WH,WORK2,3*M,INFO)
-    !      WRITE(6,'(//14X,''Exact'',15X,''Lanczos'',10X,''Residual'')')
+    !      WRITE(stdout,'(//14X,''Exact'',15X,''Lanczos'',10X,''Residual'')')
     !      DO I=1,N
     !        AUX=ABS(DDOT(M,V0(1,I),1,H(1,M-I+1),1))
     !        AUX=1.0_dp-AUX
-    !        WRITE(6,'(6X,I3,2E19.11,2X,E10.3)') I,WH(M-I+1),W(I),AUX
+    !        WRITE(stdout,'(6X,I3,2E19.11,2X,E10.3)') I,WH(M-I+1),W(I),AUX
     !      ENDDO
     !      T2 = neci_etime()
     !      T3=(T2-T1)
-    !      WRITE(6,'(//5X,''TIME FOR EXACT DIAGONALISATION'',F10.2)')
+    !      WRITE(stdout,'(//5X,''TIME FOR EXACT DIAGONALISATION'',F10.2)')
     !     &       T3/1000.0_dp
     !      IF(PRINTOUT) THEN
-    !          WRITE(6,'(//10X,''Neval'',15X,''Eigenvalue'')')
+    !          WRITE(stdout,'(//10X,''Neval'',15X,''Eigenvalue'')')
     !          DO I=1,N
-    !              WRITE(6,'(10X,I3,15X,F19.11)') I,-1.0_dp*W(I)
+    !              WRITE(stdout,'(10X,I3,15X,F19.11)') I,-1.0_dp*W(I)
     !          ENDDO
     !      ENDIF
     ! ==----------------------------------------------------------------==
@@ -124,10 +124,10 @@ contains
     !.. scratch space for banded matrix diagonaliser
         LL = 3 * NK
         IF (LSCR < LL) THEN
-            WRITE(6, *) ' LL:', LL
-    !        WRITE(6,*) 'LSCR1:',LSCR1
-    !        WRITE(6,*) 'LSCR2:',LSCR2
-            WRITE(6, *) 'LSCR:', LSCR
+            WRITE(stdout, *) ' LL:', LL
+    !        WRITE(stdout,*) 'LSCR1:',LSCR1
+    !        WRITE(stdout,*) 'LSCR2:',LSCR2
+            WRITE(stdout, *) 'LSCR:', LSCR
             call stop_all(this_routine, ' LSCR TOO SMALL ')
         END IF
         T1 = neci_etime(tarr)
@@ -137,7 +137,7 @@ contains
         ICYCLE = 0
         NCONV = 0
         IF (PRINTOUT) THEN
-            WRITE(6, 10000) ICYCLE, NCONV, B2MAX, B2MIN, NHPSI
+            WRITE(stdout, 10000) ICYCLE, NCONV, B2MAX, B2MIN, NHPSI
         END IF
     10000 FORMAT(2X, 'ICYCLE:', I3, 1X, 'NCONV:', I3, 2X, 'B2MAX:', F10.5, 6X, 'B2MIN:', F10.5, 5X, 'NHPSI:', I3)
     !..VS=H.V0
@@ -176,7 +176,7 @@ contains
             END DO
     !..
             IF (PRINTOUT) THEN
-                WRITE(6, '(5X,I4,2X,I4,2X,2(E10.3,3X),F6.2)') ICYCLE, NCONV, B2MAX, B2MIN, real(NHPSI, dp) / real(N, dp)
+                WRITE(stdout, '(5X,I4,2X,I4,2X,2(E10.3,3X),F6.2)') ICYCLE, NCONV, B2MAX, B2MIN, real(NHPSI, dp) / real(N, dp)
             END IF
     !..Order states
             DO I = NCURR, N
@@ -238,12 +238,12 @@ contains
     !.. End of Lanczos diagonalisation
     100 CONTINUE
         IF (PRINTOUT) THEN
-            WRITE(6, '(//''    NCONV:'',I5)') NCONV
+            WRITE(stdout, '(//''    NCONV:'',I5)') NCONV
         END IF
         T2 = neci_etime(tarr)
         T3 = (T2 - T1)
         IF (PRINTOUT) THEN
-            WRITE(6, '(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)') T3 / 1000.0_dp
+            WRITE(stdout, '(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)') T3 / 1000.0_dp
         END IF
         call halt_timer(proc_timer)
     !     ================================================================
@@ -306,9 +306,9 @@ contains
         CHARACTER(*) CHAR
         INTEGER :: N, M, I, J
         real(dp) :: A(M, N)
-        WRITE(6, *) CHAR
+        WRITE(stdout, *) CHAR
         DO I = 1, M
-            WRITE(6, 1000)(A(I, J), J=1, N)
+            WRITE(stdout, 1000)(A(I, J), J=1, N)
         END DO
     1000 FORMAT(12E15.6)
         RETURN
@@ -527,8 +527,8 @@ contains
         character(*), parameter :: this_routine = 'NECI_PUTTAB'
     !..
         IF (LSCR < N) THEN
-            WRITE(6, *) ' LSCR:', LSCR
-            WRITE(6, *) 'N:', N
+            WRITE(stdout, *) ' LSCR:', LSCR
+            WRITE(stdout, *) 'N:', N
             call stop_all(this_routine, 'LSCR LT N ')
         END IF
         SCR(1:N) = 0.0_dp
@@ -631,7 +631,7 @@ contains
         ELSE
             CALL DSYEVX('V', 'I', 'U', M, T, M, 1.0_dp, 1.0_dp, M - N + 1, M, 0.0_dp, MEVAL, WT, T(1, 1, 2), M, SCR, LSCR, ISCR, IFAIL, INFO)
             IF (MEVAL < N) THEN
-                WRITE(6, *) ' WARNING| DSYEVX RETURNED MEVAL < N', MEVAL, N
+                WRITE(stdout, *) ' WARNING| DSYEVX RETURNED MEVAL < N', MEVAL, N
             END IF
             CALL DCOPY(M * N, T(1, 1, 2), 1, T(1, 1, 1), 1)
         END IF
@@ -658,19 +658,19 @@ contains
     !..Put T is form suitable for banded matrix diagonalisation
         CALL NECI_PUTTAB(IN, N, T, SCR, LSCR)
         IF (LSCR < 7 * IN) THEN
-            WRITE(6, *) ' 7*IN:', 7 * IN
-            WRITE(6, *) 'LSCR:', LSCR
+            WRITE(stdout, *) ' 7*IN:', 7 * IN
+            WRITE(stdout, *) 'LSCR:', LSCR
             call stop_all(this_routine, ' LSCR TOO SMALL IN BANDM')
         END IF
         IF (LISCR < 5 * IN) THEN
-            WRITE(6, *) ' 5*IN:', 5 * IN
-            WRITE(6, *) 'LISCR:', LISCR
+            WRITE(stdout, *) ' 5*IN:', 5 * IN
+            WRITE(stdout, *) 'LISCR:', LISCR
             call stop_all(this_routine, ' LISCR TOO SMALL IN BANDM')
         END IF
         CALL DSBEVX('V', 'I', 'U', IN, N, T, IN, T(1, 1, 2), IN, 1.0_dp, 1.0_dp, &
                     IN - N + 1, IN, 1.0e-10_dp, MEVAL, WT, T(1, 1, 3), IN, SCR, ISCR, IFAIL, INFO)
         IF (MEVAL < N) THEN
-            WRITE(6, *) ' WARNING| DSBEVX RETURNED MEVAL < N', MEVAL, N
+            WRITE(stdout, *) ' WARNING| DSBEVX RETURNED MEVAL < N', MEVAL, N
         END IF
         CALL DCOPY(IN * IN, T(1, 1, 3), 1, T(1, 1, 1), 1)
         CALL NECI_REORDER(IN, N, WT, T)
@@ -744,7 +744,7 @@ contains
     !     ==--------------------------------------------------------------==
         CALL DPOTRF(UPLO, N, SMAT, LDA, INFO)
         IF (INFO /= 0) THEN
-            WRITE(6, *) "INFO is : ", INFO
+            WRITE(stdout, *) "INFO is : ", INFO
         END IF
         IF (INFO /= 0) THEN
         if (tDie2) then

@@ -38,7 +38,7 @@ contains
             READ(10, *) W(I)
         END DO
         CLOSE(10)
-        WRITE(6, '(A)') ' HAVE READ IN PSI FROM FILE ./PSI_LONG '
+        WRITE(stdout, '(A)') ' HAVE READ IN PSI FROM FILE ./PSI_LONG '
         RETURN
 10      CONTINUE
 !.. PSI_LONG doesn't exist.  what about PSI_COMP

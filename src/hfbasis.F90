@@ -92,7 +92,7 @@ contains
         INTEGER A, B, C, D
         INTEGER NHG
         NHG = NBASIS
-        WRITE(6, *) 'READING HF UMAT'
+        WRITE(stdout, *) 'READING HF UMAT'
 ! ==--------------------------------------------------------------------=
         OPEN(10, FILE='UMAT2', STATUS='OLD')
         DO WHILE (.TRUE.)
@@ -161,7 +161,7 @@ contains
         NHG = NBASIS
         proc_timer%timer_name = 'CALCHFUMAT'
         call set_timer(proc_timer)
-        WRITE(6, *) 'CALCULATING HF UMAT'
+        WRITE(stdout, *) 'CALCULATING HF UMAT'
         call stop_all(this_routine, "HF UMAT calc broken through U/TMAT reindexing. Please fix")
 #ifdef CMPLX_
         call stop_all('CALCHFUMAT', 'HF not implemented for complex orbitals.')
@@ -174,7 +174,7 @@ contains
 !.. matrix.  For <A(1) B(2) |U| C(1) D(2)> to be non-zero, A and C must
 !.. have the same spin, and B and D must have the same spin.
 !.. Thus the sum1 A+C must be even, as must B+D
-        WRITE(6, *) "Index 1..."
+        WRITE(stdout, *) "Index 1..."
         DO A = 1, NORBUSED
         DO J = 1, NHG / ISS
         DO K = 1, NHG / ISS
@@ -185,12 +185,12 @@ contains
                 SUM1 = SUM1 + HFBASIS(A, I) * UMAT(UMatInd(ID1, J, K, L))
             END DO
             UMATT(UMatInd(J, K, L, A)) = SUM1
-!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) J,K,L,A,SUM1
+!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(stdout,*) J,K,L,A,SUM1
         END DO
         END DO
         END DO
         END DO
-        WRITE(6, *) "Index 2..."
+        WRITE(stdout, *) "Index 2..."
         DO A = 1, NORBUSED
         DO B = 1, NORBUSED
         DO K = 1, NHG / ISS
@@ -201,12 +201,12 @@ contains
                 SUM1 = SUM1 + HFBASIS(B, J) * UMATT(UMatInd(ID2, K, L, A))
             END DO
             UMAT2(UMatInd(K, L, A, B)) = SUM1
-!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) K,L,A,B,SUM1
+!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(stdout,*) K,L,A,B,SUM1
         END DO
         END DO
         END DO
         END DO
-        WRITE(6, *) "Index 3..."
+        WRITE(stdout, *) "Index 3..."
         DO A = 1, NORBUSED
         DO B = 1, NORBUSED
         DO C = 1, NORBUSED
@@ -217,13 +217,13 @@ contains
                 SUM1 = SUM1 + HFBASIS(C, K) * UMAT2(UMatInd(ID3, L, A, B))
             END DO
             UMATT(UMatInd(L, A, B, C)) = SUM1
-!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) L,A,B,C,SUM1
+!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(stdout,*) L,A,B,C,SUM1
         END DO
         END DO
         END DO
         END DO
         UMAT2(1:nBasis**4) = 0.0_dp
-        WRITE(6, *) "Index 4..."
+        WRITE(stdout, *) "Index 4..."
         DO A = 1, NORBUSED
         DO B = 1, NORBUSED
         DO C = 1, NORBUSED
@@ -247,7 +247,7 @@ contains
         END DO
         END DO
         CLOSE(10)
-        WRITE(6, *) ' !!! FINISHED CALCULATING HF UMAT !!! '
+        WRITE(stdout, *) ' !!! FINISHED CALCULATING HF UMAT !!! '
         call halt_timer(proc_timer)
         RETURN
     END
@@ -258,7 +258,7 @@ contains
         INTEGER I, L, J, NB, NE, IG
         real(dp) VAL
         character(*), parameter :: this_routine = 'READHFBASIS'
-        WRITE(6, *) "Loading HF BASIS"
+        WRITE(stdout, *) "Loading HF BASIS"
         OPEN(10, FILE='HFBASIS', STATUS='OLD')
         READ(10, *)
         READ(10, *) NB, NE
@@ -395,19 +395,19 @@ contains
         F = HFMIX
 !         EDELTA=1.0e-8_dp
         ELAST = 1.D20
-        WRITE(6, *) "Performing Hartree-Fock SCF diagonalisation..."
+        WRITE(stdout, *) "Performing Hartree-Fock SCF diagonalisation..."
         IF (IHFMETHOD == -1) THEN
-            WRITE(6, *) "Method -1:Rotational Mixing "
+            WRITE(stdout, *) "Method -1:Rotational Mixing "
         ELSEIF (IHFMETHOD == 0) THEN
-            WRITE(6, *) "Method 0:Linear Mixing"
+            WRITE(stdout, *) "Method 0:Linear Mixing"
         END IF
-        WRITE(6, *) "HF Mixing", HFMIX
-        WRITE(6, *) "E Thresh:", EDELTA
-        WRITE(6, *) "RMSD Thresh:", CDELTA
+        WRITE(stdout, *) "HF Mixing", HFMIX
+        WRITE(stdout, *) "E Thresh:", EDELTA
+        WRITE(stdout, *) "RMSD Thresh:", CDELTA
         IF (NSPINS == 2) THEN
             NELS(2) = (MS + NEL) / 2
             NELS(1) = NEL - NELS(2)
-            WRITE(6, *) " Beta, Alpha: ", NELS(1), NELS(2)
+            WRITE(stdout, *) " Beta, Alpha: ", NELS(1), NELS(2)
         ELSE
             NELS(1) = NEL
         END IF
@@ -416,7 +416,7 @@ contains
         ELSE
             CALL GENHFGUESS(FMAT, NSPINS, NSBASIS, BRR, G1, .FALSE., MS, FRAND, NELS, HFDET)
         END IF
-        WRITE(6, *) "Iteration   Energy     MSD"
+        WRITE(stdout, *) "Iteration   Energy     MSD"
         BR = .TRUE.
         IHFIT = 1
         IRHFB = 0
@@ -458,7 +458,7 @@ contains
 !.. FMAT now contains HF orbitals again, and ECUR the Fock Energy
 !.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 !.. vector
-        WRITE(6, *) IHFIT, ECUR, RMSD
+        WRITE(stdout, *) IHFIT, ECUR, RMSD
 !.. Now add back in some of our original F matrix
         IF (IHFMETHOD == -1) THEN
             CALL HFROTMIX(FMAT, OFMAT, NSPINS, NSBASIS, F, R1, R2, WORK)
@@ -467,12 +467,12 @@ contains
         END IF
         IHFIT = IHFIT + 1
         IF (IHFIT > NHFIT) THEN
-            WRITE(6, *) "*** WARNING Hartree-Fock did not converge ***"
+            WRITE(stdout, *) "*** WARNING Hartree-Fock did not converge ***"
             BR = .FALSE.
         END IF
         IF (ABS(ECUR - ELAST) <= EDELTA .AND. RMSD <= CDELTA .AND. IHFIT > 5) THEN
-            WRITE(6, *) "*** Hartree-Fock converged in ", IHFIT, " iterations."
-            WRITE(6, *) "*** HF ENERGY=", ECUR
+            WRITE(stdout, *) "*** Hartree-Fock converged in ", IHFIT, " iterations."
+            WRITE(stdout, *) "*** HF ENERGY=", ECUR
             BR = .FALSE.
         END IF
         ELAST = ECUR
@@ -562,7 +562,7 @@ contains
         DO I = 1, NSBASIS
         DO J = I, NSBASIS
             TOT = GetTMATEl((I - 1) * NSPINS + ISPN,(J - 1) * NSPINS + ISPN)
-!                  WRITE(6,*) I,J,TOT
+!                  WRITE(stdout,*) I,J,TOT
 !.. Now sum in the alpha and beta block of u matrix
             ID1 = GTID((I - 1) * NSPINS + ISPN)
             ID2 = GTID((J - 1) * NSPINS + ISPN)
@@ -626,7 +626,7 @@ contains
 !.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 !.. vector
         IF (INFO /= 0) THEN
-            WRITE(6, *) 'DYSEV error: ', INFO
+            WRITE(stdout, *) 'DYSEV error: ', INFO
             call stop_all(this_routine, "DYSEV error")
         END IF
         IF (HFLogLevel > 0) CALL WRITE_HEMATRIX("EIGVEC", NSBASIS, NSBASIS, FMAT(1, 1, ISPN))
@@ -703,7 +703,7 @@ contains
         PI = 3.141592653589793_dp
         R = genrand_real2_dSFMT()
         FMAT = (0.0_dp)
-        WRITE(6, *) "Generating HF Guess..."
+        WRITE(stdout, *) "Generating HF Guess..."
         NEL = 0
         DO IS = 1, NSPINS
         IF (LMS < 0) THEN
@@ -712,7 +712,7 @@ contains
             ISPN = NSPINS + 1 - IS
         END IF
         IREAL = 1
-        WRITE(6, "(A,I2,A)", advance='no') "Spin ", IS, ":"
+        WRITE(stdout, "(A,I2,A)", advance='no') "Spin ", IS, ":"
 
         DO I = 1, NSBASIS
         DO WHILE (G1(BRR(IREAL))%Ms /= (-3 + 2 * ISPN))
@@ -725,13 +725,13 @@ contains
             FMAT(NELR, I, ISPN) = (1.0_dp)
         END IF
         IF (I <= NELS(IS)) THEN
-            WRITE(6, "(I4,A)", advance='no') BRR(IREAL), ","
+            WRITE(stdout, "(I4,A)", advance='no') BRR(IREAL), ","
             NEL = NEL + 1
             HFDET(NEL) = BRR(IREAL)
         END IF
         IREAL = IREAL + 1
         END DO
-        WRITE(6, *)
+        WRITE(stdout, *)
         DO I = 1, NSBASIS
         DO J = 1, NSBASIS
             FMAT(I, J, ISPN) = FMAT(I, J, ISPN) + (FRAND * genrand_real2_dSFMT())
@@ -866,16 +866,16 @@ contains
         irhfb = 0
         IF (NSBASIS > 99) call stop_all(this_routine, 'ERROR - hardcoded NSBASIS limit of 100')
         ELAST = 1.D20
-        WRITE(6, *) "Performing Hartree-Fock Gradient Descent..."
+        WRITE(stdout, *) "Performing Hartree-Fock Gradient Descent..."
         IF (IHFMETHOD == 1) THEN
-            WRITE(6, *) "Method 1:Singles replacement "
+            WRITE(stdout, *) "Method 1:Singles replacement "
         ELSEIF (IHFMETHOD == 2) THEN
-            WRITE(6, *) "Method 2:Explicit differential"
+            WRITE(stdout, *) "Method 2:Explicit differential"
         END IF
         IF (NSPINS == 2) THEN
             NELS(2) = (MS + NEL) / 2
             NELS(1) = NEL - NELS(2)
-            WRITE(6, *) " Beta, Alpha: ", NELS(1), NELS(2)
+            WRITE(stdout, *) " Beta, Alpha: ", NELS(1), NELS(2)
         ELSE
             NELS(1) = NEL
         END IF
@@ -891,7 +891,7 @@ contains
         END IF
 !         DO ISPN=1,NSPINS
 !         DO I=1,NSBASIS
-!            WRITE(6,*) (FMAT(I,J,ISPN),J=1,NSBASIS)
+!            WRITE(stdout,*) (FMAT(I,J,ISPN),J=1,NSBASIS)
 !         ENDDO
 !         ENDDO
 
@@ -913,7 +913,7 @@ contains
         END DO
         call write_det(stdout, NDET1(1), .true.)
         BR = .TRUE.
-        WRITE(6, *) "Iteration   Energy     MSD   Fock Energy"
+        WRITE(stdout, *) "Iteration   Energy     MSD   Fock Energy"
         IHFIT = 0
         IF (TRHF .AND. NSPINS > 1) THEN
         IF (NELS(2) > NELS(1)) THEN
@@ -943,9 +943,9 @@ contains
 !.. To move down the slope, we subtract a small amount of this from cij,
 !.. and re-orthogonalise
 !.. HFMIX is -ve
-!              WRITE(6,*) ((CMAT(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
-!              WRITE(6,*)
-!              WRITE(6,*) ((DEDCIJ(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
+!              WRITE(stdout,*) ((CMAT(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
+!              WRITE(stdout,*)
+!              WRITE(stdout,*) ((DEDCIJ(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
 !.. modify the velocity.
 !              R1 = VMAT(:,:,ISPN) + MIX*DEDCIJ(:,:,ISPN)
 !              CALL DCOPY(NSBASIS*NSBASIS,R1,1,VMAT(1,1,ISPN),1)
@@ -976,10 +976,10 @@ contains
             IF (IHFIT > NHFIT) BR = .FALSE.
             R2 = CMAT(:, :, ISPN) + R1
             CALL DCOPY(NSBASIS * NSBASIS, R2, 1, CMAT(1, 1, ISPN), 1)
-!              WRITE(6,*)
-!              WRITE(6,*) ((CMAT(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
-!              WRITE(6,*)
-!              WRITE(6,*)
+!              WRITE(stdout,*)
+!              WRITE(stdout,*) ((CMAT(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
+!              WRITE(stdout,*)
+!              WRITE(stdout,*)
             CALL LOWDIN_ORTH(CMAT(1, 1, ISPN), NSBASIS, R1, R2, WORK)
         END DO
         RMSD = 0.0_dp
@@ -994,12 +994,12 @@ contains
         END DO
         RMSD = SQRT(RMSD / (NSBASIS * NSBASIS * NSPINS))
         IF (IHFIT > NHFIT) THEN
-            WRITE(6, *) "** WARNING Hartree-Fock did not converge **"
+            WRITE(stdout, *) "** WARNING Hartree-Fock did not converge **"
             BR = .FALSE.
         END IF
         IF (ABS(ECUR - ELAST) < EDELTA .AND. RMSD < CDELTA .AND. IHFIT > 5) THEN
-            WRITE(6, *) "*** Hartree-Fock converged in ", IHFIT, " iterations."
-            WRITE(6, *) "*** HF ENERGY=", ECUR
+            WRITE(stdout, *) "*** Hartree-Fock converged in ", IHFIT, " iterations."
+            WRITE(stdout, *) "*** HF ENERGY=", ECUR
             BR = .FALSE.
         END IF
         ELAST = ECUR
@@ -1010,8 +1010,8 @@ contains
         CALL GENFMAT(DEDCIJ, DMAT, NSBASIS, NSPINS)
         CALL DIAGFMAT(NSPINS, NSBASIS, NELS, DEDCIJ, DMAT, HFES, WORK, ECORE, ECUR2)
 
-        WRITE(6, "(I6)", advance='no') IHFIT
-        WRITE(6, *) ECUR, RMSD, ECUR2
+        WRITE(stdout, "(I6)", advance='no') IHFIT
+        WRITE(stdout, *) ECUR, RMSD, ECUR2
 !.. DEDCIJ now contains HF orbitals, and ECUR the Fock Energy
 !.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 !.. vector
@@ -1078,15 +1078,15 @@ contains
 
             DO I = 1, NSBASIS
             DO ISPN = 1, NSPINS
-!                  WRITE(6,*) I,ISPN*2-3,HFES(I,ISPN)
-!                  WRITE(6,*) I,ISPN*2-3,HFES(INORDER(I,ISPN),ISPN)
+!                  WRITE(stdout,*) I,ISPN*2-3,HFES(I,ISPN)
+!                  WRITE(stdout,*) I,ISPN*2-3,HFES(INORDER(I,ISPN),ISPN)
 !,
 !     &               INORDER(I,ISPN)
             END DO
             END DO
             DO ISPN = 1, NSPINS
             DO I = 1, NSBASIS
-!                  WRITE(6,*) I,ISPN*2-3,EORDER(I,ISPN),INORDER(I,ISPN)
+!                  WRITE(stdout,*) I,ISPN*2-3,EORDER(I,ISPN),INORDER(I,ISPN)
 !HFES(INORDER(I,ISPN),ISPN),
 !     &               INORDER(I,ISPN)
             END DO
@@ -1254,7 +1254,7 @@ contains
         real(dp) VAL
         LOGICAL TRANSP
         character(*), parameter :: this_routine = 'READHFFMAT'
-        WRITE(6, *) "Loading HF BASIS"
+        WRITE(stdout, *) "Loading HF BASIS"
         OPEN(10, FILE='HFBASIS', STATUS='OLD')
         READ(10, *)
         READ(10, *) NB, NE
@@ -1308,8 +1308,8 @@ contains
         END DO
         IF (I == FDET(ICUR) .AND. MX < 0.95_dp) THEN
 !.. The largest element isn't big enough, so we abort
-            WRITE(6, *) "Largest coeff of HF basis fn ", I, " is ", MX
-            WRITE(6, *) "Aborting ORDERBASISHF"
+            WRITE(stdout, *) "Largest coeff of HF basis fn ", I, " is ", MX
+            WRITE(stdout, *) "Aborting ORDERBASISHF"
             CALL neci_flush(stdout)
             call stop_all(this_routine, "ORDERBASISHF failed - HF Basis not converged")
         END IF
@@ -1351,12 +1351,12 @@ contains
         CHARACTER(*) CHAR
         Integer I, M, N, J
         HElement_t(dp) A(M, N)
-        WRITE(6, *) CHAR
+        WRITE(stdout, *) CHAR
         DO I = 1, M
             IF (HElement_t_size == 1) THEN
-                WRITE(6, "(12E15.6)")(A(I, J), J=1, N)
+                WRITE(stdout, "(12E15.6)")(A(I, J), J=1, N)
             ELSE
-                WRITE(6, "(6('(',E15.6,',',E15.6,')'))")(A(I, J), J=1, N)
+                WRITE(stdout, "(6('(',E15.6,',',E15.6,')'))")(A(I, J), J=1, N)
             END IF
         END DO
 ! 1000 FORMAT(12E15.6)

@@ -28,8 +28,8 @@ contains
         CALL GEN_ZIA(NMESHX, NMAX, ZIA)
         T2 = neci_etime(t)
         T3 = (T2 - T1)
-        WRITE(6, *) 'V0=', CK(NMESHX / 2 + 1, NMESHX / 2 + 1, NMESHX / 2 + 1)
-        WRITE(6, *) ' TIME FOR INITIALISATION:', T3 / 1000.0_dp
+        WRITE(stdout, *) 'V0=', CK(NMESHX / 2 + 1, NMESHX / 2 + 1, NMESHX / 2 + 1)
+        WRITE(stdout, *) ' TIME FOR INITIALISATION:', T3 / 1000.0_dp
     end subroutine
 ! =========================================================
     SUBROUTINE GEN_CK_FFT2D(N, DIST, A, TALPHA, ALPHA, OMEGA)

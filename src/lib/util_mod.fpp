@@ -230,7 +230,7 @@ contains
         character(len=l) :: tmp_s
 
         tmp_s = transfer(str(1:l), tmp_s)
-        write(6, '(a)', advance='no') tmp_s
+        write(stdout, '(a)', advance='no') tmp_s
 
     end subroutine
 
