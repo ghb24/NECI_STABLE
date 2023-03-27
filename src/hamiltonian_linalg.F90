@@ -178,7 +178,7 @@ contains
             end if
 
             if (print_info) then
-                write(stdout, '(1x,"number of determinants in total:",'//int_fmt(space_size, 1)//')') space_size; call neci_flush(6)
+                write(stdout, '(1x,"number of determinants in total:",'//int_fmt(space_size, 1)//')') space_size; call neci_flush(stdout)
             end if
 
             if (tCalcHFIndex) then
@@ -194,7 +194,7 @@ contains
                 safe_calloc(this%basis_vectors, (this%space_size, max_subspace_size), 0.0_dp)
                 if (print_info) then
                     write(stdout, '(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                 end if
             end if
             safe_calloc(this%projected_hamil, (max_subspace_size, max_subspace_size), 0.0_dp)
@@ -208,7 +208,7 @@ contains
             if (print_info) then
                 write(stdout, '(1x,"Hamiltonian calculation setup complete.",/)')
             end if
-            call neci_flush(6)
+            call neci_flush(stdout)
 
         end associate
 

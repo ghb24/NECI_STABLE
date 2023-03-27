@@ -17,7 +17,7 @@ module rdm_general
     use SystemData, only: tGUGA
     use util_mod, only: near_zero, operator(.div.), stop_all
     use constants, only: dp, n_int, lenof_sign, size_n_int, int64, &
-        eps, inum_runs, size_int_rdm
+        eps, inum_runs, size_int_rdm, stdout
     use rdm_reading, only: print_1rdms_from_sf2rdms_wrapper, &
         read_spinfree_2rdm_files, read_1rdm, read_2rdm_popsfile, &
         print_1rdms_from_2rdms_wrapper
@@ -90,11 +90,11 @@ contains
         tOpenSpatialOrbs = tOpenShell .and. .not. tStoreSpinOrbs
 
         if (tExplicitAllRDM) then
-            write(6, '(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')
+            write(stdout, '(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')
         else
-            write(6, '(1X,"Stochastically calculating the reduced density matrices from the FCIQMC wavefunction")')
-            write(6, '(1X,"incl. explicit connections to the following HF determinant:")', advance='no')
-            call write_det(6, HFDet_True, .true.)
+            write(stdout, '(1X,"Stochastically calculating the reduced density matrices from the FCIQMC wavefunction")')
+            write(stdout, '(1X,"incl. explicit connections to the following HF determinant:")', advance='no')
+            call write_det(stdout, HFDet_True, .true.)
         end if
 
         if (RDMExcitLevel == 1) then
@@ -107,7 +107,7 @@ contains
                 print_2rdm_est = .false.
             else
                 print_2rdm_est = .true.
-                write (6, '(1X,"Calculating the energy from the reduced density matrix. &
+                write (stdout, '(1X,"Calculating the energy from the reduced density matrix. &
                               &This requires the 2 electron RDM from which the 1-RDM can also be constructed.")')
             end if
         end if
@@ -128,7 +128,7 @@ contains
         if (tHPHF .and. tExplicitAllRDM) call stop_all(t_r, 'HPHF not set up with the explicit calculation of the RDM.')
 
         if (tDipoles) then
-            write (6, '("WARNING - The calculation of dipole moments is currently not supported for the new RDM code. &
+            write (stdout, '("WARNING - The calculation of dipole moments is currently not supported for the new RDM code. &
                       &Use the OLDRDMS option to use feature.")')
         end if
 
@@ -153,12 +153,12 @@ contains
 
         main_mem = max_nelems_main * (nrdms + 1) * size_int_rdm
         if (tinitsRDM) main_mem = 2 * main_mem
-        write(6, '(/,1X,"About to allocate main RDM array, size per MPI process (MB):", f14.6)') real(main_mem, dp) / 1048576.0_dp
+        write(stdout, '(/,1X,"About to allocate main RDM array, size per MPI process (MB):", f14.6)') real(main_mem, dp) / 1048576.0_dp
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
         if (tinitsRDM) then
             call init_rdm_list_t(two_rdm_inits, nrdms, max_nelems_main, nhashes_rdm_main)
         end if
-        write(6, '(1X,"Allocation of main RDM array complete.")')
+        write(stdout, '(1X,"Allocation of main RDM array complete.")')
 
         ! Factor of 10 over perfectly distributed size, for some safety.
         standard_spawn_size = int(10_int64 * rdm_nrows**2_int64 / (8_int64 * nProcessors))
@@ -173,23 +173,23 @@ contains
 
         spawn_mem = max_nelems_spawn * (nrdms + 1) * size_int_rdm
         if (tinitsRDM) spawn_mem = 2 * spawn_mem
-        write(6, '(1X,"About to allocate RDM spawning array, size per MPI process (MB):", f14.6)') real(spawn_mem, dp) / 1048576.0_dp
+        write(stdout, '(1X,"About to allocate RDM spawning array, size per MPI process (MB):", f14.6)') real(spawn_mem, dp) / 1048576.0_dp
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
         if (tinitsRDM) then
             call init_rdm_spawn_t(two_rdm_inits_spawn, rdm_nrows, nrdms, max_nelems_spawn, &
                                   nhashes_rdm_spawn)
         end if
-        write(6, '(1X,"Allocation of RDM spawning array complete.")')
+        write(stdout, '(1X,"Allocation of RDM spawning array complete.")')
 
         max_nelems_recv = 4 * rdm_nrows**2 / (8 * nProcessors) * int(rdm_recv_size_fac)
         max_nelems_recv_2 = 2 * rdm_nrows**2 / (8 * nProcessors) * int(rdm_recv_size_fac)
 
         recv_mem = (max_nelems_recv + max_nelems_recv_2) * (nrdms + 1) * size_int_rdm
-        write(6, '(1X,"About to allocate RDM receiving arrays, size per MPI process (MB):", f14.6)') real(recv_mem, dp) / 1048576.0_dp
+        write(stdout, '(1X,"About to allocate RDM receiving arrays, size per MPI process (MB):", f14.6)') real(recv_mem, dp) / 1048576.0_dp
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems_recv, 0)
         call init_rdm_list_t(two_rdm_recv_2, nrdms, max_nelems_recv_2, 0)
-        write(6, '(1X,"Allocation of RDM receiving arrays complete.",/)')
+        write(stdout, '(1X,"Allocation of RDM receiving arrays complete.",/)')
 
         ! Count the memory the various RDM lists (but this does *not* count
         ! the memory of the hash tables - this will increase dynamically
@@ -344,7 +344,7 @@ contains
         end if
 
         if (iProcIndex == 0) then
-            write(6, "(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of: ", &
+            write(stdout, "(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of: ", &
                 real(memory_alloc, dp) / 1048576.0_dp, " MB per MPI process."
         end if
 
@@ -419,7 +419,7 @@ contains
             end if
 
             if (any(tSinglePartPhase)) then
-                write (6, '("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of &
+                write (stdout, '("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of &
                           &the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging.")')
                 ! Clear these objects, before the main simulation, since we
                 ! haven't started averaging RDMs yet.
@@ -437,7 +437,7 @@ contains
         ! is on, these wont be printed.
         if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
-        if (iProcIndex == 0) write(6, '(1X,"RDM memory allocation complete.",/)')
+        if (iProcIndex == 0) write(stdout, '(1X,"RDM memory allocation complete.",/)')
 
         nElRDM_Time%timer_name = 'nElRDMTime'
         FinaliseRDMs_Time%timer_name = 'FinaliseRDMsTime'
@@ -638,7 +638,7 @@ contains
         SpawnedParts => SpawnVec
         SpawnedParts2 => SpawnVec2
 
-        write(6, '(A54,F10.4,A4,F10.4,A13)') &
+        write(stdout, '(A54,F10.4,A4,F10.4,A13)') &
             'Memory requirement for spawned arrays increased from ', &
             real(((NIfBCast_old + 1) * MaxSpawned * 2 * size_n_int), dp) / 1048576.0_dp, &
             ' to ', &

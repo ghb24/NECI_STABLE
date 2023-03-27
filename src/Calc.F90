@@ -862,7 +862,7 @@ contains
                 EXCITFUNCS(3) = .true.
             case("EXCITWEIGHTING")
                 write(stdout, *) '---------------->excitweighting'
-                call neci_flush(6)
+                call neci_flush(stdout)
                 g_VMC_ExcitWeights(1, 1) = to_realdp(tokens%next())
                 g_VMC_ExcitWeights(2, 1) = to_realdp(tokens%next())
                 G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
@@ -3862,7 +3862,7 @@ contains
         end if
         IF(TMONTE) THEN
             write(stdout, "(A)", advance='no') 'MC Start Det: '
-            call write_det(6, mcDet, .true.)
+            call write_det(stdout, mcDet, .true.)
         end if
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this
@@ -3978,7 +3978,7 @@ contains
 !             DBETA=DBRAT*BETA
                 write(stdout, *) "I_HMAX:", I_HMAX
                 write(stdout, *) "Calculating MC Energy..."
-                CALL neci_flush(6)
+                CALL neci_flush(stdout)
                 IF(NTAY(1) > 0) THEN
                     write(stdout, *) "Using approx RHOs generated on the fly, NTAY=", NTAY(1)
 !C.. NMAX is now ARR

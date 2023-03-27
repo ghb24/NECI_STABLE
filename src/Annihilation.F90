@@ -1145,7 +1145,7 @@ contains
                                                                 real(2 * (min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
                                 else
                                     write(stdout, *) "***", SpawnedParts(0:NIftot, i)
-                                    Call WriteBitDet(6, SpawnedParts(0:NIfTot, i), .true.)
+                                    Call writebitdet(stdout, SpawnedParts(0:NIfTot, i), .true.)
                                     call stop_all("AnnihilateSpawnedParts", "Cannot find corresponding FCI "&
                                             & //"determinant when histogramming")
                                 end if

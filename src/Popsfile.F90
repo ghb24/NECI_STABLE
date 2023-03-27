@@ -252,7 +252,7 @@ contains
                 !if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
                 !call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
                 !endif
-                call neci_flush(6)
+                call neci_flush(stdout)
             ENDIF
 
             ! If read in particles are removed due to being unoccupied, or
@@ -520,7 +520,7 @@ contains
 
             write (stdout, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
                 " determinants at a time from POPSFILE"
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
         ! Keep reading until all of the particles have been read in!
@@ -1671,7 +1671,7 @@ contains
 
         CALL MPIBarrier(error)  !sync
 !        write(stdout,*) "Get Here",nDets
-!        CALL neci_flush(6)
+!        CALL neci_flush(stdout)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers
 ! ,AllSumNoatHF and AllSumENum...
@@ -2652,7 +2652,7 @@ contains
         write (stdout, "(A,F14.6,A)") " Initial memory (without excitgens) consists of : ", REAL(MemoryAlloc, dp) / 1048576.0_dp, " Mb"
         write (stdout, *) "Initial memory allocation successful..."
         write (stdout, *) "Excitgens will be regenerated when they are needed..."
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
 
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here

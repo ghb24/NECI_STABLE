@@ -674,7 +674,7 @@ contains
 
         IF (iProcIndex == 0) THEN
 
-            write (6, '("Two-electron integrals with a magnitude over ", &
+            write (stdout, '("Two-electron integrals with a magnitude over ", &
                       &g16.7," are screened")') UMatEps
 
             if (tMolpro .and. tUHF) then
@@ -1006,7 +1006,7 @@ contains
 ! If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN
 !            write(stdout,*) "1-electron energies have been read in."
-!            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
+!            CALL writebasis(stdout,G1,NBASIS,ARR,BRR)
 !         end if
         RETURN
     END SUBROUTINE READFCIINTBIN
