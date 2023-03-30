@@ -12,7 +12,7 @@ module test_index_convention_mod
     use orb_idx_mod, only: sigma => calc_spin_raw, alpha, beta, get_spat, sum, &
         SpinProj_t
     use excitation_types, only: Excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, &
-        is_canonical
+        is_canonical, canonicalize
     use util_mod, only: operator(.isclose.)
     implicit none
     private
@@ -52,9 +52,9 @@ contains
                     do L = 1, n_spin_orb
                         if (L .in. set([I, J])) cycle
                         do K = 1, n_spin_orb
-                            if ((K .in. set([I, J])) .or. K == L) cycle
-                            exc = Excite_2_t(K, I, L, J)
-                            if (sum(sigma(exc%val(1, :))) == sum(sigma(exc%val(2, :)))) then
+                            if (K .in. set([I, J, L])) cycle
+                            if (sum(sigma([K, L])) == sum(sigma([I, J]))) then
+                                exc = canonicalize(Excite_2_t(K, I, L, J))
                                 call assert_true(nI_invariant_S2_expval_exc(exc) .isclose. eval_Excite_2_t(exc, g_spin))
                             end if
                         end do
