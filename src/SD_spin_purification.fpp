@@ -213,16 +213,16 @@ contains
         !! Evaluates \(< D_i | S_+ S_- | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
         type(Excite_2_t), intent(in) :: exc
         real(dp) :: res
-        debug_function_name("nI_invariant_ladder_op_exc_Excite_2_t")
             !! The matrix element.
             !! It is real even for complex `NECI`.
+        debug_function_name("nI_invariant_ladder_op_exc_Excite_2_t")
         @:pure_ASSERT(is_canonical(exc))
 
         ! Only exchange excitations are non-zero.
         associate(srcs => exc%val(1, :), tgts => exc%val(2, :))
             if (calc_spin_raw(srcs(1)) /= calc_spin_raw(srcs(2)) &
                  .and. all(get_spat(srcs) == get_spat(tgts))) then
-                 res = 1._dp
+                res = 1._dp
             else
                 res = 0._dp
             end if
@@ -273,8 +273,6 @@ contains
         real(dp) :: res
             !! The matrix element.
             !! It is real even for complex `NECI`.
-        debug_function_name("ladder_op_exc_Excite_2_t")
-        @:pure_ASSERT(is_canonical(exc))
         if (occupation_allowed(nI, exc)) then
             res = nI_invariant_ladder_op_exc(exc)
         else

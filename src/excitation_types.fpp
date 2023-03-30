@@ -274,7 +274,6 @@ contains
             type(${Excitation_t}$), intent(in) :: exc
             type(${Excitation_t}$) :: res
             logical :: dummy
-            routine_name("canonicalize")
             res = exc
             call make_canonical(res, dummy)
         end function

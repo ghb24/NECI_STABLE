@@ -48,6 +48,8 @@ module orb_idx_mod
         generic, public :: operator(/=) => neq_SpinProj_t_SpinProj_t
         procedure :: add_SpinProj_t_SpinProj_t
         generic, public :: operator(+) => add_SpinProj_t_SpinProj_t
+        procedure :: mult_SpinProj_t_int
+        generic, public :: operator(*) => mult_SpinProj_t_int
         procedure :: sub_SpinProj_t_SpinProj_t
         procedure :: neg_SpinProj_t
         generic, public :: operator(-) => sub_SpinProj_t_SpinProj_t, neg_SpinProj_t
@@ -179,6 +181,13 @@ contains
         class(SpinProj_t), intent(in) :: lhs, rhs
         type(SpinProj_t) :: res
         res%val = lhs%val + rhs%val
+    end function
+
+    elemental function mult_SpinProj_t_int(lhs, rhs) result(res)
+        class(SpinProj_t), intent(in) :: lhs
+        integer, intent(in) :: rhs
+        type(SpinProj_t) :: res
+        res%val = lhs%val * rhs
     end function
 
     pure function sum_SpinProj_t(V) result(res)
