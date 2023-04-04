@@ -309,7 +309,7 @@ contains
                                 child(y)
                         end do
                         write(stdout, '("] ")', advance='no')
-                        call write_det(6, det_spwn, .true.)
+                        call write_det(stdout, det_spwn, .true.)
                         call neci_flush(stdout)
                     end if
 

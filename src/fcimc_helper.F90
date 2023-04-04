@@ -2496,7 +2496,7 @@ contains
         call write_det(stdout, ProjEDet(:, run), .true.)
         call GetSym(ProjEDet(:, run), nEl, G1, nBasisMax, isym)
         write(stdout, "(A)", advance='no') " Symmetry: "
-        call writeSym(6, isym%sym, .true.)
+        call writesym(stdout, isym%sym, .true.)
 
         ! if in guga run, i also need to recreate the list of connected
         ! determinnant to the new reference det

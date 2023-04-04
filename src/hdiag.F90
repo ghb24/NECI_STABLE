@@ -73,7 +73,7 @@ contains
 #endif
             END IF
             IF (INFO /= 0) THEN
-                WRITE(6, *) 'DYSEV error: ', INFO
+                WRITE(stdout, *) 'DYSEV error: ', INFO
                 call stop_all(t_r, "DSYEV error")
             END IF
             IF (W(NBS) < GSEN) GSEN = W(NBS)

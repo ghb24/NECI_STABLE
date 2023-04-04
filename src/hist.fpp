@@ -28,7 +28,7 @@ module hist
         HistMinInd, BinRange, excit_tofrom_unit, Histogram, InstHist, &
         iNoBins, tHistSpawn
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign, &
-        dp, MPIArg, inum_runs
+        dp, MPIArg, inum_runs, stdout
     use parallel_neci, only: nProcessors, MPISum, MPIBcast, MPIAlltoAll, &
         MPIAlltoAllv, MPIAllLORLogical, root, iProcIndex
     use timing_neci, only: set_timer, timer, halt_timer
@@ -124,9 +124,9 @@ contains
                 end if
             end if
         else
-            call writebitdet(6, ilut, .true.)
-            write(6, *) '***', ilut
-            write(6, *) '***', ExcitLevel, HistMinInd(ExcitLevel), Det
+            call writebitdet(stdout, ilut, .true.)
+            write(stdout, *) '***', ilut
+            write(stdout, *) '***', ExcitLevel, HistMinInd(ExcitLevel), Det
             call stop_all(t_r, "Cannot find corresponding FCI determinant &
                                 &when histogramming")
         end if

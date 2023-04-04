@@ -437,7 +437,7 @@ contains
             krylov_vecs_mem = krylov_vecs_length * (NIfTotKP + 1) * size_n_int / 1000000
             write(stdout, '(a73,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold all Krylov vectors. &
                                            &Memory required (MB):", krylov_vecs_mem
-            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
             allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
             if (ierr /= 0) then
                 write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
@@ -445,7 +445,7 @@ contains
             else
                 write(stdout, '(1x,a5)') "Done."
             end if
-            call neci_flush(6)
+            call neci_flush(stdout)
             krylov_vecs = 0_n_int
 
             ! Allocate the krylov_helems array.
@@ -453,7 +453,7 @@ contains
             krylov_vecs_mem = krylov_vecs_length * size_n_int / 1000000
             write(stdout, '(a103,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold diagonal Hamiltonian &
                                            &elements for Krylov vectors. Memory required (MB):", krylov_vecs_mem
-            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
             allocate(krylov_helems(krylov_vecs_length), stat=ierr)
             if (ierr /= 0) then
                 write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
@@ -461,7 +461,7 @@ contains
             else
                 write(stdout, '(1x,a5)') "Done."
             end if
-            call neci_flush(6)
+            call neci_flush(stdout)
             krylov_helems = 0.0_dp
 
             ! Allocate the hash table to krylov_vecs.
@@ -470,7 +470,7 @@ contains
             krylov_ht_mem = nhashes_kp * 16 / 1000000
             write(stdout, '(a78,'//int_fmt(krylov_ht_mem, 1)//')') "About to allocate hash table to the Krylov vector array. &
                                            &Memory required (MB):", krylov_ht_mem
-            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
             allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
             if (ierr /= 0) then
                 write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
@@ -508,7 +508,7 @@ contains
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
         write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
-        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
@@ -526,7 +526,7 @@ contains
         write(stdout, '(a66,'//int_fmt(matrix_mem, 1)//')') "About to allocate various subspace matrices. &
                                        &Memory required (MB):", matrix_mem
         write(stdout, '(a13)', advance='no') "Allocating..."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         if (tOverlapPert) then
             allocate(pert_overlaps(kp%nvecs))
@@ -867,7 +867,7 @@ contains
         write(stdout, '(a73,'//int_fmt(mem_reqd, 1)//')') "About to allocate array to hold the perturbed &
                                            &ground state. Memory required (MB):", mem_reqd
         write(stdout, '(a13)', advance='no') "Allocating..."
-        call neci_flush(6)
+        call neci_flush(stdout)
         allocate(perturbed_ground(0:NIfTot, TotWalkers), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
@@ -875,7 +875,7 @@ contains
         else
             write(stdout, '(1x,a5)') "Done."
         end if
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         perturbed_ground = CurrentDets(0:NIfTot, 1:TotWalkers)
 

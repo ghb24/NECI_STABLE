@@ -62,7 +62,7 @@ contains
         end if
         write(stdout, "(A)") "**************************************"
         write(stdout, "(A)")
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         HDiagTemp = get_helement(fDet, fDet, 0)
         Energy = real(HDiagTemp, dp)

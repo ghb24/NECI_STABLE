@@ -123,11 +123,11 @@ CONTAINS
                 write(stdout, *) "Performing truncated CI at level ", iExcitLevel
                 IF (TSPECDET) THEN
                     write(stdout, *) "Using SPECDET:"
-                    call write_det(6, SPECDET, .true.)!
+                    call write_det(stdout, SPECDET, .true.)!
                     CALL NECI_ICOPY(NEL, SPECDET, 1, FDET, 1)
                 ELSE
                     write(stdout, *) "Using Fermi DET:"
-                    call write_det(6, FDET, .true.)
+                    call write_det(stdout, FDET, .true.)
                 end if
 !C.. if we're doing a truncated CI expansion
                 CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, reshape([0], [1, 1]), &
@@ -141,7 +141,7 @@ CONTAINS
                 write(stdout, *) "Determining determinants and blocks."
                 IF (TPARITY) THEN
                     write(stdout, *) "Using symmetry restriction:"
-                    CALL WRITEALLSYM(6, SymRestrict, .TRUE.)
+                    CALL writeallsym(stdout, SymRestrict, .TRUE.)
                 end if
                 IF (TSPN) THEN
                     write(stdout, *) "Using spin restriction:", LMS
@@ -160,7 +160,7 @@ CONTAINS
                 write(stdout, *) "Determining determinants."
                 IF (TPARITY) THEN
                     write(stdout, *) "Using symmetry restriction:"
-                    CALL WRITEALLSYM(6, SymRestrict, .TRUE.)
+                    CALL writeallsym(stdout, SymRestrict, .TRUE.)
                 end if
                 IF (TSPN) THEN
                     write(stdout, *) "Using spin restriction:", LMS
@@ -182,7 +182,7 @@ CONTAINS
 !C.. NEL now only includes active electrons
             write(stdout, *) "Number of determinants found to be: ", II
             write(stdout, *) "Allocating initial memory for calculation of energy..."
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
             allocate(NMrks(nEl, II), stat=ierr)
             LogAlloc(ierr, 'NMRKS', NEL * II, 4, tagNMRKS)
             NMRKS(1:NEL, 1:II) = 0
@@ -275,7 +275,7 @@ CONTAINS
                 write(stdout, *) 'Setting DETINV to 0'
                 DETINV = 0
             end if
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
 
 !C ==----------------------------------------------------------------==
 !C..Set up memory for c's, nrow and the label
@@ -400,7 +400,7 @@ CONTAINS
             deallocate(HAMIL, LAB)
             write(stdout, *) ' FINISHED COUNTING '
             write(stdout, *) "Allocating memory for hamiltonian: ", GC * 2
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
 !C..Now we know size, allocate memory to HAMIL and LAB
             LENHAMIL = GC
             allocate(Hamil(LenHamil), stat=ierr)
@@ -450,7 +450,7 @@ CONTAINS
             temp_hel = real(GETHELEMENT(IFDET, IFDET, HAMIL, LAB, NROW, NDET), dp)
             write(stdout, *) '<D0|H|D0>=', temp_hel
             write(stdout, *) '<D0|T|D0>=', CALCT(NMRKS(1 : 1 + nEl, IFDET), NEL)
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
         end if
 !C.. We've now finished calculating H if we were going to.
@@ -596,7 +596,7 @@ CONTAINS
             call perform_davidson(davidsonCalc, direct_ci_type, .true.)
         end if
 
-        call neci_flush(6)
+        call neci_flush(stdout)
 !C.. If we're calculating rhos (for which we have to have calced H
 !No longer used
 !      IF(TRHOIJ) THEN
@@ -618,7 +618,7 @@ CONTAINS
                 CALL GETSYM(FDET, NEL, G1, NBASISMAX, IHFSYM)
                 IF (.not. associated(NMRKS)) THEN
                     write(stdout, *) "NMRKS not allocated"
-                    CALL neci_flush(6)
+                    CALL neci_flush(stdout)
                     CALL Stop_All("DoDetCalc", "NMRKS not allocated so cannot compress dets.")
                 end if
 !First, we want to count the number of determinants of the correct symmetry...
@@ -647,7 +647,7 @@ CONTAINS
                 end if
                 write(stdout, "(I25,A,I4,A)") Det, " determinants of symmetry ", IHFSym%Sym%S, " found."
                 write(stdout, *) "Normalization of eigenvector 1 is: ", norm
-                CALL neci_flush(6)
+                CALL neci_flush(stdout)
 
                 allocate(FCIDets(0:NIfTot, Det), stat=ierr)
                 IF (ierr /= 0) CALL Stop_All("DetCalc", "Cannot allocate memory to hold vector")

@@ -21,9 +21,10 @@ subroutine environment_report(tCPMD)
 !=          directory and host names, so we avoid printing duplicate information.
 
 #ifdef NAGF95
-USe f90_unix_dir
+use f90_unix_dir
 use constants, only: int32
 #endif
+use constants, only: stdout
 implicit none
 logical :: tCPMD
 integer :: stat,hostnm
@@ -34,12 +35,12 @@ integer(kind=int32) :: stat_dum
 #endif
 character(255) :: dirname,host
 integer :: date_values(8)
-write (6,'(/,1X,64("="))')
-write (6,'(a13,a,a4,a)') 'Compiled on ',__DATE__,'at ',__TIME__
-write (6,'(a30,/,5X,a)') 'Compiled using configuration:',_CONFIG
-write (6,'(a29,/,5X,a)') 'VCS BASE repository version:',_VCS_VER
+write (stdout,'(/,1X,64("="))')
+write (stdout,'(a13,a,a4,a)') 'Compiled on ',__DATE__,'at ',__TIME__
+write (stdout,'(a30,/,5X,a)') 'Compiled using configuration:',_CONFIG
+write (stdout,'(a29,/,5X,a)') 'VCS BASE repository version:',_VCS_VER
 #ifdef _WORKING_DIR_CHANGES
-write (6,'(a42)') 'Working directory contains local changes.'
+write (stdout,'(a42)') 'Working directory contains local changes.'
 #endif
 #ifdef NAGF95
 call getcwd(path=dirname,errno=stat_dum)
@@ -48,8 +49,8 @@ stat=stat_dum
 stat=getcwd(dirname)
 #endif
 if (stat.eq.0.and..not.tCPMD) then
-    write (6,'(a20)') 'Working directory: '
-    write (6,'(5X,a)') trim(dirname)
+    write (stdout,'(a20)') 'Working directory: '
+    write (stdout,'(5X,a)') trim(dirname)
 end if
 #if defined(NAGF95) || defined(_WIN32_)
 !Can't find a hostnm intrinsic equivalent in the nag system modules
@@ -58,14 +59,14 @@ end if
     stat=hostnm(host)
 #endif
 if (stat.eq.0.and..not.tCPMD) then
-    write (6,'(a13,a)') 'Running on: ',trim(host)
+    write (stdout,'(a13,a)') 'Running on: ',trim(host)
 end if
 
 call date_and_time(VALUES=date_values)
 
-write (6,'(1X,"Started running on",1X,i2.2,"/",i2.2,"/",i4.4,1X,"at",1X,i2.2,2(":",i2.2))') date_values(3:1:-1), date_values(5:7)
+write (stdout,'(1X,"Started running on",1X,i2.2,"/",i2.2,"/",i4.4,1X,"at",1X,i2.2,2(":",i2.2))') date_values(3:1:-1), date_values(5:7)
 
-write (6,'(1X,64("="),/)')
+write (stdout,'(1X,64("="),/)')
 
 return
 end subroutine environment_report

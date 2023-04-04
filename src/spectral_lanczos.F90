@@ -40,7 +40,7 @@ contains
         do i = 1, n_lanc_vecs_sl - 1
             call subspace_expansion_lanczos(i, sl_vecs, full_vec_sl, sl_hamil, ndets_sl, disps_sl)
             write(stdout, '(1x,a19,1x,i3)') "Iteration complete:", i
-            call neci_flush(6)
+            call neci_flush(stdout)
         end do
 
         call calc_final_hamil_elem(sl_vecs, full_vec_sl, sl_hamil, ndets_sl, disps_sl)
@@ -50,7 +50,7 @@ contains
         call subspace_extraction_sl()
 
         write(stdout, '(1x,a60,/)') "Spectral Lanczos calculation complete. Outputting results..."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         call output_spectrum(n_lanc_vecs_sl, sl_h_eigv, spec_low, spec_high)
 
@@ -82,13 +82,13 @@ contains
         real(dp) :: norm_pert
 
         write(stdout, '(/,1x,a39,/)') "Beginning spectral Lanczos calculation."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         allocate(ndets_sl(0:nProcessors - 1))
         allocate(disps_sl(0:nProcessors - 1))
 
         write(stdout, '(1x,a56)', advance='yes') "Enumerating and storing all determinants in the space..."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! Determine the total number of determinants.
         call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
@@ -119,7 +119,7 @@ contains
         call sort(sl_ilut_list, ilut_lt, ilut_gt)
 
         write(stdout, '(1x,a9)') "Complete."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         mpi_temp = int(ndets_this_proc, MPIArg)
         call MPIAllGather(mpi_temp, ndets_sl, ierr)
@@ -132,12 +132,12 @@ contains
         ndets_tot = int(sum(ndets_sl))
 
         write(stdout, '(1x,a44)', advance='no') "Allocating arrays to hold Lanczos vectors..."
-        call neci_flush(6)
+        call neci_flush(stdout)
         allocate(sl_vecs(ndets_this_proc, n_lanc_vecs_sl))
         sl_vecs = 0.0_dp
         allocate(full_vec_sl(ndets_tot))
         write(stdout, '(1x,a9)') "Complete."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         allocate(pert_ground_left(ndets_this_proc), stat=ierr)
         if (ierr /= 0) then
@@ -157,10 +157,10 @@ contains
         trans_amps_right = 0.0_dp
 
         write(stdout, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
-        call neci_flush(6)
+        call neci_flush(stdout)
         call calculate_sparse_ham_par(ndets_sl, sl_ilut_list, .true.)
         write(stdout, '(1x,a48,/)') "Hamiltonian allocation and calculation complete."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         call return_perturbed_ground_spec(left_perturb_spectral, sl_ilut_list, pert_ground_left, left_pert_norm)
         call return_perturbed_ground_spec(right_perturb_spectral, sl_ilut_list, sl_vecs(:, 1), right_pert_norm)
@@ -423,7 +423,7 @@ contains
         deallocate(sl_ilut_list)
 
         write(stdout, '(/,1x,a30,/)') "Exiting Spectral Lanczos code."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
     end subroutine end_spectral_lanczos
 

@@ -88,7 +88,7 @@ contains
 
         call init_davidson_ss(this, print_info, run)
 
-        if (print_info) write(stdout, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
+        if (print_info) write(stdout, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(stdout)
 
         do i = 2, min(max_num_davidson_iters, this%space_size)
 
@@ -107,7 +107,7 @@ contains
             end_time = MPI_WTIME()
 
             if (print_info) write(stdout, '(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i - 1, this%residual_norm, &
-                this%davidson_eigenvalue, end_time - start_time; call neci_flush(6)
+                this%davidson_eigenvalue, end_time - start_time; call neci_flush(stdout)
 
             if (this%residual_norm < residual_norm_target) exit
 
@@ -192,7 +192,7 @@ contains
 
             if (print_info) then
                 write(stdout,*) 'Space sizes and max Davidson iterations: ', space_size_this_proc, max_num_davidson_iters
-                call neci_flush(6)
+                call neci_flush(stdout)
             end if
 
             ! the memory required to allocate each of basis_vectors and
@@ -203,19 +203,19 @@ contains
 
             if (print_info) then
                 write(stdout, '(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
-                call neci_flush(6)
+                call neci_flush(stdout)
             end if
 
             if (print_info) then
-                write (6, '(1x,"allocating array to hold multiplied krylov vectors (",' &
+                write (stdout, '(1x,"allocating array to hold multiplied krylov vectors (",' &
                        //int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
-                call neci_flush(6)
+                call neci_flush(stdout)
             end if
 
             if (print_info) then
-                write (6, '(1x,"allocating temporary vector (",' &
+                write (stdout, '(1x,"allocating temporary vector (",' &
                        //int_fmt(mem_reqd_full, 0)//',1x,"mb).",/)') mem_reqd_full
-                call neci_flush(6)
+                call neci_flush(stdout)
             end if
 
             safe_calloc(this%projected_hamil, (max_num_davidson_iters, max_num_davidson_iters), 0.0_dp)
@@ -259,7 +259,7 @@ contains
             ! result in dividing by zero in the subspace expansion step.
             davidson_eigenvalue = hf_elem - 0.001_dp
 
-            if (print_info) write(stdout, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(6)
+            if (print_info) write(stdout, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(stdout)
 
             ! check that multiplying the initial vector by the hamiltonian doesn't give back
             ! the same vector. if it does then the initial vector (the hf determinant) is
@@ -287,7 +287,7 @@ contains
             call calculate_residual_ss(this, 1)
             call calculate_residual_norm_ss(this)
 
-            if (print_info) write(stdout, '(1x,"done.",/)'); call neci_flush(6)
+            if (print_info) write(stdout, '(1x,"done.",/)'); call neci_flush(stdout)
 
         end associate
 

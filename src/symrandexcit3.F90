@@ -469,7 +469,7 @@ contains
         write(stdout, *) nI(:)
         write(stdout, *) Iterations, pDoub, exFlag
         write(stdout, *) "nSymLabels: ", nSymLabels
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
 
         ! The old excitation generator will not generate singles from the HF
         ! unless tNoBrillouin is set
@@ -523,7 +523,7 @@ contains
         tUseBrillouin = brillouin_tmp(2)
 
         write(stdout, *) "Determinant has ", excitcount, " total excitations from it."
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
 
         ! Allocate the accumulators
         allocate(DoublesHist(nbasis, nbasis, nbasis, nbasis))
@@ -571,7 +571,7 @@ contains
 
             IF (mod(i, 400000) == 0) THEN
                 write(stdout, "(A,I10)") "Iteration: ", i
-                CALL neci_flush(6)
+                CALL neci_flush(stdout)
             end if
 
             call gen_rand_excit3(nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
