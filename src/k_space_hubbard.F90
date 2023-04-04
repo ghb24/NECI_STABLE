@@ -2284,7 +2284,7 @@ contains
             hel = hel_sing + hel_doub + hel_one + hel_three
 
         else
-            hel = sltcnd_excit(nI, Excite_0_t(), .false.)
+            hel = sltcnd_excit(nI, Excite_0_t())
         end if
 
     end function get_diag_helement_k_sp_hub

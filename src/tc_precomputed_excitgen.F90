@@ -10,12 +10,13 @@ module pcpp_excitgen
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Integrals_neci, only: get_umat_el
     use UMatCache, only: gtID
-    use excitation_types, only: Excite_1_t, Excite_2_t
+    use excitation_types, only: Excite_1_t, Excite_2_t, canonicalize, occupation_allowed
     use sltcnd_mod, only: sltcnd_excit
     use MPI_wrapper, only: root
     use util_mod, only: binary_search_first_ge, getSpinIndex, swap, custom_findloc, &
                         operator(.div.)
     use get_excit, only: make_double, make_single
+    use orb_idx_mod, only: calc_spin_raw
     implicit none
 
     ! these are the samplers used for generating single excitations
@@ -529,11 +530,11 @@ contains
                         i = refDet(iEl)
                         j = refDet(jEl)
                         do a = 1, nBasis
-                            if (.not. any(a == (/i, j/))) then
+                            if (.not. any(a == [i, j])) then
                                 do b = 1, nBasis
-                                    if (.not. any(b == (/a, i, j/))) then
-                                        w(iEl) = &
-                                            w(iEl) + abs(sltcnd_excit(refDet, Excite_2_t(i, a, j, b), tPar))
+                                    if (.not. any(b == [a, i, j]) &
+                                            .and. calc_spin_raw(i) + calc_spin_raw(j) == calc_spin_raw(a) + calc_spin_raw(b)) then
+                                        w(iEl) = w(iEl) + abs(sltcnd_excit(refDet, Excite_2_t(i, a, j, b), tPar, assert_occupation=.false.))
                                     end if
                                 end do
                             end if
@@ -565,11 +566,11 @@ contains
                     j = refDet(jEl)
                     if (i /= j) then
                         do a = 1, nBasis
-                            if (.not. any(a == (/i, j/))) then
+                            if (.not. any(a == [i, j])) then
                                 do b = 1, nBasis
-                                    if (.not. any(b == (/i, j, a/))) then
-                                        w(jEl) = &
-                                            w(jEl) + abs(sltcnd_excit(refDet, Excite_2_t(i, a, j, b), tPar))
+                                    if (.not. any(b == [a, i, j]) &
+                                            .and. calc_spin_raw(i) + calc_spin_raw(j) == calc_spin_raw(a) + calc_spin_raw(b)) then
+                                            w(jEl) = w(jEl) + abs(sltcnd_excit(refDet, Excite_2_t(i, a, j, b), tPar, assert_occupation=.false.))
                                     end if
                                 end do
                             end if
@@ -748,7 +749,7 @@ contains
                                 call make_single(refDet(:), nI, j, b, ex%val, tPar)
                                 ! this is a symbolic excitation, we do NOT require src to be occupied
                                 ! we just use the formula for excitation matrix elements
-                                prob = prob + abs(sltcnd_excit(nI, Excite_1_t(src, tgt), tPar))
+                                prob = prob + abs(sltcnd_excit(nI, Excite_1_t(src, tgt), tPar, assert_occupation=.false.))
                             end if
                         end do
                     end if

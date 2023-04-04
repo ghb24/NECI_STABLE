@@ -393,7 +393,7 @@ contains
                                         .or. .not. this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
                                     w(ab) = 0._dp
                                 else
-                                    w(ab) = abs(nI_invariant_sltcnd_excit(canonicalize(Excite_2_t(ex)), .false.))
+                                    w(ab) = abs(nI_invariant_sltcnd_excit(canonicalize(Excite_2_t(ex))))
                                 end if
                             end do
                         end do

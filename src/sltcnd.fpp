@@ -7,6 +7,18 @@
 #:set trivial_excitations = [excitations[0], excitations[-1]]
 #:set non_trivial_excitations = excitations[1:-1]
 
+#:def assert_occupation_allowed(nI, exc, assert_occupation)
+#ifdef DEBUG_
+    if (present(${assert_occupation}$)) then
+        if (${assert_occupation}$) then
+            @:ASSERT(occupation_allowed(${nI}$, ${exc}$))
+        end if
+    else
+        @:ASSERT(occupation_allowed(${nI}$, ${exc}$))
+    end if
+#endif
+#:enddef
+
 !>  @brief
 !>      A module to evaluate the Slater-Condon Rules.
 !>
@@ -60,20 +72,30 @@ module sltcnd_mod
               CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
 
     abstract interface
-        #:for rank, excite_t in zip(excit_ranks, defined_excitations)
-            HElement_t(dp) function sltcnd_${rank}$_t(nI, exc, tParity) result(hel)
+        HElement_t(dp) function sltcnd_0_t(nI, exc) result(hel)
+            import :: dp, nel, Excite_0_t
+            integer, intent(in) :: nI(nel)
+            type(Excite_0_t), intent(in) :: exc
+        end function
+
+        #:for rank, excite_t in zip(excit_ranks[1:], excitations[1:])
+            HElement_t(dp) function sltcnd_${rank}$_t(nI, exc, tParity, assert_occupation) result(hel)
                 import :: dp, nel, ${excite_t}$
                 integer, intent(in) :: nI(nel)
                 type(${excite_t}$), intent(in) :: exc
                 logical, intent(in) :: tParity
+                logical, intent(in), optional :: assert_occupation
+                    !! This argument is **only** used in debug mode.
+                    !! It ensures that src_i are indeed occupied and tgt_i
+                    !! are unoccupied.
+                    !! It is on by default.
             end function
         #:endfor
 
         #:for rank, excite_t in zip(excit_ranks[2:], defined_excitations[2:])
-            HElement_t(dp) function nI_invariant_sltcnd_${rank}$_t(exc, tParity) result(hel)
+            HElement_t(dp) function nI_invariant_sltcnd_${rank}$_t(exc) result(hel)
                 import :: dp, nel, ${excite_t}$
                 type(${excite_t}$), intent(in) :: exc
-                logical, intent(in) :: tParity
             end function
         #:endfor
     end interface
@@ -106,6 +128,8 @@ module sltcnd_mod
 
     #:for rank in excit_ranks
         procedure(sltcnd_${rank}$_t), pointer :: sltcnd_${rank}$ => null()
+    #:endfor
+    #:for rank in excit_ranks[1:]
         procedure(sltcnd_${rank}$_t), pointer :: nonadjoint_sltcnd_${rank}$ => null()
     #:endfor
     #:for rank in excit_ranks[2:]
@@ -170,28 +194,29 @@ contains
         end if
 
         if (t_calc_adjoint) then ! invert all matrix element calls
-            #:for rank in excit_ranks
+            #:for rank in excit_ranks[1:]
                 nonadjoint_sltcnd_${rank}$ => sltcnd_${rank}$
                 sltcnd_${rank}$ => adjoint_sltcnd_${rank}$
             #:endfor
         end if
     end subroutine initSltCndPtr
 
-    #:for rank, excite_t in zip(excit_ranks, defined_excitations)
-    HElement_t(dp) function adjoint_sltcnd_${rank}$(nI, ex, tSign) result(hel)
+    #:for rank, excite_t in zip(excit_ranks[1:], defined_excitations[1:])
+    HElement_t(dp) function adjoint_sltcnd_${rank}$(nI, ex, tSign, assert_occupation) result(hel)
         !! returns the adjoint sltcnd of the given rank: ${rank}$
         integer, intent(in) :: nI(nel)
         type(${excite_t}$), intent(in) :: ex
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
         integer :: nJ(nel)
-        integer :: excit_mat_new(2, ${rank}$)
+        type(${excite_t}$) :: adj_exc
         routine_name("adjoint_sltcnd_${rank}$")
         ! reverse excitation matrix and pass it to a new excitation object
-        @:ASSERT(subset(ex%val(1, :), nI) .and. disjoint(ex%val(2, :), nI))
-        excit_mat_new(1, :) = ex%val(2, :)
-        excit_mat_new(2, :) = ex%val(1, :)
+        @:assert_occupation_allowed(nI, ex, assert_occupation)
+        adj_exc%val(1, :) = ex%val(2, :)
+        adj_exc%val(2, :) = ex%val(1, :)
         nJ = dyn_nI_excite(nI, ex)
-        hel = nonadjoint_sltcnd_${rank}$(nJ, ${excite_t}$(excit_mat_new), tSign)
+        hel = nonadjoint_sltcnd_${rank}$(nJ, adj_exc, tSign)
 #ifdef CMPLX_
         hel = conjg(hel)
 #endif
@@ -211,20 +236,26 @@ contains
 !>  @param[in] ref, The reference determinant as array of occupied orbital indices.
 !>  @param[in] exc, An excitation of type excitation_t.
 !>  @param[in] tParity, The parity of the excitation.
-    function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
+    function dyn_sltcnd_excit(ref, exc, tParity, assert_occupation) result(hel)
         integer, intent(in) :: ref(nel)
         class(Excitation_t), intent(in) :: exc
         logical, intent(in) :: tParity
+        logical, intent(in), optional :: assert_occupation
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
 
         ! The compiler has to statically know, of what type exc is.
         select type (exc)
-        #:for Excitation_t in excitations
+        #:for Excitation_t in trivial_excitations
         type is (${Excitation_t}$)
-            @:ASSERT(subset(exc%val(1, :), ref) .and. disjoint(exc%val(2, :), ref))
             block ! This block is just a necessary workaround for ifort18
-                hel = sltcnd_excit(ref, exc, tParity)
+                hel = sltcnd_excit(ref, exc)
+            end block
+        #:endfor
+        #:for Excitation_t in non_trivial_excitations
+        type is (${Excitation_t}$)
+            block ! This block is just a necessary workaround for ifort18
+                hel = sltcnd_excit(ref, exc, tParity, assert_occupation)
             end block
         #:endfor
         class default
@@ -371,16 +402,15 @@ contains
         end do
     end function SumFock
 
-    pure function sltcnd_0_base(nI, exc, tSign) result(hel)
+    pure function sltcnd_0_base(nI, exc) result(hel)
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
         integer, intent(in) :: nI(nel)
         type(Excite_0_t), intent(in) :: exc
         HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
         integer :: id(nel), i, j
-        logical, intent(in) :: tSign
 
-        @:unused_var(exc, tSign)
+        @:unused_var(exc)
 
         ! Sum in the one electron integrals (KE --> TMAT)
         hel_sing = sum(GetTMATEl(nI, nI))
@@ -413,20 +443,21 @@ contains
         hel = hel_doub + hel_tmp + hel_sing
     end function sltcnd_0_base
 
-    function sltcnd_1_base(nI, ex, tSign) result(hel)
+    function sltcnd_1_base(nI, ex, tSign, assert_occupation) result(hel)
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
         integer, intent(in) :: nI(nel)
         type(Excite_1_t), intent(in) :: ex
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
         HElement_t(dp) :: hel
         debug_function_name("sltcnd_1_base")
+
+        @:assert_occupation_allowed(nI, ex, assert_occupation)
 
         ! Sum in the diagonal terms (same in both dets)
         ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
         ! same.
-        @:ASSERT(subset(ex%val(1, :), nI) .and. disjoint(ex%val(2, :), nI))
-
         hel = sltcnd_1_kernel(nI, ex)
         if (tSign) hel = -hel
     end function sltcnd_1_base
@@ -470,15 +501,12 @@ contains
 
 
     ! dummy function for 3-body matrix elements without tc
-    function nI_invariant_sltcnd_2_base(ex, tSign) result(hel)
+    function nI_invariant_sltcnd_2_base(ex) result(hel)
         type(Excite_2_t), intent(in) :: ex
-        logical, intent(in) :: tSign
         HElement_t(dp) :: hel
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
         hel = sltcnd_2_kernel(ex)
-
-        if (tSign) hel = -hel
     end function
 
     function sltcnd_2_kernel(exc) result(hel)
@@ -505,16 +533,15 @@ contains
     !      slater condon rules for 3-body terms
     !------------------------------------------------------------------------------------------!
 
-    function sltcnd_0_tc(nI, exc, tParity) result(hel)
+    function sltcnd_0_tc(nI, exc) result(hel)
         integer, intent(in) :: nI(nel)
         type(Excite_0_t), intent(in) :: exc
         HElement_t(dp) :: hel
         integer :: i, j, k
         integer :: dummy(1,0)
-        logical, intent(in) :: tParity
 
         ! get the diagonal matrix element up to 2nd order
-        hel = sltcnd_0_base(nI, exc, tParity)
+        hel = sltcnd_0_base(nI, exc)
         ! then add the 3-body part
         if(t_use_tchint_lib) then
             hel = hel + external_lMat_matel(nI, dummy)
@@ -529,12 +556,15 @@ contains
         end if
     end function sltcnd_0_tc
 
-    function sltcnd_1_tc(nI, ex, tSign) result(hel)
+    function sltcnd_1_tc(nI, ex, tSign, assert_occupation) result(hel)
         integer, intent(in) :: nI(nel)
         type(Excite_1_t), intent(in) :: ex
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
         HElement_t(dp) :: hel
+        debug_function_name("sltcnd_1_tc")
         integer :: i, j
+        @:assert_occupation_allowed(nI, ex, assert_occupation)
 
         ! start with the normal matrix element
         hel = sltcnd_1_kernel(nI, ex)
@@ -555,12 +585,15 @@ contains
         if (tSign) hel = -hel
     end function sltcnd_1_tc
 
-    function sltcnd_2_tc(nI, exc, tSign) result(hel)
+    function sltcnd_2_tc(nI, exc, tSign, assert_occupation) result(hel)
         integer, intent(in) :: nI(nel)
         type(Excite_2_t), intent(in) :: exc
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
         HElement_t(dp) :: hel
+        debug_function_name("sltcnd_2_tc")
         integer :: i
+        @:assert_occupation_allowed(nI, exc, assert_occupation)
 
         ! get the matrix element up to 2-body terms
         hel = sltcnd_2_kernel(exc)
@@ -584,13 +617,15 @@ contains
 
     end function sltcnd_2_tc
 
-    function sltcnd_3_tc(nI, ex, tSign) result(hel)
+    function sltcnd_3_tc(nI, ex, tSign, assert_occupation) result(hel)
+        integer, intent(in) :: nI(nel)
         type(Excite_3_t), intent(in) :: ex
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
         HElement_t(dp) :: hel
+        debug_function_name("sltcnd_3_tc")
         integer :: dummy(1)
-        integer, intent(in) :: nI(nel)
-        @:unused_var(nI)
+        @:assert_occupation_allowed(nI, ex, assert_occupation)
 
         ! this is directly the fully symmetrized entry of the L-matrix
         if(t_use_tchint_lib) then
@@ -606,23 +641,24 @@ contains
     end function sltcnd_3_tc
 
     ! dummy function for 3-body matrix elements without tc
-    function nI_invariant_sltcnd_3_base(ex, tSign) result(hel)
+    function nI_invariant_sltcnd_3_base(ex) result(hel)
         type(Excite_3_t), intent(in) :: ex
-        logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        @:unused_var(ex, tSign)
+        @:unused_var(ex)
         hel = 0
     end function
 
     #:for rank, excite_t in zip(excit_ranks[2:], defined_excitations[2:])
-        function sltcnd_${rank}$_use_nI_invariant(nI, ex, tSign) result(hel)
+        function sltcnd_${rank}$_use_nI_invariant(nI, ex, tSign, assert_occupation) result(hel)
             integer, intent(in) :: nI(nel)
             type(${excite_t}$), intent(in) :: ex
             logical, intent(in) :: tSign
+            logical, intent(in), optional :: assert_occupation
             debug_function_name("sltcnd_${rank}$_use_nI_invariant")
             HElement_t(dp) :: hel
-            @:ASSERT(occupation_allowed(nI, canonicalize(ex)))
-            hel = nI_invariant_sltcnd_excit(ex, tSign)
+            @:assert_occupation_allowed(nI, ex, assert_occupation)
+            hel = nI_invariant_sltcnd_excit(ex)
+            if (tSign) hel = -hel
         end function
     #:endfor
 
@@ -630,18 +666,17 @@ contains
     !      slater condon rules for ultracold atoms
     !------------------------------------------------------------------------------------------!
 
-    pure function sltcnd_0_base_ua(nI, exc, tSign) result(hel)
+    pure function sltcnd_0_base_ua(nI, exc) result(hel)
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
         integer, intent(in) :: nI(nel)
         type(Excite_0_t), intent(in) :: exc
-        logical, intent(in) :: tSign
         HElement_t(dp) :: hel
 
         HElement_t(dp) :: hel_sing, hel_doub, hel_tmp
         integer :: id(nel), i, j, idN, idX
 
-        @:unused_var(exc, tSign)
+        @:unused_var(exc)
 
         ! Sum in the one electron integrals (KE --> TMAT)
         hel_sing = sum(GetTMATEl(nI, nI))
@@ -680,13 +715,16 @@ contains
 
     end function sltcnd_0_base_ua
 
-    function sltcnd_1_base_ua(nI, ex, tSign) result(hel)
+    function sltcnd_1_base_ua(nI, ex, tSign, assert_occupation) result(hel)
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
         integer, intent(in) :: nI(nel)
         type(Excite_1_t), intent(in) :: ex
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
         HElement_t(dp) :: hel
+        debug_function_name("sltcnd_1_base_ua")
+        @:assert_occupation_allowed(nI, ex, assert_occupation)
 
         ! Sum in the diagonal terms (same in both dets)
         ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
@@ -733,15 +771,17 @@ contains
         hel = hel + GetTMATEl(exc%val(1, 1), exc%val(2, 1))
     end function sltcnd_1_kernel_ua
 
-    function sltcnd_2_base_ua(nI, ex, tSign) result(hel)
+    function sltcnd_2_base_ua(nI, ex, tSign, assert_occupation) result(hel)
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by two orbitals exactly (the simplest case).
         integer, intent(in) :: nI(nel)
         type(Excite_2_t), intent(in) :: ex
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
         HElement_t(dp) :: hel
+        debug_function_name("sltcnd_2_base_ua")
 
-        @:unused_var(nI)
+        @:assert_occupation_allowed(nI, ex, assert_occupation)
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
@@ -806,17 +846,14 @@ contains
 
     end function sltcnd_2_kernel_ua_3b
 
-    pure function sltcnd_0_tc_ua(nI, exc, tParity) result(hel)
+    pure function sltcnd_0_tc_ua(nI, exc) result(hel)
         integer, intent(in) :: nI(nel)
         type(Excite_0_t), intent(in) :: exc
         HElement_t(dp) :: hel
         integer :: i, j, k
-        logical, intent(in) :: tParity
-
-        @:unused_var(tParity)
 
         ! get the diagonal matrix element up to 2nd order
-        hel = sltcnd_0_base_ua(nI, exc, tParity)
+        hel = sltcnd_0_base_ua(nI, exc)
         ! then add the 3-body part
         do i = 1, nel - 2
             do j = i + 1, nel - 1
@@ -828,12 +865,15 @@ contains
 
     end function sltcnd_0_tc_ua
 
-    function sltcnd_1_tc_ua(nI, exc, tSign) result(hel)
+    function sltcnd_1_tc_ua(nI, exc, tSign, assert_occupation) result(hel)
         integer, intent(in) :: nI(nel)
         type(Excite_1_t), intent(in) :: exc
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
         HElement_t(dp) :: hel
+        routine_name("sltcnd_1_tc_ua")
         integer :: i, j
+        @:assert_occupation_allowed(nI, exc, assert_occupation)
 
         ! start with the normal matrix element
         hel = sltcnd_1_kernel_ua(nI, exc)
@@ -851,11 +891,14 @@ contains
         if (tSign) hel = -hel
     end function sltcnd_1_tc_ua
 
-    function sltcnd_2_tc_ua(nI, ex, tSign) result(hel)
+    function sltcnd_2_tc_ua(nI, ex, tSign, assert_occupation) result(hel)
         integer, intent(in) :: nI(nel)
         type(Excite_2_t), intent(in) :: ex
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
+        debug_function_name("sltcnd_2_tc_ua")
         HElement_t(dp) :: hel, heltc
+        @:assert_occupation_allowed(nI, ex, assert_occupation)
 
         ! get the matrix element up to 2-body terms
         hel = sltcnd_2_kernel_ua(ex)
@@ -867,13 +910,14 @@ contains
         if (tSign) hel = -hel
     end function sltcnd_2_tc_ua
 
-    function sltcnd_3_tc_ua(nI, ex, tSign) result(hel)
+    function sltcnd_3_tc_ua(nI, ex, tSign, assert_occupation) result(hel)
+        integer, intent(in) :: nI(nEl)
         type(Excite_3_t), intent(in) :: ex
         logical, intent(in) :: tSign
+        logical, intent(in), optional :: assert_occupation
+        debug_function_name("sltcnd_3_tc_ua")
         HElement_t(dp) :: hel
-        integer, intent(in) :: nI(nEl)
-
-        @:unused_var(nI)
+        @:assert_occupation_allowed(nI, ex, assert_occupation)
 
         ! this is directly the fully symmetrized entry of the L-matrix
         associate(ex => ex%val)
@@ -884,28 +928,25 @@ contains
         if (tSign) hel = -hel
     end function sltcnd_3_tc_ua
 
-    function sltcnd_0_purify_spin_only_ladder(nI, exc, tParity) result(hel)
+    function sltcnd_0_purify_spin_only_ladder(nI, exc) result(hel)
         integer, intent(in) :: nI(nel)
         type(Excite_0_t), intent(in) :: exc
-        logical, intent(in) :: tParity
         HElement_t(dp) :: hel
-        hel = sltcnd_0_base(nI, exc, tParity) + spin_pure_J * ladder_op_exc(nI, exc)
+        hel = sltcnd_0_base(nI, exc) + spin_pure_J * ladder_op_exc(nI, exc)
     end function
 
-    function sltcnd_0_purify_spin_full_s2(nI, exc, tParity) result(hel)
+    function sltcnd_0_purify_spin_full_s2(nI, exc) result(hel)
         integer, intent(in) :: nI(nel)
         type(Excite_0_t), intent(in) :: exc
-        logical, intent(in) :: tParity
         HElement_t(dp) :: hel
-        hel = sltcnd_0_base(nI, exc, tParity) + spin_pure_J * S2_expval_exc(nI, exc)
+        hel = sltcnd_0_base(nI, exc) + spin_pure_J * S2_expval_exc(nI, exc)
     end function
 
 
-    function nI_invariant_sltcnd_2_purify_spin(exc, tSign) result(hel)
+    function nI_invariant_sltcnd_2_purify_spin(exc) result(hel)
         type(Excite_2_t), intent(in) :: exc
-        logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        hel = nI_invariant_sltcnd_2_base(exc, tSign) + spin_pure_J * nI_invariant_S2_expval_exc(exc)
+        hel = nI_invariant_sltcnd_2_base(exc) + spin_pure_J * nI_invariant_S2_expval_exc(exc)
     end function
 
     !>  @brief
@@ -944,12 +985,11 @@ contains
     !>      Excitations further than max_excit_rank should return 0
     !>
     !>  @param[in] exc
-    HElement_t(dp) function sltcnd_excit_Excite_Further_t(nI, exc, tParity)
+    HElement_t(dp) function sltcnd_excit_Excite_Further_t(nI, exc)
         integer, intent(in) :: nI(nEl)
         type(Excite_Further_t), intent(in) :: exc
-        logical, intent(in) :: tParity
         ! Only the type, not the value of this variable is used.
-        @:unused_var(nI, exc, tParity)
+        @:unused_var(nI, exc)
 
         sltcnd_excit_Excite_Further_t = h_cast(0.0_dp)
     end function

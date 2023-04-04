@@ -18,7 +18,7 @@ module gasci_disconnected
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb, get_pgen_pick_biased_elecs
     use excitation_types, only: Excitation_t, Excite_1_t, Excite_2_t, &
-                                get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN
+                                get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN, canonicalize
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t
     use gasci, only: GASSpec_t
@@ -465,7 +465,7 @@ contains
         real(dp) :: res
 
         if (all(nI /= exc%val(2, 1))) then
-            res = abs(sltcnd_excit(nI, exc, .false.))
+            res = abs(sltcnd_excit(nI, canonicalize(exc), .false.))
         else
             res = 0.0_dp
         end if
@@ -478,7 +478,7 @@ contains
 
         if (exc%val(2, 1) /= exc%val(2, 2) &
             .and. all(exc%val(2, 1) /= nI) .and. all(exc%val(2, 2) /= nI)) then
-            res = abs(sltcnd_excit(nI, exc, .false.))
+            res = abs(sltcnd_excit(nI, canonicalize(exc), .false.))
         else
             res = 0.0_dp
         end if

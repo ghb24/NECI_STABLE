@@ -228,7 +228,7 @@ contains
         previous = 0.0_dp
         do i = 1, size(possible_holes)
             call set_last_tgt(exc, possible_holes(i))
-            cSum(i) = abs(sltcnd_excit(det_I, exc, .false.)) + previous
+            cSum(i) = abs(sltcnd_excit(det_I, canonicalize(exc), .false.)) + previous
             previous = cSum(i)
         end do
 

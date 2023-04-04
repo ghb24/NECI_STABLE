@@ -327,7 +327,7 @@ contains
                             ex(2, 2) = B
                             AB = fuseIndex(A, B)
                             if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
-                                w(AB) = abs(nI_invariant_sltcnd_excit(Excite_2_t(ex), .false.))
+                                w(AB) = abs(nI_invariant_sltcnd_excit(Excite_2_t(ex)))
                             else
                                 w(AB) = 0._dp
                             end if
