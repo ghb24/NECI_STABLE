@@ -31,13 +31,13 @@ contains
         allocate(work(lwork))
 
         write(stdout, '(1x,a28)', advance='no') "Diagonalising Hamiltonian..."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! Perform the diagonalisation.
         call dsyev('V', 'U', ndets, hamiltonian, ndets, eigv_es, work, lwork, info)
 
         write(stdout, '(1x,a9,/)') "Complete."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         trans_amps_right = matmul(pert_ground_right, hamiltonian)
         trans_amps_left = matmul(pert_ground_left, hamiltonian)
@@ -69,10 +69,10 @@ contains
         character(len=*), parameter :: t_r = 'init_exact_spectrum'
 
         write(stdout, '(/,1x,a48,/)') "Beginning calculation of exact spectral density."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         write(stdout, '(1x,a56)', advance='yes') "Enumerating and storing all determinants in the space..."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! Calculate the number of determinants.
         call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
@@ -126,17 +126,17 @@ contains
         end if
 
         write(stdout, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
-        call neci_flush(6)
+        call neci_flush(stdout)
         allocate(hamiltonian(ndets, ndets), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating Hamiltonian array.")
         end if
         write(stdout, '(1x,a46)') "Hamiltonian allocation completed successfully."
-        call neci_flush(6)
+        call neci_flush(stdout)
         call calculate_full_hamiltonian(ilut_list, hamiltonian)
         write(stdout, '(1x,a33)') "Hamiltonian calculation complete."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         call return_perturbed_ground_spec(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
         call return_perturbed_ground_spec(right_perturb_spectral, ilut_list, pert_ground_right, right_pert_norm)

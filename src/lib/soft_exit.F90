@@ -924,7 +924,7 @@ logical function test_SoftExit()
 
     tSoftExitFound = .false.
     call ChangeVars(tdummy1, tdummy2)
-    if (tSoftExitFound) write (6,'(1X,a30)') 'Request for SOFTEXIT detected.'
+    if (tSoftExitFound) write (stdout,'(1X,a30)') 'Request for SOFTEXIT detected.'
     test_SoftExit = tSoftExitFound
     tSoftExitFound = .false.
 

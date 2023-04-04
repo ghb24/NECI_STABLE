@@ -402,7 +402,7 @@ contains
             write(stdout, *) 'The specified reference determinant is not the &
                        &maximum weighted determinant in the CAS expansion'
             write(stdout, *) 'Use following det as reference:'
-            call write_det(6, CASFullDets(:, det_max), .true.)
+            call write_det(stdout, CASFullDets(:, det_max), .true.)
             call warning_neci(this_routine, "Poor reference chosen")
         end if
 

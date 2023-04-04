@@ -47,7 +47,7 @@ contains
 
         ! Flush existing output in the stdout buffer
         ! --> Try and avoid issues if we happen to Ctrl-C during a write.
-        call neci_flush(6)
+        call neci_flush(stdout)
         write(stdout,*)
         write(stdout,*) '----------------------------------------'
         write(stdout,*) 'NECI SIGINT (Ctrl-C) handler'
@@ -67,7 +67,7 @@ contains
             write(stdout,*) 'Killing calculation'
             write(stdout,*) '----------------------------------------'
             write(stdout,*)
-            call neci_flush(6)
+            call neci_flush(stdout)
             call stop_all(t_r, "User requested")
         end if
 

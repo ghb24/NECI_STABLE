@@ -68,7 +68,7 @@ contains
 !.. If we're in the UEG, we need to add in the part of the background
 !.. contribution which doesn't cancel
 !         IF(NBASISMAX(1,3).EQ.-1) THEN
-!            WRITE(6,*) FCK(0,0,0)
+!            WRITE(stdout,*) FCK(0,0,0)
 !            TOTSUM=TOTSUM-NEL*REAL(FCK(0,0,0))/2
 
 !         ENDIF

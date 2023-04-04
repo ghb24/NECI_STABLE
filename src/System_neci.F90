@@ -1915,7 +1915,7 @@ contains
                         GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
                     type is(FlexibleGASSpec_t)
                         GAS_specification = FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling)
-                        call GAS_specification%write_to(6)
+                        call GAS_specification%write_to(stdout)
                     class default
                         call stop_all(t_r, "Invalid type for GAS specification.")
                     end select
@@ -2417,11 +2417,11 @@ contains
 
                 if (.not. tMolpro) then
                     !If we are calling from molpro, we write the basis later (after reordering)
-                    CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
+                    CALL writebasis(stdout, G1, nBasis, ARR, BRR)
                 end if
 
                 IF (NEL > NBASIS) call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
-                CALL neci_flush(6)
+                CALL neci_flush(stdout)
 
                 NOCC = NEl / 2
                 IF (TREADINT) THEN
@@ -2444,7 +2444,7 @@ contains
                 else if (THUB .AND. .NOT. TREAL) THEN
                     CALL GenHubMomIrrepsSymTable(G1, nBasis, nBasisMax)
                     CALL GENHUBSYMREPS(NBASIS, ARR, BRR)
-                    CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
+                    CALL writebasis(stdout, G1, nBasis, ARR, BRR)
                 ELSE
                     !C.. no symmetry, so a simple sym table
                     CALL GENMOLPSYMREPS()
@@ -3167,11 +3167,11 @@ contains
 !      write(stdout,*) THFNOORDER, " THFNOORDER"
         if (.not. tMolpro) then
             !If we are calling from molpro, we write the basis later (after reordering)
-            CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
+            CALL writebasis(stdout, G1, nBasis, ARR, BRR)
         end if
         IF (NEL > NBASIS) &
             call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
         IF (TREAL .AND. THUB) THEN
 !C.. we need to allow integrals between different spins
             NBASISMAX(2, 3) = 1
@@ -3208,7 +3208,7 @@ contains
             end if
             ! this function does not make sense..
             CALL GENHUBSYMREPS(NBASIS, ARR, BRR)
-            CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
+            CALL writebasis(stdout, G1, nBasis, ARR, BRR)
         ELSE
 !C.. no symmetry, so a simple sym table
             CALL GENMOLPSYMREPS()
