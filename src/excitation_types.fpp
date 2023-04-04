@@ -263,7 +263,9 @@ contains
             type(${Excitation_t}$), intent(inout) :: exc
             logical, intent(out) :: even_swaps
             integer :: n_swaps(2)
+            type(${Excitation_t}$) :: copy_exc
             routine_name("make_canonical")
+            copy_exc = exc
             @:sort(integer, exc%val(1, :), count_swaps=n_swaps(1))
             @:sort(integer, exc%val(2, :), count_swaps=n_swaps(2))
             even_swaps = mod(sum(n_swaps), 2) == 0
@@ -473,15 +475,9 @@ contains
         integer, intent(in) :: det_I(:)
         type(${excite_t}$), intent(in) :: exc
         integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_${excite_t}$'
-
+        debug_function_name('excite_nI_${excite_t}$')
         @:pure_ASSERT(is_canonical(exc))
-        associate(src => exc%val(1, :), tgt => exc%val(2, :))
-            @:pure_ASSERT(subset(src, det_I))
-            @:pure_ASSERT(disjoint(tgt, det_I))
-
-            res = special_union_complement(det_I, tgt, src)
-        end associate
+        res = special_union_complement(det_I, exc%val(2, :), exc%val(1, :))
     end function
     #:endfor
 

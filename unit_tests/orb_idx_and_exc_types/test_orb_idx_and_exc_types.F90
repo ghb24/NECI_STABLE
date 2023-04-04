@@ -96,6 +96,24 @@ contains
             call assert_true(even_swaps)
         end block
 
+        block
+            type(Excite_2_t) :: exc
+            logical :: even_swaps
+            exc = Excite_2_t(3, 7, 4, 8)
+
+            call assert_true(is_canonical(exc))
+            call make_canonical(exc, even_swaps)
+            call assert_true(is_canonical(exc))
+            call assert_true(even_swaps)
+        end block
+
+        block
+            type(Excite_2_t) :: exc
+            exc = Excite_2_t(1, 3, 2, 7)
+
+            call assert_false(is_canonical(exc))
+        end block
+
     end subroutine
 
 
