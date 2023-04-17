@@ -410,8 +410,8 @@ contains
     end subroutine
 
 
-!>  Create an excitation from ilutI to ilutJ where the excitation level
-!>  is already known.
+!>  Create canonical excitation from ilutI to ilutJ
+!>  where the excitation level is already known.
     subroutine get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
         !> Two Slater determinants in bitmask format.
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -423,6 +423,7 @@ contains
         routine_name("get_bit_excitation")
 
         exc = create_excitation(ic)
+        tParity = .false.
 
         ! The compiler has to statically know, what the type of exc is.
         select type (exc)
@@ -440,6 +441,8 @@ contains
             exc%val(1, 1) = IC
             call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
             exc = canonicalize(exc)
+        type is (Excite_Further_t)
+            continue
         class default
             call stop_all(this_routine, "Excitation type invalid.")
         end select
