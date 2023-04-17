@@ -306,6 +306,10 @@ contains
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
 
         call this%AB_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'AB_PCHB_spinorb_sampler')
+
+        ! One could allocate only on the intra-node-root here, if memory
+        ! at initialization ever becomes an issue.
+        ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
         allocate(w(abMax))
         allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
 
@@ -342,7 +346,8 @@ contains
             end do first_particle
         end do supergroup
 
-        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, IJ_weights, this%use_lookup, this%particle_selector)
+        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
+            IJ_weights, root, this%use_lookup, this%particle_selector)
 
     end subroutine GAS_doubles_PCHB_spinorb_compute_samplers
 
