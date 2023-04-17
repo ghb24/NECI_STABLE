@@ -394,7 +394,8 @@ contains
             end do first_particle
         end do
 
-        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, IJ_weights, this%use_lookup, this%particle_selector)
+        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
+            IJ_weights, root, this%use_lookup, this%particle_selector)
 
     end subroutine GAS_doubles_PCHB_compute_samplers
 

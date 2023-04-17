@@ -4,10 +4,6 @@ module aliasSampling
     !! requiring to precompute biases but making the lookup O(1)
 
 
-    ! This is where stuff gets technical...
-    ! A sampler array class is required since intel mpi cannot have more than 16381 shared
-    ! memory windows (i.e. we could not handle more than ~5500 samplers, which is easily
-    ! required for larger systems)
     use constants, only: dp, int64, n_int, bits_n_int, stderr, MPIArg
     use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
@@ -76,7 +72,7 @@ module aliasSampling
         procedure :: init_probs => init_probs_AliasSampler_t
             !! initialize the probabilities
         procedure, public :: finalize => finalize_AliasSampler_t
-            ! destructor
+            !! destructor
         procedure, public :: sample
             !! get a random element and the generation probability
         generic, public :: constrained_sample => constrained_sample_fast, constrained_sample_nI
@@ -88,10 +84,12 @@ module aliasSampling
             !! get the probability to draw a given value from a constrained set
     end type AliasSampler_t
 
-    ! sampler array class - required for technical reasons: we need multiple samplers to share
-    ! the same shared memory windows, because the number of shared memory windows
-    ! is bounded by the number of communicators which cannot exceed 16381 on most
-    ! implementations. https://community.intel.com/t5/Intel-oneAPI-HPC-Toolkit/INTEL-MPI-5-0-Bug-in-MPI-3-shared-memory-allocation-MPI-WIN/td-p/1016993
+
+    ! A sampler array class, instead of an array of samplers,
+    ! is required since intel mpi cannot have more than 16381 shared
+    ! memory windows (i.e. we could not handle more than ~5500 samplers, which is easily
+    ! required for larger systems)
+    ! https://community.intel.com/t5/Intel-oneAPI-HPC-Toolkit/INTEL-MPI-5-0-Bug-in-MPI-3-shared-memory-allocation-MPI-WIN/td-p/1016993
     type AliasSampler_3D_t
         private
         ! this is an array of aliasSamplers, in the end
