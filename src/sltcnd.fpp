@@ -9,13 +9,26 @@
 
 #:def assert_occupation_allowed(nI, exc, assert_occupation)
 #ifdef DEBUG_
-    if (present(${assert_occupation}$)) then
-        if (${assert_occupation}$) then
-            @:ASSERT(occupation_allowed(${nI}$, ${exc}$))
+    block
+        use constants, only: stderr
+        use util_mod, only: stop_all
+        logical :: test_occupation
+
+        if (present(${assert_occupation}$)) then
+            test_occupation = ${assert_occupation}$
+        else
+            test_occupation = .true.
         end if
-    else
-        @:ASSERT(occupation_allowed(${nI}$, ${exc}$))
-    end if
+
+        if (test_occupation) then
+            if (.not. occupation_allowed(${nI}$, ${exc}$)) then
+                write(stderr, *) 'src', ${exc}$%val(1, :)
+                write(stderr, *) 'tgt', ${exc}$%val(2, :)
+                write(stderr, *) 'nI', ${nI}$
+                call stop_all(this_routine, "Not allowed by occupation.")
+            end if
+        end if
+    end block
 #endif
 #:enddef
 
@@ -61,7 +74,7 @@ module sltcnd_mod
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
     use SD_spin_purification_mod, only: possible_purification_methods, SD_spin_purification, &
                 spin_pure_J, S2_expval_exc, nI_invariant_S2_expval_exc, ladder_op_exc
-    use util_mod, only: stop_all
+    use util_mod, only: stop_all, operator(.implies.)
 
     better_implicit_none
     private
@@ -280,7 +293,7 @@ contains
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
-        if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) then
+        if (.not. (IC /= 0 .implies. (present(ex) .and. present(tParity)))) then
             call stop_all(this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
         end if
