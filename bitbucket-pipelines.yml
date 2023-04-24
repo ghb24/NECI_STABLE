@@ -12,7 +12,7 @@ pipelines:
   - step:
      size: 2x
      script:
-      - useradd temp
+      - adduser temp
       - su - temp
       - git submodule update --init
       - rm -rf build
