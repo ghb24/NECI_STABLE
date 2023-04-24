@@ -22,7 +22,8 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
-        allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t
+        allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t, &
+        get_PCHB_weight
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
 
@@ -389,14 +390,16 @@ contains
                                 ex(2, 1) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
 
                                 ! exception: for sampler 3, a!=b
+                                associate(exc => Excite_2_t(ex))
                                 if (i_exch == OPP_SPIN_EXCH .and. a == b &
                                         .or. ex(1, 1) == ex(1, 2) .or. ex(2, 1) == ex(2, 2) &
                                         .or. any(ex(1, 1) == ex(2, :)) .or. any(ex(1, 2) == ex(2, :)) &
-                                        .or. .not. this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
+                                        .or. .not. this%GAS_spec%is_allowed(exc, supergroups(:, i_sg))) then
                                     w(ab) = 0._dp
                                 else
-                                    w(ab) = abs(nI_invariant_sltcnd_excit(canonicalize(Excite_2_t(ex))))
+                                    w(ab) = get_PCHB_weight(canonicalize(exc))
                                 end if
+                                end associate
                             end do
                         end do
                         ij = fuseIndex(i, j)

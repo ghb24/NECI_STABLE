@@ -17,12 +17,13 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use excitation_generators, only: doubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
     use MPI_wrapper, only: root
-    use excitation_types, only: Excite_2_t
+    use excitation_types, only: Excite_2_t, canonicalize
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
                                   PCHB_particle_selection_vals, PC_FullyWeightedParticles_t, &
-                                  PC_FastWeightedParticles_t, UniformParticles_t, allocate_and_init
+                                  PC_FastWeightedParticles_t, UniformParticles_t, allocate_and_init, &
+                                  get_PCHB_weight
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     better_implicit_none
@@ -330,11 +331,13 @@ contains
                             if (A == B .or. any(B == [I, J])) cycle
                             ex(2, 2) = B
                             AB = fuseIndex(A, B)
-                            if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
-                                w(AB) = abs(nI_invariant_sltcnd_excit(Excite_2_t(ex)))
-                            else
-                                w(AB) = 0._dp
-                            end if
+                            associate(exc => canonicalize(Excite_2_t(ex)))
+                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg))) then
+                                    w(AB) = get_PCHB_weight(exc)
+                                else
+                                    w(AB) = 0._dp
+                                end if
+                            end associate
                         end do second_hole
                     end do first_hole
                     IJ = fuseIndex(I, J)
