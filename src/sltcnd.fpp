@@ -81,15 +81,16 @@ module sltcnd_mod
     public :: initSltCndPtr, &
               nI_invariant_sltcnd_excit, sltcnd_excit, sltcnd_2_kernel, &
               dyn_sltcnd_excit_old, dyn_sltcnd_excit, &
-              sltcnd_compat, sltcnd, sltcnd_knowIC, &
+              diagH_after_exc, sltcnd_compat, sltcnd, sltcnd_knowIC, &
               CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
 
     abstract interface
-        HElement_t(dp) function sltcnd_0_t(nI, exc) result(hel)
+        HElement_t(dp) function sltcnd_0_t(nI, exc)
             import :: dp, nel, Excite_0_t
             integer, intent(in) :: nI(nel)
             type(Excite_0_t), intent(in) :: exc
         end function
+
 
         #:for rank, excite_t in zip(excit_ranks[1:], excitations[1:])
             HElement_t(dp) function sltcnd_${rank}$_t(nI, exc, tParity, assert_occupation) result(hel)
@@ -102,6 +103,15 @@ module sltcnd_mod
                     !! It ensures that src_i are indeed occupied and tgt_i
                     !! are unoccupied.
                     !! It is on by default.
+            end function
+        #:endfor
+
+        #:for rank, excite_t in zip(excit_ranks[1 : ], defined_excitations[1 : ])
+            HElement_t(dp) function diagH_after_exc_${rank}$_t(nI, E_0, exc)
+                import :: dp, nEl, ${excite_t}$
+                integer, intent(in) :: nI(nEl)
+                HElement_t(dp), intent(in) :: E_0
+                type(${excite_t}$), intent(in) :: exc
             end function
         #:endfor
 
@@ -133,6 +143,13 @@ module sltcnd_mod
         module procedure sltcnd_excit_SpinOrbIdx_t_Excite_2_t
     end interface
 
+
+    interface diagH_after_exc
+        #:for rank in excit_ranks[1:]
+            procedure diagH_after_exc_${rank}$
+        #:endfor
+    end interface
+
     interface nI_invariant_sltcnd_excit
         #:for rank in excit_ranks[2:]
             procedure nI_invariant_sltcnd_${rank}$
@@ -147,6 +164,9 @@ module sltcnd_mod
     #:endfor
     #:for rank in excit_ranks[2:]
         procedure(nI_invariant_sltcnd_${rank}$_t), pointer :: nI_invariant_sltcnd_${rank}$ => null()
+    #:endfor
+    #:for rank in excit_ranks[1:]
+        procedure(diagH_after_exc_${rank}$_t), pointer :: diagH_after_exc_${rank}$ => null()
     #:endfor
 
 contains
@@ -197,6 +217,9 @@ contains
 
             else
                 sltcnd_0 => sltcnd_0_base
+                #:for rank in excit_ranks[1:]
+                    diagH_after_exc_${rank}$ => diagH_after_exc_${rank}$_base
+                #:endfor
                 sltcnd_1 => sltcnd_1_base
                 nI_invariant_sltcnd_2 => nI_invariant_sltcnd_2_base
                 sltcnd_2 => sltcnd_2_use_nI_invariant
@@ -213,6 +236,23 @@ contains
             #:endfor
         end if
     end subroutine initSltCndPtr
+
+    ! We have to define this wrapper because
+    ! function pointers cannot be elemental.
+    ! This means that, there has to be wrapper, if we want elemental
+    ! functions.
+    !
+    ! We have to define the wrapper here in this module,
+    ! since we want to give the compiler
+    ! the option to inline it.
+    ! After all it will be run in the innermost loops.
+    HElement_t(dp) elemental function get_2el(src1, tgt1, src2, tgt2)
+        !! Return the two-electron integral.
+        integer, intent(in) :: src1, tgt1, src2, tgt2
+            !! The index conventions can be seen
+            !! [here](https://www2.fkf.mpg.de/alavi/neci/devel/page/02_dev_doc/15_index_conventions.html)
+        get_2el = get_umat_el(src1, tgt1, src2, tgt2)
+    end function
 
     #:for rank, excite_t in zip(excit_ranks[1:], defined_excitations[1:])
     HElement_t(dp) function adjoint_sltcnd_${rank}$(nI, ex, tSign, assert_occupation) result(hel)
@@ -434,9 +474,7 @@ contains
         ! Sum in the two electron contributions.
         hel_doub = h_cast(0._dp)
         do i = 1, nel - 1
-            do j = i + 1, nel
-                hel_doub = hel_doub + get_umat_el(id(i), id(j), id(i), id(j))
-            end do
+            hel_doub = hel_doub + sum(get_2el(id(i), id(i + 1 :), id(i), id(i + 1 :)))
         end do
 
         ! Exchange contribution only considered if tExch set.
@@ -1006,5 +1044,52 @@ contains
 
         sltcnd_excit_Excite_Further_t = h_cast(0.0_dp)
     end function
+
+
+
+    #:for rank, excite_t in zip(excit_ranks[1 : ], defined_excitations[1 : ])
+        function diagH_after_exc_${rank}$_base(nI, E_0, exc) result(hel)
+            integer, intent(in) :: nI(nEl)
+            HElement_t(dp), intent(in) :: E_0
+            type(${excite_t}$), intent(in) :: exc
+            HElement_t(dp) :: hel
+            routine_name("diagH_after_exc_${rank}$_base")
+
+            HElement_t(dp) :: Delta
+            integer :: i, j
+
+            @:ASSERT(is_canonical(exc))
+
+            associate(src => exc%val(1, :), tgt => exc%val(2, :), &
+                      id_src => gtID(exc%val(1, :)), id_tgt => gtID(exc%val(2, :)), &
+                      id_nI => gtID(nI))
+                Delta = sum(GetTmatEl(tgt, tgt)) - sum(GetTMatEl(src, src))
+
+                do i = 1, size(id_tgt) - 1
+                    Delta = Delta &
+                        + sum(get_2el(id_tgt(i), id_tgt(i + 1 :), id_tgt(i), id_tgt(i + 1 :))) &
+                        - sum(get_2el(id_src(i), id_src(i + 1 :), id_src(i), id_src(i + 1 :)))
+                end do
+
+                if (tExch) then
+                    do i = 1, size(id_tgt) - 1
+                        do j = i + 1, size(id_tgt)
+                            ! Exchange contribution is zero if I,J are alpha/beta
+                            if (G1(tgt(i))%Ms == G1(tgt(j))%Ms .or. tReltvy) then
+                                Delta = Delta - get_2el(id_tgt(i), id_tgt(j), id_tgt(j), id_tgt(i))
+                            end if
+
+                            if (G1(src(i))%Ms == G1(src(j))%Ms .or. tReltvy) then
+                                Delta = Delta + get_2el(id_src(i), id_src(j), id_src(j), id_src(i))
+                            end if
+                        end do
+                    end do
+                end if
+            end associate
+            hel = E_0 + Delta
+        end function
+    #:endfor
+
+
 
 end module

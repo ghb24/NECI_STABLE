@@ -103,3 +103,5 @@ add_subdirectory( hdf5_shared_array )
 add_subdirectory( sampler )
 
 add_subdirectory( index_convention )
+
+add_subdirectory( sltcnd )

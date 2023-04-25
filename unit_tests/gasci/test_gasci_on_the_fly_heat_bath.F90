@@ -12,7 +12,7 @@ module test_gasci_on_the_fly_heat_bath
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: &
         init_excitgen_test, finalize_excitgen_test, &
-        generate_random_integrals, FciDumpWriter_t, RandomFcidumpWriter_t
+        FciDumpWriter_t, RandomFcidumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
