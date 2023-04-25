@@ -6,6 +6,8 @@ module gasci_pchb_doubles_spinorb_fastweighted
     !! spin-orbital-resolved GASCI-PCHB using the "fast weighted" scheme
     use constants, only: dp, n_int, maxExcit, stdout, int64
     use util_mod, only: operator(.isclose.), near_zero, fuseIndex, stop_all, operator(.implies.)
+    use sets_mod, only: operator(.in.), set
+    use orb_idx_mod, only: calc_spin_raw, sum
     use get_excit, only: make_double, exciteIlut
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
@@ -328,7 +330,8 @@ contains
                         if (any(A == [I, J])) cycle
                         ex(2, 1) = A
                         second_hole: do B = 1, nBI
-                            if (A == B .or. any(B == [I, J])) cycle
+                            if (sum(calc_spin_raw([I, J])) /= sum(calc_spin_raw([A, B])) &
+                                    .or. (B .in. set([I, J, A]))) cycle
                             ex(2, 2) = B
                             AB = fuseIndex(A, B)
                             associate(exc => canonicalize(Excite_2_t(ex)))
