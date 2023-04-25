@@ -1,6 +1,7 @@
 module test_sltcnd_mod
     use fruit, only: assert_true, assert_false, run_test_case
     use constants, only: dp, n_int
+    use sets_mod, only: operator(.complement.)
 
     use bit_reps, only: decode_bit_det
     use unit_test_helper_excitgen, only: &
@@ -31,7 +32,7 @@ contains
         )
 
         associate(E_0 => sltcnd_excit(nI, Excite_0_t()))
-            do ic = 1, 1
+            do ic = 1, 2
                 call gen_excits(nI, n_excits, det_list, ic)
                 do i = 1, size(det_list, 2)
                     call decode_bit_det(nJ, det_list(:, i))
@@ -39,33 +40,79 @@ contains
 
                     select type (exc)
                     type is (Excite_1_t)
-                        if (.not. (sltcnd_excit(nJ, Excite_0_t()) .isclose. diagH_after_exc(E_0, exc))) then
-                            write(*, *)
-                            write(*, *) nI
-                            write(*, *) exc%val(1, :)
-                            write(*, *) exc%val(2, :)
-                            write(*, *) nJ
-                            write(*, *) sltcnd_excit(nJ, Excite_0_t()), diagH_after_exc(E_0, exc)
-                        end if
-
+                        call assert_true(sltcnd_excit(nJ, Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
                     type is (Excite_2_t)
-                        write(*, *) exc%val(1, :)
-                        write(*, *) exc%val(2, :)
-                        write(*, *) sltcnd_excit(nJ, Excite_0_t()), diagH_after_exc(E_0, exc)
+                        call assert_true(sltcnd_excit(nJ, Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
                     end select
                 end do
             end do
-
         end associate
-
-
 
         call finalize_excitgen_test()
     end subroutine
 
+    subroutine test_timing()
+        use timing_neci, only: timer, set_timer, halt_timer, get_total_time
+        integer :: i
+        integer, parameter :: nI(50) = [(i, i = 1, 50)], n_spat_orb = 50
+        type(timer) :: time_direct, time_from_exc
+
+        type(Excite_2_t), allocatable :: exc(:)
+        integer, allocatable :: nJs(:, :)
+
+        call init_excitgen_test(nI, &
+            RandomFcidumpWriter_t(&
+                n_spat_orb, nI, sparse=0.7_dp, sparseT=0.7_dp) &
+        )
+
+        block
+            integer(n_int), allocatable :: det_list(:, :)
+            integer :: n_excits
+
+            call gen_excits(nI, n_excits, det_list, 2)
+            allocate(nJs(size(nI), n_excits), exc(n_excits))
+            do i = 1, size(det_list, 2)
+                call decode_bit_det(nJs(:, i), det_list(:, i))
+                exc(i)%val(1, :) = nI .complement. nJs(:, i)
+                exc(i)%val(2, :) = nJs(:, i) .complement. nI
+            end do
+        end block
+
+        block
+            real(dp) :: E_accum_direct
+            E_accum_direct = 0._dp
+
+            call set_timer(time_direct)
+            do i = 1, size(nJs, 2)
+                E_accum_direct = E_accum_direct + sltcnd_excit(nJs(:, i), Excite_0_t())
+            end do
+            call halt_timer(time_direct)
+        end block
+
+        associate(E_0 => sltcnd_excit(nI, Excite_0_t()))
+        block
+            real(dp) :: E_accum_from_exc
+            E_accum_from_exc = 0._dp
+
+            call set_timer(time_from_exc)
+            associate(E_0 => sltcnd_excit(nI, Excite_0_t()))
+                do i = 1, size(exc)
+                    E_accum_from_exc = E_accum_from_exc + diagH_after_exc(nI, E_0, exc(i))
+                end do
+            end associate
+            call halt_timer(time_from_exc)
+        end block
+        end associate
+
+        write(*, *) get_total_time(time_direct) / get_total_time(time_from_exc)
+        call finalize_excitgen_test()
+
+    end subroutine
+
 
     subroutine test_sltcnd_driver()
-        call run_test_case(test_diagH_from_exc, "test_diagH_from_exc")
+        ! call run_test_case(test_diagH_from_exc, "test_diagH_from_exc")
+        call run_test_case(test_timing, "test_timing")
     end subroutine
 
 end module test_sltcnd_mod

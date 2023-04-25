@@ -57,7 +57,7 @@ module sltcnd_mod
     !        to be more reliably set (see for example test H2O_RI)
     ! TODO: We need to sort this out so that they are consistent
     !       --> Talk to George/Alex to see what impact that might have?
-    use sets_mod, only: operator(.in.), operator(.notin.), subset, disjoint
+    use sets_mod, only: operator(.in.), operator(.notin.), subset, disjoint, operator(.complement.)
     use constants, only: dp, n_int, maxExcit
     use UMatCache, only: GTID, UMatInd
     use IntegralsData, only: UMAT, t_use_tchint_lib
@@ -1048,48 +1048,70 @@ contains
 
 
     #:for rank, excite_t in zip(excit_ranks[1 : ], defined_excitations[1 : ])
-        function diagH_after_exc_${rank}$_base(nI, E_0, exc) result(hel)
+        pure function diagH_after_exc_${rank}$_base(nI, E_0, exc) result(hel)
             integer, intent(in) :: nI(nEl)
             HElement_t(dp), intent(in) :: E_0
             type(${excite_t}$), intent(in) :: exc
             HElement_t(dp) :: hel
             routine_name("diagH_after_exc_${rank}$_base")
 
-            HElement_t(dp) :: Delta
+            HElement_t(dp) :: Delta_1, Delta_2
             integer :: i, j
 
-            @:ASSERT(is_canonical(exc))
+            @:pure_ASSERT(is_canonical(exc))
 
-            associate(src => exc%val(1, :), tgt => exc%val(2, :), &
-                      id_src => gtID(exc%val(1, :)), id_tgt => gtID(exc%val(2, :)), &
-                      id_nI => gtID(nI))
-                Delta = sum(GetTmatEl(tgt, tgt)) - sum(GetTMatEl(src, src))
+            associate(src => exc%val(1, :), tgt => exc%val(2, :))
+            associate(joint => nI .complement. src)
+                !! the variable is called joint because
+                !!      \( D_i \setminus \text{src} = D_i .cap. D_j \)
+                !! if
+                !!      \( \text{tgt} .cap. D_i == \empty \)
+                !! which we assume because the excitation should be canonical.
+                Delta_1 = sum(GetTmatEl(tgt, tgt)) - sum(GetTMatEl(src, src))
 
-                do i = 1, size(id_tgt) - 1
-                    Delta = Delta &
-                        + sum(get_2el(id_tgt(i), id_tgt(i + 1 :), id_tgt(i), id_tgt(i + 1 :))) &
-                        - sum(get_2el(id_src(i), id_src(i + 1 :), id_src(i), id_src(i + 1 :)))
+                Delta_2 = h_cast(0._dp)
+
+                do i = 1, size(joint)
+                    do j = 1, size(tgt)
+                        Delta_2 = Delta_2 + (get_gamma(joint(i), tgt(j)) + get_gamma(tgt(j), joint(i)))
+                    end do
+
+                    do j = 1, size(src)
+                        Delta_2 = Delta_2 - (get_gamma(joint(i), src(j)) + get_gamma(src(j), joint(i)))
+                    end do
                 end do
 
-                if (tExch) then
-                    do i = 1, size(id_tgt) - 1
-                        do j = i + 1, size(id_tgt)
-                            ! Exchange contribution is zero if I,J are alpha/beta
-                            if (G1(tgt(i))%Ms == G1(tgt(j))%Ms .or. tReltvy) then
-                                Delta = Delta - get_2el(id_tgt(i), id_tgt(j), id_tgt(j), id_tgt(i))
-                            end if
-
-                            if (G1(src(i))%Ms == G1(src(j))%Ms .or. tReltvy) then
-                                Delta = Delta + get_2el(id_src(i), id_src(j), id_src(j), id_src(i))
-                            end if
-                        end do
+                do i = 1, size(tgt)
+                    do j = 1, size(tgt)
+                        Delta_2 = Delta_2 + get_gamma(tgt(i), tgt(j))
                     end do
-                end if
+                end do
+
+                do i = 1, size(src)
+                    do j = 1, size(src)
+                        Delta_2 = Delta_2 - get_gamma(src(i), src(j))
+                    end do
+                end do
             end associate
-            hel = E_0 + Delta
+            end associate
+            hel = E_0 + Delta_1 + Delta_2 / 2._dp
         end function
     #:endfor
 
+    elemental function get_gamma(P, R) result(res)
+        integer, intent(in) :: P, R
+        HElement_t(dp) :: res
+        if (P == R) then
+            res = 0._dp
+            return
+        end if
 
+        associate(id_P => gtID(P), id_R => gtID(R))
+            res = get_2el(id_P, id_R, id_P, id_R)
+            if (tExch .and. (G1(P)%Ms == G1(R)%Ms .or. tReltvy)) then
+                res = res - get_2el(id_P, id_R, id_R, id_P)
+            end if
+        end associate
+    end function
 
 end module
