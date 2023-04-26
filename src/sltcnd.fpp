@@ -84,6 +84,8 @@ module sltcnd_mod
               diagH_after_exc, sltcnd_compat, sltcnd, sltcnd_knowIC, &
               CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
 
+    public :: get_gamma
+
     abstract interface
         HElement_t(dp) function sltcnd_0_t(nI, exc)
             import :: dp, nel, Excite_0_t
@@ -1057,11 +1059,11 @@ contains
 
             HElement_t(dp) :: Delta_1, Delta_2
             integer :: i, j
+            integer :: i_src
 
             @:pure_ASSERT(is_canonical(exc))
 
             associate(src => exc%val(1, :), tgt => exc%val(2, :))
-            associate(joint => nI .complement. src)
                 !! the variable is called joint because
                 !!      \( D_i \setminus \text{src} = D_i .cap. D_j \)
                 !! if
@@ -1071,44 +1073,42 @@ contains
 
                 Delta_2 = h_cast(0._dp)
 
-                do i = 1, size(joint)
-                    do j = 1, size(tgt)
-                        Delta_2 = Delta_2 + (get_gamma(joint(i), tgt(j)) + get_gamma(tgt(j), joint(i)))
-                    end do
+                i_src = 1
+                do i = 1, size(nI)
+                    if (i_src <= size(src)) then
+                        if (nI(i) == src(i_src)) then
+                            i_src = i_src + 1
+                            cycle
+                        end if
+                    end if
 
-                    do j = 1, size(src)
-                        Delta_2 = Delta_2 - (get_gamma(joint(i), src(j)) + get_gamma(src(j), joint(i)))
+
+                    do j = 1, size(tgt)
+                        Delta_2 = Delta_2 + get_gamma(nI(i), tgt(j))
+                        Delta_2 = Delta_2 - get_gamma(nI(i), src(j))
                     end do
                 end do
 
                 do i = 1, size(tgt)
-                    do j = 1, size(tgt)
+                    do j = i + 1, size(tgt)
                         Delta_2 = Delta_2 + get_gamma(tgt(i), tgt(j))
-                    end do
-                end do
-
-                do i = 1, size(src)
-                    do j = 1, size(src)
                         Delta_2 = Delta_2 - get_gamma(src(i), src(j))
                     end do
                 end do
             end associate
-            end associate
-            hel = E_0 + Delta_1 + Delta_2 / 2._dp
+            hel = E_0 + Delta_1 + Delta_2
         end function
     #:endfor
 
     elemental function get_gamma(P, R) result(res)
         integer, intent(in) :: P, R
         HElement_t(dp) :: res
-        if (P == R) then
-            res = 0._dp
-            return
-        end if
+        routine_name("get_gamma")
+        @:pure_ASSERT(P /= R)
 
         associate(id_P => gtID(P), id_R => gtID(R))
             res = get_2el(id_P, id_R, id_P, id_R)
-            if (tExch .and. (G1(P)%Ms == G1(R)%Ms .or. tReltvy)) then
+            if (G1(P)%Ms == G1(R)%Ms) then
                 res = res - get_2el(id_P, id_R, id_R, id_P)
             end if
         end associate

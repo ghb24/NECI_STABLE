@@ -11,19 +11,24 @@ module test_sltcnd_mod
     use excitation_types, only: get_excitation, Excitation_t, Excite_0_t, Excite_1_t, Excite_2_t
     use sltcnd_mod, only: sltcnd_excit, diagH_after_exc
     use util_mod, only: operator(.isclose.)
+
+    use sltcnd_mod, only: get_gamma
     implicit none
     private
     public :: test_sltcnd_driver
 
+    integer :: i
+    integer, parameter :: system_size = 30
+    integer, parameter :: nI(system_size) = [(i, i = 1, system_size)], n_spat_orb = system_size
 
 contains
 
     subroutine test_diagH_from_exc()
-        integer, parameter :: nI(4) = [1, 4, 7, 10], n_spat_orb = 10
+        integer :: i
 
         integer(n_int), allocatable :: det_list(:, :)
         class(Excitation_t), allocatable :: exc
-        integer :: nJ(size(nI)), n_excits, i, ic
+        integer :: nJ(size(nI)), n_excits, ic
         logical :: tParity
 
         call init_excitgen_test(nI, &
@@ -54,7 +59,6 @@ contains
     subroutine test_timing()
         use timing_neci, only: timer, set_timer, halt_timer, get_total_time
         integer :: i
-        integer, parameter :: nI(50) = [(i, i = 1, 50)], n_spat_orb = 50
         type(timer) :: time_direct, time_from_exc
 
         type(Excite_2_t), allocatable :: exc(:)
@@ -62,7 +66,7 @@ contains
 
         call init_excitgen_test(nI, &
             RandomFcidumpWriter_t(&
-                n_spat_orb, nI, sparse=0.7_dp, sparseT=0.7_dp) &
+                n_spat_orb, nI, sparse=1.0_dp, sparseT=1.0_dp) &
         )
 
         block
@@ -105,13 +109,19 @@ contains
         end associate
 
         write(*, *) get_total_time(time_direct) / get_total_time(time_from_exc)
+
+
+        write(*, *) get_gamma(1, 2)
+        write(*, *) get_gamma(1, 2)
+
+
         call finalize_excitgen_test()
 
     end subroutine
 
 
     subroutine test_sltcnd_driver()
-        ! call run_test_case(test_diagH_from_exc, "test_diagH_from_exc")
+        call run_test_case(test_diagH_from_exc, "test_diagH_from_exc")
         call run_test_case(test_timing, "test_timing")
     end subroutine
 
