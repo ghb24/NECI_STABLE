@@ -8,7 +8,8 @@ module test_sltcnd_mod
         init_excitgen_test, finalize_excitgen_test, &
         generate_random_integrals, RandomFcidumpWriter_t
     use symexcit3, only: gen_excits
-    use excitation_types, only: get_excitation, Excitation_t, Excite_0_t, Excite_1_t, Excite_2_t
+    use excitation_types, only: Excitation_t, Excite_0_t, Excite_1_t, &
+        Excite_2_t, Excite_3_t, get_excitation, excite
     use sltcnd_mod, only: sltcnd_excit, diagH_after_exc
     use util_mod, only: operator(.isclose.)
     implicit none
@@ -50,6 +51,18 @@ contains
                 end select
             end do
         end do
+
+        block
+            type(Excite_3_t) :: exc
+            exc = Excite_3_t(1, 31, 2, 32, 3, 33)
+            call assert_true(sltcnd_excit(excite(nI, exc), Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
+
+            exc = Excite_3_t(1, 31, 2, 37, 5, 50)
+            call assert_true(sltcnd_excit(excite(nI, exc), Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
+
+            exc = Excite_3_t(2, 32, 4, 34, 6, 36)
+            call assert_true(sltcnd_excit(excite(nI, exc), Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
+        end block
 
         call finalize_excitgen_test()
     end subroutine
