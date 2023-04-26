@@ -17,6 +17,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use FciMCData, only: excit_gen_store_type, projEDet
     use SystemData, only: nEl
     use bit_rep_data, only: NIfTot
+    use MPI_wrapper, only: root
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -357,10 +358,12 @@ contains
         write(stdout, *) "Generating samplers for PCHB excitation generator"
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
         call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax, 'PCHB_RHF')
-        ! weights per pair
+
+        ! One could allocate only on the intra-node-root here, if memory
+        ! at initialization ever becomes an issue.
+        ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
         allocate(w(abMax))
         allocate(IJ_weights(nBI * 2, nBI * 2, size(supergroups, 2)), source=0._dp)
-        ! initialize the three samplers
         do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             pNoExch = 1.0_dp - this%pExch(:, i_sg)
@@ -397,7 +400,7 @@ contains
                         end do
                         ij = fuseIndex(i, j)
 
-                        call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, w)
+                        call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, root, w)
                         if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
                         if (i_exch == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
 
@@ -432,7 +435,8 @@ contains
         end do
 
 
-        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, IJ_weights, this%use_lookup, this%particle_selector)
+        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
+            IJ_weights, root, this%use_lookup, this%particle_selector)
 
     contains
         elemental function to_spin_orb(orb, is_alpha) result(sorb)

@@ -15,6 +15,7 @@ module gasci_pchb_doubles_select_particles
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use util_mod, only: stop_all, operator(.isclose.), swap, &
         binary_search_int, EnumBase_t, operator(.div.)
+    use MPI_wrapper, only: iProcIndex_intra
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     better_implicit_none
@@ -164,10 +165,13 @@ contains
         end select
     end function
 
-    subroutine allocate_and_init(PCHB_particle_selection, GAS_spec, IJ_weights, use_lookup, particle_selector)
+    subroutine allocate_and_init(PCHB_particle_selection, GAS_spec, IJ_weights, rank_with_info, use_lookup, particle_selector)
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         class(GASSpec_t), intent(in) :: GAS_spec
         real(dp), intent(in) :: IJ_weights(:, :, :)
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         logical, intent(in) :: use_lookup
         class(ParticleSelector_t), allocatable, intent(inout) :: particle_selector
         routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
@@ -175,19 +179,19 @@ contains
             allocate(PC_FullyWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FullyWeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
+                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%WEIGHTED) then
             allocate(PC_WeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_WeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
+                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%FAST_WEIGHTED) then
             allocate(PC_FastWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FastWeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
+                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIFORM) then
             allocate(UniformParticles_t :: particle_selector)
@@ -248,10 +252,14 @@ contains
     end subroutine
 
 
-    subroutine init_PC_WeightedParticles_t(this, GAS_spec, weights, use_lookup, create_lookup)
+    subroutine init_PC_WeightedParticles_t(this, GAS_spec, weights, rank_with_info, use_lookup, create_lookup)
         class(PC_Particles_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         real(dp), intent(in) :: weights(:, :, :)
+            !! `w(J, I, i_sg)`, The weight of picking `J` after picking `I` under supergroup `i_sg`
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = 'init'
 
@@ -275,20 +283,33 @@ contains
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
 
         nBI = this%GAS_spec%n_spin_orbs()
-        @:ASSERT(nBI == size(weights, 1) .and. nBI == size(weights, 2))
 
         supergroups = this%indexer%get_supergroups()
-        @:ASSERT(size(supergroups, 2) == size(weights, 3))
+
+        if (iProcIndex_intra == rank_with_info) then
+            @:ASSERT(nBI == size(weights, 1) .and. nBI == size(weights, 2))
+            @:ASSERT(size(supergroups, 2) == size(weights, 3))
+        end if
 
         call this%I_sampler%shared_alloc(size(supergroups, 2), nBI, 'PC_particles_i')
         call this%J_sampler%shared_alloc([nBI, size(supergroups, 2)], nBI, 'PC_particles_j')
         block
             integer :: I
+            real(dp) :: dummy(2)
+            dummy = 10000._dp
             do i_sg = 1, size(supergroups, 2)
                 do I = 1, nBI
-                    call this%J_sampler%setup_entry(I, i_sg, weights(:, I, i_sg))
+                    if (iProcIndex_intra == rank_with_info) then
+                        call this%J_sampler%setup_entry(I, i_sg, rank_with_info, weights(:, I, i_sg))
+                    else
+                        call this%J_sampler%setup_entry(I, i_sg, rank_with_info, dummy)
+                    end if
                 end do
-                call this%I_sampler%setup_entry(i_sg, sum(weights(:, :, i_sg), dim=1))
+                if (iProcIndex_intra == rank_with_info) then
+                    call this%I_sampler%setup_entry(i_sg, rank_with_info, sum(weights(:, :, i_sg), dim=1))
+                else
+                    call this%I_sampler%setup_entry(i_sg, rank_with_info, dummy)
+                end if
             end do
         end block
     end subroutine

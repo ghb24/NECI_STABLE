@@ -1,7 +1,7 @@
 #include "macros.h"
 module pcpp_excitgen
     use constants
-    use aliasSampling, only: aliasSampler_t, clear_sampler_array
+    use aliasSampling, only: AliasSampler_t, clear_sampler_array
     use bit_rep_data, only: niftot
     use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
     use sym_mod, only: symprod, symconj
@@ -12,6 +12,7 @@ module pcpp_excitgen
     use UMatCache, only: gtID
     use excitation_types, only: Excite_1_t, Excite_2_t
     use sltcnd_mod, only: sltcnd_excit
+    use MPI_wrapper, only: root
     use util_mod, only: binary_search_first_ge, getSpinIndex, swap, custom_findloc, &
                         operator(.div.)
     use get_excit, only: make_double, make_single
@@ -19,17 +20,17 @@ module pcpp_excitgen
 
     ! these are the samplers used for generating single excitations
     ! we have one hole sampler for each orbital
-    type(aliasSampler_t), allocatable :: single_hole_sampler(:)
+    type(AliasSampler_t), allocatable :: single_hole_sampler(:)
     ! we have a single electron sampler, the electron is always chosen first
-    type(aliasSampler_t) :: single_elec_sampler
+    type(AliasSampler_t) :: single_elec_sampler
 
     ! these are the samplers used for generating double excitations
-    type(aliasSampler_t) :: double_elec_one_sampler
-    type(aliasSampler_t), allocatable :: double_elec_two_sampler(:)
+    type(AliasSampler_t) :: double_elec_one_sampler
+    type(AliasSampler_t), allocatable :: double_elec_two_sampler(:)
 
-    type(aliasSampler_t), allocatable :: double_hole_one_sampler(:, :)
+    type(AliasSampler_t), allocatable :: double_hole_one_sampler(:, :)
     ! there is one sampler per spin/symmetry of the last electron
-    type(aliasSampler_t), allocatable :: double_hole_two_sampler(:, :, :)
+    type(AliasSampler_t), allocatable :: double_hole_two_sampler(:, :, :)
 
     integer, allocatable :: refDet(:)
     ! maximal value of getSpinIndex
@@ -154,9 +155,9 @@ contains
         if (src2 < src1) call swap(src1, src2)
 
         ! we could also have drawn the electrons the other way around
-        pSSwap1 = double_elec_one_sampler%getProb(umElec2)
+        pSSwap1 = double_elec_one_sampler%get_prob(umElec2)
         swapOrb1 = elec_map(umElec2)
-        pSSwap2 = double_elec_two_sampler(swapOrb1)%getProb(umElec1)
+        pSSwap2 = double_elec_two_sampler(swapOrb1)%get_prob(umElec1)
         ! we now have industuingishible src1/src2, add the probabilites
         ! for drawing them either way
         pGen = pSGen1 * pSGen2 + pSSwap1 * pSSwap2
@@ -188,9 +189,9 @@ contains
         ! Update the generation probability
         ! We could have drawn the target orbitals the other way around
         ! -> adapt pGen
-        pTSwap1 = double_hole_one_sampler(src1, tgt2MS)%getProb(tgt2)
+        pTSwap1 = double_hole_one_sampler(src1, tgt2MS)%get_prob(tgt2)
         tgtSym = getTgtSym(tgt2)
-        pTSwap2 = double_hole_two_sampler(src2, tgtSym%s, tgt1MS)%getProb(tgt1)
+        pTSwap2 = double_hole_two_sampler(src2, tgtSym%s, tgt1MS)%get_prob(tgt1)
         pGen = pGen * (pTGen1 * pTGen2 + pTSwap1 * pTSwap2)
 
         ! generate the output determinant
@@ -418,12 +419,12 @@ contains
         integer :: elec_map(nel)
 
         ! First, get the probability to draw the target orbital given the source orbital
-        pgen = single_hole_sampler(ex(1))%getProb(ex(2))
+        pgen = single_hole_sampler(ex(1))%get_prob(ex(2))
         ! Now, trace back what the originally drawn source orbital has been
         elec_map = create_elec_map(ilutI)
         src = custom_findloc(elec_map, ex(1))
         ! And then add the probability of drawing that one
-        pgen = pgen * single_elec_sampler%getProb(src)
+        pgen = pgen * single_elec_sampler%get_prob(src)
 
     end function calc_pgen_singles_pcpp
 
@@ -469,8 +470,8 @@ contains
             real(dp) :: pH
             real(dp):: pTGen1, pTGen2
 
-            pTGen2 = double_hole_two_sampler(ex(1,2), G1(t2)%sym%s, getSpinIndex(t2))%getProb(t2)
-            pTGen1 = double_hole_one_sampler(ex(1,1), getSpinIndex(t1))%getProb(t1)
+            pTGen2 = double_hole_two_sampler(ex(1,2), G1(t2)%sym%s, getSpinIndex(t2))%get_prob(t2)
+            pTGen1 = double_hole_one_sampler(ex(1,1), getSpinIndex(t1))%get_prob(t1)
             pH = pTGen1*pTGen2
         end function pgen_holes
 
@@ -479,8 +480,8 @@ contains
             real(dp) :: pE
             real(dp) :: pSGen1, pSGen2
 
-            pSGen1 = double_elec_one_sampler%getProb(s1)
-            pSGen2 = double_elec_two_sampler(sI)%getProb(s2)
+            pSGen1 = double_elec_one_sampler%get_prob(s1)
+            pSGen2 = double_elec_two_sampler(sI)%get_prob(s2)
             pE = pSGen1*pSGen2
         end function pgen_elecs
 
@@ -542,7 +543,7 @@ contains
             end do
 
             call apply_lower_bound(w)
-            call double_elec_one_sampler%setupSampler(w)
+            call double_elec_one_sampler%setup(root, w)
         end subroutine setup_elec_one_sampler
 
         !------------------------------------------------------------------------------------------!
@@ -579,7 +580,7 @@ contains
                 ! to prevent bias, a lower bound for the probabilities is set
                 call apply_lower_bound(w)
 
-                call double_elec_two_sampler(i)%setupSampler(w)
+                call double_elec_two_sampler(i)%setup(root, w)
             end do
 
         end subroutine setup_elec_two_sampler
@@ -603,7 +604,7 @@ contains
                 end do
 
                 do iSpin = 0, spinMax
-                    call double_hole_one_sampler(i, iSpin)%setupSampler(w(:, iSpin))
+                    call double_hole_one_sampler(i, iSpin)%setup(root, w(:, iSpin))
                 end do
             end do
         end subroutine setup_hole_one_sampler
@@ -630,7 +631,7 @@ contains
 
                 do iSpin = 0, spinMax
                     do iSym = 0, symmax - 1
-                        call double_hole_two_sampler(j, iSym, iSpin)%setupSampler(w(:, iSym, iSpin))
+                        call double_hole_two_sampler(j, iSym, iSpin)%setup(root, w(:, iSym, iSpin))
                     end do
                 end do
             end do
@@ -678,7 +679,7 @@ contains
                 end do
             end do
             ! load the probabilites for electron selection into the alias table
-            call single_elec_sampler%setupSampler(w)
+            call single_elec_sampler%setup(root, w)
 
         end subroutine setup_elecs_sampler
 
@@ -706,7 +707,7 @@ contains
                         w(a) = acc_doub_matel(i, a)
                 end do
 
-                call single_hole_sampler(i)%setupSampler(w)
+                call single_hole_sampler(i)%setup(root, w)
             end do
 
         end subroutine setup_holes_sampler
@@ -776,20 +777,20 @@ contains
         integer :: j, k, l
         deallocate(refDet)
 
-        call single_elec_sampler%samplerDestructor()
+        call single_elec_sampler%finalize()
 
         call clear_sampler_array(single_hole_sampler)
-        call double_elec_one_sampler%samplerDestructor()
+        call double_elec_one_sampler%finalize()
         call clear_sampler_array(double_elec_two_sampler)
         do j = 1, size(double_hole_one_sampler, 1)
             do k = 1, size(double_hole_one_sampler, 2)
-                call double_hole_one_sampler(j, k - 1)%samplerDestructor()
+                call double_hole_one_sampler(j, k - 1)%finalize()
             end do
         end do
         do j = 1, size(double_hole_two_sampler, 1)
             do k = 1, size(double_hole_two_sampler, 2)
                 do l = 1, size(double_hole_two_sampler, 3)
-                    call double_hole_two_sampler(j, k - 1, l - 1)%samplerDestructor()
+                    call double_hole_two_sampler(j, k - 1, l - 1)%finalize()
                 end do
             end do
         end do

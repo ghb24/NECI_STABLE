@@ -18,6 +18,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use SystemData, only: nEl, nBasis
     use sets_mod, only: set, operator(.cap.)
     use bit_rep_data, only: NIfTot
+    use MPI_wrapper, only: iProcIndex_intra, root
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -346,9 +347,14 @@ contains
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
         call this%A_sampler%shared_alloc([IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
         call this%B_sampler%shared_alloc([nBasis, IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
-        allocate(w_A(nBasis), w_B(nBasis))
 
-        allocate(IJ_weights(nBasis, nBasis, size(supergroups, 2)), source=0._dp)
+        if (iProcIndex_intra == root) then
+            allocate(w_A(nBasis), w_B(nBasis), source=0._dp)
+            allocate(IJ_weights(nBasis, nBasis, size(supergroups, 2)), source=0._dp)
+        else
+            allocate(w_A(0), w_B(0), IJ_weights(0, 0, 0))
+        end if
+
         ! initialize the three samplers
         do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
@@ -365,24 +371,31 @@ contains
                         second_hole: do B = 1, nBasis
                             if (A == B .or. any(B == [I, J])) cycle
                             ex(2, 2) = B
-                            if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
-                                w_B(B) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
-                            else
-                                w_B(B) = 0._dp
+                            if (iProcIndex_intra == root) then
+                                if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
+                                    w_B(B) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
+                                else
+                                    w_B(B) = 0._dp
+                                end if
                             end if
                         end do second_hole
-                        call this%B_sampler%setup_entry(A, IJ, i_sg, w_B(:))
-                        w_A(A) = sum(w_B)
+                        call this%B_sampler%setup_entry(A, IJ, i_sg, root, w_B(:))
+                        if (iProcIndex_intra == root) then
+                            w_A(A) = sum(w_B)
+                        end if
                     end do first_hole
-                    call this%A_sampler%setup_entry(IJ, i_sg, w_A(:))
+                    call this%A_sampler%setup_entry(IJ, i_sg, root, w_A(:))
 
-                    IJ_weights(I, J, i_sg) = sum(w_A)
-                    IJ_weights(J, I, i_sg) = sum(w_A)
+                    if (iProcIndex_intra == root) then
+                        IJ_weights(I, J, i_sg) = sum(w_A)
+                        IJ_weights(J, I, i_sg) = sum(w_A)
+                    end if
                 end do second_particle
             end do first_particle
         end do
 
-        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, IJ_weights, this%use_lookup, this%particle_selector)
+        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
+            IJ_weights, root, this%use_lookup, this%particle_selector)
 
     end subroutine GAS_doubles_PCHB_compute_samplers
 

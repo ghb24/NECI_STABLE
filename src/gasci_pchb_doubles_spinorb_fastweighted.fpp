@@ -16,6 +16,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use bit_rep_data, only: nIfTot
     use excitation_generators, only: doubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
+    use MPI_wrapper, only: root
     use excitation_types, only: Excite_2_t
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -305,6 +306,10 @@ contains
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
 
         call this%AB_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'AB_PCHB_spinorb_sampler')
+
+        ! One could allocate only on the intra-node-root here, if memory
+        ! at initialization ever becomes an issue.
+        ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
         allocate(w(abMax))
         allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
 
@@ -333,7 +338,7 @@ contains
                         end do second_hole
                     end do first_hole
                     IJ = fuseIndex(I, J)
-                    call this%AB_sampler%setup_entry(IJ, i_sg, w)
+                    call this%AB_sampler%setup_entry(IJ, i_sg, root, w)
 
                     IJ_weights(I, J, i_sg) = sum(w)
                     IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
@@ -341,7 +346,8 @@ contains
             end do first_particle
         end do supergroup
 
-        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, IJ_weights, this%use_lookup, this%particle_selector)
+        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
+            IJ_weights, root, this%use_lookup, this%particle_selector)
 
     end subroutine GAS_doubles_PCHB_spinorb_compute_samplers
 

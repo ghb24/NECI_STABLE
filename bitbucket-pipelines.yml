@@ -12,6 +12,8 @@ pipelines:
   - step:
      size: 2x
      script:
+      - adduser temp
+      - su - temp
       - git submodule update --init
       - rm -rf build
       - mkdir build
@@ -21,7 +23,7 @@ pipelines:
       - make -j neci test_neci
       - echo "done building release version"
       - echo "running unit tests"
-      - ctest --tests-regex 'test_neci_.*' -j
+      - ctest --allow-run-as-root --output-on-failure --tests-regex 'test_neci_.*' -j
       - echo "unit tests passed"
 
  branches:
@@ -39,7 +41,7 @@ pipelines:
         - make -j
         - echo "done building release version"
         - echo "running unit tests"
-        - ctest -j
+        - ctest --allow-run-as-root --output-on-failure -j
         - echo "unit tests passed"
         # - echo "running limited test_suite(to save build-minutes)"
         # - useradd temp
@@ -59,7 +61,7 @@ pipelines:
         - make -j
         - echo "done building release version"
         - echo "running unit tests"
-        - ctest -j
+        - ctest --allow-run-as-root --output-on-failure -j
         - echo "unit tests passed"
         # - echo "running limited test_suite(to save build-minutes)"
         # - useradd temp
@@ -82,7 +84,7 @@ pipelines:
       - make -j
       - echo "done building release version"
       - echo "running unit tests"
-      - ctest -j
+      - ctest --allow-run-as-root --output-on-failure -j
       - echo "unit tests passed"
       - echo "running limited test_suite(to save build-minutes)"
       - useradd temp
