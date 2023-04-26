@@ -28,28 +28,28 @@ contains
         class(Excitation_t), allocatable :: exc
         integer :: nJ(size(nI)), n_excits, ic
         logical :: tParity
+        real(dp) :: E_0
 
         call init_excitgen_test(nI, &
             RandomFcidumpWriter_t(&
                 n_spat_orb, nI, sparse=0.7_dp, sparseT=0.7_dp) &
         )
 
-        associate(E_0 => sltcnd_excit(nI, Excite_0_t()))
-            do ic = 1, 2
-                call gen_excits(nI, n_excits, det_list, ic)
-                do i = 1, size(det_list, 2)
-                    call decode_bit_det(nJ, det_list(:, i))
-                    call get_excitation(nI, nJ, ic, exc, tParity)
+        E_0 = sltcnd_excit(nI, Excite_0_t())
+        do ic = 1, 2
+            call gen_excits(nI, n_excits, det_list, ic)
+            do i = 1, size(det_list, 2)
+                call decode_bit_det(nJ, det_list(:, i))
+                call get_excitation(nI, nJ, ic, exc, tParity)
 
-                    select type (exc)
-                    type is (Excite_1_t)
-                        call assert_true(sltcnd_excit(nJ, Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
-                    type is (Excite_2_t)
-                        call assert_true(sltcnd_excit(nJ, Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
-                    end select
-                end do
+                select type (exc)
+                type is (Excite_1_t)
+                    call assert_true(sltcnd_excit(nJ, Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
+                type is (Excite_2_t)
+                    call assert_true(sltcnd_excit(nJ, Excite_0_t()) .isclose. diagH_after_exc(nI, E_0, exc))
+                end select
             end do
-        end associate
+        end do
 
         call finalize_excitgen_test()
     end subroutine
@@ -91,20 +91,17 @@ contains
             call halt_timer(time_direct)
         end block
 
-        associate(E_0 => sltcnd_excit(nI, Excite_0_t()))
         block
-            real(dp) :: E_accum_from_exc
+            real(dp) :: E_accum_from_exc, E_0
             E_accum_from_exc = 0._dp
+            E_0 = sltcnd_excit(nI, Excite_0_t())
 
             call set_timer(time_from_exc)
-            associate(E_0 => sltcnd_excit(nI, Excite_0_t()))
-                do i = 1, size(exc)
-                    E_accum_from_exc = E_accum_from_exc + diagH_after_exc(nI, E_0, exc(i))
-                end do
-            end associate
+            do i = 1, size(exc)
+                E_accum_from_exc = E_accum_from_exc + diagH_after_exc(nI, E_0, exc(i))
+            end do
             call halt_timer(time_from_exc)
         end block
-        end associate
 
         write(stdout, *) 'speedup of', get_total_time(time_direct) / get_total_time(time_from_exc)
         write(stdout, *) 'for (', system_size, ', ', system_size,  ')'
