@@ -12,7 +12,14 @@ module kp_fciqmc_init
     use core_space_util, only: cs_replicas
     use input_parser_mod, only: FileReader_t, TokenIterator_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+    use fcimc_helper, only: rezero_iter_stats_each_iter
+    use fcimc_output, only: WriteFciMCStatsHeader, write_fcimcstats2, WriteFCIMCStats
+    use FciMCData, only: tSinglePartPhase
+
     implicit none
+    private
+    public :: init_kp_fciqmc, init_kp_fciqmc_repeat, init_kp_fciqmc_iter, &
+        kp_fciqmc_read_inp
 
 contains
 
@@ -337,7 +344,6 @@ contains
         use FciMCData, only: SpawnVecKP2, MaxSpawned
         use FciMCData, only: SpawnedPartsKP, SpawnedPartsKP2, MaxWalkersUncorrected
         use FciMCData, only: iter_data_fciqmc, spawn_ht, nhashes_spawn, tReplicaReferencesDiffer
-        use FciMCParMod, only: WriteFciMCStatsHeader, write_fcimcstats2, tSinglePartPhase
         use hash, only: init_hash_table
         use LoggingData, only: tFCIMCStats2
         use Parallel_neci, only: MPIBarrier
@@ -578,8 +584,6 @@ contains
         use CalcData, only: tPairedReplicas
         use FciMCData, only: iter, InputDiagSft, PreviousCycles, OldAllAvWalkersCyc, proje_iter
         use FciMCData, only: proje_iter_tot, AllGrowRate, SpawnedParts, fcimc_iter_data
-        use FciMCParMod, only: tSinglePartPhase
-        use fcimc_output, only: WriteFCIMCStats, write_fcimcstats2
         use hash, only: clear_hash_table
         use initial_trial_states
         use LoggingData, only: tFCIMCStats2, tPrintDataTables
@@ -678,7 +682,6 @@ contains
 
         use FciMCData, only: FreeSlot, iStartFreeSlot, iEndFreeSlot, fcimc_iter_data, InitialSpawnedSlots
         use FciMCData, only: ValidSpawnedList, spawn_ht
-        use FciMCParMod, only: rezero_iter_stats_each_iter
         use hash, only: clear_hash_table
         use rdm_data, only: rdm_definitions
 

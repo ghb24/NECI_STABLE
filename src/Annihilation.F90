@@ -989,6 +989,7 @@ contains
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
         logical :: tTruncSpawn, t_truncate_this_det
+        routine_name("AnnihilateSpawnedParts")
 
         ! 0 means success
         err = 0
@@ -1146,7 +1147,7 @@ contains
                                 else
                                     write(stdout, *) "***", SpawnedParts(0:NIftot, i)
                                     Call writebitdet(stdout, SpawnedParts(0:NIfTot, i), .true.)
-                                    call stop_all("AnnihilateSpawnedParts", "Cannot find corresponding FCI "&
+                                    call stop_all(this_routine, "Cannot find corresponding FCI "&
                                             & //"determinant when histogramming")
                                 end if
                             end if
@@ -1259,6 +1260,7 @@ contains
                             ! same one as was generated at the beginning of the loop.
                             if (.not. tEScaleWalkers) then
                                 diagH = get_diagonal_matel(nJ, SpawnedParts(:, i))
+                                call stop_all(this_routine, "here we want to use the faster diagH_from_exc")
                                 offdiagH = get_off_diagonal_matel(nJ, SpawnedParts(:, i))
                             end if
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot, i), DetHash, nJ, &
