@@ -1,6 +1,6 @@
 module test_sltcnd_mod
     use fruit, only: assert_true, assert_false, run_test_case
-    use constants, only: dp, n_int
+    use constants, only: dp, n_int, stdout
     use sets_mod, only: operator(.complement.)
 
     use bit_reps, only: decode_bit_det
@@ -11,8 +11,6 @@ module test_sltcnd_mod
     use excitation_types, only: get_excitation, Excitation_t, Excite_0_t, Excite_1_t, Excite_2_t
     use sltcnd_mod, only: sltcnd_excit, diagH_after_exc
     use util_mod, only: operator(.isclose.)
-
-    use sltcnd_mod, only: get_gamma
     implicit none
     private
     public :: test_sltcnd_driver
@@ -108,11 +106,8 @@ contains
         end block
         end associate
 
-        write(*, *) get_total_time(time_direct) / get_total_time(time_from_exc)
-
-
-        write(*, *) get_gamma(1, 2)
-        write(*, *) get_gamma(1, 2)
+        write(stdout, *) 'speedup of', get_total_time(time_direct) / get_total_time(time_from_exc)
+        write(stdout, *) 'for (', system_size, ', ', system_size,  ')'
 
 
         call finalize_excitgen_test()
