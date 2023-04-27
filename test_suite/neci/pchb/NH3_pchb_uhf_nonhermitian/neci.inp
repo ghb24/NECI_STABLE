@@ -1,0 +1,46 @@
+title
+
+    system read
+        electrons 10
+        spin-restrict 0
+        nobrillouintheorem
+        uhf
+        # molpromimic
+        nonhermitian 2-body
+        nonuniformrandexcits pchb \
+            singles uniform \
+            doubles particle-selection uniform \
+            doubles hole-selection fast-weighted
+        FCIDUMP-name NH3_UHF_nonhermitian.FciDmp
+    endsys
+
+    calc
+        # since this is a test, need it to be reproducible:
+        load-balance-blocks off
+        seed 9
+
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 3.e4
+        nmcyc 700
+        definedet 1-10
+
+        startsinglepart 10
+        tau-values \
+            start user-defined 0.01
+        tau-search \
+            algorithm conventional \
+            stop-condition var-shift \
+            maxwalkerbloom 2
+
+        # diagshift 0.0
+        target-shiftdamp 0.8
+        stepsshift 10
+
+        truncinitiator
+        addtoinitiator 3
+
+        memoryfacspawn 50
+    endcalc
+end
