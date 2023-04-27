@@ -327,7 +327,6 @@ contains
         integer(int64) :: memCost
         real(dp), allocatable :: w_A(:), w_B(:), IJ_weights(:, :, :)
         integer, allocatable :: supergroups(:, :)
-        type(Excite_2_t) :: exc
         integer :: i_sg
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
@@ -367,13 +366,14 @@ contains
                         w_B(:) = 0.0_dp
                         second_hole: do B = 1, nBasis
                             if (any(B == [I, J, A])) cycle
-                            exc = merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B)
+                            associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
                             if (iProcIndex_intra == root) then
                                 if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
                                         .and. spin_allowed(exc)) then
                                     w_B(B) = get_PCHB_weight(exc)
                                 end if
                             end if
+                            end associate
                         end do second_hole
                         call this%B_sampler%setup_entry(A, IJ, i_sg, root, w_B(:))
                         if (iProcIndex_intra == root) then

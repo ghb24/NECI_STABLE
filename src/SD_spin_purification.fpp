@@ -11,7 +11,7 @@ module SD_spin_purification_mod
     use sets_mod, only: subset, disjoint
     use excitation_types, only: excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, &
                                 Excite_3_t, UNKNOWN, get_excitation, get_bit_excitation, &
-                                create_excitation, is_canonical, occupation_allowed, canonicalize
+                                create_excitation, is_canonical, occupation_allowed
     use orb_idx_mod, only: calc_spin_raw, get_spat
     implicit none
 
@@ -40,10 +40,6 @@ module SD_spin_purification_mod
         nI_invariant_ladder_op_exc, &
         possible_purification_methods, SD_spin_purification, &
         spin_pure_J
-
-
-    public :: old_ladder_op_exc_Excite_2_t
-
 
 
     interface S2_expval_exc
@@ -425,45 +421,4 @@ contains
         res = -0.5_dp + sqrt(0.25_dp + spin_momentum**2)
     end function
 
-
-    pure function old_ladder_op_exc_Excite_2_t(nI, exc) result(res)
-        !! Evaluates \(< D_i | S_+ S_- | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
-        integer, intent(in) :: nI(:)
-            !! The bra Slater determinant in nI format.
-        type(Excite_2_t), intent(in) :: exc
-        real(dp) :: res
-            !! The matrix element.
-            !! It is real even for complex `NECI`.
-        integer, allocatable :: oS_nI(:)
-        integer :: src(2), src_spat(2), tgt_spat(2)
-        logical :: negative
-        oS_nI = get_open_shell(nI)
-        res = 0.0_dp
-
-        if (.not. occupation_allowed(nI, canonicalize(exc))) return
-
-        negative = .false.
-        if (size(oS_nI) /= 0) then
-            src(:) = exc%val(1, :)
-            ! Test if double excitation is of exchange type.
-            if (count(mod(src, 2) == 0) == 1) then
-                if (src(1) > src(2)) then
-                    call swap(src(1), src(2))
-                    negative = .true. .neqv. negative
-                end if
-                if (subset(src, os_nI)) then
-                    tgt_spat = (exc%val(2, :) + 1) .div. 2
-                    if (tgt_spat(1) > tgt_spat(2)) then
-                        call swap(tgt_spat(1), tgt_spat(2))
-                        negative = .true. .neqv. negative
-                    end if
-                    src_spat = (src + 1) .div. 2
-                    if (all(src_spat == tgt_spat)) then
-                        res = 1.0_dp
-                    end if
-                end if
-            end if
-        end if
-        if (negative) res = -res
-    end function
 end module SD_spin_purification_mod
