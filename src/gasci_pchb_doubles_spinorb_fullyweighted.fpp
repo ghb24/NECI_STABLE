@@ -384,7 +384,7 @@ contains
 
                     if (iProcIndex_intra == root) then
                         IJ_weights(I, J, i_sg) = sum(w_A)
-                        IJ_weights(J, I, i_sg) = sum(w_A)
+                        IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                     end if
                 end do second_particle
             end do first_particle

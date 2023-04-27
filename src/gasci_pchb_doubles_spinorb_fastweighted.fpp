@@ -18,7 +18,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use excitation_generators, only: DoubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
     use MPI_wrapper, only: root
-    use excitation_types, only: Excite_2_t, canonicalize, spin_allowed
+    use excitation_types, only: Excite_2_t, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
@@ -285,7 +285,6 @@ contains
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: I, J, IJ, IJMax
         integer :: A, B, AB, ABMax
-        integer :: ex(2, 2)
         integer(int64) :: memCost
             !! n_supergroup * num_fused_indices * bytes_per_sampler
         real(dp), allocatable :: w(:), IJ_weights(:, :, :)
@@ -312,31 +311,24 @@ contains
         ! One could allocate only on the intra-node-root here, if memory
         ! at initialization ever becomes an issue.
         ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
-        allocate(w(abMax))
-        allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
+        allocate(w(abMax), IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
 
         supergroup: do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             first_particle: do I = 1, nBI
-                ex(1, 1) = I ! already a spin orbital
-                ! A,B are ordered, so we can assume J < I
-                second_particle: do J = 1, I - 1
-                    ex(1, 2) = J
+                ! A,B are ordered, so we can assume I < J
+                second_particle: do J = I + 1, nBI
                     w(:) = 0._dp
                     ! for each (I,J), get all matrix elements <IJ|H|AB> and use them as
                     ! weights to prepare the sampler
                     first_hole: do A = 1, nBI
                         if (any(A == [I, J])) cycle
-                        ex(2, 1) = A
                         second_hole: do B = 1, nBI
-                            if (B .in. set([I, J, A])) cycle
-                            ex(2, 2) = B
+                            if (any(B == [I, J, A])) cycle
                             AB = fuseIndex(A, B)
-                            associate(exc => canonicalize(Excite_2_t(ex)))
+                            associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
                                 if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. spin_allowed(exc)) then
                                     w(AB) = get_PCHB_weight(exc)
-                                else
-                                    w(AB) = 0._dp
                                 end if
                             end associate
                         end do second_hole
