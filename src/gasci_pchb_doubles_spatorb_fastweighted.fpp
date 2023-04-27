@@ -10,7 +10,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: Excite_2_t, excite, canonicalize
+    use excitation_types, only: Excite_2_t, excite, canonicalize, is_canonical
     use sltcnd_mod, only: nI_invariant_sltcnd_excit
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
@@ -374,7 +374,8 @@ contains
                     ! map i to alpha spin (arbitrary choice)
                     ex(1, 1) = to_spin_orb(i, is_alpha=.true.)
                     ! as we order a,b, we can assume j <= i
-                    do j = 1, i
+                    do j = i, nBi
+                        ij = fuseIndex(i, j)
                         w(:) = 0.0_dp
                         ! for samplerIndex == 1, j is alpha, else, j is beta
                         ex(1, 2) = to_spin_orb(j, i_exch == SAME_SPIN)
@@ -382,15 +383,22 @@ contains
                         ! weights to prepare the sampler
                         do a = 1, nBI
                             ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
-                            ex(2, 2) = to_spin_orb(a, any(i_exch == [SAME_SPIN, OPP_SPIN_NO_EXCH]))
-                            do b = 1, a
+                            ex(2, 1) = to_spin_orb(a, any(i_exch == [SAME_SPIN, OPP_SPIN_NO_EXCH]))
+                            do b = a, nBi
                                 ab = fuseIndex(a, b)
                                 ! ex(2,:) is in ascending order
                                 ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
-                                ex(2, 1) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
+                                ex(2, 2) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
 
                                 ! exception: for sampler 3, a!=b
                                 associate(exc => Excite_2_t(ex))
+                                if ((ex(1, 1) == ex(1, 2) .or. ex(2, 1) == ex(2, 2) .or. any(ex(1, 1) == ex(2, :)) .or. any(ex(1, 2) == ex(2, :))) &
+                                        .neqv. (.not. is_canonical(exc))) then
+                                    write(*, *) exc%val(1, :)
+                                    write(*, *) exc%val(2, :)
+                                    write(*, *) is_canonical(exc)
+                                end if
+
                                 if (i_exch == OPP_SPIN_EXCH .and. a == b &
                                         .or. ex(1, 1) == ex(1, 2) .or. ex(2, 1) == ex(2, 2) &
                                         .or. any(ex(1, 1) == ex(2, :)) .or. any(ex(1, 2) == ex(2, :)) &
@@ -402,7 +410,6 @@ contains
                                 end associate
                             end do
                         end do
-                        ij = fuseIndex(i, j)
 
                         call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, root, w)
                         if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)

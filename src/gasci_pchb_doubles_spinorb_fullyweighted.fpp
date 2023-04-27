@@ -12,7 +12,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use bit_rep_data, only: nIfD
     use orb_idx_mod, only: calc_spin_raw, sum
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: Excite_2_t, excite, canonicalize, spin_allowed
+    use excitation_types, only: Excite_2_t, excite, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
     use FciMCData, only: excit_gen_store_type, projEDet
     use SystemData, only: nEl, nBasis, t_mol_3_body
@@ -324,10 +324,10 @@ contains
         class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: I, J, IJ, IJ_max, A, B ! Uppercase because they are indexing spin orbitals
-        integer :: ex(2, 2)
         integer(int64) :: memCost
         real(dp), allocatable :: w_A(:), w_B(:), IJ_weights(:, :, :)
         integer, allocatable :: supergroups(:, :)
+        type(Excite_2_t) :: exc
         integer :: i_sg
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
@@ -359,27 +359,20 @@ contains
         do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             first_particle: do I = 1, nBasis
-                ex(1, 1) = I
-                second_particle: do J = 1, I - 1
-                    ex(1, 2) = J
+                second_particle: do J = I + 1, nBasis
                     IJ = fuseIndex(I, J)
                     w_A(:) = 0.0_dp
                     first_hole: do A = 1, nBasis
-                        if (A .in. set([I, J])) cycle
-                        ex(2, 1) = A
+                        if (any(A == [I, J])) cycle
                         w_B(:) = 0.0_dp
                         second_hole: do B = 1, nBasis
-                            if (B .in. set([I, J, A])) cycle
-                            ex(2, 2) = B
+                            if (any(B == [I, J, A])) cycle
+                            exc = merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B)
                             if (iProcIndex_intra == root) then
-                                associate(exc => canonicalize(Excite_2_t(ex)))
-                                    if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
-                                            .and. spin_allowed(exc)) then
-                                        w_B(B) = get_PCHB_weight(exc)
-                                    else
-                                        w_B(B) = 0._dp
-                                    end if
-                                end associate
+                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                                        .and. spin_allowed(exc)) then
+                                    w_B(B) = get_PCHB_weight(exc)
+                                end if
                             end if
                         end do second_hole
                         call this%B_sampler%setup_entry(A, IJ, i_sg, root, w_B(:))
