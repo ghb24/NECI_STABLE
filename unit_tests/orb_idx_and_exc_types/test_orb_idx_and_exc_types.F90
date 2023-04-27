@@ -111,7 +111,7 @@ contains
             type(Excite_2_t) :: exc
             exc = Excite_2_t(1, 3, 2, 7)
 
-            call assert_false(is_canonical(exc))
+            call assert_true(is_canonical(exc))
         end block
 
     end subroutine
