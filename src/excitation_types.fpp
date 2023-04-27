@@ -30,7 +30,7 @@ module excitation_types
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_rep_data, only: nIfTot
     use util_mod, only: stop_all
-    use SystemData, only: nEl
+    use SystemData, only: nEl, G1
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement, is_set, &
         operator(.in.)
@@ -42,7 +42,7 @@ module excitation_types
     public :: Excitation_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, &
         ilut_excite, excite, dyn_excite, dyn_nI_excite
-    public :: is_sorted, is_canonical, canonicalize, occupation_allowed, make_canonical
+    public :: is_sorted, is_canonical, spin_allowed, canonicalize, occupation_allowed, make_canonical
     #:for excit in excitations
         public :: ${excit}$
     #:endfor
@@ -121,10 +121,16 @@ module excitation_types
 !>  1. that the excitation is defined, i.e. it has no UNKNOWN,
 !>  2. the sources and the targets are sets, i.e. they are unique and ordered,
 !>  3. the sources and the targets are disjoint,
-!>  4. the overall spin projection is preserved.
     interface is_canonical
     #:for Excitation_t in defined_excitations
         module procedure is_canonical_${Excitation_t}$
+    #:endfor
+    end interface
+
+!>  Return true if the excitation preserves the overall spin-projection
+    interface spin_allowed
+    #:for Excitation_t in defined_excitations
+        module procedure spin_allowed_${Excitation_t}$
     #:endfor
     end interface
 
@@ -220,20 +226,16 @@ contains
 
             res = all(exc%val /= UNKNOWN)
         end function
-    #:endfor
 
 
-    #:for Excitation_t in defined_excitations
         elemental function is_sorted_${Excitation_t}$ (exc) result(res)
             type(${Excitation_t}$), intent(in) :: exc
             logical :: res
 
             res = is_sorted(exc%val(1, :)) .and. is_sorted(exc%val(2, :))
         end function
-    #:endfor
 
 
-    #:for Excitation_t in defined_excitations
         elemental function is_canonical_${Excitation_t}$ (exc) result(res)
             type(${Excitation_t}$), intent(in) :: exc
             logical :: res
@@ -241,12 +243,17 @@ contains
             if (.not. defined(exc)) return
             if (.not. (is_set(exc%val(1, :)) .and. is_set(exc%val(2, :)))) return
             if (.not. disjoint(exc%val(1, :), exc%val(2, :))) return
-            if (sum(calc_spin_raw(exc%val(1, :))) /= sum(calc_spin_raw(exc%val(2, :)))) return
             res = .true.
         end function
-    #:endfor
 
-    #:for Excitation_t in defined_excitations
+
+        elemental function spin_allowed_${Excitation_t}$ (exc) result(res)
+            type(${Excitation_t}$), intent(in) :: exc
+            logical :: res
+            res = sum(G1(exc%val(1, :))%Ms) == sum(G1(exc%val(2, :))%Ms)
+        end function
+
+
         pure function occupation_allowed_${Excitation_t}$ (nI, exc) result(res)
             integer, intent(in) :: nI(:)
             type(${Excitation_t}$), intent(in) :: exc
@@ -255,10 +262,8 @@ contains
             @:pure_ASSERT(is_canonical(exc))
             res = subset(exc%val(1, :), nI) .and. disjoint(exc%val(2, :), nI)
         end function
-    #:endfor
 
 
-    #:for Excitation_t in defined_excitations
         elemental subroutine make_canonical_${Excitation_t}$ (exc, even_swaps)
             type(${Excitation_t}$), intent(inout) :: exc
             logical, intent(out) :: even_swaps

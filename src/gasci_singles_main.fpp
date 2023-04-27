@@ -11,9 +11,8 @@ module gasci_singles_main
     use gasci_util, only: gen_all_excits
     use gasci_on_the_fly_heat_bath, only: GAS_singles_heat_bath_ExcGen_t
     use get_excit, only: make_single
-    use orb_idx_mod, only: calc_spin_raw
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use excitation_types, only: Excite_1_t
+    use excitation_types, only: Excite_1_t, spin_allowed
     use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
     use fortran_strings, only: to_upper
     use bit_rep_data, only: NIfTot, nIfD
@@ -185,12 +184,14 @@ contains
             ! It may be, that (1 -> 5) is allowed, but (5 -> 1) is not.
             do src = 1, this%GAS_spec%n_spin_orbs()
                 do tgt = 1, this%GAS_spec%n_spin_orbs()
-                    if (src /= tgt &
-                            .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
-                            .and. this%GAS_spec%is_allowed(Excite_1_t(src, tgt), supergroups(:, i_sg)) &
-                            .and. symmetry_allowed(Excite_1_t(src, tgt))) then
+                    if (src == tgt) cycle
+                    associate(exc => Excite_1_t(src, tgt))
+                    if (spin_allowed(exc) &
+                            .and. this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                            .and. symmetry_allowed(exc)) then
                         call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
                     end if
+                    end associate
                 end do
             end do
         end do

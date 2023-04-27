@@ -15,7 +15,7 @@ module gasci_singles_pc_weighted
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
     use get_excit, only: make_single
     use MPI_wrapper, only: root
-    use excitation_types, only: Excite_1_t
+    use excitation_types, only: Excite_1_t, spin_allowed
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -328,10 +328,10 @@ contains
             do i_sg = 1, n_supergroups
                 do src = 1, nBi
                     do tgt = 1, nBi
+                        if (src == tgt) cycle
                         exc = Excite_1_t(src, tgt)
                         if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
-                                .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
-                                .and. src /= tgt &
+                                .and. spin_allowed(exc) &
                                 .and. symmetry_allowed(exc) &
                         ) then
                             this%weights(tgt, src, i_sg) = get_weight(exc)

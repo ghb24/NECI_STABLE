@@ -12,7 +12,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use bit_rep_data, only: nIfD
     use orb_idx_mod, only: calc_spin_raw, sum
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: Excite_2_t, excite, canonicalize
+    use excitation_types, only: Excite_2_t, excite, canonicalize, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
     use FciMCData, only: excit_gen_store_type, projEDet
     use SystemData, only: nEl, nBasis, t_mol_3_body
@@ -369,12 +369,12 @@ contains
                         ex(2, 1) = A
                         w_B(:) = 0.0_dp
                         second_hole: do B = 1, nBasis
-                            if (sum(calc_spin_raw([I, J])) /= sum(calc_spin_raw([A, B])) &
-                                    .or. (B .in. set([I, J, A]))) cycle
+                            if (B .in. set([I, J, A])) cycle
                             ex(2, 2) = B
                             if (iProcIndex_intra == root) then
                                 associate(exc => canonicalize(Excite_2_t(ex)))
-                                    if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg))) then
+                                    if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                                            .and. spin_allowed(exc)) then
                                         w_B(B) = get_PCHB_weight(exc)
                                     else
                                         w_B(B) = 0._dp

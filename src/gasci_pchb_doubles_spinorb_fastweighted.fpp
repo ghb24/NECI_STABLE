@@ -7,7 +7,6 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use constants, only: dp, n_int, maxExcit, stdout, int64
     use util_mod, only: operator(.isclose.), near_zero, fuseIndex, stop_all, operator(.implies.)
     use sets_mod, only: operator(.in.), set
-    use orb_idx_mod, only: calc_spin_raw, sum
     use get_excit, only: make_double, exciteIlut
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
@@ -16,10 +15,10 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use SymExcitDataMod, only: ScratchSize
     use sltcnd_mod, only: nI_invariant_sltcnd_excit
     use bit_rep_data, only: nIfTot
-    use excitation_generators, only: doubleExcitationGenerator_t
+    use excitation_generators, only: DoubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
     use MPI_wrapper, only: root
-    use excitation_types, only: Excite_2_t, canonicalize
+    use excitation_types, only: Excite_2_t, canonicalize, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
@@ -330,12 +329,11 @@ contains
                         if (any(A == [I, J])) cycle
                         ex(2, 1) = A
                         second_hole: do B = 1, nBI
-                            if (sum(calc_spin_raw([I, J])) /= sum(calc_spin_raw([A, B])) &
-                                    .or. (B .in. set([I, J, A]))) cycle
+                            if (B .in. set([I, J, A])) cycle
                             ex(2, 2) = B
                             AB = fuseIndex(A, B)
                             associate(exc => canonicalize(Excite_2_t(ex)))
-                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg))) then
+                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. spin_allowed(exc)) then
                                     w(AB) = get_PCHB_weight(exc)
                                 else
                                     w(AB) = 0._dp
