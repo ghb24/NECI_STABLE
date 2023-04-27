@@ -1260,7 +1260,6 @@ contains
                             ! same one as was generated at the beginning of the loop.
                             if (.not. tEScaleWalkers) then
                                 diagH = get_diagonal_matel(nJ, SpawnedParts(:, i))
-                                call stop_all(this_routine, "here we want to use the faster diagH_from_exc")
                                 offdiagH = get_off_diagonal_matel(nJ, SpawnedParts(:, i))
                             end if
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot, i), DetHash, nJ, &
