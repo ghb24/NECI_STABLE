@@ -522,7 +522,6 @@ contains
     #:for kind in kinds
     pure function test_not_in_${T}$_${kind}$ (element, set) result(res)
         ${T}$ (${kind}$), intent(in) :: element, set(:)
-        character(*), parameter :: this_routine = 'test_in_${T}$_${kind}$'
         logical :: res
         res = .not. (element .in. set)
     end function
