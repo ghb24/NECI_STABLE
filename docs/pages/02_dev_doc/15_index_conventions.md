@@ -81,9 +81,9 @@ and call this a canonical excitation.
 
 In `NECI` any excitation of rank \(n\) is represented by a \(2 \times n\) matrix,
 where the first row contains all the source indices (particles which are to be annihilated)
-and the target indices (particles which are to be created).
+and the second row all target indices (particles which are to be created).
 
-A canonical excitation \( a^\dagger_P a^\dagger_R a_S a_Q, P < R \land Q < S \)  \)
+A canonical excitation \( a^\dagger_P a^\dagger_R a_S a_Q, (P < R \land Q < S )  \)
 in `NECI` is given by a matrix, where each row is ascendingly sorted.
 \begin{equation}
         \begin{bmatrix}
