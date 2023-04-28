@@ -365,21 +365,21 @@ contains
         ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
         allocate(w(abMax))
         allocate(IJ_weights(nBI * 2, nBI * 2, size(supergroups, 2)), source=0._dp)
-        do i_sg = 1, size(supergroups, 2)
+        over_supergroup: do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             pNoExch = 1.0_dp - this%pExch(:, i_sg)
-            do i_exch = 1, 3
-                do i = 1, nBI
+            over_spin_type: do i_exch = 1, 3
+                particle_1: do i = 1, nBI
                     ex(1, 1) = to_spin_orb(i, is_alpha=.true.)
-                    do j = i, nBi
+                    particle_2: do j = i, nBi
                         if (i_exch == SAME_SPIN .and. i == j) cycle
                         ij = fuseIndex(i, j)
                         w(:) = 0.0_dp
                         ex(1, 2) = to_spin_orb(j, i_exch == SAME_SPIN)
-                        do a = 1, nBI
+                        hole_1: do a = 1, nBI
                             ex(2, 1) = to_spin_orb(a, any(i_exch == [SAME_SPIN, OPP_SPIN_NO_EXCH]))
                             if (any(ex(2, 1) == ex(1, :))) cycle
-                            do b = a, nBi
+                            hole_2: do b = a, nBi
                                 if (i_exch == OPP_SPIN_EXCH .and. a == b) cycle
                                 ab = fuseIndex(a, b)
                                 ex(2, 2) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
@@ -390,8 +390,8 @@ contains
                                     w(ab) = get_PCHB_weight(exc)
                                 end if
                                 end associate
-                            end do
-                        end do
+                            end do hole_2
+                        end do hole_1
 
                         call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, root, w)
                         if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
@@ -399,33 +399,33 @@ contains
 
                         associate(I => ex(1, 1), J => ex(1, 2))
                             IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
-                            IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                            IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                         end associate
                         if (i /= j) then
                             ! sum over alpha and beta of the same orbital
                             if (i_exch == SAME_SPIN) then
                                 associate(I => ex(1, 1) - 1, J => ex(1, 2) - 1)
                                     IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
-                                    IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                                    IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                                 end associate
                             else
                                 associate(I => ex(1, 1) - 1, J => ex(1, 2) + 1)
                                     IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
-                                    IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                                    IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                                 end associate
                             end if
                         end if
 
-                    end do
-                end do
-            end do
+                    end do particle_2
+                end do particle_1
+            end do over_spin_type
             ! normalize the exchange bias (where normalizable)
             where (near_zero(this%pExch(:, i_sg) + pNoExch))
                 this%pExch(:, i_sg) = 0._dp
             else where
                 this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
             end where
-        end do
+        end do over_supergroup
 
 
         call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
