@@ -1049,6 +1049,125 @@ contains
 
     #:for rank, excite_t in zip(excit_ranks[1 : ], defined_excitations[1 : ])
         pure function diagH_after_exc_${rank}$_base(nI, E_0, exc) result(hel)
+            !! Evaluate the energy of a new determinant \(D_j\) quickly.
+            !!
+            !! The calculation of a diagonal term of the hamiltonian,
+            !! scales quadratically with the number of particles \( \mathcal{O}(N_{e}^2) \).
+            !! Often we start from a determinant \(D_i\), where we know the diagonal term,
+            !! and excite to a new determinant \(D_j\).
+            !! Under this circumstance we can calculate the diagonal element of \(D_j\)
+            !! in \( \mathcal{O}(N_{e}) \) time.
+            !!
+            !! In the following we will derive the necessary equations.
+            !! We assume the notations and conventions of the purple book.
+            !! The diagonal term for a determinant is given as
+            !! \begin{equation*}
+            !!      \langle D_i | \hat{H} | D_i \rangle
+            !!   =
+            !!      \sum_{I \in D_i} h_{II}
+            !!       + \frac{1}{2} \sum_{I \in D_i} \sum_{J \in D_i} (g_{IIJJ} - g_{IJJI})
+            !! \end{equation*}
+            !!
+            !! We want to calculate \( \langle D_j | \hat{H} | D_j \rangle - \langle D_i | \hat{H} | D_i \rangle \).
+            !! Which we do by separately calculating the difference for the one- and two-electron term.
+            !!
+            !! We can rewrite the one-electron term as:
+            !! \begin{equation*}
+            !!          \sum_{I \in D_i} h_{II}
+            !!      =
+            !!          \sum_{I \in D_i \cap D_j} h_{II}
+            !!              + \sum_{I \in D_i \setminus D_j} h_{II}
+            !! \end{equation*}
+            !! Which gives
+            !! \begin{equation*}
+            !!          \sum_{J \in D_j} h_{JJ}
+            !!          - \sum_{I \in D_i} h_{II}
+            !!      =
+            !!          \sum_{J \in D_j \setminus D_i} h_{JJ}
+            !!              - \sum_{I \in D_i \setminus D_j} h_{II}
+            !!      =
+            !!          \sum_{J \in \texttt{tgt}} h_{JJ}
+            !!              - \sum_{I \in \texttt{src}} h_{II}
+            !! \end{equation*}
+            !!
+            !!
+            !! For the two electron term we define
+            !! \begin{equation*}
+            !!    \gamma_{IJ} = (g_{IIJJ} - g_{IJJI})
+            !! \end{equation*}
+            !! and note the two properties
+            !! \begin{equation*}
+            !!      \gamma_{IJ} = \gamma_{JI}
+            !! \end{equation*}
+            !! \begin{equation*}
+            !!      \gamma_{II} = 0
+            !! \end{equation*}
+            !!
+            !! We write
+            !! \begin{equation*}
+            !!          \frac{1}{2} \sum_{I \in D_i} \sum_{J \in D_i} \gamma_{IJ}
+            !!      =
+            !!      \frac{1}{2} \left[
+            !!                  \sum_{I \in D_i \cap D_j} \sum_{J \in D_i \cap D_j} \gamma_{IJ}
+            !!                + \sum_{I \in D_i \cap D_j} \sum_{J \in D_i \setminus D_j} \gamma_{IJ}
+            !!                + \sum_{I \in D_i \setminus D_j} \sum_{J \in D_i \cap D_j} \gamma_{IJ}
+            !!                + \sum_{I \in D_i \setminus D_j} \sum_{J \in D_i \setminus D_j} \gamma_{IJ}
+            !!      \right]
+            !! \end{equation*}
+            !! \begin{equation*}
+            !!      =
+            !!      \frac{1}{2} \left[
+            !!                  \sum_{I \in D_i \cap D_j} \sum_{J \in D_i \cap D_j} \gamma_{IJ}
+            !!                + 2 \Big( \sum_{I \in D_i \cap D_j} \sum_{J \in D_i \setminus D_j} \gamma_{IJ} \Big)
+            !!                + \sum_{I \in D_i \setminus D_j} \sum_{J \in D_i \setminus D_j} \gamma_{IJ}
+            !!      \right]
+            !! \end{equation*}
+            !! In the last equality we used \( \gamma_{IJ} = \gamma_{JI} \).
+            !!
+            !! For the difference we get:
+            !! \begin{equation*}
+            !!          \frac{1}{2} \sum_{I \in D_j} \sum_{J \in D_j} \gamma_{IJ}
+            !!          - \frac{1}{2} \sum_{I \in D_i} \sum_{J \in D_i} \gamma_{IJ}
+            !!      =
+            !!      \frac{1}{2} \left[
+            !!                  2 \Big( \sum_{I \in D_i \cap D_j} \sum_{J \in D_j \setminus D_i} \gamma_{IJ} \Big)
+            !!                + \sum_{I \in D_j \setminus D_i} \sum_{J \in D_j \setminus D_i} \gamma_{IJ}
+            !!                - 2 \Big( \sum_{I \in D_i \cap D_j} \sum_{J \in D_i \setminus D_j} \gamma_{IJ} \Big)
+            !!                - \sum_{I \in D_i \setminus D_j} \sum_{J \in D_i \setminus D_j} \gamma_{IJ}
+            !!      \right]
+            !! \end{equation*}
+            !! \begin{equation*}
+            !!      =
+            !!          \sum_{I \in D_i \cap D_j} \Big(
+            !!              \sum_{J \in D_j \setminus D_i} \gamma_{IJ}
+            !!              - \sum_{J \in D_i \setminus D_j} \gamma_{IJ}
+            !!          \Big)
+            !!          + \sum_{I \in D_j \setminus D_i} \sum_{J \in D_j \setminus D_i, I < J} \gamma_{IJ}
+            !!          - \sum_{I \in D_i \setminus D_j} \sum_{J \in D_i \setminus D_j, I < J} \gamma_{IJ}
+            !! \end{equation*}
+            !! \begin{equation*}
+            !!      =
+            !!          \sum_{I \in D_i \cap D_j} \Big(
+            !!              \sum_{J \in \texttt{tgt}} \gamma_{IJ}
+            !!              - \sum_{J \in \texttt{src}} \gamma_{IJ}
+            !!          \Big)
+            !!          + \sum_{I \in \texttt{tgt}} \sum_{J \in \texttt{tgt}, I < J} \gamma_{IJ}
+            !!          - \sum_{I \in \texttt{src}} \sum_{J \in \texttt{src}, I < J} \gamma_{IJ}
+            !! \end{equation*}
+            !!
+            !! In total we obtain
+            !! \begin{equation*}
+            !!      \langle D_j | \hat{H} | D_j \rangle - \langle D_i | \hat{H} | D_i \rangle
+            !!  =
+            !!        \sum_{J \in \texttt{tgt}} h_{JJ}
+            !!      - \sum_{I \in \texttt{src}} h_{II}
+            !!      + \sum_{I \in D_i \cap D_j} \Big(
+            !!              \sum_{J \in \texttt{tgt}} \gamma_{IJ}
+            !!              - \sum_{J \in \texttt{src}} \gamma_{IJ}
+            !!          \Big)
+            !!          + \sum_{I \in \texttt{tgt}} \sum_{J \in \texttt{tgt}, I < J} \gamma_{IJ}
+            !!          - \sum_{I \in \texttt{src}} \sum_{J \in \texttt{src}, I < J} \gamma_{IJ}
+            !! \end{equation*}
             integer, intent(in) :: nI(nEl)
             HElement_t(dp), intent(in) :: E_0
             type(${excite_t}$), intent(in) :: exc
@@ -1063,11 +1182,6 @@ contains
 
             associate(src => exc%val(1, :), tgt => exc%val(2, :))
             associate(id_nI => gtID(nI), id_src => gtID(src), id_tgt => gtID(tgt))
-                !! the variable is called joint because
-                !!      \( D_i \setminus \text{src} = D_i .cap. D_j \)
-                !! if
-                !!      \( \text{tgt} .cap. D_i == \empty \)
-                !! which we assume because the excitation should be canonical.
                 Delta_1 = sum(GetTmatEl(tgt, tgt)) - sum(GetTMatEl(src, src))
 
                 Delta_2 = h_cast(0._dp)
