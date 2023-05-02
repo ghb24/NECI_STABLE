@@ -155,7 +155,7 @@ module sltcnd_mod
         !! in \( \mathcal{O}(N_{e}) \) time.
         !!
         !! In the following we will derive the necessary equations.
-        !! We assume the notations and conventions of the purple book.
+        !! We assume the notations and conventions of the "purple book" (Helgaker et al).
         !! The diagonal term for a determinant is given as
         !! \begin{equation*}
         !!      \langle D_i | \hat{H} | D_i \rangle
@@ -394,7 +394,7 @@ contains
     #:endfor
 
     HElement_t(dp) function adjoint_sltcnd_0(nI, ex) result(hel)
-        !! returns the adjoint sltcnd of the given rank: ${rank}$
+        !! Returns the adjoint for the diagonal element \( \langle D_i | \hat{H} | D_i \rangle \)
         integer, intent(in) :: nI(nel)
         type(Excite_0_t), intent(in) :: ex
         hel = nonadjoint_sltcnd_0(nI, ex)

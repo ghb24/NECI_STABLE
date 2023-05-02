@@ -41,8 +41,8 @@ module excitation_types
     private
     public :: Excitation_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, &
-        ilut_excite, excite, dyn_excite, dyn_nI_excite
-    public :: is_sorted, is_canonical, spin_allowed, canonicalize, occupation_allowed, make_canonical
+        ilut_excite, excite, dyn_excite, dyn_nI_excite, &
+        is_sorted, is_canonical, spin_allowed, canonicalize, occupation_allowed, make_canonical
     #:for excit in excitations
         public :: ${excit}$
     #:endfor
