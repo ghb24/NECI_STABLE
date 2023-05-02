@@ -20,9 +20,8 @@ module gasci_on_the_fly_heat_bath
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use excitation_types, only: Excitation_t, Excite_1_t, Excite_2_t, &
         get_last_tgt, set_last_tgt, defined, UNKNOWN, &
-        excite, ilut_excite
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, &
-        operator(-), operator(==), operator(/=), sum
+        excite, ilut_excite, is_canonical
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
     use util_mod, only: swap
 
     use excitation_generators, only: &
@@ -34,7 +33,7 @@ module gasci_on_the_fly_heat_bath
     use gasci, only: GASSpec_t, LocalGASSpec_t
     use gasci_util, only: &
         gen_all_excits, get_cumulative_list, draw_from_cum_list
-    implicit none
+    better_implicit_none
 
     private
     public :: GAS_heat_bath_ExcGenerator_t, GAS_singles_heat_bath_ExcGen_t
@@ -431,6 +430,7 @@ contains
         @:ASSERT(ic == 2)
 
         exc = Excite_2_t(ex)
+        @:ASSERT(is_canonical(exc))
 
         pgen_particles = get_pgen_pick_biased_elecs(&
                 calc_spin_raw(exc%val(1, 1)) == calc_spin_raw(exc%val(1, 2)), &

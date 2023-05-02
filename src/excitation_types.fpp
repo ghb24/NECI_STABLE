@@ -26,26 +26,29 @@
 !>  The procedures create_excitation, get_excitation, and get_bit_excitation
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module excitation_types
-    use orb_idx_mod, only: size
+    use orb_idx_mod, only: size, sum, calc_spin_raw
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_rep_data, only: nIfTot
     use util_mod, only: stop_all
-    use SystemData, only: nEl
+    use SystemData, only: nEl, G1
     use orb_idx_mod, only: SpinOrbIdx_t
-    use sets_mod, only: disjoint, subset, is_sorted, special_union_complement
+    use sets_mod, only: disjoint, subset, is_sorted, special_union_complement, is_set, &
+        operator(.in.)
     use DetBitOps, only: GetBitExcitation
     use excit_mod, only: GetExcitation
+    use sort_mod, only: sort
     implicit none
     private
     public :: Excitation_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, &
-        ilut_excite, excite, dyn_excite, dyn_nI_excite
+        ilut_excite, excite, dyn_excite, dyn_nI_excite, &
+        is_sorted, is_canonical, spin_allowed, canonicalize, occupation_allowed, make_canonical
     #:for excit in excitations
-    public :: ${excit}$
+        public :: ${excit}$
     #:endfor
 
     !> Arbitrary non occuring (?!) orbital index.
-    integer, parameter :: UNKNOWN = -20
+    integer, parameter :: UNKNOWN = huge(UNKNOWN)
 
     !>  Abstract base class for excitations.
     type, abstract :: Excitation_t
@@ -62,6 +65,7 @@ module excitation_types
 
     type, extends(Excitation_t) :: Excite_Further_t
         !! Represents an excitation with so many different indices, it has to be zero
+        integer :: val(2, 0) = UNKNOWN
     end type
 
     #:for Excitation_t in non_trivial_excitations
@@ -100,6 +104,66 @@ module excitation_types
     interface defined
     #:for Excitation_t in defined_excitations
         module procedure defined_${Excitation_t}$
+    #:endfor
+    end interface
+
+
+!>  Return true if all sources and targets are not UNKNOWN.
+    interface is_sorted
+    #:for Excitation_t in defined_excitations
+        module procedure is_sorted_${Excitation_t}$
+    #:endfor
+    end interface
+
+!>  Return true if the excitation is canonical
+!>
+!>  Canonical means:
+!>  1. that the excitation is defined, i.e. it has no UNKNOWN,
+!>  2. the sources and the targets are sets, i.e. they are unique and ordered,
+!>  3. the sources and the targets are disjoint,
+    interface is_canonical
+    #:for Excitation_t in defined_excitations
+        module procedure is_canonical_${Excitation_t}$
+    #:endfor
+    end interface
+
+!>  Return true if the excitation preserves the overall spin-projection
+    interface spin_allowed
+    #:for Excitation_t in defined_excitations
+        module procedure spin_allowed_${Excitation_t}$
+    #:endfor
+    end interface
+
+
+!>  Return true if the excitation is allowed by occupation of the starting determinant
+!>
+!>  The input excitation has to be canonical.
+    interface occupation_allowed
+    #:for Excitation_t in defined_excitations
+        module procedure occupation_allowed_${Excitation_t}$
+    #:endfor
+    end interface
+
+
+!>  Canonicalize an excitation
+!>
+!>  Canonical means that the excitation is defined, i.e. it has no UNKNOWN,
+!>  the sources and the targets are sets, i.e. they are unique and ordered,
+!>  and the sources and the targets are disjoint.
+    interface canonicalize
+    #:for Excitation_t in defined_excitations
+        module procedure canonicalize_${Excitation_t}$
+    #:endfor
+    end interface
+
+!>  Canonicalize an excitation and count the necessary swaps
+!>
+!>  Canonical means that the excitation is defined, i.e. it has no UNKNOWN,
+!>  the sources and the targets are sets, i.e. they are unique and ordered,
+!>  and the sources and the targets are disjoint.
+    interface make_canonical
+    #:for Excitation_t in defined_excitations
+        module procedure make_canonical_${Excitation_t}$
     #:endfor
     end interface
 
@@ -155,30 +219,85 @@ contains
     end function
 #endif
 
-    #:for Excitation_t in non_trivial_excitations
-    elemental function defined_${Excitation_t}$ (exc) result(res)
-        type(${Excitation_t}$), intent(in) :: exc
-        logical :: res
+    #:for Excitation_t in defined_excitations
+        elemental function defined_${Excitation_t}$ (exc) result(res)
+            type(${Excitation_t}$), intent(in) :: exc
+            logical :: res
 
-        res = all(exc%val /= UNKNOWN)
-    end function
+            res = all(exc%val /= UNKNOWN)
+        end function
+
+
+        elemental function is_sorted_${Excitation_t}$ (exc) result(res)
+            type(${Excitation_t}$), intent(in) :: exc
+            logical :: res
+
+            res = is_sorted(exc%val(1, :)) .and. is_sorted(exc%val(2, :))
+        end function
+
+
+        elemental function is_canonical_${Excitation_t}$ (exc) result(res)
+            type(${Excitation_t}$), intent(in) :: exc
+            logical :: res
+            res = .false.
+            if (.not. defined(exc)) return
+            if (.not. (is_set(exc%val(1, :)) .and. is_set(exc%val(2, :)))) return
+            if (.not. disjoint(exc%val(1, :), exc%val(2, :))) return
+            res = .true.
+        end function
+
+
+        elemental function spin_allowed_${Excitation_t}$ (exc) result(res)
+            type(${Excitation_t}$), intent(in) :: exc
+            logical :: res
+            res = sum(G1(exc%val(1, :))%Ms) == sum(G1(exc%val(2, :))%Ms)
+        end function
+
+
+        pure function occupation_allowed_${Excitation_t}$ (nI, exc) result(res)
+            integer, intent(in) :: nI(:)
+            type(${Excitation_t}$), intent(in) :: exc
+            logical :: res
+            debug_function_name("occupation_allowed_${Excitation_t}$")
+            @:pure_ASSERT(is_canonical(exc))
+            res = subset(exc%val(1, :), nI) .and. disjoint(exc%val(2, :), nI)
+        end function
+
+
+        elemental subroutine make_canonical_${Excitation_t}$ (exc, even_swaps)
+            type(${Excitation_t}$), intent(inout) :: exc
+            logical, intent(out) :: even_swaps
+            integer :: n_swaps(2)
+            type(${Excitation_t}$) :: copy_exc
+            routine_name("make_canonical")
+            copy_exc = exc
+            @:sort(integer, exc%val(1, :), count_swaps=n_swaps(1))
+            @:sort(integer, exc%val(2, :), count_swaps=n_swaps(2))
+            even_swaps = mod(sum(n_swaps), 2) == 0
+            @:pure_ASSERT(is_canonical(exc))
+        end subroutine
+
+        elemental function canonicalize_${Excitation_t}$ (exc) result(res)
+            type(${Excitation_t}$), intent(in) :: exc
+            type(${Excitation_t}$) :: res
+            logical :: dummy
+            res = exc
+            call make_canonical(res, dummy)
+        end function
     #:endfor
-    elemental function defined_Excite_0_t(exc) result(res)
-        type(Excite_0_t), intent(in) :: exc
-        logical :: res
-        @:unused_var(exc)
-        res = .true.
-    end function
 
     elemental function dyn_defined(exc) result(res)
         class(Excitation_t), intent(in) :: exc
         logical :: res
+        routine_name("dyn_defined")
 
         select type (exc)
         #:for Excitation_t in defined_excitations
         type is (${Excitation_t}$)
             res = defined(exc)
         #:endfor
+        class default
+            call stop_all(this_routine, "Excitation type invalid.")
         end select
     end function
 
@@ -290,14 +409,14 @@ contains
         integer, intent(out) :: exc(2, maxExcit)
         logical, intent(out) :: tParity
         character(*), parameter :: this_routine = 'get_excitation_old'
-        @:ASSERT(any(ic == [1, 2, 3]))
+        @:ASSERT(ic .in. [1, 2, 3])
         exc(1, 1) = ic
         call GetExcitation(nI, nJ, nel, exc, tParity)
     end subroutine
 
 
-!>  Create an excitation from ilutI to ilutJ where the excitation level
-!>  is already known.
+!>  Create canonical excitation from ilutI to ilutJ
+!>  where the excitation level is already known.
     subroutine get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
         !> Two Slater determinants in bitmask format.
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -306,20 +425,31 @@ contains
         !>  The parity of the excitation.
         class(Excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
+        routine_name("get_bit_excitation")
 
         exc = create_excitation(ic)
+        tParity = .false.
 
         ! The compiler has to statically know, what the type of exc is.
         select type (exc)
+        type is (Excite_0_t)
+            continue
         type is (Excite_1_t)
             exc%val(1, 1) = IC
             call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+            exc = canonicalize(exc)
         type is (Excite_2_t)
             exc%val(1, 1) = IC
             call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+            exc = canonicalize(exc)
         type is (Excite_3_t)
             exc%val(1, 1) = IC
             call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+            exc = canonicalize(exc)
+        type is (Excite_Further_t)
+            continue
+        class default
+            call stop_all(this_routine, "Excitation type invalid.")
         end select
     end subroutine get_bit_excitation
 
@@ -353,22 +483,9 @@ contains
         integer, intent(in) :: det_I(:)
         type(${excite_t}$), intent(in) :: exc
         integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_nI_${excite_t}$'
-
-        integer :: src(${rank}$), tgt(${rank}$)
-
-        @:pure_ASSERT(defined(exc))
-        src = exc%val(1, :)
-        tgt = exc%val(2, :)
-        @:sort(integer, src)
-        @:sort(integer, tgt)
-        @:pure_ASSERT(is_sorted(src))
-        @:pure_ASSERT(is_sorted(tgt))
-        @:pure_ASSERT(disjoint(src, tgt))
-        @:pure_ASSERT(disjoint(tgt, det_I))
-        @:pure_ASSERT(subset(src, det_I))
-
-        res = special_union_complement(det_I, tgt, src)
+        debug_function_name('excite_nI_${excite_t}$')
+        @:pure_ASSERT(is_canonical(exc))
+        res = special_union_complement(det_I, exc%val(2, :), exc%val(1, :))
     end function
     #:endfor
 

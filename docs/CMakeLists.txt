@@ -34,6 +34,7 @@ set(markdown_files_dev_doc
         pages/02_dev_doc/12_interfacing_C.md
         pages/02_dev_doc/13_debugging.md
         pages/02_dev_doc/14_important_globals.md
+        pages/02_dev_doc/15_index_conventions.md
 )
 
 set(MEDIA_FILES

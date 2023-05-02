@@ -10,20 +10,20 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use get_excit, only: make_double, exciteIlut
     use bit_reps, only: decode_bit_det
     use bit_rep_data, only: nIfD
+    use orb_idx_mod, only: calc_spin_raw, sum
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: Excite_2_t, excite
-    use sltcnd_mod, only: sltcnd_excit
+    use excitation_types, only: Excite_2_t, excite, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
     use FciMCData, only: excit_gen_store_type, projEDet
-    use SystemData, only: nEl, nBasis
-    use sets_mod, only: set, operator(.cap.)
+    use SystemData, only: nEl, nBasis, t_mol_3_body
+    use sets_mod, only: set, operator(.cap.), operator(.in.)
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: iProcIndex_intra, root
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
-        ParticleSelector_t, PCHB_ParticleSelection_t, allocate_and_init
+        ParticleSelector_t, PCHB_ParticleSelection_t, allocate_and_init, get_PCHB_weight
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
 
@@ -324,7 +324,6 @@ contains
         class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: I, J, IJ, IJ_max, A, B ! Uppercase because they are indexing spin orbitals
-        integer :: ex(2, 2)
         integer(int64) :: memCost
         real(dp), allocatable :: w_A(:), w_B(:), IJ_weights(:, :, :)
         integer, allocatable :: supergroups(:, :)
@@ -359,25 +358,22 @@ contains
         do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             first_particle: do I = 1, nBasis
-                ex(1, 1) = I
-                second_particle: do J = 1, I - 1
-                    ex(1, 2) = J
+                second_particle: do J = I + 1, nBasis
                     IJ = fuseIndex(I, J)
                     w_A(:) = 0.0_dp
                     first_hole: do A = 1, nBasis
                         if (any(A == [I, J])) cycle
-                        ex(2, 1) = A
                         w_B(:) = 0.0_dp
                         second_hole: do B = 1, nBasis
-                            if (A == B .or. any(B == [I, J])) cycle
-                            ex(2, 2) = B
+                            if (any(B == [I, J, A])) cycle
+                            associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
                             if (iProcIndex_intra == root) then
-                                if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
-                                    w_B(B) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
-                                else
-                                    w_B(B) = 0._dp
+                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                                        .and. spin_allowed(exc)) then
+                                    w_B(B) = get_PCHB_weight(exc)
                                 end if
                             end if
+                            end associate
                         end do second_hole
                         call this%B_sampler%setup_entry(A, IJ, i_sg, root, w_B(:))
                         if (iProcIndex_intra == root) then
@@ -388,7 +384,7 @@ contains
 
                     if (iProcIndex_intra == root) then
                         IJ_weights(I, J, i_sg) = sum(w_A)
-                        IJ_weights(J, I, i_sg) = sum(w_A)
+                        IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                     end if
                 end do second_particle
             end do first_particle

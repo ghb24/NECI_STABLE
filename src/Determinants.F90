@@ -489,10 +489,11 @@ contains
 
         end if
 
-        if (IC < 0) &
+        if (IC < 0) then
             call stop_all(this_routine, "get_helement_excit should only be &
                          &used if we know the number of excitations and the &
                          &excitation matrix")
+        end if
 
         hel = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tParity)
 

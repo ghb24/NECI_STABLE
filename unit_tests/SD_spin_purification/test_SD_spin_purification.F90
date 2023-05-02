@@ -86,8 +86,6 @@ contains
     subroutine test_S2_expval_exc()
         call assert_equals(0._dp, S2_expval_exc([integer::], Excite_0_t()))
 
-        call assert_equals(0._dp, S2_expval_exc([integer::], Excite_2_t(1, 2, 3, 4)))
-
         call assert_equals(0._dp, S2_expval_exc([1, 2, 3, 4], Excite_0_t()))
 
         call assert_equals(0._dp, S2_expval_exc([1, 3], Excite_2_t(1, 3, 5, 7)))
@@ -104,11 +102,17 @@ contains
 
         call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4, 5, 6], Excite_2_t(1, 2, 4, 3)))
 
+        call assert_true(0._dp .isclose. S2_expval_exc([1, 4, 5, 6], Excite_2_t(1, 2, 8, 7))) ! because it is already occupied
+
+
         call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], Excite_0_t()))
 
         call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], Excite_0_t()))
 
         call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], Excite_2_t(src1=1, tgt1=2, src2=4, tgt2=3)))
+
+
+        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4, 5, 6], Excite_2_t(1, 2, 4, 3)))
     end subroutine
 
     subroutine test_dyn_S2_expval_exc()
@@ -117,7 +121,7 @@ contains
         exc = Excite_0_t()
         call assert_equals(0._dp, dyn_S2_expval_exc([integer::], exc))
 
-        exc = Excite_2_t(1, 2, 3, 4)
+        exc = Excite_2_t(1, 5, 3, 7)
         call assert_equals(0._dp, dyn_S2_expval_exc([integer::], exc))
 
         exc = Excite_0_t()

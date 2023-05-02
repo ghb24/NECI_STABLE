@@ -8,14 +8,16 @@ module gasci_pchb_doubles_select_particles
     use bit_rep_data, only: nIfD
     use util_mod, only: EnumBase_t
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
-    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
+    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs, t_mol_3_body
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use FciMCData, only: pParallel
+    use FciMCData, only: pParallel, projEDet
     use sets_mod, only: operator(.in.)
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use util_mod, only: stop_all, operator(.isclose.), swap, &
         binary_search_int, EnumBase_t, operator(.div.)
     use MPI_wrapper, only: iProcIndex_intra
+    use excitation_types, only: Excite_2_t
+    use sltcnd_mod, only: nI_invariant_sltcnd_excit, sltcnd_excit
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     better_implicit_none
@@ -23,7 +25,7 @@ module gasci_pchb_doubles_select_particles
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
         PCHB_particle_selection_vals, PCHB_ParticleSelection_t, allocate_and_init, &
-        PCHB_ParticleSelection_vals_t
+        PCHB_ParticleSelection_vals_t, get_PCHB_weight
 
 
 
@@ -582,4 +584,20 @@ contains
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine
+
+
+    function get_PCHB_weight(exc) result(res)
+        !! If there are three-body excitations,
+        !! the double excitations actually become determinant-dependent.
+        !! This function returns a fake determinant independent value in all
+        !! cases, but evaluating `exc` for the reference determinant.
+        type(Excite_2_t), intent(in) :: exc
+        real(dp) :: res
+        if (t_mol_3_body) then
+            res = abs(sltcnd_excit(projEDet(:, 1), exc, .false., assert_occupation=.false.))
+        else
+            res = abs(nI_invariant_sltcnd_excit(exc))
+        end if
+    end function
+
 end module

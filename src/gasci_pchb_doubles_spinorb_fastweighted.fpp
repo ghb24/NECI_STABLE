@@ -6,23 +6,25 @@ module gasci_pchb_doubles_spinorb_fastweighted
     !! spin-orbital-resolved GASCI-PCHB using the "fast weighted" scheme
     use constants, only: dp, n_int, maxExcit, stdout, int64
     use util_mod, only: operator(.isclose.), near_zero, fuseIndex, stop_all, operator(.implies.)
+    use sets_mod, only: operator(.in.), set
     use get_excit, only: make_double, exciteIlut
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
     use UMatCache, only: numBasisIndices
     use SystemData, only: nEl, nBasis
     use SymExcitDataMod, only: ScratchSize
-    use sltcnd_mod, only: sltcnd_excit
+    use sltcnd_mod, only: nI_invariant_sltcnd_excit
     use bit_rep_data, only: nIfTot
-    use excitation_generators, only: doubleExcitationGenerator_t
+    use excitation_generators, only: DoubleExcitationGenerator_t
     use FciMCData, only: ProjEDet, excit_gen_store_type
     use MPI_wrapper, only: root
-    use excitation_types, only: Excite_2_t
+    use excitation_types, only: Excite_2_t, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
                                   PCHB_particle_selection_vals, PC_FullyWeightedParticles_t, &
-                                  PC_FastWeightedParticles_t, UniformParticles_t, allocate_and_init
+                                  PC_FastWeightedParticles_t, UniformParticles_t, allocate_and_init, &
+                                  get_PCHB_weight
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     better_implicit_none
@@ -283,7 +285,6 @@ contains
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: I, J, IJ, IJMax
         integer :: A, B, AB, ABMax
-        integer :: ex(2, 2)
         integer(int64) :: memCost
             !! n_supergroup * num_fused_indices * bytes_per_sampler
         real(dp), allocatable :: w(:), IJ_weights(:, :, :)
@@ -310,31 +311,26 @@ contains
         ! One could allocate only on the intra-node-root here, if memory
         ! at initialization ever becomes an issue.
         ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
-        allocate(w(abMax))
-        allocate(IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
+        allocate(w(abMax), IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
 
         supergroup: do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             first_particle: do I = 1, nBI
-                ex(1, 1) = I ! already a spin orbital
-                ! A,B are ordered, so we can assume J < I
-                second_particle: do J = 1, I - 1
-                    ex(1, 2) = J
+                ! A,B are ordered, so we can assume I < J
+                second_particle: do J = I + 1, nBI
                     w(:) = 0._dp
                     ! for each (I,J), get all matrix elements <IJ|H|AB> and use them as
                     ! weights to prepare the sampler
                     first_hole: do A = 1, nBI
                         if (any(A == [I, J])) cycle
-                        ex(2, 1) = A
                         second_hole: do B = 1, nBI
-                            if (A == B .or. any(B == [I, J])) cycle
-                            ex(2, 2) = B
+                            if (any(B == [I, J, A])) cycle
                             AB = fuseIndex(A, B)
-                            if (this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
-                                w(AB) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
-                            else
-                                w(AB) = 0._dp
-                            end if
+                            associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
+                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. spin_allowed(exc)) then
+                                    w(AB) = get_PCHB_weight(exc)
+                                end if
+                            end associate
                         end do second_hole
                     end do first_hole
                     IJ = fuseIndex(I, J)

@@ -10,8 +10,8 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: Excite_2_t, excite
-    use sltcnd_mod, only: sltcnd_excit
+    use excitation_types, only: Excite_2_t, excite, canonicalize, is_canonical
+    use sltcnd_mod, only: nI_invariant_sltcnd_excit
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: excit_gen_store_type, projEDet
@@ -22,7 +22,8 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
-        allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t
+        allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t, &
+        get_PCHB_weight
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
 
@@ -364,41 +365,33 @@ contains
         ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
         allocate(w(abMax))
         allocate(IJ_weights(nBI * 2, nBI * 2, size(supergroups, 2)), source=0._dp)
-        do i_sg = 1, size(supergroups, 2)
+        over_supergroup: do i_sg = 1, size(supergroups, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             pNoExch = 1.0_dp - this%pExch(:, i_sg)
-            do i_exch = 1, 3
-                ! allocate: all samplers have the same size
-                do i = 1, nBI
-                    ! map i to alpha spin (arbitrary choice)
+            over_spin_type: do i_exch = 1, 3
+                particle_1: do i = 1, nBI
                     ex(1, 1) = to_spin_orb(i, is_alpha=.true.)
-                    ! as we order a,b, we can assume j <= i
-                    do j = 1, i
-                        w(:) = 0.0_dp
-                        ! for samplerIndex == 1, j is alpha, else, j is beta
-                        ex(1, 2) = to_spin_orb(j, i_exch == SAME_SPIN)
-                        ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
-                        ! weights to prepare the sampler
-                        do a = 1, nBI
-                            ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
-                            ex(2, 2) = to_spin_orb(a, any(i_exch == [SAME_SPIN, OPP_SPIN_NO_EXCH]))
-                            do b = 1, a
-                                ab = fuseIndex(a, b)
-                                ! ex(2,:) is in ascending order
-                                ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
-                                ex(2, 1) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
-
-                                ! exception: for sampler 3, a!=b
-                                if (i_exch == OPP_SPIN_EXCH .and. a == b &
-                                        .or. any(ex(1, 1) == ex(2, :)) .or. any(ex(1, 2) == ex(2, :)) &
-                                        .or. .not. this%GAS_spec%is_allowed(Excite_2_t(ex), supergroups(:, i_sg))) then
-                                    w(ab) = 0._dp
-                                else
-                                    w(ab) = abs(sltcnd_excit(projEDet(:, 1), Excite_2_t(ex), .false.))
-                                end if
-                            end do
-                        end do
+                    particle_2: do j = i, nBi
+                        if (i_exch == SAME_SPIN .and. i == j) cycle
                         ij = fuseIndex(i, j)
+                        w(:) = 0.0_dp
+                        ex(1, 2) = to_spin_orb(j, i_exch == SAME_SPIN)
+                        hole_1: do a = 1, nBI
+                            ex(2, 1) = to_spin_orb(a, any(i_exch == [SAME_SPIN, OPP_SPIN_NO_EXCH]))
+                            if (any(ex(2, 1) == ex(1, :))) cycle
+                            hole_2: do b = a, nBi
+                                if (i_exch == OPP_SPIN_EXCH .and. a == b) cycle
+                                ab = fuseIndex(a, b)
+                                ex(2, 2) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
+                                if (any(ex(2, 2) == ex(1, :)) .or. ex(2, 2) == ex(2, 1)) cycle
+
+                                associate(exc => canonicalize(Excite_2_t(ex)))
+                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg))) then
+                                    w(ab) = get_PCHB_weight(exc)
+                                end if
+                                end associate
+                            end do hole_2
+                        end do hole_1
 
                         call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, root, w)
                         if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
@@ -406,33 +399,33 @@ contains
 
                         associate(I => ex(1, 1), J => ex(1, 2))
                             IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
-                            IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                            IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                         end associate
                         if (i /= j) then
                             ! sum over alpha and beta of the same orbital
                             if (i_exch == SAME_SPIN) then
                                 associate(I => ex(1, 1) - 1, J => ex(1, 2) - 1)
                                     IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
-                                    IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                                    IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                                 end associate
                             else
                                 associate(I => ex(1, 1) - 1, J => ex(1, 2) + 1)
                                     IJ_weights(I, J, i_sg) = IJ_weights(I, J, i_sg) + sum(w)
-                                    IJ_weights(J, I, i_sg) = IJ_weights(J, I, i_sg) + sum(w)
+                                    IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                                 end associate
                             end if
                         end if
 
-                    end do
-                end do
-            end do
+                    end do particle_2
+                end do particle_1
+            end do over_spin_type
             ! normalize the exchange bias (where normalizable)
             where (near_zero(this%pExch(:, i_sg) + pNoExch))
                 this%pExch(:, i_sg) = 0._dp
             else where
                 this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
             end where
-        end do
+        end do over_supergroup
 
 
         call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &

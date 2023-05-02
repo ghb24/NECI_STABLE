@@ -11,12 +11,12 @@ module gasci_util
     use SystemData, only: nEl, nBasis
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, GAS_specification
     use gasci_supergroup_index, only: get_supergroups
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
-        alpha, beta
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum, alpha, beta
     use sort_mod, only: sort
-    use excitation_types, only: Excite_1_t, Excite_2_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
+    use excitation_types, only: Excite_1_t, Excite_2_t, excite, get_last_tgt, &
+        set_last_tgt, UNKNOWN, canonicalize
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
-        operator(.isclose.), custom_findloc, choose_i64
+        operator(.isclose.), custom_findloc, choose_i64, swap
     use dSFMT_interface, only: genrand_real2_dSFMT
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use bit_rep_data, only: NIfTot, NIfD
@@ -121,7 +121,7 @@ contains
 
                     do l = 1, size(second_pick_possible_holes)
                         tgt2 = second_pick_possible_holes(l)
-                        call buffer%push_back(excite(det_I, Excite_2_t(src1, tgt1, src2, tgt2)))
+                        call buffer%push_back(excite(det_I, canonicalize(Excite_2_t(src1, tgt1, src2, tgt2))))
                     end do
                 end do
             end do
@@ -228,7 +228,7 @@ contains
         previous = 0.0_dp
         do i = 1, size(possible_holes)
             call set_last_tgt(exc, possible_holes(i))
-            cSum(i) = abs(sltcnd_excit(det_I, exc, .false.)) + previous
+            cSum(i) = abs(sltcnd_excit(det_I, canonicalize(exc), .false.)) + previous
             previous = cSum(i)
         end do
 

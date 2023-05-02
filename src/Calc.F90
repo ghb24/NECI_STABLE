@@ -3749,11 +3749,9 @@ contains
                     write(stdout, *) "<D0|U|D0>=", h_2_temp
                     write(stdout, *) "<D0|L|D0>=", h_3_temp
                 else
-                    ! NOTE: the .false. here are arbitrary as 0-excitation
-                    ! has no parity
-                    HDiagTemp = sltcnd_0_tc(fdet, NoExc, .false.)
-                    h_2_temp = sltcnd_0_base(fdet, NoExc, .false.) - calct(fdet, nel)
-                    h_3_temp = HDiagTemp - sltcnd_0_base(fdet, NoExc, .false.)
+                    HDiagTemp = sltcnd_0_tc(fdet, NoExc)
+                    h_2_temp = sltcnd_0_base(fdet, NoExc) - calct(fdet, nel)
+                    h_3_temp = HDiagTemp - sltcnd_0_base(fdet, NoExc)
                     write(stdout, *) "<D0|U|D0>=", h_2_temp
                     write(stdout, *) "<D0|L|D0>=", h_3_temp
                 end if

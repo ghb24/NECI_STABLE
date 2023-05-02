@@ -158,12 +158,13 @@ module FciMCParMod
 
     use analyse_wf_symmetry, only: analyze_wavefunction_symmetry, t_symmetry_analysis
 
-    use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
     better_implicit_none
+    private
+    public :: FciMCPar
 
     !array for timings of the main compute loop
     real(dp), dimension(100) :: lt_arr

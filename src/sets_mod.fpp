@@ -12,7 +12,7 @@ module sets_mod
     private
     public :: subset, set, is_set, is_sorted, special_union_complement, disjoint, &
               operator(.cap.), operator(.complement.), operator(.U.), &
-              operator(.in.), empty_int
+              operator(.in.), operator(.notin.), empty_int
 
     integer :: empty_int(0) = [integer::]
 
@@ -93,6 +93,15 @@ module sets_mod
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
         module procedure test_in_${T}$_${kind}$
+    #:endfor
+    #:endfor
+    end interface
+
+    !> Check if element is not contained in set.
+    interface operator(.notin.)
+    #:for T, kinds in countable_types.items()
+    #:for kind in kinds
+        module procedure test_not_in_${T}$_${kind}$
     #:endfor
     #:endfor
     end interface
@@ -210,8 +219,8 @@ contains
 
         integer :: i, j
 
-            @:pure_ASSERT(is_sorted(A))
-            @:pure_ASSERT(is_sorted(B))
+        @:pure_ASSERT(is_sorted(A))
+        @:pure_ASSERT(is_sorted(B))
 
         res = .true.
         i = 1; j = 1
@@ -239,8 +248,8 @@ contains
 
         integer :: i, j
 
-            @:pure_ASSERT(is_sorted(A))
-            @:pure_ASSERT(is_sorted(B))
+        @:pure_ASSERT(is_sorted(A))
+        @:pure_ASSERT(is_sorted(B))
 
         if (size(A) == 0) then
             res = .true.
@@ -505,6 +514,16 @@ contains
         logical :: res
         @:pure_ASSERT(is_sorted(set))
         res = binary_search_int(set, element) /= -1
+    end function
+    #:endfor
+    #:endfor
+
+    #:for T, kinds in countable_types.items()
+    #:for kind in kinds
+    pure function test_not_in_${T}$_${kind}$ (element, set) result(res)
+        ${T}$ (${kind}$), intent(in) :: element, set(:)
+        logical :: res
+        res = .not. (element .in. set)
     end function
     #:endfor
     #:endfor

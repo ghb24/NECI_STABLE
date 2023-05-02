@@ -4085,11 +4085,10 @@ contains
                         energies(i) = 9999999.9_dp
                         do j = 1, norb
                             orb2 = SymLabelList2(label_idx + j - 1)
-                            if ((.not. any(orb2 == HFDet)) .and. &
-                                (.not. any(orb2 == found_orbs))) then
+                            if (.not. (any(orb2 == HFDet) .or. any(orb2 == found_orbs))) then
                                 det = HFDet
                                 det(i) = orb2
-                                hdiag = real(sltcnd_excit(det, Excite_0_t(), .false.), dp)
+                                hdiag = real(sltcnd_excit(det, Excite_0_t()), dp)
                                 if (hdiag < energies(i)) then
                                     energies(i) = hdiag
                                     orbs(i) = orb2
