@@ -67,6 +67,6 @@ if you have any questions.
 
 | | |
 | --- | --- |
-| <img src="./docs/media/MPG_logo.png" alt="MPG logo" align="left" width="320">  | Currently most of the development of `NECI` happens at the Max Planck Institute for Solid State Research.  |
-| <img src="./docs/media/cambridge_university2.svg" alt="Cambridge logo" align="left" width="300">  | The early development of `NECI` was performed at the Yusuf Hamied Department of Chemistry, University of Cambridge, Lensfield Road, Cambridge CB2 1EW, UK. |
+| <img src="./docs/media/MPG_logo.png" alt="MPG logo" align="left" width="400">  | Currently most of the development of `NECI` happens at the [Max Planck Institute for Solid State Research](https://www.fkf.mpg.de/de).  |
+| <img src="./docs/media/UKRI_logo.png" alt="ESPRC logo" align="left" width="400"> |  The UK [EPSRC](https://www.ukri.org/councils/epsrc/) Grants (EP/I014624/1 and EP/J003867/1) supported the early development of `NECI`. |
 | <img src="https://github.com/zulip/zulip/blob/main/static/images/logo/zulip-icon-512x512.png" alt="Zulip logo" align="center" width="50"> | [Zulip](https://zulip.com/) is an open-source modern team chat app designed to keep both live and asynchronous conversations organized. They support this project with free access to Zulip Cloud Standard. |
