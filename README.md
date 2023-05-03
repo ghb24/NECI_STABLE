@@ -19,7 +19,7 @@ Alex Thom, Robert Thomas, David Thompson, Eugenio Vitale, Oskar Weser.
 
 ## Documentation
 
-The documentation can be found [here](https://www2.fkf.mpg.de/alavi/neci/stable/index.html).
+The documentation can be found [here](https://www2.fkf.mpg.de/alavi/neci/devel/page/index.html).
 
 ## Compilation
 
@@ -28,8 +28,8 @@ and create a `build_directory` outside the `source_directory`.
 
 Then you can type
 ```bash
-cd ${build_directory}
-cmake ${source_directory}
+cd <build_directory>
+cmake <source_directory>
 make -j
 ```
 and are ready to go.
