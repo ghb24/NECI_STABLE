@@ -49,7 +49,10 @@ set(MEDIA_FILES
         media/plots1/check_totE.png
         media/plots1/check_totWalkers.png
         media/plots2/blocking.png
-        media/neci.jpg
+        media/logos/MPG_logo.png
+        media/logos/UKRI_logo.png
+        media/logos/neci.jpg
+        media/logos/cambridge_university2.svg
 )
 
 set(DOC_ROOT_SRC ${PROJECT_SOURCE_DIR}/docs)
