@@ -28,11 +28,11 @@ module gasci_pchb_doubles_main
 
     type :: PCHB_HoleSelection_vals_t
         type(PCHB_HoleSelection_t) :: &
-            INDETERMINATE_FAST_WEIGHTED = PCHB_HoleSelection_t(0), &
-            SPATORB_FAST_WEIGHTED = PCHB_HoleSelection_t(1), &
-            SPATORB_FULLY_WEIGHTED = PCHB_HoleSelection_t(2), &
-            SPINORB_FAST_WEIGHTED = PCHB_HoleSelection_t(3), &
-            SPINORB_FULLY_WEIGHTED = PCHB_HoleSelection_t(4)
+            INDETERMINATE_FAST_FAST = PCHB_HoleSelection_t(0), &
+            SPATORB_FAST_FAST = PCHB_HoleSelection_t(1), &
+            SPATORB_FULL_FULL = PCHB_HoleSelection_t(2), &
+            SPINORB_FAST_FAST = PCHB_HoleSelection_t(3), &
+            SPINORB_FULL_FULL = PCHB_HoleSelection_t(4)
         contains
             procedure, nopass :: from_str => select_holes_from_keyword
     end type
@@ -62,19 +62,19 @@ contains
         class(DoubleExcitationGenerator_t), allocatable, intent(inout) :: generator
         routine_name("gasci_pchb_doubles_main::allocate_and_init")
 
-        if (options%hole_selection == possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED) then
+        if (options%hole_selection == possible_PCHB_hole_selection%SPATORB_FAST_FAST) then
             if (tUHF) call stop_all(this_routine, "spatial-orbital-resolved PCHB generator not compatible with UHF FCIDUMP.")
             write(stdout, *) "PCHB with spatial-orbital-resolved 'fast-weighting' selected."
             allocate(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t :: generator)
-        else if (options%hole_selection == possible_PCHB_hole_selection%SPATORB_FULLY_WEIGHTED) then
+        else if (options%hole_selection == possible_PCHB_hole_selection%SPATORB_FULL_FULL) then
             call stop_all(this_routine, "PCHB spatorb-resolved fully weighted hole selection not yet implemented.")
-        else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED) then
+        else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_FAST) then
             write(stdout, *) "PCHB with spin-orbital-resolved 'fast-weighting' selected."
             allocate(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t :: generator)
-        else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED) then
+        else if (options%hole_selection == possible_PCHB_hole_selection%SPINORB_FULL_FULL) then
             write(stdout, *) "PCHB with spin-orbital-resolved 'full-weighting' selected."
             allocate(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t :: generator)
-        else if (options%hole_selection == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+        else if (options%hole_selection == possible_PCHB_hole_selection%INDETERMINATE_FAST_FAST) then
             call stop_all(this_routine, "'Indeterminate fast weighted' selected. Should never get here, please report.")
         else
             call stop_all(this_routine, "Invalid hole selection algorithm for PCHB doubles.")
@@ -103,11 +103,11 @@ contains
 
         select case(to_upper(w))
         case('FAST-WEIGHTED')
-            res = possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED
+            res = possible_PCHB_hole_selection%INDETERMINATE_FAST_FAST
         case('FULLY-WEIGHTED')
-            res = possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED
+            res = possible_PCHB_hole_selection%SPINORB_FULL_FULL
         case('SPIN-ORB-RESOLVED-FAST-WEIGHTED')
-            res = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+            res = possible_PCHB_hole_selection%SPINORB_FAST_FAST
         case default
             call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
         end select

@@ -76,13 +76,12 @@ module gasci_pchb_main
         GAS_PCHB_SinglesOptions_t(&
             GAS_PCHB_options_vals%singles%algorithm%PC_weighted, &
             PC_WeightedSinglesOptions_t(&
-                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
             ) &
         ), &
         PCHB_DoublesOptions_t( &
-            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
         ), &
         use_lookup=.true. &
     )
@@ -125,16 +124,15 @@ contains
 
         associate(singles => GAS_PCHB_options_vals%singles)
         if (.not. (this%singles%algorithm == singles%algorithm%PC_WEIGHTED &
-               .implies. (this%singles%PC_weighted%weighting /= singles%PC_weighted%weighting%UNDEFINED &
-                        .and. this%singles%PC_weighted%drawing /= singles%PC_weighted%drawing%UNDEFINED))) then
+               .implies. (this%singles%PC_weighted%drawing /= singles%PC_weighted%drawing%UNDEFINED))) then
             call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
         end if
         end associate
 
         associate(doubles => GAS_PCHB_options_vals%doubles)
         if (.not. (tUHF &
-                    .implies. (this%doubles%hole_selection == doubles%hole_selection%SPINORB_FAST_WEIGHTED &
-                                .or. this%doubles%hole_selection == doubles%hole_selection%SPINORB_FULLY_WEIGHTED))) then
+                    .implies. (this%doubles%hole_selection == doubles%hole_selection%SPINORB_FAST_FAST &
+                                .or. this%doubles%hole_selection == doubles%hole_selection%SPINORB_FULL_FULL))) then
             call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")
         end if
         end associate

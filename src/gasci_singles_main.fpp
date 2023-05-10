@@ -57,7 +57,7 @@ module gasci_singles_main
     type :: GAS_PCHB_SinglesOptions_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: algorithm
         type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
-            GAS_PCHB_singles_options_vals%PC_weighted%weighting%UNDEFINED, GAS_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
+            GAS_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
     end type
 
 
@@ -122,8 +122,7 @@ contains
             class is(PC_Weighted_t)
                 ! NOTE: only one of the excitation generators should manage the
                 !   supergroup lookup!
-                call generator%init(GAS_spec, options%PC_weighted%weighting, &
-                                    use_lookup, create_lookup=.false.)
+                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
             end select
         else
             call stop_all(this_routine, "Invalid choice for singles.")

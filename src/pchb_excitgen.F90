@@ -14,7 +14,7 @@ module pchb_excitgen
     use gasci_singles_pc_weighted, only: &
         PC_WeightedSinglesOptions_t,  PC_WeightedSinglesOptions_vals_t, &
         PC_singles_drawing_vals, &
-        PC_singles_weighting_vals, PC_Weighted_t, do_allocation, print_options
+        PC_Weighted_t, do_allocation, print_options
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
         doubles_allocate_and_init => allocate_and_init, &
         possible_PCHB_hole_selection, PCHB_particle_selection_vals
@@ -65,7 +65,6 @@ module pchb_excitgen
     type :: FCI_PCHB_SinglesOptions_t
         type(FCI_PCHB_singles_algorithm_t) :: algorithm
         type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
-            FCI_PCHB_singles_options_vals%PC_weighted%weighting%UNDEFINED, &
             FCI_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
     end type
 
@@ -87,13 +86,12 @@ module pchb_excitgen
         FCI_PCHB_SinglesOptions_t(&
             FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
             PC_WeightedSinglesOptions_t(&
-                FCI_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                FCI_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                FCI_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
             ) &
         ), &
         PCHB_DoublesOptions_t( &
-            FCI_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-            FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+            FCI_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+            FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
         ) &
     )
 
@@ -154,7 +152,6 @@ contains
             select type(generator)
             class is(PC_Weighted_t)
                 call generator%init(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
-                                    options%PC_weighted%weighting, &
                                     use_lookup=.false., create_lookup=.false.)
             end select
         else
@@ -178,14 +175,13 @@ contains
         routine_name("assert_validity")
 
         if (.not. (this%singles%algorithm == possible_PCHB_singles%PC_WEIGHTED &
-               .implies. (this%singles%PC_weighted%weighting /= PC_singles_weighting_vals%UNDEFINED &
-                        .and. this%singles%PC_weighted%drawing /= PC_singles_drawing_vals%UNDEFINED))) then
+               .implies. (this%singles%PC_weighted%drawing /= PC_singles_drawing_vals%UNDEFINED))) then
             call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
         end if
 
         if (.not. (tUHF &
-                    .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED &
-                                .or. this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FULLY_WEIGHTED))) then
+                    .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_FAST &
+                                .or. this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FULL_FULL))) then
             call stop_all(this_routine, "Spin-resolved excitation generation requires spin-resolved hole generation.")
         end if
 

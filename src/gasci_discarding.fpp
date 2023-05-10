@@ -94,8 +94,8 @@ contains
                     FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
                 ), &
                 PCHB_DoublesOptions_t( &
-                    FCI_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
-                    FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                    FCI_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                    FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_FAST &
                 ) &
             ) &
         )

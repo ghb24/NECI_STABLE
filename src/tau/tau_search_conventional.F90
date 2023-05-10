@@ -94,12 +94,12 @@ contains
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
         else if ((t_fci_pchb_excitgen .and. .not. tGUGA) &
-                .and. (FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM)) then
+                .and. (FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF)) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else if (tGAS &
             .and. (GAS_exc_gen /= possible_GAS_exc_gen%PCHB &
-                    .or. GAS_PCHB_options%doubles%particle_selection == PCHB_particle_selection_vals%UNIFORM)) then
+                    .or. GAS_PCHB_options%doubles%particle_selection == PCHB_particle_selection_vals%UNIF_UNIF)) then
             consider_par_bias = .true.
         else
             consider_par_bias = .false.

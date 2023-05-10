@@ -203,11 +203,11 @@ contains
             ! set fast weighting in case of indeterminate setting
             if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
                 if (GAS_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_FAST) then
                     if (tUHF) then
-                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_FAST
                     else
-                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_FAST
                     end if
                 end if ! gasci pchb
             end if ! indeterminate fast-weighted
@@ -233,11 +233,11 @@ contains
         ! set fci pchb hole selection in case of indeterminate setting
         if (t_fci_pchb_excitgen) then
             if (FCI_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
+                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_FAST) then
                 if (tUHF) then
-                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
+                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_FAST
                 else
-                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
+                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_FAST
                 end if
             end if
         end if

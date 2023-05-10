@@ -71,8 +71,8 @@ contains
                                 FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
                             ), &
                             PCHB_DoublesOptions_t( &
-                                FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                                FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_WEIGHTED &
+                                FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                                FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_FAST &
                             ) &
                         )
         else
@@ -81,8 +81,8 @@ contains
                                 FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
                             ), &
                             PCHB_DoublesOptions_t( &
-                                FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                                FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                                FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                                FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_FAST &
                             ) &
                         )
         end if

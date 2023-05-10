@@ -86,8 +86,8 @@ contains
                             GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_FAST &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -95,13 +95,12 @@ contains
                         GAS_PCHB_SinglesOptions_t(&
                             GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -109,13 +108,12 @@ contains
                         GAS_PCHB_SinglesOptions_t(&
                             GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULLY_WEIGHTED &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
                         ), &
                         use_lookup=.false. &
                 ) &
@@ -127,8 +125,8 @@ contains
                             GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_FAST &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -136,13 +134,12 @@ contains
                         GAS_PCHB_SinglesOptions_t(&
                             GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -150,13 +147,12 @@ contains
                         GAS_PCHB_SinglesOptions_t(&
                             GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULLY_WEIGHTED &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
                         ), &
                         use_lookup=.false. &
                 ) &
