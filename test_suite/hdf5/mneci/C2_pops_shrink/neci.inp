@@ -4,8 +4,8 @@ system read
     electrons 8
     nonuniformrandexcits pchb \
         singles uniform \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection fast-weighted
+        doubles particle-selection full-full \
+        doubles hole-selection fast-fast
     system-replicas 2
 endsys
 

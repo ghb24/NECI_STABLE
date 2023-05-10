@@ -95,7 +95,8 @@ contains
                 ), &
                 PCHB_DoublesOptions_t( &
                     FCI_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
-                    FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_FAST &
+                    FCI_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                    spin_orb_resolved=.false. &
                 ) &
             ) &
         )

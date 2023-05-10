@@ -5,8 +5,8 @@ System read
     nobrillouintheorem
     nonuniformrandexcits pchb \
         singles uniform \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection fast-weighted
+        doubles particle-selection full-full \
+        doubles hole-selection fast-fast
     freeformat
     FCIDUMP-name benzene_3.0_Ang.FciDmp
 endsys

@@ -72,7 +72,8 @@ contains
                             ), &
                             PCHB_DoublesOptions_t( &
                                 FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
-                                FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_FAST &
+                                FCI_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                                spin_orb_resolved=.true. &
                             ) &
                         )
         else
@@ -82,7 +83,8 @@ contains
                             ), &
                             PCHB_DoublesOptions_t( &
                                 FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
-                                FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_FAST &
+                                FCI_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                                spin_orb_resolved=.false. &
                             ) &
                         )
         end if

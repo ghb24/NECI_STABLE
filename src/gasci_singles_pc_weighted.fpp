@@ -27,11 +27,8 @@ module gasci_singles_pc_weighted
     private
     public :: do_allocation, print_options, &
         PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t, &
-        PC_Weighted_t, PC_singles_drawing_vals
+        PC_Weighted_t
 
-
-    type, extends(EnumBase_t) :: PC_singles_weighting_t
-    end type
 
     type, extends(EnumBase_t) :: PC_singles_drawing_t
     end type
@@ -197,11 +194,11 @@ contains
         type(PC_singles_drawing_t) :: res
         routine_name("from_keyword")
         select case(to_upper(w))
-        case('FULLY-WEIGHTED')
+        case('FULL:FULL')
             res = PC_singles_drawing_vals%FULL_FULL
-        case('WEIGHTED')
+        case('UNIF:FULL')
             res = PC_singles_drawing_vals%UNIF_FULL
-        case('FAST-WEIGHTED')
+        case('UNIF:FAST')
             res = PC_singles_drawing_vals%UNIF_FAST
         case default
             call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles drawing scheme")

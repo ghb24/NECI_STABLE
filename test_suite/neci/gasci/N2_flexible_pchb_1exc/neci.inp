@@ -7,8 +7,8 @@ System read
     spin-restrict 0
     nonuniformrandexcits GAS-CI PCHB \
         singles uniform \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection  fast-weighted
+        doubles particle-selection full-full \
+        doubles hole-selection  fast-fast
     GAS-SPEC Flexible 3 7
         3 2 1
         3 1 2

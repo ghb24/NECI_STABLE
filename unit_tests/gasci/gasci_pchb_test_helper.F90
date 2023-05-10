@@ -87,7 +87,8 @@ contains
                         ), &
                         PCHB_DoublesOptions_t( &
                             GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_FAST &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -100,7 +101,8 @@ contains
                         ), &
                         PCHB_DoublesOptions_t( &
                             GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -113,7 +115,8 @@ contains
                         ), &
                         PCHB_DoublesOptions_t( &
                             GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ) &
@@ -126,7 +129,8 @@ contains
                         ), &
                         PCHB_DoublesOptions_t( &
                             GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_FAST &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                            spin_orb_resolved=.false. &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -139,7 +143,8 @@ contains
                         ), &
                         PCHB_DoublesOptions_t( &
                             GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -152,7 +157,8 @@ contains
                         ), &
                         PCHB_DoublesOptions_t( &
                             GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ) &

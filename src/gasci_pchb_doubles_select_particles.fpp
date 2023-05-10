@@ -155,13 +155,13 @@ contains
         type(PCHB_ParticleSelection_t) :: res
         routine_name("from_keyword")
         select case(to_upper(w))
-        case('UNIFORM')
+        case('UNIF-UNIF')
             res = PCHB_particle_selection_vals%UNIF_UNIF
-        case('FULLY-WEIGHTED')
+        case('FULL-FULL')
             res = PCHB_particle_selection_vals%FULL_FULL
-        case('WEIGHTED')
+        case('UNIF-FULL')
             res = PCHB_particle_selection_vals%UNIF_FULL
-        case('FAST-WEIGHTED')
+        case('UNIF-FAST')
             res = PCHB_particle_selection_vals%UNIF_FAST
         case default
             call stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")

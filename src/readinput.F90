@@ -6,8 +6,8 @@ MODULE ReadInput_neci
     use constants, only: stdout, stdin
     use SystemData, only: tUHF, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
                          tROHF
-    use pchb_excitgen, only: FCI_PCHB_options
-    use gasci_pchb_main, only: GAS_PCHB_options
+    use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
+    use gasci_pchb_main, only: GAS_PCHB_options, GAS_PCHB_options_vals
     use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection
     use util_mod, only: operator(.implies.), stop_all
     Use Determinants, only: tDefineDet, DefDet
@@ -200,17 +200,12 @@ contains
 
         if (tGAS .and. allocated(user_input_GAS_exc_gen)) then
             GAS_exc_gen = user_input_GAS_exc_gen
-            ! set fast weighting in case of indeterminate setting
-            if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
-                if (GAS_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_FAST) then
-                    if (tUHF) then
-                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_FAST
-                    else
-                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_FAST
-                    end if
-                end if ! gasci pchb
-            end if ! indeterminate fast-weighted
+        end if
+
+        if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
+            if (.not. allocated(GAS_PCHB_options%doubles%spin_orb_resolved)) then
+                GAS_PCHB_options%doubles%spin_orb_resolved = tUHF .or. (GAS_PCHB_options%doubles%hole_selection == GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL)
+            end if
         end if
 
         if (allocated(user_input_seed)) then
@@ -232,13 +227,8 @@ contains
         tStoreSpinOrbs = (tMolpro .and. tUHF) .or. (tUHF .and. (.not. tROHF))
         ! set fci pchb hole selection in case of indeterminate setting
         if (t_fci_pchb_excitgen) then
-            if (FCI_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_FAST) then
-                if (tUHF) then
-                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_FAST
-                else
-                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_FAST
-                end if
+            if (.not. allocated(FCI_PCHB_options%doubles%spin_orb_resolved)) then
+                FCI_PCHB_options%doubles%spin_orb_resolved = tUHF .or. (FCI_PCHB_options%doubles%hole_selection == FCI_PCHB_options_vals%doubles%hole_selection%FULL_FULL)
             end if
         end if
 

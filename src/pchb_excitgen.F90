@@ -13,11 +13,10 @@ module pchb_excitgen
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use gasci_singles_pc_weighted, only: &
         PC_WeightedSinglesOptions_t,  PC_WeightedSinglesOptions_vals_t, &
-        PC_singles_drawing_vals, &
         PC_Weighted_t, do_allocation, print_options
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
         doubles_allocate_and_init => allocate_and_init, &
-        possible_PCHB_hole_selection, PCHB_particle_selection_vals
+        PCHB_particle_selection_vals
     use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selection_vals
     better_implicit_none
 
@@ -82,7 +81,7 @@ module pchb_excitgen
 
     type(FCI_PCHB_Options_vals_t), parameter :: FCI_PCHB_options_vals = FCI_PCHB_Options_vals_t()
 
-    type(FCI_PCHB_options_t) :: FCI_PCHB_options = FCI_PCHB_options_t(&
+    type(FCI_PCHB_Options_t) :: FCI_PCHB_options = FCI_PCHB_Options_t(&
         FCI_PCHB_SinglesOptions_t(&
             FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
             PC_WeightedSinglesOptions_t(&
@@ -91,7 +90,7 @@ module pchb_excitgen
         ), &
         PCHB_DoublesOptions_t( &
             FCI_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
-            FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FULL_FULL &
+            FCI_PCHB_options_vals%doubles%hole_selection%FULL_FULL &
         ) &
     )
 
@@ -118,7 +117,7 @@ contains
 
     subroutine init(this, options)
         class(PCHB_FCI_excit_generator_t), intent(inout) :: this
-        type(FCI_PCHB_options_t), intent(in) :: options
+        type(FCI_PCHB_Options_t), intent(in) :: options
         character(*), parameter :: this_routine = 'pchb_excitgen::init'
 
         ! CAS is implemented as a special case of GAS with only one GAS space.
@@ -142,11 +141,11 @@ contains
         end if
 
         ! luckily many of the singles generators don't require initialization.
-        if (options%algorithm == possible_PCHB_singles%ON_FLY_HEAT_BATH) then
+        if (options%algorithm == FCI_PCHB_singles_options_vals%algorithm%ON_FLY_HEAT_BATH) then
             allocate(WeightedSingles_t :: generator)
-        else if (options%algorithm == possible_PCHB_singles%UNIFORM) then
+        else if (options%algorithm == FCI_PCHB_singles_options_vals%algorithm%UNIFORM) then
             allocate(UniformSingles_t :: generator)
-        else if (options%algorithm == possible_PCHB_singles%PC_WEIGHTED) then
+        else if (options%algorithm == FCI_PCHB_singles_options_vals%algorithm%PC_WEIGHTED) then
             call print_options(options%PC_weighted, stdout)
             call do_allocation(generator, options%PC_weighted%drawing)
             select type(generator)
@@ -174,14 +173,12 @@ contains
         class(FCI_PCHB_options_t), intent(in) :: this
         routine_name("assert_validity")
 
-        if (.not. (this%singles%algorithm == possible_PCHB_singles%PC_WEIGHTED &
-               .implies. (this%singles%PC_weighted%drawing /= PC_singles_drawing_vals%UNDEFINED))) then
+        if (.not. (this%singles%algorithm == FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED &
+               .implies. (this%singles%PC_weighted%drawing /= FCI_PCHB_options_vals%singles%PC_weighted%drawing%UNDEFINED))) then
             call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
         end if
 
-        if (.not. (tUHF &
-                    .implies. (this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FAST_FAST &
-                                .or. this%doubles%hole_selection == possible_PCHB_hole_selection%SPINORB_FULL_FULL))) then
+        if (.not. (tUHF .implies. this%doubles%spin_orb_resolved)) then
             call stop_all(this_routine, "Spin-resolved excitation generation requires spin-resolved hole generation.")
         end if
 

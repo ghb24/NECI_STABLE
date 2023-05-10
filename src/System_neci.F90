@@ -1649,6 +1649,10 @@ contains
                                     FCI_PCHB_options%doubles%particle_selection = FCI_PCHB_options_vals%doubles%particle_selection%from_str(tokens%next())
                                 case ('HOLE-SELECTION')
                                     FCI_PCHB_options%doubles%hole_selection = FCI_PCHB_options_vals%doubles%hole_selection%from_str(tokens%next())
+                                case("SPIN-RESOLVED")
+                                    FCI_PCHB_options%doubles%spin_orb_resolved = .true.
+                                case("NO-SPIN-RESOLVED")
+                                    FCI_PCHB_options%doubles%spin_orb_resolved = .false.
                                 case default
                                     call stop_all(t_r, "Only PARTICLE-SELECTION or HOLE-SELECTION allowed as optional next keyword after PCHB Doubles.")
                                 end select
@@ -1682,6 +1686,10 @@ contains
                                         GAS_PCHB_options%doubles%particle_selection = GAS_PCHB_options_vals%doubles%particle_selection%from_str(tokens%next())
                                     case ('HOLE-SELECTION')
                                         GAS_PCHB_options%doubles%hole_selection = GAS_PCHB_options_vals%doubles%hole_selection%from_str(tokens%next())
+                                    case("SPIN-RESOLVED")
+                                        GAS_PCHB_options%doubles%spin_orb_resolved = .true.
+                                    case("NO-SPIN-RESOLVED")
+                                        GAS_PCHB_options%doubles%spin_orb_resolved = .false.
                                     case default
                                         call stop_all(t_r, "Only PARTICLE-SELECTION or HOLE-SELECTION allowed as optional next keyword after PCHB Doubles.")
                                     end select
