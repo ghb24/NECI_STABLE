@@ -1636,6 +1636,7 @@ contains
 
                     case ("PCHB")
                         t_fci_pchb_excitgen = .true.
+                        if (allocated(FCI_PCHB_user_input)) deallocate(FCI_PCHB_user_input)
                         allocate(FCI_PCHB_user_input)
                         select case (to_upper(tokens%next()))
                         case ("LOCALISED")
@@ -1679,6 +1680,7 @@ contains
                             user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
                         case ('PCHB')
                             user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+                            if (allocated(GAS_PCHB_user_input)) deallocate(GAS_PCHB_user_input)
                             allocate(GAS_PCHB_user_input)
                             select case (to_upper(tokens%next()))
                             case ("LOCALISED")

@@ -130,7 +130,7 @@ contains
 
         subroutine create_input_pchb(unit_id)
             integer, intent(in) :: unit_id
-            call create_input(unit_id, exc_generator='pchb')
+            call create_input(unit_id, exc_generator='pchb delocalised')
         end subroutine
     end subroutine test_loop_pchb
 
