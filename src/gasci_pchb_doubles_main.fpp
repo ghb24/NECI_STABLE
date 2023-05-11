@@ -7,21 +7,22 @@ module gasci_pchb_doubles_main
     use util_mod, only: EnumBase_t, stop_all
     use excitation_generators, only: DoubleExcitationGenerator_t
     use fortran_strings, only: to_upper
+    use fortran_strings, only: split
     use gasci, only: GASSpec_t
     use gasci_pchb_doubles_spatorb_fastweighted, only: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
     use gasci_pchb_doubles_spinorb_fullyweighted, only: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
     use gasci_pchb_doubles_spinorb_fastweighted, only: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t,  PCHB_particle_selection_vals, &
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, &
         PCHB_ParticleSelection_vals_t
     better_implicit_none
 
     private
 
-    public :: PCHB_HoleSelection_t, possible_PCHB_hole_selection, &
+    public :: PCHB_HoleSelection_t, &
         PCHB_DoublesOptions_t, allocate_and_init, &
         PCHB_DoublesOptions_vals_t, doubles_options_vals
     ! reexpose stuff from doubles particle selection
-    public :: PCHB_ParticleSelection_t, PCHB_particle_selection_vals
+    public :: PCHB_ParticleSelection_t
 
     type, extends(EnumBase_t) :: PCHB_HoleSelection_t
     end type
@@ -34,9 +35,6 @@ module gasci_pchb_doubles_main
             procedure, nopass :: from_str => select_holes_from_keyword
     end type
 
-    type(PCHB_HoleSelection_vals_t), parameter :: &
-        possible_PCHB_hole_selection = PCHB_HoleSelection_vals_t()
-
     type :: PCHB_DoublesOptions_t
         type(PCHB_ParticleSelection_t) :: particle_selection
         type(PCHB_HoleSelection_t) :: hole_selection
@@ -48,6 +46,8 @@ module gasci_pchb_doubles_main
     type :: PCHB_DoublesOptions_vals_t
         type(PCHB_ParticleSelection_vals_t) :: particle_selection = PCHB_ParticleSelection_vals_t()
         type(PCHB_HoleSelection_vals_t) :: hole_selection = PCHB_HoleSelection_vals_t()
+        contains
+            procedure, nopass :: from_str => select_doubles_option_from_keyword
     end type
 
     type(PCHB_DoublesOptions_vals_t), parameter :: doubles_options_vals = PCHB_DoublesOptions_vals_t()
@@ -106,6 +106,16 @@ contains
         case default
             call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
         end select
+    end function
+
+    pure function select_doubles_option_from_keyword(w) result(res)
+        !! Parse a given keyword into the possible weighting schemes
+        character(*), intent(in) :: w
+        type(PCHB_DoublesOptions_t) :: res
+        associate(tokens => split(w, ':'))
+            res%particle_selection = doubles_options_vals%particle_selection%from_str(tokens(1)%str)
+            res%hole_selection = doubles_options_vals%hole_selection%from_str(tokens(2)%str)
+        end associate
     end function
 
 end module gasci_pchb_doubles_main

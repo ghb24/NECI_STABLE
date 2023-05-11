@@ -24,7 +24,7 @@ module gasci_pchb_doubles_select_particles
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
-        PCHB_particle_selection_vals, PCHB_ParticleSelection_t, allocate_and_init, &
+        PCHB_ParticleSelection_t, allocate_and_init, &
         PCHB_ParticleSelection_vals_t, get_PCHB_weight
 
 

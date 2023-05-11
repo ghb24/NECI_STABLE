@@ -14,20 +14,21 @@ module pchb_excitgen
     use gasci_singles_pc_weighted, only: &
         PC_WeightedSinglesOptions_t,  PC_WeightedSinglesOptions_vals_t, &
         PC_Weighted_t, do_allocation, print_options
+    use gasci_pchb_main, only: PCHB_OptionSelection_t, PCHB_OptionSelection_vals_t
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
-        doubles_allocate_and_init => allocate_and_init, &
-        PCHB_particle_selection_vals
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, PCHB_particle_selection_vals
+        doubles_allocate_and_init => allocate_and_init
+    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t
     better_implicit_none
 
     private
 
     public :: PCHB_FCI_excit_generator_t, &
-        FCI_PCHB_options_t, FCI_PCHB_Options_vals_t, FCI_PCHB_options_vals, &
-        FCI_PCHB_options
+        FCI_PCHB_options_t, FCI_PCHB_Options_vals_t, FCI_PCHB_options_vals
+    public :: FCI_PCHB_user_input, FCI_PCHB_user_input_vals, decide_on_PCHB_options
     public :: FCI_PCHB_SinglesOptions_t
     ! Reexpose
     public :: PCHB_DoublesOptions_t
+
 
 
     type, extends(ClassicAbInitExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
@@ -44,18 +45,15 @@ module pchb_excitgen
             ON_FLY_HEAT_BATH = FCI_PCHB_singles_algorithm_t(1), &
             UNIFORM = FCI_PCHB_singles_algorithm_t(2), &
             PC_WEIGHTED = FCI_PCHB_singles_algorithm_t(3)
-        contains
-            procedure, nopass :: from_str => singles_from_keyword
     end type
-
-    type(FCI_PCHB_singles_algorithm_vals_t), parameter :: &
-        possible_PCHB_singles = FCI_PCHB_singles_algorithm_vals_t()
 
     type :: FCI_PCHB_SinglesOptions_vals_t
         type(FCI_PCHB_singles_algorithm_vals_t) :: &
             algorithm = FCI_PCHB_singles_algorithm_vals_t()
         type(PC_WeightedSinglesOptions_vals_t) :: &
             PC_weighted = PC_WeightedSinglesOptions_vals_t()
+        contains
+            procedure, nopass :: from_str => singles_from_keyword
     end type
 
     type(FCI_PCHB_SinglesOptions_vals_t), parameter :: &
@@ -81,18 +79,19 @@ module pchb_excitgen
 
     type(FCI_PCHB_Options_vals_t), parameter :: FCI_PCHB_options_vals = FCI_PCHB_Options_vals_t()
 
-    type(FCI_PCHB_Options_t) :: FCI_PCHB_options = FCI_PCHB_Options_t(&
-        FCI_PCHB_SinglesOptions_t(&
-            FCI_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
-            PC_WeightedSinglesOptions_t(&
-                FCI_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
-            ) &
-        ), &
-        PCHB_DoublesOptions_t( &
-            FCI_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
-            FCI_PCHB_options_vals%doubles%hole_selection%FULL_FULL &
-        ) &
-    )
+    type :: FCI_PCHB_OptionsUserInput_t
+        type(PCHB_OptionSelection_t) :: option_selection
+        type(FCI_PCHB_options_t), allocatable :: options
+    end type
+
+    type :: FCI_PCHB_OptionsUserInput_vals_t
+        type(PCHB_OptionSelection_vals_t) :: option_selection = PCHB_OptionSelection_vals_t()
+        type(FCI_PCHB_options_vals_t) :: options = FCI_PCHB_options_vals_t()
+    end type
+
+    type(FCI_PCHB_OptionsUserInput_vals_t), parameter :: FCI_PCHB_user_input_vals = FCI_PCHB_OptionsUserInput_vals_t()
+
+    type(FCI_PCHB_OptionsUserInput_t), allocatable :: FCI_PCHB_user_input
 
 
 contains
@@ -100,18 +99,25 @@ contains
     pure function singles_from_keyword(w) result(res)
         !! Parse a given keyword into the possible weighting schemes
         character(*), intent(in) :: w
-        type(FCI_PCHB_singles_algorithm_t) :: res
+        type(FCI_PCHB_SinglesOptions_t) :: res
         routine_name("from_keyword")
-        select case(to_upper(w))
-        case('UNIFORM')
-            res = possible_PCHB_singles%UNIFORM
+        character(:), allocatable :: up_w
+        up_w = to_upper(w)
+        associate(vals => FCI_PCHB_singles_options_vals)
+        select case(up_w)
+        case('UNIFORM', 'UNIF:UNIF')
+            res = FCI_PCHB_SinglesOptions_t(vals%algorithm%UNIFORM)
         case('ON-THE-FLY-HEAT-BATH')
-            res = possible_PCHB_singles%ON_FLY_HEAT_BATH
-        case('PC-WEIGHTED')
-            res = possible_PCHB_singles%PC_WEIGHTED
+            res = FCI_PCHB_SinglesOptions_t(vals%algorithm%ON_FLY_HEAT_BATH)
+        case('UNIF:FAST', 'UNIF:FULL', 'FULL:FULL')
+            res = FCI_PCHB_SinglesOptions_t(&
+                    vals%algorithm%PC_WEIGHTED, &
+                    PC_WeightedSinglesOptions_t(vals%PC_weighted%drawing%from_str(up_w)) &
+            )
         case default
             call stop_all(this_routine, trim(w)//" not a valid singles generator for GAS PCHB.")
         end select
+        end associate
     end function
 
 
@@ -183,5 +189,54 @@ contains
         end if
 
     end subroutine
+
+
+    pure function decide_on_PCHB_options(FCI_PCHB_user_input, loc_nBasis, loc_nEl, loc_tUHF) result(res)
+        type(FCI_PCHB_OptionsUserInput_t), intent(in) :: FCI_PCHB_user_input
+        integer, intent(in) :: loc_nBasis, loc_nEl
+        logical, intent(in) :: loc_tUHF
+        type(FCI_PCHB_options_t) :: res
+        routine_name("decide_on_PCHB_options")
+        associate(hole_selection_2 => merge(FCI_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                                            FCI_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                                            loc_nBasis > 4 * loc_nEl))
+        if (FCI_PCHB_user_input%option_selection == FCI_PCHB_user_input_vals%option_selection%LOCALISED) then
+            associate(single_selection => merge(FCI_PCHB_options_vals%singles%PC_WEIGHTED%drawing%UNIF_FAST, &
+                                                FCI_PCHB_options_vals%singles%PC_WEIGHTED%drawing%UNIF_FULL, &
+                                                loc_nBasis > 4 * loc_nEl))
+                res = FCI_PCHB_options_t(&
+                        FCI_PCHB_SinglesOptions_t(&
+                            FCI_PCHB_options_vals%singles%algorithm%PC_weighted, &
+                            PC_WeightedSinglesOptions_t(single_selection) &
+                        ), &
+                        PCHB_DoublesOptions_t( &
+                            FCI_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            hole_selection_2 &
+                        ) &
+                )
+            end associate
+        else if (FCI_PCHB_user_input%option_selection == FCI_PCHB_user_input_vals%option_selection%DELOCALISED) then
+            res = FCI_PCHB_options_t(&
+                    FCI_PCHB_SinglesOptions_t(&
+                        FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                        hole_selection_2 &
+                    ) &
+            )
+        else if (FCI_PCHB_user_input%option_selection == FCI_PCHB_user_input_vals%option_selection%MANUAL) then
+            res = FCI_PCHB_user_input%options
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
+        end associate
+
+        if (.not. allocated(res%doubles%spin_orb_resolved)) then
+            res%doubles%spin_orb_resolved = &
+                loc_tUHF &
+                .or. (res%doubles%hole_selection == FCI_PCHB_options_vals%doubles%hole_selection%FULL_FULL)
+        end if
+    end function
 
 end module pchb_excitgen

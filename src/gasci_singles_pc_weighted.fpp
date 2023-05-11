@@ -104,14 +104,6 @@ module gasci_singles_pc_weighted
         procedure :: get_unoccupied
     end type
 
-    abstract interface
-        real(dp) pure function get_weight_t(exc)
-            import :: Excite_1_t, dp
-            implicit none
-            type(Excite_1_t), intent(in) :: exc
-        end function
-    end interface
-
     type, extends(PC_Weighted_t) :: PC_SinglesFullyWeighted_t
     contains
         private

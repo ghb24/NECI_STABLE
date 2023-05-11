@@ -5,7 +5,7 @@ module exc_gen_classes
     use FciMCData, only: excit_gen_store_type
     use procedure_pointers, only: generate_excitation_t, generate_all_excits_t
     use bit_rep_data, only: NIfTot
-    use SystemData, only: nel, tGAS, tUHF
+    use SystemData, only: nel, tGAS, tUHF, nBasis
     use Determinants, only: DefDet
 
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
@@ -14,7 +14,7 @@ module exc_gen_classes
     use gasci_util, only: write_GAS_info
     use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name
     use gasci_discarding, only: GAS_DiscardingGenerator_t
-    use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options
+    use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_user_input, decide_on_PCHB_options
 
     implicit none
     private
@@ -52,7 +52,6 @@ contains
 
     subroutine init_exc_gen_class()
         use SystemData, only: t_fci_pchb_excitgen
-        use pchb_excitgen, only: PCHB_FCI_excit_generator_t, FCI_PCHB_options
 
         block
             if (tGAS) then
@@ -66,8 +65,7 @@ contains
                     allocate(GAS_PCHB_ExcGenerator_t :: current_exc_generator)
                     select type(current_exc_generator)
                     type is (GAS_PCHB_ExcGenerator_t)
-                        call current_exc_generator%init(&
-                            GAS_specification, GAS_PCHB_options)
+                        call current_exc_generator%init(GAS_specification, decide_on_PCHB_options(GAS_PCHB_user_input, nBasis, nEl, tUHF))
                     end select
                 else if (GAS_exc_gen == possible_GAS_exc_gen%ON_FLY_HEAT_BATH) then
                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)
@@ -87,11 +85,12 @@ contains
         end block
 
         block
+            use pchb_excitgen, only: PCHB_FCI_excit_generator_t, decide_on_PCHB_options, FCI_PCHB_user_input
             if (t_fci_pchb_excitgen) then
                 allocate(PCHB_FCI_excit_generator_t :: current_exc_generator)
                 select type(current_exc_generator)
                 type is (PCHB_FCI_excit_generator_t)
-                    call current_exc_generator%init(FCI_PCHB_options)
+                    call current_exc_generator%init(decide_on_PCHB_options(FCI_PCHB_user_input, nBasis, nEl, tUHF))
                 end select
             end if
         end block

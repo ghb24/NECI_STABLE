@@ -41,8 +41,6 @@ module gasci_singles_main
             ON_FLY_HEAT_BATH = GAS_PCHB_SinglesAlgorithm_t(1), &
             BITMASK_UNIFORM = GAS_PCHB_SinglesAlgorithm_t(2), &
             PC_WEIGHTED = GAS_PCHB_SinglesAlgorithm_t(3)
-        contains
-            procedure, nopass :: from_str => singles_from_keyword
     end type
 
     type(GAS_PCHB_SinglesAlgorithm_vals_t), parameter :: GAS_used_singles_vals = GAS_PCHB_SinglesAlgorithm_vals_t()
@@ -50,6 +48,8 @@ module gasci_singles_main
     type :: GAS_PCHB_SinglesOptions_vals_t
         type(GAS_PCHB_SinglesAlgorithm_vals_t) :: algorithm = GAS_PCHB_SinglesAlgorithm_vals_t()
         type(PC_WeightedSinglesOptions_vals_t) :: PC_weighted = PC_WeightedSinglesOptions_vals_t()
+        contains
+            procedure, nopass :: from_str => singles_from_keyword
     end type
 
     type(GAS_PCHB_SinglesOptions_vals_t), parameter :: GAS_PCHB_singles_options_vals = GAS_PCHB_SinglesOptions_vals_t()
@@ -134,18 +134,25 @@ contains
     pure function singles_from_keyword(w) result(res)
         !! Parse a given keyword into the possible weighting schemes
         character(*), intent(in) :: w
-        type(GAS_PCHB_SinglesAlgorithm_t) :: res
+        type(GAS_PCHB_SinglesOptions_t) :: res
         routine_name("singles_from_keyword")
-        select case(to_upper(w))
-        case('UNIFORM')
-            res = GAS_used_singles_vals%BITMASK_UNIFORM
+        character(:), allocatable :: up_w
+        up_w = to_upper(w)
+        associate(vals => GAS_PCHB_singles_options_vals)
+        select case(up_w)
+        case('UNIFORM', 'UNIF:UNIF')
+            res = GAS_PCHB_SinglesOptions_t(vals%algorithm%BITMASK_UNIFORM)
         case('ON-THE-FLY-HEAT-BATH')
-            res = GAS_used_singles_vals%ON_FLY_HEAT_BATH
-        case('PC-WEIGHTED')
-            res = GAS_used_singles_vals%PC_WEIGHTED
+            res = GAS_PCHB_SinglesOptions_t(vals%algorithm%ON_FLY_HEAT_BATH)
+        case('UNIF:FAST', 'UNIF:FULL', 'FULL:FULL')
+            res = GAS_PCHB_SinglesOptions_t(&
+                    vals%algorithm%PC_WEIGHTED, &
+                    PC_WeightedSinglesOptions_t(vals%PC_weighted%drawing%from_str(up_w)) &
+            )
         case default
             call stop_all(this_routine, trim(w)//" not a valid singles generator for FCI PCHB.")
         end select
+        end associate
     end function
 
     subroutine GAS_singles_uniform_init(this, GAS_spec, use_lookup, create_lookup)
