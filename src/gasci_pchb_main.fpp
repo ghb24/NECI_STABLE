@@ -54,9 +54,8 @@ module gasci_pchb_main
     private
     public :: GAS_PCHB_ExcGenerator_t, &
         GAS_PCHB_options_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_options_vals, &
-        GAS_PCHB_user_input_vals, GAS_PCHB_user_input, decide_on_PCHB_options, &
-        GAS_PCHB_OptionsUserInput_t
-    public :: PCHB_OptionSelection_t, PCHB_OptionSelection_vals_t
+        GAS_PCHB_OptionsUserInput_t, GAS_PCHB_user_input_vals, GAS_PCHB_user_input, &
+        decide_on_PCHB_options, PCHB_OptionSelection_t, PCHB_OptionSelection_vals_t
 
 
     type :: GAS_PCHB_options_t

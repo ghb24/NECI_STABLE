@@ -65,7 +65,10 @@ contains
                     allocate(GAS_PCHB_ExcGenerator_t :: current_exc_generator)
                     select type(current_exc_generator)
                     type is (GAS_PCHB_ExcGenerator_t)
-                        call current_exc_generator%init(GAS_specification, decide_on_PCHB_options(GAS_PCHB_user_input, nBasis, nEl, tUHF))
+                        call current_exc_generator%init(&
+                            GAS_specification, &
+                            decide_on_PCHB_options(GAS_PCHB_user_input, nBasis, nEl, tUHF)&
+                        )
                     end select
                 else if (GAS_exc_gen == possible_GAS_exc_gen%ON_FLY_HEAT_BATH) then
                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)

@@ -30,23 +30,25 @@ module gasci_pchb_doubles_select_particles
 
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
+        private
+        character(9) :: str
     contains
         procedure :: to_str
     end type
 
     type :: PCHB_ParticleSelection_vals_t
         type(PCHB_ParticleSelection_t) :: &
-            UNIF_UNIF = PCHB_ParticleSelection_t(1), &
+            UNIF_UNIF = PCHB_ParticleSelection_t(1, 'UNIF-UNIF'), &
                 !! Both particles are drawn uniformly.
-            FULL_FULL = PCHB_ParticleSelection_t(2), &
+            FULL_FULL = PCHB_ParticleSelection_t(2, 'FULL-FULL'), &
                 !! We draw from \( p(I)|_{D_i} \) and then \( p(J | I)_{J \in D_i} \)
                 !! and both probabilites come from the PCHB weighting scheme.
                 !! We guarantee that \(I\) and \(J\) are occupied.
-            UNIF_FULL = PCHB_ParticleSelection_t(3), &
+            UNIF_FULL = PCHB_ParticleSelection_t(3, 'UNIF-FULL'), &
                 !! We draw \( \tilde{p}(I)|_{D_i} \) uniformly and then \( p(J | I)_{J \in D_i} \)
                 !! The second distribution comes from the PCHB weighting scheme.
                 !! We guarantee that \(I\) and \(J\) are occupied.
-            UNIF_FAST = PCHB_ParticleSelection_t(4)
+            UNIF_FAST = PCHB_ParticleSelection_t(4, 'UNIF-FAST')
                 !! We draw \( \tilde{p}(I)|_{D_i} \) uniformly and then \( p(J | I)_{J} \).
                 !! The second distribution comes from the PCHB weighting scheme.
                 !! We guarantee that \(I\) is occupied.
@@ -153,19 +155,8 @@ contains
 
     pure function to_str(options) result(res)
         class(PCHB_ParticleSelection_t), intent(in) :: options
-        routine_name("to_str_PCHB_HoleSelection_t")
         character(9) :: res
-        if (options == PCHB_particle_selection_vals%UNIF_UNIF) then
-            res = 'UNIF-UNIF'
-        else if (options == PCHB_particle_selection_vals%FULL_FULL) then
-            res = 'FULL-FULL'
-        else if (options == PCHB_particle_selection_vals%UNIF_FULL) then
-            res = 'UNIF-FULL'
-        else if (options == PCHB_particle_selection_vals%UNIF_FAST) then
-            res = 'UNIF-FAST'
-        else
-            call stop_all(this_routine, "Should not be here.")
-        end if
+        res = options%str
     end function
 
     pure function from_keyword(w) result(res)
@@ -174,13 +165,13 @@ contains
         type(PCHB_ParticleSelection_t) :: res
         routine_name("from_keyword")
         select case(to_upper(w))
-        case('UNIF-UNIF')
+        case(PCHB_particle_selection_vals%UNIF_UNIF%str)
             res = PCHB_particle_selection_vals%UNIF_UNIF
-        case('FULL-FULL')
+        case(PCHB_particle_selection_vals%FULL_FULL%str)
             res = PCHB_particle_selection_vals%FULL_FULL
-        case('UNIF-FULL')
+        case(PCHB_particle_selection_vals%UNIF_FULL%str)
             res = PCHB_particle_selection_vals%UNIF_FULL
-        case('UNIF-FAST')
+        case(PCHB_particle_selection_vals%UNIF_FAST%str)
             res = PCHB_particle_selection_vals%UNIF_FAST
         case default
             call stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
