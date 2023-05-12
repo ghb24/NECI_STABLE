@@ -35,6 +35,7 @@ module gasci_pchb_main
     use timing_neci, only: set_timer, halt_timer
     use FciMCData, only: GAS_PCHB_init_time
     use SystemData, only: tUHF, nBasis
+    use fortran_strings, only: Token_t, join
 
     use gasci, only: GASSpec_t
     use gasci_singles_main, only: &
@@ -64,6 +65,7 @@ module gasci_pchb_main
             !! Use and/or create/manage the supergroup lookup.
     contains
         procedure :: assert_validity
+        procedure :: to_str
     end type
 
     type :: GAS_PCHB_options_vals_t
@@ -123,6 +125,7 @@ contains
         end if
         call options%assert_validity()
 
+        write(stdout, '(A)') 'GAS PCHB with' // options%to_str() // 'is used'
         call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, this%singles_generator)
         call doubles_allocate_and_init(GAS_spec, options%doubles, options%use_lookup, this%doubles_generator)
 
@@ -196,5 +199,10 @@ contains
         end if
     end function
 
+    function to_str(options) result(res)
+        class(GAS_PCHB_options_t), intent(in) :: options
+        character(:), allocatable :: res
+        res = join([Token_t(options%singles%to_str()), Token_t(options%doubles%to_str())], ' ')
+    end function
 
 end module gasci_pchb_main

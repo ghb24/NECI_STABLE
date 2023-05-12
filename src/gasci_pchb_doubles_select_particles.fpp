@@ -30,6 +30,8 @@ module gasci_pchb_doubles_select_particles
 
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
+    contains
+        procedure :: to_str
     end type
 
     type :: PCHB_ParticleSelection_vals_t
@@ -148,6 +150,23 @@ module gasci_pchb_doubles_select_particles
     end type
 
 contains
+
+    pure function to_str(options) result(res)
+        class(PCHB_ParticleSelection_t), intent(in) :: options
+        routine_name("to_str_PCHB_HoleSelection_t")
+        character(9) :: res
+        if (options == PCHB_particle_selection_vals%UNIF_UNIF) then
+            res = 'UNIF-UNIF'
+        else if (options == PCHB_particle_selection_vals%FULL_FULL) then
+            res = 'FULL-FULL'
+        else if (options == PCHB_particle_selection_vals%UNIF_FULL) then
+            res = 'UNIF-FULL'
+        else if (options == PCHB_particle_selection_vals%UNIF_FAST) then
+            res = 'UNIF-FAST'
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
+    end function
 
     pure function from_keyword(w) result(res)
         !! Parse a given keyword into the possible particle selection schemes

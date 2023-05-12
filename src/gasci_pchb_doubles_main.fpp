@@ -25,12 +25,16 @@ module gasci_pchb_doubles_main
     public :: PCHB_ParticleSelection_t
 
     type, extends(EnumBase_t) :: PCHB_HoleSelection_t
+        private
+        character(9) :: str
+    contains
+        procedure :: to_str => to_str_PCHB_HoleSelection_t
     end type
 
     type :: PCHB_HoleSelection_vals_t
         type(PCHB_HoleSelection_t) :: &
-            FAST_FAST = PCHB_HoleSelection_t(1), &
-            FULL_FULL = PCHB_HoleSelection_t(2)
+            FAST_FAST = PCHB_HoleSelection_t(1, 'FAST-FAST'), &
+            FULL_FULL = PCHB_HoleSelection_t(2, 'FULL-FULL')
         contains
             procedure, nopass :: from_str => select_holes_from_keyword
     end type
@@ -39,8 +43,10 @@ module gasci_pchb_doubles_main
         type(PCHB_ParticleSelection_t) :: particle_selection
         type(PCHB_HoleSelection_t) :: hole_selection
         logical, allocatable :: spin_orb_resolved
-            !! We want to distinguish between "not yet a value"
-            !!  and the actual value.
+            !! It is allocatable, because we want to distinguish between
+            !! "not yet a value" and the actual value.
+    contains
+        procedure :: to_str => to_str_PCHB_DoublesOptions_t
     end type
 
     type :: PCHB_DoublesOptions_vals_t
@@ -99,13 +105,19 @@ contains
         routine_name("gasci_pchb_doubles_main::select_holes_from_keyword")
 
         select case(to_upper(w))
-        case('FAST-FAST')
+        case(doubles_options_vals%hole_selection%FAST_FAST%str)
             res = doubles_options_vals%hole_selection%FAST_FAST
-        case('FULL-FULL')
+        case(doubles_options_vals%hole_selection%FULL_FULL%str)
             res = doubles_options_vals%hole_selection%FULL_FULL
         case default
             call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
         end select
+    end function
+
+    pure function to_str_PCHB_HoleSelection_t(options) result(res)
+        class(PCHB_HoleSelection_t), intent(in) :: options
+        character(9) :: res
+        res = options%str
     end function
 
     pure function select_doubles_option_from_keyword(w) result(res)
@@ -117,5 +129,13 @@ contains
             res%hole_selection = doubles_options_vals%hole_selection%from_str(tokens(2)%str)
         end associate
     end function
+
+    pure function to_str_PCHB_DoublesOptions_t(options) result(res)
+        class(PCHB_DoublesOptions_t), intent(in) :: options
+        character(19) :: res
+        res = options%particle_selection%to_str() &
+                // ':' // options%hole_selection%to_str()
+    end function
+
 
 end module gasci_pchb_doubles_main

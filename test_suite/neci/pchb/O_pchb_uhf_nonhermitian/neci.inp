@@ -8,9 +8,7 @@ title
         molpromimic
         nonhermitian 2-body
         nonuniformrandexcits pchb \
-            singles uniform \
-            doubles particle-selection unif-unif \
-            doubles hole-selection fast-fast
+            manual unif:unif unif-unif:fast-fast
     endsys
 
     calc

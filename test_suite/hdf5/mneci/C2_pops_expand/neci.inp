@@ -3,9 +3,7 @@ title
 system read
     electrons 8
     nonuniformrandexcits pchb \
-        singles uniform \
-        doubles particle-selection full-full \
-        doubles hole-selection fast-fast
+        manual unif:unif full-full:fast-fast
     system-replicas 4
 endsys
 

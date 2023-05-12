@@ -2,7 +2,7 @@
 module pchb_excitgen
     use constants, only: n_int, dp, maxExcit, stdout
     use SystemData, only: nel, nBasis
-    use fortran_strings, only: to_upper
+    use fortran_strings, only: to_upper, join, Token_t
     use util_mod, only: operator(.div.), EnumBase_t, stop_all, operator(.implies.)
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use SystemData, only: tUHF
@@ -28,7 +28,6 @@ module pchb_excitgen
     public :: FCI_PCHB_SinglesOptions_t
     ! Reexpose
     public :: PCHB_DoublesOptions_t
-
 
 
     type, extends(ClassicAbInitExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
@@ -63,6 +62,8 @@ module pchb_excitgen
         type(FCI_PCHB_singles_algorithm_t) :: algorithm
         type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
             FCI_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
+    contains
+        procedure :: to_str => to_str_FCI_PCHB_SinglesOptions_t
     end type
 
     type :: FCI_PCHB_Options_t
@@ -70,6 +71,7 @@ module pchb_excitgen
         type(PCHB_DoublesOptions_t) :: doubles
     contains
         procedure :: assert_validity
+        procedure :: to_str => to_str_FCI_PCHB_Options_t
     end type
 
     type :: FCI_PCHB_Options_vals_t
@@ -120,19 +122,39 @@ contains
         end associate
     end function
 
+    pure function to_str_FCI_PCHB_SinglesOptions_t(options) result(res)
+        class(FCI_PCHB_SinglesOptions_t), intent(in) :: options
+        character(:), allocatable :: res
+        routine_name("to_str_FCI_PCHB_SinglesOptions_t")
+
+        associate(vals => FCI_PCHB_singles_options_vals)
+        if (options%algorithm == vals%algorithm%UNIFORM) then
+            res = 'UNIF:UNIF'
+        else if (options%algorithm == vals%algorithm%ON_FLY_HEAT_BATH) then
+            res = 'ON-THE-FLY-HEAT-BATH'
+        else if (options%algorithm == vals%algorithm%PC_WEIGHTED) then
+            res = options%PC_weighted%drawing%to_str()
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
+        end associate
+    end function
+
 
     subroutine init(this, options)
         class(PCHB_FCI_excit_generator_t), intent(inout) :: this
         type(FCI_PCHB_Options_t), intent(in) :: options
         character(*), parameter :: this_routine = 'pchb_excitgen::init'
 
+
+        write(stdout, '(A)') 'FCI PCHB with ' // options%to_str() // ' is used'
+        call singles_allocate_and_init(options%singles, this%singles_generator)
         ! CAS is implemented as a special case of GAS with only one GAS space.
         ! Since a GAS specification with one GAS space is trivially disconnected, there
         ! is no point to use the lookup.
         call doubles_allocate_and_init(&
                 CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), options%doubles, &
                 .false., this%doubles_generator)
-        call singles_allocate_and_init(options%singles, this%singles_generator)
     end subroutine
 
 
@@ -237,6 +259,12 @@ contains
                 loc_tUHF &
                 .or. (res%doubles%hole_selection == FCI_PCHB_options_vals%doubles%hole_selection%FULL_FULL)
         end if
+    end function
+
+    function to_str_FCI_PCHB_Options_t(options) result(res)
+        class(FCI_PCHB_Options_t), intent(in) :: options
+        character(:), allocatable :: res
+        res = options%singles%to_str() // ' ' // options%doubles%to_str()
     end function
 
 end module pchb_excitgen

@@ -8,9 +8,7 @@ System read
     freeformat
     sd-spin-purification 5d-4 ONLY-LADDER-OPERATOR
     nonuniformrandexcits GAS-CI PCHB \
-        singles uniform \
-        doubles particle-selection full-full \
-        doubles hole-selection fast-fast
+        manual unif:unif full-full:fast-fast
     GAS-SPEC LOCAL 4
         3 3 3
         3 3 3

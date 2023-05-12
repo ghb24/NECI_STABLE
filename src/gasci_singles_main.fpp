@@ -58,6 +58,8 @@ module gasci_singles_main
         type(GAS_PCHB_SinglesAlgorithm_t) :: algorithm
         type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
             GAS_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
+    contains
+        procedure :: to_str
     end type
 
 
@@ -152,6 +154,23 @@ contains
         case default
             call stop_all(this_routine, trim(w)//" not a valid singles generator for FCI PCHB.")
         end select
+        end associate
+    end function
+
+    pure function to_str(options) result(res)
+        class(GAS_PCHB_SinglesOptions_t), intent(in) :: options
+        routine_name("to_str")
+        character(:), allocatable :: res
+        associate(vals => GAS_PCHB_singles_options_vals)
+        if (options%algorithm == vals%algorithm%BITMASK_UNIFORM) then
+            res = 'UNIF:UNIF'
+        else if (options%algorithm == vals%algorithm%ON_FLY_HEAT_BATH) then
+            res = 'ON-THE-FLY-HEAT-BATH'
+        else if (options%algorithm == vals%algorithm%PC_WEIGHTED) then
+            res = options%PC_weighted%drawing%to_str()
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
         end associate
     end function
 
@@ -336,7 +355,4 @@ contains
 
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
     end subroutine GAS_singles_uniform_gen_all_excits
-
-
-
 end module gasci_singles_main

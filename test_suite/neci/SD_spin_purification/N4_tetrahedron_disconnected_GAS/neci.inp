@@ -8,9 +8,7 @@ System read
     freeformat
     SD-SPIN-PURIFICATION 3d-4
     nonuniformrandexcits GAS-CI PCHB \
-        singles uniform \
-        doubles particle-selection full-full \
-        doubles hole-selection fast-fast
+        manual unif:unif full-full:fast-fast
     GAS-SPEC LOCAL 4
         3 3 3
         3 3 3

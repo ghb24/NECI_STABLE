@@ -31,23 +31,27 @@ module gasci_singles_pc_weighted
 
 
     type, extends(EnumBase_t) :: PC_singles_drawing_t
+        private
+        character(9) :: str
+    contains
+        procedure :: to_str
     end type
 
     type :: PC_singles_drawing_vals_t
         type(PC_singles_drawing_t) :: &
-            UNDEFINED = PC_singles_drawing_t(-1), &
-            FULL_FULL = PC_singles_drawing_t(1), &
+            UNDEFINED = PC_singles_drawing_t(-1, 'UNDEFINED'), &
+            FULL_FULL = PC_singles_drawing_t(1, 'FULL:FULL'), &
                 !! We draw from \( p(I)|_{D_i} \) and then \( p(A | I)_{A \notin D_i} \)
                 !! and both probabilites come from the weighting scheme given in
                 !! `possible_PC_singles_weighting_t`.
                 !! We guarantee that \(I\) is occupied and \(A\) is unoccupied.
-            UNIF_FULL = PC_singles_drawing_t(2), &
+            UNIF_FULL = PC_singles_drawing_t(2, 'UNIF:FULL'), &
                 !! We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from
                 !! \( p(A | I)_{A \notin D_i} \).
                 !! I.e. only the second electron comes from the weighting scheme given in
                 !! `possible_PC_singles_weighting_t`.
                 !! We guarantee that \(I\) is occupied and \(A\) is unoccupied.
-            UNIF_FAST = PC_singles_drawing_t(3)
+            UNIF_FAST = PC_singles_drawing_t(3, 'UNIF:FAST')
                 !! We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from \( p(A | I) \).
                 !! I.e. only the second electron comes from the weighting scheme given in
                 !! `possible_PC_singles_weighting_t`
@@ -179,22 +183,37 @@ contains
         write(iunit, *)
     end subroutine
 
-
     pure function drawing_from_keyword(w) result(res)
         !! Parse a given keyword into the possible drawing schemes.
         character(*), intent(in) :: w
         type(PC_singles_drawing_t) :: res
         routine_name("from_keyword")
         select case(to_upper(w))
-        case('FULL:FULL')
+        case(PC_singles_drawing_vals%FULL_FULL%str)
             res = PC_singles_drawing_vals%FULL_FULL
-        case('UNIF:FULL')
+        case(PC_singles_drawing_vals%UNIF_FULL%str)
             res = PC_singles_drawing_vals%UNIF_FULL
-        case('UNIF:FAST')
+        case(PC_singles_drawing_vals%UNIF_FAST%str)
             res = PC_singles_drawing_vals%UNIF_FAST
         case default
             call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles drawing scheme")
         end select
+    end function
+
+    pure function to_str(options) result(res)
+        !! Parse a given keyword into the possible drawing schemes.
+        class(PC_singles_drawing_t), intent(in) :: options
+        character(9) :: res
+        routine_name("from_keyword")
+        if (options == PC_singles_drawing_vals%FULL_FULL) then
+            res = PC_singles_drawing_vals%FULL_FULL%str
+        else if (options == PC_singles_drawing_vals%UNIF_FULL) then
+            res = PC_singles_drawing_vals%UNIF_FULL%str
+        else if (options == PC_singles_drawing_vals%UNIF_FAST) then
+            res = PC_singles_drawing_vals%UNIF_FAST%str
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
     end function
 
     subroutine init(this, GAS_spec, use_lookup, create_lookup)
