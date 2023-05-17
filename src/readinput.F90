@@ -255,7 +255,7 @@ contains
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
                               tGen_4ind_lin_exact, tGen_4ind_2, tGAS, &
-                              tComplexOrbs_RealInts, tLatticeGens,t_non_hermitian,
+                              tComplexOrbs_RealInts, tLatticeGens,t_non_hermitian, &
                               t_non_hermitian_1_body, t_non_hermitian_2_body
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
