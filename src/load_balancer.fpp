@@ -19,11 +19,11 @@ module load_balance
                                reset_all_acc_spawns
     use bit_rep_data, only: flag_initiator, nifd, &
                             flag_connected, flag_trial, flag_prone, flag_removed, &
-                            niftot, flag_deterministic
+                            niftot, flag_deterministic, test_flag, extract_sign, &
+                             test_flag_multi
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut, writebitdet, &
-                        decode_bit_det, extract_sign, test_flag, &
-                        test_flag_multi
+                        decode_bit_det
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
@@ -39,7 +39,8 @@ module load_balance
     use SystemData, only: nel
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
-    use determinants, only: get_helement, write_det
+    use determinants, only: get_helement
+    use DeterminantData, only: write_det
     use LoggingData, only: tOutputLoadDistribution, tAccumPopsActive
     use cont_time_rates, only: spawn_rate_full
     use DetBitOps, only: DetBitEq, tAccumEmptyDet
@@ -123,7 +124,7 @@ contains
             return
         end if
 
-        write(6, "('Initialising load balancing blocks from data in POPSFILE')")
+        write(stdout, "('Initialising load balancing blocks from data in POPSFILE')")
 
         ! We can only initialise blocking in this manner if the blocks match
         ! the number of blocks in the popsfile
@@ -318,12 +319,12 @@ contains
         call MPIBcast(LoadBalanceMapping)
 
         if (iProcIndex == root .and. tOutputLoadDistribution) then
-            write(6, '("Load balancing distribution:")')
-            write(6, '("node #, particles")')
+            write(stdout, '("Load balancing distribution:")')
+            write(stdout, '("node #, particles")')
             do j = 0, nNodes - 1
-                write(6, '(i8,i10)') j, proc_parts(j)
+                write(stdout, '(i8,i10)') j, proc_parts(j)
             end do
-            write(6, *) '--'
+            write(stdout, *) '--'
         end if
 
         if (iBlockMoves > 0) then
@@ -375,7 +376,7 @@ contains
 
         ! Provide some feedback to the user.
         if (iProcIndex == root) then
-            write(6, '(a,i9,a,i6,a,i6)') 'Moving load balancing block ', &
+            write(stdout, '(a,i9,a,i6,a,i6)') 'Moving load balancing block ', &
                 block, ' from processor ', src_proc, ' to ', tgt_proc
         end if
 
@@ -770,10 +771,10 @@ contains
         end if
 
         IFDEBUGTHEN(FCIMCDebug, 6)
-            write(6, *) "After annihilation: "
-            write(6, *) "TotWalkersNew: ", TotWalkersNew
-            write(6, *) "AnnihilatedDet: ", AnnihilatedDet
-            write(6, *) "HolesInList: ", HolesInList
+            write(stdout, *) "After annihilation: "
+            write(stdout, *) "TotWalkersNew: ", TotWalkersNew
+            write(stdout, *) "AnnihilatedDet: ", AnnihilatedDet
+            write(stdout, *) "HolesInList: ", HolesInList
             write(stdout, "(A,I12)") "Walker list length: ", TotWalkersNew
             write(stdout, "(A)") "TW: Walker  Det"
             do j = 1, int(TotWalkersNew)
@@ -793,12 +794,12 @@ contains
         ! AnnihilatedDet is only affected by empty dets and emptying a det increses HolesInList
         ! But adding a new det decreases HolesInList and does not affect AnnihilatedDet ->?
         if (AnnihilatedDet /= HolesInList) then
-            write(6, *) "TotWalkersNew: ", TotWalkersNew
-            write(6, *) "AnnihilatedDet: ", AnnihilatedDet
-            write(6, *) "HolesInList: ", HolesInList
-            write(6, *) "iStartFreeSlot, iEndFreeSlot:", iStartFreeSlot, iEndFreeSlot
-            write(6, *) "TotParts: ", TotParts
-            call neci_flush(6)
+            write(stdout, *) "TotWalkersNew: ", TotWalkersNew
+            write(stdout, *) "AnnihilatedDet: ", AnnihilatedDet
+            write(stdout, *) "HolesInList: ", HolesInList
+            write(stdout, *) "iStartFreeSlot, iEndFreeSlot:", iStartFreeSlot, iEndFreeSlot
+            write(stdout, *) "TotParts: ", TotParts
+            call neci_flush(stdout)
             call stop_all(t_r, "Error in determining annihilated determinants")
         end if
     end subroutine CalcHashTableStats

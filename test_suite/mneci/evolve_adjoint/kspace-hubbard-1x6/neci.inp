@@ -24,6 +24,7 @@ calc
     truncinitiator
     addtoinitiator 3.
     allrealcoeff
+    realspawncutoff off
 
     startsinglepart 100
     shiftdamp 0.02

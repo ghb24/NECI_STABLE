@@ -44,7 +44,7 @@ module real_time
                          Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF, AllTotParts
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
-    use FciMCParMod, only: rezero_iter_stats_each_iter
+    use fcimc_helper, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
                          stdout, maxExcit
@@ -63,8 +63,9 @@ module real_time
     use fcimc_pointed_fns, only: new_child_stats_normal
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create
-    use bit_rep_data, only: IlutBits, niftot, extract_sign
-    use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
+    use bit_rep_data, only: IlutBits, niftot, extract_sign, &
+        flag_deterministic, flag_determ_parent, test_flag
+    use bit_reps, only: set_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
                                 population_check, update_shift, calculate_new_shift_wrapper, &
                                 iteration_output_wrapper

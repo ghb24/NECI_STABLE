@@ -6,10 +6,10 @@ module back_spawn_excit_gen
     use SystemData, only: nel, G1, nbasis, tHPHF, NMAXX, NMAXY, NMAXZ, &
                           tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha, ElecPairs, &
                           tHPHF
-    use bit_rep_data, only: niftot
+    use bit_rep_data, only: niftot, test_flag
+    use bit_reps, only: get_initiator_flag
     use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, &
                                kPointToBasisFn
-    use bit_reps, only: test_flag, get_initiator_flag
     use FciMCData, only: pSingles, projedet, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use excit_gens_int_weighted, only: gen_single_4ind_ex, select_orb_sing, &
@@ -28,7 +28,8 @@ module back_spawn_excit_gen
                           pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard, &
                           is_allowed_ueg_k_vector
     use get_excit, only: make_single, make_double
-    use Determinants, only: write_det, get_helement
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, &
                               calc_pgen_ueg
     use util_mod, only: operator(.div.), stop_all
@@ -100,10 +101,10 @@ contains
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
                     write(stdout, *) 'reference det: '
-                    call write_det(6, projedet(:, part_type_to_run(part_type)), .true.)
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, projedet(:, part_type_to_run(part_type)), .true.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -131,9 +132,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -365,9 +366,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -397,9 +398,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -706,9 +707,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -738,9 +739,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -948,10 +949,10 @@ contains
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
                     write(stdout, *) "reference determinant: "
-                    call write_det(6, projedet(:, part_type_to_run(part_type)), .true.)
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, projedet(:, part_type_to_run(part_type)), .true.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -993,9 +994,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen

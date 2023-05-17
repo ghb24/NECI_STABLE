@@ -16,14 +16,14 @@ module analyse_wf_symmetry
 
     use lattice_mod, only: lat
 
-    use bit_rep_data, only: niftot, nifd
+    use bit_rep_data, only: niftot, nifd, extract_sign
+
+    use bit_reps, only: encode_sign, decode_bit_det
 
     use constants, only: n_int, dp, pi, lenof_sign, stdout
 
     use util_mod, only: binary_search_ilut, binary_search_int, near_zero, &
                         operator(.isclose.), stop_all
-
-    use bit_reps, only: extract_sign, encode_sign, decode_bit_det
 
     use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt, DetBitEq
 
@@ -34,6 +34,8 @@ module analyse_wf_symmetry
     use ras, only: sort_orbitals
 
     use hist, only: ssquared_contrib
+
+    use Determinants, only: writeDetBit, writebasis
 
     implicit none
 
@@ -479,7 +481,7 @@ contains
                 print *, i, lat%get_site_index(i), lat%get_sym(i), lat%get_k_vec(i)
             end do
 
-            call WRITEBASIS(6, g1, nBasis, arr, brr)
+            call writebasis(stdout, g1, nBasis, arr, brr)
 
             ! i need to apply the chosen symmetry to the vectors and determine,
             ! which orbital maps into which

@@ -1,0 +1,40 @@
+title
+
+system read
+    electrons 6
+    stoquastize
+    spin-restrict 0
+    sym 0 0 0 0
+endsys
+
+calc
+    methods
+        method vertex fcimc
+    endmethods
+
+    seed -7
+    load-balance-blocks off
+    definedet 1 4 5 8 9 12
+    readpops
+
+    tau-values \
+        start from-popsfile
+
+    memoryfacspawn 5.0
+    memoryfacpart 2.0
+    totalwalkers 1000
+    shiftdamp 0.5
+    stepsshift 1
+    allrealcoeff
+    realspawncutoff 0.01
+    nmcyc 500
+endcalc
+
+integral
+endint
+
+logging
+    popsfile -1
+endlog
+
+end

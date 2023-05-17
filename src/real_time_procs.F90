@@ -26,14 +26,13 @@ module real_time_procs
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, stdout, null_part, &
                          sizeof_int, MPIArg
-    use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
-                        set_flag, encode_bit_rep, extract_bit_rep, &
-                        flag_deterministic, encode_part_sign, &
-                        get_initiator_flag, get_initiator_flag_by_run, &
-                        clr_flag, test_flag_multi
+    use bit_rep_data, only: test_flag, flag_deterministic, &
+                        test_flag_multi, extract_sign, nifd, niftot, IlutBits
+    use bit_reps, only: decode_bit_det, encode_bit_rep, encode_sign, &
+        get_initiator_flag_by_run, set_flag, extract_bit_rep, &
+        clr_flag
     use util_mod, only: get_free_unit, get_unique_filename, near_zero, &
                         operator(.isclose.)
-    use bit_rep_data, only: extract_sign, nifd, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
                          iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &
@@ -1067,7 +1066,7 @@ contains
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
         write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
-        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr

@@ -8,7 +8,7 @@ module load_balance_calcnodes
     use SystemData, only: nBasis, nel
     use MemoryManager, only: TagIntType
     use CalcData, only: tUniqueHFNode
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use Parallel_neci
     use constants
 

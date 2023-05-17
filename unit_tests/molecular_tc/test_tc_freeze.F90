@@ -4,7 +4,7 @@ program test_tc_freeze
     use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
                      get_failed_count, run_test_case, assert_true
     use unit_test_helper_excitgen, only: generate_random_integrals, &
-        FciDumpWriter_t, init_excitgen_test
+        RandomFciDumpWriter_t, init_excitgen_test
     use util_mod, only: operator(.isclose.), operator(.div.), stop_all, &
         get_free_unit
     use sltcnd_mod, only: initSltCndPtr, dyn_sltcnd_excit
@@ -40,11 +40,15 @@ contains
         type(Excite_0_t) :: exc_0
         type(Excite_1_t) :: exc_1
         type(Excite_2_t) :: exc_2
-        integer :: ex_1(2, 1), ex_2(2, 2), i
+        integer :: i
 
         ! Initialize the matrix element calculation
-        call init_excitgen_test( &
-            ref_det=[(i, i=1, n_con)], fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        associate (ref_det => [(i, i=1, n_con)])
+            call init_excitgen_test(ref_det, &
+                RandomFcidumpWriter_t(&
+                    14, ref_det, sparse=0.9_dp, sparseT=0.1_dp) &
+            )
+        end associate
         t_mol_3_body = .true.
         call initSltCndPtr()
 
@@ -72,8 +76,7 @@ contains
         write(stdout, *) "Checking single excitaion matrix elements"
 
         ! Test the single excitation matrix elements
-        ex_1(:, 1) = [5, 21]
-        exc_1 = Excite_1_t(ex_1)
+        exc_1 = Excite_1_t(5, 21)
         call test_freeze([1, 1, 3, 1, 1, 11], exc_1)
         call test_freeze([1, 1, 3, 11, 1, 1], exc_1)
         call test_freeze([11, 1, 3, 1, 1, 1], exc_1)
@@ -93,9 +96,7 @@ contains
         write(stdout, *) "Checking double excitaion matrix elements"
 
         ! Test the double excitation matrix elements
-        ex_2(:, 1) = [5, 7]
-        ex_2(:, 2) = [21, 23]
-        exc_2 = Excite_2_t(ex_2)
+        exc_2 = Excite_2_t(5, 21, 7, 23)
         call test_freeze([1, 3, 4, 1, 11, 12], exc_2)
         call test_freeze([1, 11, 4, 1, 3, 12], exc_2)
         call test_freeze([1, 3, 4, 12, 1, 11], exc_2)
@@ -106,9 +107,7 @@ contains
         call test_freeze([1, 3, 11, 1, 12, 4], exc_2)
         call test_freeze([11, 1, 4, 1, 3, 12], exc_2)
         call test_freeze([12, 3, 11, 1, 1, 4], exc_2)
-        ex_2(:, 1) = [5, 6]
-        ex_2(:, 2) = [11, 12]
-        exc_2 = Excite_2_t(ex_2)
+        exc_2 = Excite_2_t(5, 11, 6, 12)
         call test_freeze([1, 3, 3, 1, 11, 11], exc_2)
         call test_freeze([1, 3, 3, 11, 1, 11], exc_2)
         call test_freeze([1, 3, 11, 1, 11, 3], exc_2)
@@ -138,11 +137,10 @@ contains
         select type (exc)
         type is (Excite_1_t)
             allocate(Excite_1_t :: exc_frozen)
-            exc_frozen = Excite_1_t(exc%val(1, 1) - nFrozen, exc%val(2, 1) - nFrozen)
+            exc_frozen = Excite_1_t(exc%val- nFrozen)
         type is (Excite_2_t)
             allocate(Excite_2_t :: exc_frozen)
-            exc_frozen = Excite_2_t(exc%val(1, 1) - nFrozen, exc%val(2, 1) - nFrozen, &
-                                     exc%val(1, 2) - nFrozen, exc%val(2, 2) - nFrozen)
+            exc_frozen = Excite_2_t(exc%val - nFrozen)
         class default
             exc_frozen = exc
         end select
@@ -150,7 +148,7 @@ contains
         nel = nel + nFrozen
         call freeLMat()
 
-        call assert_true(e_freeze.isclose.e_ref)
+        call assert_true(e_freeze .isclose. e_ref)
         write(stdout, *) e_freeze, e_ref
     end subroutine test_freeze
 
@@ -164,12 +162,6 @@ contains
         write(iunit, *) 1.0, inds
         close(iunit)
     end subroutine write_single_tcdump
-
-    subroutine random_fcidump(iunit)
-        integer, intent(in) :: iunit
-        call generate_random_integrals( &
-            iunit, n_el=n_con, n_spat_orb=14, sparse=0.9_dp, sparseT=0.1_dp, total_ms=SpinProj_t(0))
-    end subroutine random_fcidump
 
     subroutine reset_ints()
         if (iProcIndex_intra == 0) then

@@ -5,7 +5,7 @@ module SymExcit4
 
     use SystemData, only: nEl, nBasis, tkPntSym, tReltvy, G1, BasisFn
     use SymExcitDataMod, only: SpinOrbSymLabel
-    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
+    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, IsMomAllowedDetAnyParent
     use constants, only: maxExcit
 
     implicit none
@@ -410,7 +410,6 @@ contains
         integer :: minRankDefault, maxRankDefault, minSpinDiffDefault, maxSpinDiffDefault
         ! this is defined in symrandexcit2.F90, but it is external to the
         ! main module defined therein
-        logical :: IsMomAllowedDetAnyParent
 
         tAllExcitFound = .false.
 

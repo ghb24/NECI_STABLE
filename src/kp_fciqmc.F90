@@ -7,9 +7,9 @@ module kp_fciqmc
     use kp_fciqmc_procs
 
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
-    use bit_rep_data, only: NIfTot, IlutBits, test_flag
-    use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
-    use bit_reps, only: extract_bit_rep
+    use bit_rep_data, only: NIfTot, IlutBits, test_flag, &
+        flag_deterministic, flag_determ_parent
+    use bit_reps, only: extract_bit_rep, set_flag
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
     use CalcData, only: tDetermHFSpawning, ss_space_in, tPairedReplicas
     use CalcData, only: tPrintReplicaOverlaps

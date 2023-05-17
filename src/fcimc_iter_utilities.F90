@@ -237,7 +237,7 @@ contains
                           stat=ierr, source=0_n_int)
                 call LogMemAlloc('TempSpawnedParts', size(TempSpawnedParts, kind=int64), size_per_element(TempSpawnedParts), &
                                  this_routine, TempSpawnedPartsTag, ierr)
-                write (6, "(' Allocating temporary array for walkers spawned &
+                write (stdout, "(' Allocating temporary array for walkers spawned &
                            &from a particular Di.')")
                 write(stdout, "(a,f14.6,a)") " This requires ", &
                     real(((nifd + 1) * TempSpawnedPartsSize * size_n_int), dp) &

@@ -65,7 +65,7 @@ module tJ_model
     use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij, &
                               write_det_guga, CSF_Info_t
 
-    use neci_intfce, only: GetExcitation
+    use excit_mod, only: getexcitation
 
     implicit none
     private

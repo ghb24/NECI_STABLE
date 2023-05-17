@@ -21,11 +21,11 @@ module lattice_models_utils
 
     use symdata, only: symtable, SymConjTab
 
-    use bit_rep_data, only: niftot, nifd, GugaBits
+    use bit_rep_data, only: niftot, nifd, GugaBits, extract_sign
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, return_hphf_sym_det
 
-    use bit_reps, only: decode_bit_det, extract_sign, init_bit_rep
+    use bit_reps, only: decode_bit_det, init_bit_rep
 
     use SymExcitDataMod, only: KPointToBasisFn
 
@@ -50,13 +50,16 @@ module lattice_models_utils
         get_spin_opp_neighbors, create_one_spin_basis, calc_n_double, &
         create_neel_state_chain, create_neel_state, &
         pick_from_cum_list, combine_spin_basis, set_alpha_beta_spins, &
-        right_most_zero, gen_all_excits_k_space_hubbard, &
+        right_most_zero, &
         swap_excitations, pick_spin_opp_holes, pick_random_hole, &
-        get_opp_spin, create_all_dets, gen_all_excits_r_space_hubbard, &
-        create_hilbert_space_realspace, gen_all_singles_rs_hub_default, &
-        gen_all_doubles_k_space, create_heisenberg_fock_space, &
+        get_opp_spin, create_all_dets, &
+        create_hilbert_space_realspace, &
+        create_heisenberg_fock_space, &
         create_heisenberg_fock_space_guga, gen_all_triples_k_space, &
-        create_hilbert_space_kspace
+        create_hilbert_space_kspace, &
+        gen_all_excits_r_space_hubbard, gen_all_excits_k_space_hubbard
+
+    public :: gen_all_doubles_k_space, gen_all_singles_rs_hub_default, gen_all_singles_rs_hub
 
     interface swap_excitations
         module procedure swap_excitations_higher
@@ -219,7 +222,6 @@ contains
             call spin_purify(save_excits, temp_dets, n_excits, det_list)
 
         end if
-
     end subroutine gen_all_excits_r_space_hubbard
 
     subroutine spin_purify(n_excits_in, det_list_in, n_excits_out, det_list_out)
@@ -407,14 +409,14 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
         real(dp), intent(out), allocatable, optional :: sign_list(:)
-#ifdef DEBUG_
+#if defined(DEBUG_) || defined(CMPLX_)
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub_default"
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
         integer :: n_bound, i, src, j, neigh, ex(2, 2), pos, nJ(nel)
         integer(n_int), allocatable :: temp_list(:, :)
         integer, allocatable :: neighbors(:)
-        real(dp) :: elem
+        HElement_t(dp) :: elem
         real(dp), allocatable :: temp_sign(:)
         logical :: t_sign, tpar
 
@@ -439,7 +441,6 @@ contains
         ! loop over electrons
         do i = 1, nel
             src = nI(i)
-
             ex(1, 1) = src
             neighbors = lat%get_spinorb_neighbors(src)
 
@@ -474,8 +475,12 @@ contains
                             temp_list(:, n_excits) = ilutJ
 
                             if (t_sign) then
+#ifdef CMPLX_
+                                call stop_all(this_routine, "not implemented for complex")
+#else
                                 temp_sign(n_excits) = sign(1.0_dp, elem)
                                 call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
+#endif
                             else
                                 call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                             end if
@@ -1768,7 +1773,7 @@ contains
         integer(n_int) :: ilutJ(0:niftot), ilut(0:niftot)
         integer :: n_bound, i, j, a, b, src(2), ex(2, 2), pos, n_par, n_opp, nj(nel)
         integer(n_int), allocatable :: temp_list(:, :)
-        real(dp) :: elem
+        HElement_t(dp) :: elem
         logical :: t_sign, tpar
         real(dp), allocatable :: temp_sign(:)
 
@@ -1830,8 +1835,12 @@ contains
                                     temp_list(:, n_excits) = ilutJ
 
                                     if (t_sign) then
+#ifdef CMPLX_
+                                        call stop_all(this_routine, "not implemented for complex")
+#else
                                         temp_sign(n_excits) = sign(1.0_dp, elem)
                                         call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
+#endif
                                     else
                                         call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                                     end if

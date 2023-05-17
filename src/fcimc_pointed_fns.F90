@@ -48,7 +48,7 @@ module fcimc_pointed_fns
     use FciMCData
     use constants
 
-    use bit_reps, only: nifguga
+    use bit_rep_data, only: nifguga
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
 
@@ -383,7 +383,7 @@ contains
                         write(stdout, *) "nSpawn > n_truncate_spawns!", nSpawn
                         write(stdout, *) "limit the number of spawned walkers to: ", n_truncate_spawns
                         write(stdout, *) "for spawn from determinant: "
-                        call write_det_guga(6, ilutTmpI)
+                        call write_det_guga(stdout, ilutTmpI)
                         write(stdout, *) "to: "
                         call write_det_guga(stdout, ilutTmpJ)
                         nOpen = count_open_orbs(iLutCurr)
@@ -438,11 +438,9 @@ contains
 
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
-                if (tRealSpawnCutoff .and. &
-                    abs(nSpawn) < RealSpawnCutoff) then
+                if (tRealSpawnCutoff .and. abs(nSpawn) < RealSpawnCutoff) then
                     p_spawn_rdmfac = abs(nSpawn) / RealSpawnCutoff
-                    nSpawn = RealSpawnCutoff &
-                             * stochastic_round(nSpawn / RealSpawnCutoff)
+                    nSpawn = RealSpawnCutoff * stochastic_round(nSpawn / RealSpawnCutoff)
                 else
                     p_spawn_rdmfac = 1.0_dp !The acceptance probability of some kind of child was equal to 1
                 end if

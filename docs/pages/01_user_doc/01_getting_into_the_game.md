@@ -52,7 +52,7 @@ Installation of NECI requires\footnote{If you are on a cluster, you may need to 
 -   BLAS/LAPACK,
 -   MPI 3,
 -   a Fortran compiler supporting Fortran 2003 features, and
--   optionally HDF5 (recommended).
+-   HDF5 (is optional, but strongly recommended and has to be explicitly switched off).
 
 To get started, we must first clone the repository, with
 ```bash
@@ -73,7 +73,7 @@ cmake -DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON ${your_code_directory}
 make -j
 ```
 @note
-If you are making without HDF5, then remove the options `-DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON` from the third line.
+If you are making without HDF5, then set the option `-DENABLE_HDF5=OFF` instead.
 @endnote
 
 Sometimes it is necessary to pass in the desired MPI compilers.
@@ -106,7 +106,8 @@ cmake -DENABLE_HDF5=ON \
 
 ## HDF5
 
-You may also need to build HDF5 yourself as a shared library, which speeds up the compilation process, since HDF5 does not have to be rebuilt for every new project.
+You may also need to build HDF5 yourself as a shared library,
+which speeds up the compilation process, since HDF5 does not have to be rebuilt for every new project.
 @note
 HDF5 should be built with the same set of compilers as NECI.
 @endnote

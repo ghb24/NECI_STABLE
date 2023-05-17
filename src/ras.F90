@@ -24,7 +24,7 @@
 
 module ras
 
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use constants
     use DetBitOps, only: EncodeBitDet
     use FciMCData, only: HFSym

@@ -22,6 +22,7 @@ calc
     shiftdamp 0.05
     load-balance-blocks off
     allrealcoeff
+    realspawncutoff off
     truncinitiator
     addtoinitiator 3
     rdmsamplingiters 20

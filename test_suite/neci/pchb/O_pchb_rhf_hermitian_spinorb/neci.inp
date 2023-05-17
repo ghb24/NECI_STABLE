@@ -33,6 +33,7 @@ title
 
         semi-stochastic 2
         allrealcoeff
+        realspawncutoff off
         pops-core 2
 
         memoryfacspawn 100

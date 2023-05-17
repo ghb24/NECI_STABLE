@@ -9,7 +9,8 @@ module input_parser_mod
     use fortran_strings, only: str, Token_t, split, to_int
     better_implicit_none
     private
-    public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, TokenIterator_t, tokenize, get_range, construct_ManagingFileReader_t
+    public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, &
+        TokenIterator_t, tokenize, get_range, construct_ManagingFileReader_t
 
     integer, parameter :: max_line_length = 1028
 

@@ -7,6 +7,7 @@ submodule (PopsfileMod) Popsfile_impls
     use LoggingData, only: tLogComplexPops, tLogEXLEVELStats
     use fcimc_initialisation, only: DeallocFCIMCMemPar, InitFCIMCCalcPar, &
         SetupParameters
+    use CalcData, only: tTruncInitiator
     better_implicit_none
 
 contains

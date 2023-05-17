@@ -9,7 +9,8 @@ module cont_time_rates
                                   get_spawn_helement
     use CalcData, only: tContTimeFull, DiagSft, cont_time_max_overspawn
     use FciMCData, only: pSingles, pDoubles
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
     use SymExcit3, only: GenExcitations3

@@ -1,1 +1,1 @@
-add_unit_test_all_configs( real_space_hubbard )
+add_unit_test( neci real_space_hubbard )

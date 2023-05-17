@@ -7,7 +7,7 @@ module matel_getter
     ! to avoid circular dependencies.
 
     use constants, only: dp, n_int
-    use FciMCData, only: ilutRef, GetDiagMatel_Time, GetOffDiagMatel_Time
+    use FciMCData, only: ilutRef
     use SystemData, only: nel, tHPHF, tNoBrillouin, tGUGA, t_3_body_excits, &
         t_ueg_3_body, t_mol_3_body
     use DetBitOps, only: FindBitExcitLevel
@@ -18,10 +18,12 @@ module matel_getter
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_bitRepOps, only: CSF_Info_t
     use timing_neci, only: set_timer, halt_timer
+    use basic_float_math, only: near_zero
+    use error_handling_neci, only: stop_all
 
-    implicit none
+    better_implicit_none
     private
-    public get_diagonal_matel, get_off_diagonal_matel
+    public :: get_diagonal_matel, get_off_diagonal_matel
 
 contains
 
@@ -31,20 +33,28 @@ contains
         ! In:  nI        - The determinant to evaluate
         !      ilut      - Bit representation (only used with HPHF)
         ! Ret: diagH     - The diagonal matrix element
-        implicit none
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
+#ifdef CMPLX_
+        debug_function_name("get_diagonal_matel")
+#endif
         real(dp) :: diagH
 
-        call set_timer(GetDiagMatel_Time)
-
         if (tHPHF) then
-            diagH = hphf_diag_helement(nI, ilut)
+            associate(h_el => hphf_diag_helement(nI, ilut))
+#ifdef CMPLX_
+                ASSERT(near_zero(aimag(h_el)))
+#endif
+                diagH = real(h_el, dp)
+            end associate
         else
-            diagH = get_helement(nI, nI, 0)
+            associate(h_el => get_helement(nI, nI, 0))
+#ifdef CMPLX_
+                ASSERT(near_zero(aimag(h_el)))
+#endif
+                diagH = real(h_el, dp)
+            end associate
         end if
-
-        call halt_timer(GetDiagMatel_Time)
 
     end function get_diagonal_matel
 
@@ -56,14 +66,11 @@ contains
         ! In:  det       - The determinant to evaluate
         !      ilut      - Bit representation
         ! Ret: offdiagH  - The off-diagonal matrix element
-        implicit none
         integer, intent(in) :: det(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         HElement_t(dp) :: offdiagH
         integer(n_int) :: ilut0(0:NIfTot)
         integer :: exlevel, det0(nel)
-
-        call set_timer(GetOffDiagMatel_Time)
 
         ! We operate with the reference for run=1 here, which works for
         ! inum_runs==1 and inum_runs>1 with a common reference.  The projected
@@ -94,8 +101,6 @@ contains
                 end if
             end if
         end if
-
-        call halt_timer(GetOffDiagMatel_Time)
 
     end function get_off_diagonal_matel
 

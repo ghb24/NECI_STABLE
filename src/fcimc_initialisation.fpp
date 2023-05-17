@@ -60,7 +60,7 @@ module fcimc_initialisation
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tAutoAdaptiveShift, &
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
-                        AAS_Cut, &
+                        AAS_Cut, tTruncInitiator, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
@@ -105,17 +105,19 @@ module fcimc_initialisation
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
 
     use bit_rep_data, only: NIfTot, NIfD, IlutBits, flag_initiator, &
-                            flag_deterministic, extract_sign
+                            flag_deterministic, extract_sign, nIfGUGA, &
+                            test_flag_multi
 
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_run_sign, tBuildSpinSepLists, nifguga, &
+                        extract_run_sign, &
                         get_initiator_flag, writebitdet, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
                          BinRange
+
     use hist, only: init_hist_excit_tofrom, clean_hist_excit_tofrom
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
@@ -146,7 +148,8 @@ module fcimc_initialisation
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only: InitHistInitPops
-    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
+    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2, &
+        tBuildSpinSepLists
     use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
                            extract_bit_rep_avsign_no_rdm
     use rdm_filling, only: fill_rdm_diag_currdet_norm
@@ -215,7 +218,7 @@ module fcimc_initialisation
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
     use FciMCData, only: &
-        Walker_Time, Annihil_Time, GetDiagMatel_Time, GetOffDiagMatel_Time, Sort_Time, &
+        Walker_Time, Annihil_Time, Sort_Time, &
         Comms_Time, ACF_Time, AnnSpawned_time, AnnMain_time, BinSearch_time, &
         SemiStoch_Comms_Time, SemiStoch_Multiply_Time, Trial_Search_Time, SemiStoch_Init_Time, SemiStoch_Hamil_Time, &
         SemiStoch_Davidson_Time, Trial_Init_Time, InitSpace_Init_Time, kp_generate_time, Stats_Comms_Time, &
@@ -368,9 +371,11 @@ module fcimc_initialisation
     use SD_spin_purification_mod, only: SD_spin_purification, possible_purification_methods, spin_pure_J
 
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
+
+    use blas_interface_mod, only: dgeev
     implicit none
 
-    external :: dgeev, LargestBitSet
+    external :: LargestBitSet
 
 contains
 
@@ -405,8 +410,6 @@ contains
 !Set timed routine names
         Walker_Time%timer_name = 'WalkerTime'
         Annihil_Time%timer_name = 'AnnihilTime'
-        GetDiagMatel_Time%timer_name = 'GetDiagMatelTime'
-        GetOffDiagMatel_Time%timer_name = 'GetOffDiagMatelTime'
         Sort_Time%timer_name = 'SortTime'
         Comms_Time%timer_name = 'CommsTime'
         ACF_Time%timer_name = 'ACFTime'
@@ -531,7 +534,7 @@ contains
             !This is not a compatible reference function.
             !Create single excitation of the correct symmetry
             !Use this as the reference.
-            write(6, "(A)") "Converging to ODD S eigenstate"
+            write(stdout, "(A)") "Converging to ODD S eigenstate"
 
             SymFinal = int((G1(HFDet(nel))%Sym%S)) + 1
 
@@ -561,7 +564,7 @@ contains
             call EncodeBitDet(HFDet, iLutHF)
             if (TestClosedShellDet(iLutHF)) &
                 call stop_all(t_r, "Fail to create open-shell determinant for reference to use with odd S")
-            write(6, *) "Reference determinant changed to the open-shell:"
+            write(stdout, *) "Reference determinant changed to the open-shell:"
             call write_det(stdout, HFDet, .true.)
         end if
 
@@ -668,9 +671,9 @@ contains
         end do
         CALL LargestBitSet(iLutHF, NIfD, LargestOrb)
         IF (LargestOrb /= hfdet(nel)) then
-            write(6, *) 'ilut HF', ilutHF
-            write(6, *) 'largest orb', largestorb
-            write(6, *) 'HFDet', hfdet
+            write(stdout, *) 'ilut HF', ilutHF
+            write(stdout, *) 'largest orb', largestorb
+            write(stdout, *) 'HFDet', hfdet
             CALL Stop_All(t_r, "LargestBitSet FAIL")
         end if
         nBits = CountBits(iLutHF, NIfD, NEl)
@@ -1010,6 +1013,17 @@ contains
             write(stdout, "(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
             write(stdout, "(A,F25.15)") "This means tau should be no more than about ", UpperTau
             write(stdout, *) "Highest energy determinant is: ", HighEDet(:)
+
+            associate(deterministic_max_tau => UpperTau * 1.1_dp)
+            if (deterministic_max_tau < max_tau) then
+                write(stdout, "(A)") "The deterministic tau is smaller than max_tau."
+                write(stdout, "(A, F25.15)") "We will limit max_tau to:", deterministic_max_tau
+                max_tau = deterministic_max_tau
+                if (tau > max_tau) then
+                    call assign_value_to_tau(max_tau, 'Initial tau was higher than deterministic tau limit.')
+                end if
+            end if
+            end associate
         else
             UpperTau = 0.0_dp
         end if
@@ -3040,8 +3054,8 @@ contains
                 call MPIBCast(largest_det, NIfTot + 1, int(proc_highest))
 !                 call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
-                write(6, *) 'Setting ref', run
-                call writebitdet(6, largest_det, .true.)
+                write(stdout, *) 'Setting ref', run
+                call writebitdet(stdout, largest_det, .true.)
 
                 ! Set this det as the reference
                 call update_run_reference(largest_det, run)
@@ -3696,27 +3710,27 @@ contains
         ! The -1 is just because the sampling starts one iteration after IterRDMOnFly
         ! If we subtracted too much, jump one cycle backwards
         if (IterRDMOnFly < semistoch_shift_iter) IterRDMOnFly = IterRDMOnFly + coreSpaceUpdateCycle
-        write(6, *) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
+        write(stdout, *) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
 
         ! Now sync the update cycles
         if (RDMEnergyIter > coreSpaceUpdateCycle) then
             RDMEnergyIter = coreSpaceUpdateCycle
-            write(6, *) "The RDM sampling interval cannot be larger than the update " &
+            write(stdout, *) "The RDM sampling interval cannot be larger than the update " &
                 //"interval of the semi-stochastic space. Reducing it to ", RDMEnergyIter
         end if
         if (mod(coreSpaceUpdateCycle, RDMEnergyIter) /= 0) then
             ! first, try to ramp up the RDMEnergyIter to meet the coreSpaceUpdateCycle
             frac = coreSpaceUpdateCycle / RDMEnergyIter
             RDMEnergyIter = coreSpaceUpdateCycle / frac
-            write(6, *) "Update cycle of semi-stochastic space and RDM sampling interval" &
+            write(stdout, *) "Update cycle of semi-stochastic space and RDM sampling interval" &
                 //" out of sync. "
-            write(6, *) "Readjusting RDM sampling interval to ", RDMEnergyIter
+            write(stdout, *) "Readjusting RDM sampling interval to ", RDMEnergyIter
 
             ! now, if this did not succeed, adjust the coreSpaceUpdateCycle
             if (mod(coreSpaceUpdateCycle, RDMEnergyIter) /= 0) then
                 coreSpaceUpdateCycle = coreSpaceUpdateCycle - &
                                        mod(coreSpaceUpdateCycle, RDMEnergyIter)
-                write(6, *) "Adjusted update cycle of semi-stochastic space to ", &
+                write(stdout, *) "Adjusted update cycle of semi-stochastic space to ", &
                     coreSpaceUpdateCycle
             end if
         end if
@@ -4021,7 +4035,7 @@ contains
                 if (.not. (n_excits > 0) .or. n_excits < inum_runs - 1) then
                     print *, "n_excits: ", n_excits
                     print *, "requested excited states:", inum_runs - 1
-                    call write_guga_list(6, excitations(:, 1:n_excits))
+                    call write_guga_list(stdout, excitations(:, 1:n_excits))
                     call stop_all(this_routine, "not enough excitations from HF!")
                 end if
 
@@ -4071,11 +4085,10 @@ contains
                         energies(i) = 9999999.9_dp
                         do j = 1, norb
                             orb2 = SymLabelList2(label_idx + j - 1)
-                            if ((.not. any(orb2 == HFDet)) .and. &
-                                (.not. any(orb2 == found_orbs))) then
+                            if (.not. (any(orb2 == HFDet) .or. any(orb2 == found_orbs))) then
                                 det = HFDet
                                 det(i) = orb2
-                                hdiag = real(sltcnd_excit(det, Excite_0_t(), .false.), dp)
+                                hdiag = real(sltcnd_excit(det, Excite_0_t()), dp)
                                 if (hdiag < energies(i)) then
                                     energies(i) = hdiag
                                     orbs(i) = orb2
@@ -4122,11 +4135,11 @@ contains
 
         end if
 
-        write(6, *) 'Generated reference determinants:'
+        write(stdout, *) 'Generated reference determinants:'
         do run = 1, inum_runs
-            call write_det(6, ProjEDet(:, run), .false.)
+            call write_det(stdout, ProjEDet(:, run), .false.)
             hdiag = real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
-            write(6, '(" E = ", f16.9)') hdiag
+            write(stdout, '(" E = ", f16.9)') hdiag
         end do
 
     end subroutine assign_reference_dets
@@ -4216,7 +4229,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-        use bit_rep_data, only: test_flag_multi
         ! initialize the norm_psi, norm_psi_squared
         implicit none
         integer(int64) :: j

@@ -27,7 +27,7 @@ calc
     totalwalkers 100000
     shiftdamp 0.05
     allrealcoeff
-    realspawncutoff 0.0
+    realspawncutoff off
     averagemcexcits 10.0
     tau-values \
         start user-defined 0.001

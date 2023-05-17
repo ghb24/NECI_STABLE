@@ -13,7 +13,7 @@ module test_gasci_disconnected_mod
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-        FciDumpWriter_t
+        RandomFcidumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
@@ -42,7 +42,11 @@ contains
         call assert_true(GAS_spec%is_valid())
         call assert_true(GAS_spec%contains_conf(det_I))
 
-        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        call init_excitgen_test(det_I, &
+            RandomFcidumpWriter_t(&
+                GAS_spec, det_I, sparse=1.0_dp, sparseT=1.0_dp) &
+        )
+
         exc_generator = GAS_disc_ExcGenerator_t(GAS_spec)
         call run_excit_gen_tester( &
             exc_generator, 'only disconnected implementation, random_fcidump', &
@@ -53,17 +57,6 @@ contains
         call finalize_excitgen_test()
 
     contains
-
-        subroutine random_fcidump(iunit)
-            integer, intent(in) :: iunit
-            integer :: n_spat_orb, iGAS
-
-            n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
-
-            call generate_random_integrals(&
-                iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
-                sparse=1.0_dp, sparseT=1.0_dp, total_ms=sum(calc_spin_raw(det_I)))
-        end subroutine
 
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic

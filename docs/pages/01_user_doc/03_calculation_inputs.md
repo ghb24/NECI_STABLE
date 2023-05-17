@@ -160,6 +160,11 @@ considered. The block starts with the `system` keyword and ends with the
     if you are running a transcorrelated mean-field calculation, use
     `nonhermitian 2-body`.
 
+-   **stoquastize**<br>
+    Stoquastize the Hamiltonian. This means that the off-diagonal elements of the
+    original Hamiltonian become negative without changing the magnitudes,
+    i.e. \(H^{stoq}_{ij} = H_{ij}\delta_{ij} - |H_{ij}|(1 - \delta_{ij})\).
+
 #### Excitation generation options
 
 -   **\textcolor{blue}{nonUniformRandExcits}**<br>
@@ -699,7 +704,11 @@ and ends with the `endcalc` keyword.
     Such algorithm computes a few of the smallest (or largest) eigenvalues
     of a large sparse real symmetric matrix. This method is used,
     for instance, in the semi-stochastic implementation or when
-    CI Davidson is used. The default value is \(25\).
+    CI Davidson is used. The default value is \(50\).
+
+-   **davidson-target-tolerance \(x\)**<br>
+    Set the target convergence tolerance of the residual norm of Davidson
+    diagonalization. The default value is \(10^{-7}\).
 
 #### Population control options
 
@@ -762,18 +771,21 @@ and ends with the `endcalc` keyword.
 #### Real walker coefficient options
 
 -   **\textcolor{blue}{allRealCoeff}**<br>
- Allow determinants to have non-integer population. There is
+    Allow determinants to have non-integer population. There is
     a minimal population below which the population of a determinant
     will be rounded stochastically. This defaults to \(1\).
 
--   **\textcolor{blue}{realSpawnCutoff \(x\)}**<br>
- Continuous real spawning will be performed, unless the spawn
+-   **realSpawnCutoff ( \(x\) | OFF | ON )**<br>
+    Continuous real spawning will be performed, unless the spawn
     has weight less than x. In this case, the weight of the spawning
     will be stochastically rounded up to x or down to zero, such that
     the average weight of the spawning does not change. This is a method
     of removing very low weighted spawnings from the spawned list, which
-    require extra memory, processing and communication. A reasonable
-    value for x is 0.01.
+    require extra memory, processing and communication.
+    This keyword is on by default with a value of \(x = 0.95 \).
+    It can be explicitly turned off via `OFF`, explicitly turned on
+    via `ON` (using the default value then), or it can read a user-supplied
+    value for \(x\).
 
 -   **realCoeffbyExcitLevel \(n\)**<br>
     Allow all determinants up to an excitation level of \(n\) to have
@@ -1245,7 +1257,9 @@ and is stopped after 10000 iterations.
     Use all determinants to form the core space. A fully deterministic
     projection is therefore performed with this option.
     This option requires information about spin(-projection) and spatial
-    symmetry, so the keywords `sym` and `spin-restrict` are required.
+    symmetry, so the keywords `sym`, and `spin-restrict` for a
+    diagonalization in a Slater Determinant basis or `guga` for a
+    diagonalization in a Gelfand-Tsetlin basis are required.
 
 -   **read-core**<br>
     Use the determinants in the CORESPACE file to form the core space. A

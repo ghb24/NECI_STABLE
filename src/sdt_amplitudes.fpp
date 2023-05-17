@@ -6,7 +6,8 @@
 ! Module to collect and average the CI coefficients
 module sdt_amplitudes
 
-    use bit_reps, only: extract_sign, decode_bit_det, encode_sign, niftot, nifd
+    use bit_rep_data, only: niftot, nifd, extract_sign
+    use bit_reps, only: decode_bit_det, encode_sign
     use constants, only: dp, lenof_sign, n_int, int64, stdout
     use DetBitOps, only: get_bit_excitmat, EncodeBitDet, GetBitExcitation
     use util_mod, only: near_zero, stop_all, lex_leq

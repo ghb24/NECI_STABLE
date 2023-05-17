@@ -77,7 +77,7 @@ module real_space_hubbard
     use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, is_compatible, &
                               current_csf_i, CSF_Info_t
-    use neci_intfce, only: GetExcitation
+    use excit_mod, only: GetExcitation
 
     implicit none
     private

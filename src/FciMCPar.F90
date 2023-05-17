@@ -133,12 +133,15 @@ module FciMCParMod
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
-    use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
+    use double_occ_mod, only: inst_double_occ, &
                               rezero_double_occ_stats, write_double_occ_stats, &
                               sum_double_occ, sum_norm_psi_squared, finalize_double_occ_and_spin_diff, &
                               measure_double_occ_and_spin_diff, rezero_spin_diff, &
                               write_spin_diff_stats, write_spat_doub_occ_stats, &
                               all_sum_double_occ, calc_double_occ_from_rdm
+#ifndef CMPLX_
+    use double_occ_mod, only: get_double_occupancy
+#endif
     use tau_main, only: tau_search_method, input_tau_search_method, possible_tau_search_methods, &
         finalize_tau
     use tau_search_hist, only: print_frequency_histograms
@@ -155,12 +158,13 @@ module FciMCParMod
 
     use analyse_wf_symmetry, only: analyze_wavefunction_symmetry, t_symmetry_analysis
 
-    use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
     better_implicit_none
+    private
+    public :: FciMCPar
 
     !array for timings of the main compute loop
     real(dp), dimension(100) :: lt_arr
@@ -1503,8 +1507,12 @@ contains
                 HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
+#ifdef CMPLX_
+                call stop_all(this_routine, "not implemented for complex")
+#else
                 inst_double_occ = inst_double_occ + &
                                   get_double_occupancy(CurrentDets(:, j), SignCurr)
+#endif
             end if
 
             if (t_measure_local_spin) then
@@ -1688,7 +1696,7 @@ contains
                                 child(y)
                         end do
                         write(stdout, '("] ")', advance='no')
-                        call write_det(6, nJ, .true.)
+                        call write_det(stdout, nJ, .true.)
                         call neci_flush(stdout)
                     end if
 

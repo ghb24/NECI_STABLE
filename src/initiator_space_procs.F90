@@ -6,6 +6,7 @@ module initiator_space_procs
     use bit_reps, only: decode_bit_det
     use CalcData
     use constants
+    use SystemData, only: nEl
     use FciMCData, only: ilutHF
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, &
@@ -49,7 +50,7 @@ contains
 
         call set_timer(InitSpace_Init_Time)
 
-        write(stdout, '(/,12("="),1x,a30,1x,12("="))') "Initiator space initialisation"; call neci_flush(6)
+        write(stdout, '(/,12("="),1x,a30,1x,12("="))') "Initiator space initialisation"; call neci_flush(stdout)
 
         allocate(initiator_sizes(0:nProcessors - 1))
         allocate(initiator_displs(0:nProcessors - 1))
@@ -65,7 +66,7 @@ contains
         ! Call the enumerating subroutines to create all excitations and add these states to
         ! SpawnedParts on the correct processor. As they do this, they count the size of the
         ! deterministic space (on their own processor only).
-        write(stdout, '("Generating the initiator space...")'); call neci_flush(6)
+        write(stdout, '("Generating the initiator space...")'); call neci_flush(stdout)
         call generate_initiator_space(space_in)
 
         ! So that all procs store the size of the deterministic spaces on all procs.
@@ -77,7 +78,7 @@ contains
 
         write(stdout, '("Total size of initiator space:",1X,i8)') initiator_space_size
         write(stdout, '("Size of initiator space on this processor:",1X,i8)') initiator_sizes(iProcIndex)
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! Calculate the indices in the full vector at which the various processors take over, relative
         ! to the first index position in the vector (i.e. the array disps in MPI routines).
@@ -95,7 +96,7 @@ contains
                 call decode_bit_det(nI, SpawnedParts(:, i))
                 write(stdout, '("State found twice:")')
                 write(stdout, *) SpawnedParts(:, i)
-                call write_det(6, nI, .true.)
+                call write_det(stdout, nI, .true.)
                 call stop_all(t_r, "The same state has been found twice in the initiator space.")
             end if
         end do
@@ -118,7 +119,7 @@ contains
         write(stdout, '("Initialisation of initiator space complete.")')
         write(stdout, '("Total time (seconds) taken for initiator space initialisation:", f9.3, /)') &
             get_total_time(InitSpace_Init_Time)
-        call neci_flush(6)
+        call neci_flush(stdout)
 
     end subroutine init_initiator_space
 

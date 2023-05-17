@@ -11,6 +11,7 @@ module global_det_data
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use constants, only: dp, int32, int64, n_int, inum_runs, lenof_sign, eps
     use util_mod, only: stop_all, operator(.div.)
+    use constants, only: stdout
     implicit none
 
     private
@@ -217,7 +218,7 @@ contains
                 len_av_sgn_tot = len_av_sgn + len_av_sgn_transition
                 len_iter_occ_tot = len_iter_occ + len_iter_occ_transition
             end if
-            write (6, '(" The average current signs before death will be stored&
+            write (stdout, '(" The average current signs before death will be stored&
                        & for use in the RDMs.")')
         else
             len_av_sgn = 0
@@ -313,7 +314,7 @@ contains
            @:log_alloc(global_determinants, glob_det_tag, ierr)
         end if
 
-        write(6, '(a,f14.6,a)') &
+        write(stdout, '(a,f14.6,a)') &
             ' Determinant related persistent storage requires: ', &
             (4.0_dp * real(len_det_orbs * MaxWalkersPart, dp) &
              + 8.0_dp * real(tot_len * MaxWalkersPart, dp)) / 1048576_dp, &

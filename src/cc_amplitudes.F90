@@ -6,9 +6,9 @@ module cc_amplitudes
     use detbitops, only: get_bit_excitmat, FindBitExcitLevel
     use FciMCData, only: totwalkers, ilutref, currentdets, AllNoatHf, projedet, &
                          HashIndex, CurrentDets, ll_node
-    use bit_reps, only: extract_sign
     use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int, stdout
-    use bit_reps, only: niftot, nifd, decode_bit_det
+    use bit_rep_data, only: niftot, nifd, extract_sign
+    use bit_reps, only: decode_bit_det
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
     use hash, only: hash_table_lookup, FindWalkerHash

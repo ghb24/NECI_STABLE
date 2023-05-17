@@ -4,7 +4,7 @@
 module gasci_singles_pc_weighted
     use constants, only: dp, stdout, n_int, bits_n_int, maxExcit
     use fortran_strings, only: to_upper
-    use util_mod, only: stop_all, EnumBase_t
+    use util_mod, only: stop_all, EnumBase_t, operator(.div.)
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use SymExcitDataMod, only: ScratchSize
@@ -14,11 +14,12 @@ module gasci_singles_pc_weighted
     use dSFMT_interface, only: genrand_real2_dSFMT
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
     use get_excit, only: make_single
-    use excitation_types, only: Excite_1_t
+    use MPI_wrapper, only: root
+    use excitation_types, only: Excite_1_t, spin_allowed
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use orb_idx_mod, only: calc_spin_raw, operator(==)
+    use orb_idx_mod, only: calc_spin_raw
     use OneEInts, only: GetTMatEl
     use UMatCache, only: GTID, get_umat_el
 
@@ -327,18 +328,18 @@ contains
             do i_sg = 1, n_supergroups
                 do src = 1, nBi
                     do tgt = 1, nBi
+                        if (src == tgt) cycle
                         exc = Excite_1_t(src, tgt)
                         if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
-                                .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
-                                .and. src /= tgt &
+                                .and. spin_allowed(exc) &
                                 .and. symmetry_allowed(exc) &
                         ) then
                             this%weights(tgt, src, i_sg) = get_weight(exc)
                         end if
                     end do
-                    call this%A_sampler%setup_entry(src, i_sg, this%weights(:, src, i_sg))
+                    call this%A_sampler%setup_entry(src, i_sg, root, this%weights(:, src, i_sg))
                 end do
-                call this%I_sampler%setup_entry(i_sg, sum(this%weights(:, :, i_sg), dim=1))
+                call this%I_sampler%setup_entry(i_sg, root, sum(this%weights(:, :, i_sg), dim=1))
             end do
         end block
 
@@ -664,7 +665,7 @@ contains
         type(Excite_1_t), intent(in) :: exc
         real(dp) :: w
         integer :: R
-        real(dp) :: two_el_term
+        HElement_t(dp) :: two_el_term
         associate(I => exc%val(1, 1), A => exc%val(2, 1))
             two_el_term = 0._dp
             do R = 1, nBasis
@@ -690,7 +691,7 @@ contains
     end function
 
 
-    real(dp) elemental function h(I, A)
+    HElement_t(dp) elemental function h(I, A)
         !! Return the 1el integral \( h_{I, A) \)
         !!
         !! I and A are **spin** indices.
@@ -700,7 +701,7 @@ contains
     end function
 
 
-    real(dp) elemental function g(I, A, J, B)
+    HElement_t(dp) elemental function g(I, A, J, B)
         integer, intent(in) :: I, A, J, B
         !! Return the 2el integral \( g_{I, A, J, B} \)
 

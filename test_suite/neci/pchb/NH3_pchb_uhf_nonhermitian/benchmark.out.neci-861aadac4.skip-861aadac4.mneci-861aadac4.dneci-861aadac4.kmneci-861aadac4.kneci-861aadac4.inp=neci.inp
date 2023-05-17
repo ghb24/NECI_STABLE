@@ -1,0 +1,991 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Processor            2 /           4  moving to local output.
+ outfile=NodeFile2           
+ Processor            3 /           4  moving to local output.
+ outfile=NodeFile3           
+ Processor            4 /           4  moving to local output.
+ outfile=NodeFile4           
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Apr 27 2023 at 15:18:00
+ Compiled using configuration:
+     cmake-GNU--FASTDEBUG
+ VCS BASE repository version:
+     861aadac484ac7b347c0df87b0fca9493ff35bc3
+ Working directory: 
+     /home/weser/code/neci/test_suite/neci/pchb/NH3_pchb_uhf_nonhermitian
+ Running on: alamdlogin1
+ Started running on 27/04/2023 at 15:33:55
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+    system read
+        electrons 10
+        spin-restrict 0
+        nobrillouintheorem
+        uhf
+        # molpromimic
+        nonhermitian 2-body
+Treating 2-body integrals as non-Hermitian.
+        nonuniformrandexcits pchb \
+            singles uniform \
+            doubles particle-selection uniform \
+            doubles hole-selection fast-weighted
+        FCIDUMP-name NH3_UHF_nonhermitian.FciDmp
+    endsys
+
+    calc
+        # since this is a test, need it to be reproducible:
+        load-balance-blocks off
+        seed 9
+
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 3.e4
+        nmcyc 700
+        definedet 1-10
+
+        startsinglepart 10
+        tau-values \
+            start user-defined 0.01
+        tau-search \
+            algorithm conventional \
+            stop-condition var-shift \
+            maxwalkerbloom 2
+
+        # diagshift 0.0
+        target-shiftdamp 0.8
+        stepsshift 10
+
+        truncinitiator
+        addtoinitiator 3
+
+        memoryfacspawn 50
+    endcalc
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+         2         2
+         3         3
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :     0
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+ Only one irrep found. Turning off symmetry for rest of calculation.
+  Unrestricted calculation.  Cave Arthropodia.  
+  NUMBER OF SPIN ORBITALS IN BASIS :    58
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   1
+ Turning Symmetry off
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+ Label, Sym, SymConjLabel, SymConj, SymProd
+           1           0           1           0           0
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -26.066802587      -26.066802587
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -26.066802587      -26.066802587
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -6.606266847       -6.606266847
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -6.606266847       -6.606266847
+      5      9      0      0      0     -1 ( 0, 0, 0) 0   0       -5.875599689       -5.875599689
+      6     10      0      0      0      1 ( 0, 0, 0) 0   0       -5.875599689       -5.875599689
+      7      5      0      0      0     -1 ( 0, 0, 0) 0   0       -5.733650262       -5.733650262
+      8      6      0      0      0      1 ( 0, 0, 0) 0   0       -5.733650262       -5.733650262
+      9      7      0      0      0     -1 ( 0, 0, 0) 0   0       -5.715461364       -5.715461364
+     10      8      0      0      0      1 ( 0, 0, 0) 0   0       -5.715461364       -5.715461364
+     11     23      0      0      0     -1 ( 0, 0, 0) 0   0       -4.473407275       -4.473407275
+     12     24      0      0      0      1 ( 0, 0, 0) 0   0       -4.473407275       -4.473407275
+     13     27      0      0      0     -1 ( 0, 0, 0) 0   0       -4.121667687       -4.121667687
+     14     28      0      0      0      1 ( 0, 0, 0) 0   0       -4.121667687       -4.121667687
+     15     25      0      0      0     -1 ( 0, 0, 0) 0   0       -4.082489808       -4.082489808
+     16     26      0      0      0      1 ( 0, 0, 0) 0   0       -4.082489808       -4.082489808
+     17     21      0      0      0     -1 ( 0, 0, 0) 0   0       -3.711068432       -3.711068432
+     18     22      0      0      0      1 ( 0, 0, 0) 0   0       -3.711068432       -3.711068432
+     19     19      0      0      0     -1 ( 0, 0, 0) 0   0       -3.646184515       -3.646184515
+     20     20      0      0      0      1 ( 0, 0, 0) 0   0       -3.646184515       -3.646184515
+     21     17      0      0      0     -1 ( 0, 0, 0) 0   0       -3.621616638       -3.621616638
+     22     18      0      0      0      1 ( 0, 0, 0) 0   0       -3.621616638       -3.621616638
+     23     33      0      0      0     -1 ( 0, 0, 0) 0   0       -3.498912536       -3.498912536
+     24     34      0      0      0      1 ( 0, 0, 0) 0   0       -3.498912536       -3.498912536
+     25     29      0      0      0     -1 ( 0, 0, 0) 0   0       -3.454388406       -3.454388406
+     26     30      0      0      0      1 ( 0, 0, 0) 0   0       -3.454388406       -3.454388406
+     27     31      0      0      0     -1 ( 0, 0, 0) 0   0       -3.429097269       -3.429097269
+     28     32      0      0      0      1 ( 0, 0, 0) 0   0       -3.429097269       -3.429097269
+     29     45      0      0      0     -1 ( 0, 0, 0) 0   0       -3.135237081       -3.135237081
+     30     46      0      0      0      1 ( 0, 0, 0) 0   0       -3.135237081       -3.135237081
+     31     43      0      0      0     -1 ( 0, 0, 0) 0   0       -3.122779786       -3.122779786
+     32     44      0      0      0      1 ( 0, 0, 0) 0   0       -3.122779786       -3.122779786
+     33     11      0      0      0     -1 ( 0, 0, 0) 0   0       -3.022483968       -3.022483968
+     34     12      0      0      0      1 ( 0, 0, 0) 0   0       -3.022483968       -3.022483968
+     35     15      0      0      0     -1 ( 0, 0, 0) 0   0       -2.925584720       -2.925584720
+     36     16      0      0      0      1 ( 0, 0, 0) 0   0       -2.925584720       -2.925584720
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0       -2.889413417       -2.889413417
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0       -2.889413417       -2.889413417
+     39     37      0      0      0     -1 ( 0, 0, 0) 0   0       -2.787400433       -2.787400433
+     40     38      0      0      0      1 ( 0, 0, 0) 0   0       -2.787400433       -2.787400433
+     41     47      0      0      0     -1 ( 0, 0, 0) 0   0       -2.782518654       -2.782518654
+     42     48      0      0      0      1 ( 0, 0, 0) 0   0       -2.782518654       -2.782518654
+     43     55      0      0      0     -1 ( 0, 0, 0) 0   0       -2.724785039       -2.724785039
+     44     56      0      0      0      1 ( 0, 0, 0) 0   0       -2.724785039       -2.724785039
+     45     51      0      0      0     -1 ( 0, 0, 0) 0   0       -2.718045813       -2.718045813
+     46     52      0      0      0      1 ( 0, 0, 0) 0   0       -2.718045813       -2.718045813
+     47     49      0      0      0     -1 ( 0, 0, 0) 0   0       -2.711508874       -2.711508874
+     48     50      0      0      0      1 ( 0, 0, 0) 0   0       -2.711508874       -2.711508874
+     49     57      0      0      0     -1 ( 0, 0, 0) 0   0       -2.664352867       -2.664352867
+     50     58      0      0      0      1 ( 0, 0, 0) 0   0       -2.664352867       -2.664352867
+     51     35      0      0      0     -1 ( 0, 0, 0) 0   0       -2.612652610       -2.612652610
+     52     36      0      0      0      1 ( 0, 0, 0) 0   0       -2.612652610       -2.612652610
+     53     53      0      0      0     -1 ( 0, 0, 0) 0   0       -2.547922468       -2.547922468
+     54     54      0      0      0      1 ( 0, 0, 0) 0   0       -2.547922468       -2.547922468
+     55     39      0      0      0     -1 ( 0, 0, 0) 0   0       -2.362546888       -2.362546888
+     56     40      0      0      0      1 ( 0, 0, 0) 0   0       -2.362546888       -2.362546888
+     57     41      0      0      0     -1 ( 0, 0, 0) 0   0       -2.355485050       -2.355485050
+     58     42      0      0      0      1 ( 0, 0, 0) 0   0       -2.355485050       -2.355485050
+ Turning Symmetry off
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:               5659930
+Memory required for integral storage:      43.18183899     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   1  22|   6  27):    9.5825322796458466E-009
+ Number of removed two-index integrals:                     1
+ Number of non-zero integrals:                178880
+ ECORE=   12.069226250160538     
+ Setting normal get_umat_el_normal routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -87.926335246814489     
+ Setting normal get_umat_el_normal routine
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ SpinOrbSymLabel: 
+           1           0
+           2           0
+           3           0
+           4           0
+           5           0
+           6           0
+           7           0
+           8           0
+           9           0
+          10           0
+          11           0
+          12           0
+          13           0
+          14           0
+          15           0
+          16           0
+          17           0
+          18           0
+          19           0
+          20           0
+          21           0
+          22           0
+          23           0
+          24           0
+          25           0
+          26           0
+          27           0
+          28           0
+          29           0
+          30           0
+          31           0
+          32           0
+          33           0
+          34           0
+          35           0
+          36           0
+          37           0
+          38           0
+          39           0
+          40           0
+          41           0
+          42           0
+          43           0
+          44           0
+          45           0
+          46           0
+          47           0
+          48           0
+          49           0
+          50           0
+          51           0
+          52           0
+          53           0
+          54           0
+          55           0
+          56           0
+          57           0
+          58           0
+ SymInvLabel: 
+           0           0
+ Not storing the H matrix.
+ <D0|H|D0>=  -70.476025473207841     
+ <D0|T|D0>=  -99.995561496975029     
+ <D0|U|D0>=   29.519536023767188     
+ FDet has     5 alpha electrons, and     5 beta electrons.
+               10  alpha-alpha occupied electron pairs
+               10  beta-beta occupied electron pairs
+               25  alpha-beta occupied electron pairs
+              276 alpha-alpha (vacant) hole pairs
+              276 beta-beta (vacant) hole pairs
+              576 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10) E =    -70.476025473
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            9
+Reference Energy set to:       -70.4760254732
+Highest energy determinant is (approximately):     -13.0166935148081    
+Corresponding to a correlation energy of:      57.4593319583997    
+This means tau should be no more than about         0.017403613406505
+ Highest energy determinant is:           35          36          39          40          41          42          53          54          57          58
+The deterministic tau is smaller than max_tau.
+We will limit max_tau to:        0.019143974747155
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+  19920 double excitations, and     240 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.988095
+ pSingles set to:       0.011905
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:        20160
+ PCHB with spin-orbital-resolved 'fast-weighting' selected.
+ Allocating PCHB excitation generator objects
+ Excitation generator requires   2.1811731159687042E-002 GB of memory
+ The number of supergroups is           1
+ Generating samplers for PCHB excitation generator
+ Depending on the number of supergroups this can take up to 10min.
+ Finished excitation generator initialization
+Memory allocated for a maximum particle number per node of:         655360
+ Determinant related persistent storage requires:      25.000000 Mb / processor
+Spawning vectors allowing for a total of       375000 particles to be spawned in any one iteration per core.
+ Memory requirement    5.7220458984375000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            5250
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        2
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    8,    9,   10)
+Initial number of particles set to         10 and shift will be held at     0.000 until particle number gets to           30000
+ Initial memory (without excitgens + temp arrays) consists of :      32.166138 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ >>> Initial tau from source: user defined is    1.0000000000000000E-002 .
+ >>> Tau-search activated. Using conventional algorithm. Stop if variable shift reached.
+ HF:            1           2           3           4           5           6           7           8           9          10
+ HF_true:            1           2           3           4           5           6           7           8           9          10
+ Ref:            1           2           3           4           5           6           7           8           9          10
+ ProjEDet:            1           2           3           4           5           6           7           8           9          10
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+           0    0.000000        0.000000        0.000000        10.00000        0.000000        0.000000        0.000000        0.000000        0.000000        0.000000        10.00000        0.000000        0.000000               1           0   0.0000    
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population1
+
+ The current tau search method is: Conventional
+ It is switched off now because of: Variable Shift reached
+
+          10    0.000000        1.000000        1.070000        11.00000        0.000000        0.000000        2.000000      -0.2529139E-03    0.000000      -0.2529139E-03    10.00000        1.000000       0.1869159E-01           2           1  0.39540E-04
+ Highest weighted determinant on run           1 not reference det:           92   10.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    4,    5,    7,    8,    9,   10,   47,   56)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -69.6180445372299    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+          20   0.5772979        169.0000        3.233645        180.0000        0.000000        1.000000        171.0000      -0.1762757        0.000000      -0.3522984        10.00000        29.00000       0.4942197              12           1  0.60276E-04
+ Highest weighted determinant on run           1 not reference det:          238   96.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    4,    5,    7,    8,    9,   22,   47,   56)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -66.8483411320843    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+          30   -17.74454        1219.000        15.60405        1399.000        2.000000        135.0000        1415.000       -2.331575        0.000000       -2.331575        96.00000        365.0000       0.2620856             144          37  0.24512E-03
+ Highest weighted determinant on run           1 not reference det:          248   41.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    4,    5,    6,    9,   10,   28,   47,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -66.3134231391139    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+          40   -23.77855        1474.000        3.463975        2873.000        4.000000        3981.000        6189.000       -1.099877        0.000000       -1.099877       -41.00000        285.0000       0.3309272             305          78  0.48817E-03
+ Highest weighted determinant on run           1 not reference det:          232   21.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    5,    6,   10,   21,   23,   28,   32,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -62.6670213631841    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+          50   -24.55433       -796.0000        1.177628        2077.000        2.000000        6185.000        7037.000      -0.3335442        0.000000      -0.3335442        21.00000        305.0000       0.3195151             331         104  0.50884E-03
+ Highest weighted determinant on run           1 not reference det:          248   19.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,    9,   10,   11,   14,   21,   26,   47)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -59.2161472998768    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+          60   -25.22474        675.0000        1.156784        2752.000        2.000000        7783.000        9318.000      -0.4840675        0.000000      -0.4840675        19.00000        266.0000       0.3657416             405          98  0.80801E-03
+ Highest weighted determinant on run           1 not reference det:          196   18.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    4,    7,   21,   26,   28,   33,   38,   47)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.2554813758541    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+          70   -19.22323        384.0000        1.229501        3136.000        12.00000        8078.000        9369.000      -0.1812326        0.000000      -0.1812326        18.00000        93.00000       0.2990997             461         115  0.75842E-03
+ Highest weighted determinant on run           1 not reference det:          255   30.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    6,    7,   11,   25,   26,   28,   32,   47)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -60.7808362832677    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+          80   -19.38407        2292.000        1.145160        5428.000        2.000000        7708.000        11190.00       -2.105145        0.000000       -2.105145        30.00000        524.0000       0.3119512             590         165  0.90584E-03
+ Highest weighted determinant on run           1 not reference det:          319   36.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,   10,   23,   26,   43,   48,   55,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -64.4423417351019    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+          90   -20.85955        8149.000        2.432885        13577.00        26.00000        17746.00        28746.00       -4.482902        0.000000       -4.482902        36.00000        1089.000       0.3293915            1532         446  0.19877E-02
+ Highest weighted determinant on run           1 not reference det:          367   39.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    5,    6,   10,   18,   23,   47,   50,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -64.0688198386886    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         100   -24.77494        3750.000        1.776670        17327.00        22.00000        41499.00        52213.00      -0.5577320        0.000000      -0.5577320        39.00000        470.0000       0.3367494            2350         575  0.30791E-02
+ Highest weighted determinant on run           1 not reference det:          319   28.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    2,    3,    5,    6,    7,   23,   28,   34,   38,   47)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -47.1883542270502    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         110   -41.45210       -510.0000        1.092893        16817.00        52.00000        50685.00        56616.00       -1.871074        0.000000       -1.871074       -28.00000        367.0000       0.3341103            2125         517  0.33562E-02
+ Highest weighted determinant on run           1 not reference det:          261   3.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    6,   23,   28,   30,   33,   53,   54,   55)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.8380989072906    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         120   -23.80929       -1503.000       0.9917912        15314.00        86.00000        50810.00        57345.00      -0.3808592E-01    0.000000      -0.3808592E-01    3.000000        1.000000       0.3412134            2236         565  0.31831E-02
+ Highest weighted determinant on run           1 not reference det:          319   23.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    5,   10,   12,   23,   27,   43,   44,   46)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -61.1724394329380    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         130   -25.72817        4939.000        1.018963        20253.00        126.0000        49260.00        61563.00      -0.4335348        0.000000      -0.4335348       -23.00000        311.0000       0.3594941            2532         665  0.32437E-02
+ Highest weighted determinant on run           1 not reference det:          319   126.00000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,   23,   34,   38,   41,   53,   56,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.7115656654574    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         140   -25.23726        5142.000        1.359068        25395.00        66.00000        66819.00        82638.00       -1.287149        0.000000       -1.287149        126.0000        344.0000       0.3550673            3263         798  0.43998E-02
+ Highest weighted determinant on run           1 not reference det:          319   24.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,   11,   12,   23,   33,   34,   56,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -61.5183913233659    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         150   -27.34490       -4335.000        1.033965        21060.00        100.0000        74177.00        80371.00      -0.9497808        0.000000      -0.9497808       -24.00000        93.00000       0.3339830            3053         762  0.43434E-02
+ Highest weighted determinant on run           1 not reference det:          325   19.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    2,    8,    9,   20,   22,   33,   49,   50,   53,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -43.5673173505844    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         160   -44.36448       -206.0000       0.9414945        20854.00        112.0000        68219.00        77700.00       -1.318653        0.000000       -1.318653       -19.00000        502.0000       0.3429479            2921         678  0.40062E-02
+ Highest weighted determinant on run           1 not reference det:          255   2.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    7,   10,   26,   31,   38,   45,   58)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -67.1389354976874    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         170   -18.54831       -2669.000       0.8294308        18185.00        16.00000        55280.00        60795.00      -0.3528502        0.000000      -0.3528502        2.000000        17.00000       0.3235153            2480         599  0.35525E-02
+ Highest weighted determinant on run           1 not reference det:          442   41.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    6,    7,    9,   20,   25,   46,   48)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -66.3258364455579    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         180   -19.14199        4296.000        1.056652        22481.00        28.00000        52824.00        65137.00      -0.5625388        0.000000      -0.5625388        41.00000        104.0000       0.3280370            2854         697  0.35417E-02
+ Highest weighted determinant on run           1 not reference det:          326   66.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    9,   10,   14,   19,   31,   47,   48,   58)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -62.8168243797266    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         190   -25.24442        10951.00        1.403438        33432.00        446.0000        72867.00        92794.00       -1.251769        0.000000       -1.251769        66.00000        443.0000       0.3329829            4023        1035  0.47412E-02
+ Highest weighted determinant on run           1 not reference det:          336   23.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,   16,   34,   38,   41,   45,   46,   49,   53)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -61.2542990555428    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         200   -28.74136        2555.000        1.238364        35987.00        140.0000        101729.0        117966.0      -0.7062851        0.000000      -0.7062851       -23.00000        216.0000       0.3418304            4698        1196  0.57869E-02
+ Highest weighted determinant on run           1 not reference det:          319   16.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,    9,   10,   14,   17,   20,   33,   47)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -62.5759560460788    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         210   -28.05430       -3991.000        1.043689        31996.00        68.00000        111474.0        120980.0      -0.8023577        0.000000      -0.8023577       -16.00000        169.0000       0.3358895            4498        1069  0.63875E-02
+ Highest weighted determinant on run           1 not reference det:          255   106.00000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    6,    8,    9,   25,   26,   33,   46,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -66.1442633486661    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         220   -22.13733       -10801.00       0.7594800        21195.00        62.00000        88881.00        90054.00      -0.6900374        0.000000      -0.6900374        106.0000        217.0000       0.3292073            3134         709  0.49852E-02
+ Highest weighted determinant on run           1 not reference det:          262   28.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    2,    7,   16,   23,   26,   33,   40,   48,   53,   55)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -41.2114730862045    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         230   -44.41848        303.0000       0.7704132        21498.00        34.00000        62034.00        69929.00       -1.095089        0.000000       -1.095089       -28.00000        156.0000       0.3318181            2903         730  0.37494E-02
+ Highest weighted determinant on run           1 not reference det:          319   2.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    4,   23,   26,   27,   30,   33,   45,   54)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.2901232762930    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         240   -23.28662        6382.000        1.170557        27880.00        50.00000        65346.00        82180.00      -0.1012822        0.000000      -0.1012822       -2.000000        3.000000       0.3331320            3635         861  0.45914E-02
+ Highest weighted determinant on run           1 not reference det:          255   30.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    3,    6,    8,   20,   23,   24,   26,   43,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -43.1733667741919    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         250   -44.61790        60.00000        1.172480        27940.00        182.0000        80435.00        92014.00       -1.159833        0.000000       -1.159833        30.00000        437.0000       0.3181256            4084        1007  0.50285E-02
+ Highest weighted determinant on run           1 not reference det:          377   2.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    6,    8,   23,   24,   27,   43,   46)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -65.0300287611663    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         260   -22.03517       -1990.000       0.9328200        25950.00        46.00000        79885.00        90622.00      -0.3851552        0.000000      -0.3851552       -2.000000        345.0000       0.3358771            3642         889  0.47563E-02
+ Highest weighted determinant on run           1 not reference det:          360   40.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    6,   23,   24,   26,   30,   43,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -64.1360743149174    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         270   -23.07878        3549.000        1.033828        29499.00        76.00000        80849.00        96056.00       -2.252401        0.000000       -2.252401        40.00000        345.0000       0.3443682            3916        1026  0.50298E-02
+ Highest weighted determinant on run           1 not reference det:          262   34.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    3,    4,    7,    8,   10,   19,   26,   27,   48)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -44.3978855061265    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         280   -44.59769        6156.000        1.218507        35655.00        48.00000        97799.00        118355.0       -2.938415        0.000000       -2.938415       -34.00000        505.0000       0.3482228            4875        1301  0.60976E-02
+ Highest weighted determinant on run           1 not reference det:          319   2.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    6,    9,   21,   24,   25,   34,   57,   58)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.5078906444281    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         290   -26.38359       -2593.000        1.075214        33062.00        212.0000        113149.0        126016.0      -0.1751881        0.000000      -0.1751881       -2.000000        0.000000       0.3448270            4807        1214  0.63416E-02
+ Highest weighted determinant on run           1 not reference det:          319   21.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    9,   13,   16,   20,   24,   43,   47,   56)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -58.6205866648465    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         300   -29.56669       -3098.000       0.8102516        29964.00        94.00000        92313.00        100414.0      -0.9276230        0.000000      -0.9276230       -21.00000        169.0000       0.3391173            3862        1022  0.52132E-02
+ Highest weighted determinant on run           1 not reference det:          325   14.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    4,    5,   11,   13,   20,   22,   23,   54)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -54.7255027682630    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         310   -33.66700        2392.000        1.023836        32356.00        40.00000        93289.00        106421.0       -1.036048        0.000000       -1.036048       -14.00000        386.0000       0.3510367            3897        1019  0.52473E-02
+ Highest weighted determinant on run           1 not reference det:          319   8.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    5,   10,   11,   31,   34,   44,   46,   53,   54)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -43.7961894664750    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         320   -44.44342       -6171.000       0.9824813        26185.00        84.00000        93914.00        98812.00      -0.7773008        0.000000      -0.7773008       -8.000000        300.0000       0.3317498            3546         812  0.51215E-02
+ Highest weighted determinant on run           1 not reference det:          262   2.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    6,   10,   27,   28,   47,   49,   53,   56)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.3807562949478    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         330   -23.68819       -2915.000       0.8862586        23270.00        60.00000        77931.00        87493.00      -0.9571432E-01    0.000000      -0.9571432E-01   -2.000000        4.000000       0.3314468            3561         843  0.46386E-02
+ Highest weighted determinant on run           1 not reference det:          319   23.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    6,    8,   23,   37,   48,   54,   55,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -65.2674639079373    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         340   -21.07936        3366.000       0.9475287        26636.00        104.0000        70662.00        82958.00       -1.440317        0.000000       -1.440317        23.00000        96.00000       0.3316701            3570         926  0.46371E-02
+ Highest weighted determinant on run           1 not reference det:          335   38.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,   11,   24,   25,   26,   31,   53,   54)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -59.9725679878126    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         350   -26.87871        5856.000        1.086382        32492.00        44.00000        75592.00        94812.00       -1.450024        0.000000       -1.450024        38.00000        338.0000       0.3489225            3843        1072  0.48301E-02
+ Highest weighted determinant on run           1 not reference det:          262   20.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,   11,   25,   33,   34,   49,   50,   56)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.2184880033258    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         360   -26.08235        3857.000        1.312139        36349.00        118.0000        99598.00        118494.0       -1.148215        0.000000       -1.148215        20.00000        116.0000       0.3323395            4931        1154  0.60089E-02
+ Highest weighted determinant on run           1 not reference det:          319   17.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    2,    4,    7,    9,   11,   12,   16,   22,   43,   55)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -40.1360565436017    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         370   -48.40175       -8142.000       0.8973930        28207.00        24.00000        98655.00        104984.0       -1.592641        0.000000       -1.592641       -17.00000        92.00000       0.3281150            4018         917  0.55771E-02
+ Highest weighted determinant on run           1 not reference det:          319   8.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    2,    5,   10,   20,   23,   28,   31,   33,   34,   37)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -44.3051605604379    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         380   -43.63569        3935.000       0.9296758        32142.00        24.00000        87971.00        104849.0      -0.2036658        0.000000      -0.2036658        8.000000        3.000000       0.3524810            4100        1032  0.50372E-02
+ Highest weighted determinant on run           1 not reference det:          421   2.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    8,   19,   31,   42,   46,   47,   56)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -65.5579532392285    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         390   -24.01787        3975.000        1.187353        36117.00        224.0000        104164.0        123953.0       -1.708221        0.000000       -1.708221        2.000000        99.00000       0.3509527            4904        1228  0.60636E-02
+ Highest weighted determinant on run           1 not reference det:          319   36.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    6,   10,   21,   23,   24,   28,   31,   49)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -61.8445398411288    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         400   -26.36572       -10402.00       0.8441292        25715.00        18.00000        94031.00        98614.00      -0.6549414        0.000000      -0.6549414       -36.00000        387.0000       0.3307663            3516         781  0.51084E-02
+ Highest weighted determinant on run           1 not reference det:          261   21.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    2,    6,    7,    8,   23,   25,   28,   38,   47,   53)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -45.0654129510315    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         410   -41.20813       -4428.000       0.8181547        21287.00        36.00000        71681.00        76581.00       -2.122065        0.000000       -2.122065       -21.00000        206.0000       0.3139556            3279         737  0.44816E-02
+ Highest weighted determinant on run           1 not reference det:          319   1.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    5,    7,   13,   20,   24,   42,   58)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -60.9876083107667    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         420   -25.24878        8052.000        1.031092        29339.00        22.00000        71399.00        89745.00      -0.2399061        0.000000      -0.2399061        1.000000        29.00000       0.3568290            3593         922  0.44349E-02
+ Highest weighted determinant on run           1 not reference det:          319   23.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    4,   12,   15,   21,   23,   40,   58)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -58.1117295585500    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         430   -29.98295        6410.000        1.249766        35749.00        82.00000        90328.00        108968.0       -1.652531        0.000000       -1.652531        23.00000        240.0000       0.3466730            4436        1117  0.53959E-02
+ Highest weighted determinant on run           1 not reference det:          319   13.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,   10,   20,   21,   27,   33,   45,   58)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.6062332636715    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         440   -25.54389       -3487.000        1.107570        32262.00        118.0000        108898.0        119428.0       -1.048370        0.000000       -1.048370       -13.00000        70.00000       0.3430489            4283        1016  0.58727E-02
+ Highest weighted determinant on run           1 not reference det:          319   23.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,   11,   24,   33,   45,   52,   57,   58)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.1954976191414    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         450   -24.84829       -3610.000       0.8693187        28652.00        94.00000        94644.00        104134.0       -3.776278        0.000000       -3.776278       -23.00000        1014.000       0.3440831            3876         993  0.52511E-02
+ Highest weighted determinant on run           1 not reference det:          249   24.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    5,    6,    7,    8,    9,   34,   54)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -70.7071593768589    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         460   -16.59321       -5114.000       0.9241315        23538.00        110.0000        81327.00        88116.00       -1.409739        0.000000       -1.409739        24.00000        449.0000       0.3150589            3621         766  0.47038E-02
+ Highest weighted determinant on run           1 not reference det:          292   49.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    7,   14,   18,   20,   23,   25,   38)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -57.7487878521484    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         470   -28.83045        2856.000       0.9385407        26394.00        22.00000        72481.00        85197.00      -0.2163681        0.000000      -0.2163681       -49.00000        96.00000       0.3245699            3640         844  0.44501E-02
+ Highest weighted determinant on run           1 not reference det:          319   14.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    9,   10,   22,   26,   33,   38,   43,   45)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -64.5058874205154    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         480   -23.26894        4665.000        1.158123        31059.00        164.0000        84356.00        103214.0       -1.417461        0.000000       -1.417461        14.00000        476.0000       0.3395220            4509        1113  0.53376E-02
+ Highest weighted determinant on run           1 not reference det:          383   29.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    7,   22,   23,   26,   33,   42,   45,   54)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -62.0775195207597    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         490   -25.73682        1170.000        1.001911        32229.00        40.00000        90720.00        102437.0       -1.765227        0.000000       -1.765227       -29.00000        338.0000       0.3363233            4076        1012  0.53242E-02
+ Highest weighted determinant on run           1 not reference det:          255   26.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    5,    8,   27,   30,   34,   53,   54)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -66.3960271492375    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         500   -22.10115       -1285.000        1.071013        30944.00        188.0000        95591.00        107242.0       -1.408116        0.000000       -1.408116       -26.00000        414.0000       0.3287534            4183        1007  0.54591E-02
+ Highest weighted determinant on run           1 not reference det:          484   27.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    8,    9,   10,   20,   25,   27,   33,   34)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -64.3625374238642    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         510   -23.29969       -1542.000       0.9039938        29402.00        214.0000        88322.00        98194.00      -0.4643891        0.000000      -0.4643891        27.00000        193.0000       0.3329852            3878         920  0.51587E-02
+ Highest weighted determinant on run           1 not reference det:          262   43.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,   12,   20,   26,   27,   33,   54,   55)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -59.0314714346958    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         520   -28.24062       -1361.000       0.9629285        28041.00        24.00000        82698.00        90887.00       -1.681526        0.000000       -1.681526        43.00000        424.0000       0.3200720            3820         953  0.49347E-02
+ Highest weighted determinant on run           1 not reference det:          319   13.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    6,   13,   16,   22,   24,   33,   37)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -59.5515210548196    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         530   -28.09900        8682.000        1.049778        36723.00        46.00000        83295.00        104151.0      -0.4932186        0.000000      -0.4932186        13.00000        56.00000       0.3493910            4141        1103  0.49866E-02
+ Highest weighted determinant on run           1 not reference det:          319   17.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    4,    7,   10,   11,   15,   20,   25,   28)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -56.2369090109863    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         540   -34.63397        15379.00        1.400063        52102.00        162.0000        121512.0        149733.0       -1.422641        0.000000       -1.422641        17.00000        468.0000       0.3587717            6008        1636  0.68822E-02
+ Highest weighted determinant on run           1 not reference det:          406   6.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    7,   10,   24,   33,   37,   46,   58)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -67.6942163521758    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         550   -24.29982       -16726.00        1.063932        35376.00        124.0000        147061.0        148599.0       -1.430309        0.000000       -1.430309       -6.000000        276.0000       0.3346591            5075        1178  0.76972E-02
+ Highest weighted determinant on run           1 not reference det:          319   33.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    5,    9,   10,   25,   27,   38,   44,   54)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -63.3214945181494    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         560   -25.68075       -6283.000       0.6859183        29093.00        56.00000        98646.00        106900.0       -1.389469        0.000000       -1.389469        33.00000        218.0000       0.3509878            3644         914  0.55092E-02
+ Highest weighted determinant on run           1 not reference det:          319   22.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    4,    8,    9,   12,   14,   25,   27,   33,   44)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -40.2290174983812    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         570   -47.90350       -350.0000       0.9110875        28743.00        76.00000        83738.00        93331.00      -0.8407252        0.000000      -0.8407252        22.00000        145.0000       0.3363413            3565         855  0.49900E-02
+ Highest weighted determinant on run           1 not reference det:          319   1.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,   14,   15,   21,   23,   24,   38,   49,   50,   52)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -36.1845668617639    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         580   -52.07536       -3488.000        1.026621        25255.00        78.00000        84739.00        93175.00       -1.486607        0.000000       -1.486607        1.000000        6.000000       0.3270721            3477         778  0.48960E-02
+ Highest weighted determinant on run           1 not reference det:          319   1.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,   12,   19,   23,   25,   33,   38,   44,   48)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -59.1647204972386    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         590   -28.23211        2770.000       0.9219309        28025.00        50.00000        76730.00        90326.00      -0.6930088        0.000000      -0.6930088       -1.000000        3.000000       0.3439209            3597         926  0.45316E-02
+ Highest weighted determinant on run           1 not reference det:          316   16.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    5,    7,   14,   21,   28,   34,   48,   53)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -60.8583698156383    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         600   -27.88658        4177.000        1.176564        32202.00        108.0000        91051.00        105221.0      -0.6604683        0.000000      -0.6604683        16.00000        44.00000       0.3405122            4097        1073  0.52665E-02
+ Highest weighted determinant on run           1 not reference det:          319   17.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    5,    7,   11,   14,   23,   24,   32,   44)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -59.6473330167217    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         610   -29.90737        5040.000        1.082658        37242.00        34.00000        99801.00        116112.0       -1.884155        0.000000       -1.884155       -17.00000        482.0000       0.3470692            4417        1146  0.55831E-02
+ Highest weighted determinant on run           1 not reference det:          419   12.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    7,   11,   16,   34,   46,   48,   51,   53)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -61.8826773187550    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         620   -29.65197        5742.000        1.206926        42984.00        98.00000        123334.0        143732.0      -0.9296790        0.000000      -0.9296790        12.00000        190.0000       0.3559688            5105        1308  0.69818E-02
+ Highest weighted determinant on run           1 not reference det:          319   18.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    8,    9,   10,   15,   38,   46,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -66.4653381020815    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         630   -24.79598       -12957.00       0.9249784        30027.00        76.00000        127325.0        129608.0      -0.5658140        0.000000      -0.5658140        18.00000        262.0000       0.3470233            4458        1116  0.65628E-02
+ Highest weighted determinant on run           1 not reference det:          319   25.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    5,   10,   12,   15,   18,   34,   53)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -59.8107682489300    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         640   -28.70977       -6299.000       0.7246877        23728.00        86.00000        89761.00        94337.00       -1.365711        0.000000       -1.365711        25.00000        238.0000       0.3485443            3229         830  0.50052E-02
+ Highest weighted determinant on run           1 not reference det:          319   14.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    4,   12,   21,   24,   27,   28,   33,   46,   55)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -38.4256040377968    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         650   -49.23744        813.0000       0.9303739        24541.00        30.00000        75629.00        83616.00      -0.9705053        0.000000      -0.9705053       -14.00000        124.0000       0.3320533            3218         761  0.45950E-02
+ Highest weighted determinant on run           1 not reference det:          319   0.0000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,   11,   23,   41,   46,   48,   50,   54,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -60.1842820290072    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         660   -26.75363       -982.0000       0.9547048        23559.00        48.00000        71344.00        79090.00       -1.991985        0.000000       -1.991985        0.000000        25.00000       0.3289810            3133         733  0.43611E-02
+ Highest weighted determinant on run           1 not reference det:          319   19.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,   15,   18,   24,   27,   34,   44,   57)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -60.1343933065619    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         670   -26.41866        3226.000       0.9968221        26785.00        18.00000        66731.00        79997.00      -0.9604580        0.000000      -0.9604580       -19.00000        147.0000       0.3338146            3220         770  0.42510E-02
+ Highest weighted determinant on run           1 not reference det:          319   21.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    6,    7,    8,   18,   21,   23,   34,   55)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -65.3447104191639    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         680   -22.67819        4452.000        1.209910        31237.00        126.0000        76984.00        91807.00      -0.7833444        0.000000      -0.7833444       -21.00000        91.00000       0.3166315            3997         979  0.51028E-02
+ Highest weighted determinant on run           1 not reference det:          456   71.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    7,   15,   22,   34,   41,   44,   55,   56)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -62.0312418591908    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         690   -27.86438        5006.000        1.222325        36243.00        48.00000        104253.0        123286.0      -0.8340365        0.000000      -0.8340365        71.00000        625.0000       0.3478607            4803        1187  0.61209E-02
+ Highest weighted determinant on run           1 not reference det:          319   24.000000000000000     
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    7,    8,   10,   43,   47,   48,   56)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -69.2138034741406    
+ Regenerating the stored diagonal HElements for all walkers.
+ Zeroing all energy estimators.
+         700   -20.21897       -7157.000       0.9268225        29086.00        50.00000        102787.0        108562.0       -1.534442        0.000000       -1.534442        24.00000        234.0000       0.3305011            3977         918  0.58908E-02
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    3.2151488587260246     
+ Time lost due to load imbalance:   0.32550374511629343     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+*********************************
+Writing a 64-bit POPSFILE...
+Writing a total of 3977 determinants.
+*********************************
+
+ WRITINGPOPSFILE                                                                                                                                                                                                                                                        F
+ 
+Current reference: 
+(    1,    2,    3,    7,    8,   10,   43,   47,   48,   56)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-3    7-8 10  43   47-48 56 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+ Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   <D|H|D>  Proc
+1110001101000000000000000000000000000000001000110000000100    0    4    319.0000      0.20982  Y  -6.92138035E+01       0
+1101011010000100000010000010000000000000000000000000000100    6    8    319.0000      0.20982  Y  -6.29088183E+01       2
+1100000010010000100000010000000010000000001000000000000101    6    8    319.0000      0.20982  Y  -6.12679842E+01       2
+1000010010000010100000010011000001000000000000000000000100    8    8    249.0000      0.16378  Y  -3.89035066E+01       0
+1101110001000001000000000010000000000000100000100000000000    6    6   -249.0000      0.16378  Y  -6.30706707E+01       1
+0110000000000000100010000101000001000000101000010000000000    6   10    248.0000      0.16312  Y  -4.09888962E+01       1
+1100001001000001001001000000000000000000001000000000100100    4    8   -248.0000      0.16312  Y  -6.11941031E+01       2
+1100010001000011001000000010000000000000000001100000000000    6    6    246.0000      0.16181  Y  -5.90689140E+01       3
+1111000000000000000000000001000000000000101000010000100100    4    6    226.0000      0.14865  Y  -6.45798064E+01       3
+1101110100000000000000010000000000000000101000100000000000    5    6    214.0000      0.14076  Y  -6.72292494E+01       3
+1100100011000001000000000100000000001000000000010000000010    6    6   -213.0000      0.14010  Y  -6.22434645E+01       2
+1110001100000000000000010000000000000000001000110000000100    1    4   -204.0000      0.13418  Y  -6.74667866E+01       2
+1100010000000000010000001000000101001000000000100000000010    7    8   -188.0000      0.12366  Y  -6.39755505E+01       0
+1110001100000000000000010100000000000000001000110000000000    2    4    185.0000      0.12169  Y  -6.60881405E+01       1
+1101110000000000000000100011000011000000000000000000000000    8    2    185.0000      0.12169  Y  -6.33726821E+01       3
+ 
+ Warning: attempting to log deallocation but never logged allocation.
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process    1544.7500000000
+ Min number of determinants/process               1509
+ Max number of determinants/process               1574
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:    7271.5000000000
+     Min number of walkers/process:         6577.00000
+     Max number of walkers/process:         8451.00000
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:          700
+Reading back in FCIMCStats datafile...
+Number of comment lines found in file:            3
+Number of data points found in file:           70
+Number of useable data points:            0
+No valid datapoints found in file. Exiting error analysis.
+ Current reference energy                             -69.213803474141
+ Projected correlation energy                          -1.534441905728
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy         -70.74824538
+
+
+ Final energy estimate for state 1:     -70.748245379868    
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     156.3
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ UMat              IntInit            IntCleanup           43.2MB
+ global_determinantinit_global_det_datclean_global_det_da  25.0MB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc       22.3MB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc       22.3MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   15.0MB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc       11.2MB
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar    8.6MB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar    8.6MB
+ Parts             WriteToPopsfileParOPopsfile             36.9KB
+ TMAT2D            SetupTMAT          DestroyTMat          26.3KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                 700      2.92
+ NECICUBE                                     1      0.51
+ SysInit                                      1      0.24
+ AnnMainTime                                700      0.15
+ StatsCommsTime                              70      0.08
+ SortTime                                   700      0.03
+ AnnihilTime                                700      0.01
+ Compress Sort interface                    700      0.01
+ POPS-write                                   1      0.01
+ Compression interface                      700      0.01
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   3.96
+
+ Global wall clock time          4.00
+ ================================================================
+ Calculation ended 27/04/2023 at 15:33:59
+ ================================================================

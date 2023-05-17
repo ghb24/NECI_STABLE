@@ -24,6 +24,8 @@ module rdm_filling
     use guga_data, only: excit_type, ExcitationInformation_t
     use LoggingData, only: t_full_core_rdms
 
+    use excit_mod, only: getexcitation
+
     implicit none
 
 contains

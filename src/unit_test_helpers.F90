@@ -9,7 +9,9 @@ module unit_test_helpers
 
     use lattice_mod, only: get_helement_lattice, lattice
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+
+    use DeterminantData, only: write_det
 
     use SystemData, only: t_lattice_model, nOccAlpha, nOccBeta, &
                           trans_corr_param_2body, omega, nel, nBasis, &
@@ -22,9 +24,9 @@ module unit_test_helpers
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 
-    use bit_reps, only: decode_bit_det, extract_sign, get_weight
+    use bit_reps, only: decode_bit_det
 
-    use bit_rep_data, only: niftot, nifd
+    use bit_rep_data, only: niftot, nifd, extract_sign, get_weight
 
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
 

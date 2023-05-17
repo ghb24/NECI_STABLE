@@ -9,6 +9,7 @@ module Parallel_Calc
 
     use Parallel_neci
     use util_mod, only: near_zero, operator(.isclose.)
+    use excit_mod, only: genexcit, getexcitation
 
     implicit none
 

@@ -98,11 +98,9 @@ program test_k_space_hubbard
 
     use Determinants, only: WriteDetBit
 
-    use neci_intfce, only: GetExcitation
+    use excit_mod, only: GetExcitation, FindExcitDet
 
     implicit none
-
-    external :: FindExcitDet
 
     integer :: failed_count
     logical :: t_test_excit_gen, t_run_explicit, t_exact_study

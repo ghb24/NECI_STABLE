@@ -19,6 +19,10 @@ module sym_general_mod
 
     use bit_rep_data, only: niftot, nifd
 
+    use excit_mod, only: IsValidDet
+
+    use calcrho_mod, only: igetexcitlevel
+
     implicit none
 
     interface ClassCountInd
@@ -261,9 +265,6 @@ contains
         integer :: sym_prod_i, sym_prod_j
         type(Symmetry) :: sym_prod1, sym_prod2
         integer(n_int) :: ilut(0:niftot)
-
-        logical :: IsValidDet ! In .F file.
-        integer :: iGetExcitLevel ! In .F file
 
         ! Default initial value
         bValid = .true.

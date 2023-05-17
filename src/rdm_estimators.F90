@@ -430,7 +430,7 @@ contains
                     est%energy_num(irdm) / est%norm(irdm)
 
                 if (tEN2) then
-                    write (6, '(1x,"EN2 corrections are below. Note that these may have a much &
+                    write (stdout, '(1x,"EN2 corrections are below. Note that these may have a much &
                                   &larger error bar than the",/," variational energy above. Please do a &
                                   &blocking analysis rather than just using the energies below.")')
                     write(stdout, '(1x,"EN2 energy correction:",1x,es17.10)') est%energy_pert(irdm) / est%norm(irdm)

@@ -20,6 +20,7 @@ module guga_pchb_class
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
                                sym_label_list_spat, SpinOrbSymLabel
     use UMatCache, only: gtID
+    use MPI_wrapper, only: root
     use guga_excitations, only: assign_excitinfo_values_single, &
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
@@ -217,7 +218,7 @@ contains
                         call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
                     end do
                 end do
-                call this%alias_sampler%setup_entry(ij,w)
+                call this%alias_sampler%setup_entry(ij, root, w)
                 call this%set_info_entry(ij, excit_info)
 
             end do
@@ -564,7 +565,7 @@ contains
         real(dp) :: integral
         debug_function_name("get_pchb_integral_contrib")
         logical :: flag_
-        real(dp) :: cpt1, cpt2, cpt3, cpt4
+        HElement_t(dp) :: cpt1, cpt2, cpt3, cpt4
 
         ASSERT(0 < a .and. a <= nSpatOrbs)
         ASSERT(0 < i .and. i <= nSpatOrbs)
@@ -601,9 +602,9 @@ contains
             cpt2 = abs(cpt2)
 
             if (flag_) then
-                integral = cpt4
+                integral = abs(cpt4)
             else
-                integral = maxval([cpt1, cpt2, cpt3, cpt4])
+                integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
 
         case (excit_type%double_L_to_R_to_L, excit_type%double_R_to_L_to_R, &
@@ -619,7 +620,7 @@ contains
             if (flag_) then
                 integral = abs(cpt2)
             else
-                integral = maxval([abs(cpt1),abs(cpt2)/2.0_dp, cpt3, cpt4])
+                integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
 
 
