@@ -1339,12 +1339,27 @@ and is stopped after 10000 iterations.
         deterministic projection is therefore performed with this
         option.
 
+    -   **write-trial**<br>
+        Writes the trial space out in a file called `TRIALSPACE`.
+
+    -   **read-trial**<br>
+        Reads the trial space from a file `TRIALSPACE` instead of generating a
+        new one.
+
     -   **left-trial-evec**
         When diagonalising the matrix formed from the top determinants, take
         the left eigenvector as your trial wave function instead of the right.
+        This keyword is intended to be used for non-Hermitian systems.
         @note
-        This keyword was primarily introduced for non-Hermitian Hamiltonians.
-        At the moment it is not fully understood which eigenvector is appropriate in this case.
+        The mathematically correct approach is to run a separate calculation with
+        the `adjoint-calculation` and without this keyword (so taking the right
+        eigenvector), and outputting the top determinants. Then feed this input
+        into a calculation without the `adjoint-calculation` keyword, but with
+        the `left-trial-evec` keyword. However, this is tedious and inefficient,
+        and simply using `left-trial-evec` without the previous calculation is
+        a good approximation (the only difference is the choice of the top
+        determinants). Reading and writing trial spaces can be done using the
+        keywords `read-trial` and `write-trial` respectively.
         @endnote
 
 #### Memory options
