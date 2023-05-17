@@ -35,7 +35,7 @@ module semi_stoch_gen
         tUEG, tReal, tNoSingExcits, tKPntSym, tReltvy, &
         tSpn, LMS, BasisFn, BRR, tAllSymSectors, &
         tGUGA, nel, t_mol_3_body, &
-        t_non_hermitian_2_body, tHPHF
+        t_non_hermitian, tHPHF
     use bit_rep_data, only: NIfD, NIfTot, nIfGUGA, flag_static_init, &
         extract_sign, flag_deterministic
     use bit_reps, only: decode_bit_det, set_flag, clr_flag_multi, encode_sign, &
