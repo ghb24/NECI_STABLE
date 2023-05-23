@@ -4176,9 +4176,11 @@ contains
     function get_nn_neighbors_lattice(this, ind) result(res)
         class(lattice) :: this
         integer, intent(in) :: ind
-        integer :: i, j, k, nn_ind, len, num_nn_neighbors_dup, neigh
+        integer :: i, j, k, nn_ind, num_nn_neighbors_dup, neigh
         integer, allocatable :: neighbors(:)
-        integer, allocatable :: nn_neighbors(:), nn_neighbors_dup(:), res(:), inp(:)
+        integer, allocatable :: nn_neighbors_dup(:), res(:)
+!        integer :: len
+!        integer, allocatable :: inp(:)
 
         neighbors = this%get_neighbors(ind)
         
