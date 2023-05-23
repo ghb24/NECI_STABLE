@@ -542,7 +542,7 @@ contains
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
         integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors - 1)
-        real(dp) :: PopDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
+        real(dp) :: PopDiagSft(inum_runs), PopModDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         character(255) :: popsfile
@@ -559,7 +559,7 @@ contains
                 call stop_all(this_routine, "wrong POPSFILE version /= 4!")
             end if
             call ReadPopsHeadv4(iunit, tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, iPopNel, &
-                                iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                                iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
                                 PopNIfD, PopNIfSgn, Popinum_runs, PopNIfFlag, PopNIfTot, &
                                 read_tau, PopBlockingIter, PopRandomHash, read_psingles, &
                                 read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
@@ -593,7 +593,7 @@ contains
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
         integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors - 1)
-        real(dp) :: PopDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
+        real(dp) :: PopDiagSft(inum_runs), PopModDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: ierr
@@ -620,7 +620,7 @@ contains
         if (popsversion /= 4) call stop_all(this_routine, "wrong popsfile version of TIME_EVOLVED_POP")
 
         call ReadPopsHeadv4(iunit, tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, iPopNel, &
-                            iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                            iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
                             PopNIfD, PopNIfSgn, Popinum_runs, PopNIfFlag, PopNIfTot, &
                             read_tau, PopBlockingIter, PopRandomHash, read_psingles, &
                             read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)

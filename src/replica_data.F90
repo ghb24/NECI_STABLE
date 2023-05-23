@@ -58,13 +58,25 @@ contains
                   NoAddedInitiators(lenof_sign), &
                   NoInitDets(lenof_sign), NoNonInitDets(lenof_sign), &
                   NoInitWalk(lenof_sign), NoNonInitWalk(lenof_sign), &
+                  NoModShiftWalk(lenof_sign), NoNonModShiftWalk(lenof_sign), &
+                  NoBosonActiveWalk(lenof_sign), &
+                  NoSpawnDets(lenof_sign), &
+                  NoSpawnDetsEmpty(lenof_sign), &
                   NoExtraInitDoubs(lenof_sign), InitRemoved(lenof_sign), &
                   ! And initiator accumulator related
                   AllNoAddedInitiators(lenof_sign), &
                   AllNoInitDets(lenof_sign), AllNoNonInitDets(lenof_sign), &
                   AllNoInitWalk(lenof_sign), AllNoNonInitWalk(lenof_sign), &
+                  AllNoModShiftWalk(lenof_sign), AllNoNonModShiftWalk(lenof_sign), &
+                  AllNoBosonActiveWalk(lenof_sign), &
+                  AllNoSpawnDets(lenof_sign), &
+                  AllNoSpawnDetsEmpty(lenof_sign), &
                   AllNoExtraInitDoubs(lenof_sign), AllInitRemoved(lenof_sign), &
                   AllGrowRateAbort(lenof_sign), &
+                  OldAllNoBosonActiveWalk(lenof_sign), &
+                  OldAllNoInitWalk(lenof_sign), &
+                  OldAllNoModShiftWalk(lenof_sign), &
+                  OldAllNoNonModShiftWalk(lenof_sign), &
                   stat=ierr)
 
         ! Global simulation properties that apply per simulation, i.e. will
@@ -128,10 +140,14 @@ contains
             InstShift(inum_runs), &
             AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
             DiagSft(inum_runs), &
+            DiagSft2(inum_runs), &
             hdf5_diagsft(inum_runs), &
             DiagSftRe(inum_runs), &
             DiagSftIm(inum_runs), &
-            tSinglePartPhase(inum_runs), stat=ierr)
+            tSinglePartPhase(inum_runs), &
+            FullProjE_Num(inum_runs), &
+            FullProjE_Den(inum_runs), &
+            stat=ierr)
 
         if (ierr /= MPI_SUCCESS) then
             write(error_message, '(A, I0)') &
@@ -190,12 +206,24 @@ contains
                     NoAddedInitiators, &
                     NoInitDets, NoNonInitDets, &
                     NoInitWalk, NoNonInitWalk, &
+                    NoModShiftWalk, NoNonModShiftWalk, &
+                    NoBosonActiveWalk, &
+                    NoSpawnDets, &
+                    NoSpawnDetsEmpty, &
                     NoExtraInitDoubs, InitRemoved, &
                     ! And initiator accumulator related
                     AllNoAddedInitiators, &
                     AllNoInitDets, AllNoNonInitDets, &
                     AllNoInitWalk, AllNoNonInitWalk, &
+                    AllNoModShiftWalk, AllNoNonModShiftWalk, &
+                    AllNoBosonActiveWalk, &
+                    AllNoSpawnDets, &
+                    AllNoSpawnDetsEmpty, &
                     AllNoExtraInitDoubs, AllInitRemoved, &
+                    OldAllNoBosonActiveWalk, &
+                    OldAllNoInitWalk, &
+                    OldAllNoModShiftWalk, &
+                    OldAllNoNonModShiftWalk, &
                     ! Track the dynamics
                     NoBorn, AllNoBorn, &
                     NoDied, AllNoDied, &
@@ -333,6 +361,8 @@ contains
 
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
+
+        OldAllNoBosonActiveWalk = AllTotParts
 
 #ifdef PROG_NUMRUNS_
         do run = 1, inum_runs

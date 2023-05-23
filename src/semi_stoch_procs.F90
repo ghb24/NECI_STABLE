@@ -7,10 +7,12 @@ module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, NIfD, NIfTot, test_flag, &
                             test_flag_multi, IlutBits, extract_sign, &
-                            flag_connected, flag_trial
+                            flag_connected, flag_trial, &
+                            flag_nospawn, flag_expanded
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run, &
-        set_flag, encode_sign
+                        set_flag, encode_sign
+
     use calcrho_mod, only: igetexcitlevel
 
     use mpi
@@ -1282,8 +1284,10 @@ contains
                 call extract_sign(CurrentDets(:, i), walker_sign)
                 ! Don't add the determinant to the hash table if its unoccupied and not
                 ! in the core space and not accumulated.
-                if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:, i))) &
-                    .and. .not. tAccumEmptyDet(CurrentDets(:, i))) cycle
+                 if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:, i))) &
+                     .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
+                     .and. .not. test_flag(CurrentDets(:, i), flag_nospawn) &
+                     .and. .not. test_flag(CurrentDets(:, i), flag_expanded)) cycle
                 call decode_bit_det(nI, CurrentDets(:, i))
                 hash_val = FindWalkerHash(nI, nWalkerHashes)
                 temp_node => HashIndex(hash_val)

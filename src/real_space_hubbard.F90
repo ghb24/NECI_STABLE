@@ -24,7 +24,7 @@ module real_space_hubbard
                           tNoBrillouin, tUseBrillouin, &
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
                           pholefocus, t_twisted_bc, twisted_bc, lnosymmetry, &
-                          t_anti_periodic, t_bipartite_order
+                          t_anti_periodic, t_bipartite_order, t_nn_hopping, nn_bhub
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                            get_helement_lattice, get_helement_lattice_ex_mat, &
@@ -113,8 +113,8 @@ module real_space_hubbard
 
     logical :: t_recalc_umat = .false.
     logical :: t_recalc_tmat = .false.
-    logical :: t_print_umat = .true.
-    logical :: t_print_tmat = .true.
+    logical :: t_print_umat = .false.
+    logical :: t_print_tmat = .false.
 
     interface get_helement_rs_hub
         module procedure get_helement_rs_hub_ex_mat
@@ -973,6 +973,8 @@ contains
                     ASSERT(ind <= nbasis / 2)
 
                 end do
+                
+                if (t_nn_hopping) call stop_all(this_routine, "N-n hopping not implemented with twisted bcs.")
             else
                 ! what do i need to do?
                 ! loop over the indices in the lattice and get the neighbors
@@ -1004,6 +1006,22 @@ contains
                     ASSERT(lat%get_nsites() == nbasis / 2)
                     ASSERT(ind > 0)
                     ASSERT(ind <= nbasis / 2)
+
+                    if (t_nn_hopping) then
+                        associate(next => lat%get_nn_neighbors(i))
+                            ! beta orbitals:
+                            tmat2d(2*ind - 1, 2*next - 1) = nn_bhub 
+                            ! alpha: 
+                            tmat2d(2*ind, 2*next) = nn_bhub
+                            
+                            if (t_print_tmat) then
+                                do j = 1, size(next)
+                                    write(iunit,*) 2*i - 1, 2*next(j) - 1, nn_bhub
+                                    write(iunit,*) 2*i, 2*next(j), nn_bhub
+                                end do
+                            end if
+                        end associate
+                    end if
 
                 end do
             end if
@@ -1952,8 +1970,8 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard"
 
-        integer :: ind, elec, src, orb
-        integer, allocatable :: neighbors(:)
+        integer :: iunused, ind, elec, src, orb, n_avail, n_orbs, i
+        integer, allocatable :: neighbors(:), nn_neighbors(:), all_neighbors(:), orbs(:)
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, p_elec, p_orb
 
@@ -1983,8 +2001,15 @@ contains
 
         ! now get neighbors
         neighbors = lat%get_spinorb_neighbors(src)
-
-        call create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
+        if (t_nn_hopping) then
+            nn_neighbors = lat%get_spinorb_nn_neighbors(src)
+            allocate(all_neighbors(size(neighbors)+size(nn_neighbors)))
+            all_neighbors(1:size(neighbors)) = neighbors
+            all_neighbors(size(neighbors)+1:) = nn_neighbors
+            call create_cum_list_rs_hubbard(ilutI, src, all_neighbors, cum_arr, cum_sum)
+        else
+            call create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
+        end if
 
         if (cum_sum < EPS) then
             nJ(1) = 0
@@ -1994,7 +2019,11 @@ contains
 
         call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb)
 
-        orb = neighbors(ind)
+        if (t_nn_hopping) then
+            orb = all_neighbors(ind)
+        else
+            orb = neighbors(ind)
+        end if
 
         pgen = p_elec * p_orb
 
@@ -2605,5 +2634,4 @@ contains
         hel = umat_rs_hub_trancorr_hop(i, j, k, l)
 
     end function get_umat_rs_hub_trans
-
 end module real_space_hubbard

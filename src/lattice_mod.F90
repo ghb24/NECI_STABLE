@@ -225,6 +225,13 @@ module lattice_mod
         ! pointers into the game.. but will be removed soon
         procedure(test), pointer :: a => null()
 
+        ! Number of total links (required to scale Hilbert space truncation
+        ! based on AF criterion for TRUNC-HUBB)
+        integer :: total_links
+
+        ! i just want to test if i can easily setup a lattice name
+        ! no.. not yet supported in gcc4.8.. but in newer versions probably
+!         character(*), allocatable :: lattice_name
     contains
         private
 
@@ -243,8 +250,10 @@ module lattice_mod
         procedure, public :: get_site_index
         ! make the get neighbors function public on the lattice level
         procedure, public :: get_neighbors => get_neighbors_lattice
+        procedure, public :: get_nn_neighbors => get_nn_neighbors_lattice
         procedure, public :: get_num_neighbors => get_num_neighbors_lattice
         procedure, public :: get_spinorb_neighbors => get_spinorb_neighbors_lat
+        procedure, public :: get_spinorb_nn_neighbors => get_spinorb_nn_neighbors_lat
 
         procedure, public :: is_k_space
         ! i definetly also want to have a print function!
@@ -274,6 +283,8 @@ module lattice_mod
         procedure(calc_nsites_t), deferred :: calc_nsites
         procedure :: allocate_sites
         procedure(initialize_sites_t), deferred :: initialize_sites
+        procedure :: calc_total_links
+        procedure, public :: get_total_links
 
         procedure :: deallocate_sites
 
@@ -1875,7 +1886,8 @@ contains
         integer :: right(4 * this%length(1), 2 * this%length(2))
         integer :: left(4 * this%length(1), 2 * this%length(2))
 
-        integer :: i, temp_neigh(3), x, y, special
+        integer :: i, temp_neigh(3), x, y, y0, special
+        integer :: k_vec(3), r_vec(3)
         integer, allocatable :: neigh(:), order(:)
         character(*), parameter :: this_routine = "init_sites_hexagonal"
 
@@ -1899,29 +1911,40 @@ contains
             do i = 1, this%get_nsites()
                 ! columns and rows:
                 x = mod(i - 1, 4 * this%length(1)) + 1
-                y = (i - 1) / (4 * this%length(1)) + 1
+                y0 = (i - 1) / (4 * this%length(1)) + 1
+                if (mod(i, 2) == 0 .and. mod(y0, 2) == 1) then
+                    y = 2*y0-1
+                else if (mod(i, 2) == 0 .and. mod(y0, 2) == 0) then
+                    y = 2*y0
+                else if (mod(i, 2) == 1 .and. mod(y0, 2) == 1) then
+                    y = 2*y0
+                else if (mod(i, 2) == 1 .and. mod(y0, 2) == 0) then
+                    y = 2*y0-1
+                end if
 
-                if (is_odd(y)) then
+                if (is_odd(y0)) then
                     if (is_odd(i)) then
                         ! every odd number in a odd column has a right neighbor
-                        special = right(x, y)
+                        special = right(x, y0)
                     else
                         ! otherwise left
-                        special = left(x, y)
+                        special = left(x, y0)
                     end if
                 else
                     ! for even columns it is the other way around
                     if (is_odd(i)) then
-                        special = left(x, y)
+                        special = left(x, y0)
                     else
-                        special = right(x, y)
+                        special = right(x, y0)
                     end if
                 end if
-                temp_neigh = [up(x, y), down(x, y), special]
+                temp_neigh = [up(x, y0), down(x, y0), special]
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(order(i)) = site(order(i), size(neigh), neigh)
+                k_vec = [x - (4*this%length(1) + 1) / 2, y - (4*this%length(2) + 1) / 2, 0]
+                r_vec = [x - (4*this%length(1) + 1) / 2, y - (4*this%length(2) + 1) / 2, 0]
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
             end do
         else
             call stop_all(this_routine, &
@@ -3540,6 +3563,8 @@ contains
 
         call this%initialize_sites()
 
+        this%total_links = this%calc_total_links()
+
         ! and fill the lookup table for the site index determination from k vectors
         if (t_k_space_hubbard .or. (t_trans_corr_hop .and. t_new_real_space_hubbard)) then
             call this%initialize_lu_table()
@@ -4148,6 +4173,64 @@ contains
 
     end function get_neighbors_lattice
 
+    function get_nn_neighbors_lattice(this, ind) result(res)
+        class(lattice) :: this
+        integer, intent(in) :: ind
+        integer :: i, j, k, nn_ind, len, num_nn_neighbors_dup, neigh
+        integer, allocatable :: neighbors(:)
+        integer, allocatable :: nn_neighbors(:), nn_neighbors_dup(:), res(:), inp(:)
+
+        neighbors = this%get_neighbors(ind)
+        
+!        num_nn_neighbors = 0
+!        do i = 1, this%sites(ind)%get_num_neighbors()
+!            ! The original site is always also a neighbor of neighbors
+!            ! but we do not want to include it in this counting, thus -1.
+!            num_nn_neighbors = num_nn_neighbors + this%sites(i)%get_num_neighbors() - 1
+!        end do
+        
+        ! Be careful for more exotic lattices! Check later.
+        num_nn_neighbors_dup = this%sites(ind)%get_num_neighbors()
+        allocate(nn_neighbors_dup(num_nn_neighbors_dup**2))
+        
+        k = 0
+        do i = 1, this%sites(ind)%get_num_neighbors()
+            neigh = this%sites(ind)%neighbors(i)
+            do j = 1, this%sites(neigh)%get_num_neighbors()
+                nn_ind = this%sites(neigh)%neighbors(j)
+                if (nn_ind /= ind) then
+                    k = k + 1
+                    nn_neighbors_dup(k) = nn_ind
+                end if
+            end do
+        end do
+        
+        allocate(res(k))
+        res(1:k) = nn_neighbors_dup(1:k)
+!        call remove_dups(inp, k, res, len)
+    end function get_nn_neighbors_lattice
+
+    subroutine remove_dups(inp, n, res, k)
+        integer :: i, j
+        integer, intent(in) :: n
+        integer, dimension(n), intent(in) :: inp
+        integer, intent(out) :: k
+        integer, dimension(n), intent(out) :: res
+
+        k = 1
+        res(1) = inp(1)
+        do i = 2, size(inp)
+            do j = 1, k
+                if (res(j) == inp(i)) then
+                    cycle
+                end if
+            end do
+            k = k + 1
+            res(k) = inp(i)
+        end do
+
+    end subroutine remove_dups
+
     function get_spinorb_neighbors_lat(this, spinorb) result(neighbors)
         class(lattice) :: this
         integer, intent(in) :: spinorb
@@ -4170,6 +4253,29 @@ contains
         end if
 
     end function get_spinorb_neighbors_lat
+
+    function get_spinorb_nn_neighbors_lat(this, spinorb) result(neighbors)
+        class(lattice) :: this 
+        integer, intent(in) :: spinorb
+        integer, allocatable :: neighbors(:) 
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "get_spinorb_neighbors_lat"
+#endif
+
+        ASSERT(spinorb <= 2*this%get_nsites())
+        ASSERT(spinorb > 0) 
+        ASSERT(allocated(this%sites))
+        ASSERT(allocated(this%sites(get_spatial(spinorb))%neighbors))
+
+        neighbors = this%get_nn_neighbors(get_spatial(spinorb))
+
+        if (is_beta(spinorb)) then
+            neighbors = 2 * neighbors - 1
+        else 
+            neighbors = 2 * neighbors
+        end if
+
+    end function get_spinorb_nn_neighbors_lat
 
     function calc_nsites_aim_star(this, length_x, length_y, length_z) result(n_sites)
         ! for the star geometry with maybe
@@ -4842,6 +4948,25 @@ contains
         end if
 
     end function determine_optimal_time_step
+
+    function calc_total_links(this) result(total_links)
+        class(lattice) :: this
+        integer :: ind, total_links
+        
+        total_links = 0
+        do ind = 1, this%get_nsites()
+            total_links = total_links + this%get_num_neighbors(ind)
+        end do
+
+        total_links = total_links / 2
+    end function calc_total_links
+
+    function get_total_links(this) result(total_links)
+        class(lattice) :: this
+        integer :: total_links
+
+        total_links = this%total_links
+    end function get_total_links
 
     function read_lattice_n_sites(this, length_x, length_y, length_z) result(n_sites)
 

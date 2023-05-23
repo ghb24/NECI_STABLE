@@ -386,6 +386,7 @@ module SystemData
 
 ! also implement a next-nearest neighbor Hubbard model implementation:
 ! for k-space hubbard, this only affects the diagonal part!
+    logical :: t_nn_hopping = .false. 
     real(dp) :: nn_bhub = 0.0_dp
 
 ! do a quick test with different weightings of picking orbitals (a)
@@ -405,6 +406,15 @@ module SystemData
 ! flag for anti-periodic BCs in the real-space Hubbard implementation
     logical :: t_anti_periodic(2) = .false.
 
+! Implement fixed/partial-node Hamiltonian
+    logical :: tFixedNode = .false., tPartialNodeThresh = .false.
+    real(dp) :: FixedNodeCutoff, PartialNodeGamma, PartialNodeThresh, &
+        FixedNodeMinThresh, FixedNodeLowestVal
+! construct Hamiltonian with only positive entries
+    logical :: t_bosonize = .false.
+
+! Activates optimisations for the Anderson model
+    logical :: tAnderson = .false.
 
 ! test-flags for guga-pchb testing
     logical :: t_old_pchb = .false.

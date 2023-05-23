@@ -63,7 +63,8 @@ module fcimc_initialisation
                         AAS_Cut, tTruncInitiator, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
                         tAS_TrialOffset, ShiftOffset, &
-                        tSpinProject
+                        tSpinProject, tBosonNoSpawn, bosonic_popsfile, SftDamp, SftDamp2, &
+                        tInitExpandAnnihil
 
     use tau_main, only: tau_search_method, &
         tau_start_val, possible_tau_start, &
@@ -97,7 +98,8 @@ module fcimc_initialisation
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            t_spin_measurements,  t_measure_local_spin, &
-                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl,&
+                           tFullProjE, tEstHilbSpaceMC, HilbSpaceSamples
 
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
@@ -155,7 +157,7 @@ module fcimc_initialisation
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
-                         EncodeBitDet, DetBitLT
+                         EncodeBitDet, DetBitLT, FindDetSpinSym
     use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
                                  attempt_create_normal, &
                                  attempt_create_trunc_spawn, &
@@ -301,7 +303,11 @@ module fcimc_initialisation
         OldAllNoatHF, TotWalkers, TotWalkersOld, AllNoatHF, AllTotWalkers, &
         AllTotWalkersOld, HFInd, InstNoatHF, OldAllNoatHF, &
         TotWalkers, TotWalkersOld, iEndFreeSlot, iStartFreeSlot, OldAllNoatHF, &
-        SpawnInfoWidth, spawn_ht
+        SpawnInfoWidth, spawn_ht, NoModShiftWalk, NoNonModShiftWalk, &
+        NoBosonActiveWalk, NoSpawnDets, AllNoSpawnDets, AllNoModShiftWalk, &
+        AllNoNonModShiftWalk, AllNoBosonActiveWalk, OldAllNoInitWalk, &
+        OldAllNoModShiftWalk, OldAllNoNonModShiftWalk, OldAllNoBosonActiveWalk, &
+        connected_dets, max_connected_size, ConnectedTag, tInitProbation
 
 
     use sort_mod, only: sort
@@ -367,6 +373,10 @@ module fcimc_initialisation
     use local_spin, only: init_local_spin_measure
 
     use CAS_distribution_init, only: InitFCIMC_CAS
+
+    use hdf5_popsfile, only: ReadBosonicPopsfile
+
+    use hilbert_space_size, only: FindHilbSizeTruncHubb
 
     use SD_spin_purification_mod, only: SD_spin_purification, possible_purification_methods, spin_pure_J
 
@@ -1118,6 +1128,11 @@ contains
         NoNonInitDets = 0
         NoInitWalk(:) = 0.0_dp
         NoNonInitWalk(:) = 0.0_dp
+        NoModShiftWalk(:) = 0.0_dp
+        NoNonModShiftWalk(:) = 0.0_dp
+        NoBosonActiveWalk(:) = 0.0_dp
+        NoSpawnDets(:) = 0
+        AllNoSpawnDets(:) = 0
         NoExtraInitDoubs = 0
         InitRemoved = 0
         TotImagTime = 0.0_dp
@@ -1158,6 +1173,9 @@ contains
         AllNoNonInitDets = 0
         AllNoInitWalk = 0.0_dp
         AllNoNonInitWalk = 0.0_dp
+        AllNoModShiftWalk = 0.0_dp
+        AllNoNonModShiftWalk = 0.0_dp
+        AllNoBosonActiveWalk = 0.0_dp
         AllNoExtraInitDoubs = 0
         AllInitRemoved = 0
         all_n_core_non_init = 0
@@ -1556,7 +1574,7 @@ contains
         integer :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
         integer :: i, run
-        real(dp) :: PopDiagSft(1:inum_runs)
+        real(dp) :: PopDiagSft(1:inum_runs), PopModDiagSft(1:inum_runs)
         real(dp), dimension(lenof_sign) :: PopSumNoatHF
         HElement_t(dp) :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
@@ -1617,7 +1635,7 @@ contains
                     ! in via a namelist, so that we can add more details
                     ! whenever we want.
                     call ReadPopsHeadv4(iunithead, tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, iPopNel, &
-                                        iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                                        iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
                                         PopNIfD, PopNIfSgn, Popinum_runs, PopNIfFlag, PopNIfTot, &
                                         read_tau, PopBlockingIter, PopRandomHash, read_psingles, &
                                         read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, &
@@ -1637,7 +1655,7 @@ contains
                 end if
 
                 call CheckPopsParams(tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, iPopNel, &
-                                     iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                                     iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
                                      PopNIfD, PopNIfSgn, PopNIfTot, &
                                      MaxWalkersUncorrected, read_tau, PopBlockingIter, read_psingles, read_pparallel, &
                                      read_ptriples, perturb_ncreate, perturb_nannihilate)
@@ -1769,6 +1787,8 @@ contains
             write(stdout, "(A,I8)") "Reference processor is: ", iRefProc(1)
             write(stdout, "(A)", advance='no') "Initial reference is: "
             call write_det(stdout, ProjEDet(:, 1), .true.)
+
+            if (tEstHilbSpaceMC) call FindHilbSizeTruncHubb()
 
             TotParts(:) = 0.0
             TotPartsOld(:) = 0.0
@@ -2024,6 +2044,20 @@ contains
                                         &error as the initiator method is not in use.")
         end if
 
+        if(tFullProjE)then
+            allocate(connected_dets(0:NIfTot, max_connected_size), stat=ierr)
+            call LogMemAlloc("connected_dets", max_connected_size * (NIfTot + 1), size_n_int, t_r, ConnectedTag, ierr)
+        end if
+
+        if(tBosonNoSpawn)then
+            call ReadBosonicPopsfile(bosonic_popsfile)
+            SftDamp2 = SftDamp**2./4.
+        endif
+
+        if(tInitExpandAnnihil)then
+            tInitProbation = .false.
+        endif
+
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
@@ -2263,8 +2297,6 @@ contains
             call stop_all(this_routine, "Invalid scale function specified")
         end select
 
-        ! if (tExpAdaptiveShift) then
-        !     shiftFactorFunction => expShiftFactorFunction
         if (tLinearAdaptiveShift) then
             shiftFactorFunction => linearShiftFactorFunction
         else if (tAutoAdaptiveShift) then
@@ -2450,6 +2482,11 @@ contains
         call finalize_exz_gen_class()
 
 
+        if(tFullProjE)then
+            deallocate(connected_dets, stat=ierr)
+            call LogMemDealloc(this_routine, ConnectedTag, ierr)
+        end if
+
     end subroutine DeallocFCIMCMemPar
 
     subroutine InitFCIMC_CSF()
@@ -2562,6 +2599,10 @@ contains
         OldAllAvWalkersCyc = InitialPart
         OldAllHFCyc = HFWeight
         OldAllNoatHF = HFWeight
+        OldAllNoInitWalk = AllNoInitWalk
+        OldAllNoModShiftWalk = AllNoModShiftWalk
+        OldAllNoNonModShiftWalk = AllNoNonModShiftWalk
+        OldAllNoBosonActiveWalk = AllNoBosonActiveWalk
 
         ! cleanup
         deallocate(evs)
@@ -2814,6 +2855,10 @@ contains
 
         OldAllNoatHF(:) = 0.0_dp
         AllNoatHF(:) = 0.0_dp
+        OldAllNoInitWalk(:) = 0.0_dp
+        OldAllNoModShiftWalk(:) = 0.0_dp
+        OldAllNoNonModShiftWalk(:) = 0.0_dp
+        OldAllNoBosonActiveWalk(:) = 0.0_dp
         IF (TStartSinglePart) THEN
             !Initialise global variables for calculation on the root node
             IF (iProcIndex == root) THEN
@@ -2944,8 +2989,16 @@ contains
         ! Initialise global variabes for calculation on the root node
         OldAllNoatHF = 0.0_dp
         AllNoatHF = 0.0_dp
+        OldAllNoInitWalk = 0.0_dp
+        OldAllNoModShiftWalk = 0.0_dp
+        OldAllNoNonModShiftWalk = 0.0_dp
+        OldAllNoBosonActiveWalk = 0.0_dp
         call MPISum(TotWalkers, AllTotWalkers)
         if (iProcIndex == root) then
+            OldAllNoInitWalk(:) = InitialPart
+            OldAllNoModShiftWalk(:) = InitialPart
+            OldAllNoNonModShiftWalk(:) = 0.0_dp
+            OldAllNoBosonActiveWalk(:) = InitialPart 
             OldAllNoatHF(:) = InitialPart
             OldAllAvWalkersCyc(:) = InitialPart
             AllNoatHF(:) = InitialPart

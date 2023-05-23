@@ -109,13 +109,23 @@ module bit_rep_data
                           = (/41, 42, 43, 44, 45, 46, 47, &
                               48, 49, 50, 51, 52, 53, 54, 61, 62/), &
                           flag_adi_checked = 56, &
-                          num_flags = 63
+                          flag_modshift = 63, &
+                          flag_nospawn = 64, &
+                          flag_expanded = 65, &
+                          flag_signflip(lenof_sign_max) &
+                          = (/66, 67, 68, 69, 70, 71, 72, &
+                              73, 74, 75, 76, 77, 78, 79, 80, 81/), &
+                          num_flags = 82
 #else
     integer, parameter :: flag_initiator(2) = (/13, 14/), &
                           flag_adi_checked = 15, &
                           flag_static_init(2) = (/16, 17/), &
                           flag_deterministic(2) = (/19, 20/), &
-                          num_flags = 21
+                          flag_modshift = 21, &
+                          flag_nospawn = 22, &
+                          flag_expanded = 23, &
+                          flag_signflip(2) = (/24, 25/), &
+                          num_flags = 26
 #endif
 
 contains

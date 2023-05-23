@@ -10,7 +10,8 @@ module hphf_integrals
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use orb_idx_mod, only: size
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
-                         TestClosedShellDet, CalcOpenOrbs, GetBitExcitation
+                         TestClosedShellDet, CalcOpenOrbs, GetBitExcitation, &
+                         FindExcitBitDetSym, FindDetSpinSym
     use excitation_types, only: Excite_0_t, Excite_2_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
     use bit_rep_data, only: NIfD, NIfTot

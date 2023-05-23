@@ -1,0 +1,389 @@
+#include "macros.h"
+module HartreeFockGuide
+
+        !This module contains the new stuff about hartree fock guide function
+        !and the stuff about the hf state approx
+
+        use OneEInts, only: GetTMatEl 
+        use constants, only: dp, EPS
+        use SystemData, only: nel, nBasis, FixedNodeMinThresh, FixedNodeLowestVal
+        use CalcData, only: tControlZeroDenom, GutzwillerParam, tGutzwillerHF
+        use lattice_mod, only: lat
+
+        implicit none
+
+        real(dp), allocatable :: U_matrix(:,:)
+
+        character(len=1024) :: orb_coeff_name
+
+
+contains 
+        subroutine calc_det_ratio(nJ,nI,det_ratio)
+            integer,intent(in) :: nI(nel),nJ(nel)
+            real(dp),intent(out) :: det_ratio
+            real(dp),allocatable :: UI(:,:),UJ(:,:)
+            real(dp) :: determinantJ,determinantI
+            !Here we compute the U Matrix in order to access the det ratio
+            UI=get_U(nI)
+
+            UJ=get_U(nJ)
+            determinantJ=determinant(UJ)
+            determinantI=determinant(UI)
+            !one fix a minimum value to avoid the 0.0
+            if (determinantJ==0) determinantJ=10**(-15)
+            if (determinantI==0) determinantI=10**(-15)
+            det_ratio = determinantJ/determinantI
+        end subroutine calc_det_ratio
+
+
+        subroutine calc_abinitio_det_ratio(nJ, nI, orb_coeff, det_ratio)
+            integer,intent(in) :: nI(nel),nJ(nel)
+            real(dp), intent(in) :: orb_coeff(nBasis / 2, nBasis / 2)
+            real(dp),intent(out) :: det_ratio
+            real(dp) :: det_I, det_J
+
+            det_J = abinitio_det(nJ, orb_coeff)
+            det_I = abinitio_det(nI, orb_coeff)
+            if (tControlZeroDenom .and. det_I == 0.0_dp .and. det_J == 0.0_dp) then
+                det_ratio = 1.0_dp
+            else if (tControlZeroDenom .and. det_J == 0.0_dp) then
+                det_ratio = 10.0_dp**(-15) / det_I
+            else
+                det_ratio = det_J / det_I
+            end if
+        end subroutine calc_abinitio_det_ratio
+ 
+        subroutine calc_hf_weight(nI,hf_weight)
+            integer, intent(in) :: nI(nel)
+            real(dp), intent(out) :: hf_weight
+            real(dp) :: U_up(nel/2,nel/2), U_down(nel/2,nel/2), signe                     
+            real(dp), allocatable:: U(:,:)
+            integer :: i,j
+            !part to be tested
+            U = get_U(nI)
+!            signe=U(nel,1)
+!            U(nel,1)=0.0_dp
+!            do i= 1,nel/2
+!               do j =1 ,nel/2
+!               U_up(i,j)=U(i,j) 
+!               U_down(i,j)=U(i+nel/2,j+nel/2)  
+!               end do 
+!            end do
+!            hf_weight=determinant(U_up)*determinant(U_down)
+            hf_weight = determinant(U)
+            if (abs(hf_weight) < FixedNodeMinThresh) hf_weight = FixedNodeLowestVal
+        end subroutine calc_hf_weight
+
+        subroutine calc_abinitio_hf_weight(nI, orb_coeff, hf_weight)
+            integer, intent(in) :: nI(nel)
+            real(dp), intent(in) :: orb_coeff(nBasis / 2, nBasis / 2)
+            real(dp), intent(out) :: hf_weight
+
+            hf_weight = abinitio_det(nI, orb_coeff)
+        end subroutine calc_abinitio_hf_weight
+
+        function get_U(nD) result(U_final)
+            integer :: nD(nel),nProv(nel)
+!            real(dp),allocatable:: U_final(:,:)
+            real(dp) :: U_final(nel,nel)
+            integer :: Ne,k,l,nb,i,perm
+            
+!            allocate(U_final(Ne,Ne))
+!            do k=1,Ne
+                   !separation between up and down
+!                   if(modulo(nD(k),2)==0)then
+!                           nProv(k)= nD(k)/2 +lat%get_nsites()
+!                   else
+!                           nProv(k)= (nD(k)+1)/2           
+!                   end if
+!            end do
+            !ordering of the list from the higher to the smaller 
+!            call classement(Ne,nProv,perm)
+            !sub U matrix
+!            do i=1,Ne
+!               do l=1,Ne/2
+!                     U_final(i,l)=U_matrix(nProv(Ne+1-i),l)
+!                     U_final(i,l+Ne/2)=U_matrix(nProv(Ne+1-i),l+lat%get_nsites())
+!               end do
+!            end do
+!            U_final(Ne,1)=(-1)**perm
+            do k = 1, nel
+                do l = 1, nel
+                    U_final(k, l) = U_matrix(nD(k), l)
+                end do
+            end do
+        end function get_U
+
+        subroutine read_orb_coeff(orb_coeff)
+            ! Read an orbital coefficient matrix output and 
+            ! construct an overlap matrix 
+            ! Currently only supports Molpro coeff file
+
+            ! avoid using dimension
+            ! NO goto
+            real(dp), intent(out) :: orb_coeff(nBasis / 2, nBasis / 2)
+            real(dp) :: line(nBasis / 2)
+            integer :: ierr, iunit, i
+
+            i = 1
+
+            open(newunit = iunit, FILE = orb_coeff_name)
+
+            ! DONT use goto, continue, ...
+101         continue
+            read(iunit, *, iostat = ierr, END = 199) line
+
+            ! To skip the header and the footer of the file
+            ! But this may interrupt raising an error when reading
+            ! an incorrect matrix file. I think I will improve this
+            ! part later.
+            if (ierr /= 0) goto 101
+
+            orb_coeff(:, i) = line
+            i = i + 1
+            goto 101
+199         close(iunit)
+            ! One should add a feature that checks if orb_coeff is 
+            ! correctly made.
+        end subroutine read_orb_coeff
+
+        subroutine split_spin_orbs(nI, a_arr, b_arr, num_swaps)
+            ! Split nI into alpha (odd) and beta (even) arrays
+            ! Also count the number of row swaps that necessary to
+            ! construct a block diagonal matrix
+            integer, intent(in)  :: nI(nel)
+            integer, intent(out), allocatable :: a_arr(:), b_arr(:)
+            integer, intent(out) :: num_swaps
+            integer :: i, b_counter
+
+            allocate(a_arr(0))
+            allocate(b_arr(0))
+
+            num_swaps = 0
+            b_counter = 0
+
+            do i = 1, size(nI)
+                if (mod(nI(i), 2) .eq. 0) then
+                    b_arr = [b_arr, nI(i)]
+                    b_counter = b_counter + 1
+                else
+                    a_arr = [a_arr, nI(i)]
+                    num_swaps = num_swaps + b_counter
+                end if
+            end do
+        end subroutine split_spin_orbs
+
+        function abinitio_det(nI, orb_coeff) result(det)
+            ! return abinitio overlap determinant value
+            integer :: nI(nel), num_row_swaps, total_num_swaps
+            integer, allocatable :: a_arr(:), b_arr(:)
+            real(dp) :: det, det_a, det_b, orb_coeff(nBasis / 2, nBasis / 2)
+
+            call split_spin_orbs(nI, a_arr, b_arr, num_row_swaps)
+
+            ! final det = sign_factor * det_alpha * det_beta
+
+            ! Selection rules (valid only for the HF guiding wf)
+            ! Even nel: #alpha = #beta
+            ! Odd nel: #alpha = #beta + 1
+            ! Otherwise det = 0
+            if (mod(nel, 2) .eq. 0) then
+                if (size(a_arr) .eq. size(b_arr)) then
+                    det_a = determinant(orb_coeff(1:nel / 2, (a_arr + 1) / 2))
+                    det_b = determinant(orb_coeff(1:nel / 2, b_arr / 2))
+                    total_num_swaps = num_row_swaps + nel*(nel - 2) / 8
+                    det = (1 - 2 * mod(total_num_swaps, 2)) * det_a * det_b
+                else
+                    det = 0.0_dp
+                end if
+            else
+                if (size(a_arr) .eq. size(b_arr) + 1) then
+                    det_a = determinant(orb_coeff(1:(nel + 1) / 2, (a_arr + 1) / 2))
+                    det_b = determinant(orb_coeff(1:nel / 2, b_arr / 2))
+                    total_num_swaps = num_row_swaps + (nel*nel - 1) / 8
+                    det = (1 - 2 * mod(total_num_swaps, 2)) * det_a * det_b
+                else
+                    det = 0.0_dp
+                end if
+            end if
+        end function abinitio_det
+
+       !Found on a blog and tested
+        function determinant(aa) result(det)
+            real(dp) ::  aa(:,:)
+            real(dp) ::  tmp,c(size(aa,dim=1),size(aa,dim=2))
+            real(dp) :: maxi  
+            integer:: i,j,k,l,m,num(size(aa,dim=1)),n
+            real(dp):: det
+
+            n=size(aa,dim=1)
+            det=1.
+            do k=1,n
+                maxi=aa(k,k)
+                num(k)=k
+                do i=k+1,n 
+                    if(abs(maxi)<abs(aa(i,k))) then
+                        maxi=aa(i,k)
+                        num(k)=i
+                    end if
+                end do
+                if (num(k)/=k) then
+                    do l=k,n 
+                        tmp=aa(k,l)
+                        aa(k,l)=aa(num(k),l)
+                        aa(num(k),l)=tmp
+                    end do
+                    det=-1.0_dp*det
+                end if
+                do m=k+1,n
+                    c(m,k)=aa(m,k)/aa(k,k)
+                    do l=k,n 
+                        aa(m,l)=aa(m,l)-c(m,k)*aa(k,l)
+                    end do
+                end do !There we made matrix triangular!
+            end do
+
+            do i=1,n
+                det=det*aa(i,i)
+            end do 
+        end function determinant
+
+     subroutine classement(ntot,x,permutations)
+! classement des valeurs de x piar ordre décroissant
+! sauvegarde de la position initiale dans indice
+! Attention le tableau x est détruit en sortie
+      Implicit None
+      integer,intent(in)::ntot
+      integer,intent(inout)::x(nel)
+      integer,dimension(1:ntot)::indice
+      integer::i,itemp,itest
+      real(dp)::temp
+      integer,intent(out):: permutations
+      Do i=1,ntot
+       indice(i) = i
+      Enddo
+       permutations=0
+      Do
+        itest = 0
+        Do i=2,ntot
+          If( x(i) > x(i-1) ) Then
+            permutations =permutations+1
+            itest = 1
+
+            temp = x(i-1)
+            x(i-1) = x(i)
+            x(i) = temp
+
+            itemp = indice(i-1)
+            indice(i-1) = indice(i)
+            indice(i) = itemp
+          Endif
+        Enddo
+        If( itest == 0 ) exit
+      Enddo
+
+      end subroutine classement
+end module HartreeFockGuide 
+! =======
+!     !This module contains the new stuff about hartree fock guide function
+!     !and the stuff about the hf state approx
+! 
+!     use OneEInts, only: GetTMatEl
+!     use constants, only: dp
+!     use util_mod, only: near_zero
+!     use SystemData, only: nel
+! 
+!     implicit none
+! 
+!     private
+!     public :: calc_det_ratio , calc_hf_weight, U_matrix, get_U
+! 
+!     real(dp), allocatable :: U_matrix(:, :)
+! 
+! contains
+!     subroutine calc_det_ratio(nJ, nI, det_ratio)
+!         integer, intent(in) :: nI(nel), nJ(nel)
+!         real(dp), intent(out) :: det_ratio
+!         real(dp), allocatable :: UI(:, :), UJ(:, :)
+!         real(dp) :: determinantJ
+!         !real(dp),allocatable:: Q_alt(:,:)
+!         !Here we compute the U Matrix in order to access the det ratio
+!         !integer::i,j
+!         !real(dp),allocatable::v_Kla(:,:,:)
+!         UI = get_U(nI)
+! 
+!         UJ = get_U(nJ)
+!         determinantJ = determinant(UJ)
+!         if(near_zero(determinantJ)) determinantJ = 10.0**(-15)
+!         det_ratio = determinantJ / determinant(UI)
+!         !other way to compute it with only one det
+!         !
+!     endsubroutine calc_det_ratio
+! 
+!     subroutine calc_hf_weight(nI, hf_weight)
+!         integer, intent(in) :: nI(nel)
+!         real(dp), intent(out) :: hf_weight
+! 
+!         real(dp), allocatable:: U(:, :)
+! 
+!         U = get_U(nI)
+! 
+!         hf_weight = determinant(U)
+!     endsubroutine calc_hf_weight
+!     function get_U(nD) result(U_final)
+!         integer, intent(in) :: nD(nel)
+!         real(dp), allocatable:: U_final(:, :)
+!         integer :: Ne, k, l
+!         Ne = size(nD)
+!         allocate(U_final(Ne, Ne))
+!         do k = 1, Ne
+!             do l = 1, Ne
+!                 U_final(k, l) = U_matrix(nD(k), l)
+!             enddo
+!         enddo
+! 
+!         do k = 1, Ne
+! 
+!         enddo
+!     endfunction get_U
+!     !Found on a blog and tested
+!     function determinant(aa) result(det)
+!         real(dp) ::  aa(:, :)
+!         real(dp) ::  tmp, c(size(aa, dim=1), size(aa, dim=2))
+!         real(dp) :: maxi
+!         integer:: i,  k, l, m, num(size(aa, dim=1)), n
+!         real(dp):: det
+!         n = size(aa, dim=1)
+!         det = 1.
+!         do k = 1, n
+!             maxi = aa(k, k)
+!             num(k) = k
+!             do i = k + 1, n
+!                 if(abs(maxi) < abs(aa(i, k))) then
+!                     maxi = aa(i, k)
+!                     num(k) = i
+!                 endif
+!             enddo
+!             if(num(k) /= k) then
+!                 do l = k, n
+!                     tmp = aa(k, l)
+!                     aa(k, l) = aa(num(k), l)
+!                     aa(num(k), l) = tmp
+!                 enddo
+!                 det = -1.0_dp * det
+!             endif
+!             do m = k + 1, n
+!                 c(m, k) = aa(m, k) / aa(k, k)
+!                 do l = k, n
+!                     aa(m, l) = aa(m, l) - c(m, k) * aa(k, l)
+!                 enddo
+!             enddo !There we made matrix triangular!
+!         enddo
+! 
+!         do i = 1, n
+!             det = det * aa(i, i)
+!         enddo
+!     endfunction determinant
+! 
+! endmodule HartreeFockGuide
+! >>>>>>> de1f8254215a69505448fcae2c2daf1e90c833a3

@@ -6,7 +6,7 @@ MODULE System
 
     use CalcData, only: tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tPairedReplicas, &
-                        S2Init, tDynamicAvMcEx
+                        S2Init, tDynamicAvMcEx, pSinglesIn
 
     use FciMCData, only: tGenMatHEl, t_initialized_roi, t_adjoint_replicas
 
@@ -244,6 +244,7 @@ contains
         t_adjoint_replicas = .false.
         ! GAS options
         tGAS = .false.
+        tAnderson = .false.
 
 #ifdef PROG_NUMRUNS_
         ! by default, excitation generation already creates matrix elements
@@ -260,6 +261,12 @@ contains
         Tperiodicinmom = .false.
         t12FoldSym = .false.
         t_initialized_roi = .false.
+        FixedNodeCutoff = 0.0_dp
+        FixedNodeMinThresh = 1.0e-13_dp
+        FixedNodeLowestVal = 0.0_dp
+        PartialNodeGamma = 0.0_dp
+        PartialNodeThresh = 0.0_dp
+
 
         inum_runs = 1
 #ifdef CMPLX_
@@ -916,7 +923,32 @@ contains
                 tmodHub = .true.
 
             case ("NEXT-NEAREST-HOPPING")
+                t_nn_hopping = .true.
                 nn_bhub = to_realdp(tokens%next())
+
+            case("FN-MIN-VAL")
+                FixedNodeLowestVal = to_realdp(tokens%next())
+
+            case("PARTIAL-NODE-THRESH")
+                tPartialNodeThresh = .true.
+                if (tokens%remaining_items() > 0) then
+                    PartialNodeThresh = to_realdp(tokens%next())
+                end if
+
+            case("PARTIAL-NODE")
+                if (tokens%remaining_items() > 0) then
+                    PartialNodeGamma = to_realdp(tokens%next())
+                end if
+                if ((PartialNodeGamma < 0.0_dp) .or. (PartialNodeGamma > 1.0_dp) &
+                    .or. (.not. tFixedNode)) then
+                    call stop_all(t_r, "PartialNodeGamma has to be between 0 and 1 &
+                        and FIXED-NODE has to be on as well.")
+                end if
+
+            case('BOSONIZE')
+                ! construct Hamiltonian of corresponding bosonic system with
+                ! only positive entries
+                t_bosonize = .true.
 
             case ("TWISTED-BC")
                 t_twisted_bc = .true.
@@ -1941,6 +1973,14 @@ contains
                         call stop_all(t_r, "Wrong alternative purification method.")
                     end select
                 end if
+
+            case("ANDERSON")
+                ! Specifies that the Anderson model is run. This only affects
+                ! the excitation generation (pDoubles set to 0) and the
+                ! Gutzwiller guiding function evaluation is optimised. An
+                ! FCIDUMP file is still needed so far.
+                tAnderson = .true.
+                pSinglesIn = 1.0_dp
 
             case ("ENDSYS")
                 exit system

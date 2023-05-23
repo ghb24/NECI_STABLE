@@ -2,7 +2,8 @@
 
 module enumerate_excitations
 
-    use SystemData, only: tReltvy, t_k_space_hubbard, t_new_real_space_hubbard
+    use SystemData, only: tReltvy, t_k_space_hubbard, t_new_real_space_hubbard,&
+                          t_heisenberg_model
 
     use util_mod, only: operator(.div.)
 
@@ -14,11 +15,9 @@ module enumerate_excitations
 
     use util_mod, only: stop_all
 
-    use DetBitOps, only: IsAllowedHPHF, TestClosedShellDet, EncodeBitDet
+    use DetBitOps, only: IsAllowedHPHF, TestClosedShellDet, EncodeBitDet, FindExcitBitDetSym
 
     use FciMCData, only: SpinInvBRR
-
-    use HPHFRandExcitMod, only: FindExcitBitDetSym
 
     use Parallel_neci, only: MPISumAll
 
@@ -46,6 +45,7 @@ module enumerate_excitations
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_excits_r_space_hubbard
 #endif
+    use tJ_model, only: gen_all_excits_heisenberg
 
     better_implicit_none
 
@@ -244,6 +244,15 @@ contains
 #else
                     call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
 #endif
+
+                    if (tStoreConnSpace) then
+                        connected_space(0:nifd, connected_space_size + 1:connected_space_size + n_excits) &
+                            = temp_dets(0:nifd, :)
+                    end if
+
+                    connected_space_size = connected_space_size + n_excits
+                elseif(t_heisenberg_model) then
+                    call gen_all_excits_heisenberg(nI, n_excits, temp_dets)
 
                     if (tStoreConnSpace) then
                         connected_space(0:nifd, connected_space_size + 1:connected_space_size + n_excits) &
