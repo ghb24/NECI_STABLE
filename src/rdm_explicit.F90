@@ -10,7 +10,7 @@ module rdm_explicit
     ! This is slow and should only be used for testing.
 
     use bit_rep_data, only: NIfTot
-    use constants, only: int64, n_int, dp, lenof_sign
+    use constants, only: int64, n_int, dp, lenof_sign, stdout, maxExcit
     use SystemData, only: tReltvy, t_3_body_excits, tGUGA, nel
     use bit_reps, only: extract_bit_rep, decode_bit_det
 
