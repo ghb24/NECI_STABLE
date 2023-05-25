@@ -447,8 +447,8 @@ contains
         if (tNonInitModShift) then
             call write_dp_1d_dataset(calc_grp, nm_shift2, DiagSft2 + Hii)
             call write_dp_1d_dataset(calc_grp, nm_modshiftwalk, AllNoNonModShiftWalk)
-            call write_dp_1d_dataset(calc_grp, nm_hfcyc, AllHFCyc)
-            call write_dp_1d_dataset(calc_grp, nm_enumcyc, AllENumCyc)
+            call write_dp_1d_dataset(calc_grp, nm_hfcyc, real(AllHFCyc, dp))
+            call write_dp_1d_dataset(calc_grp, nm_enumcyc, real(AllENumCyc, dp))
         end if
 
         ! Output the values used for tau optimisation. Only output non-zero
@@ -2072,7 +2072,8 @@ contains
         integer :: det(nel), PartInd, DetHash, err, proc, TotWalkersNew
 
         integer(int64) :: j
-        real(dp) :: diagH, offdiagH
+        real(dp) :: diagH
+        HElement_t(dp) :: offdiagH
         ! offdiagH is only a dummy variable for AddNewHashDet and is undefined
         ! by construction, so be careful when sampling RDMs
         logical :: tSuccess
