@@ -604,6 +604,7 @@ contains
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         logical :: exists
+        real(dp), allocatable :: hfcyc_out(:), enumcyc_out(:)
         debug_function_name("read_calc_data")
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
@@ -634,8 +635,10 @@ contains
                 write(stdout, *) 'Initial mod-shift: ', DiagSft2
                 call read_dp_1d_dataset(grp_id, nm_modshiftwalk, OldAllNoNonModShiftWalk)
                 write(stdout, *) 'initial non-mod-shift walkers: ', OldAllNoNonModShiftWalk
-                call read_dp_1d_dataset(grp_id, nm_hfcyc, real(AllHFCyc, dp))
-                call read_dp_1d_dataset(grp_id, nm_enumcyc, real(AllENumCyc, dp))
+                call read_dp_1d_dataset(grp_id, nm_hfcyc, hfcyc_out)
+                call read_dp_1d_dataset(grp_id, nm_enumcyc, enumcyc_out)
+                AllHFCyc = hfcyc_out
+                AllENumCyc = enumcyc_out
             end if
         else
             tSinglePartPhase = .true.
