@@ -634,8 +634,8 @@ contains
                 write(stdout, *) 'Initial mod-shift: ', DiagSft2
                 call read_dp_1d_dataset(grp_id, nm_modshiftwalk, OldAllNoNonModShiftWalk)
                 write(stdout, *) 'initial non-mod-shift walkers: ', OldAllNoNonModShiftWalk
-                call read_dp_1d_dataset(grp_id, nm_hfcyc, AllHFCyc)
-                call read_dp_1d_dataset(grp_id, nm_enumcyc, AllENumCyc)
+                call read_dp_1d_dataset(grp_id, nm_hfcyc, real(AllHFCyc, dp))
+                call read_dp_1d_dataset(grp_id, nm_enumcyc, real(AllENumCyc, dp))
             end if
         else
             tSinglePartPhase = .true.
