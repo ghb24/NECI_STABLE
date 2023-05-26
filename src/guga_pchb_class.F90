@@ -117,14 +117,15 @@ contains
         class(GugaAliasSampler_t), intent(inout) :: this
         integer :: a, b
         integer(int64) :: memCost, ijMax, abMax, ab
+        routine_name("init_GugaAliasSampler_t")
+
+        if (near_zero(max_tau) .or. max_tau > 1e-3) then
+            root_print "0 < max-tau < 1e-3 is required for GUGA PCHB"
+            call stop_all(this_routine, "0 < max-tau < 1e-3 is required for GUGA PCHB")
+        end if
 
         ! also set some more strict defaults for the PCHB implo:
         root_print "Setting reasonable defaults for GUGA-PCHB:"
-        if (near_zero(max_tau) .or. max_tau > 1e-3) then
-            root_print "max-tau zero or > 1e-3. setting it to: 1e-3"
-            max_tau = 1e-3
-        end if
-
         if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             if (frq_ratio_cutoff < 0.999999) then
                 root_print "setting frequency cutoff to 0.999999"
