@@ -3,7 +3,6 @@
 MODULE Logging
 
     use constants, only: dp, int64, nreplicas, stdout
-    use input_neci
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
     use SystemData, only: nel, LMS, nbasis, tGUGA
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
