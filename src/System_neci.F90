@@ -942,7 +942,7 @@ contains
                 if ((PartialNodeGamma < 0.0_dp) .or. (PartialNodeGamma > 1.0_dp) &
                     .or. (.not. tFixedNode)) then
                     call stop_all(t_r, "PartialNodeGamma has to be between 0 and 1 &
-                        and FIXED-NODE has to be on as well.")
+                        & and FIXED-NODE has to be on as well.")
                 end if
 
             case('BOSONIZE')

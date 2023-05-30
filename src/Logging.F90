@@ -1522,7 +1522,7 @@ contains
 
             case ('MC-HILBERT-SPACE-SIZE')
                 if (.not. tTruncateDets) call stop_all(t_r, 'MC-HILBERT-SPACE-SIZE &
-                    only works in conjunction with TRUNC-HUBB')
+                    & only works in conjunction with TRUNC-HUBB')
                 tEstHilbSpaceMC = .true.
                 HilbSpaceSamples = to_int(tokens%next())
 

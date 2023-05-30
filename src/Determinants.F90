@@ -338,9 +338,8 @@ contains
     function calcImportanceRatio(nI_, iLutnI_, nJ, iLutnJ) result(ratio)
         use CalcData, only: tGutzwillerGuide, GutzwillerParam, &
             tGutzwillerHubbardAF, GutzwillerParam2, &
-            tHubbardDoublonHolon, GutzwillerParam3, &
-            tHartreeFockGuide,tHartreeGutzwiller, &
-            tAbinitioGutzwillerGuide,  orb_coeff
+            tHubbardDoublonHolon, GutzwillerParam3, tHartreeGutzwiller, &
+            tAbinitioGutzwillerGuide, orb_coeff
         use HartreeFockGuide, only: calc_det_ratio, calc_abinitio_det_ratio
         use DetBitOps, only: FindBitExcitLevel, FindExcitBitDetSym
         use lattice_mod, only: lat
@@ -349,7 +348,7 @@ contains
         integer(kind=n_int), intent(in) :: iLutnI_(0:niftot), iLutnJ(0:niftot)
         integer(kind=n_int) :: iLutnI(0:niftot)
         integer :: nI(nel)
-        integer :: ex(2, 2), ExcitLevel, i, j, idx
+        integer :: ex(2, 2), ExcitLevel, j, idx
         logical :: tParity
         real(dp) :: ratio, contrib
         character(*), parameter :: this_routine = 'calcImportanceRatio'
@@ -530,9 +529,8 @@ contains
 
     function calcImportanceGuide(nI) result(val)
         use CalcData, only: tGutzwillerGuide, GutzwillerParam
-        use FCIMCData, only: ProjEDet, ilutRef, Hii
+        use FCIMCData, only: Hii
         integer, intent(in) :: nI(nel)
-        integer(kind=n_int) :: iLutnI(0:niftot)
         real(dp) :: val
 
         !Note: the overall normalization of the guiding wavefunction is aribtrary

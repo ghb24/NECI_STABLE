@@ -703,6 +703,7 @@ contains
 
         unused_var(precond_fac)
         unused_var(AvSignCurr)
+        unused_var(j)
 
         ! This is crucial
         child = 0.0_dp

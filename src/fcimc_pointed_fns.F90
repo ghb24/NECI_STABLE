@@ -380,7 +380,7 @@ contains
 #endif
 
 !             ASSERT(prob /= 0.0_dp)
-            if(tImportanceSampling .and. MatEl /= 0.0_dp)then
+            if(tImportanceSampling .and. ((MatEl > 0.0_dp) .or. (MatEl < 0.0_dp)))then
                 importance_ratio = calcImportanceRatio(DetCurr, iLutCurr, nJ, iLutnJ)
             else
                 importance_ratio = 1.0
@@ -804,7 +804,8 @@ contains
         real(dp) :: rat(1)
 #endif
         unused_var(Kii); unused_var(DetPos);
-        unused_var(DetCurr); unused_var(DetPos)
+        unused_var(DetCurr); unused_var(DetPos);
+        unused_var(ilutCurr)
 
 
         do i = 1, inum_runs

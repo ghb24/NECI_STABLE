@@ -1204,7 +1204,7 @@ contains
 
                 integer :: n
                 integer :: nI(nel)
-                real(dp) :: r
+                integer :: r
               
                 nI = 0 
                 n = 1

@@ -72,10 +72,14 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use MPI_wrapper
-    use Parallel_neci
-    use constants
-    use util_mod
+    use MPI_wrapper, only: CommGlobal, mpiInfoNull
+    use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, stop_all, MPISumAll, &
+                             MPIAllLORLogical, MPIAllGather, MPIArg, MPIAlltoAllV, &
+                             MPIAlltoAll, nProcessors, MPI_MAX, MPIAllReduce, MPISum
+    use error_handling_neci, only: neci_flush
+    use constants, only: dp, stdout, n_int, int32, int64, hdf_log, hdf_err, lenof_sign, &
+                         inum_runs, build_64bit
+    use util_mod, only: near_zero, operator(.div.), get_unique_filename
     use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, BosonNoSpawnThreshold, FermionNoSpawnThreshold, &
                         pSinglesIn, pDoublesIn, pTriplesIn, tNonInitModShift, tModShiftTarget
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
@@ -426,11 +430,8 @@ contains
 
     subroutine write_calc_data(parent)
 
-        use load_balance_calcnodes, only: RandomOrbIndex
         use FciMCData, only: Iter, PreviousCycles, TotImagTime, Hii, &
-            OldAllNoModShiftWalk, OldAllNoNonModShiftWalk, &
-            AllNoModShiftWalk, AllNoNonModShiftWalk, &
-            AllHFCyc, AllENumCyc
+            AllNoNonModShiftWalk, AllHFCyc, AllENumCyc
         use CalcData, only: DiagSft, DiagSft2
 
         integer(hid_t), intent(in) :: parent
@@ -593,11 +594,10 @@ contains
 
     subroutine read_calc_data(parent)
 
-        use load_balance_calcnodes, only: RandomOrbIndex
         use FciMCData, only: PreviousCycles, Hii, TotImagTime, &
                              pSingles, pDoubles, pParallel, &
-                             OldAllNoModShiftWalk, OldAllNoNonModShiftWalk, &
-                             AllNoModShiftWalk, AllHFCyc, AllENumCyc
+                             OldAllNoNonModShiftWalk, &
+                             AllHFCyc, AllENumCyc
         use CalcData, only: DiagSft, DiagSft2, tWalkContGrow, hdf5_diagsft
         use tc_three_body_data, only: pTriples, tReadPTriples
         integer(hid_t), intent(in) :: parent
@@ -785,9 +785,7 @@ contains
 
         use bit_rep_data, only: NIfD, NIfTot, IlutBits, &
                                 flag_nospawn, test_flag
-        use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
-                             TotWalkers, iLutHF, Iter, PreviousCycles
-        use CalcData, only: tUseRealCoeffs
+        use FciMCData, only: CurrentDets, TotWalkers, iLutHF
         use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
         use global_det_data, only: writeFValsAsInt, writeAPValsAsInt
 
@@ -1010,7 +1008,6 @@ contains
         logical :: running, any_running
         integer(hsize_t), dimension(:, :), allocatable :: temp_ilut, temp_sgns, temp_flags
         integer(hsize_t), dimension(:, :), allocatable :: gdata_buf
-        integer(hsize_t), dimension(:, :), allocatable :: tmp_gdata, tmp_mr
         integer :: temp_ilut_tag, temp_sgns_tag, temp_flags_tag, rest
         integer(int32) :: read_lenof_sign
         type(gdata_io_t) :: gdata_read_handler
@@ -1424,7 +1421,6 @@ contains
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
-        character(*), parameter :: t_r = 'distribute_walkers_from_block'
         integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns, temp_flags, &
             gdata_buf, gdata_comm
         integer(hsize_t), dimension(:, :) :: gdata_loc
@@ -1773,14 +1769,14 @@ contains
 #ifdef USE_HDF_
     subroutine read_bosonic_walkers(parent)
 
-        use bit_rep_data, only: NIfD, NIfTot
+        use bit_rep_data, only: NIfD
 
 
         integer(hid_t), intent(in) :: parent
         character(*), parameter :: t_r = 'read_bosonic_walkers'
 
         integer :: proc, nreceived, nmarked, nfound
-        integer(hid_t) :: grp_id, calc_grp_id
+        integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         integer(hid_t) :: ds_sgns, ds_ilut, ds_flags, ds_gdata
         integer(int64) :: ndets_large, all_ndets_large, ndets_nospawn, all_ndets_nospawn
@@ -1963,11 +1959,10 @@ contains
         use load_balance_calcnodes, only: DetermineDetNode
         use bit_reps, only: decode_bit_det
         use FciMCData, only: SpawnedParts
-        use bit_rep_data, only: NIfD, IlutBits
+        use bit_rep_data, only: IlutBits
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
-        character(*), parameter :: t_r = 'distribute_bosonic_walkers'
         integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns
         integer(hsize_t) :: onepart(0:IlutBits%len_bcast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
@@ -2046,7 +2041,7 @@ contains
             ! there could in principle be a memory problem because we are not limiting the
             ! size of receivebuff.
             write(6, *) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
-                num_received * size(SpawnedParts, 1) * sizeof(SpawnedParts(1, 1)) / 1000000.0, 'MB'
+                & num_received * size(SpawnedParts, 1) * sizeof(SpawnedParts(1, 1)) / 1000000, 'MB'
             allocate(receivebuff(size(SpawnedParts, 1), num_received))
             call LogMemAlloc('receivebuff', size(receivebuff), int(sizeof(receivebuff(1, 1))), &
                              'distribute_bosonic_walkers', receivebuff_tag, ierr)
@@ -2072,7 +2067,7 @@ contains
         integer, intent(in) :: nreceived
         integer, intent(out) :: nmarked, nfound
         integer(n_int) :: ilut(0:NIfTot)
-        integer :: det(nel), PartInd, DetHash, err, proc, TotWalkersNew
+        integer :: det(nel), PartInd, DetHash, err, TotWalkersNew
 
         integer(int64) :: j
         real(dp) :: diagH
@@ -2095,8 +2090,8 @@ contains
 
             call hash_table_lookup(det, ilut, nifd, HashIndex, &
                                    CurrentDets, PartInd, DetHash, tSuccess)
-            if(.not. tSuccess)then
-                TotWalkersNew = TotWalkers
+            if(.not. tSuccess) then
+                TotWalkersNew = int(TotWalkers)
                 if (tHPHF) then
                     diagH = hphf_diag_helement(det, ilut) - Hii
                 else

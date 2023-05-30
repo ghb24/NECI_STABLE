@@ -30,8 +30,8 @@ contains
             determinantJ=determinant(UJ)
             determinantI=determinant(UI)
             !one fix a minimum value to avoid the 0.0
-            if (determinantJ==0) determinantJ=10**(-15)
-            if (determinantI==0) determinantI=10**(-15)
+            if (.not. abs(determinantJ)>0.0_dp) determinantJ=10.0_dp**(-15.0_dp)
+            if (.not. abs(determinantI)>0.0_dp) determinantI=10.0_dp**(-15.0_dp)
             det_ratio = determinantJ/determinantI
         end subroutine calc_det_ratio
 
@@ -44,9 +44,9 @@ contains
 
             det_J = abinitio_det(nJ, orb_coeff)
             det_I = abinitio_det(nI, orb_coeff)
-            if (tControlZeroDenom .and. det_I == 0.0_dp .and. det_J == 0.0_dp) then
+            if (tControlZeroDenom .and. (.not. abs(det_I) > 0.0_dp) .and. (.not. abs(det_J) > 0.0_dp)) then
                 det_ratio = 1.0_dp
-            else if (tControlZeroDenom .and. det_J == 0.0_dp) then
+            else if (tControlZeroDenom .and. (.not. abs(det_J) > 0.0_dp)) then
                 det_ratio = 10.0_dp**(-15) / det_I
             else
                 det_ratio = det_J / det_I
@@ -56,20 +56,9 @@ contains
         subroutine calc_hf_weight(nI,hf_weight)
             integer, intent(in) :: nI(nel)
             real(dp), intent(out) :: hf_weight
-            real(dp) :: U_up(nel/2,nel/2), U_down(nel/2,nel/2), signe                     
             real(dp), allocatable:: U(:,:)
-            integer :: i,j
             !part to be tested
             U = get_U(nI)
-!            signe=U(nel,1)
-!            U(nel,1)=0.0_dp
-!            do i= 1,nel/2
-!               do j =1 ,nel/2
-!               U_up(i,j)=U(i,j) 
-!               U_down(i,j)=U(i+nel/2,j+nel/2)  
-!               end do 
-!            end do
-!            hf_weight=determinant(U_up)*determinant(U_down)
             hf_weight = determinant(U)
             if (abs(hf_weight) < FixedNodeMinThresh) hf_weight = FixedNodeLowestVal
         end subroutine calc_hf_weight
@@ -83,31 +72,11 @@ contains
         end subroutine calc_abinitio_hf_weight
 
         function get_U(nD) result(U_final)
-            integer :: nD(nel),nProv(nel)
-!            real(dp),allocatable:: U_final(:,:)
+            integer :: nD(nel)
             real(dp) :: U_final(nel,nel)
-            integer :: Ne,k,l,nb,i,perm
+            integer :: k,l
             
-!            allocate(U_final(Ne,Ne))
-!            do k=1,Ne
-                   !separation between up and down
-!                   if(modulo(nD(k),2)==0)then
-!                           nProv(k)= nD(k)/2 +lat%get_nsites()
-!                   else
-!                           nProv(k)= (nD(k)+1)/2           
-!                   end if
-!            end do
-            !ordering of the list from the higher to the smaller 
-!            call classement(Ne,nProv,perm)
-            !sub U matrix
-!            do i=1,Ne
-!               do l=1,Ne/2
-!                     U_final(i,l)=U_matrix(nProv(Ne+1-i),l)
-!                     U_final(i,l+Ne/2)=U_matrix(nProv(Ne+1-i),l+lat%get_nsites())
-!               end do
-!            end do
-!            U_final(Ne,1)=(-1)**perm
-            do k = 1, nel
+           do k = 1, nel
                 do l = 1, nel
                     U_final(k, l) = U_matrix(nD(k), l)
                 end do
@@ -213,7 +182,7 @@ contains
             real(dp) ::  aa(:,:)
             real(dp) ::  tmp,c(size(aa,dim=1),size(aa,dim=2))
             real(dp) :: maxi  
-            integer:: i,j,k,l,m,num(size(aa,dim=1)),n
+            integer:: i,k,l,m,num(size(aa,dim=1)),n
             real(dp):: det
 
             n=size(aa,dim=1)
@@ -257,7 +226,7 @@ contains
       integer,intent(inout)::x(nel)
       integer,dimension(1:ntot)::indice
       integer::i,itemp,itest
-      real(dp)::temp
+      integer::temp
       integer,intent(out):: permutations
       Do i=1,ntot
        indice(i) = i
@@ -284,106 +253,3 @@ contains
 
       end subroutine classement
 end module HartreeFockGuide 
-! =======
-!     !This module contains the new stuff about hartree fock guide function
-!     !and the stuff about the hf state approx
-! 
-!     use OneEInts, only: GetTMatEl
-!     use constants, only: dp
-!     use util_mod, only: near_zero
-!     use SystemData, only: nel
-! 
-!     implicit none
-! 
-!     private
-!     public :: calc_det_ratio , calc_hf_weight, U_matrix, get_U
-! 
-!     real(dp), allocatable :: U_matrix(:, :)
-! 
-! contains
-!     subroutine calc_det_ratio(nJ, nI, det_ratio)
-!         integer, intent(in) :: nI(nel), nJ(nel)
-!         real(dp), intent(out) :: det_ratio
-!         real(dp), allocatable :: UI(:, :), UJ(:, :)
-!         real(dp) :: determinantJ
-!         !real(dp),allocatable:: Q_alt(:,:)
-!         !Here we compute the U Matrix in order to access the det ratio
-!         !integer::i,j
-!         !real(dp),allocatable::v_Kla(:,:,:)
-!         UI = get_U(nI)
-! 
-!         UJ = get_U(nJ)
-!         determinantJ = determinant(UJ)
-!         if(near_zero(determinantJ)) determinantJ = 10.0**(-15)
-!         det_ratio = determinantJ / determinant(UI)
-!         !other way to compute it with only one det
-!         !
-!     endsubroutine calc_det_ratio
-! 
-!     subroutine calc_hf_weight(nI, hf_weight)
-!         integer, intent(in) :: nI(nel)
-!         real(dp), intent(out) :: hf_weight
-! 
-!         real(dp), allocatable:: U(:, :)
-! 
-!         U = get_U(nI)
-! 
-!         hf_weight = determinant(U)
-!     endsubroutine calc_hf_weight
-!     function get_U(nD) result(U_final)
-!         integer, intent(in) :: nD(nel)
-!         real(dp), allocatable:: U_final(:, :)
-!         integer :: Ne, k, l
-!         Ne = size(nD)
-!         allocate(U_final(Ne, Ne))
-!         do k = 1, Ne
-!             do l = 1, Ne
-!                 U_final(k, l) = U_matrix(nD(k), l)
-!             enddo
-!         enddo
-! 
-!         do k = 1, Ne
-! 
-!         enddo
-!     endfunction get_U
-!     !Found on a blog and tested
-!     function determinant(aa) result(det)
-!         real(dp) ::  aa(:, :)
-!         real(dp) ::  tmp, c(size(aa, dim=1), size(aa, dim=2))
-!         real(dp) :: maxi
-!         integer:: i,  k, l, m, num(size(aa, dim=1)), n
-!         real(dp):: det
-!         n = size(aa, dim=1)
-!         det = 1.
-!         do k = 1, n
-!             maxi = aa(k, k)
-!             num(k) = k
-!             do i = k + 1, n
-!                 if(abs(maxi) < abs(aa(i, k))) then
-!                     maxi = aa(i, k)
-!                     num(k) = i
-!                 endif
-!             enddo
-!             if(num(k) /= k) then
-!                 do l = k, n
-!                     tmp = aa(k, l)
-!                     aa(k, l) = aa(num(k), l)
-!                     aa(num(k), l) = tmp
-!                 enddo
-!                 det = -1.0_dp * det
-!             endif
-!             do m = k + 1, n
-!                 c(m, k) = aa(m, k) / aa(k, k)
-!                 do l = k, n
-!                     aa(m, l) = aa(m, l) - c(m, k) * aa(k, l)
-!                 enddo
-!             enddo !There we made matrix triangular!
-!         enddo
-! 
-!         do i = 1, n
-!             det = det * aa(i, i)
-!         enddo
-!     endfunction determinant
-! 
-! endmodule HartreeFockGuide
-! >>>>>>> de1f8254215a69505448fcae2c2daf1e90c833a3

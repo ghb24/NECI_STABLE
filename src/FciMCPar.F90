@@ -781,7 +781,7 @@ contains
                                     else
                                         do j = 1, int(TotWalkers, sizeof_int)
                                             t_rat = get_iea(j, run)
-                                            if(t_rat<InitExpandAnnihilThresh.or.t_rat==0.0_dp)then
+                                            if(t_rat<InitExpandAnnihilThresh.or.(.not.abs(t_rat)>0.0_dp))then
                                                 call clr_flag(CurrentDets(:, j), get_initiator_flag_by_run(run))
                                                 call clr_flag(CurrentDets(:, j), flag_expanded)
                                             endif
@@ -1452,7 +1452,7 @@ contains
             !      of walkers.
 
             !Rescale walkers on det j
-            if(tRenorm .and. any(RenormFactor /= 1.0_dp))then
+            if(tRenorm)then
                 call ScaleDetWalkers(j, RenormFactor, iter_data)
             endif
 

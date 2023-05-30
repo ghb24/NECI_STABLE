@@ -1876,8 +1876,6 @@ contains
         integer(n_int), allocatable :: temp_list(:, :)
         integer :: src, des, n_bound, k, flip, ex(2, maxExcit), elec
         integer, allocatable :: neighbors(:)
-        character(*), parameter :: this_routine = "gen_all_excits_heisenberg"
-
 
         call EncodeBitDet(nI, ilutI)
 

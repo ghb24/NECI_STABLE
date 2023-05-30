@@ -1970,8 +1970,8 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard"
 
-        integer :: iunused, ind, elec, src, orb, n_avail, n_orbs, i
-        integer, allocatable :: neighbors(:), nn_neighbors(:), all_neighbors(:), orbs(:)
+        integer :: ind, elec, src, orb
+        integer, allocatable :: neighbors(:), nn_neighbors(:), all_neighbors(:)
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, p_elec, p_orb
 

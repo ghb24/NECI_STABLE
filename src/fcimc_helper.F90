@@ -767,9 +767,8 @@ contains
                     HOffDiag(1:inum_runs) = &
                         get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
                 end if
-
-
             end if
+            HOffDiag(1:inum_runs) = HOffDiagCurr
         end if ! GUGA
 
         ! For the real-space Hubbard model, determinants are only
