@@ -3,7 +3,8 @@ title
     system read
         electrons 8
         spin-restrict -2
-        nonuniformrandexcits pchb doubles hole-selection spin-orb-resolved-fast-weighted
+        nonuniformrandexcits pchb manual \
+            unif:full unif-full:fast-fast spin-orb-resolved
     endsys
 
     calc

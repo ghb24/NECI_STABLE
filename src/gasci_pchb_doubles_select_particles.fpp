@@ -24,26 +24,31 @@ module gasci_pchb_doubles_select_particles
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
-        PCHB_particle_selection_vals, PCHB_ParticleSelection_t, allocate_and_init, &
+        PCHB_ParticleSelection_t, allocate_and_init, &
         PCHB_ParticleSelection_vals_t, get_PCHB_weight
 
 
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
+        private
+        character(9) :: str
+    contains
+        procedure :: to_str
     end type
 
     type :: PCHB_ParticleSelection_vals_t
         type(PCHB_ParticleSelection_t) :: &
-            UNIFORM = PCHB_ParticleSelection_t(1), &
-            FULLY_WEIGHTED = PCHB_ParticleSelection_t(2), &
+            UNIF_UNIF = PCHB_ParticleSelection_t(1, 'UNIF-UNIF'), &
+                !! Both particles are drawn uniformly.
+            FULL_FULL = PCHB_ParticleSelection_t(2, 'FULL-FULL'), &
                 !! We draw from \( p(I)|_{D_i} \) and then \( p(J | I)_{J \in D_i} \)
                 !! and both probabilites come from the PCHB weighting scheme.
                 !! We guarantee that \(I\) and \(J\) are occupied.
-            WEIGHTED = PCHB_ParticleSelection_t(3), &
+            UNIF_FULL = PCHB_ParticleSelection_t(3, 'UNIF-FULL'), &
                 !! We draw \( \tilde{p}(I)|_{D_i} \) uniformly and then \( p(J | I)_{J \in D_i} \)
                 !! The second distribution comes from the PCHB weighting scheme.
                 !! We guarantee that \(I\) and \(J\) are occupied.
-            FAST_WEIGHTED = PCHB_ParticleSelection_t(4)
+            UNIF_FAST = PCHB_ParticleSelection_t(4, 'UNIF-FAST')
                 !! We draw \( \tilde{p}(I)|_{D_i} \) uniformly and then \( p(J | I)_{J} \).
                 !! The second distribution comes from the PCHB weighting scheme.
                 !! We guarantee that \(I\) is occupied.
@@ -148,20 +153,26 @@ module gasci_pchb_doubles_select_particles
 
 contains
 
+    pure function to_str(options) result(res)
+        class(PCHB_ParticleSelection_t), intent(in) :: options
+        character(9) :: res
+        res = options%str
+    end function
+
     pure function from_keyword(w) result(res)
         !! Parse a given keyword into the possible particle selection schemes
         character(*), intent(in) :: w
         type(PCHB_ParticleSelection_t) :: res
         routine_name("from_keyword")
         select case(to_upper(w))
-        case('UNIFORM')
-            res = PCHB_particle_selection_vals%UNIFORM
-        case('FULLY-WEIGHTED')
-            res = PCHB_particle_selection_vals%FULLY_WEIGHTED
-        case('WEIGHTED')
-            res = PCHB_particle_selection_vals%WEIGHTED
-        case('FAST-WEIGHTED')
-            res = PCHB_particle_selection_vals%FAST_WEIGHTED
+        case(PCHB_particle_selection_vals%UNIF_UNIF%str)
+            res = PCHB_particle_selection_vals%UNIF_UNIF
+        case(PCHB_particle_selection_vals%FULL_FULL%str)
+            res = PCHB_particle_selection_vals%FULL_FULL
+        case(PCHB_particle_selection_vals%UNIF_FULL%str)
+            res = PCHB_particle_selection_vals%UNIF_FULL
+        case(PCHB_particle_selection_vals%UNIF_FAST%str)
+            res = PCHB_particle_selection_vals%UNIF_FAST
         case default
             call stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
         end select
@@ -177,25 +188,25 @@ contains
         logical, intent(in) :: use_lookup
         class(ParticleSelector_t), allocatable, intent(inout) :: particle_selector
         routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
-        if (PCHB_particle_selection == PCHB_particle_selection_vals%FULLY_WEIGHTED) then
+        if (PCHB_particle_selection == PCHB_particle_selection_vals%FULL_FULL) then
             allocate(PC_FullyWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FullyWeightedParticles_t)
                 call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%WEIGHTED) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_FULL) then
             allocate(PC_WeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_WeightedParticles_t)
                 call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%FAST_WEIGHTED) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_FAST) then
             allocate(PC_FastWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FastWeightedParticles_t)
                 call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIFORM) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_UNIF) then
             allocate(UniformParticles_t :: particle_selector)
         else
             call stop_all(this_routine, 'Invalid particle selection.')

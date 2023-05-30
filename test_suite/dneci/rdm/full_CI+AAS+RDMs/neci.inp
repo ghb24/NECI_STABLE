@@ -7,9 +7,7 @@ Title
 System read
     electrons  6
     nonuniformrandexcits pchb \
-        singles uniform \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection fast-weighted
+        manual unif:unif full-full:fast-fast
     hphf 0
     nobrillouintheorem
     sym 0 0 0 0

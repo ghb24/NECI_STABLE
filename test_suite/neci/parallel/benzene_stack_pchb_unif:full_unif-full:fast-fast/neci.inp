@@ -3,10 +3,8 @@ Title
 System read
     electrons  30
     nobrillouintheorem
-    nonuniformrandexcits pchb \
-        singles pc-weighted fully-weighted \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection spin-orb-resolved-fast-weighted
+    nonuniformrandexcits pchb manual \
+        full:full full-full:fast-fast spin-orb-resolved
     freeformat
     FCIDUMP-name benzene_3.0_Ang.FciDmp
 endsys

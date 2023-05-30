@@ -8,9 +8,7 @@ title
         # molpromimic
         nonhermitian 2-body
         nonuniformrandexcits pchb \
-            singles uniform \
-            doubles particle-selection uniform \
-            doubles hole-selection fast-weighted
+            manual unif:unif unif-unif:fast-fast
         FCIDUMP-name NH3_UHF_nonhermitian.FciDmp
     endsys
 

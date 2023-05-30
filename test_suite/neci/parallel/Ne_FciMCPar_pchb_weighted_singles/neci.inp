@@ -3,9 +3,7 @@ title
 system read
     electrons 10
     nonuniformrandexcits pchb \
-        singles on-the-fly-heat-bath \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection fast-weighted
+        manual on-the-fly-heat-bath full-full:fast-fast
     hphf 0
 endsys
 

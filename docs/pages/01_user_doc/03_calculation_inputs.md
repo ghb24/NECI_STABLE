@@ -178,80 +178,57 @@ considered. The block starts with the `system` keyword and ends with the
         elements using pre-computed alias tables. This excitation
         generator is extremely fast, while maintaining high acceptance
         rates and is generally recommended when memory is not an issue.
-        The keyword has two optional sub-keywords,
-        `SINGLES`, `DOUBLES` which allow to tailor the algorithm
-        for your system.
-        (The default choice is usually sufficiently fast.)
-        With **SINGLES** one can select the single excitation algorithm:
+        The keyword has to be followed by either `LOCALISED`,
+        `DELOCALISED`, or `MANUAL`.
 
-        - **SINGLES**<br>
+        With `LOCALISED` and `DELOCALISED` the fastest PCHB sampler is chosen automatically.
+        Specify `DELOCALISED` for Hartree-Fock like orbitals and
+        `LOCALISED` for localised orbitals.
+        With `MANUAL` one can select the PCHB sampler themselves.
 
-            -   **PC-WEIGHTED**<br>
-                Use precomputed weighted singles.
-                The weight is given by
-                \begin{equation}
-                    S^{A}_{I}
-                  =
-                    \begin{cases}
-                      | h_{AI} | + \sum_{R} |g_{AIRR} - g_{ARRI}|  & I \neq A \\
-                      0 & \text{else}
-                    \end{cases}
-                \end{equation}
-                Note that \( R \) runs over all spin-orbitals, not only the occupied.
-                This makes the weighting determinant-independent.
-                The probabilites are then given by:
-                \begin{equation}
-                  p_1^{\text{PCHB}}(I)
-                  =
-                    \frac
-                      {\sum_C S^{C}_{I} }
-                      {\sum_{CL} S^{C}_{L} }
-                  \qquad
-                  p_1^{\text{PCHB}}(A | I)
-                  =
-                    \frac
-                      { S^{A}_{I} }
-                      {\sum_C S^{C}_{I} }
-                  \quad.
-                \end{equation}
-                The keyword can be followed by `fully-weighted`, `weighted`, or `fast-weighted`.
-                If we denote with the superscript `uni` the uniform probality we can
-                write the sampling schemes as:
+        When selecting `MANUAL`, first the singles are specified.
+        The precomputed weight is given by
+        \begin{equation}
+            S^{A}_{I}
+          =
+            \begin{cases}
+              | h_{AI} | + \sum_{R} |g_{AIRR} - g_{ARRI}|  & I \neq A \\
+              0 & \text{else}
+            \end{cases}
+        \end{equation}
+        Note that \( R \) runs over all spin-orbitals, not only the occupied.
+        This makes the weighting determinant-independent.
+        The probabilites are then given by:
+        \begin{equation}
+          p_1^{\text{PCHB}}(I)
+          =
+            \frac
+              {\sum_C S^{C}_{I} }
+              {\sum_{CL} S^{C}_{L} }
+          \qquad
+          p_1^{\text{PCHB}}(A | I)
+          =
+            \frac
+              { S^{A}_{I} }
+              {\sum_C S^{C}_{I} }
+          \quad.
+        \end{equation}
 
-                **fully-weighted**:
-                    \begin{equation}
-                        p_1^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i}
-                    \end{equation}
-                    it is guaranteed that \(I\) is occupied and \(A\) is unoccupied.
+        Now we can sample
+        weighted without guaranteeing (un-)occupiedness ( \( p_1^{\text{PCHB}}(I) \) or \( p_1^{\text{PCHB}}(A | I) \) ),
+        weighted with guaranteeing (un-)occupiedness ( \( p_1^{\text{PCHB}}(I)|_{I \in D_i} \) or \( p_1^{\text{PCHB}}(A | I)|_{A \notin D_i} \) ),
+        or uniformly ( \( p_1^{\text{uni}}(I)|_{I \in D_i} \) or \( p_1^{\text{uni}}(A | I)|_{A \notin D_i} \) ).
 
-                **weighted**:
-                    \begin{equation}
-                        p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i}
-                    \end{equation}
-                    it is guaranteed that \(I\) is occupied and \(A\) is unoccupied.
+        We will write `fast`, `full`, and `unif` for the three cases and separate the particle selection
+        from hole selelection with a colon.
+        This means that e.g. `unif:full` corresponds to sampling via
+        \( p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i} \).
 
-                **fast-weighted**:
-                    \begin{equation}
-                        p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)
-                    \end{equation}
-                    it is guaranteed that \(I\) is occupied.
+        The possible specifications are one of the following `unif:unif`, `unif:fast`, `unif:full`, `full:full`, or `on-the-fly-heat-bath`.
+        Where `on-the-fly-heat-bath` uses the exact on-the-fly calculated matrix element for weighting (which is **slow**).
 
-
-            -   **UNIFORM**<br>
-                This is the default. It chooses single
-                excitations uniformly.
-
-            -   **ON-THE-FLY-HEAT-BATH**<br>
-                It chooses single excitations weighted by their matrix
-                element.
-
-        - **DOUBLES**<br>
-
-        With `doubles` one can select the particle- and hole-selection
-        algorithm for double excitations.
-        It is followed by **particle-selection** or **hole-selection**.
+        After the singles the doubles are specified.
         The following weights are used for the doubles:
-
         \begin{equation}
             W^{AB}_{IJ}
           =
@@ -260,9 +237,7 @@ considered. The block starts with the `system` keyword and ends with the
               0 & \text{else}
             \end{cases}
         \end{equation}
-
         and the probalities are given by:
-
         \begin{equation}
         \label{Eq:PCHB_weights}
         \begin{aligned}
@@ -291,57 +266,28 @@ considered. The block starts with the `system` keyword and ends with the
         \end{aligned}
         \end{equation}
 
-        - **particle-selection**<br>
-            We denote the uniform probality again with the superscript `uni`.
-            The possible `particle-selection` sampling shemes are:
+        Again we can combine different combinations of uniform, fast-, and fully-weighted sampling.
+        We will specify the selection for the first and second particle and then
+        the first and second hole. Again the particle and hole selections are separated by a `:`.
 
-            **fully-weighted**
-              \begin{equation}
-                  p_2^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i}
-              \end{equation}
-              it is guaranteed that \(I, J\) are occupied.
+        The possible particle selections are `full-full` ( \( p_2^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i} \) ),
+        `unif-full` ( \( p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i} \) ),
+        `unif-fast` ( \( p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I) \) ),
+        and `unif-unif` ( \( p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{unif}}(J | I)|_{J \in D_i} \) ).
 
-            **weighted**
-              \begin{equation}
-                  p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i}
-              \end{equation}
-              it is guaranteed that \(I, J\) are occupied.
+        The possible hole selections are `full-full` (\( p_2^{\text{PCHB}}(A | IJ)|_{A \notin D_i} \cdot p_2^{\text{PCHB}}(B | IJA)|_{B \notin D_i}  \))
+        and `fast-fast` (\( p_2^{\text{PCHB}}(A | IJ) \cdot p_2^{\text{PCHB}}(B | IJA)  \) ).
 
-            **fast-weighted**
-              \begin{equation}
-                  p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)
-              \end{equation}
-              it is guaranteed that \(I\) is occupied. If also using option `uhf`, this will default to using spin-orbitals
-              (else spatial orbitals).
-
-            **spin-orb-resolved-fast-weighted**
-              As above, but force the use of spin-orbitals.
-
-            **uniform**<br>
-              \(I\) and \(J\) are just drawn uniformly.
-
-        - **hole-selection**<br>
-            The possible `hole-selection` sampling schemes are:
-
-            **fully-weighted**
-             \begin{equation}
-                 p_2^{\text{PCHB}}(A | IJ)|_{A \notin D_i} \cdot p_2^{\text{PCHB}}(B | IJA)|_{B \notin D_i}
-             \end{equation}
-             it is guaranteed that \(A, B\) are unoccupied.
-
-            **fast-weighted**
-                \begin{equation}
-                    p_2^{\text{PCHB}}(A | IJ) \cdot p_2^{\text{PCHB}}(B | IJA)
-                \end{equation}
-                There is no guarantee about unocupiedness
-
+        The particle and hole selections can be freely combined among eather, e.g. `unif-full:fast-fast`.
 
         An example input is:
 
-            nonuniformrandexcits pchb \
-                    singles pc-weighted fully-weighted  \
-                    doubles particle-selection weighted \
-                    doubles hole-selection fully-weighted
+            nonuniformrandexcits pchb localised
+
+        An example input for manual specification is
+
+            nonuniformrandexcits pchb manual \
+                unif:full unif-full:full-full
 
     -   **guga-pchb**<br>
         Uses the pre-computed alias tables for the spin-adapted GUGA implementation.
