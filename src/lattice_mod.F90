@@ -4209,29 +4209,7 @@ contains
         
         allocate(res(k))
         res(1:k) = nn_neighbors_dup(1:k)
-!        call remove_dups(inp, k, res, len)
     end function get_nn_neighbors_lattice
-
-    subroutine remove_dups(inp, n, res, k)
-        integer :: i, j
-        integer, intent(in) :: n
-        integer, dimension(n), intent(in) :: inp
-        integer, intent(out) :: k
-        integer, dimension(n), intent(out) :: res
-
-        k = 1
-        res(1) = inp(1)
-        do i = 2, size(inp)
-            do j = 1, k
-                if (res(j) == inp(i)) then
-                    cycle
-                end if
-            end do
-            k = k + 1
-            res(k) = inp(i)
-        end do
-
-    end subroutine remove_dups
 
     function get_spinorb_neighbors_lat(this, spinorb) result(neighbors)
         class(lattice) :: this
