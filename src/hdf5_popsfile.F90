@@ -1733,6 +1733,7 @@ contains
         integer(hid_t) :: file_id, plist_id
         integer(hdf_err) :: err
         integer :: mpi_err
+        
 
         write(6, *)
         write(6, *) "========== Reading in Bosonic WF from HDF5 popsfile =========="
@@ -1761,6 +1762,7 @@ contains
         call neci_flush(6)
         call MPIBarrier(mpi_err)
 #else
+        unused_var(filename)
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
 #endif
 
