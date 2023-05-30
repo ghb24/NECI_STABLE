@@ -13,7 +13,7 @@ module semi_stoch_procs
         set_flag, encode_sign
     use calcrho_mod, only: igetexcitlevel
 
-    use mpi
+    use mpi_f08, only: MPI_INTEGER, MPI_INTEGER8, MPI_IN_PLACE
 
     use CalcData
 

@@ -9,7 +9,7 @@ module LMat_class
     use procedure_pointers, only: lMatInd_t
     use constants, only: dp, int64
     use index_rhash, only: index_rhash_t
-    use mpi
+    !use mpi
     use util_mod, only: get_free_unit, operator(.div.), near_zero
     use tc_three_body_data, only: lMatEps, tHDF5LMat
     use HElem, only: HElement_t_sizeB
@@ -740,7 +740,7 @@ contains
 
         call h5open_f(err)
         call h5pcreate_f(H5P_FILE_ACCESS_F, this%plist_id, err)
-        call h5pset_fapl_mpio_f(this%plist_id, mpi_comm_intra, mpiInfoNull, err)
+        call h5pset_fapl_mpio_f(this%plist_id, mpi_comm_intra%MPI_VAL, mpiInfoNull%MPI_VAL, err)
 
         ! open the file
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, this%file_id, err, access_prp=this%plist_id)

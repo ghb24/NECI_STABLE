@@ -57,7 +57,8 @@ contains
         !      as that is not part of the normal data.
 
         character(*), intent(inout), target :: v
-        integer(MPIArg) :: ierr, comm, rt
+        integer(MPIArg) :: ierr, rt
+        type(MPI_Comm) :: Comm
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast_character'
         integer(MPIArg) :: length
@@ -85,7 +86,7 @@ contains
         logical, intent(out) :: param_out
 
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: comm
+        type(MPI_Comm) :: comm
         integer :: v, ret, ierr
 
 #ifdef USE_MPI
@@ -115,7 +116,8 @@ contains
         type(CommI), intent(in), optional :: node
         character(*), parameter :: t_r = 'MPIBCastLogical'
 
-        integer(MPIArg) :: ierr, comm, rt
+        integer(MPIArg) :: ierr, rt
+        type(MPI_Comm) :: comm
         logical(int32), target :: v
 
 #ifdef USE_MPI
@@ -138,7 +140,8 @@ contains
         logical, intent(inout) :: param_inout
         type(CommI), intent(in), optional :: Node
         logical, intent(in) :: tMe
-        integer(MPIArg) :: ierr, comm, rt, nrt
+        integer(MPIArg) :: ierr, rt, nrt
+        type(MPI_Comm) :: comm
         character(*), parameter :: t_r = 'MPIBCastLogical_logic'
         logical(int32), target :: v
 
@@ -170,7 +173,8 @@ contains
         type(CommI), intent(in), optional :: node
         character(*), parameter :: t_r = 'MPIBCastLogical'
 
-        integer(MPIArg) :: ierr, comm, rt, length
+        integer(MPIArg) :: ierr, rt, length
+        type(MPI_Comm) :: comm
         logical(int32), target :: v(size(param_inout))
 
 #ifdef USE_MPI
@@ -195,7 +199,8 @@ contains
         logical, intent(inout) :: param_inout(:)
         type(CommI), intent(in), optional :: Node
         logical, intent(in) :: tMe
-        integer(MPIArg) :: ierr, comm, rt, nrt, length
+        integer(MPIArg) :: ierr, rt, nrt, length
+        type(MPI_Comm) :: comm
         character(*), parameter :: t_r = 'MPIBCastLogical'
         logical(int32), target :: v(size(param_inout))
 

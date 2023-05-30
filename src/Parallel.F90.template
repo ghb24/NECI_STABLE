@@ -214,9 +214,10 @@ contains
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(out), target :: Ret()
         integer, intent(in) :: iLen
-        integer(MPIArg), intent(in) :: iType
+        type(MPI_Op), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, ierr
+        integer(MPIArg) :: rt, ierr
+        type(MPI_Comm) :: Comm
         character(*), parameter :: t_r = "MPIReduce"
 
 #ifdef USE_MPI
@@ -242,9 +243,10 @@ contains
 
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(out), target :: Ret()
-        integer(MPIArg), intent(in) :: iType
+        type(MPI_Op), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) ::  comm, rt, ierr
+        integer(MPIArg) ::  rt, ierr
+        type(MPI_Comm) :: comm
         character(*), parameter :: t_r = 'MPIReduce'
 
 #ifdef USE_MPI
@@ -278,12 +280,13 @@ contains
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(out), target :: Ret()
         integer, intent(in) :: iLen
-        integer(MPIArg), intent(in) :: iType
+        type(MPI_Op), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, ierr
+        integer(MPIArg) :: ierr
+        type(MPI_Comm) :: Comm
         character(*), parameter :: t_r = 'MPIAllReduce'
         ! Error handling vars
-        character(255) :: string
+        character(len=MPI_MAX_ERROR_STRING) :: string
         integer(MPIArg) :: length, jerr, errorclass
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -318,9 +321,10 @@ contains
 
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(out), target :: Ret()
-        integer(MPIArg), intent(in) :: iType
+        type(MPI_Op), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: comm, ierr, aerr
+        integer(MPIArg) :: ierr, aerr
+        type(MPI_Comm) :: Comm
         integer(MPIArg) :: msglen
         character(LEN=MPI_MAX_ERROR_STRING) :: errmsg
         character(*), parameter :: t_r = 'MPIAllReduce'
@@ -365,10 +369,12 @@ contains
 
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(out), target :: Ret()
-        integer(MPIArg), intent(in) :: dtype, itype
+        type(MPI_Datatype), intent(in) :: dtype
+        type(MPI_Op), intent(in) :: iType
         integer, intent(in) :: ilen
         type(CommI), intent(in),optional :: Node
-        integer(MPIArg) :: ierr, comm
+        integer(MPIArg) :: ierr
+        type(MPI_Comm) :: Comm
         character(*), parameter :: t_r = 'MPIAllReduce'
 
 #ifdef USE_MPI
@@ -530,7 +536,8 @@ contains
 
         %(type1)s, intent(inout), target :: v()
         integer, intent(in) :: iLen
-        integer(MPIArg) :: ierr, comm, rt
+        integer(MPIArg) :: ierr, rt
+        type(MPI_Comm) :: Comm
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast'
 
@@ -558,7 +565,8 @@ contains
         ! InOut: v - The data to broadcast, and the returned v
 
         %(type1)s, intent(inout), target :: v()
-        integer(MPIArg) :: ierr, comm, rt
+        integer(MPIArg) :: ierr, rt
+        type(MPI_Comm) :: Comm
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast'
 
@@ -587,7 +595,8 @@ contains
 
         %(type1)s, intent(inout), target :: v()
         logical, intent(in) :: tMe
-        integer(MPIArg) :: ierr, comm, rt, nrt
+        integer(MPIArg) :: ierr, rt, nrt
+        type(MPI_Comm) :: Comm
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBCast'
 
@@ -618,7 +627,8 @@ contains
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: comm, err
+        integer(MPIArg) :: err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -647,7 +657,8 @@ contains
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(inout), target :: Ret()
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: comm, err
+        integer(MPIArg) :: err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -680,7 +691,8 @@ contains
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(inout), target :: Ret(:)
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: comm, err
+        integer(MPIArg) :: err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -707,7 +719,8 @@ contains
         %(type1)s, intent(inout), target :: ret(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, err
+        integer(MPIArg) :: err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -735,7 +748,8 @@ contains
         %(type1)s, intent(inout), target :: ret()
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, err
+        integer(MPIArg) :: err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -762,7 +776,8 @@ contains
         %(type1)s, intent(inout), target :: ret(:)
         integer(MPIArg), intent(in) :: Disps(:), Lengths(:)
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, ierr
+        integer(MPIArg) :: ierr
+        type(MPI_Comm) :: Comm
         character(*), parameter :: t_r = 'MPIAllGatherV'
 
         ! The displacements multiplied up by other array dims
@@ -806,7 +821,8 @@ contains
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
+        integer(MPIArg) :: rt, err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -832,7 +848,8 @@ contains
         %(type1)s, intent(inout), target :: ret(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
+        integer(MPIArg) :: rt, err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -864,7 +881,8 @@ contains
         integer(MPIArg), intent(in) :: Disps(:), Lengths(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
+        integer(MPIArg) :: rt, err
+        type(MPI_Comm) :: Comm
 
         ! The displacements multiplied up by other array dims
         integer(MPIArg) :: dispsN(ubound(Disps,1)-lbound(Disps,1)+1)
@@ -908,7 +926,8 @@ contains
         integer(MPIArg), intent(in) :: SendSizes(:), Disps(:), Length
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
+        integer(MPIArg) :: rt, err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -937,7 +956,8 @@ contains
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
+        integer(MPIArg) :: rt, err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -964,7 +984,8 @@ contains
         %(type1)s, intent(inout), target :: Ret()
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
+        integer(MPIArg) :: rt, err
+        type(MPI_Comm) :: Comm
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -993,7 +1014,9 @@ contains
         integer, intent(out) :: ierr
 
 #ifdef USE_MPI
-        integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
+        !integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
+        integer(MPIArg) :: err
+        type(MPI_Status) :: stat
         call MPI_Recv (val_out, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
                 int(Source, MPIArg), int(Tag, MPIArg), CommGlobal, &
@@ -1318,9 +1341,12 @@ contains
         logical, intent(in) :: tUseProcsAsNodes !Set if we use Procs as Nodes.
 !        character(*), parameter :: t_r = 'MPINodes'
 
-        integer :: Group, i, j, n, GroupProc(nProcessors), ierr
-        integer(MPIArg) :: GroupDum, GroupRootsDum, CommRootDum
-        integer(MPIArg), allocatable :: GroupNodesDum(:), CommNodesDum(:)
+        integer :: i, j, n, GroupProc(nProcessors), ierr
+        type(MPI_Group) :: Group, GroupDum
+        type(MPI_Group) :: GroupRootsDum
+        type(MPI_Comm) :: CommRootDum
+        type(MPI_Group), allocatable :: GroupNodesDum(:)
+        type(MPI_Comm), allocatable :: CommNodesDum(:)
         integer, allocatable :: NodesDum(:)
         integer(c_size_t) length
         character(len=30) :: nm, nm2, nms(0:nProcessors-1)
@@ -1456,7 +1482,7 @@ contains
             call MPIGroupIncl (Group, n, GroupProc, GroupNodesDum(i), ierr)
 
             GroupNodes = GroupNodesDum
-            CommNodesDum = int(CommNodes,MPIArg)
+            CommNodesDum = CommNodes
 
             ! Create the communicator
             call MPICommcreate (CommGlobal, GroupNodes(i), CommNodesDum(i),&
