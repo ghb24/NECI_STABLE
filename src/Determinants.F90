@@ -327,7 +327,7 @@ contains
         real(dp) :: prefac, hf_weight
 
         if (tGutzwillerHF) then
-            prefac = exp(GutzwillerParam * get_helement(nI, nI, 0))
+            prefac = exp(GutzwillerParam * real(get_helement(nI, nI, 0)))
         else
             prefac = 1.0_dp
         end if
@@ -397,15 +397,15 @@ contains
                 
                 if (tHartreeGutzwiller) then
                       call calc_det_ratio(nJ,nI,det_ratio)
-                      ratio =abs(det_ratio)*exp(GutzwillerParam* &
-                      (get_helement(nJ,nJ,0)-get_helement(nI,nI,0)))
+                      ratio = abs(det_ratio)*exp(GutzwillerParam* &
+                      (real(get_helement(nJ,nJ,0))-real(get_helement(nI,nI,0))))
                 else if (tAbinitioGutzwillerGuide) then
                     call calc_abinitio_det_ratio(nJ, nI, orb_coeff, det_ratio)
-                    ratio = abs(det_ratio)*exp(GutzwillerParam*(get_helement(nJ,nJ,0)&
-                                                               -get_helement(nI,nI,0))) 
+                    ratio = abs(det_ratio)*exp(GutzwillerParam*(real(get_helement(nJ,nJ,0))&
+                                                               -real(get_helement(nI,nI,0)))) 
                 else 
                      ratio = exp(GutzwillerParam* &
-                    (get_helement(nJ,nJ,0)-get_helement(nI,nI,0)))
+                    (real(get_helement(nJ,nJ,0))-real(get_helement(nI,nI,0))))
                 end if
 
                 if(tGutzwillerHubbardAF)then
@@ -541,9 +541,9 @@ contains
                 !For the Heisenberg model the guiding wavefunction in 
                 !calcImportanceRatio differs from diagonal elements by a 
                 !factor exchage_j/2. So we add it for consistency.
-                val = exp(-GutzwillerParam*(get_helement(nI,nI,0)-Hii)*2.0/exchange_j)
+                val = exp(-GutzwillerParam*(real(get_helement(nI,nI,0))-Hii)*2.0/exchange_j)
             else
-                val = exp(GutzwillerParam*(get_helement(nI,nI,0)-Hii))
+                val = exp(GutzwillerParam*(real(get_helement(nI,nI,0))-Hii))
             endif
         else
             val = 1.0

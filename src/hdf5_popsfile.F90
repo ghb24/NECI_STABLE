@@ -2093,9 +2093,9 @@ contains
             if(.not. tSuccess) then
                 TotWalkersNew = int(TotWalkers)
                 if (tHPHF) then
-                    diagH = hphf_diag_helement(det, ilut) - Hii
+                    diagH = real(hphf_diag_helement(det, ilut)) - Hii
                 else
-                    diagH = get_helement(det, det, 0) - Hii
+                    diagH = real(get_helement(det, det, 0)) - Hii
                 end if
                 sgn = 0
                 call encode_sign(ilut, sgn)
