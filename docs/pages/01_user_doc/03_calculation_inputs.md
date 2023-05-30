@@ -225,7 +225,7 @@ considered. The block starts with the `system` keyword and ends with the
         \( p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i} \).
 
         The possible specifications are one of the following `unif:unif`, `unif:fast`, `unif:full`, `full:full`, or `on-the-fly-heat-bath`.
-        Where `on-the-fly-heat-bath` uses the exact on-fly calculated matrix element for weighting (which is **slow**).
+        Where `on-the-fly-heat-bath` uses the exact on-the-fly calculated matrix element for weighting (which is **slow**).
 
         After the singles the doubles are specified.
         The following weights are used for the doubles:

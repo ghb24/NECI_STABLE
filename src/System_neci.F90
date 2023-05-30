@@ -1638,6 +1638,9 @@ contains
                         t_fci_pchb_excitgen = .true.
                         if (allocated(FCI_PCHB_user_input)) deallocate(FCI_PCHB_user_input)
                         allocate(FCI_PCHB_user_input)
+                        if (tokens%remaining_items() == 0) then
+                            call stop_all(t_r, "No item specified. Please specify one of {LOCALISED, DELOCALISED, MANUAL}.")
+                        end if
                         select case (to_upper(tokens%next()))
                         case ("LOCALISED")
                             FCI_PCHB_user_input%option_selection = FCI_PCHB_user_input_vals%option_selection%LOCALISED
@@ -1666,56 +1669,59 @@ contains
                             write(stderr, *) "Specify delocalised for Hartree-Fock like orbitals and"
                             write(stderr, *) "localised for localised orbitals."
                             write(stderr, *) "With manual one can select the PCHB sampler themselves."
-                            call stop_all(t_r, "Please specify one of {LOCALISED, DELOCALISED, MANUAL}.")
+                            call stop_all(t_r, "Wrong input to PCHB.")
                         end select
 
-                    case ("GAS-CI")
-                        w = to_upper(tokens%next())
-                        select case (w)
-                        case ('ON-THE-FLY-HEAT-BATH')
-                            user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
-                        case ('DISCONNECTED')
-                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                        case ('DISCARDING')
-                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                        case ('PCHB')
-                            user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
-                            if (allocated(GAS_PCHB_user_input)) deallocate(GAS_PCHB_user_input)
-                            allocate(GAS_PCHB_user_input)
-                            select case (to_upper(tokens%next()))
-                            case ("LOCALISED")
-                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%LOCALISED
-                            case ("DELOCALISED")
-                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%DELOCALISED
-                            case ("MANUAL")
-                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%MANUAL
-                                allocate(GAS_PCHB_user_input%options)
-                                GAS_PCHB_user_input%options%use_lookup = .true.
-                                GAS_PCHB_user_input%options%singles = GAS_PCHB_user_input_vals%options%singles%from_str(tokens%next())
-                                GAS_PCHB_user_input%options%doubles = GAS_PCHB_user_input_vals%options%doubles%from_str(tokens%next())
-                                if (tokens%remaining_items() == 1) then
-                                    select case (to_upper(tokens%next()))
-                                    case("SPIN-ORB-RESOLVED")
-                                        GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .true.
-                                    case("NO-SPIN-ORB-RESOLVED")
-                                        GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .false.
-                                    case default
-                                        call stop_all(t_r, "Should not be here.")
-                                    end select
-                                else if (tokens%remaining_items() > 1) then
+                case ("GAS-CI")
+                    w = to_upper(tokens%next())
+                    select case (w)
+                    case ('ON-THE-FLY-HEAT-BATH')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
+                    case ('DISCONNECTED')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                    case ('DISCARDING')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                    case ('PCHB')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+                        if (allocated(GAS_PCHB_user_input)) deallocate(GAS_PCHB_user_input)
+                        allocate(GAS_PCHB_user_input)
+                        if (tokens%remaining_items() == 0) then
+                            call stop_all(t_r, "No item specified. Please specify one of {LOCALISED, DELOCALISED, MANUAL}.")
+                        end if
+                        select case (to_upper(tokens%next()))
+                        case ("LOCALISED")
+                            GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%LOCALISED
+                        case ("DELOCALISED")
+                            GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%DELOCALISED
+                        case ("MANUAL")
+                            GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%MANUAL
+                            allocate(GAS_PCHB_user_input%options)
+                            GAS_PCHB_user_input%options%use_lookup = .true.
+                            GAS_PCHB_user_input%options%singles = GAS_PCHB_user_input_vals%options%singles%from_str(tokens%next())
+                            GAS_PCHB_user_input%options%doubles = GAS_PCHB_user_input_vals%options%doubles%from_str(tokens%next())
+                            if (tokens%remaining_items() == 1) then
+                                select case (to_upper(tokens%next()))
+                                case("SPIN-ORB-RESOLVED")
+                                    GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .true.
+                                case("NO-SPIN-ORB-RESOLVED")
+                                    GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .false.
+                                case default
                                     call stop_all(t_r, "Should not be here.")
-                                end if
-                            case default
-                                write(stderr, *) "Please specify one of {LOCALISED, DELOCALISED, MANUAL}."
-                                write(stderr, *) "With localised and delocalised the fastest PCHB sampler is chosen automatically."
-                                write(stderr, *) "Specify delocalised for Hartree-Fock like orbitals and"
-                                write(stderr, *) "localised for localised orbitals."
-                                write(stderr, *) "With manual one can select the PCHB sampler themselves."
-                                call stop_all(t_r, "Please specify one of {LOCALISED, DELOCALISED, MANUAL}.")
-                            end select
+                                end select
+                            else if (tokens%remaining_items() > 1) then
+                                call stop_all(t_r, "Should not be here.")
+                            end if
                         case default
-                            call Stop_All(t_r, trim(w)//" not a valid keyword")
+                            write(stderr, *) "Please specify one of {LOCALISED, DELOCALISED, MANUAL}."
+                            write(stderr, *) "With localised and delocalised the fastest PCHB sampler is chosen automatically."
+                            write(stderr, *) "Specify delocalised for Hartree-Fock like orbitals and"
+                            write(stderr, *) "localised for localised orbitals."
+                            write(stderr, *) "With manual one can select the PCHB sampler themselves."
+                            call stop_all(t_r, "Wrong input to GAS-CI PCHB.")
                         end select
+                    case default
+                        call Stop_All(t_r, trim(w)//" not a valid keyword")
+                    end select
 
 
                     case ("GUGA-PCHB")
