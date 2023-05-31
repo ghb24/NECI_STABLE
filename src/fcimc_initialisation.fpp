@@ -64,7 +64,8 @@ module fcimc_initialisation
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject, tBosonNoSpawn, bosonic_popsfile, SftDamp, SftDamp2, &
-                        tInitExpandAnnihil
+                        tInitExpandAnnihil, tNonInitModShift, &
+                        tBosonNoSpawn
 
     use tau_main, only: tau_search_method, &
         tau_start_val, possible_tau_start, &
@@ -1128,11 +1129,15 @@ contains
         NoNonInitDets = 0
         NoInitWalk(:) = 0.0_dp
         NoNonInitWalk(:) = 0.0_dp
-        NoModShiftWalk(:) = 0.0_dp
-        NoNonModShiftWalk(:) = 0.0_dp
-        NoBosonActiveWalk(:) = 0.0_dp
-        NoSpawnDets(:) = 0
-        AllNoSpawnDets(:) = 0
+        if (tNonInitModShift) then
+            NoModShiftWalk(:) = 0.0_dp
+            NoNonModShiftWalk(:) = 0.0_dp
+        end if
+        if (tBosonNoSpawn) then
+            NoBosonActiveWalk(:) = 0.0_dp
+            NoSpawnDets(:) = 0
+            AllNoSpawnDets(:) = 0
+        end if
         NoExtraInitDoubs = 0
         InitRemoved = 0
         TotImagTime = 0.0_dp
@@ -1172,11 +1177,16 @@ contains
         AllNoNonInitDets = 0
         AllNoInitWalk = 0.0_dp
         AllNoNonInitWalk = 0.0_dp
-        AllNoModShiftWalk = 0.0_dp
-        AllNoNonModShiftWalk = 0.0_dp
-        AllNoBosonActiveWalk = 0.0_dp
+        if (tBosonNoSpawn) then
+            AllNoBosonActiveWalk = 0.0_dp
+        end if
         AllNoExtraInitDoubs = 0
         AllInitRemoved = 0
+        if (tNonInitModShift) then
+            AllNoModShiftWalk = 0.0_dp
+            AllNoNonModShiftWalk = 0.0_dp
+        end if
+
         all_n_core_non_init = 0
         n_core_non_init = 0
         proje_iter = 0
@@ -2599,9 +2609,11 @@ contains
         OldAllHFCyc = HFWeight
         OldAllNoatHF = HFWeight
         OldAllNoInitWalk = AllNoInitWalk
-        OldAllNoModShiftWalk = AllNoModShiftWalk
-        OldAllNoNonModShiftWalk = AllNoNonModShiftWalk
-        OldAllNoBosonActiveWalk = AllNoBosonActiveWalk
+        if (tNonInitModShift) then
+            OldAllNoModShiftWalk = AllNoModShiftWalk
+            OldAllNoNonModShiftWalk = AllNoNonModShiftWalk
+            OldAllNoBosonActiveWalk = AllNoBosonActiveWalk
+        end if
 
         ! cleanup
         deallocate(evs)
@@ -2854,10 +2866,12 @@ contains
 
         OldAllNoatHF(:) = 0.0_dp
         AllNoatHF(:) = 0.0_dp
-        OldAllNoInitWalk(:) = 0.0_dp
-        OldAllNoModShiftWalk(:) = 0.0_dp
-        OldAllNoNonModShiftWalk(:) = 0.0_dp
-        OldAllNoBosonActiveWalk(:) = 0.0_dp
+        if (tNonInitModShift) then
+            OldAllNoInitWalk(:) = 0.0_dp
+            OldAllNoModShiftWalk(:) = 0.0_dp
+            OldAllNoNonModShiftWalk(:) = 0.0_dp
+            OldAllNoBosonActiveWalk(:) = 0.0_dp
+        end if
         IF (TStartSinglePart) THEN
             !Initialise global variables for calculation on the root node
             IF (iProcIndex == root) THEN
@@ -2989,9 +3003,11 @@ contains
         OldAllNoatHF = 0.0_dp
         AllNoatHF = 0.0_dp
         OldAllNoInitWalk = 0.0_dp
-        OldAllNoModShiftWalk = 0.0_dp
-        OldAllNoNonModShiftWalk = 0.0_dp
-        OldAllNoBosonActiveWalk = 0.0_dp
+        if (tNonInitModShift) then
+            OldAllNoModShiftWalk = 0.0_dp
+            OldAllNoNonModShiftWalk = 0.0_dp
+            OldAllNoBosonActiveWalk = 0.0_dp
+        end if
         call MPISum(TotWalkers, AllTotWalkers)
         if (iProcIndex == root) then
             OldAllNoInitWalk(:) = InitialPart

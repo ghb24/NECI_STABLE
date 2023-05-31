@@ -58,32 +58,29 @@ contains
                   NoAddedInitiators(lenof_sign), &
                   NoInitDets(lenof_sign), NoNonInitDets(lenof_sign), &
                   NoInitWalk(lenof_sign), NoNonInitWalk(lenof_sign), &
-                  NoBosonActiveWalk(lenof_sign), &
-                  NoSpawnDets(lenof_sign), &
-                  NoSpawnDetsEmpty(lenof_sign), &
                   NoExtraInitDoubs(lenof_sign), InitRemoved(lenof_sign), &
                   ! And initiator accumulator related
                   AllNoAddedInitiators(lenof_sign), &
                   AllNoInitDets(lenof_sign), AllNoNonInitDets(lenof_sign), &
                   AllNoInitWalk(lenof_sign), AllNoNonInitWalk(lenof_sign), &
-                  AllNoExtraInitDoubs(lenof_sign), AllInitRemoved(lenof_sign), &
-                  stat=ierr)
+                  AllNoExtraInitDoubs(lenof_sign), AllInitRemoved(lenof_sign))
 
         if (tNonInitModShift) then
             allocate(NoModShiftWalk(lenof_sign), NoNonModShiftWalk(lenof_sign), &
                      AllNoModShiftWalk(lenof_sign), AllNoNonModShiftWalk(lenof_sign), &
-                     OldAllNoBosonActiveWalk(lenof_sign), &
                      OldAllNoInitWalk(lenof_sign), &
                      OldAllNoModShiftWalk(lenof_sign), &
-                     OldAllNoNonModShiftWalk(lenof_sign), &
-                     stat=ierr)
+                     OldAllNoNonModShiftWalk(lenof_sign))
         end if
 
         if (tBosonNoSpawn) then
-            allocate(AllNoBosonActiveWalk(lenof_sign), &
+            allocate(NoBosonActiveWalk(lenof_sign), &
+                     AllNoBosonActiveWalk(lenof_sign), &
+                     OldAllNoBosonActiveWalk(lenof_sign), &
+                     NoSpawnDets(lenof_sign), &
+                     NoSpawnDetsEmpty(lenof_sign), &
                      AllNoSpawnDets(lenof_sign), &
-                     AllNoSpawnDetsEmpty(lenof_sign), &
-                     stat=ierr)
+                     AllNoSpawnDetsEmpty(lenof_sign))
         end if
 
         ! Global simulation properties that apply per simulation, i.e. will
@@ -153,14 +150,7 @@ contains
             DiagSftIm(inum_runs), &
             tSinglePartPhase(inum_runs), &
             FullProjE_Num(inum_runs), &
-            FullProjE_Den(inum_runs), &
-            stat=ierr)
-
-        if (ierr /= MPI_SUCCESS) then
-            write(error_message, '(A, I0)') &
-                'Error during allocation. ierr = ', ierr
-            call Stop_All(this_routine, error_message)
-        end if
+            FullProjE_Den(inum_runs))
 
         ! Variables which are only used conditionally.
         ! NB, NFrozen has not been subtracted from NEl yet!
@@ -213,24 +203,13 @@ contains
                     NoAddedInitiators, &
                     NoInitDets, NoNonInitDets, &
                     NoInitWalk, NoNonInitWalk, &
-                    NoModShiftWalk, NoNonModShiftWalk, &
-                    NoBosonActiveWalk, &
-                    NoSpawnDets, &
-                    NoSpawnDetsEmpty, &
                     NoExtraInitDoubs, InitRemoved, &
                     ! And initiator accumulator related
                     AllNoAddedInitiators, &
                     AllNoInitDets, AllNoNonInitDets, &
                     AllNoInitWalk, AllNoNonInitWalk, &
-                    AllNoModShiftWalk, AllNoNonModShiftWalk, &
-                    AllNoBosonActiveWalk, &
-                    AllNoSpawnDets, &
-                    AllNoSpawnDetsEmpty, &
                     AllNoExtraInitDoubs, AllInitRemoved, &
-                    OldAllNoBosonActiveWalk, &
                     OldAllNoInitWalk, &
-                    OldAllNoModShiftWalk, &
-                    OldAllNoNonModShiftWalk, &
                     ! Track the dynamics
                     NoBorn, AllNoBorn, &
                     NoDied, AllNoDied, &
@@ -273,14 +252,35 @@ contains
                     InstShift, &
                     AvDiagSft, SumDiagSft, &
                     DiagSft, &
+                    DiagSft2, &
                     hdf5_diagsft, &
                     DiagSftRe, &
                     DiagSftIm, &
                     tSinglePartPhase, &
+                    FullProjE_Num, &
+                    FullProjE_Den, &
                     ! KPFCIQMC
                     TotPartsInit, &
                     AllTotPartsInit, &
                     tSinglePartPhaseKPInit)
+        
+        if (tNonInitModShift) then
+            deallocate(NoModShiftWalk, NoNonModShiftWalk, &
+                       AllNoModShiftWalk, AllNoNonModShiftWalk, &
+                       OldAllNoInitWalk, &
+                       OldAllNoModShiftWalk, &
+                       OldAllNoNonModShiftWalk)
+        end if
+
+        if (tBosonNoSpawn) then
+            deallocate(NoBosonActiveWalk, &
+                       AllNoBosonActiveWalk, &
+                       OldAllNoBosonActiveWalk, &
+                       NoSpawnDets, &
+                       NoSpawnDetsEmpty, &
+                       AllNoSpawnDets, &
+                       AllNoSpawnDetsEmpty)
+        end if
 
         if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
 

@@ -1413,12 +1413,14 @@ contains
         ! For the init-shift
         OldAllNoInitWalk = AllNoInitWalk
 
-        ! For the mod-shift-shift
-        OldAllNoModShiftWalk = AllNoModShiftWalk
-        OldAllNoNonModShiftWalk = AllNoNonModShiftWalk
+        if (tNonInitModShift) then
+            ! For the mod-shift-shift
+            OldAllNoModShiftWalk = AllNoModShiftWalk
+            OldAllNoNonModShiftWalk = AllNoNonModShiftWalk
 
-        ! For the bosonized no-spawn
-        OldAllNoBosonActiveWalk = AllNoBosonActiveWalk
+            ! For the bosonized no-spawn
+            OldAllNoBosonActiveWalk = AllNoBosonActiveWalk
+        end if
 
         ! also reset the real-time specific quantities:
         ! and maybe have to call this routine twice to rezero also the

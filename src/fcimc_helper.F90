@@ -1448,13 +1448,17 @@ contains
         NoNonInitDets = 0_int64
         NoInitWalk = 0.0_dp
         NoNonInitWalk = 0.0_dp
-        NoModShiftWalk = 0.0_dp
-        NoNonModShiftWalk = 0.0_dp
+        if (tNonInitModShift) then
+            NoModShiftWalk = 0.0_dp
+            NoNonModShiftWalk = 0.0_dp
+        end if
         InitRemoved = 0_int64
-
-        NoBosonActiveWalk = 0.0_dp
-        NoSpawnDets = 0
-        NoSpawnDetsEmpty = 0
+        
+        if (tBosonNoSpawn) then
+            NoBosonActiveWalk = 0.0_dp
+            NoSpawnDets = 0
+            NoSpawnDetsEmpty = 0
+        end if
 
         ! replica-initiator info
 
