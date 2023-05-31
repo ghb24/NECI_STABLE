@@ -54,10 +54,6 @@ module gasci_pchb_doubles_spinorb_fullyweighted
             !! where IJ is a fused index I < J, A is the first hole and `i_sg` is the supergroup.
         class(GASSpec_t), allocatable :: GAS_spec
         type(SuperGroupIndexer_t), pointer :: indexer => null()
-        logical :: hole_excess
-            !! If there are more holes than particles we can
-            !! speed up the calculation by normalizing via the complement.
-            !! \( \sum_{A \notin D_i} p(A) = 1 - \sum_{I \in D_i} p(I) \)
         integer(n_int), private :: last_possible_occupied
             !! The last element of the ilut array has some elements
             !! which are not used, if the number of spinorbitals is not a multiple of
@@ -108,8 +104,6 @@ contains
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
-
-        this%hole_excess = nBasis > nEl * 2
 
         this%last_possible_occupied = 0_n_int
         block

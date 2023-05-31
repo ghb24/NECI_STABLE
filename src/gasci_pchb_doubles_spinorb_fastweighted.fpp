@@ -21,10 +21,9 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use excitation_types, only: Excite_2_t, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use gasci_pchb_doubles_select_particles, only: ParticleSelector_t, PCHB_ParticleSelection_t, &
-                                  PCHB_particle_selection_vals, PC_FullyWeightedParticles_t, &
-                                  PC_FastWeightedParticles_t, UniformParticles_t, allocate_and_init, &
-                                  get_PCHB_weight
+    use gasci_pchb_doubles_select_particles, only: &
+        ParticleSelector_t, PCHB_ParticleSelection_t, &
+        allocate_and_init, get_PCHB_weight
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     better_implicit_none
