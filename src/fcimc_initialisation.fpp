@@ -260,7 +260,7 @@ module fcimc_initialisation
         ProjectionE, SumENum, InitsENumCyc, SumNoatHF, Annihilated, Acceptances, AvDiagSft, SumDiagSft, &
         SumWalkersCyc, SumWalkersOut, NoAborted, NoRemoved, NoInitWalk, NoNonInitWalk, &
         AllSumENum, AllInitsENumCyc, AllNoatDoubs, AllEXLEVEL_WNorm, AllSumNoatHF, &
-        AllGrowRate, AllGrowRateAbort, AllSumWalkersCyc, AllSumWalkersOut, AllNoBorn, &
+        AllGrowRate, AllSumWalkersCyc, AllSumWalkersOut, AllNoBorn, &
         AllSpawnFromSing, AllNoDied, AllAnnihilated, AllENumCyc, AllENumOut, AllHFCyc, &
         AllHFOut, replica_overlaps_real, ValidSpawnedList
 #ifdef CMPLX_
@@ -1149,7 +1149,6 @@ contains
         if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:, :, :) = 0.0_dp
         AllSumNoatHF(:) = 0.0_dp
         AllGrowRate(:) = 0.0_dp
-        AllGrowRateAbort(:) = 0
 !        AllMeanExcitLevel=0.0_dp
         AllSumWalkersCyc(:) = 0
         AllSumWalkersOut(:) = 0.0_dp

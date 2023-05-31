@@ -107,7 +107,6 @@ MODULE FciMCData
     integer, allocatable :: NoSpawnDets(:), AllNoSpawnDets(:), &
         NoSpawnDetsEmpty(:), AllNoSpawnDetsEmpty(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
-    integer(int64), allocatable :: AllGrowRateAbort(:)
     integer :: n_core_non_init = 0
     integer :: all_n_core_non_init = 0
 

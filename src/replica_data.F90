@@ -58,7 +58,6 @@ contains
                   NoAddedInitiators(lenof_sign), &
                   NoInitDets(lenof_sign), NoNonInitDets(lenof_sign), &
                   NoInitWalk(lenof_sign), NoNonInitWalk(lenof_sign), &
-                  NoModShiftWalk(lenof_sign), NoNonModShiftWalk(lenof_sign), &
                   NoBosonActiveWalk(lenof_sign), &
                   NoSpawnDets(lenof_sign), &
                   NoSpawnDetsEmpty(lenof_sign), &
@@ -67,17 +66,25 @@ contains
                   AllNoAddedInitiators(lenof_sign), &
                   AllNoInitDets(lenof_sign), AllNoNonInitDets(lenof_sign), &
                   AllNoInitWalk(lenof_sign), AllNoNonInitWalk(lenof_sign), &
-                  AllNoModShiftWalk(lenof_sign), AllNoNonModShiftWalk(lenof_sign), &
-                  AllNoBosonActiveWalk(lenof_sign), &
-                  AllNoSpawnDets(lenof_sign), &
-                  AllNoSpawnDetsEmpty(lenof_sign), &
                   AllNoExtraInitDoubs(lenof_sign), AllInitRemoved(lenof_sign), &
-                  AllGrowRateAbort(lenof_sign), &
-                  OldAllNoBosonActiveWalk(lenof_sign), &
-                  OldAllNoInitWalk(lenof_sign), &
-                  OldAllNoModShiftWalk(lenof_sign), &
-                  OldAllNoNonModShiftWalk(lenof_sign), &
                   stat=ierr)
+
+        if (tNonInitModShift) then
+            allocate(NoModShiftWalk(lenof_sign), NoNonModShiftWalk(lenof_sign), &
+                     AllNoModShiftWalk(lenof_sign), AllNoNonModShiftWalk(lenof_sign), &
+                     OldAllNoBosonActiveWalk(lenof_sign), &
+                     OldAllNoInitWalk(lenof_sign), &
+                     OldAllNoModShiftWalk(lenof_sign), &
+                     OldAllNoNonModShiftWalk(lenof_sign), &
+                     stat=ierr)
+        end if
+
+        if (tBosonNoSpawn) then
+            allocate(AllNoBosonActiveWalk(lenof_sign), &
+                     AllNoSpawnDets(lenof_sign), &
+                     AllNoSpawnDetsEmpty(lenof_sign), &
+                     stat=ierr)
+        end if
 
         ! Global simulation properties that apply per simulation, i.e. will
         ! not be duplicated if complex walkers are used. --> inum_runs
@@ -230,7 +237,6 @@ contains
                     Annihilated, AllAnnihilated, &
                     Acceptances, AllAcceptances, &
                     SpawnFromSing, AllSpawnFromSing, &
-                    AllGrowRateAbort, &
                     NoatDoubs, AllNoatDoubs, &
                     AccRat, &
                     AllHFCyc, OldAllHFCyc, AllHFOut, &
