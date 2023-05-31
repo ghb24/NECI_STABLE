@@ -119,11 +119,6 @@ contains
         integer(int64) :: memCost, ijMax, abMax, ab
         routine_name("init_GugaAliasSampler_t")
 
-        if (near_zero(max_tau) .or. max_tau > 1e-3) then
-            root_print "0 < max-tau < 1e-3 is required for GUGA PCHB"
-            call stop_all(this_routine, "0 < max-tau < 1e-3 is required for GUGA PCHB")
-        end if
-
         ! also set some more strict defaults for the PCHB implo:
         root_print "Setting reasonable defaults for GUGA-PCHB:"
         if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
