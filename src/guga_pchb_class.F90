@@ -117,7 +117,6 @@ contains
         class(GugaAliasSampler_t), intent(inout) :: this
         integer :: a, b
         integer(int64) :: memCost, ijMax, abMax, ab
-        routine_name("init_GugaAliasSampler_t")
 
         ! also set some more strict defaults for the PCHB implo:
         root_print "Setting reasonable defaults for GUGA-PCHB:"
