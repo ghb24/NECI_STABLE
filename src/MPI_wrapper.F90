@@ -15,20 +15,6 @@ module MPI_wrapper
     ! If we are using C-bindings, certain things need to be defined
     !
 
-#ifdef USE_MPI
-    ! MpiDetInt needs to be defined here, so that it can make use of the
-    ! above
-#ifdef INT64_
-    type(MPI_Datatype), parameter :: MpiDetInt = MPI_INTEGER8
-#else
-    type(MPI_Datatype), parameter :: MpiDetInt = MPI_INTEGER4
-#endif
-
-#else
-    ! In serial, set this to a nonsense value
-    integer(MPIArg), parameter :: MpiDetInt = -1
-#endif
-
 #ifndef USE_MPI
     ! These don't exist in serial, so fudge them
     integer(MPIArg), parameter :: MPI_2INTEGER = 0
