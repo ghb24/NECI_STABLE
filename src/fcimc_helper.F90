@@ -726,14 +726,14 @@ contains
         end if
 
         ! Perform normal projection onto reference determinant
-        if (t_adjoint_replicas) then
+        if (t_adjoint_replicas .or. tImportanceSampling) then
             if (      ExcitLevel_local == 2 &
                 .or. (ExcitLevel_local == 1 .and. tNoBrillouin) &
                 .or. (ExcitLevel_local == 3 &
                     .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
 
                 if(tImportanceSampling)then
-                     importance_ratio = calcImportanceRatio(nI, ilut, ProjEDet(:, 1), ilutRef(:, 1))
+                    importance_ratio = calcImportanceRatio(nI, ilut, ProjEDet(:, 1), ilutRef(:, 1))
                 else
                     importance_ratio = 1.0
                 endif
@@ -742,34 +742,19 @@ contains
                 do run = 1, inum_runs
                     if(t_evolve_adjoint(part_type_to_run(run))) then
                         HOffDiag(run) = &
-                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1)) * importance_ratio
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
+                    else if (tHPHF) then
+                        HOffDiag(1:inum_runs) = &
+                            hphf_off_diag_helement(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut) * importance_ratio
                     else
                         HOffDiag(run) = &
-                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
+                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1)) * importance_ratio
                     end if
                 end do
             end if
         else
-            if (ExcitLevel_local == 2 .or. &
-                (ExcitLevel_local == 1 .and. tNoBrillouin) .or. (ExcitLevel_local == 3 .and. &
-                     (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
-                if(tImportanceSampling)then
-                     importance_ratio = calcImportanceRatio(nI, ilut, ProjEDet(:, 1), ilutRef(:, 1))
-                else
-                    importance_ratio = 1.0
-                endif
-                ! Obtain off-diagonal element
-                if (tHPHF) then
-                    HOffDiag(1:inum_runs) = &
-                        hphf_off_diag_helement(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut) * importance_ratio
-
-                else
-                    HOffDiag(1:inum_runs) = &
-                        get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
-                end if
-            end if
             HOffDiag(1:inum_runs) = HOffDiagCurr
-        end if ! GUGA
+        end if
 
         ! For the real-space Hubbard model, determinants are only
         ! connected to excitations one level away, and Brillouins
