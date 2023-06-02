@@ -367,7 +367,7 @@ contains
         !! Return the two-electron integral.
         integer, intent(in) :: src1, tgt1, src2, tgt2
             !! The index conventions can be seen
-            !! [here](https://www2.fkf.mpg.de/alavi/neci/devel/page/02_dev_doc/15_index_conventions.html)
+            !! [here](https://www2.fkf.mpg.de/alavi/neci/master/page/02_dev_doc/15_index_conventions.html)
         get_2el = get_umat_el(src1, tgt1, src2, tgt2)
     end function
 
