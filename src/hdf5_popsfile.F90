@@ -1167,8 +1167,6 @@ contains
                                   [int(bit_rep_width, hsize_t), all_count])
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(tmp_lenof_sign, hsize_t), all_count])
-        call check_dataset_params(ds_flags, nm_flags, 8_hsize_t, H5T_INTEGER_F, &
-                                  [int(1, hsize_t), all_count])
         if (t_read_gdata) then
             if (t_exist_gdata) then
                 call check_dataset_params(ds_gdata, nm_gdata, 8_hsize_t, H5T_FLOAT_F, &
@@ -1461,7 +1459,6 @@ contains
                     if (targetproc(j) == p) then
                         onepart(0:sizeilut - 1) = temp_ilut(:, j)
                         onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
-                        onepart(sizeilut + int(lenof_sign):sizeilut + int(lenof_sign) + 1) = temp_flags(:, j)
                         SpawnedParts2(:, index2) = onepart
                         if (t_read_gdata) &
                             gdata_loc(:, index2) = gdata_buf(:, j)
@@ -1474,7 +1471,6 @@ contains
                     if (targetproc(j) == p) then
                         onepart(0:sizeilut - 1) = temp_ilut(:, j)
                         onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
-                        onepart(sizeilut + int(lenof_sign):sizeilut + int(lenof_sign) + 1) = temp_flags(:, j)
                         SpawnedParts(:, index) = onepart
                         if (t_read_gdata) &
                             gdata_comm(:, index) = gdata_buf(:, j)
