@@ -108,9 +108,9 @@ module bit_rep_data
                           flag_deterministic(lenof_sign_max) &
                           = (/41, 42, 43, 44, 45, 46, 47, &
                               48, 49, 50, 51, 52, 53, 54, 61, 62/), &
-                          flag_adi_checked = 56, &
-                          flag_modshift = 63, &
-                          flag_nospawn = 64, &
+                          flag_adi_checked = 55, &
+                          flag_modshift = 56, &
+                          flag_nospawn = 63, &
                           flag_expanded = 65, &
                           flag_signflip(lenof_sign_max) &
                           = (/66, 67, 68, 69, 70, 71, 72, &
