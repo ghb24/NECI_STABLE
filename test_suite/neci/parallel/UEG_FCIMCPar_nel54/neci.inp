@@ -1,47 +1,48 @@
 title
 
 system ueg
-electrons 54
-nosymmetry
-nonuniformrandexcits nosymgen
-cell 4 4 4
-rs 1.0
-spin-restrict 0
-lattice-excitgen
-exchange-cutoff
-ueg-offset -0.0973803067469774 -0.0330218807719085 0.177697757238747
-ueg-scaled-energies
+    electrons 54
+    nosymmetry
+    nonuniformrandexcits nosymgen
+    cell 4 4 4
+    rs 1.0
+    spin-restrict 0
+    lattice-excitgen
+    exchange-cutoff
+    ueg-offset -0.0973803067469774 -0.0330218807719085 0.177697757238747
+    ueg-scaled-energies
 endsys
 
 calc
-seed -1
-methods
-method vertex fcimc
-endmethods
-nmcyc 10000
-truncinitiator
-addtoinitiator 3
-diagshift 0.1
-totalwalkers 10000
-tau 0.00003
-regenexcitgens
-startsinglepart
-shiftdamp 0.1
-directannihilation
-memoryfacpart 3.3
-memoryfacspawn 3.2
-stepsshift 100
-load-balance-blocks off
+    seed -1
+    methods
+        method vertex fcimc
+    endmethods
+    nmcyc 10000
+    truncinitiator
+    addtoinitiator 3
+    diagshift 0.1
+    totalwalkers 10000
+    tau-values \
+        start user-defined 3e-5
+    regenexcitgens
+    startsinglepart
+    shiftdamp 0.1
+    directannihilation
+    memoryfacpart 3.3
+    memoryfacspawn 3.2
+    stepsshift 100
+    load-balance-blocks off
 endcalc
 
 integral
-freeze 0 0
+    freeze 0 0
 endint
 
 logging
-popsfile -1
-printorboccs 80000
-histinitiatorpops 10000
+    popsfile -1
+    printorboccs 80000
+    histinitiatorpops 10000
 endlog
 end
 

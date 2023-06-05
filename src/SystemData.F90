@@ -17,6 +17,7 @@ module SystemData
     logical :: tNoSingExcits    !True if there are no single excitations in the system
     logical :: t_mol_3_body     ! using molecular 3-body transcorr. matels
     logical :: t_exclude_3_body_excits = .false.
+    logical :: t_exclude_pure_parallel = .false.
     logical :: t_ueg_transcorr, t_ueg_dump, t_ueg_3_body
     logical :: tSmallBasisForThreeBody = .true.     ! using  3-body transcorr. matels for ueg and ultracold atoms
     logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
@@ -157,13 +158,19 @@ module SystemData
 
     integer, PARAMETER :: SymmetrySize = 2
     integer, PARAMETER :: SymmetrySizeB = SymmetrySize * 8
-    TYPE BasisFN
+    TYPE :: BasisFN
         TYPE(Symmetry) :: sym
         INTEGER :: k(3)
         INTEGER :: Ms
+            !! is -1 for beta, and 1 for alpha
         INTEGER :: Ml            !This is the Ml symmetry of the orbital
         INTEGER :: Dummy         !Rather than use SEQUENCE which has caused endless bother...
     END TYPE
+
+
+    interface get_BasisFn
+        module procedure construct_basisfn
+    end interface
 
 ! Empty basis function is used in many places.
 ! This is useful so if BasisFn changes, we don't have to go
@@ -178,6 +185,7 @@ module SystemData
     real(dp) :: ALAT(5)
     real(dp) :: ECore
     INTEGER :: nBasis
+        !! The number of spin orbitals.
     integer(int64) :: nBI
     integer :: nMax
     integer :: nnr
@@ -223,8 +231,8 @@ module SystemData
 !  and group them under the same symrep
     LOGICAL :: tSymIgnoreEnergies
 
-! Should we use |K| for FCIQMC?
-    logical :: modk_offdiag
+! Stoquastize the Hamiltonian. i.e., H_offdiag -> -abs(H_offdiag)
+    logical :: tStoquastize
 
 ! True if we are performing a calculation in all symmetry sectors at once.
 ! This is used in finite-temperature KP-FCIQMC calculations.
@@ -239,8 +247,6 @@ module SystemData
 
 ! Has the user set the symmetry using the 'SYM' option?
     logical :: tSymSet = .false.
-
-    logical :: tGiovannisBrokenInit
 
 ! ==================== GUGA Implementation ========================
 ! input for graphical unitary group approach (GUGA) CSF implementation
@@ -353,7 +359,11 @@ module SystemData
     logical :: t_3_body_excits = .false.
 
 ! make a general Flag to indicat a non-hermitian Hamiltonian
-    logical :: t_non_hermitian = .false.
+    logical :: t_non_hermitian_2_body = .false.
+    logical :: t_non_hermitian_1_body = .false.
+
+! if true, we are actually propagating $H^\dagger$, not $H$
+    logical :: t_calc_adjoint = .false.
 
 ! and indicate the maximum excitation level:
     integer :: max_ex_level = 2
@@ -366,8 +376,8 @@ module SystemData
 ! flag for the pre-computed power-pitzer excitaion generator
     logical :: t_pcpp_excitgen = .false.
 ! flags for the pre-computed heat-bath excitation generator
-    logical :: t_pchb_excitgen = .false.
-    logical :: t_pchb_weighted_singles = .false.
+    logical :: t_fci_pchb_excitgen = .false.
+    logical :: t_guga_pchb_weighted_singles = .false.
 
     logical :: t_guga_pchb = .false.
 
@@ -448,6 +458,12 @@ contains
     elemental logical function SymLt(a, b)
         type(Symmetry), intent(in) :: a, b
         SymLt = a%S < b%S
+    end function
+
+    pure function construct_basisfn(mdk) result(res)
+        integer, intent(in) :: mdk(5)
+        type(BasisFN) :: res
+        res = BasisFN(Symmetry(int(mdk(1), int64)), mdk(2:4), mdk(5), 0, 0)
     end function
 
 end module SystemData

@@ -17,7 +17,8 @@ calc
 
     totalwalkers   1000
 
-    tau 0.05
+    tau-values \
+        start user-defined 0.05
 
     load-balance-blocks off
 
@@ -27,16 +28,13 @@ calc
     trial-wavefunction 10
     pops-trial 5
 
-    # start-neel-state
-
     seed 1
     nmcyc 2000
 
     truncinitiator
     addtoinitiator 1.2
     allrealcoeff
-    # max-tau 0.001
-    # maxwalkerbloom 1
+    realspawncutoff off
     startsinglepart 1
     shiftdamp 0.1
     stepsshift 1

@@ -6,13 +6,12 @@ System read
     freeformat
     spin-restrict 0
     FCIDUMP-name Li2.FciDmp
-    GAS-CI general_PCHB \
-        SINGLES ON-FLY-HEAT-BATH
-    GAS-SPEC LOCAL \
-    2 \
-    5 2 4 \
-    5 2 4 \
-    1 1 1 1 1 2 2 2 2 2
+    nonuniformrandexcits GAS-CI PCHB \
+        manual on-the-fly-heat-bath full-full:fast-fast
+    GAS-SPEC LOCAL 2
+        5 2 4
+        5 2 4
+        1 1 1 1 1 2 2 2 2 2
 endsys
 
 calc
@@ -38,11 +37,14 @@ calc
     truncinitiator
     addtoinitiator  3
     allrealcoeff
-    realspawncutoff .30
     jump-shift
-    tau 0.01 search
-    max-tau .02
-    maxwalkerbloom 1
+    tau-values  \
+        start user-defined 0.01 \
+        max 0.02
+    tau-search \
+        algorithm conventional \
+        stop-condition var-shift \
+        maxwalkerbloom 1
     memoryfacspawn 10.00
     memoryfacpart 5.00
     time 200

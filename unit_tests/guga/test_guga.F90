@@ -7,19 +7,68 @@
 ! discuss with simon how to implement that optimally
 
 program test_guga
-    use fruit
+    use constants, only: dp, n_int, int_rdm, EPS, maxExcit, Root2, OverR2, bn2_, &
+        int64
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true, assert_false, assert_equals
+    use util_mod, only: stop_all
 
-    use SystemData
-    use guga_bitRepOps
-    use guga_bitRepOps, only: global_csf_i => current_csf_i
-    use guga_excitations
+    use SystemData, only: nEl, nSpatOrbs, nBasis
+    use guga_bitRepOps, only: global_csf_i => current_csf_i, &
+        CSF_Info_t, extract_stochastic_rdm_info, calcstepvector, &
+        extract_rdm_ind, extract_stochastic_rdm_x0, extract_stochastic_rdm_x1, &
+        contract_1_rdm_ind, encodebitdet_guga, extract_stochastic_rdm_ind, &
+        extract_matrix_element, encode_stochastic_rdm_ind, encode_stochastic_rdm_x0, &
+        encode_stochastic_rdm_x1, encode_stochastic_rdm_info, extract_h_element, &
+        extract_2_rdm_ind, extract_1_rdm_ind, contract_2_rdm_ind, &
+        encode_excit_info_indices, extract_excit_info_indices, &
+        encode_excit_info_type, extract_excit_info_type, &
+        extract_excit_info, encode_excit_info, convert_guga_to_ni, &
+        identify_excitation, write_det_guga, findlastswitch, findfirstswitch, &
+        count_beta_orbs_ij, count_alpha_orbs_ij, getspatialoccupation, &
+        convert_ilut_toguga, extract_excit_lvl_rdm, extract_excit_type_rdm, &
+        getdeltab, encode_matrix_element, update_matrix_element, &
+        isdouble, calcocc_vector_ilut, setDeltaB, &
+        count_open_orbs_ij, calcb_vector_ni, calcb_vector_ilut, isProperCSF_ilut, &
+        transfer_stochastic_rdm_info
+    use guga_data, only: getMixedFullStop, getSingleMatrixElement, &
+        excit_type, gen_type, getDoubleMatrixElement, ExcitationInformation_t
+    use guga_excitations, only: actHamiltonian, calcDoubleL2R2L_stochastic, &
+        checkCompatibility, excitationIdentifier, print_excitInfo, &
+        calcFullStartFullStopMixed, calcDoubleR2L_stochastic, &
+        calcDoubleR2L2R_stochastic, calcDoubleRaisingStochastic, &
+        calcDoubleLoweringStochastic, calcFullStopR2L_stochastic, &
+        calcDoubleL2R_stochastic, calcFullStopL2R_stochastic, &
+        calcFullStartR2L_stochastic, calcFullStartL2R_stochastic, &
+        calcraisingsemistopstochastic, mixedfullstartstochastic, &
+        calcloweringsemistopstochastic, calcSingleOverlapMixedStochastic, &
+        calcFullStopLoweringStochastic, calcFullStopRaisingStochastic, &
+        calcFullStartLoweringStochastic, calcFullStartRaisingStochastic, &
+        mixedFullStopStochastic, doubleUpdateStochastic, singleStochasticEnd, &
+        calcFullStartFullStopMixedStochastic, createstochasticstart_single, &
+        calcloweringsemistartstochastic, singlestochasticupdate, &
+        pickRandomOrb_restricted, pickRandomOrb_vector, pickRandomOrb_scalar, &
+        pickRandomOrb_forced, calcFullStartFullStopAlike, calcFullStartFullStopAlike, &
+        calcAllExcitations_double, calcFullStartL2R, calcFullStartR2L, &
+        calcFullStartRaising, calcFullStartLowering, calcFullStopR2L, calcFullStopL2R, &
+        calcFullStopRaising, calcFullStopLowering, calcDoubleR2L, calcDoubleL2R, &
+        calcDoubleRaising, calcDoubleLowering, calcSingleOverlapRaising, &
+        calcSingleOverlapMixed, calcSingleOverlapLowering, calcNonOverlapDouble, &
+        excitationIdentifier_double, calcAllExcitations_single, singleEnd, &
+        calcRemainingSwitches_single, singleupdate, createsinglestart, &
+        calcdoubleexcitation_withweight, calcraisingsemistartstochastic
     use guga_main, only: generate_excitation_guga, &
         createStochasticExcitation_single, createStochasticExcitation_double
-    use guga_matrixElements
-    use guga_data
-    use guga_types
-    use guga_init
-    use guga_procedure_pointers
+    use guga_matrixElements, only: calc_guga_matrix_element, &
+        calcRemainingSwitches_excitInfo_double, init_fullStartWeight, &
+        calc_mixed_contr_integral, calcRemainingSwitches_excitInfo_single, &
+        init_semiStartWeight, init_singleWeight, init_doubleWeight, &
+        calcDiagExchangeGUGA_nI, calcDiagMatEleGUGA_nI
+
+    use guga_types, only: WeightObj_t
+
+    use guga_init, only: init_guga
+    use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double
     use guga_plugin, only: init_guga_plugin
     use guga_rdm, only: calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
                         calc_explicit_2_rdm_guga, &
@@ -29,14 +78,15 @@ program test_guga
                         extract_molcas_2_rdm_index, contract_molcas_2_rdm_index, &
                         calc_all_excits_guga_rdm_doubles, &
                         conjugate_rdm_ind
-    use constants
-    use DetBitOps
-    use Determinants
-    use bit_reps
-    use FciMCData
+    use bit_rep_data, only: GugaBits, IlutBits, nifd, IlutBitsParent, nIfGUGA, &
+        niftot
+    use bit_reps, only: decode_bit_det
+    use DetBitOps, only: DetBitEQ, EncodeBitDet
+    use Determinants, only:
+    use FciMCData, only: pSingles, pDoubles, excit_gen_store_type
     use dsfmt_interface, only: dsfmt_init
     use util_mod, only: operator(.isclose.), near_zero, operator(.div.), &
-                        binary_search, get_free_unit, stop_all, get_unique_filename
+                        binary_search_ilut, get_free_unit, stop_all, get_unique_filename
     use sort_mod, only: sort
     use rdm_data_utils, only: calc_combined_rdm_label, calc_separate_rdm_labels
     use fruit_extensions, only: my_run_test_case
@@ -198,7 +248,6 @@ contains
     end subroutine test_contract_extract_2_rdm_molcas
 
     subroutine test_create_all_rdm_contribs
-
         integer(int_rdm), allocatable :: rdm_inds(:), rdm_ind_ex(:)
         real(dp), allocatable :: rdm_mats(:), rdm_mat_ex(:)
         integer(int_rdm) :: rdm_ind, rdm_ex
@@ -2168,7 +2217,7 @@ contains
 
                     ! this should only happen if two_ex is in the original ex
                     ! or it is ilutI
-                    ind = binary_search(ex(0:nifd, 1:nex), two_ex(0:nifd, j))
+                    ind = binary_search_ilut(ex(0:nifd, 1:nex), two_ex(0:nifd, j))
 
                     ! is the matrix element here correct if i find somethin?
                     if (ind < 0 .and. (.not. DetBitEQ(two_ex(0:nifd, j), ilutG(0:nifd)))) then
@@ -2757,7 +2806,7 @@ contains
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
 
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_equals(helgen, extract_h_element(ex(:, pos)))
 
@@ -2813,7 +2862,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -2868,7 +2917,7 @@ contains
 
         if (pgen > EPS) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -2922,7 +2971,7 @@ contains
 
         if (pgen > EPS) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -2976,7 +3025,7 @@ contains
 
         if (pgen > EPS) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3029,7 +3078,7 @@ contains
 
         if (pgen > EPS) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3083,7 +3132,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3136,7 +3185,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3189,7 +3238,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3242,7 +3291,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3297,7 +3346,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3351,7 +3400,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3404,7 +3453,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3457,7 +3506,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3510,7 +3559,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3563,7 +3612,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3616,7 +3665,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3669,7 +3718,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3723,7 +3772,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3777,7 +3826,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3858,7 +3907,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3870,7 +3919,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), rdm_ind_)
@@ -3899,7 +3948,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3908,7 +3957,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -3938,7 +3987,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3947,7 +3996,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -3977,7 +4026,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -3986,7 +4035,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4016,7 +4065,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4025,7 +4074,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4055,7 +4104,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4064,7 +4113,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4094,7 +4143,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4103,7 +4152,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4133,7 +4182,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4142,7 +4191,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4172,7 +4221,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4181,7 +4230,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4211,7 +4260,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4220,7 +4269,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4250,7 +4299,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4259,7 +4308,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4289,7 +4338,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4298,7 +4347,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4328,7 +4377,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4337,7 +4386,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4367,7 +4416,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4376,7 +4425,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4406,7 +4455,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4415,7 +4464,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4445,7 +4494,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4454,7 +4503,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4484,7 +4533,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4493,7 +4542,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4523,7 +4572,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4532,7 +4581,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4562,7 +4611,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4571,7 +4620,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -4601,7 +4650,7 @@ contains
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilutI, global_csf_i, ex, nEx)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
 
@@ -4610,7 +4659,7 @@ contains
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -6486,7 +6535,7 @@ contains
             x1 = extract_stochastic_rdm_x1(GugaBits, ex)
 
             call actHamiltonian(ilut, csf_i, all_ex, nex)
-            pos = binary_search(all_ex(0:nifd, 1:nex), ex(0:nifd))
+            pos = binary_search_ilut(all_ex(0:nifd, 1:nex), ex(0:nifd))
             call assert_true(pos > 0)
             ilutJ = all_ex(:, pos)
             mat_exact = extract_matrix_element(ilutJ, 1)
@@ -6496,7 +6545,7 @@ contains
 
             call calc_explicit_2_rdm_guga(ilut, csf_i, nex, all_ex)
 
-            pos = binary_search(all_ex(0:nifd, 1:nex), ex(0:nifd))
+            pos = binary_search_ilut(all_ex(0:nifd, 1:nex), ex(0:nifd))
             call assert_true(pos > 0)
 
             ilutJ = all_ex(:, pos)
@@ -6925,14 +6974,14 @@ contains
 
             rdm_ind = extract_rdm_ind(t)
 
-            pos = binary_search(ex(0:nifd, 1:nex), t(0:nifd))
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), t(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(extract_matrix_element(t, 1) - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilut, csf_i, nEx, ex)
-            pos = binary_search(ex(0:nifd, 1:nex), t(0:nifd), nifd)
+            pos = binary_search_ilut(ex(0:nifd, 1:nex), t(0:nifd), nifd)
             call assert_true(pos > 0)
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:, pos), 1), &

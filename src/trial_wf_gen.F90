@@ -2,13 +2,15 @@
 
 module trial_wf_gen
 
-    use bit_rep_data, only: NIfTot, nifd, flag_trial, flag_connected, IlutBits
+    use bit_rep_data, only: NIfTot, nifd, flag_trial, &
+        flag_connected, IlutBits, extract_sign
+    use bit_reps, only: clr_flag
     use CalcData
     use Parallel_neci
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
-    use SystemData, only: nel, tHPHF, t_non_hermitian
+    use SystemData, only: nel, tHPHF, t_non_hermitian_2_body
 
     use guga_data, only: ExcitationInformation_t
     use guga_matrixElements, only: calc_guga_matrix_element
@@ -17,7 +19,7 @@ module trial_wf_gen
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
 
-    implicit none
+    better_implicit_none
 
 contains
 
@@ -83,7 +85,7 @@ contains
         trial_energies = 0.0_dp
         trial_space = 0_n_int
 
-        write(stdout, '("Generating the trial space...")'); call neci_flush(6)
+        write(stdout, '("Generating the trial space...")'); call neci_flush(stdout)
 
         if (qmc_trial_wf) then
 #ifdef CMPLX_
@@ -102,7 +104,7 @@ contains
             end if
         end if
 
-        write(stdout, '("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
+        write(stdout, '("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(stdout)
 
         if (.not. qmc_trial_wf) then
             ! Allocate the array to hold the final trial wave functions which we
@@ -125,7 +127,7 @@ contains
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
         tot_trial_space_size = int(sum(trial_counts))
-        write(stdout, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
+        write(stdout, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(stdout)
 
         ! Use SpawnedParts as temporary space:
         call MPIAllGatherV(trial_space(0:NIfTot, 1:trial_space_size), &
@@ -147,24 +149,24 @@ contains
             ! Find the states connected to the trial space. This typically takes a long time, so
             ! it is done in parallel by letting each processor find the states connected to a
             ! portion of the trial space.
-            write(stdout, '("Calculating the number of states in the connected space...")'); call neci_flush(6)
+            write(stdout, '("Calculating the number of states in the connected space...")'); call neci_flush(stdout)
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), con_space_size)
 
             write(stdout, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
-                real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
+                real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(stdout)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size * (NIfTot + 1), size_n_int, t_r, ConTag, ierr)
             con_space = 0_n_int
 
             write(stdout, '("States found on this processor, including repeats:",1X,i8)') con_space_size
 
-            write(stdout, '("Generating and storing the connected space...")'); call neci_flush(6)
+            write(stdout, '("Generating and storing the connected space...")'); call neci_flush(stdout)
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), &
                                           con_space_size, con_space)
 
-            write(stdout, '("Removing repeated states and sorting by processor...")'); call neci_flush(6)
+            write(stdout, '("Removing repeated states and sorting by processor...")'); call neci_flush(stdout)
 
             call remove_repeated_states(con_space, con_space_size)
 
@@ -174,13 +176,13 @@ contains
             con_space_size = 0
             con_sendcounts = 0
             allocate(con_space(0, 0), stat=ierr)
-            write(stdout, '("This processor will not search for connected states.")'); call neci_flush(6)
+            write(stdout, '("This processor will not search for connected states.")'); call neci_flush(stdout)
             !Although the size is zero, we should allocate it, because the rest of the code use it.
             !Otherwise, we get segmentation fault later.
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
         end if
 
-        write(stdout, '("Performing MPI communication of connected states...")'); call neci_flush(6)
+        write(stdout, '("Performing MPI communication of connected states...")'); call neci_flush(stdout)
 
         ! Send the connected states to their processors.
         ! con_sendcounts holds the number of states to send to other processors from this one.
@@ -199,7 +201,7 @@ contains
         end do
 
         write(stdout, '("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
-            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
+            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(stdout)
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
         call LogMemAlloc('temp_space', con_space_size * (NIfTot + 1), size_n_int, t_r, TempTag, ierr)
 
@@ -211,7 +213,7 @@ contains
             call LogMemDealloc(t_r, ConTag, ierr)
         end if
         write(stdout, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
-            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
+            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(stdout)
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
         call LogMemAlloc('con_space', con_space_size * (NIfTot + 1), size_n_int, t_r, ConTag, ierr)
         con_space = temp_space
@@ -241,7 +243,7 @@ contains
 
         write(stdout, '("Total size of connected space:",1X,i10)') tot_con_space_size
         write(stdout, '("Size of connected space on this processor:",1X,i10)') con_space_size
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! Create the trial wavefunction from all processors, on all processors.
         allocate(trial_wfs_all_procs(nexcit_keep, tot_trial_space_size), stat=ierr)
@@ -249,7 +251,7 @@ contains
 
         call sort_space_by_proc(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
-        write(stdout, '("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
+        write(stdout, '("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(stdout)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
         call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
@@ -284,7 +286,7 @@ contains
         root_print "Trial wavefunction initialisation complete."
         root_print "Total time (seconds) taken for trial wavefunction initialisation:", &
             get_total_time(Trial_Init_Time)
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         if (tAS_TrialOffset) then
             call set_AS_TrialOffset(nexcit_keep, replica_pairs)
@@ -299,7 +301,6 @@ contains
         ! pair. For each replica, keep the trial state which has the largest
         ! overlap (by magnitude).
 
-        use bit_reps, only: extract_sign
         use FciMCData, only: ll_node
         use hash, only: hash_table_lookup
 
@@ -476,7 +477,7 @@ contains
 
     subroutine remove_list1_states_from_list2(list_1, list_2, list_1_size, list_2_size)
 
-        use util_mod, only: binary_search
+        use util_mod, only: binary_search_ilut
 
         integer, intent(in) :: list_1_size
         integer, intent(inout) :: list_2_size
@@ -488,7 +489,7 @@ contains
 
         do i = 1, list_2_size
             ! Binary search list_1 to see if list_2(:,i) is in it.
-            pos = binary_search(list_1(:, min_ind:list_1_size), list_2(:, i), NifD + 1)
+            pos = binary_search_ilut(list_1(:, min_ind:list_1_size), list_2(:, i), NifD + 1)
             ! If it is in list 1, remove the state by setting it to 0.
             ! If it isn't in list 1 (pos < 0) then we can still search a smaller list next time.
             if (pos > 0) then
@@ -570,7 +571,7 @@ contains
                         H_ij = hphf_off_diag_helement(nJ, nI, trial_space(:, j), con_space(:, i))
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
-                        ASSERT(.not. t_non_hermitian)
+                        ASSERT(.not. t_non_hermitian_2_body)
                         call calc_guga_matrix_element(&
                             con_space(:, i), csf_i, trial_space(:, j), csf_j, &
                             excitInfo, H_ij, .true.)
@@ -687,7 +688,6 @@ contains
         ! Routine to output the trial wavefunction amplitudes and FCIQMC amplitudes in the trial
         ! space. This is a test routine and is very unoptimised.
 
-        use bit_reps, only: extract_sign
         use FciMCData, only: trial_space, trial_space_size, trial_wfs
         use MPI_wrapper, only: root
         use searching, only: BinSearchParts
@@ -759,7 +759,6 @@ contains
 
     subroutine init_current_trial_amps()
 
-        use bit_reps, only: set_flag, decode_bit_det
         use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
         use FciMCData, only: con_space_vecs, current_trial_amps, HashIndex, trial_wfs, nWalkerHashes
         use FciMCData, only: CurrentDets
@@ -889,7 +888,7 @@ contains
         allocate(con_ht(con_space_size), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '("ierr:")') ierr
-            call neci_flush(6)
+            call neci_flush(stdout)
             call stop_all("t_r", "Error in allocating con_ht array.")
         end if
 
@@ -982,7 +981,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine refresh_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
-        implicit none
         type(subspace_in) :: trial_in
         integer, intent(in) :: nexcit_calc, nexcit_keep
         logical, intent(in) :: replica_pairs
@@ -998,8 +996,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine reset_trial_space()
-        use bit_reps, only: clr_flag
-        implicit none
         integer(int64) :: i
 
         do i = 1_int64, TotWalkers

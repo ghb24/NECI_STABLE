@@ -47,6 +47,8 @@
 #
 # TYPE : optional
 #   library type, one of:
+#   :SHARED: libraries are linked dynamically and loaded at runtime
+#   :STATIC: archives of object files for use when linking other targets.
 #
 # PRIVATE_INCLUDES : optional
 #   list of paths to add to include directories that will NOT be exported to other projects. Currently
@@ -60,9 +62,6 @@
 #
 # OUTPUT_NAME : optional
 #   set the name of the output file (so it may differ from the target name)
-#
-#   :SHARED: libraries are linked dynamically and loaded at runtime
-#   :STATIC: archives of object files for use when linking other targets.
 #
 ##############################################################################
 
@@ -97,8 +96,11 @@ macro( neci_add_library )
     endif()
 
     add_library( ${_p_TARGET} ${_p_TYPE} ${_p_SOURCES})
+    get_target_property(mod_dir ${_p_TARGET} INCLUDE_DIRECTORIES)
+    set_property( TARGET ${_p_TARGET} PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${mod_dir} )
 
     # Add .F90.template files if supplied
+
 
     set( ${_p_TARGET}_TEMPLATED_SOURCES )
     if ( _p_TEMPLATED_SOURCES )
@@ -215,6 +217,7 @@ macro( neci_add_library )
     endif()
 
 
+
     # Add (private) includes
     if( DEFINED _p_PRIVATE_INCLUDES )
         list( REMOVE_DUPLICATES _p_PRIVATE_INCLUDES )
@@ -256,8 +259,11 @@ macro( neci_add_library )
 
     # Where do we put the Fortran modules?
 
+
     set_property( TARGET ${_p_TARGET} PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
-    target_include_directories( ${_p_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+    target_include_directories( ${_p_TARGET} PUBLIC ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+
+
 
     # Where do the files get built to
 
@@ -298,5 +304,6 @@ macro( neci_add_library )
     # Add to the global list of libraries
     #list( APPEND ${PROJECT_NAME}_ALL_LIBS ${_p_TARGET} )
     set( ${PROJECT_NAME}_ALL_LIBS ${${PROJECT_NAME}_ALL_LIBS} ${_p_TARGET} CACHE INTERNAL "" )
+
 
 endmacro()

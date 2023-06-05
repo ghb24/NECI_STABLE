@@ -34,6 +34,7 @@ set(markdown_files_dev_doc
         pages/02_dev_doc/12_interfacing_C.md
         pages/02_dev_doc/13_debugging.md
         pages/02_dev_doc/14_important_globals.md
+        pages/02_dev_doc/15_index_conventions.md
 )
 
 set(MEDIA_FILES
@@ -48,7 +49,10 @@ set(MEDIA_FILES
         media/plots1/check_totE.png
         media/plots1/check_totWalkers.png
         media/plots2/blocking.png
-        media/neci.jpg
+        media/logos/MPG_logo.png
+        media/logos/UKRI_logo.png
+        media/logos/neci.jpg
+        media/logos/cambridge_university2.svg
 )
 
 set(DOC_ROOT_SRC ${PROJECT_SOURCE_DIR}/docs)
@@ -110,22 +114,7 @@ function(get_unique_dirs paths result)
     set(${result} ${${result}} PARENT_SCOPE)
 endfunction()
 
-find_package(Git QUIET REQUIRED)
-execute_process(
-    COMMAND
-        ${GIT_EXECUTABLE} submodule update --init --recursive
-    WORKING_DIRECTORY
-        ${PROJECT_SOURCE_DIR}
-    RESULT_VARIABLE
-        GIT_SUBMOD_RESULT
-)
-
-if (NOT GIT_SUBMOD_RESULT EQUAL "0")
-    message(FATAL_ERROR "Git submodules required. Check your internet connection.")
-endif()
-
-
-find_package(Python3 REQUIRED)
+find_package(Python3 3.7 REQUIRED)
 set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 set(custom_Python3 ${PYTHON_VENV}/bin/python3)
 add_custom_command(
@@ -134,7 +123,7 @@ add_custom_command(
     COMMAND
         ${Python3_EXECUTABLE} -m venv ${PYTHON_VENV}
     COMMAND
-        ${custom_Python3} -m pip install wheel --no-warn-script-location --quiet
+        ${custom_Python3} -m pip install --upgrade pip --no-warn-script-location --quiet
     COMMENT
         "Setting up virtual python environment."
 )
@@ -212,7 +201,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
             COMMAND
-                ${LATEXMK} -view=pdf ${tex_file} 1> /dev/null
+                ${LATEXMK} -view=pdf -halt-on-error ${tex_file}
             COMMAND
                 cp ${tex_stem}.pdf ${pdf_file}
             WORKING_DIRECTORY
@@ -249,14 +238,7 @@ function(add_ford_documentation target configuration)
 
     set(THIS_HTML_DOC ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
 
-    find_program(FORD ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
-    # The following test is necessary because `REQUIRED` inside
-    # find_program is only supported for cmake >=3.18.
-    # If the minimum version is >=3.18 you can remove it.
-    if (NOT FORD)
-        message(FATAL_ERROR "Ford not found. It was expected at ${PROJECT_SOURCE_DIR}/External/ford/ford.py.")
-    endif()
-
+    set(FORD ${PYTHON_VENV}/bin/ford)
     set(FORD_WORKDIR ${FORD_ROOT_WORKDIR}/${configuration})
     set(FORD_PAGES ${FORD_WORKDIR}/pages)
 
@@ -286,6 +268,8 @@ function(add_ford_documentation target configuration)
             ${custom_Python3} -m pip install bibtexparser --quiet
         COMMAND
             ${custom_Python3} -m pip install lxml --quiet
+        COMMAND
+            ${custom_Python3} -m pip install ford --quiet
         COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
@@ -344,11 +328,6 @@ function(add_ford_documentation target configuration)
             ${fortran_sources}
             ${processed_files}
             ${markdown_files}
-        # We want to install the custom ford into a virtual environment for the build process
-        # We want our custom ford because of tailored changes!
-        # Do not look for a preinstalled ford, or at least make sure it works!
-        COMMAND
-            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford/ --quiet
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
         COMMAND

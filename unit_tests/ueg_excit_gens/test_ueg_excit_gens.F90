@@ -1,8 +1,10 @@
 #include "macros.h"
 program test_ueg_excit_gens
 
-    use ueg_excit_gens
-    use fruit
+    use ueg_excit_gens, only: pick_uniform_elecs, calc_pgen_ueg, &
+        create_ab_list_ueg
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true, assert_equals
 
     implicit none
 

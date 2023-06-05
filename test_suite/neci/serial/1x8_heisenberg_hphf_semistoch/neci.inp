@@ -1,45 +1,47 @@
 title
 
 system heisenberg
-lattice chain 1 8
-b -1.0
-j 1.0
-electrons 8
-hphf 0
+    lattice chain 1 8
+    b -1.0
+    j 1.0
+    electrons 8
+    hphf 0
 endsys
 
 calc
 
-methods
-method vertex fcimc
-endmethods
+    methods
+        method vertex fcimc
+    endmethods
 
-totalwalkers   1000
+    totalwalkers   1000
 
-semi-stochastic  1000
-pops-core 50
+    semi-stochastic  1000
+    pops-core 50
 
-tau 0.001
+    tau-values \
+        start user-defined 0.001
 
-start-neel-state
+    start-neel-state
 
-allrealcoeff
+    allrealcoeff
+    realspawncutoff off
 
-nmcyc 10000
+    nmcyc 10000
 
-startsinglepart 10
-shiftdamp 0.1
-stepsshift 10
-memoryfacpart  5
-memoryfacspawn  10
+    startsinglepart 10
+    shiftdamp 0.1
+    stepsshift 10
+    memoryfacpart  5
+    memoryfacspawn  10
 
-seed 1
-load-balance-blocks off
+    seed 1
+    load-balance-blocks off
 
 endcalc
 
 logging
-popsfile -1
+    popsfile -1
 endlog
 end
 

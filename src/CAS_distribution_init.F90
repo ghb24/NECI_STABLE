@@ -1,5 +1,5 @@
 module CAS_distribution_init
-    use SystemData, only: tHPHFInts, tHPHF, lms, lztot, t_non_hermitian, tspn
+    use SystemData, only: tHPHFInts, tHPHF, lms, lztot, t_non_hermitian_2_body, tspn
 
     use CalcData, only: DiagSft, InitialPart, InitWalkers, OccCasorbs, RealCoeffExcitThresh,&
                         tAllRealCoeff, tReadPops, tRealCoeffByExcitLevel, &
@@ -47,7 +47,8 @@ module CAS_distribution_init
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
     use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
 
-    use tau_search, only: init_tau_search, max_death_cpt
+    use tau_main, only: max_death_cpt
+    use tau_search_conventional, only: init_tau_search_conventional
 
     use fcimc_helper, only: CalcParentFlag, update_run_reference
 
@@ -56,7 +57,7 @@ module CAS_distribution_init
 
     use Parallel_neci, only: iProcIndex, nNodes, mpisumall
 
-    use util_mod, only: operator(.isclose.)
+    use util_mod, only: operator(.isclose.), stop_all, neci_flush, warning_neci
 
     use FciMCData, only: ll_node, HFSym, ProjEDet, tSinglePartPhase, NoatHF, TotParts, &
         iLutRef, CurrentDets, OldAllHFCyc, AllTotParts, iter_data_fciqmc, AllNoAbortedOld, &
@@ -66,9 +67,15 @@ module CAS_distribution_init
 
     use dSFMT_interface, only: genrand_real2_dSFMT
 
+    use hdiag_mod, only: hdiag_neci
+
+    use frsblk_mod, only: neci_frsblkh
+
     use sym_mod
 
     use constants
+
+    use calcrho_mod, only: gethelement
 
     implicit none
     private
@@ -92,15 +99,13 @@ contains
         integer(n_int) :: iLutnJ(0:NIfTot)
         logical :: tMC, tHPHF_temp, tHPHFInts_temp
         HElement_t(dp) :: HDiagTemp, HOffDiagTemp
-        HElement_t(dp), allocatable :: Hamil(:)
-        real(dp), allocatable :: CK(:, :), W(:), CKN(:, :), A_Arr(:, :), V(:), BM(:), T(:), WT(:)
-        real(dp), allocatable :: SCR(:), WH(:), Work2(:), V2(:, :), AM(:)
-        real(dp), allocatable :: Work(:)
+        HElement_t(dp), allocatable :: Hamil(:), CK(:, :), Work2(:), Work(:)
+        real(dp), allocatable :: W(:), CKN(:, :), A_Arr(:, :), V(:), BM(:), T(:), WT(:)
+        real(dp), allocatable :: SCR(:), WH(:), V2(:, :), AM(:)
         integer(TagIntType) :: ATag = 0, VTag = 0, BMTag = 0, TTag = 0, WTTag = 0, SCRTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0
         integer(TagIntType) :: ISCRTag = 0, IndexTag = 0, AMTag = 0
         integer(TagIntType) :: WorkTag = 0
-        real(dp) :: CASRefEnergy, TotWeight, PartFac, amp, rat, r, GetHElement
-        external :: GetHElement
+        real(dp) :: CASRefEnergy, TotWeight, PartFac, amp, rat, r
         real(dp), dimension(lenof_sign) :: temp_sign
         real(dp) :: energytmp(nel), max_wt
         integer  :: tmp_det(nel), det_max, run
@@ -297,20 +302,27 @@ contains
             allocate(CkN(nCASDet, nEval), stat=ierr)
             CkN = 0.0_dp
             !C..Lanczos iterative diagonalising routine
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 call stop_all(this_routine, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
-         CALL NECI_FRSBLKH(nCASDet, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
+#ifdef CMPLX_
+            call stop_all(this_routine, "this does not make sense for complex code")
+#else
+            CALL NECI_FRSBLKH(nCASDet, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
          &  SCR, ISCR, INDEX, NCYCLE, B2L, .false., .false., .true.)
             !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL, -1.0_dp, W, 1)
+#endif
+#ifdef CMPLX_
+            call stop_all(this_routine, "this does not make sense for complex code")
+#else
             if (CK(1, 1) < 0.0_dp) then
                 do i = 1, nCASDet
                     CK(i, 1) = -CK(i, 1)
                 end do
             end if
-
+#endif
             deallocate(CKN, A_Arr, V, BM, T, WT, SCR, WH, V2, iscr, index, AM)
             call logmemdealloc(this_routine, ATag)
             call logmemdealloc(this_routine, VTag)
@@ -332,7 +344,7 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = nCASDet + 1
             nBlocks = 1
-            if (t_non_hermitian) then
+            if (t_non_hermitian_2_body) then
                 call stop_all(this_routine, &
                               "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if
@@ -390,7 +402,7 @@ contains
             write(stdout, *) 'The specified reference determinant is not the &
                        &maximum weighted determinant in the CAS expansion'
             write(stdout, *) 'Use following det as reference:'
-            call write_det(6, CASFullDets(:, det_max), .true.)
+            call write_det(stdout, CASFullDets(:, det_max), .true.)
             call warning_neci(this_routine, "Poor reference chosen")
         end if
 

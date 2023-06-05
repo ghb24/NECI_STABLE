@@ -11,7 +11,8 @@ module local_spin
       use double_occ_mod, only: sum_norm_psi_squared
       use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, &
                            all_norm_psi_squared
-      use util_mod, only: get_free_unit, near_zero, stats_out
+      use util_mod, only: get_free_unit, near_zero, stats_out, stop_all, &
+        neci_flush
       use guga_bitrepops, only: CSF_Info_t
 
       implicit none
@@ -37,6 +38,7 @@ contains
         ! i do not want to deal with complex runs for now..
         call stop_all(this_routine, &
                       "complex double occupancy measurement not yet implemented!")
+        unused_var(real_sgn)
 #else
         coeff = real_sgn(1) * real_sgn(2)
 #endif

@@ -6,10 +6,10 @@ module back_spawn_excit_gen
     use SystemData, only: nel, G1, nbasis, tHPHF, NMAXX, NMAXY, NMAXZ, &
                           tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha, ElecPairs, &
                           tHPHF
-    use bit_rep_data, only: niftot
+    use bit_rep_data, only: niftot, test_flag
+    use bit_reps, only: get_initiator_flag
     use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, &
                                kPointToBasisFn
-    use bit_reps, only: test_flag, get_initiator_flag
     use FciMCData, only: pSingles, projedet, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use excit_gens_int_weighted, only: gen_single_4ind_ex, select_orb_sing, &
@@ -28,10 +28,11 @@ module back_spawn_excit_gen
                           pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard, &
                           is_allowed_ueg_k_vector
     use get_excit, only: make_single, make_double
-    use Determinants, only: write_det, get_helement
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, &
                               calc_pgen_ueg
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), stop_all
 
     use util_mod_numerical, only: binary_search_first_ge
 
@@ -44,6 +45,11 @@ module back_spawn_excit_gen
 #endif
 
     implicit none
+    private
+    public :: calc_pgen_back_spawn_hubbard, &
+        calc_pgen_back_spawn_ueg, calc_pgen_back_spawn_ueg_new, &
+        calc_pgen_back_spawn, gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
+        gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
 contains
 
@@ -95,10 +101,10 @@ contains
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
                     write(stdout, *) 'reference det: '
-                    call write_det(6, projedet(:, part_type_to_run(part_type)), .true.)
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, projedet(:, part_type_to_run(part_type)), .true.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -126,9 +132,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -360,9 +366,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -392,9 +398,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -417,12 +423,11 @@ contains
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
         integer, optional :: part_type
-        character(*), parameter :: this_routine = "gen_double_back_spawn_hubbard"
 
         integer :: elec_i, elec_j, iSpn, orb_b, src(2), elecs(2), &
                    loc, temp_part_type, orb_a
-        real(dp) :: x, pAIJ, dummy, mult, pgen_elec
-        logical :: tAllowedExcit, t_temp_back_spawn
+        real(dp) :: pAIJ, mult, pgen_elec
+        logical :: t_temp_back_spawn
 
         ! damn.. remember if i initialize stuff above it implicitly assumes
         ! the (save) attribut!
@@ -573,7 +578,6 @@ contains
         integer, intent(in) :: nI(nel), ex(2, 2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_back_spawn"
 
         integer :: d_elecs(2), d_src(2), d_ispn, src(2), loc, tgt(2), d_orb
         real(dp) :: pgen_elec, paij, mult
@@ -703,9 +707,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -735,9 +739,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -761,11 +765,9 @@ contains
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
         integer, optional :: part_type
-        character(*), parameter :: this_routine = "gen_double_back_spawn_ueg"
 
         integer :: elec_i, elec_j, iSpn, orb_b, src(2), &
-                   loc, temp_part_type, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
-                   iSpinIndex, orb_a
+                   loc, temp_part_type, orb_a
         real(dp) :: x, pAIJ, dummy, mult
         logical :: tAllowedExcit, t_temp_back_spawn
 
@@ -947,10 +949,10 @@ contains
                     write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
                     write(stdout, *) 'This will break HPHF calculations'
                     write(stdout, *) "reference determinant: "
-                    call write_det(6, projedet(:, part_type_to_run(part_type)), .true.)
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, projedet(:, part_type_to_run(part_type)), .true.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -992,9 +994,9 @@ contains
 
                     write(stdout, *) 'Calculated and actual pgens differ. initiator'
                     write(stdout, *) 'This will break HPHF calculations'
-                    call write_det(6, nI, .false.)
+                    call write_det(stdout, nI, .false.)
                     write(stdout, '(" --> ")', advance='no')
-                    call write_det(6, nJ, .true.)
+                    call write_det(stdout, nJ, .true.)
                     write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
                     write(stdout, *) 'Generated pGen:  ', pgen
@@ -1018,7 +1020,6 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = "gen_single_back_spawn"
 
         integer :: elec, src, cc_index, loc, tgt
         real(dp) :: pgen_elec
@@ -1265,7 +1266,6 @@ contains
         integer, intent(in) :: ex(2, 2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_back_spawn_ueg"
 
         real(dp) :: cum_sum, pAIJ
         integer :: dummy_orb, ispn, loc, src(2), tgt(2)
@@ -1350,7 +1350,6 @@ contains
         integer, intent(in) :: nI(nel), ex(2, 2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_back_spawn"
 
         integer :: dummy, ssrc, stgt, cc_index, src(2), tgt(2), dummy_elecs(2), &
                    dummy_orbs(2), ispn, loc, sum_ml, sym_prod, cc_a, cc_b, &

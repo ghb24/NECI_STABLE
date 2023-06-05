@@ -24,7 +24,7 @@
 
 module ras
 
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use constants
     use DetBitOps, only: EncodeBitDet
     use FciMCData, only: HFSym
@@ -32,7 +32,7 @@ module ras
     use sort_mod, only: sort
     use sym_mod, only: getsym
     use SystemData, only: G1, nbasismax, nel, nbasis, basisfn, BRR, tHub
-    use util_mod, only: find_next_comb
+    use util_mod, only: find_next_comb, stop_all
 
     implicit none
 

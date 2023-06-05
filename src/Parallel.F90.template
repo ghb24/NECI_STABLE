@@ -139,6 +139,7 @@ module par_internal
     use, intrinsic :: iso_c_binding, only: c_size_t, c_char
     use constants
     use fmt_utils
+    use error_handling_neci, only: stop_all, neci_flush
     implicit none
 
     interface MPIReduce
@@ -292,12 +293,12 @@ contains
                 itype, comm, ierr)
 
         if (ierr /= MPI_SUCCESS) then
-            write(6,*) "V -- > R AAAAAAAA", v, ret
-            write(6,*) 'F name %(name)s'
-            write(6,*) 'F type %(mpitype)s'
-            write(6,*) 'F type2 %(type1)s'
-            write(6,*) 'Opp', itype
-            write(6,*) 'ierr', ierr
+            write(stdout,*) "V -- > R AAAAAAAA", v, ret
+            write(stdout,*) 'F name %(name)s'
+            write(stdout,*) 'F type %(mpitype)s'
+            write(stdout,*) 'F type2 %(type1)s'
+            write(stdout,*) 'Opp', itype
+            write(stdout,*) 'ierr', ierr
             call mpi_error_class(ierr, errorclass, jerr)
             call mpi_error_string(errorclass,string, length, jerr)
             call stop_all (t_r, string)
@@ -333,13 +334,13 @@ contains
                 itype, comm, ierr)
 
         if (ierr /= MPI_SUCCESS) then
-            write(6,*) 'F name %(name)s'
-            write(6,*) 'F type %(mpitype)s'
-            write(6,*) 'F type2 %(type1)s'
-            write(6,*) 'Opp', itype
-            write(6,*) 'ierr', ierr
+            write(stdout,*) 'F name %(name)s'
+            write(stdout,*) 'F type %(mpitype)s'
+            write(stdout,*) 'F type2 %(type1)s'
+            write(stdout,*) 'Opp', itype
+            write(stdout,*) 'ierr', ierr
             call MPI_ERROR_STRING(ierr,errmsg,msglen,aerr)
-            write(6,*) errmsg
+            write(stdout,*) errmsg
             call stop_all (t_r, 'MPI Error. Terminating.')
         end if
 #else
@@ -1171,12 +1172,12 @@ contains
         if (ierr /= MPI_SUCCESS) &
             call stop_all (t_r, 'MPI Error. Terminating.')
         if (iProcIndex == 0) &
-            write(6,*) 'Number of processors: ', nProcessors
+            write(stdout,*) 'Number of processors: ', nProcessors
 
         mpiInfoNull = MPI_INFO_NULL
 
         if(tExternal) then
-            write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
+            write(stdout,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
         else
 
 !Test if I/O is allowed on all processors - get res, the attribute attached to the communicator concerning I/O
@@ -1185,19 +1186,19 @@ contains
 !flag will say if can do I/O
 !      Local_IO=(ierr.eq.MPI_SUCCESS.and.flag.and.res.ne.MPI_PROC_NULL)
 !      IF(.not.Local_IO) THEN
-!          WRITE(6,*) ierr,Local_IO,flag,res
+!          WRITE(stdout,*) ierr,Local_IO,flag,res
 !          CALL Stop_All('MPIInit',"IO not possible on this processor")
 !      ELSE
-!          WRITE(6,*) "IO possible on this processor"
-!          CALL neci_flush(6)
+!          WRITE(stdout,*) "IO possible on this processor"
+!          CALL neci_flush(stdout)
 !      ENDIF
 
             if (iProcIndex == 0) then
-                write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
+                write(stdout,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' as head node.'
             else
 #ifdef DEBUG_
-                write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
+                write(stdout,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' moving to local output.'
 #endif
 
@@ -1206,15 +1207,15 @@ contains
                     iProcIndex + 1
 
 #ifdef DEBUG_
-                write(6,*) "outfile=", NodeFile
+                write(stdout,*) "outfile=", NodeFile
 #endif
-                close(6, status="keep")
+                close(stdout, status="keep")
 #ifdef DEBUG_
-                open(6, file=NodeFile, recl=8192)
-                write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
+                open(stdout, file=NodeFile, recl=8192)
+                write(stdout,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' on local output.'
 #else
-                open(6, file="/dev/null")
+                open(stdout, file="/dev/null")
 #endif
             endif
 
@@ -1223,7 +1224,7 @@ contains
             ! Just synchronize everything briefly
             a = iProcIndex+1
             call MPISumAll (a, 1, g)
-            write(6,*) "Sum: ", g
+            write(stdout,*) "Sum: ", g
         endif
 
         ! Don't bother with this if using c bindings (probably
@@ -1337,17 +1338,17 @@ contains
         NodeLengths = 0
 
         if (iLogicalNodeSize /= 0) &
-            write(6,*)  "Using Logical Node Size ", iLogicalNodeSize
+            write(stdout,*)  "Using Logical Node Size ", iLogicalNodeSize
 
         if (tUseProcsAsNodes) then
             call MPICommGroup (CommGlobal, GroupDum, ierr)
 
             Group=GroupDum
-            write(6,*) "Allocating each processor as a separate node."
+            write(stdout,*) "Allocating each processor as a separate node."
             if(iProcIndex==root) then
                 nNodes=0
 #ifdef DEBUG_
-                write(6,*) "Processor      Node"
+                write(stdout,*) "Processor      Node"
 #endif
                 do i=0,nProcessors-1
                     NodeRoots(nNodes) = i
@@ -1355,7 +1356,7 @@ contains
                     Nodes(i)%n = nNodes
                     nNodes = nNodes+1
 #ifdef DEBUG_
-                    write(6,"(2I10)") i, Nodes(i)%n
+                    write(stdout,"(2I10)") i, Nodes(i)%n
 #endif
                 enddo
             endif
@@ -1375,7 +1376,7 @@ contains
 
             call MPIGather_hack (nm2, nms(0), 30, nProcessors, ierr)
 
-            write(6,*) "Processor      Node hostname"
+            write(stdout,*) "Processor      Node hostname"
             if (iProcIndex == root) then
                 nNodes = 0
                 do i = 0, nProcessors-1
@@ -1398,7 +1399,7 @@ contains
                         NodeLengths(nNodes) = NodeLengths(nNodes)+1
                         nNodes = nNodes+1
                     endif
-                    write(6,"(2I10,A,A)") i, Nodes(i)%n, " ", nms(i)
+                    write(stdout,"(2I10,A,A)") i, Nodes(i)%n, " ", nms(i)
                 enddo
             endif
         endif
@@ -1429,13 +1430,13 @@ contains
         if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nNodes-1))
         Node = Nodes(iProcIndex)
         iNodeIndex = Node%n  !Used as a plain integer version.
-     !   write(6,*) iNodeIndex,iProcIndex,Node%n,size(NodeRoots)
-     !   write(6,*) "***************************************"
-     !   call neci_flush(6)
+     !   write(stdout,*) iNodeIndex,iProcIndex,Node%n,size(NodeRoots)
+     !   write(stdout,*) "***************************************"
+     !   call neci_flush(stdout)
 
         if (iProcIndex == NodeRoots(Node%n)) then
             bNodeRoot = .true.
-            write(6,*) "I am the node root for node ", Node%n
+            write(stdout,*) "I am the node root for node ", Node%n
         else
             bNodeRoot = .false.
         endif

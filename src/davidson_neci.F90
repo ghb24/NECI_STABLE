@@ -6,13 +6,15 @@ module davidson_neci
     ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
     use constants
-    use FciMCData, only: hamiltonian, DavidsonTag, user_input_max_davidson_iters
+    use FciMCData, only: hamiltonian, DavidsonTag, user_input_max_davidson_iters, &
+                         user_input_davidson_tolerance
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
     use MPI_wrapper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
+    use util_mod, only: neci_flush, stop_all
     use hamiltonian_linalg, only: &
         full_hamil_type, &
         sparse_hamil_type, &
@@ -27,8 +29,8 @@ module davidson_neci
 
     implicit none
 
-    integer :: max_num_davidson_iters = 25
-    real(dp), parameter :: residual_norm_target = 0.0000001_dp
+    integer :: max_num_davidson_iters = 50
+    real(dp) :: residual_norm_target = 1e-7_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
     type DavidsonCalcType
@@ -68,13 +70,14 @@ contains
         integer :: i
         real(dp) :: start_time, end_time
         type(DavidsonCalcType), intent(inout) :: this
+        character(*), parameter :: this_routine = "perform_davidson"
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
 
         call InitDavidsonCalc(this, print_info, hamil_type_in)
 
-        if (print_info) write(stdout, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
+        if (print_info) write(stdout, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(stdout)
 
         do i = 2, max_num_davidson_iters
 
@@ -95,13 +98,19 @@ contains
             end_time = MPI_WTIME()
 
             if (print_info) write(stdout, '(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i - 1, this%residual_norm, &
-                this%davidson_eigenvalue, end_time - start_time; call neci_flush(6)
+                this%davidson_eigenvalue, end_time - start_time; call neci_flush(stdout)
 
             if (this%residual_norm < residual_norm_target) exit
 
+            if (i == max_num_davidson_iters) then
+                call stop_all(this_routine, "Davidson iteration reached the maximum number of iterations. &
+                                            &The deterministic energy may not be converged. &
+                                            &You can increase 'davidson-max-iters' or 'davidson-target-tolerance'.")
+            end if
+
         end do
 
-        if (print_info) write(stdout, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
+        if (print_info) write(stdout, '(/,1x,"Final calculated correlation energy:",1X,f16.10)') this%davidson_eigenvalue
 
         call FreeDavidsonCalc(this)
 
@@ -132,6 +141,9 @@ contains
 
         if( allocated(user_input_max_davidson_iters) ) &
             max_num_davidson_iters = user_input_max_davidson_iters
+
+        if( allocated(user_input_davidson_tolerance) ) &
+            residual_norm_target = user_input_davidson_tolerance
 
         call InitHamiltonianCalc(this%super, print_info, hamil_type, max_num_davidson_iters, .true., .false.)
 
@@ -172,12 +184,12 @@ contains
                 residual_mem_reqd = space_size * 8 / 1000000
 
                 ! allocate the necessary arrays:
-                if (print_info) write (6, '(1x,"allocating array to hold multiplied krylov vectors (",' &
-                                       //int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd; call neci_flush(6)
+                if (print_info) write (stdout, '(1x,"allocating array to hold multiplied krylov vectors (",' &
+                                       //int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd; call neci_flush(stdout)
                 safe_calloc(this%multiplied_basis_vectors, (space_size, max_num_davidson_iters), 0.0_dp)
                 safe_calloc(this%eigenvector_proj, (max_num_davidson_iters), 0.0_dp)
-                if (print_info) write (6, '(1x,"allocating array to hold the residual vector (",' &
-                                       //int_fmt(residual_mem_reqd, 0)//',1x,"mb).",/)') residual_mem_reqd; call neci_flush(6)
+                if (print_info) write (stdout, '(1x,"allocating array to hold the residual vector (",' &
+                                       //int_fmt(residual_mem_reqd, 0)//',1x,"mb).",/)') residual_mem_reqd; call neci_flush(stdout)
                 safe_calloc(this%residual, (space_size), 0.0_dp)
 
                 ! for the initial basis vector, choose the hartree-fock state:
@@ -197,7 +209,7 @@ contains
                 safe_malloc(this%temp_out, (space_size))
             end if
 
-            if (print_info) write(stdout, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(6)
+            if (print_info) write(stdout, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(stdout)
 
             ! check that multiplying the initial vector by the hamiltonian doesn't give back
             ! the same vector. if it does then the initial vector (the hf determinant) is
@@ -223,7 +235,7 @@ contains
             call calculate_residual(this, 1)
             call calculate_residual_norm(this)
 
-            if (print_info) write(stdout, '(1x,"done.",/)'); call neci_flush(6)
+            if (print_info) write(stdout, '(1x,"done.",/)'); call neci_flush(stdout)
 
         end associate
 
@@ -426,7 +438,7 @@ contains
         type(DavidsonCalcType) :: this
         integer :: class_i, class_j, j, sym_i, sym_j
 
-        write(stdout, '(/,1X,"Beginning Direct CI Davidson calculation.",/)'); call neci_flush(6)
+        write(stdout, '(/,1X,"Beginning Direct CI Davidson calculation.",/)'); call neci_flush(stdout)
 
         call initialise_ras_space(davidson_ras, davidson_classes)
         ! The total hilbert space dimension of calculation to be performed.
@@ -471,9 +483,9 @@ contains
             call LogMemDealloc("davidson_direct_ci_end", DavidsonTag, ierr)
         end if
 
-        write(stdout, '(/,1X,"Direct CI Davidson calculation complete.",/)'); call neci_flush(6)
+        write(stdout, '(/,1X,"Direct CI Davidson calculation complete.",/)'); call neci_flush(stdout)
 
-        write(stdout, "(1X,a10,f16.10)") "GROUND E =", this%davidson_eigenvalue; call neci_flush(6)
+        write(stdout, "(1X,a10,f16.10)") "GROUND E =", this%davidson_eigenvalue; call neci_flush(stdout)
     end subroutine davidson_direct_ci_end
 
 end module davidson_neci

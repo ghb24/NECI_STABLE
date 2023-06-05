@@ -10,28 +10,38 @@ MODULE Calc
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_k_space_hubbard, tHPHF, t_non_hermitian, &
+                          t_k_space_hubbard, tHPHF, t_non_hermitian_2_body, &
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, &
-                          t_3_body_excits
-    use Determinants, only: write_det
+                          t_3_body_excits, get_basisfn
+    use Determinants, only: iActiveBasis, tagSpecDet, SpecDet, tSpecDet, nActiveSpace, &
+                            tagDefDet, tDefineDet, DefDet, calcT, iActiveBasis, nactivespace, &
+                            get_helement
+    use DeterminantData, only: write_det, fDet
     use default_sets
     use read_fci, only: reorder_orb_label
-    use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
-                            tDefineDet
     use DetCalc, only: iObs, jObs, kObs, DETINV, &
                        icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use rdm_data, only: tApplyLC
-    use FciMCData, only: tTimeExit, MaxTimeExit, InputDiagSft, tSearchTau, &
-                         nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
+    use FciMCData, only: tTimeExit, MaxTimeExit, InputDiagSft, &
+                         nWalkerHashes, HashLengthFrac, &
+                         tTrialHash, tIncCancelledInitEnergy, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
+                         alloc_popsfile_dets, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
                          tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
-                         user_input_max_davidson_iters
+                         user_input_max_davidson_iters, user_input_davidson_tolerance
+    use tau_main, only:  &
+        tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        tau_stop_method, possible_tau_stop_methods, &
+        min_tau, max_tau, tau_start_val, possible_tau_start, &
+        t_scale_tau_to_death, tau, taufactor, assign_value_to_tau, &
+        stop_options, readpops_but_tau_not_from_popsfile, MaxWalkerBloom
+
+    use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
+        max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
@@ -41,29 +51,30 @@ MODULE Calc
                         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
                         minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
-    use load_balance, only: tLoadBalanceBlocks, loadBalanceInterval
+    use load_balance, only: tLoadBalanceBlocks
+    use load_balance_calcnodes, only: loadBalanceInterval
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
 
-    use real_space_hubbard, only: t_start_neel_state, create_neel_state, &
-                                  init_get_helement_hubbard
+    use real_space_hubbard, only: t_start_neel_state, init_get_helement_hubbard
     use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
                         init_get_helement_heisenberg_guga, init_get_helement_tj_guga
     use k_space_hubbard, only: init_get_helement_k_space_hub, get_2_body_diag_transcorr, &
                                 get_3_body_diag_transcorr
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
     use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
-    use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
     use cepa_shifts, only: t_cepa_shift, cepa_method
     use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
 
     use guga_data, only: tGUGACore
 
-    use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
+    use util_mod, only: near_zero, operator(.isclose.), operator(.div.), &
+        stop_all, neci_flush
+
     use unit_test_helpers, only: batch_run_excit_gen_tester
 
     use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
@@ -73,7 +84,11 @@ MODULE Calc
 
     use sets_mod, only: disjoint, operator(.U.)
 
-    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
+    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
+
+    use lattice_models_utils, only: create_neel_state
+
+    use gndts_blk_mod, only: gensymdetss
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -117,12 +132,6 @@ contains
         iReadWalkersRoot = 0
         tShiftonHFPop = .false.
         MaxWalkerBloom = 2
-        tSearchTau = .true.
-        tSearchTauOption = .true.
-        tSearchTauDeath = .false.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
 
         t_lanczos_init = .false.
         t_lanczos_store_vecs = .true.
@@ -211,7 +220,7 @@ contains
         tWalkContGrow = .false.
         StepsSft = 10
         SftDamp = 0.1_dp
-        Tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp, 'Default value initialization.')
         InitWalkers = 3000.0_dp
         NMCyc = -1
         eq_cyc = -1
@@ -332,8 +341,8 @@ contains
         tUseRealCoeffs = .false.
         tRealCoeffByExcitLevel = .false.
         RealCoeffExcitThresh = 2
-        tRealSpawnCutoff = .false.
-        RealSpawnCutoff = 1.0e-5_dp
+        tRealSpawnCutoff = .true.
+        RealSpawnCutoff = 0.95_dp
         OccupiedThresh = 1.0_dp
         tJumpShift = .true.
 !Feb 08 default set.
@@ -393,7 +402,6 @@ contains
             pParallel = 0.5_dp
         end if
 
-        MaxTau = 1.0_dp
         pop_change_min = 50
         tOrthogonaliseReplicas = .false.
         tOrthogonaliseSymmetric = .false.
@@ -489,8 +497,6 @@ contains
     end subroutine SetCalcDefaults
 
     SUBROUTINE CalcReadInput(file_reader)
-        Use Determinants, only: iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
-        Use Determinants, only: tDefineDet, DefDet, tagDefDet
         use SystemData, only: Beta, nEl
         Use DetCalc, only: iObs, jObs, kObs, B2L, DETINV
         Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
@@ -712,8 +718,7 @@ contains
                         tExitNow = .true.
 
                     case default
-                        write(stdout, *) 'REPORT'//trim(w)
-                        !call report ("Keyword "//trim(w)//" not recognized",.true.)
+                        call stop_all(this_routine, trim(w)//" is not a valid keyword in the METHODS block.")
                     end select
 
                 end do
@@ -857,7 +862,7 @@ contains
                 EXCITFUNCS(3) = .true.
             case("EXCITWEIGHTING")
                 write(stdout, *) '---------------->excitweighting'
-                call neci_flush(6)
+                call neci_flush(stdout)
                 g_VMC_ExcitWeights(1, 1) = to_realdp(tokens%next())
                 g_VMC_ExcitWeights(2, 1) = to_realdp(tokens%next())
                 G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
@@ -982,27 +987,8 @@ contains
                     allocate(DefDet(NEl), stat=ierr)
                     CALL LogMemAlloc('DefDet', NEl, 4, t_r, tagDefDet, ierr)
                 end if
-                DefDet(:) = 0
+                call parse_definedet(tokens, DefDet)
 
-                block
-                    integer, allocatable :: def_det(:), input_range(:)
-                    def_det = [integer ::]
-                    do while(tokens%remaining_items() > 0)
-                        input_range = get_range(tokens%next())
-                        if (disjoint(def_det, input_range)) then
-                            def_det = def_det .U. input_range
-                        else
-                            call stop_all(this_routine, 'Every value of definedet has to be given only once.')
-                        end if
-                    end do
-                    if (size(def_det) < nEl) then
-                        call stop_all(this_routine, 'Too few elements specified for Definedet.')
-                    else if (size(def_det) > nEl) then
-                        call stop_all(this_routine, 'Too many elements specified for Definedet.')
-                    else
-                        DefDet(:) = def_det
-                    end if
-                end block
 
                 ! there is something going wrong later in the init, so
                 ! do it actually here
@@ -1028,14 +1014,11 @@ contains
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
-                allocate(initial_refs(nel, inum_runs), stat=ierr)
-                initial_refs = 0
+                allocate(initial_refs(nel, inum_runs), stat=ierr, source=0)
 
                 do line = 1, inum_runs
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                        do i = 1, nel
-                            initial_refs(i, line) = to_int(tokens%next())
-                        end do
+                        call parse_definedet(tokens, initial_refs(:, line))
                         if(tGUGA) then
                             if (.not. isProperCSF_ni(initial_refs(:, line))) then
                                 call write_det(stdout, initial_refs(:, line), .true.)
@@ -1049,14 +1032,11 @@ contains
 
             case("MULTIPLE-INITIAL-STATES")
                 tMultipleInitialStates = .true.
-                allocate(initial_states(nel, inum_runs), stat=ierr)
-                initial_states = 0
+                allocate(initial_states(nel, inum_runs), stat=ierr, source=0)
 
                 do line = 1, inum_runs
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                        do i = 1, nel
-                            initial_states(i, line) = to_int(tokens%next())
-                        end do
+                        call parse_definedet(tokens, initial_states(:, line))
                         if(tGUGA) then
                             if (.not. isProperCSF_ni(initial_states(:, line))) then
                                 call write_det(stdout, initial_states(:, line), .true.)
@@ -1237,10 +1217,10 @@ contains
                 hash_shift = to_int(tokens%next())
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
-                NMCyc = to_int(tokens%next())
+                NMCyc = nint(to_realdp(tokens%next()))
             case("EQ-CYC")
                 ! This is the number of MC cycles to perform after equilibration
-                eq_cyc = to_int(tokens%next())
+                eq_cyc = nint(to_realdp(tokens%next()))
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of
 !walkers on the determinant
@@ -1248,77 +1228,146 @@ contains
                     InputDiagSftSingle = to_realdp(tokens%next())
                     InputDiagSft = InputDiagSftSingle
                 else
-                    if(inum_runs /= tokens%remaining_items()) call stop_all(t_r, "The number of initial shifts input is not equal to &
+                    if (inum_runs /= tokens%remaining_items()) then
+                        call stop_all(t_r, "The number of initial shifts input is not equal to &
                                            &the number of replicas being used.")
+                    end if
                     do i = 1, inum_runs
                         InputDiagSft(i) = to_realdp(tokens%next())
                     end do
                 end if
 
-            case("TAUFACTOR")
-!For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
-                tSearchTau = .false.  !Tau is set, so don't search for it.
-                tSearchTauOption = .false.
-                TauFactor = to_realdp(tokens%next())
-            case("TAU")
-                ! For FCIMC, this can be considered the timestep of the
-                ! simulation. It is a constant which will increase/decrease
-                ! the rate of spawning/death for a given iteration.
-                Tau = to_realdp(tokens%next())
-                tSpecifiedTau = .true.
+            case("TAU", "MIN-TAU", "MAX-TAU", "TAU-FACTOR", "TAU-CNT-THRESHOLD")
+                call stop_all(this_routine, trim(w)//" option is deprecated.")
 
-                ! If SEARCH is provided, use this value as the starting value
-                ! for tau searching
-                if(tokens%remaining_items() > 0) then
+            case("TAU-VALUES")
+                do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
                     select case(w)
-                    case("SEARCH")
-                        tSearchTau = .true.
-                        tSearchTauOption = .true.
+                    case("START")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("DETERMINISTIC")
+                            tau_start_val = possible_tau_start%deterministic
+                        case("FROM-POPSFILE")
+                            tau_start_val = possible_tau_start%from_popsfile
+                        case("NOT-NEEDED")
+                            ! The user explicitly says, that tau is not required.
+                            tau_start_val = possible_tau_start%not_needed
+                        case("REFDET-CONNECTIONS")
+                            tau_start_val = possible_tau_start%refdet_connections
+                        case("TAU-FACTOR")
+                            tau_start_val = possible_tau_start%tau_factor
+                            TauFactor = to_realdp(tokens%next())
+                        case("USER-DEFINED")
+                            tau_start_val = possible_tau_start%user_given
+                            call assign_value_to_tau(to_realdp(tokens%next()), 'Initialization from user-defined value.')
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("MIN")
+                        min_tau = to_realdp(tokens%next())
+                    case("MAX")
+                        max_tau = to_realdp(tokens%next())
+                    case("READPOPS-BUT-TAU-NOT-FROM-POPSFILE")
+                        readpops_but_tau_not_from_popsfile = .true.
                     case default
-                        tSearchTau = .false.
-                        tSearchTauOption = .false.
+                        call stop_all(this_routine, "Invalid sub-keyword "//w)
                     end select
-                else
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
+                end do
+
+            case("TAU-SEARCH")
+                if (tokens%remaining_items() == 0) then
+                    call stop_all(this_routine, "TAU-SEARCH requires more information")
                 end if
+                do while (tokens%remaining_items() > 0)
+                    w = to_upper(tokens%next())
+                    select case(w)
+                    case("ALGORITHM")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("CONVENTIONAL")
+                            input_tau_search_method = possible_tau_search_methods%CONVENTIONAL
+                        case("HISTOGRAMMING")
+                            input_tau_search_method = possible_tau_search_methods%HISTOGRAMMING
+                            t_fill_frequency_hists = .true.
+                            if (can_be_real(tokens%glimpse(''))) then
+                                frq_ratio_cutoff = 1._dp - to_realdp(tokens%next())
+                                if (frq_ratio_cutoff < 0.9_dp) then
+                                    write(stderr, *) 'The frequency ratio cutoff `c` of histogramming is below 0.9.'
+                                    write(stderr, *) 'Note that the input is the first argument to `histogramming` as `1 - c`.'
+                                    write(stderr, *) 'If you want c = 0.999 just write:'
+                                    write(stderr, *) '  tau-search \'
+                                    write(stderr, *) '      algorithm histogramming 1e-3'
+                                    write(stderr, *) 'If you really want c < 0.9 contact the developers.'
+                                    call stop_all(this_routine, 'Invalid `frq_ratio_cutoff`.')
+                                end if
+                            end if
+                            if (can_be_real(tokens%glimpse(''))) then
+                                n_frequency_bins = nint(to_realdp(tokens%next()))
+                                if (n_frequency_bins > 10**6) then
+                                    write(stdout, "(A)") &
+                                        '("WARNING: maybe too many bins used for the &
+                                        &histograms! This might cause MPI problems!")'
+                                end if
+                            end if
+                            if (can_be_real(tokens%glimpse(''))) then
+                                max_frequency_bound = to_realdp(tokens%next())
+                            end if
 
-            case("MIN-TAU")
-                ! use a minimum tau value or the automated tau-search
-                ! to avoid that a single, worst case excitation kills your
-                ! time-step
-                t_min_tau = .true.
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("STOP-CONDITION")
+                        w = to_upper(tokens%next())
+                        select case(w)
+                        case("MAX-EQ-ITER")
+                            tau_stop_method = possible_tau_stop_methods%max_eq_iter
+                            stop_options%max_eq_iter = nint(to_realdp(tokens%next()))
+                        case("MAX-ITER")
+                            tau_stop_method = possible_tau_stop_methods%max_iter
+                            stop_options%max_iter = nint(to_realdp(tokens%next()))
+                        case("NO-CHANGE")
+                            tau_stop_method = possible_tau_stop_methods%no_change
+                            stop_options%max_iter_without_change = nint(to_realdp(tokens%next()))
+                        case("N-OPTS")
+                            tau_stop_method = possible_tau_stop_methods%n_opts
+                            stop_options%max_n_opts = nint(to_realdp(tokens%next()))
+                        case("VAR-SHIFT")
+                            tau_stop_method = possible_tau_stop_methods%var_shift
+                        case("OFF")
+                            tau_stop_method = possible_tau_stop_methods%off
+                        case default
+                            call stop_all(this_routine, "Invalid sub-keyword "//w)
+                        end select
+                    case("OFF")
+                        input_tau_search_method = possible_tau_search_methods%OFF
+                    case("SCALE-TAU-TO-DEATH")
+                        t_scale_tau_to_death = .true.
+                    case("MAXWALKERBLOOM")
+                        ! Set the maximum allowed walkers to create in one go,
+                        !  before reducing tau to compensate.
+                        MaxWalkerBloom = to_realdp(tokens%next())
+                    case default
+                        call stop_all(this_routine, "Invalid sub-keyword "//w)
+                    end select
+                    tau_search_method = input_tau_search_method
+                end do
 
-                if(tokens%remaining_items() > 0) then
-                    min_tau_global = to_realdp(tokens%next())
-                end if
+            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
+                call stop_all(this_routine, trim(w)//" option deprecated")
 
-                ! assume thats only for the tau-search so enable all the
-                ! other quantities
-                tSearchTau = .true.
-                tSearchTauOption = .true.
+            case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
+                ! test a change to the tau search to avoid those nasty
+                ! MPI communications each iteration
+                t_test_hist_tau = .true.
 
-            case("MAX-TAU")
-                ! For tau searching, set a maximum value of tau. This places
-                ! a limit to prevent craziness at the start of a calculation
-                MaxTau = to_realdp(tokens%next())
-
-            case("READ-PROBABILITIES")
-                ! introduce a new flag to read pSingles/pParallel etc. from
-                ! a popsfile even if the tau-search is not turned on, since
-                ! this scenario often shows up in my restarted calculations
-                t_read_probs = .true.
-
-            case("NO-READ-PROBABILITIES")
-                ! change the default behavior to always read in the
-                ! pSingles etc. quantities! and only turn that off with this
-                ! keyword
-                t_read_probs = .false.
+            case("READ-PROBABILITIES", "NO-READ-PROBABILITIES")
+                call stop_all(this_routine, trim(w)//" option deprecated")
 
             case ("DIRECT-GUGA-REF")
                 ! obsolet since standard now!
-                write(stdout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
+                call stop_all(this_routine, trim(w)//" option deprecated, since it is standard now")
 
             case ("LIST-GUGA-REF")
                 ! option to calculate the reference energy via a pre-computed list
@@ -1375,81 +1424,9 @@ contains
                     end select
                 end if
 
-            case("KEEPTAUFIXED")
-                ! option for a restarted run to keep the tau, read in from the
-                ! POPSFILE and other parameters, as pSingles, pParallel
-                ! fixed for the remainder of the run, even if we keep
-                ! growing the walkers
-                t_keep_tau_fixed = .true.
-
-                ! here i need to turn off the tau-search option
-                tSearchTau = .false.
-                tSearchTauOption = .false.
-
             case("TEST-ORDER")
                 ! test order of transcorrelated matrix elements
                 t_test_order = .true.
-            case("HIST-TAU-SEARCH", "NEW-TAU-SEARCH")
-                ! [Werner Dobrautz, 4.4.2017:]
-                ! the new tau search method using histograms of the
-                ! H_ij / pgen ratio and integrating the histograms up to
-                ! a certain value, to obtain the time-step and not using
-                ! only the worst case H_ij / pgen ration
-
-                ! this option has 3 possible input parameters:
-                ! 1) the integration cutoff in percentage [0.999 default]
-                ! 2) the number of bins used [100000 default]
-                ! 3) the upper bound of the bins [10000.0 default]
-                t_hist_tau_search = .true.
-                t_hist_tau_search_option = .true.
-                t_fill_frequency_hists = .true.
-
-                ! turn off the other tau-search, if by mistake both were
-                ! chosen!
-                if(tSearchTau .or. tSearchTauOption) then
-                    write(stdout, &
-                        '("(WARNING: both the histogramming and standard tau&
-                        &-search option were chosen! TURNING STANDARD VERSION OFF!")')
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    frq_ratio_cutoff = to_realdp(tokens%next())
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    n_frequency_bins = to_int(tokens%next())
-
-                    ! check that not too many bins are used which may crash
-                    ! the MPI communication of the histograms!
-                    if(n_frequency_bins > 1000000) then
-                        write(stdout, &
-                            '("WARNING: maybe too many bins used for the &
-                            &histograms! This might cause MPI problems!")')
-                    end if
-                end if
-
-                if(tokens%remaining_items() > 0) then
-                    max_frequency_bound = to_realdp(tokens%next())
-                end if
-
-            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
-                ! [Werner Dobrautz 5.5.2017:]
-                ! a keyword, which in case of a continued run from a
-                ! previous hist-tau-search run restarts the histogramming
-                ! tau-search anyway, in case the tau-search is not yet
-                ! converged enough
-                t_restart_hist_tau = .true.
-
-                if(tokens%remaining_items() > 0) then
-                    hist_search_delay = to_int(tokens%next())
-                end if
-
-            case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
-                ! test a change to the tau search to avoid those nasty
-                ! MPI communications each iteration
-                t_test_hist_tau = .true.
 
             case("TRUNCATE-SPAWNS")
                 ! [Werner Dobrautz, 4.4.2017:]
@@ -1534,10 +1511,9 @@ contains
                 call write_det(stdout, DefDet, .true.)
 
             case("MAXWALKERBLOOM")
-                !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
-                MaxWalkerBloom = to_realdp(tokens%next())
-                ! default the maximum spaw to MaxWalkerBloom
-                max_allowed_spawn = MaxWalkerBloom
+                call stop_all(this_routine, trim(w)//" option deprecated. &
+                    &Moved to tau-search and scale-spawns respectively.")
+
             case("SHIFTDAMP")
                 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 if (allocated(user_input_SftDamp)) then
@@ -1578,7 +1554,7 @@ contains
                 ! This option is now deprecated, as it is default.
                 write(stdout, '("WARNING: LINSCALEFCIMCALGO option has been &
                               &deprecated, and now does nothing")')
-                !call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
+                call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
             case("PARTICLE-HASH-MULTIPLIER")
                 ! Determine the absolute length of the hash table relative to
@@ -1603,14 +1579,22 @@ contains
                 end if
 
             case("DAVIDSON-MAX-ITERS")
-                ! Set the max number of iteration for Davidson method: defaulted to 25
-                ! This is probably needed only for very special cases, e.g., very small
-                ! test cases where Davidson throws Floating point exception when this is
-                ! too large, for instance.
+                ! Set the max number of iteration for Davidson method: defaulted to 50
                 if (allocated(user_input_max_davidson_iters)) then
                     call stop_all(t_r, "davison max iters given twice")
                 else
                     user_input_max_davidson_iters = to_int(tokens%next())
+                endif
+
+            case("DAVIDSON-TARGET-TOLERANCE")
+                ! Set the target convergence tolerance of Davidson residual norm
+                ! This keyword has been introduced to be used when one wants to start
+                ! an FCIQMC calculation from an intermediate ci-vector of a Davidson
+                ! diagonalization before reaching convergence
+                if (allocated(user_input_davidson_tolerance)) then
+                    call stop_all(t_r, "davidson target tolerance given twice")
+                else
+                    user_input_davidson_tolerance = to_realdp(tokens%next())
                 endif
 
             case("ALL-CONN-CORE")
@@ -2153,7 +2137,7 @@ contains
                     end do
                 end if
             case("INITS-PROJE")
-                ! deprecated
+                call stop_all(this_routine, trim(w)//" option is deprecated.")
             case("INITS-GAMMA0")
                 ! use the density matrix obtained from the initiator space to
                 ! correct for the adaptive shift
@@ -2756,8 +2740,23 @@ contains
             case("KEEPWALKSMALL")
                 call stop_all(t_r, 'Deprecated Option')
             case("REALSPAWNCUTOFF")
-                tRealSpawnCutoff = .true.
-                RealSpawnCutoff = to_realdp(tokens%next())
+                block
+                    character(:), allocatable :: token
+                    token = to_upper(tokens%next())
+                    if (token == "ON") then
+                        tRealSpawnCutoff = .true.
+                    else if (token == "OFF") then
+                        tRealSpawnCutoff = .false.
+                    else if (can_be_real(token)) then
+                        tRealSpawnCutoff = .true.
+                        RealSpawnCutoff = to_realdp(token)
+                        if (.not. (0._dp < RealSpawnCutoff .and. RealSpawnCutoff <= 1.0_dp)) then
+                            call stop_all(t_r, "It should be: 0 < RealSpawnCutoff <= 1.0.")
+                        end if
+                    else
+                        call stop_all(t_r, 'Invalid option '//token//' for REALSPAWNCUTOFF.')
+                    end if
+                end block
             case("SETOCCUPIEDTHRESH")
                 OccupiedThresh = to_realdp(tokens%next())
             case("SETINITOCCUPIEDTHRESH")
@@ -2997,9 +2996,6 @@ contains
                         call stop_all(t_r, 'Unexpected end of file reached.')
                     end if
                 end do
-
-            case("TAU-CNT-THRESHOLD")
-                write(stdout, *) 'WARNING: This option is unused in this branch'
 
             case("INITIATOR-SURVIVAL-CRITERION")
                 ! If a site survives for at least a certain number of
@@ -3549,6 +3545,7 @@ contains
                 ! scale down potential blooms to prevent instability
                 ! increases the number of spawns to unbias for scaling
                 tScaleBlooms = .true.
+                max_allowed_spawn = to_realdp(tokens%next())
 
             case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population
@@ -3641,20 +3638,19 @@ contains
         use SystemData, only: tContact
         use IntegralsData, only: FCK, CST, nMax, UMat
         use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
-        Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
         Use DetCalc, only: DetInv, nDet, tRead
         Use DetCalcData, only: ICILevel
         use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace
         use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
         use global_utilities
         use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
-        use excitation_types, only: NoExc_t
-        real(dp) CalcT, CalcT2, GetRhoEps
+        use excitation_types, only: Excite_0_t
+        real(dp) CalcT2, GetRhoEps
 
         INTEGER I, IC, J, norb
         INTEGER nList
         HElement_t(dp) HDiagTemp, h_2_temp, h_3_temp
-        type(NoExc_t) :: NoExc
+        type(Excite_0_t) :: NoExc
         character(*), parameter :: this_routine = 'CalcInit'
 
         !Checking whether we have large enoguh basis for ultracold atoms and
@@ -3750,17 +3746,17 @@ contains
                 if (t_k_space_hubbard) then
                     h_2_temp = get_2_body_diag_transcorr(fdet)
                     h_3_temp = get_3_body_diag_transcorr(fdet)
-                    write(stdout, *) "<D0|U|D0>", h_2_temp
-                    write(stdout, *) "<D0|L|D0>", h_3_temp
+                    write(stdout, *) "<D0|U|D0>=", h_2_temp
+                    write(stdout, *) "<D0|L|D0>=", h_3_temp
                 else
                     HDiagTemp = sltcnd_0_tc(fdet, NoExc)
                     h_2_temp = sltcnd_0_base(fdet, NoExc) - calct(fdet, nel)
                     h_3_temp = HDiagTemp - sltcnd_0_base(fdet, NoExc)
-                    write(stdout, *) "<D0|U|D0>", h_2_temp
-                    write(stdout, *) "<D0|L|D0>", h_3_temp
+                    write(stdout, *) "<D0|U|D0>=", h_2_temp
+                    write(stdout, *) "<D0|L|D0>=", h_3_temp
                 end if
             else
-                write(stdout, *) "<D0|U|D0>", real(HDiagTemp,dp) - calct(fdet, nel)
+                write(stdout, *) "<D0|U|D0>=", real(HDiagTemp,dp) - calct(fdet, nel)
             end if
 
             IF(TUEG) THEN
@@ -3852,7 +3848,7 @@ contains
         IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC
             NLIST = 1
-            CALL GENSYMDETSS(MDK, NEL, G1, BRR, NBASIS, MCDET, NLIST, NBASISMAX)
+            CALL GENSYMDETSS(get_basisfn(MDK), NEL, G1, BRR, NBASIS, MCDET, NLIST, NBASISMAX)
             IF(NLIST == 0) THEN
 !C.. we couldn't find a det of that symmetry
                 call stop_all(this_routine, 'Cannot find MC start determinant of correct symmetry')
@@ -3864,7 +3860,7 @@ contains
         end if
         IF(TMONTE) THEN
             write(stdout, "(A)", advance='no') 'MC Start Det: '
-            call write_det(6, mcDet, .true.)
+            call write_det(stdout, mcDet, .true.)
         end if
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this
@@ -3889,7 +3885,6 @@ contains
         USE FciMCParMod, only: FciMCPar
         use RPA_Mod, only: RunRPA_QBA
         use DetCalc, only: CK, DetInv, tEnergy, tRead
-        Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
         use IntegralsData, only: FCK, NMAX, UMat, FCK
         use IntegralsData, only: HFEDelta, HFMix, nTay
         Use LoggingData, only: iLogging
@@ -3919,7 +3914,7 @@ contains
             !          call Par2vSum(FDet)
         ELSE IF(tDavidson) then
             davidsonCalc = davidson_direct_ci_init()
-            if(t_non_hermitian) then
+            if(t_non_hermitian_2_body) then
                 call stop_all(this_routine, &
                               "perform_davidson not adapted for non-hermitian Hamiltonians!")
             end if
@@ -3981,7 +3976,7 @@ contains
 !             DBETA=DBRAT*BETA
                 write(stdout, *) "I_HMAX:", I_HMAX
                 write(stdout, *) "Calculating MC Energy..."
-                CALL neci_flush(6)
+                CALL neci_flush(stdout)
                 IF(NTAY(1) > 0) THEN
                     write(stdout, *) "Using approx RHOs generated on the fly, NTAY=", NTAY(1)
 !C.. NMAX is now ARR
@@ -4024,6 +4019,31 @@ contains
         if (allocated(user_input_SftDamp)) deallocate(user_input_SftDamp)
     End Subroutine CalcCleanup
 
+
+    subroutine parse_definedet(tokens, def_det)
+        type(TokenIterator_t), intent(inout) :: tokens
+        integer, intent(out) :: def_det(nEl)
+        character(*), parameter :: this_routine = 'parse_definedet'
+
+        integer, allocatable :: input_range(:), local_def_det(:)
+
+        local_def_det = [integer ::]
+        do while(tokens%remaining_items() > 0)
+            input_range = get_range(tokens%next())
+            if (disjoint(local_def_det, input_range)) then
+                local_def_det = local_def_det .U. input_range
+            else
+                call stop_all(this_routine, 'Every value of definedet has to be given only once.')
+            end if
+        end do
+        if (size(local_def_det) < nEl) then
+            call stop_all(this_routine, 'Too few elements specified for Definedet.')
+        else if (size(local_def_det) > nEl) then
+            call stop_all(this_routine, 'Too many elements specified for Definedet.')
+        end if
+        def_det(:) = local_def_det(:)
+    end subroutine
+
 END MODULE Calc
 
 subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
@@ -4039,6 +4059,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
     use RPA_Mod, only: tDirectRPA
     use LoggingData, only: tCalcFCIMCPsi
     use input_parser_mod, only: TokenIterator_t
+    use util_mod, only: stop_all
     implicit none
     integer I_HMAX, NWHTAY, I_V
     type(TokenIterator_t), intent(inout) :: tokens
@@ -4239,6 +4260,7 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
 end subroutine inpgetmethod
 
 subroutine inpgetexcitations(NWHTAY, w)
+    use util_mod, only: stop_all
     IMPLICIT NONE
     INTEGER NWHTAY
     character(*), parameter :: this_routine = 'inpgetexcitations'
@@ -4261,7 +4283,8 @@ end subroutine inpgetexcitations
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
 FUNCTION GETRHOEPS(RHOEPSILON, BETA, NEL, BRR, I_P)
-    Use Determinants, only: get_helement, write_det
+    Use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use constants, only: dp
     use SystemData, only: BasisFN
     use sort_mod

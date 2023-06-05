@@ -1,4 +1,4 @@
-macro (add_unit_test _config test_name)
+macro (_add_unit_test _config test_name mpi_procs)
         neci_add_test(
             TARGET test_${_config}_${test_name}
         SOURCES
@@ -7,6 +7,8 @@ macro (add_unit_test _config test_name)
             lib${_config} fruit
         LINKER_LANGUAGE
             Fortran
+        MPI
+            ${mpi_procs}
         META_TARGET
             test_${_config}
         PRIVATE_INCLUDES
@@ -18,6 +20,14 @@ macro (add_unit_test _config test_name)
         WARNERR
             ${${PROJECT_NAME}_${_config}_WARNERR}
         )
+endmacro()
+
+macro (add_unit_test _config test_name)
+    _add_unit_test( ${_config} ${test_name} 1)
+endmacro()
+
+macro (add_parallel_unit_test _config test_name mpi_procs)
+    _add_unit_test( ${_config} ${test_name} ${mpi_procs})
 endmacro()
 
 macro (add_unit_test_all_configs test_name)
@@ -66,7 +76,7 @@ add_subdirectory( guga )
 
 add_subdirectory( impurity_excit_gen )
 
-add_subdirectory( pcpp_excitgen)
+add_subdirectory( excitgen)
 
 add_subdirectory( gdata_io )
 
@@ -78,7 +88,7 @@ add_subdirectory( orb_idx_and_exc_types )
 
 add_subdirectory( sets_mod )
 
-add_subdirectory( shared_array )
+add_subdirectory( MPI_and_shared_array )
 
 add_subdirectory( SD_spin_purification )
 
@@ -87,3 +97,11 @@ add_subdirectory( lib )
 add_subdirectory( input_parser )
 
 add_subdirectory( util_mod )
+
+add_subdirectory( hdf5_shared_array )
+
+add_subdirectory( sampler )
+
+add_subdirectory( index_convention )
+
+add_subdirectory( sltcnd )

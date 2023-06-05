@@ -10,6 +10,7 @@ module real_time_read_input_module
   use constants
   use input_parser_mod, only: FileReader_t, TokenIterator_t
   use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+  use util_mod, only: stop_all
 
   implicit none
 

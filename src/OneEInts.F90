@@ -10,7 +10,7 @@ module OneEInts
 
     use constants, only: dp
     use MemoryManager, only: TagIntType, LogMemalloc, LogMemDealloc
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, neci_flush, stop_all
     use SystemData, only: tCPMD, tVASP
     use LoggingData, only: iNumPropToEst
     use CPMDData, only: tKP
@@ -40,7 +40,7 @@ module OneEInts
     HElement_t(dp), dimension(:), POINTER :: TMATSYM2
     HElement_t(dp), dimension(:, :), POINTER :: TMAT2D2
 
-! One electron integrals corresponding to the external fields. These fields 
+! One electron integrals corresponding to the external fields. These fields
 ! are applied during the imaginary time propagation in FCIQMC
 HElement_t(dp), dimension(:,:,:), pointer :: OneEFieldInts
 real(dp), dimension(:), pointer :: FieldCore
@@ -479,15 +479,15 @@ contains
     END SUBROUTINE SetupTMAT
 
     subroutine SetupFieldInts(nBasis, nFlds)
- 
+
       use HElem, only: HElement_t_size
       use MemoryManager, only: LogMemalloc
- 
+
       implicit none
       integer, intent(in) :: nBasis, nFlds
       integer :: ierr,iSize
       character(*),parameter :: t_r = 'SetupFieldInts'
- 
+
       ! Using a square array to hold <i|h|j> (incl. elements which are
       ! zero by symmetry).
       Allocate(OneEFieldInts(nBasis,nBasis,nFlds),STAT=ierr)
@@ -497,26 +497,26 @@ contains
       Allocate(FieldCore(nFlds),STAT=ierr)
       call LogMemAlloc('FieldCore',nFlds,dp,t_r,tagFieldCore)
       FieldCore = 0.0d0
- 
+
     end subroutine SetupFieldInts
 
     subroutine SetupFieldInts2(nBasis, nFlds)
- 
+
       use HElem, only: HElement_t_size
       use MemoryManager, only: LogMemalloc
- 
+
       implicit none
       integer, intent(in) :: nBasis, nFlds
       integer :: ierr,iSize
       character(*),parameter :: t_r = 'SetupFieldInts2'
- 
+
       ! Using a square array to hold <i|h|j> (incl. elements which are
       ! zero by symmetry).
       Allocate(OneEFieldInts2(nBasis,nBasis,nFlds),STAT=ierr)
       iSize = NBasis*NBasis*nFlds
       call LogMemAlloc('OneEFieldInts2',nBasis*nBasis*nFlds,HElement_t_size*8,t_r,tagOneEFieldInts2)
       OneEFieldInts2 = (0.0_dp)
- 
+
     end subroutine SetupFieldInts2
 
     subroutine SetupPropInts(nBasis)
@@ -613,7 +613,7 @@ contains
                     end do
                 end if
 !                write(stdout,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-!                call neci_flush(6)
+!                call neci_flush(stdout)
                 ! JSS: Label states of symmetry i by the order in which they come.
                 nStateIrrep = 0
                 do iState = 1, nBi
@@ -743,7 +743,7 @@ contains
     END SUBROUTINE SwapOneEPropInts
 
     SUBROUTINE SwapOneEFieldInts(nBasisFrz,iNum)
- 
+
       ! IN: iNum is the number of perturbation operator used in the calculation
       ! During freezing, we need to know the OneEFieldInts arrays both pre- and
       ! post-freezing.  Once freezing is done, clear all the pre-freezing
@@ -768,7 +768,7 @@ contains
       write(72,*) 'Swaped the integrals'
 
       NULLIFY(OneEFieldInts2)
- 
+
     END SUBROUTINE SwapOneEFieldInts
 
     subroutine UpdateOneEInts(nBasis, nFields)
@@ -777,10 +777,10 @@ contains
       integer, intent(in) :: nBasis, nFields
       integer :: i, j, iField
       HElement_t(dp) :: MatTemp
-      
+
       do i = 1, nBasis
         do j = i, nBasis
-          MatTemp = TMAT2D(i,j) 
+          MatTemp = TMAT2D(i,j)
           do iField = 1, nFields
             MatTemp = MatTemp + FieldStrength_it(iField)*OneEFieldInts(i,j,iField)
           end do

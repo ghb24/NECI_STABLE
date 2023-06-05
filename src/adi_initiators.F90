@@ -3,7 +3,7 @@ module adi_initiators
     use adi_data, only: ilutRefAdi, nRefs, tAllDoubsInitiators, tAdiActive, &
                         nExChecks, nExCheckFails
     use bit_rep_data, only: test_flag, NIfTot, extract_sign
-    use bit_reps, only: set_flag, clr_flag, decode_bit_det
+    use bit_reps, only: decode_bit_det, set_flag, clr_flag
     use constants, only: lenof_sign, n_int, dp, inum_runs, eps
     use SystemData, only: nel, max_ex_level
 

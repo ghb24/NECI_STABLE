@@ -1,51 +1,51 @@
 title
 
 system hubbard real-space
-transcorr-hop 0.05
-lattice chain 6 1
-b -1
-u  12
-electrons 6
-hphf 0
+    transcorr-hop 0.05
+    lattice chain 6 1
+    b -1
+    u  12
+    electrons 6
+    hphf 0
 endsys
 
 calc
 
-methods
-method vertex fcimc
-endmethods
+    methods
+        method vertex fcimc
+    endmethods
 
-totalwalkers   1000
+    totalwalkers   1000
 
-load-balance-blocks off
-tau 0.01
+    load-balance-blocks off
+    tau-values \
+        start user-defined 0.01
 
-semi-stochastic 10
-pops-core 20
+    semi-stochastic 10
+    pops-core 20
 
-trial-wavefunction 10
-pops-trial 5
+    trial-wavefunction 10
+    pops-trial 5
 
-start-neel-state
+    start-neel-state
 
-seed 1
-nmcyc 1500
+    seed 1
+    nmcyc 1500
 
-truncinitiator
-addtoinitiator 1.2
-allrealcoeff
-# max-tau 0.001
-# maxwalkerbloom 1
-startsinglepart 1
-shiftdamp 0.1
-stepsshift 1
-memoryfacpart  50.00
-memoryfacspawn  100.00
-time 2700
+    truncinitiator
+    addtoinitiator 1.2
+    allrealcoeff
+    realspawncutoff off
+    startsinglepart 1
+    shiftdamp 0.1
+    stepsshift 1
+    memoryfacpart  50.00
+    memoryfacspawn  100.00
+    time 2700
 endcalc
 
 logging
-highlypopwrite 100
-popsfile -1
+    highlypopwrite 100
+    popsfile -1
 endlog
 end

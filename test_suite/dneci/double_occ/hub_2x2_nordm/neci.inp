@@ -19,10 +19,13 @@ calc
     definedet 1 4 5 8
 
     allrealcoeff
+    realspawncutoff off
+
     load-balance-interval 1000
     nmcyc 14000
 
-    tau 0.001
+    tau-values \
+        start user-defined 0.001
     truncinitiator
     addtoinitiator 3
     totalwalkers 100

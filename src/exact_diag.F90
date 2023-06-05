@@ -4,8 +4,9 @@ module exact_diag
 
     use constants
     use FciMCData, only: hamiltonian
-    use SystemData, only: t_non_hermitian, tGUGA, nSpatOrbs
+    use SystemData, only: t_non_hermitian_2_body, tGUGA, nSpatOrbs
     use guga_bitRepOps, only: CSF_Info_t
+    use util_mod, only: stop_all, neci_flush
 
     implicit none
 
@@ -26,13 +27,13 @@ contains
         allocate(work(lwork))
 
         write(stdout, '(1x,a28)', advance='no') "Diagonalising Hamiltonian..."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! Perform the diagonalisation.
         call dsyev('V', 'U', ndets_ed, hamiltonian, ndets_ed, eigv_ed, work, lwork, info)
 
         write(stdout, '(1x,a9,/)') "Complete."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         call output_exact_spectrum()
 
@@ -55,10 +56,10 @@ contains
         integer :: ierr
 
         write(stdout, '(/,1x,a57,/)') "Beginning exact diagonalisation in all symmetry sectors."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         write(stdout, '(1x,a56)', advance='no') "Enumerating and storing all determinants in the space..."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! Generate and count all the determinants on this processor, but don't store them.
         call gndts_all_sym_this_proc(ilut_list, .true., ndets_ed)
@@ -67,7 +68,7 @@ contains
         call gndts_all_sym_this_proc(ilut_list, .false., ndets_ed)
 
         write(stdout, '(1x,a9)') "Complete."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         expected_ndets_tot = int(choose_i64(nbasis, nel))
         if (ndets_ed /= expected_ndets_tot) then
@@ -84,17 +85,17 @@ contains
         eigv_ed = 0.0_dp
 
         write(stdout, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
-        call neci_flush(6)
+        call neci_flush(stdout)
         allocate(hamiltonian(ndets_ed, ndets_ed), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating Hamiltonian array.")
         end if
         write(stdout, '(1x,a46)') "Hamiltonian allocation completed successfully."
-        call neci_flush(6)
+        call neci_flush(stdout)
         call calculate_full_hamiltonian(ilut_list, hamiltonian)
         write(stdout, '(1x,a33)') "Hamiltonian calculation complete."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
     end subroutine init_exact_diag
 
@@ -130,7 +131,7 @@ contains
         end if
 
         ! Loop over every pair of determinants and calculate all elements.
-        if (t_non_hermitian) then
+        if (t_non_hermitian_2_body) then
             call stop_all(t_r, "check this for non-hermitian hamil!")
         end if
 

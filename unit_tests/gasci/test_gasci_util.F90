@@ -1,10 +1,10 @@
 module test_gasci_util_mod
-    use fruit
+    use fruit, only: assert_true, assert_equals
     use constants, only: dp, n_int, int64
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: calc_spin_raw, sum, alpha, beta, SpinOrbIdx_t, SpinProj_t
-    use excitation_types, only: Excitation_t, SingleExc_t, excite
+    use excitation_types, only: Excitation_t, Excite_1_t, excite
     use SystemData, only: nEl
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
@@ -996,7 +996,7 @@ contains
         call assert_equals(expected, calculated, size(expected))
 
         expected = [2, 3, 4]
-        calculated = GAS_spec%get_possible_holes(excite(reference, SingleExc_t(5, 11)), add_holes=[1])
+        calculated = GAS_spec%get_possible_holes(excite(reference, Excite_1_t(5, 11)), add_holes=[1])
         call assert_equals(expected, calculated, size(expected))
 
         expected = [2, 3, 4]
@@ -1079,7 +1079,7 @@ contains
         call assert_equals(expected, calculated, size(expected))
 
         expected = [2, 3, 4]
-        calculated = GAS_spec%get_possible_holes(excite(reference, SingleExc_t(5, 11)), add_holes=[1])
+        calculated = GAS_spec%get_possible_holes(excite(reference, Excite_1_t(5, 11)), add_holes=[1])
         call assert_equals(expected, calculated, size(expected))
 
         expected = [2, 3, 4]
@@ -1126,8 +1126,9 @@ end module test_gasci_util_mod
 
 program test_gasci_util_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_util_mod, only: &
         Local_test_get_possible_spaces, Local_test_possible_holes, test_available, &

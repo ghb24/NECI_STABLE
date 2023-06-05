@@ -20,8 +20,10 @@ calc
     definedet 1 4 5 7
     seed -7
     allrealcoeff
+    realspawncutoff off
 
-    tau 0.001
+    tau-values \
+        start user-defined 0.001
     truncinitiator
     addtoinitiator 3
     totalwalkers 100

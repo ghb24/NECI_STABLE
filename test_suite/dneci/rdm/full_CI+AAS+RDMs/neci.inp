@@ -6,7 +6,8 @@ Title
 
 System read
     electrons  6
-    nonuniformrandexcits pchb
+    nonuniformrandexcits pchb \
+        manual unif:unif full-full:fast-fast
     hphf 0
     nobrillouintheorem
     sym 0 0 0 0
@@ -30,6 +31,13 @@ calc
     auto-adaptive-shift
         aas-matele2
 
+    tau-values \
+        start refdet-connections
+    tau-search \
+        algorithm conventional \
+        stop-condition off \
+        maxwalkerbloom 2.
+
     totalwalkers 1e3
     startsinglepart 100
     diagshift 0.00
@@ -43,8 +51,6 @@ calc
     allrealcoeff
     proje-changeref 1.2 10
     realspawncutoff 0.01
-    maxwalkerbloom 2.
-    max-tau 0.03
 endcalc
 
 logging

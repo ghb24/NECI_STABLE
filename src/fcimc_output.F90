@@ -20,12 +20,7 @@ module fcimc_output
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, &
-                        frq_step_size, tEN2, &
-                        frequency_bins_singles, frequency_bins_para, &
-                        frequency_bins_anti, frequency_bins_doubles, &
-                        frequency_bins_type2, frequency_bins_type3, &
-                        frequency_bins_type4, frequency_bins_type2_diff, &
-                        frequency_bins_type3_diff, n_frequency_bins, &
+                        tEN2, &
                         tSemiStochastic, t_truncate_spawns, tLogGreensfunction
 
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
@@ -36,7 +31,9 @@ module fcimc_output
 
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
 
-    use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
+    use bit_rep_data, only: test_flag, extract_sign
+
+    use bit_reps, only: decode_bit_det, get_initiator_flag
 
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN, core_space_weight
 
@@ -47,7 +44,8 @@ module fcimc_output
     use fcimc_helper, only: LanczosFindGroundE
 
     use hphf_integrals, only: hphf_diag_helement
-    use Determinants, only: write_det, get_helement
+    use Determinants, only: get_helement, writeDetBit
+    use DeterminantData, only: write_det
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
 
@@ -63,8 +61,6 @@ module fcimc_output
 
     use util_mod
 
-    use tau_search, only: comm_frequency_histogram, comm_frequency_histogram_spec
-
     use real_time_data, only:  gf_count, &
                               normsize, snapShotOrbs, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
@@ -76,6 +72,8 @@ module fcimc_output
     use fortran_strings, only: str
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+
+    use matmul_mod, only: my_hpsi
 
     implicit none
 
@@ -1173,7 +1171,7 @@ contains
             Tot_No_Unique_Dets = 0
             do i=1,Det
 
-                posn=binary_search(CurrentDets(:,1:TotWalkers), FCIDETS(:,i), NifD+1)
+                posn=binary_search_ilut(CurrentDets(:,1:TotWalkers), FCIDETS(:,i), NifD+1)
 
                 if (posn.lt.0) then
                     FinalPop = 0
@@ -1217,11 +1215,19 @@ contains
                 HOrderedInstHist(:) = AllInstHist(1,:)
                 call sort(ReIndex(1:Det),HOrderedHist(1:Det),HOrderedInstHist(1:Det))
 
+#ifdef CMPLX_
+                call stop_all(t_r, "not implemented for complex")
+#else
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
+#endif
                 AvVarEnergy = DDOT(Det,HOrderedHist,1,CKN,1)
 
                 CKN = 0.0_dp
+#ifdef CMPLX_
+                call stop_all(t_r, "not implemented for complex")
+#else
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedInstHist,CKN,.true.)
+#endif
                 VarEnergy = DDOT(Det,HOrderedInstHist,1,CKN,1)
 
                 deallocate(CKN)

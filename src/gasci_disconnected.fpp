@@ -1,31 +1,31 @@
 #include "macros.h"
 #:include "macros.fpph"
 
-#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
+#:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']
 
 module gasci_disconnected
     use SystemData, only: tGAS, nBasis, nel
-    use constants
+    use constants, only: dp, n_int, maxExcit, bits_n_int
     use SymExcitDataMod, only: ScratchSize
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
-                        near_zero
+                        near_zero, stop_all
     use sort_mod, only: sort
     use sets_mod, only: operator(.in.)
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use FciMCData, only: pDoubles, pSingles
+    use FciMCData, only: pDoubles, pSingles, excit_gen_store_type
     use get_excit, only: make_double, make_single
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb, get_pgen_pick_biased_elecs
-    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
-                                get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN
+    use excitation_types, only: Excitation_t, Excite_1_t, Excite_2_t, &
+                                get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN, canonicalize
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
-    use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t, operator(==), operator(/=)
+    use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
 
     use excitation_generators, only: ExcitationGenerator_t
-    implicit none
+    better_implicit_none
 
     private
     public :: GAS_disc_ExcGenerator_t
@@ -176,9 +176,6 @@ contains
         ! particle number conserving GAS excitation generator:
         ! we create only excitations, that preserver the number of electrons within
         ! each active space
-        use SystemData, only: nel
-        use FciMCData, only: excit_gen_store_type
-        use constants
         class(GAS_disc_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -224,9 +221,9 @@ contains
 
         select case(ic)
         case(1)
-            pgen = pSingles * this%calc_pgen(SpinOrbIdx_t(nI), ilutI, SingleExc_t(ex(:, 1)))
+            pgen = pSingles * this%calc_pgen(SpinOrbIdx_t(nI), ilutI, Excite_1_t(ex(:, :1)))
         case(2)
-            pgen = pDoubles * this%calc_pgen(SpinOrbIdx_t(nI), ilutI, DoubleExc_t(ex(:, :2)))
+            pgen = pDoubles * this%calc_pgen(SpinOrbIdx_t(nI), ilutI, Excite_2_t(ex(:, :2)))
         case default
             call stop_all(this_routine, 'ic has to be 1 <= ic <= 2')
         end select
@@ -264,7 +261,7 @@ contains
         pgen = 1.0_dp / nel
         ! from the same active space, get a hole
         spin_idx = get_spin(src)
-        tgt = this%pick_weighted_hole(nI, SingleExc_t(src), spin_idx, this%GAS_table(src), pgen)
+        tgt = this%pick_weighted_hole(nI, Excite_1_t(src), spin_idx, this%GAS_table(src), pgen)
 
         if (tgt == 0) then
             nJ(1) = 0
@@ -335,7 +332,7 @@ contains
             ms = get_spin(src(2))
         end if
         ! the second hole is chosen in a weighted fashion
-        tgt(2) = this%pick_weighted_hole(nI, DoubleExc_t(src(1), tgt(1), src(2)), ms, srcGAS(2), pgen_pick1)
+        tgt(2) = this%pick_weighted_hole(nI, Excite_2_t(src(1), tgt(1), src(2)), ms, srcGAS(2), pgen_pick1)
         if (any(tgt == 0) .or. tgt(1) == tgt(2)) then
             call zeroResult()
             return
@@ -345,7 +342,7 @@ contains
         ! have picked them the other way around
         if (srcGAS(1) == srcGAS(2)) then
             pgen_pick2 = &
-                this%get_pgen_pick_weighted_hole(nI, DoubleExc_t(src(1), tgt(2), src(2), tgt(1))) &
+                this%get_pgen_pick_weighted_hole(nI, Excite_2_t(src(1), tgt(2), src(2), tgt(1))) &
                 * this%get_pgen_pick_hole_from_active_space(ilutI, srcGAS(2), get_spin(tgt(2)))
             pgen = pgen * (pgen_pick1 + pgen_pick2)
         else
@@ -378,7 +375,7 @@ contains
     function get_pgen_pick_weighted_hole(this, nI, exc) result(pgenVal)
         class(GAS_disc_ExcGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
-        type(DoubleExc_t), intent(in) :: exc
+        type(Excite_2_t), intent(in) :: exc
         character(*), parameter :: this_routine = 'get_pgen_pick_weighted_hole'
 
         real(dp) :: pgenVal
@@ -395,7 +392,7 @@ contains
         nOrbs = this%GAS_size(this%GAS_table(tgt2))
         gasList = this%GAS_spin_orb_list(1:nOrbs, this%GAS_table(tgt2), get_spin(tgt2))
 
-        cSum = get_cumulative_list(gasList, nI, DoubleExc_t(src1, tgt1, src2))
+        cSum = get_cumulative_list(gasList, nI, Excite_2_t(src1, tgt1, src2))
         ! we know gasList contains tgt2, so we can look up its index with binary search
         gasInd2 = binary_search_first_ge(gasList, tgt2)
         if (gasInd2 == 1) then
@@ -462,31 +459,31 @@ contains
     end function get_cumulative_list_${Excitation_t}$
     #:endfor
 
-    function get_mat_element_SingleExc_t(nI, exc) result(res)
+    function get_mat_element_Excite_1_t(nI, exc) result(res)
         integer, intent(in) :: nI(nEl)
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         real(dp) :: res
 
-        if (all(nI /= exc%val(2))) then
-            res = abs(sltcnd_excit(nI, exc, .false.))
+        if (all(nI /= exc%val(2, 1))) then
+            res = abs(sltcnd_excit(nI, canonicalize(exc), .false.))
         else
             res = 0.0_dp
         end if
-    end function get_mat_element_SingleExc_t
+    end function get_mat_element_Excite_1_t
 
-    function get_mat_element_DoubleExc_t(nI, exc) result(res)
+    function get_mat_element_Excite_2_t(nI, exc) result(res)
         integer, intent(in) :: nI(nEl)
-        type(DoubleExc_t), intent(in) :: exc
+        type(Excite_2_t), intent(in) :: exc
         real(dp) :: res
 
         if (exc%val(2, 1) /= exc%val(2, 2) &
             .and. all(exc%val(2, 1) /= nI) .and. all(exc%val(2, 2) /= nI)) then
-            res = abs(sltcnd_excit(nI, exc, .false.))
+            res = abs(sltcnd_excit(nI, canonicalize(exc), .false.))
         else
             res = 0.0_dp
         end if
 
-    end function get_mat_element_DoubleExc_t
+    end function get_mat_element_Excite_2_t
 
     #:for Excitation_t in ExcitationTypes
     function pick_weighted_hole_${Excitation_t}$ (this, nI, exc, spin_idx, iGAS, pgen) result(tgt)
@@ -584,11 +581,11 @@ contains
         end function
     end function pick_hole_from_active_space
 
-    function calc_pgen_SingleExc_t(this, det_I, ilutI, exc) result(pgen)
+    function calc_pgen_Excite_1_t(this, det_I, ilutI, exc) result(pgen)
         class(GAS_disc_ExcGenerator_t), intent(in) :: this
         type(SpinOrbIdx_t), intent(in) :: det_I
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        type(SingleExc_t), intent(in) :: exc
+        type(Excite_1_t), intent(in) :: exc
         character(*), parameter :: this_routine = 'get_pgen_pick_weighted_hole'
 
         real(dp) :: pgen
@@ -601,16 +598,16 @@ contains
         pgen_pick_elec = 1.0_dp / nel
 
         block
-            real(dp) :: cSum(this%GAS_size(this%GAS_table(exc%val(2))))
-            integer :: gasList(this%GAS_size(this%GAS_table(exc%val(2)))), nOrbs
+            real(dp) :: cSum(this%GAS_size(this%GAS_table(exc%val(2, 1))))
+            integer :: gasList(this%GAS_size(this%GAS_table(exc%val(2, 1)))), nOrbs
             integer :: j
 
-            nOrbs = this%GAS_size(this%GAS_table(exc%val(2)))
-            gasList = this%GAS_spin_orb_list(1:nOrbs, this%GAS_table(exc%val(2)), get_spin(exc%val(2)))
+            nOrbs = this%GAS_size(this%GAS_table(exc%val(2, 1)))
+            gasList = this%GAS_spin_orb_list(1:nOrbs, this%GAS_table(exc%val(2, 1)), get_spin(exc%val(2, 1)))
             ! We know, that gasList contains the target
-            j = binary_search_first_ge(gasList, exc%val(2))
+            j = binary_search_first_ge(gasList, exc%val(2, 1))
 
-            cSum = get_cumulative_list(gasList, det_I%idx, SingleExc_t(exc%val(1)))
+            cSum = get_cumulative_list(gasList, det_I%idx, Excite_1_t(exc%val(1, 1)))
 
             if (j == 1) then
                 pgen_pick_weighted_hole = cSum(1)
@@ -622,14 +619,14 @@ contains
         pgen = pgen_pick_elec * pgen_pick_weighted_hole
     end function
 
-    function calc_pgen_DoubleExc_t(this, det_I, ilutI, exc) result(pgen)
+    function calc_pgen_Excite_2_t(this, det_I, ilutI, exc) result(pgen)
         use FciMCData, only: pParallel
         use SystemData, only: par_elec_pairs, AB_elec_pairs
         class(GAS_disc_ExcGenerator_t), intent(in) :: this
         type(SpinOrbIdx_t), intent(in) :: det_I
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        type(DoubleExc_t), intent(in) :: exc
-        character(*), parameter :: this_routine = 'calc_pgen_DoubleExc_t'
+        type(Excite_2_t), intent(in) :: exc
+        character(*), parameter :: this_routine = 'calc_pgen_Excite_2_t'
 
         real(dp) :: pgen
         real(dp) :: pgen_pick_elec, &
@@ -665,12 +662,12 @@ contains
         end if
 
         pgen_second_pick(1) = this%get_pgen_pick_weighted_hole( &
-                              det_I%idx, DoubleExc_t(src1, tgt1, src2, tgt2))
+                              det_I%idx, Excite_2_t(src1, tgt1, src2, tgt2))
         if (this%GAS_table(src1) == this%GAS_table(src2)) then
             pgen_first_pick(2) = this%get_pgen_pick_hole_from_active_space( &
                                  ilutI, this%GAS_table(src2), get_spin(tgt2))
             pgen_second_pick(2) = this%get_pgen_pick_weighted_hole( &
-                                  det_I%idx, DoubleExc_t(src1, tgt2, src2, tgt1))
+                                  det_I%idx, Excite_2_t(src1, tgt2, src2, tgt1))
         else
             pgen_first_pick(2) = 0.0_dp
             pgen_second_pick(2) = 0.0_dp

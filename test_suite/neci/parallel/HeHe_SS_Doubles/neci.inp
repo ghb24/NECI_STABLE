@@ -12,7 +12,8 @@ endmethods
 seed -7
 memoryfacspawn 8.0
 totalwalkers 1000
-tau 0.001
+tau-values \
+    start user-defined 0.001
 startsinglepart 10
 shiftdamp 0.1
 stepsshift 1

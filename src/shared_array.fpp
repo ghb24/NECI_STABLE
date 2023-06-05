@@ -3,10 +3,12 @@
 ! fpp types
 #:set data_types = [['real(dp)', 'real'], ['integer(int64)', 'int64'], ['integer(int32)','int32'], ['complex(dp)','cmplx'], ['logical','bool']]
 module shared_array
-    use constants
-    use shared_memory_mpi
+    use constants, only: int32, int64, dp, MPIArg
+    use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
+    use mpi, only: MPI_Barrier, MPI_Win_Sync
+    use MPI_wrapper, only: mpi_comm_intra
     use MemoryManager, only: LogMemALloc, LogMemDealloc, TagIntType
-    implicit none
+    better_implicit_none
     private
     ! Shared memory array types are defined here
 #:for data_type, data_name in data_types
@@ -39,7 +41,6 @@ contains
     !> @param[in] size  size of the memory segment to be allocated
     subroutine safe_shared_memory_alloc_${data_name}$ (this, size, name)
 
-        implicit none
         class(shared_array_${data_name}$_t) :: this
         integer(int64), intent(in) :: size
         character(*), intent(in), optional :: name
@@ -63,7 +64,6 @@ contains
     ! WARNING: THIS ASSUMES THAT IF ptr IS ASSOCIATED, IT POINTS TO AN MPI SHARED MEMORY
     !          WINDOW win
     subroutine safe_shared_memory_dealloc_${data_name}$ (this)
-        implicit none
         class(shared_array_${data_name}$_t) :: this
         character(*), parameter :: t_r = "shared_dealloc"
 
@@ -77,7 +77,6 @@ contains
     !! This has to be called between read/write epochs to ensure all tasks of a node are
     !! looking at the same shared data
     subroutine sync_${data_name}$ (this)
-        implicit none
         class(shared_array_${data_name}$_t) :: this
         integer(MPIArg) :: ierr
 

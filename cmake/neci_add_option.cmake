@@ -38,7 +38,7 @@
 
 macro( neci_add_option )
 
-    set( options ) 
+    set( options )
     set( single_value_args FEATURE DEFAULT DESCRIPTION )
     set( multi_value_args  REQUIRED_PACKAGES ) # CONDITION
 
@@ -47,7 +47,7 @@ macro( neci_add_option )
     if( _p_UNPARSED_ARGUMENTS )
       message(FATAL_ERROR "Unknown arguments passed to neci_add_option(): \"${_p_UNPARSED_ARGUMENTS}\"")
     endif()
-  
+
     # Check (rquired) feature parameter
     if( NOT _p_FEATURE )
       message(FATAL_ERROR "The call to neci_add_option() doesn't specify the FEATURE.")
@@ -101,7 +101,7 @@ macro( neci_add_option )
     # then we need to disable the package (unless REQUIRED is set, in which case we return an error.
 
     if ( ${HAVE_${_p_FEATURE}} )
-        
+
       set( ${_p_FEATURE}_packages_found ON )
       set( ${_p_FEATURE}_failed_list "" )
 
@@ -114,8 +114,7 @@ macro( neci_add_option )
         else()
           find_package( ${pkg} )
           if( NOT ${_pkg_UPPER}_FOUND )
-            set( ${_p_FEATURE}_packages_found OFF )
-            list(APPEND ${_p_FEATURE}_failed_list ${pkg} )
+            message(FATAL_ERROR "Required library ${pkg} not found. Either guide `cmake` towards it, or set -DENABLE_${_p_FEATURE}=OFF.")
           endif()
         endif()
       endforeach()
@@ -131,7 +130,7 @@ macro( neci_add_option )
       endif()
 
     endif()
-    
+
     # And finally some pretty output.
 
     add_feature_info( ${_p_FEATURE} ${HAVE_${_p_FEATURE}} ${_p_DESCRIPTION} )

@@ -17,13 +17,15 @@ calc
 
     totalwalkers   1000
 
-    tau 0.005
+    tau-values \
+        start user-defined 0.005
     load-balance-blocks off
     nmcyc 3000
 
     truncinitiator
     addtoinitiator 3.
     allrealcoeff
+    realspawncutoff off
     startsinglepart 100
     definedet 1 4 5 8 9 12
     seed 1

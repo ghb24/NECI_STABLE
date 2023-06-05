@@ -1,0 +1,22 @@
+add_library(
+    pchb_excitgen_test_helper
+    pchb_excitgen_test_helper.F90
+)
+
+target_link_libraries(pchb_excitgen_test_helper libneci fruit)
+
+
+add_unit_test(neci pcpp_excitgen)
+
+add_unit_test(neci pchb_excitgen_rhf_hermitian pchb_excitgen_test_helper)
+target_link_libraries(test_neci_pchb_excitgen_rhf_hermitian pchb_excitgen_test_helper)
+
+add_unit_test(neci pchb_excitgen_rhf_nonhermitian pchb_excitgen_test_helper)
+target_link_libraries(test_neci_pchb_excitgen_rhf_nonhermitian pchb_excitgen_test_helper)
+
+add_unit_test(neci pchb_excitgen_uhf_hermitian pchb_excitgen_test_helper)
+target_link_libraries(test_neci_pchb_excitgen_uhf_hermitian pchb_excitgen_test_helper)
+
+add_unit_test(neci pchb_excitgen_uhf_nonhermitian pchb_excitgen_test_helper)
+target_link_libraries(test_neci_pchb_excitgen_uhf_nonhermitian pchb_excitgen_test_helper)
+

@@ -2,9 +2,14 @@
 
 module lanczos_wrapper
 
-    use constants
+    use constants, only: dp
+    use util_mod, only: stop_all
+
+    use frsblk_mod, only: neci_frsblkh
 
     implicit none
+    private
+    public :: frsblk_wrapper
 
 contains
 

@@ -22,7 +22,9 @@ calc
     definedet 1 4 5 8
 
     allrealcoeff
-    tau 0.01
+    realspawncutoff off
+    tau-values \
+        start user-defined 0.01
 
     nmcyc 5000
 

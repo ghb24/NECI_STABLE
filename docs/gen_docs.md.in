@@ -5,7 +5,7 @@ author: Alavi Group
 website: https://www.fkf.mpg.de/alavi
 parallel: 4
 media_dir: ../../media
-author_pic: media/neci.jpg
+author_pic: media/logos/neci.jpg
 dbg: false
 warn: false
 display: private
@@ -21,7 +21,7 @@ graph_maxnodes: 250
 graph_maxdepth: 5
 coloured_edges: true
 
-#Summary
+# Summary
 
 This is NECI,
 a state-of-the-art implementation of the Full Configuration Interaction Quantum Monte Carlo (FCIQMC) algorithm,
@@ -34,6 +34,7 @@ See [here for the user doc](pdf/neci_user.pdf) and [here for the developer doc](
 
 
 ## Contributors
+
 Contributors to the Alavi group NECI codebase, in alphabetical order
 
 Ali Alavi, Robert Anderson, Nick Blunt, George Booth, Deirdre Cleland, Werner Dobrautz,
@@ -42,9 +43,6 @@ Niklas Liebermann, Florian Merz, Jennifer Mohr, Catherine Overy, Arta Safari, Pr
 Simon Smart, James Shepherd, James Spencer, Anthony Stone, Lauretta Schwarz, Pierre-Louis Taillat,
 Alex Thom, Robert Thomas, David Thompson, Eugenio Vitale, Oskar Weser.
 
-## Documentation
-
-The documentation can be found [here](https://www2.fkf.mpg.de/alavi/neci/master/index.html).
 
 ## Compilation
 
@@ -81,3 +79,14 @@ So far it has been interfaced to
 FCIQMC code developed by George Booth and Ali Alavi, 2013
 Copyright (c) 2013, Ali Alavi
 Please see "LICENSE" file for GNU GPL v.3 license associated with this software.
+
+
+## Acknowledgments
+
+
+| | |
+| --- | --- |
+| <img src="./media/logos/MPG_logo.png" alt="MPG logo" align="left" width="400">  | Currently most of the development of `NECI` happens at the [Max Planck Institute for Solid State Research](https://www.fkf.mpg.de/de).  |
+| <img src="./media/logos/cambridge_university2.svg" alt="Cambridge logo" align="left" width="300">  | The early development of `NECI` was performed at the University of Cambridge. |
+| <img src="./media/logos/UKRI_logo.png" alt="ESPRC logo" align="left" width="400"> |  The UK [EPSRC](https://www.ukri.org/councils/epsrc/) Grants (EP/I014624/1 and EP/J003867/1) supported the early development of `NECI`. |
+| <img src="https://raw.githubusercontent.com/zulip/zulip/main/static/images/logo/zulip-icon-512x512.png" alt="Zulip logo" align="center" width="75"> | [Zulip](https://zulip.com/) is an open-source modern team chat app designed to keep both live and asynchronous conversations organized. They support this project with free access to Zulip Cloud Standard. |

@@ -20,6 +20,7 @@ execute_process( COMMAND "${PROJECT_SOURCE_DIR}/tools/install_hooks.sh" ${PROJEC
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+set(Python3_FIND_UNVERSIONED_NAMES FIRST)
 
 # We require at least ifort17, previous versions do not support all required options
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
@@ -47,7 +48,7 @@ list(APPEND NECI_GLOBAL_DEFINES USE_MPI)
 
 neci_add_option(
     FEATURE FFTW
-    DEFAULT ON
+    DEFAULT OFF
     DESCRIPTION "Enable functionality requiring FFTW"
     REQUIRED_PACKAGES FFTW )
 
@@ -59,7 +60,7 @@ neci_add_option(
 
 neci_add_option(
     FEATURE HDF5
-    DEFAULT OFF
+    DEFAULT ON
     DESCRIPTION "Use HDF5 file format for storage"
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
@@ -67,6 +68,12 @@ neci_add_option(
     FEATURE SHARED
     DEFAULT OFF
     DESCRIPTION "Build using shared libraries, rather than static linking" )
+
+neci_add_option(
+    FEATURE TCHINT
+    DEFAULT OFF
+    DESCRIPTION "Use the TCHInt library for transcorrelated integrals and matrix elements"
+    REQUIRED_PACKAGES TCHINT_NECI )
 
 neci_add_option(
     FEATURE DOC
@@ -101,6 +108,9 @@ set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex CMPLX_ PROG_NUMRUNS_)
 set(${PROJECT_NAME}_neci_WARNERR TRUE)
 set(${PROJECT_NAME}_dneci_WARNERR TRUE)
 set(${PROJECT_NAME}_mneci_WARNERR TRUE)
+set(${PROJECT_NAME}_kneci_WARNERR TRUE)
+set(${PROJECT_NAME}_kdneci_WARNERR TRUE)
+set(${PROJECT_NAME}_kmneci_WARNERR TRUE)
 
 # Global (always on) defines
 
@@ -120,6 +130,7 @@ list(APPEND NECI_GLOBAL_DEFINES
 
     # Is this a debug build
     $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:DEBUG_>
+    $<$<STREQUAL:${CMAKE_BUILD_TYPE},FASTDEBUG>:DEBUG_>
 
     # Global defines that depend on options
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:SHARED_MEM_>
@@ -154,4 +165,3 @@ add_subdirectory(python)
 
 # And we are done
 neci_print_summary()
-
