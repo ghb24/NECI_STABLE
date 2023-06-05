@@ -1,18 +1,24 @@
  Number of processors:            4
  Processor            1 /           4  as head node.
+ Processor            2 /           4  moving to local output.
+ Processor            3 /           4  moving to local output.
+ Processor            4 /           4  moving to local output.
+ outfile=NodeFile2           
+ outfile=NodeFile3           
+ outfile=NodeFile4           
  Sum:           10
  Memory Manager initialised with  99999.0 MB
 
  ================================================================
- Compiled on Feb  2 2023 at 10:46:27
+ Compiled on Jun  1 2023 at 09:24:11
  Compiled using configuration:
-     cmake-GNU--RELEASE
+     cmake-GNU--FASTDEBUG
  VCS BASE repository version:
-     2fc37fa768498ddfa47c9eba047f552cc0f7e74b
+     f13a68b5956200b7458cc0c0210e1fd6fb10f29a
  Working directory: 
-     /home/phaupt/dev/neci_2merge/test_suite/hdf5/mneci/guga/multiple_rdms/multiple_rdms
+     /home/weser/code/neci/test_suite/hdf5/mneci/guga/multiple_rdms/multiple_rdms
  Running on: alamdlogin1
- Started running on 02/02/2023 at 10:52:51
+ Started running on 01/06/2023 at 09:31:39
  ================================================================
 
  Processing argumentsneci.inp                                                                                                                                                                                                                                                       
@@ -63,7 +69,7 @@ title
     # timestep
     tau-values \
         start user-defined 0.06 \
-        max 1 \
+        max 1e-3 \
         readpops-but-tau-not-from-popsfile
     tau-search \
         algorithm histogramming 1e-6 100000 2000 \
@@ -76,8 +82,8 @@ title
     multiple-initial-states
         1 3 5   8  9 11   14 16 18
         1 3 5   8  9 11   14 16 18
-        1 3 5   8 10 11   14 16 17
-        1 3 5   8 10 11   14 16 17
+        1 3 5   8 10-11   14 16 17
+        1 3 5   8 10-11   14 16 17
     orthogonalise-replicas
     replica-single-det-start
     global-core-space
@@ -97,6 +103,11 @@ end
 
  RDM on fly
  Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+         2         2
+         3         3
  I am the node root for node            0
 ======== SYSTEM ==========
   NUMBER OF ELECTRONS :     9
@@ -111,6 +122,8 @@ end
  Turning Symmetry off
   Generating abelian symmetry table with  0 generators
   Number of symmetry classes: 1
+ Label, Sym, SymConjLabel, SymConj, SymProd
+           1           0           1           0           0
  
 Ordering Basis (Closed):    0   0   0   0   0   0   0   0
 Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
@@ -190,6 +203,27 @@ For GUGA calculation set up a integer list of length:      7
            1  DISTINCT ORBITAL PAIR PRODUCT SYMS
  Symmetry and spin of orbitals correctly set up for excitation generators.
  Simply transferring this into a spin orbital representation.
+ SpinOrbSymLabel: 
+           1           0
+           2           0
+           3           0
+           4           0
+           5           0
+           6           0
+           7           0
+           8           0
+           9           0
+          10           0
+          11           0
+          12           0
+          13           0
+          14           0
+          15           0
+          16           0
+          17           0
+          18           0
+ SymInvLabel: 
+           0           0
  Not storing the H matrix.
  <D0|H|D0>=  -4975.3515812340547     
  <D0|T|D0>=  -35.037260438399997     
@@ -234,7 +268,6 @@ Length of hash-table as a fraction of targetwalkers:              0.70000
 Reference processor is:        3
 Initial reference is: (    1,    3,    5,    8,    9,   11,   14,   16,   18)
  Setting reasonable defaults for GUGA-PCHB:
- max-tau zero or > 1e-3. setting it to: 1e-3
  setting  max_frequency_bound to 1e5
  'truncate-spawns' not activated! consider turning it on if too many blooms happen!
  Allocating GUGA PCHB excitation generator objects
@@ -292,6 +325,10 @@ WARNING: NO spawn truncation chosen with keyword: truncate-spawns [float] in inp
  Main RDM memory arrays consists of:      23.182411 MB per MPI process.
  RDM memory allocation complete.
 
+ HF:            1           3           5           8           9          11          14          16          18
+ HF_true:            1           2           3           4           5           6           7           8           9
+ Ref:            1           3           5           8           9          11          14          16          18
+ ProjEDet:            1           3           5           8           9          11          14          16          18           1           3           5           8           9          11          14          16          18           1           3           5           8          10          11          14          16          17           1           3           5           8          10          11          14          16          17
  Allocating temporary array for walkers spawned from a particular Di.
  This requires       0.007629 Mb/Processor
  Highest weighted determinant on run           4 not reference det:           44          45          50          55   8.0879998505512807E-003
@@ -310,9 +347,9 @@ Total size of deterministic space:     1000
           Reducing the size of the deterministic space is encouraged.
 Size of deterministic space on this processor:      222
 Generating the Hamiltonian in the deterministic space...
-Total time (seconds) taken for Hamiltonian generation:    0.180
+Total time (seconds) taken for Hamiltonian generation:    0.446
 Semi-stochastic initialisation complete.
-Time (seconds) taken for semi-stochastic initialisation:    0.090
+Time (seconds) taken for semi-stochastic initialisation:    0.091
 
  Updating singles/doubles bias. pSingles =   0.16006884681583478     
   pDoubles =   0.83993115318416522     
@@ -326,7 +363,7 @@ Reference energy now set to:     -4975.33664039787
  Regenerating the stored diagonal HElements for all walkers.
 Recalculating diagonal elements of the core Hamiltonian.
  Zeroing all energy estimators.
- Highest weighted determinant on run           2 not reference det:           62          69          70          94   7.8701764426961667     
+ Highest weighted determinant on run           2 not reference det:           62          69          70          94   7.8701764426961658     
 Changing projected energy reference determinant for run  2 on the next update cycle to: (    7,    8,    9,   10,   11,   13,   14,   17,   18)
  Symmetry:  ( 0, 0, 0) 0
  Ensuring that Brillouin's theorem is no longer used.
@@ -341,15 +378,15 @@ Changing projected energy reference determinant for run  4 on the next update cy
  Symmetry:  ( 0, 0, 0) 0
  Ensuring that Brillouin's theorem is no longer used.
  Zeroing all energy estimators.
-            126020  -1.25935643043       -29.3250919142       -4976.59599683                  8816           104353  0.886547505856E-001
+            126020  -1.25935643043       -29.3250932413       -4976.59599683                  8816           104353  0.263375782967     
  Memory requirement for spawned arrays increased from    34.3323 to    45.7764 Mb/Processor
 Calculating the 2 electron density matrix on the fly.
 Beginning to fill the RDMs during iteration        11
  Reset fdv av at iteration           11
-            126030  -1.14511633464       -45.9824976289       -4976.48175673                  8814             7887  0.681971311569E-001
-            126040  -1.24885237776       -30.3443009620       -4976.58549278                  8808             4917  0.514161407948E-001
-            126050  -1.18431034904       -10.7140889290       -4976.52095075                  8793             3706  0.398394107819E-001
-            126060  -1.24066906311        1.03143319550       -4976.57730946                  8784             3109  0.355120182037E-001
+            126030  -1.14511633450       -45.9824997628       -4976.48175673                  8814             7887  0.256717944145     
+            126040  -1.24885237746       -30.3443023861       -4976.58549278                  8808             4917  0.187264680862     
+            126050  -1.18431034871       -10.7140894425       -4976.52095075                  8793             3706  0.131416249275     
+            126060  -1.24066906273        1.03143323326       -4976.57730946                  8784             3109  0.109355247021     
 WARNING: There is not enough space in the current RDM array to receive all of the communicated RDM elements. We will now try and reallocate this array to be large enough. If there is not sufficient memory then the program may crash.
 Old RDM array had the following size (MB):      0.066971
 Required new RDM array must have the following size (MB):      0.144470
@@ -359,19 +396,19 @@ Required new RDM array must have the following size (MB):      0.037651
 WARNING: There is not enough space in the current RDM array to add the received RDM elements to the main RDM array. We will now try and reallocate this array to be 1.5 times larger. If there is not sufficient memory then the program may crash.
 Old RDM array had the following size (MB):      0.037651
 Required new RDM array must have the following size (MB):      0.056465
-            126070  -1.29440620906        4.70522523365       -4976.63104661                  8790             3274  0.569914817810E-001
+            126070  -1.29440620844        4.70522544678       -4976.63104661                  8790             3274  0.135084855556     
  Writing RDMs to file at iteration           60
  Reset fdv av at iteration           61
-            126080  -1.26535801899        4.07887826710       -4976.60199842                  8795             3502  0.338939934969E-001
-            126090  -1.23737327359        2.21545502665       -4976.57401367                  8799             3771  0.352842330933E-001
-            126100  -1.21534099675       0.660610651731       -4976.55198139                  8799             3723  0.363618195057E-001
-            126110  -1.19055618090      -0.197860673961       -4976.52719658                  8802             3797  0.365176141262E-001
-            126120  -1.08015427127      -0.506978630596       -4976.41679467                  8805             3961  0.610301434994E-001
+            126080  -1.26535801816        4.07887845319       -4976.60199842                  8795             3502  0.109172415733     
+            126090  -1.23737327248        2.21545512641       -4976.57401367                  8799             3771  0.116621685028     
+            126100  -1.21534099555       0.660610679193       -4976.55198139                  8799             3723  0.119502854347     
+            126110  -1.19055617976      -0.197860685864       -4976.52719658                  8802             3797  0.123125350475     
+            126120  -1.08015427009      -0.506978655832       -4976.41679467                  8805             3961  0.158692824841     
  Writing RDMs to file at iteration          110
 RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
  - - - - - - - - - - - - - - - - - - - - - - - -
- Total loop-time:    5.4467311203479767     
- Time lost due to load imbalance:   0.12739336490631104     
+ Total loop-time:    17.115029297769070     
+ Time lost due to load imbalance:   0.53318334277719259     
  - - - - - - - - - - - - - - - - - - - - - - - -
  writing singles frequency histogram...
  Done!
@@ -400,7 +437,7 @@ RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
  for   0.99999899999999997       percent coverage!
  maximum doubles H_ij/pgen ratio:    687.38711885642556     
  maximum/integrated doubles ratio:   0.99910918438433949     
- minimum doubles H_ij/pgen ratio:    5.9582751238099630E-004
+ minimum doubles H_ij/pgen ratio:    5.9582751238016830E-004
 
 ****RDMs CALCULATED STOCHASTICALLY ****
 
@@ -408,11 +445,11 @@ RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
 
  INFORMATION FOR 1-RDM 1:
 
- SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      4.3962647748028
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      4.3962647748439
 
  INFORMATION FOR 1-RDM 2:
 
- SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      4.4972199517337
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      4.4972199519121
 
  =========================================================================================
 
@@ -420,26 +457,26 @@ RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
  == INFORMATION FOR FINAL 2-RDMS =========================================================
 
  2-RDM ESTIMATES FOR STATE 1:
- Trace of 2-el-RDM before normalisation: -5.5294122044E+08
+ Trace of 2-el-RDM before normalisation: -5.5294122027E+08
  Trace of 2-el-RDM after normalisation:  3.6000000000E+01
  Energy contribution from the 1-RDM: -3.5044671787E+01
- Energy contribution from the 2-RDM:  1.2049499180E+01
- *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -4.9765989738072E+03
+ Energy contribution from the 2-RDM:  1.2049499147E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -4.9765989738399E+03
 
  Hermiticty error estimates:
-          126120       -5.01587048848300831594     (Iteration, MAX ABS ERROR IN HERMITICITY)
-          126120    -1335.34210476438465775573     (Iteration, SUM ABS ERROR IN HERMITICITY)
+          126120       -5.01587072931494848405     (Iteration, MAX ABS ERROR IN HERMITICITY)
+          126120    -1335.34216903661035757978     (Iteration, SUM ABS ERROR IN HERMITICITY)
 
  2-RDM ESTIMATES FOR STATE 2:
- Trace of 2-el-RDM before normalisation: -5.3967811449E+08
+ Trace of 2-el-RDM before normalisation: -5.3967811402E+08
  Trace of 2-el-RDM after normalisation:  3.6000000000E+01
  Energy contribution from the 1-RDM: -3.5050736823E+01
- Energy contribution from the 2-RDM:  1.1838865326E+01
- *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -4.9768156726972E+03
+ Energy contribution from the 2-RDM:  1.1838865291E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -4.9768156727321E+03
 
  Hermiticty error estimates:
-          126120       -9.42862424248794184223     (Iteration, MAX ABS ERROR IN HERMITICITY)
-          126120    -1578.78088638947951949376     (Iteration, SUM ABS ERROR IN HERMITICITY)
+          126120       -9.42862470340144120939     (Iteration, MAX ABS ERROR IN HERMITICITY)
+          126120    -1578.78096350415012238955     (Iteration, SUM ABS ERROR IN HERMITICITY)
 
  =========================================================================================
  =============================================================
@@ -573,9 +610,9 @@ Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1)  <D|H|D>Proc
 
 
  Load balancing information based on the last iteration:
-     Mean number of walkers/process:   23340.9257439575
-     Min number of walkers/process:        21802.48378
-     Max number of walkers/process:        24232.20967
+     Mean number of walkers/process:   23340.9257527689
+     Min number of walkers/process:        21802.48379
+     Max number of walkers/process:        24232.20968
 
 
 
@@ -584,22 +621,22 @@ Calculating approximate errorbar for energy estimates...
 Attempting automatic reblocking analysis on data from iteration:       126020
  No FCIMCStats file found for error analysis
  Current reference energy                           -4975.336640397872
- Projected correlation energy                          -0.750153827718
+ Projected correlation energy                          -0.750153827206
  No automatic errorbar obtained for projected energy
  No reliable averaged shift correlation energy could be obtained automatically
 
  Total projected energy       -4976.08679423
 
 
- Final energy estimate for state 1:     -4976.0867942256    
- Final energy estimate for state 2:     -4976.4151711060    
- Final energy estimate for state 3:     -4976.2259466157    
- Final energy estimate for state 4:     -4975.9567341549    
+ Final energy estimate for state 1:     -4976.0867942251    
+ Final energy estimate for state 2:     -4976.4151711062    
+ Final energy estimate for state 3:     -4976.2259466155    
+ Final energy estimate for state 4:     -4975.9567341542    
 
  ================================================================
  Memory usage
  Maximum memory defined is (MB) :   99999.0
- Maximum memory used is    (MB) :     110.4
+ Maximum memory used is    (MB) :     111.1
  
  Large memory allocations:
  
@@ -613,7 +650,7 @@ Attempting automatic reblocking analysis on data from iteration:       126020
  SpawnVec2         InitFCIMCPar       realloc_SpawnedPart  17.2MB
  Spawned_Parents   init_rdms          dealloc_global_rdm_  11.4MB
  Spawned_Parents_Ininit_rdms          dealloc_global_rdm_   1.9MB
- frequency_bins    init_hist_tau_searcfinalize_hist_tau_s 781.2KB
+ frequency_bins    init_hist_tau_searcfinalize_hist_tau_s   1.5MB
  temp_store        calc_determ_hamil_scalc_determ_hamil_s  70.3KB
  ================================================================
 
@@ -623,20 +660,20 @@ Attempting automatic reblocking analysis on data from iteration:       126020
  Timing of most expensive procedures.
  Procedure                                 Calls       total time
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- WalkerTime                                 110      4.44
- NECICUBE                                     1      0.26
- SemiStochHamilTime                           1      0.18
- AnnMainTime                                110      0.16
- SyncTime                                   225      0.09
+ WalkerTime                                 110     15.76
+ SemiStochHamilTime                           1      0.45
+ NECICUBE                                     1      0.28
+ AnnMainTime                                110      0.17
+ SyncTime                                   225      0.14
  SemiStochInitTime                            1      0.09
- DeathTime                                  110      0.07
+ DeathTime                                  110      0.08
  Compress Sort interface                    110      0.05
- AnnihilTime                                110      0.04
- Compression interface                      110      0.04
+ AnnihilTime                                110      0.05
+ Compression interface                      110      0.05
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- Total                                   5.43
+ Total                                  17.11
 
- Global wall clock time          5.57
+ Global wall clock time         17.24
  ================================================================
- Calculation ended 02/02/2023 at 10:52:57
+ Calculation ended 01/06/2023 at 09:31:56
  ================================================================
