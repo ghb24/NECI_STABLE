@@ -19,7 +19,7 @@ Alex Thom, Robert Thomas, David Thompson, Eugenio Vitale, Oskar Weser.
 
 ## Documentation
 
-The documentation can be found [here](https://www2.fkf.mpg.de/alavi/neci/master/page/index.html).
+The documentation can be found [here](https://www2.fkf.mpg.de/alavi/neci/stable/index.html).
 
 ## Compilation
 
