@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module read_psi_mod
-    use constants, only: dp, EPS
+    use constants, only: dp, EPS, stdout
     use util_mod, only: stop_all
     better_implicit_none
     private
@@ -38,7 +38,7 @@ contains
             READ(10, *) W(I)
         END DO
         CLOSE(10)
-        WRITE(6, '(A)') ' HAVE READ IN PSI FROM FILE ./PSI_LONG '
+        WRITE(stdout, '(A)') ' HAVE READ IN PSI FROM FILE ./PSI_LONG '
         RETURN
 10      CONTINUE
 !.. PSI_LONG doesn't exist.  what about PSI_COMP

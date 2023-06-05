@@ -613,7 +613,7 @@ contains
                     end do
                 end if
 !                write(stdout,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-!                call neci_flush(6)
+!                call neci_flush(stdout)
                 ! JSS: Label states of symmetry i by the order in which they come.
                 nStateIrrep = 0
                 do iState = 1, nBi

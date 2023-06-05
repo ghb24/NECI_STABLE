@@ -16,7 +16,7 @@ calc
     totalwalkers 10000
     tau-values \
         start user-defined 6.342713037945149E-003 \
-        max 0.02
+        max 1.e-3
     tau-search \
         algorithm histogramming \
         stop-condition OFF \

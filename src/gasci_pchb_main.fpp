@@ -35,6 +35,7 @@ module gasci_pchb_main
     use timing_neci, only: set_timer, halt_timer
     use FciMCData, only: GAS_PCHB_init_time
     use SystemData, only: tUHF, nBasis
+    use fortran_strings, only: Token_t, join
 
     use gasci, only: GASSpec_t
     use gasci_singles_main, only: &
@@ -53,7 +54,8 @@ module gasci_pchb_main
     private
     public :: GAS_PCHB_ExcGenerator_t, &
         GAS_PCHB_options_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_options_vals, &
-        GAS_PCHB_options
+        GAS_PCHB_OptionsUserInput_t, GAS_PCHB_user_input_vals, GAS_PCHB_user_input, &
+        decide_on_PCHB_options, PCHB_OptionSelection_t, PCHB_OptionSelection_vals_t
 
 
     type :: GAS_PCHB_options_t
@@ -63,6 +65,7 @@ module gasci_pchb_main
             !! Use and/or create/manage the supergroup lookup.
     contains
         procedure :: assert_validity
+        procedure :: to_str
     end type
 
     type :: GAS_PCHB_options_vals_t
@@ -72,20 +75,29 @@ module gasci_pchb_main
 
     type(GAS_PCHB_options_vals_t), parameter :: GAS_PCHB_options_vals = GAS_PCHB_options_vals_t()
 
-    type(GAS_PCHB_options_t) :: GAS_PCHB_options = GAS_PCHB_options_t( &
-        GAS_PCHB_SinglesOptions_t(&
-            GAS_PCHB_options_vals%singles%algorithm%PC_weighted, &
-            PC_WeightedSinglesOptions_t(&
-                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
-            ) &
-        ), &
-        PCHB_DoublesOptions_t( &
-            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
-        ), &
-        use_lookup=.true. &
-    )
+    type, extends(EnumBase_t) :: PCHB_OptionSelection_t
+    end type
+
+    type :: PCHB_OptionSelection_vals_t
+        type(PCHB_OptionSelection_t) :: &
+            LOCALISED = PCHB_OptionSelection_t(1), &
+            DELOCALISED = PCHB_OptionSelection_t(2), &
+            MANUAL = PCHB_OptionSelection_t(3)
+    end type
+
+    type :: GAS_PCHB_OptionsUserInput_t
+        type(PCHB_OptionSelection_t) :: option_selection
+        type(GAS_PCHB_options_t), allocatable :: options
+    end type
+
+    type :: GAS_PCHB_OptionsUserInput_vals_t
+        type(PCHB_OptionSelection_vals_t) :: option_selection = PCHB_OptionSelection_vals_t()
+        type(GAS_PCHB_options_vals_t) :: options = GAS_PCHB_options_vals_t()
+    end type
+
+    type(GAS_PCHB_OptionsUserInput_vals_t), parameter :: GAS_PCHB_user_input_vals = GAS_PCHB_OptionsUserInput_vals_t()
+
+    type(GAS_PCHB_OptionsUserInput_t), allocatable :: GAS_PCHB_user_input
 
     type, extends(ClassicAbInitExcitationGenerator_t) :: GAS_PCHB_ExcGenerator_t
     contains
@@ -113,6 +125,7 @@ contains
         end if
         call options%assert_validity()
 
+        write(stdout, '(A)') 'GAS PCHB with' // options%to_str() // 'is used'
         call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, this%singles_generator)
         call doubles_allocate_and_init(GAS_spec, options%doubles, options%use_lookup, this%doubles_generator)
 
@@ -125,21 +138,71 @@ contains
 
         associate(singles => GAS_PCHB_options_vals%singles)
         if (.not. (this%singles%algorithm == singles%algorithm%PC_WEIGHTED &
-               .implies. (this%singles%PC_weighted%weighting /= singles%PC_weighted%weighting%UNDEFINED &
-                        .and. this%singles%PC_weighted%drawing /= singles%PC_weighted%drawing%UNDEFINED))) then
+               .implies. (this%singles%PC_weighted%drawing /= singles%PC_weighted%drawing%UNDEFINED))) then
             call stop_all(this_routine, "PC-WEIGHTED singles require valid PC_weighted options.")
         end if
         end associate
 
-        associate(doubles => GAS_PCHB_options_vals%doubles)
-        if (.not. (tUHF &
-                    .implies. (this%doubles%hole_selection == doubles%hole_selection%SPINORB_FAST_WEIGHTED &
-                                .or. this%doubles%hole_selection == doubles%hole_selection%SPINORB_FULLY_WEIGHTED))) then
+        if (.not. (tUHF .implies. this%doubles%spin_orb_resolved)) then
             call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")
+        end if
+    end subroutine
+
+
+    pure function decide_on_PCHB_options(GAS_PCHB_user_input, loc_nBasis, loc_nEl, loc_tUHF) result(res)
+        type(GAS_PCHB_OptionsUserInput_t), intent(in) :: GAS_PCHB_user_input
+        integer, intent(in) :: loc_nBasis, loc_nEl
+        logical, intent(in) :: loc_tUHF
+        type(GAS_PCHB_options_t) :: res
+        routine_name("decide_on_PCHB_options")
+        associate(hole_selection_2 => merge(GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                                            loc_nBasis > 4 * loc_nEl))
+        if (GAS_PCHB_user_input%option_selection == GAS_PCHB_user_input_vals%option_selection%LOCALISED) then
+            associate(single_selection => merge(GAS_PCHB_options_vals%singles%PC_WEIGHTED%drawing%UNIF_FAST, &
+                                                GAS_PCHB_options_vals%singles%PC_WEIGHTED%drawing%UNIF_FULL, &
+                                                loc_nBasis > 4 * loc_nEl))
+                res = GAS_PCHB_options_t(&
+                        GAS_PCHB_SinglesOptions_t(&
+                            GAS_PCHB_options_vals%singles%algorithm%PC_weighted, &
+                            PC_WeightedSinglesOptions_t(single_selection) &
+                        ), &
+                        PCHB_DoublesOptions_t( &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            hole_selection_2 &
+                        ), &
+                        use_lookup=.true. &
+                )
+            end associate
+        else if (GAS_PCHB_user_input%option_selection == GAS_PCHB_user_input_vals%option_selection%DELOCALISED) then
+            res = GAS_PCHB_options_t(&
+                    GAS_PCHB_SinglesOptions_t(&
+                        GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                        hole_selection_2 &
+                    ), &
+                    use_lookup=.true. &
+            )
+        else if (GAS_PCHB_user_input%option_selection == GAS_PCHB_user_input_vals%option_selection%MANUAL) then
+            res = GAS_PCHB_user_input%options
+        else
+            call stop_all(this_routine, "Should not be here.")
         end if
         end associate
 
-    end subroutine
+        if (.not. allocated(res%doubles%spin_orb_resolved)) then
+            res%doubles%spin_orb_resolved = &
+                loc_tUHF &
+                .or. (res%doubles%hole_selection == GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL)
+        end if
+    end function
 
+    function to_str(options) result(res)
+        class(GAS_PCHB_options_t), intent(in) :: options
+        character(:), allocatable :: res
+        res = join([Token_t(options%singles%to_str()), Token_t(options%doubles%to_str())], ' ')
+    end function
 
 end module gasci_pchb_main

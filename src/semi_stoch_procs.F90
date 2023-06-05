@@ -895,7 +895,7 @@ contains
         deallocate(orbitals_rmvd)
         write(stdout, '(i6,1x,a29)') states_rmvd_all_procs, "states were removed in total."
         write(stdout, '(i6,1x,a17)') tot_num_states - states_rmvd_all_procs, "states were kept."
-        call neci_flush(6)
+        call neci_flush(stdout)
 
     end subroutine remove_high_energy_orbs
 
@@ -1827,7 +1827,7 @@ contains
         if (tPrintInfo) then
             write(stdout, '(a69)') "Using the deterministic ground state as initial walker configuration."
             write(stdout, '(a34)') "Performing Davidson calculation..."
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
         ! Call the Davidson routine to find the ground state of the core space.
@@ -1836,7 +1836,7 @@ contains
         if (tPrintInfo) then
             write(stdout, '(a30)') "Davidson calculation complete."
             write(stdout, '("Deterministic total energy:",1X,f15.10)') dc%davidson_eigenvalue + Hii
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
         associate(rep => cs_replicas(run))
@@ -1886,7 +1886,7 @@ contains
         if (tPrintInfo) then
             write(stdout, '(a69)') "Using the deterministic ground state as initial walker configuration."
             write(stdout, '(a53)') "Performing diagonalization of non-Hermitian matrix..."
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
         associate(rep => cs_replicas(run))
@@ -1896,7 +1896,7 @@ contains
             if (tPrintInfo) then
                 write(stdout, '("Energies of the deterministic subspace:")')
                 write(stdout, *) e_values(1:rep%determ_space_size)
-                call neci_flush(6)
+                call neci_flush(stdout)
             end if
 
             ! We need to normalise this vector to have the correct 'number of walkers'.
@@ -1953,7 +1953,7 @@ contains
         write(stdout, '("Deterministic total energy:",1X,f15.10)') &
             e_value + Hii
 
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         call DestroyDavidsonCalc(davidsonCalc)
         ! call LogMemDealloc(t_r, DavidsonTag, ierr)

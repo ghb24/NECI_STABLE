@@ -67,8 +67,15 @@ macro( neci_add_test )
 
     set( _test_dir ${CMAKE_CURRENT_BINARY_DIR}/${_p_TARGET} )
 
-    # TODO: Check for (and use) MPI. Modify _test_command to make uso of MPI if desired
-    set( _test_command ${_p_TARGET} )
+    if (DEFINED _p_MPI )
+        if (${_p_MPI} GREATER 1)
+            set( _test_command mpirun -np ${_p_MPI} ${_p_TARGET} )
+        else()
+            set( _test_command ${_p_TARGET} )
+        endif()
+    else()
+        set( _test_command ${_p_TARGET} )
+    endif()
 
     set( _test_arguments "" )
 

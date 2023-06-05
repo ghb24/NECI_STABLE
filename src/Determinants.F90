@@ -153,10 +153,10 @@ contains
             end if
         end if
         write (stdout, "(A)", advance='no') " Fermi det (D0):"
-        call write_det(6, FDET, .true.)
+        call write_det(stdout, FDET, .true.)
         Call GetSym(FDet, nEl, G1, nBasisMax, s)
         write (stdout, "(A)", advance='no') " Symmetry: "
-        Call WriteSym(6, s%Sym, .true.)
+        Call writesym(stdout, s%Sym, .true.)
         IF (tFixLz) THEN
             Call GetLz(FDet, nEl, Lz)
             write (stdout, "(A,I5)") "Lz of Fermi det:", Lz
@@ -183,7 +183,7 @@ contains
             OrbOrder(:, :) = 0
             call ORDERBASIS(NBASIS, Arr, Brr, OrbOrder, nBasisMax, G1)
             !However, we reorder them here
-            call writebasis(6, G1, nBasis, Arr, Brr)
+            call writebasis(stdout, G1, nBasis, Arr, Brr)
         end if
         E0HFDET = ECORE
         DO I = 1, NEL
@@ -274,10 +274,10 @@ contains
             end if
         end if
         write (stdout, "(A)", advance='no') " Fermi det (D0):"
-        call write_det(6, FDET, .true.)
+        call write_det(stdout, FDET, .true.)
         Call GetSym(FDet, nEl, G1, nBasisMax, s)
         write (stdout, "(A)", advance='no') " Symmetry: "
-        Call WriteSym(6, s%Sym, .true.)
+        Call writesym(stdout, s%Sym, .true.)
         IF (tFixLz) THEN
             Call GetLz(FDet, nEl, Lz)
             write (stdout, "(A,I5)") "Lz of Fermi det:", Lz
@@ -304,7 +304,7 @@ contains
             OrbOrder(:, :) = 0
             call ORDERBASIS(NBASIS, Arr, Brr, OrbOrder, nBasisMax, G1)
             !However, we reorder them here
-            call writebasis(6, G1, nBasis, Arr, Brr)
+            call writebasis(stdout, G1, nBasis, Arr, Brr)
         end if
         E0HFDET = ECORE
         DO I = 1, NEL
@@ -489,10 +489,11 @@ contains
 
         end if
 
-        if (IC < 0) &
+        if (IC < 0) then
             call stop_all(this_routine, "get_helement_excit should only be &
                          &used if we know the number of excitations and the &
                          &excitation matrix")
+        end if
 
         hel = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tParity)
 
@@ -606,9 +607,9 @@ contains
         NELS(1) = NEL - NELS(2)
 
         if (tGUGA) then
-            write(6, '(4(A,'//int_fmt(nel)//'))') "N_neg:", NELS(1), " ; N_pos:", NELS(2), " ; S:", LMS, " ; nEl:", nEL
+            write(stdout, '(4(A,'//int_fmt(nel)//'))') "N_neg:", NELS(1), " ; N_pos:", NELS(2), " ; S:", LMS, " ; nEl:", nEL
         else
-            WRITE(6, '(4(A,'//int_fmt(nel)//'))') " N_alpha:", NELS(1), " ; N_beta:", NELS(2), " ; LMS:", LMS, " ; NEl:", NEL
+            WRITE(stdout, '(4(A,'//int_fmt(nel)//'))') " N_alpha:", NELS(1), " ; N_beta:", NELS(2), " ; LMS:", LMS, " ; NEl:", NEL
         end if
         nclosed = minval(nels)
 
@@ -736,7 +737,7 @@ contains
             call sort(fdet)
             IF (J /= NEL - NFROZEN - NFROZENIN) THEN
                 write (stdout, *) "Failed Freezing Det:"
-                call write_det(6, FDET, .true.)
+                call write_det(stdout, FDET, .true.)
                 call stop_all(this_routine, "After Freezing, FDET has wrong number of electrons")
             end if
         end if
@@ -754,7 +755,7 @@ contains
             call sort(nUHFDet(1:nel))
             IF (J /= NEL - NFROZEN - NFROZENIN) THEN
                 write (stdout, *) "Failed Freezing Det:"
-                call write_det(6, nUHFDET, .true.)
+                call write_det(stdout, nUHFDET, .true.)
                 call stop_all(this_routine, "After Freezing, UHFDET has wrong number of electrons")
             end if
         end if
@@ -762,7 +763,7 @@ contains
         call write_det_len(6, fDet, nel - nfrozen - nfrozenin, .true.)
         write (stdout, "(A)", advance='no') " Symmetry: "
         Call GetSym(FDet, nEl - nFrozen - nFrozenIn, G1, nBasisMax, s)
-        Call WriteSym(6, s%Sym, .true.)
+        Call writesym(stdout, s%Sym, .true.)
         IF (tFixLz) THEN
             Call GetLz(FDet, nEl - nFrozen - nFrozenIn, Lz)
             write (stdout, "(A,I5)") " Lz of Fermi det:", Lz

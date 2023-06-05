@@ -12,7 +12,7 @@ module pchb_excitgen_test_helper
     use util_mod, only: near_zero
     use unit_test_helper_excitgen, only: test_excitation_generator, &
                                          init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-                                         FciDumpWriter_t
+                                         RandomFciDumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
@@ -61,7 +61,9 @@ contains
         pSingles = 0.3_dp
         pDoubles = 1.0_dp - pSingles
 
-        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'), setdefaults=.false.)
+        call init_excitgen_test(det_I, &
+                RandomFciDumpWriter_t(n_spat_orb, det_I, 0.7_dp, 0.7_dp, uhf=uhf, hermitian=hermitian), &
+                setdefaults=.false.)
 
         if (uhf) then
             options = FCI_PCHB_options_t(&
@@ -69,8 +71,9 @@ contains
                                 FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
                             ), &
                             PCHB_DoublesOptions_t( &
-                                FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                                FCI_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_WEIGHTED &
+                                FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                                FCI_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                                spin_orb_resolved=.true. &
                             ) &
                         )
         else
@@ -79,8 +82,9 @@ contains
                                 FCI_PCHB_options_vals%singles%algorithm%UNIFORM &
                             ), &
                             PCHB_DoublesOptions_t( &
-                                FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                                FCI_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                                FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                                FCI_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                                spin_orb_resolved=.false. &
                             ) &
                         )
         end if
@@ -98,11 +102,6 @@ contains
 
     contains
 
-        subroutine random_fcidump(iunit)
-            integer, intent(in) :: iunit
-            call random_fcidump_general(iunit, uhf, hermitian, det_I, n_spat_orb)
-        end subroutine random_fcidump
-
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
@@ -112,16 +111,5 @@ contains
         end function is_problematic
 
     end subroutine pchb_test_general
-
-    subroutine random_fcidump_general(iunit, is_uhf, is_hermitian, det_I, n_spat_orb)
-        integer, intent(in) :: iunit
-        logical, intent(in) :: is_uhf, is_hermitian
-        integer, intent(in) :: det_I(:), n_spat_orb
-
-        call generate_random_integrals( &
-            iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
-            sparse=0.7_dp, sparseT=0.7_dp, total_ms=sum(calc_spin_raw(det_I)), &
-            uhf=is_uhf, hermitian=is_hermitian)
-    end subroutine random_fcidump_general
 
 end module pchb_excitgen_test_helper

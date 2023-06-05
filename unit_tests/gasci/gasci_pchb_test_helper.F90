@@ -19,7 +19,7 @@ module gasci_pchb_test_helper
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-        FciDumpWriter_t
+        RandomFciDumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
 
     use SystemData, only: nEl
@@ -29,15 +29,6 @@ module gasci_pchb_test_helper
               test_pgen_RHF_nonhermitian, &
               test_pgen_UHF_hermitian, &
               test_pgen_UHF_nonhermitian
-
-    type :: random_fcidump_writer_t
-        logical :: UHF
-        logical :: hermitian
-    contains
-        private
-        procedure, public :: random_fcidump_member
-    end type random_fcidump_writer_t
-
 
 contains
 
@@ -67,7 +58,6 @@ contains
         logical, intent(in) :: UHF, hermitian
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
-        type(random_fcidump_writer_t) :: dumpwriter
         type(GAS_PCHB_options_t), allocatable :: settings(:)
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
@@ -85,8 +75,6 @@ contains
         ! whenever UHF is true
         tMolpro = UHF
 
-        dumpwriter = random_fcidump_writer_t(UHF=UHF, hermitian=hermitian)
-
         pParallel = 0.05_dp
         pSingles = 0.2_dp
         pDoubles = 1.0_dp - pSingles
@@ -98,8 +86,9 @@ contains
                             GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FAST_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -107,13 +96,13 @@ contains
                         GAS_PCHB_SinglesOptions_t(&
                             GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -121,13 +110,13 @@ contains
                         GAS_PCHB_SinglesOptions_t(&
                             GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULLY_WEIGHTED &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ) &
@@ -139,8 +128,9 @@ contains
                             GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIFORM, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPATORB_FAST_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                            spin_orb_resolved=.false. &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -148,13 +138,13 @@ contains
                         GAS_PCHB_SinglesOptions_t(&
                             GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%WEIGHTED &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%WEIGHTED, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
@@ -162,13 +152,13 @@ contains
                         GAS_PCHB_SinglesOptions_t(&
                             GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%weighting%H_AND_G_TERM_BOTH_ABS, &
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULLY_WEIGHTED &
+                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%FULLY_WEIGHTED, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%SPINORB_FULLY_WEIGHTED &
+                            GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ) &
@@ -182,7 +172,13 @@ contains
                 call assert_true(GAS_spec%is_valid())
                 call assert_true(GAS_spec%contains_conf(det_I))
 
-                call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'), setdefaults=.false.)
+                call init_excitgen_test(det_I, &
+                    RandomFcidumpWriter_t(&
+                        GAS_spec, det_I, sparse=1.0_dp, sparseT=1.0_dp, &
+                        uhf=uhf, hermitian=hermitian), &
+                    setdefaults=.false. &
+                )
+
                 call exc_generator%init(&
                     GAS_spec, options=settings(i) &
                 )
@@ -203,12 +199,6 @@ contains
 
     contains
 
-        subroutine random_fcidump(iunit)
-            integer, intent(in) :: iunit
-            ! dumpwriter comes from the host subroutine
-            call dumpwriter%random_fcidump_member(iunit, GAS_spec, det_I)
-        end subroutine random_fcidump
-
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
@@ -217,21 +207,5 @@ contains
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
     end subroutine test_pgen_general
-
-    subroutine random_fcidump_member(this, iunit, GAS_spec, det_I)
-        ! UHF, hermitian
-        class(random_fcidump_writer_t), intent(inout) :: this
-        type(LocalGASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: det_I(:)
-        integer, intent(in) :: iunit
-        integer :: n_spat_orb, iGAS
-
-        n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
-
-        call generate_random_integrals(&
-            iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
-            sparse=0.5_dp, sparseT=0.5_dp, total_ms=sum(calc_spin_raw(det_I)), &
-            UHF=this%UHF, hermitian=this%hermitian)
-    end subroutine
 
 end module gasci_pchb_test_helper

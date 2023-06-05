@@ -8,39 +8,47 @@ module gasci_pchb_doubles_select_particles
     use bit_rep_data, only: nIfD
     use util_mod, only: EnumBase_t
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
-    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
+    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs, t_mol_3_body
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use FciMCData, only: pParallel
+    use FciMCData, only: pParallel, projEDet
     use sets_mod, only: operator(.in.)
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use util_mod, only: stop_all, operator(.isclose.), swap, &
         binary_search_int, EnumBase_t, operator(.div.)
+    use MPI_wrapper, only: iProcIndex_intra
+    use excitation_types, only: Excite_2_t
+    use sltcnd_mod, only: nI_invariant_sltcnd_excit, sltcnd_excit
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     better_implicit_none
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &
         UniformParticles_t, PC_FastWeightedParticles_t, &
-        PCHB_particle_selection_vals, PCHB_ParticleSelection_t, allocate_and_init, &
-        PCHB_ParticleSelection_vals_t
+        PCHB_ParticleSelection_t, allocate_and_init, &
+        PCHB_ParticleSelection_vals_t, get_PCHB_weight
 
 
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
+        private
+        character(9) :: str
+    contains
+        procedure :: to_str
     end type
 
     type :: PCHB_ParticleSelection_vals_t
         type(PCHB_ParticleSelection_t) :: &
-            UNIFORM = PCHB_ParticleSelection_t(1), &
-            FULLY_WEIGHTED = PCHB_ParticleSelection_t(2), &
+            UNIF_UNIF = PCHB_ParticleSelection_t(1, 'UNIF-UNIF'), &
+                !! Both particles are drawn uniformly.
+            FULL_FULL = PCHB_ParticleSelection_t(2, 'FULL-FULL'), &
                 !! We draw from \( p(I)|_{D_i} \) and then \( p(J | I)_{J \in D_i} \)
                 !! and both probabilites come from the PCHB weighting scheme.
                 !! We guarantee that \(I\) and \(J\) are occupied.
-            WEIGHTED = PCHB_ParticleSelection_t(3), &
+            UNIF_FULL = PCHB_ParticleSelection_t(3, 'UNIF-FULL'), &
                 !! We draw \( \tilde{p}(I)|_{D_i} \) uniformly and then \( p(J | I)_{J \in D_i} \)
                 !! The second distribution comes from the PCHB weighting scheme.
                 !! We guarantee that \(I\) and \(J\) are occupied.
-            FAST_WEIGHTED = PCHB_ParticleSelection_t(4)
+            UNIF_FAST = PCHB_ParticleSelection_t(4, 'UNIF-FAST')
                 !! We draw \( \tilde{p}(I)|_{D_i} \) uniformly and then \( p(J | I)_{J} \).
                 !! The second distribution comes from the PCHB weighting scheme.
                 !! We guarantee that \(I\) is occupied.
@@ -145,51 +153,60 @@ module gasci_pchb_doubles_select_particles
 
 contains
 
+    pure function to_str(options) result(res)
+        class(PCHB_ParticleSelection_t), intent(in) :: options
+        character(9) :: res
+        res = options%str
+    end function
+
     pure function from_keyword(w) result(res)
         !! Parse a given keyword into the possible particle selection schemes
         character(*), intent(in) :: w
         type(PCHB_ParticleSelection_t) :: res
         routine_name("from_keyword")
         select case(to_upper(w))
-        case('UNIFORM')
-            res = PCHB_particle_selection_vals%UNIFORM
-        case('FULLY-WEIGHTED')
-            res = PCHB_particle_selection_vals%FULLY_WEIGHTED
-        case('WEIGHTED')
-            res = PCHB_particle_selection_vals%WEIGHTED
-        case('FAST-WEIGHTED')
-            res = PCHB_particle_selection_vals%FAST_WEIGHTED
+        case(PCHB_particle_selection_vals%UNIF_UNIF%str)
+            res = PCHB_particle_selection_vals%UNIF_UNIF
+        case(PCHB_particle_selection_vals%FULL_FULL%str)
+            res = PCHB_particle_selection_vals%FULL_FULL
+        case(PCHB_particle_selection_vals%UNIF_FULL%str)
+            res = PCHB_particle_selection_vals%UNIF_FULL
+        case(PCHB_particle_selection_vals%UNIF_FAST%str)
+            res = PCHB_particle_selection_vals%UNIF_FAST
         case default
             call stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
         end select
     end function
 
-    subroutine allocate_and_init(PCHB_particle_selection, GAS_spec, IJ_weights, use_lookup, particle_selector)
+    subroutine allocate_and_init(PCHB_particle_selection, GAS_spec, IJ_weights, rank_with_info, use_lookup, particle_selector)
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         class(GASSpec_t), intent(in) :: GAS_spec
         real(dp), intent(in) :: IJ_weights(:, :, :)
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         logical, intent(in) :: use_lookup
         class(ParticleSelector_t), allocatable, intent(inout) :: particle_selector
         routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
-        if (PCHB_particle_selection == PCHB_particle_selection_vals%FULLY_WEIGHTED) then
+        if (PCHB_particle_selection == PCHB_particle_selection_vals%FULL_FULL) then
             allocate(PC_FullyWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FullyWeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
+                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%WEIGHTED) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_FULL) then
             allocate(PC_WeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_WeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
+                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%FAST_WEIGHTED) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_FAST) then
             allocate(PC_FastWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FastWeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, use_lookup, .false.)
+                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIFORM) then
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_UNIF) then
             allocate(UniformParticles_t :: particle_selector)
         else
             call stop_all(this_routine, 'Invalid particle selection.')
@@ -248,10 +265,14 @@ contains
     end subroutine
 
 
-    subroutine init_PC_WeightedParticles_t(this, GAS_spec, weights, use_lookup, create_lookup)
+    subroutine init_PC_WeightedParticles_t(this, GAS_spec, weights, rank_with_info, use_lookup, create_lookup)
         class(PC_Particles_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         real(dp), intent(in) :: weights(:, :, :)
+            !! `w(J, I, i_sg)`, The weight of picking `J` after picking `I` under supergroup `i_sg`
+        integer, intent(in) :: rank_with_info
+            !! The **intra-node** rank that contains the weights to be used
+            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = 'init'
 
@@ -275,20 +296,33 @@ contains
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
 
         nBI = this%GAS_spec%n_spin_orbs()
-        @:ASSERT(nBI == size(weights, 1) .and. nBI == size(weights, 2))
 
         supergroups = this%indexer%get_supergroups()
-        @:ASSERT(size(supergroups, 2) == size(weights, 3))
+
+        if (iProcIndex_intra == rank_with_info) then
+            @:ASSERT(nBI == size(weights, 1) .and. nBI == size(weights, 2))
+            @:ASSERT(size(supergroups, 2) == size(weights, 3))
+        end if
 
         call this%I_sampler%shared_alloc(size(supergroups, 2), nBI, 'PC_particles_i')
         call this%J_sampler%shared_alloc([nBI, size(supergroups, 2)], nBI, 'PC_particles_j')
         block
             integer :: I
+            real(dp) :: dummy(2)
+            dummy = 10000._dp
             do i_sg = 1, size(supergroups, 2)
                 do I = 1, nBI
-                    call this%J_sampler%setup_entry(I, i_sg, weights(:, I, i_sg))
+                    if (iProcIndex_intra == rank_with_info) then
+                        call this%J_sampler%setup_entry(I, i_sg, rank_with_info, weights(:, I, i_sg))
+                    else
+                        call this%J_sampler%setup_entry(I, i_sg, rank_with_info, dummy)
+                    end if
                 end do
-                call this%I_sampler%setup_entry(i_sg, sum(weights(:, :, i_sg), dim=1))
+                if (iProcIndex_intra == rank_with_info) then
+                    call this%I_sampler%setup_entry(i_sg, rank_with_info, sum(weights(:, :, i_sg), dim=1))
+                else
+                    call this%I_sampler%setup_entry(i_sg, rank_with_info, dummy)
+                end if
             end do
         end block
     end subroutine
@@ -561,4 +595,20 @@ contains
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine
+
+
+    function get_PCHB_weight(exc) result(res)
+        !! If there are three-body excitations,
+        !! the double excitations actually become determinant-dependent.
+        !! This function returns a fake determinant independent value in all
+        !! cases, but evaluating `exc` for the reference determinant.
+        type(Excite_2_t), intent(in) :: exc
+        real(dp) :: res
+        if (t_mol_3_body) then
+            res = abs(sltcnd_excit(projEDet(:, 1), exc, .false., assert_occupation=.false.))
+        else
+            res = abs(nI_invariant_sltcnd_excit(exc))
+        end if
+    end function
+
 end module

@@ -162,6 +162,7 @@ module SystemData
         TYPE(Symmetry) :: sym
         INTEGER :: k(3)
         INTEGER :: Ms
+            !! is -1 for beta, and 1 for alpha
         INTEGER :: Ml            !This is the Ml symmetry of the orbital
         INTEGER :: Dummy         !Rather than use SEQUENCE which has caused endless bother...
     END TYPE

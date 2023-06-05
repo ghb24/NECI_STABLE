@@ -530,7 +530,7 @@ contains
                             write(stdout, *) 'j', nJ
                             write(stdout, *) 'AllHistogram(1,i)', AllHistogram(1, i)
                             write(stdout, *) 'AllHistogram(1,j)', AllHistogram(1, j)
-                            call neci_flush(6)
+                            call neci_flush(stdout)
                             call stop_all('FillOneRDM', 'Non-zero element between different symmetries.')
                         end if
 
@@ -598,7 +598,7 @@ contains
         ! symmetry.
 
         write(stdout, *) 'Filling MP2VDM nat orb matrix'
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         FillMP2VDM_Time%timer_name = 'FillMP2VDM'
         call set_timer(FillMP2VDM_Time, 30)
@@ -860,7 +860,7 @@ contains
         end do
 
         write(stdout, *) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! If we are using spin orbitals, need to feed in the alpha and beta
         ! spins separately. Otherwise these jumble up and the final ordering
@@ -995,7 +995,7 @@ contains
         end do
 
         write(stdout, *) 'Matrix diagonalised'
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         SumDiagTrace = 0.0_dp
         do i = 1, NoOrbs
@@ -1420,7 +1420,7 @@ contains
         write(io2, *) 'The number of electrons = ', NEl
         call neci_flush(io2)
         close(io2)
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         call PrintOccTable()
 
@@ -1516,7 +1516,7 @@ contains
         end do
         call neci_flush(io2)
         close(io2)
-        call neci_flush(6)
+        call neci_flush(stdout)
 
     end subroutine PrintOccTable
 

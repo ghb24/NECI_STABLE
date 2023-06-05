@@ -44,7 +44,7 @@ module real_time
                          Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF, AllTotParts
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
-    use FciMCParMod, only: rezero_iter_stats_each_iter
+    use fcimc_helper, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
                          stdout, maxExcit

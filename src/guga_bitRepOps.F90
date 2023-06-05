@@ -12,7 +12,7 @@ module guga_bitRepOps
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
                          excit_names
-    use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64
+    use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64, stdout
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
                          CountBits, DetBitEQ
@@ -2483,7 +2483,7 @@ contains
             if (abs(return_ms(ilut)) /= STOT) then
                 if (t_print) then
                     print *, "CSF does not have correct total spin!:"
-                    call write_det_guga(6, ilut)
+                    call write_det_guga(stdout, ilut)
                     print *, "System S: ", STOT
                     print *, "CSF S: ", abs(return_ms(ilut))
                 end if
@@ -2493,7 +2493,7 @@ contains
             if (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) /= nEl) then
                 if (t_print) then
                     print *, "CSF does not have right number of electrons!:"
-                    call write_det_guga(6, ilut)
+                    call write_det_guga(stdout, ilut)
                     print *, "System electrons: ", nEl
                     print *, "CSF electrons: ", &
                         int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb))))

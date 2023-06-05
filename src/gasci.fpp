@@ -9,12 +9,10 @@ module gasci
     use SystemData, only: nBasis
     use util_mod, only: cumsum, stop_all, operator(.div.)
     use excitation_types, only: Excite_1_t, Excite_2_t
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==)
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
         operator(.isclose.), custom_findloc, EnumBase_t, lex_geq
     use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
-        alpha, beta
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum, alpha, beta
     use excitation_types, only: Excite_1_t, Excite_2_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
     use sltcnd_mod, only: sltcnd_excit
     use dSFMT_interface, only: genrand_real2_dSFMT

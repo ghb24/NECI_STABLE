@@ -1066,7 +1066,7 @@ contains
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
         write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
-        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr

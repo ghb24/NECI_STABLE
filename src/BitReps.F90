@@ -985,7 +985,7 @@ contains
 
         if (.not. sorted_lists) then
             write(stdout, *) lbound(list_1, 1), ubound(list_1, 1), lbound(list_2, 1), ubound(list_2, 1)
-            call neci_flush(6)
+            call neci_flush(stdout)
             call sort(list_1(:, 1:ndets_1), ilut_lt, ilut_gt)
             call sort(list_2(:, 1:ndets_2), ilut_lt, ilut_gt)
         end if

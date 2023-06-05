@@ -1687,8 +1687,8 @@ contains
                         do n = 1, n_excits
                             if (.not. isProperCSF_ilut(temp_excits(:, n), .true.)) then
                                 print *, "===="
-                                call write_det_guga(6, ilut, .true.)
-                                call write_det_guga(6, temp_excits(:, n), .true.)
+                                call write_det_guga(stdout, ilut, .true.)
+                                call write_det_guga(stdout, temp_excits(:, n), .true.)
                                 print *, i, j, k, l
                             end if
                             ASSERT(isProperCSF_ilut(temp_excits(:, n), .true.))

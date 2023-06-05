@@ -1,7 +1,9 @@
 module test_shared_array_mod
-    use constants, only: int64, MPIArg, stdout
+    use constants, only: int64, MPIArg, stdout, stderr
     use shared_array, only: shared_array_int64_t
-    use Parallel_neci, only: mpi_comm_intra, iProcIndex_intra, MPI_LOGICAL, MPI_LAND
+    use util_mod, only: stop_all
+    use Parallel_neci, only: mpi_comm_intra, iProcIndex_intra, MPI_LOGICAL, MPI_LAND, &
+        mpi_comm_size
 #ifndef IFORT_
     use MPI_Wrapper, only: MPI_Allreduce
 #endif
@@ -10,25 +12,34 @@ module test_shared_array_mod
     private
     public :: test_large_array
 
+    type :: Interval_t
+        integer(int64) :: start, end, length
+    end type
+
 contains
     !> This test should test if MPI can allocate shared arrays larger than 4Gb.
     subroutine test_large_array()
         ! The maximum number of int64 that fit in an array,
         ! that is indexed with uint32_t (32bit system). (4Gb limit)
         integer(int64) :: i
-        integer(MPIArg) :: ierr
+        integer(MPIArg) :: ierr, node_size
         type(shared_array_int64_t) :: shared_arr
+        type(Interval_t) :: my_workarea
 
         write(stdout, *) 'modify the source of test_shared_array.F90 '
         write(stdout, *) 'if you want to test if MPI supports 64bit indexed shared arrays.'
         write(stdout, *) 'We had to switch the test off, otherwise the unit tests take too long.'
-        call shared_arr%shared_alloc(5_int64)
+        call shared_arr%shared_alloc(9_int64)
 
-        if (iProcIndex_intra == 0) then
-            do i = 1_int64, size(shared_arr%ptr, kind=int64)
-                shared_arr%ptr(i) = i
-            end do
-        end if
+        call mpi_comm_size(mpi_comm_intra, node_size, ierr)
+
+        my_workarea = calculate_my_workarea(size(shared_arr%ptr, kind=int64), iProcIndex_intra, node_size)
+
+        do i = my_workarea%start, my_workarea%end
+            shared_arr%ptr(i) = i
+        end do
+
+
         call shared_arr%sync()
 
         block
@@ -46,6 +57,22 @@ contains
             call assert_true(all_correct(1))
         end block
         call shared_arr%shared_dealloc()
+
+        contains
+
+        elemental function calculate_my_workarea(problem_size, rank, comm_size) result(res)
+            integer(int64), intent(in) :: problem_size
+            integer(MPIArg), intent(in) :: rank, comm_size
+            type(Interval_t) :: res
+
+            integer(int64) :: L, overhead
+            L = problem_size / int(comm_size, kind=int64)
+            overhead = mod(problem_size, int(comm_size, kind=int64))
+
+            res = Interval_t(start=rank * L + min(rank, overhead) + 1_int64, &
+                             end=(rank + 1_int64) * L + min(rank + 1_int64, overhead), &
+                             length= merge(L + 1_int64, L, (rank + 1_int64) <= overhead))
+        end function
     end subroutine test_large_array
 
 end module

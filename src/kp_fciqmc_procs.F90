@@ -35,7 +35,7 @@ contains
 
         if (tPrintDataTables) then
             write(stdout, '(a71)', advance='no') "# Adding the current walker configuration to the Krylov vector array..."
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
         ! The index of the first element referring to the sign, for this ivec.
@@ -93,7 +93,7 @@ contains
                 "# Number unique determinants in the Krylov vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
             amp_fraction = real(nkrylov_amp_elems_used, dp) / real(nkrylov_amp_elems_tot, dp)
             write(stdout, '(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
     end subroutine store_krylov_vec

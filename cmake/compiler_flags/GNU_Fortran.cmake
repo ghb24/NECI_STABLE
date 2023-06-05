@@ -1,6 +1,6 @@
 # Special defines for gnu fortran compiler
 
-set( ${PROJECT_NAME}_Fortran_FLAGS "-g -ffree-line-length-none -fPIC" )
+set( ${PROJECT_NAME}_Fortran_FLAGS "-g -ffree-line-length-none -fPIC -z execstack" )
 
 if(ENABLE_TCHINT)
     set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-O0 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan" )

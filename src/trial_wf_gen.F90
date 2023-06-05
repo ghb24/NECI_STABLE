@@ -85,7 +85,7 @@ contains
         trial_energies = 0.0_dp
         trial_space = 0_n_int
 
-        write(stdout, '("Generating the trial space...")'); call neci_flush(6)
+        write(stdout, '("Generating the trial space...")'); call neci_flush(stdout)
 
         if (qmc_trial_wf) then
 #ifdef CMPLX_
@@ -104,7 +104,7 @@ contains
             end if
         end if
 
-        write(stdout, '("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
+        write(stdout, '("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(stdout)
 
         if (.not. qmc_trial_wf) then
             ! Allocate the array to hold the final trial wave functions which we
@@ -127,7 +127,7 @@ contains
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
         tot_trial_space_size = int(sum(trial_counts))
-        write(stdout, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
+        write(stdout, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(stdout)
 
         ! Use SpawnedParts as temporary space:
         call MPIAllGatherV(trial_space(0:NIfTot, 1:trial_space_size), &
@@ -149,24 +149,24 @@ contains
             ! Find the states connected to the trial space. This typically takes a long time, so
             ! it is done in parallel by letting each processor find the states connected to a
             ! portion of the trial space.
-            write(stdout, '("Calculating the number of states in the connected space...")'); call neci_flush(6)
+            write(stdout, '("Calculating the number of states in the connected space...")'); call neci_flush(stdout)
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), con_space_size)
 
             write(stdout, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
-                real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
+                real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(stdout)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size * (NIfTot + 1), size_n_int, t_r, ConTag, ierr)
             con_space = 0_n_int
 
             write(stdout, '("States found on this processor, including repeats:",1X,i8)') con_space_size
 
-            write(stdout, '("Generating and storing the connected space...")'); call neci_flush(6)
+            write(stdout, '("Generating and storing the connected space...")'); call neci_flush(stdout)
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), &
                                           con_space_size, con_space)
 
-            write(stdout, '("Removing repeated states and sorting by processor...")'); call neci_flush(6)
+            write(stdout, '("Removing repeated states and sorting by processor...")'); call neci_flush(stdout)
 
             call remove_repeated_states(con_space, con_space_size)
 
@@ -176,13 +176,13 @@ contains
             con_space_size = 0
             con_sendcounts = 0
             allocate(con_space(0, 0), stat=ierr)
-            write(stdout, '("This processor will not search for connected states.")'); call neci_flush(6)
+            write(stdout, '("This processor will not search for connected states.")'); call neci_flush(stdout)
             !Although the size is zero, we should allocate it, because the rest of the code use it.
             !Otherwise, we get segmentation fault later.
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
         end if
 
-        write(stdout, '("Performing MPI communication of connected states...")'); call neci_flush(6)
+        write(stdout, '("Performing MPI communication of connected states...")'); call neci_flush(stdout)
 
         ! Send the connected states to their processors.
         ! con_sendcounts holds the number of states to send to other processors from this one.
@@ -201,7 +201,7 @@ contains
         end do
 
         write(stdout, '("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
-            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
+            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(stdout)
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
         call LogMemAlloc('temp_space', con_space_size * (NIfTot + 1), size_n_int, t_r, TempTag, ierr)
 
@@ -213,7 +213,7 @@ contains
             call LogMemDealloc(t_r, ConTag, ierr)
         end if
         write(stdout, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
-            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
+            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(stdout)
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
         call LogMemAlloc('con_space', con_space_size * (NIfTot + 1), size_n_int, t_r, ConTag, ierr)
         con_space = temp_space
@@ -243,7 +243,7 @@ contains
 
         write(stdout, '("Total size of connected space:",1X,i10)') tot_con_space_size
         write(stdout, '("Size of connected space on this processor:",1X,i10)') con_space_size
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         ! Create the trial wavefunction from all processors, on all processors.
         allocate(trial_wfs_all_procs(nexcit_keep, tot_trial_space_size), stat=ierr)
@@ -251,7 +251,7 @@ contains
 
         call sort_space_by_proc(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
-        write(stdout, '("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
+        write(stdout, '("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(stdout)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
         call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
@@ -286,7 +286,7 @@ contains
         root_print "Trial wavefunction initialisation complete."
         root_print "Total time (seconds) taken for trial wavefunction initialisation:", &
             get_total_time(Trial_Init_Time)
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         if (tAS_TrialOffset) then
             call set_AS_TrialOffset(nexcit_keep, replica_pairs)
@@ -888,7 +888,7 @@ contains
         allocate(con_ht(con_space_size), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '("ierr:")') ierr
-            call neci_flush(6)
+            call neci_flush(stdout)
             call stop_all("t_r", "Error in allocating con_ht array.")
         end if
 

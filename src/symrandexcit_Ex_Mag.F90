@@ -494,7 +494,7 @@ contains
         write(stdout, *) nI(:)
         write(stdout, *) Iterations
         write(stdout, *) "nSymLabels: ", nSymLabels
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
 
         call CountExcitations4(nI, 1, 1, 0, 0, nSing)
         call CountExcitations4(nI, 1, 1, 1, 1, nSing_1)
@@ -517,7 +517,7 @@ contains
         pDoub_spindiff2 = real(nDoub_2, dp) / real(excitcount, dp)
 
         write(stdout, *) "Determinant has ", excitcount, " total excitations from it."
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
 
         ! Allocate the accumulators
         allocate(DoublesHist(nbasis, nbasis, nbasis, nbasis))
@@ -564,7 +564,7 @@ contains
             IF (mod(i, 1) == 0) THEN
                 !IF(mod(i,40000).eq.0) THEN
                 !write(stdout,"(A,I10)") "Iteration: ",i
-                CALL neci_flush(6)
+                CALL neci_flush(stdout)
             end if
 
             call gen_rand_excit_Ex_Mag(nI, iLut, nJ, iLutnJ, 3, IC, ExcitMat, &

@@ -182,7 +182,7 @@ contains
     !         CALL WRITEDET(6,NJ,NEL,.TRUE.)
         DO WHILE (I <= NEL .AND. J <= NEL)
     !.. Differences from I to J
-    !            WRITE(6,*) "GE",I,J
+    !            WRITE(stdout,*) "GE",I,J
             DO WHILE (I <= NEL)
                 if (NI(I) >= NJ(J)) exit
                 IC1 = IC1 + 1
@@ -342,9 +342,9 @@ contains
                         LZSYM = .true.
                     END IF
 
-    !                  WRITE(6,*) "ISym:",ISYM
-    !                  WRITE(6,*) "ISym2",ISYM2
-    !                  WRITE(6,*) "LSYM",LSYM
+    !                  WRITE(stdout,*) "ISym:",ISYM
+    !                  WRITE(stdout,*) "ISym2",ISYM2
+    !                  WRITE(stdout,*) "LSYM",LSYM
                     IF (LSYM .and. LZSYM) THEN
                     IF (.NOT. TCOUNT) THEN
                         CALL NECI_ICOPY(NEL, NEXCIT, 1, LIST(1:NEL, NLISTPOS), 1)

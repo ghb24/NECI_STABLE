@@ -355,7 +355,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                     write(stdout, *) "Cannot find double excitation unoccupied orbital after 1000 attempts..."
                     write(stdout, *) "This is a problem, since there should definitly be an allowed beta orbital once alpha is chosen..."
                     write(stdout, *) "nI: "
-                    call write_det(6, nI, .TRUE.)
+                    call write_det(stdout, nI, .TRUE.)
                     write(stdout, *) "iSpn: ", iSpn
                     write(stdout, *) "ClassCountUnocc2: ", ClassCountUnocc2(:)
                     write(stdout, *) "NExcit", NExcit
@@ -753,7 +753,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 
                         IF (Attempts > 250) THEN
                             write(stdout, *) "Cannot find A unoccupied orbital after 250 attempts..."
-                            call write_det(6, nI, .TRUE.)
+                            call write_det(stdout, nI, .TRUE.)
                             CALL Stop_All("PickAOrb", "Cannot find A unoccupied orbital after 250 attempts...")
                         end if
                         Attempts = Attempts + 1
@@ -832,7 +832,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 
                         IF (Attempts > 250) THEN
                             write(stdout, *) "Cannot find A unoccupied orbital after 250 attempts..."
-                            call write_det(6, nI, .TRUE.)
+                            call write_det(stdout, nI, .TRUE.)
                             CALL Stop_All("PickAOrb", "Cannot find A unoccupied orbital after 250 attempts...")
                         end if
                         Attempts = Attempts + 1
@@ -857,7 +857,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 write(stdout, *) "It may be that there are no possible excitations from this i,j pair, in which case "
                 write(stdout, *) "the given algorithm is inadequate to describe excitations from such a small space."
                 write(stdout, *) "Try reverting to old excitation generators."
-                call write_det(6, nI, .TRUE.)
+                call write_det(stdout, nI, .TRUE.)
                 write(stdout, *) "***", NExcit, ForbiddenOrbs
                 write(stdout, *) "I,J pair; sym_i, sym_j: ", nI(Elec1Ind), nI(Elec2Ind), G1(nI(Elec1Ind))%Sym%S, G1(nI(Elec2Ind))%Sym%S
                 CALL Stop_All("PickAOrb", "Cannot find first allowed unocc orb for double excitation")
@@ -1168,7 +1168,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 
             IF (Attempts > 250) THEN
                 write(stdout, *) "Cannot find single excitation from electrons after 250 attempts..."
-                call write_det(6, nI, .true.)
+                call write_det(stdout, nI, .true.)
                 write(stdout, *) "***"
                 call stop_all(t_r, "Cannot find single excitation from &
                                    &electrons after 250 attempts...")
@@ -1258,7 +1258,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                     write(stdout, *) "Desired symmetry of unoccupied orbital = ", ElecSym
                     write(stdout, *) "Number of orbitals (of correct spin) in symmetry = ", nOrbs
                     write(stdout, *) "Number of orbitals to legitimatly pick = ", NExcit
-                    call write_det(6, nI, .true.)
+                    call write_det(stdout, nI, .true.)
                     call stop_all(t_r, "Cannot find single excitation &
                                    &unoccupied orbital after 250 attempts...")
                 end if
@@ -1546,7 +1546,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 
             IF (Attempts > 250) THEN
                 write(stdout, *) "Cannot find single excitation from electrons after 250 attempts..."
-                call write_det(6, nI, .true.)
+                call write_det(stdout, nI, .true.)
                 write(stdout, *) "***"
                 CALL Stop_All("CreateSingleExcit", "Cannot find single excitation from electrons after 250 attempts...")
             end if

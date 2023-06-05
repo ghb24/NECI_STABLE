@@ -1,10 +1,11 @@
+#include "macros.h"
 program test_pchb_excitgen
     use fruit, only: get_failed_count, init_fruit, fruit_summary, fruit_finalize, &
                      run_test_case
     use Parallel_neci, only: MPIInit, MPIEnd
     use pchb_excitgen_test_helper, only: test_pgen_rhf_hermitian
     use util_mod, only: stop_all
-    implicit none
+    better_implicit_none
 
     call MPIInit(.false.)
     call init_fruit()

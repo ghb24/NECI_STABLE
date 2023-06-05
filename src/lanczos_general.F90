@@ -583,7 +583,7 @@ contains
                 call project_hamiltonian_lanczos(this, 1)
 
                 if (print_info) then
-                    write(stdout, '(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(6)
+                    write(stdout, '(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(stdout)
                 end if
                 ! start Lanczos main loop
                 do k = 1, this%super%max_subspace_size - 1
@@ -644,7 +644,7 @@ contains
                             if (.not. this%t_states_converged(i)) then
                                 if (print_info) then
                                     write(stdout, trim(main_output_fmt)) k, i, this%ritz_values(i), end_time - start_time
-                                    call neci_flush(6)
+                                    call neci_flush(stdout)
                                 end if
                             end if
                         end do
@@ -723,7 +723,7 @@ contains
                     if (print_info) then
                         write(stdout, '(i2" eigenvalues(s) were successfully converged to within ",5ES16.7)') &
                             this%n_states, this%convergence_error
-                        call neci_flush(6)
+                        call neci_flush(stdout)
                     end if
                 end if
 
@@ -733,7 +733,7 @@ contains
                     write(stdout, '(/,1x,"Final calculated energies:")')
                     do i = 1, this%n_states
                         write(stdout, final_output_fmt) i, this%eigenvalues(i)
-                        call neci_flush(6)
+                        call neci_flush(stdout)
                     end do
                 end if
             end if
@@ -744,7 +744,7 @@ contains
                 exp_val = get_rayleigh_quotient(this, i)
                 if (print_info) then
                     write(stdout, final_output_fmt) i, exp_val
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                 end if
             end do
 
@@ -753,7 +753,7 @@ contains
                 exp_val = compute_residual_norm(this, i)
                 if (print_info) then
                     write(stdout, final_output_fmt) i, exp_val
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                 end if
             end do
 

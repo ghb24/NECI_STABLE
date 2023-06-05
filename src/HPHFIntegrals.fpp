@@ -366,7 +366,7 @@ contains
         if(t_lattice_model) then
             hel = get_helement_lattice(nI, nI)
         else
-            hel = sltcnd_excit(nI, Excite_0_t(), .false.)
+            hel = sltcnd_excit(nI, Excite_0_t())
         end if
 
         if(.not. TestClosedShellDet(iLutnI)) then

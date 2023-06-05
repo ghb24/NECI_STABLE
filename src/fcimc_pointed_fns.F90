@@ -383,7 +383,7 @@ contains
                         write(stdout, *) "nSpawn > n_truncate_spawns!", nSpawn
                         write(stdout, *) "limit the number of spawned walkers to: ", n_truncate_spawns
                         write(stdout, *) "for spawn from determinant: "
-                        call write_det_guga(6, ilutTmpI)
+                        call write_det_guga(stdout, ilutTmpI)
                         write(stdout, *) "to: "
                         call write_det_guga(stdout, ilutTmpJ)
                         nOpen = count_open_orbs(iLutCurr)

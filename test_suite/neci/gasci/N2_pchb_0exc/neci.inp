@@ -6,9 +6,7 @@ System read
     freeformat
     spin-restrict 0
     nonuniformrandexcits GAS-CI PCHB \
-        singles uniform \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection  fast-weighted
+        manual unif:unif full-full:fast-fast
     GAS-SPEC LOCAL 3
         2 2 2
         2 2 2

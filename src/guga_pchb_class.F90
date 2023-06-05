@@ -20,6 +20,7 @@ module guga_pchb_class
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
                                sym_label_list_spat, SpinOrbSymLabel
     use UMatCache, only: gtID
+    use MPI_wrapper, only: root
     use guga_excitations, only: assign_excitinfo_values_single, &
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
@@ -119,11 +120,6 @@ contains
 
         ! also set some more strict defaults for the PCHB implo:
         root_print "Setting reasonable defaults for GUGA-PCHB:"
-        if (near_zero(max_tau) .or. max_tau > 1e-3) then
-            root_print "max-tau zero or > 1e-3. setting it to: 1e-3"
-            max_tau = 1e-3
-        end if
-
         if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             if (frq_ratio_cutoff < 0.999999) then
                 root_print "setting frequency cutoff to 0.999999"
@@ -217,7 +213,7 @@ contains
                         call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
                     end do
                 end do
-                call this%alias_sampler%setup_entry(ij,w)
+                call this%alias_sampler%setup_entry(ij, root, w)
                 call this%set_info_entry(ij, excit_info)
 
             end do

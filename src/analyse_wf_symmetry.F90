@@ -481,7 +481,7 @@ contains
                 print *, i, lat%get_site_index(i), lat%get_sym(i), lat%get_k_vec(i)
             end do
 
-            call WRITEBASIS(6, g1, nBasis, arr, brr)
+            call writebasis(stdout, g1, nBasis, arr, brr)
 
             ! i need to apply the chosen symmetry to the vectors and determine,
             ! which orbital maps into which
