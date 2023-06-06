@@ -40,7 +40,7 @@ title
     # timestep
     tau-values \
         start user-defined 0.06 \
-        max 1 \
+        max 1e-3 \
         readpops-but-tau-not-from-popsfile
     tau-search \
         algorithm histogramming 1e-6 100000 2000 \
