@@ -2608,8 +2608,8 @@ contains
         OldAllAvWalkersCyc = InitialPart
         OldAllHFCyc = HFWeight
         OldAllNoatHF = HFWeight
-        OldAllNoInitWalk = AllNoInitWalk
         if (tNonInitModShift) then
+            OldAllNoInitWalk = AllNoInitWalk
             OldAllNoModShiftWalk = AllNoModShiftWalk
             OldAllNoNonModShiftWalk = AllNoNonModShiftWalk
             OldAllNoBosonActiveWalk = AllNoBosonActiveWalk
@@ -2775,7 +2775,7 @@ contains
             call InitFCIMC_HF_orthog()
             return
         end if
-
+        
         InitialPartVec = 0.0_dp
         do run = 1, inum_runs
             InitialPartVec(min_part_type(run)) = InitialPart
@@ -2851,7 +2851,6 @@ contains
 #endif
                 end do
             end if
-
             ! set initial values for global control variables.
 
             TotWalkers = 1
@@ -2905,7 +2904,6 @@ contains
                 end do
             end if
         end if
-
     end subroutine InitFCIMC_HF
 
     subroutine InitFCIMC_HF_orthog()
@@ -3002,8 +3000,9 @@ contains
         ! Initialise global variabes for calculation on the root node
         OldAllNoatHF = 0.0_dp
         AllNoatHF = 0.0_dp
-        OldAllNoInitWalk = 0.0_dp
         if (tNonInitModShift) then
+            OldAllNoInitWalk = 0.0_dp
+            OldAllNoInitWalk = 0.0_dp
             OldAllNoModShiftWalk = 0.0_dp
             OldAllNoNonModShiftWalk = 0.0_dp
             OldAllNoBosonActiveWalk = 0.0_dp

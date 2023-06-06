@@ -67,8 +67,8 @@ contains
 
         if (tNonInitModShift) then
             allocate(NoModShiftWalk(lenof_sign), NoNonModShiftWalk(lenof_sign), &
-                     AllNoModShiftWalk(lenof_sign), AllNoNonModShiftWalk(lenof_sign), &
                      OldAllNoInitWalk(lenof_sign), &
+                     AllNoModShiftWalk(lenof_sign), AllNoNonModShiftWalk(lenof_sign), &
                      OldAllNoModShiftWalk(lenof_sign), &
                      OldAllNoNonModShiftWalk(lenof_sign))
         end if
@@ -209,7 +209,6 @@ contains
                     AllNoInitDets, AllNoNonInitDets, &
                     AllNoInitWalk, AllNoNonInitWalk, &
                     AllNoExtraInitDoubs, AllInitRemoved, &
-                    OldAllNoInitWalk, &
                     ! Track the dynamics
                     NoBorn, AllNoBorn, &
                     NoDied, AllNoDied, &
@@ -266,8 +265,8 @@ contains
         
         if (tNonInitModShift) then
             deallocate(NoModShiftWalk, NoNonModShiftWalk, &
-                       AllNoModShiftWalk, AllNoNonModShiftWalk, &
                        OldAllNoInitWalk, &
+                       AllNoModShiftWalk, AllNoNonModShiftWalk, &
                        OldAllNoModShiftWalk, &
                        OldAllNoNonModShiftWalk)
         end if
