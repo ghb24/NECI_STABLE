@@ -2770,7 +2770,7 @@ contains
         integer :: run, DetHash
         real(dp), dimension(lenof_sign) :: InitialSign
         HElement_t(dp) :: h_temp
-
+        
         if (tOrthogonaliseReplicas) then
             call InitFCIMC_HF_orthog()
             return
@@ -2862,6 +2862,7 @@ contains
             TotWalkers = 0
             TotWalkersOld = 0
         end if
+        
 
         OldAllNoatHF(:) = 0.0_dp
         AllNoatHF(:) = 0.0_dp
@@ -2869,6 +2870,8 @@ contains
             OldAllNoInitWalk(:) = 0.0_dp
             OldAllNoModShiftWalk(:) = 0.0_dp
             OldAllNoNonModShiftWalk(:) = 0.0_dp
+        end if
+        if (tBosonNoSpawn) then
             OldAllNoBosonActiveWalk(:) = 0.0_dp
         end if
         IF (TStartSinglePart) THEN
@@ -3002,17 +3005,14 @@ contains
         AllNoatHF = 0.0_dp
         if (tNonInitModShift) then
             OldAllNoInitWalk = 0.0_dp
-            OldAllNoInitWalk = 0.0_dp
             OldAllNoModShiftWalk = 0.0_dp
             OldAllNoNonModShiftWalk = 0.0_dp
+        end if
+        if (tBosonNoSpawn) then
             OldAllNoBosonActiveWalk = 0.0_dp
         end if
         call MPISum(TotWalkers, AllTotWalkers)
         if (iProcIndex == root) then
-            OldAllNoInitWalk(:) = InitialPart
-            OldAllNoModShiftWalk(:) = InitialPart
-            OldAllNoNonModShiftWalk(:) = 0.0_dp
-            OldAllNoBosonActiveWalk(:) = InitialPart 
             OldAllNoatHF(:) = InitialPart
             OldAllAvWalkersCyc(:) = InitialPart
             AllNoatHF(:) = InitialPart
