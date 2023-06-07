@@ -19,27 +19,27 @@ module HartreeFockGuide
 
 contains 
         subroutine calc_det_ratio(nJ,nI,det_ratio)
-            integer,intent(in) :: nI(nel),nJ(nel)
-            real(dp),intent(out) :: det_ratio
-            real(dp),allocatable :: UI(:,:),UJ(:,:)
-            real(dp) :: determinantJ,determinantI
-            !Here we compute the U Matrix in order to access the det ratio
-            UI=get_U(nI)
+            integer, intent(in) :: nI(nel), nJ(nel)
+            real(dp), intent(out) :: det_ratio
+            real(dp), allocatable :: UI(:,:), UJ(:,:)
+            real(dp) :: determinantJ, determinantI
+            ! Here we compute the U Matrix in order to access the det ratio
+            UI = get_U(nI)
 
-            UJ=get_U(nJ)
-            determinantJ=determinant(UJ)
-            determinantI=determinant(UI)
-            !one fix a minimum value to avoid the 0.0
-            if (.not. abs(determinantJ)>0.0_dp) determinantJ=10.0_dp**(-15.0_dp)
-            if (.not. abs(determinantI)>0.0_dp) determinantI=10.0_dp**(-15.0_dp)
+            UJ = get_U(nJ)
+            determinantJ = determinant(UJ)
+            determinantI = determinant(UI)
+            ! Fix a minimum value to avoid the 0.0
+            if (.not. abs(determinantJ) > 0.0_dp) determinantJ = 10.0_dp**(-15.0_dp)
+            if (.not. abs(determinantI) > 0.0_dp) determinantI = 10.0_dp**(-15.0_dp)
             det_ratio = determinantJ/determinantI
         end subroutine calc_det_ratio
 
 
         subroutine calc_abinitio_det_ratio(nJ, nI, orb_coeff, det_ratio)
-            integer,intent(in) :: nI(nel),nJ(nel)
+            integer, intent(in) :: nI(nel), nJ(nel)
             real(dp), intent(in) :: orb_coeff(nBasis / 2, nBasis / 2)
-            real(dp),intent(out) :: det_ratio
+            real(dp), intent(out) :: det_ratio
             real(dp) :: det_I, det_J
 
             det_J = abinitio_det(nJ, orb_coeff)
@@ -57,7 +57,7 @@ contains
             integer, intent(in) :: nI(nel)
             real(dp), intent(out) :: hf_weight
             real(dp), allocatable:: U(:,:)
-            !part to be tested
+            
             U = get_U(nI)
             hf_weight = determinant(U)
             if (abs(hf_weight) < FixedNodeMinThresh) hf_weight = FixedNodeLowestVal
@@ -89,31 +89,18 @@ contains
             ! Currently only supports Molpro coeff file
 
             ! avoid using dimension
-            ! NO goto
             real(dp), intent(out) :: orb_coeff(nBasis / 2, nBasis / 2)
             real(dp) :: line(nBasis / 2)
-            integer :: ierr, iunit, i
-
-            i = 1
+            integer :: iunit, i
 
             open(newunit = iunit, FILE = orb_coeff_name)
 
-            ! DONT use goto, continue, ...
-101         continue
-            read(iunit, *, iostat = ierr, END = 199) line
+            do i = 1, nBasis / 2
+                read(iunit, *) line
+                orb_coeff(:, i) = line
+            end do
 
-            ! To skip the header and the footer of the file
-            ! But this may interrupt raising an error when reading
-            ! an incorrect matrix file. I think I will improve this
-            ! part later.
-            if (ierr /= 0) goto 101
-
-            orb_coeff(:, i) = line
-            i = i + 1
-            goto 101
-199         close(iunit)
-            ! One should add a feature that checks if orb_coeff is 
-            ! correctly made.
+            close(iunit)
         end subroutine read_orb_coeff
 
         subroutine split_spin_orbs(nI, a_arr, b_arr, num_swaps)
@@ -132,7 +119,7 @@ contains
             b_counter = 0
 
             do i = 1, size(nI)
-                if (mod(nI(i), 2) .eq. 0) then
+                if (mod(nI(i), 2) == 0) then
                     b_arr = [b_arr, nI(i)]
                     b_counter = b_counter + 1
                 else
@@ -160,7 +147,7 @@ contains
                 if (size(a_arr) .eq. size(b_arr)) then
                     det_a = determinant(orb_coeff(1:nel / 2, (a_arr + 1) / 2))
                     det_b = determinant(orb_coeff(1:nel / 2, b_arr / 2))
-                    total_num_swaps = num_row_swaps + nel*(nel - 2) / 8
+                    total_num_swaps = num_row_swaps + nel * (nel - 2) / 8
                     det = (1 - 2 * mod(total_num_swaps, 2)) * det_a * det_b
                 else
                     det = 0.0_dp
@@ -169,7 +156,7 @@ contains
                 if (size(a_arr) .eq. size(b_arr) + 1) then
                     det_a = determinant(orb_coeff(1:(nel + 1) / 2, (a_arr + 1) / 2))
                     det_b = determinant(orb_coeff(1:nel / 2, b_arr / 2))
-                    total_num_swaps = num_row_swaps + (nel*nel - 1) / 8
+                    total_num_swaps = num_row_swaps + (nel * nel - 1) / 8
                     det = (1 - 2 * mod(total_num_swaps, 2)) * det_a * det_b
                 else
                     det = 0.0_dp
@@ -177,79 +164,43 @@ contains
             end if
         end function abinitio_det
 
-       !Found on a blog and tested
         function determinant(aa) result(det)
-            real(dp) ::  aa(:,:)
-            real(dp) ::  tmp,c(size(aa,dim=1),size(aa,dim=2))
+            real(dp) :: aa(:,:)
+            real(dp) :: tmp, c(size(aa,dim=1), size(aa,dim=2))
             real(dp) :: maxi  
-            integer:: i,k,l,m,num(size(aa,dim=1)),n
+            integer:: i, k, l, m, num(size(aa,dim=1)), n
             real(dp):: det
 
-            n=size(aa,dim=1)
-            det=1.
-            do k=1,n
-                maxi=aa(k,k)
-                num(k)=k
-                do i=k+1,n 
-                    if(abs(maxi)<abs(aa(i,k))) then
-                        maxi=aa(i,k)
-                        num(k)=i
+            n = size(aa,dim=1)
+            det = 1.0_dp
+            do k=1, n
+                maxi = aa(k, k)
+                num(k) = k
+                do i = k + 1, n
+                    if(abs(maxi) < abs(aa(i, k))) then
+                        maxi = aa(i, k)
+                        num(k) = i
                     end if
                 end do
-                if (num(k)/=k) then
-                    do l=k,n 
-                        tmp=aa(k,l)
-                        aa(k,l)=aa(num(k),l)
-                        aa(num(k),l)=tmp
+                if (num(k) /= k) then
+                    do l=k, n
+                        tmp = aa(k, l)
+                        aa(k, l) = aa(num(k), l)
+                        aa(num(k), l) = tmp
                     end do
-                    det=-1.0_dp*det
+                    det = -1.0_dp*det
                 end if
-                do m=k+1,n
-                    c(m,k)=aa(m,k)/aa(k,k)
-                    do l=k,n 
-                        aa(m,l)=aa(m,l)-c(m,k)*aa(k,l)
+                do m = k+1, n
+                    c(m,k) = aa(m, k) / aa(k, k)
+                    do l=k, n
+                        aa(m, l) = aa(m, l) - c(m, k) * aa(k, l)
                     end do
                 end do !There we made matrix triangular!
             end do
 
-            do i=1,n
-                det=det*aa(i,i)
+            do i=1, n
+                det = det * aa(i, i)
             end do 
         end function determinant
 
-     subroutine classement(ntot,x,permutations)
-! classement des valeurs de x piar ordre décroissant
-! sauvegarde de la position initiale dans indice
-! Attention le tableau x est détruit en sortie
-      Implicit None
-      integer,intent(in)::ntot
-      integer,intent(inout)::x(nel)
-      integer,dimension(1:ntot)::indice
-      integer::i,itemp,itest
-      integer::temp
-      integer,intent(out):: permutations
-      Do i=1,ntot
-       indice(i) = i
-      Enddo
-       permutations=0
-      Do
-        itest = 0
-        Do i=2,ntot
-          If( x(i) > x(i-1) ) Then
-            permutations =permutations+1
-            itest = 1
-
-            temp = x(i-1)
-            x(i-1) = x(i)
-            x(i) = temp
-
-            itemp = indice(i-1)
-            indice(i-1) = indice(i)
-            indice(i) = itemp
-          Endif
-        Enddo
-        If( itest == 0 ) exit
-      Enddo
-
-      end subroutine classement
 end module HartreeFockGuide 
