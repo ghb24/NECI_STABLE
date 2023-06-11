@@ -1,6 +1,6 @@
 module hdiag_from_excit
 
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfTot
     use constants, only: dp, n_int
     use DetBitOps, only: CalcOpenOrbs, TestClosedShellDet, FindBitExcitLevel
     use Integrals_neci, only: get_umat_el

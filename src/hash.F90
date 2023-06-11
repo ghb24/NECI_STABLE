@@ -3,11 +3,12 @@
 module hash
 
     use FciMCData, only: hash_iter, hash_shift, RandomHash2, HFDet, ll_node
-    use bit_rep_data, only: flag_deterministic, test_flag, test_flag_multi
-    use bit_reps, only: extract_sign, decode_bit_det
+    use bit_rep_data, only: flag_deterministic, test_flag, test_flag_multi, extract_sign
+    use bit_reps, only: decode_bit_det
     use Systemdata, only: nel, nBasis
     use CalcData, only: tSemiStochastic
     use constants
+    use error_handling_neci, only: stop_all
 
     implicit none
 

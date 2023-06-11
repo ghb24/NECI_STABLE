@@ -1,51 +1,54 @@
 title
 
 system read noorder
-symignoreenergies
-freeformat
-electrons 18
-spin-restrict 0
-sym 0 0 0 0
-nonuniformrandexcits 4ind-weighted
-hphf 0
-nobrillouintheorem
-system-replicas 2
+    symignoreenergies
+    freeformat
+    electrons 18
+    spin-restrict 0
+    sym 0 0 0 0
+    nonuniformrandexcits 4ind-weighted
+    hphf 0
+    nobrillouintheorem
+    system-replicas 2
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-memoryfacpart 5.0
-memoryfacspawn 10.0
-memoryfachash 1.0
-nmcyc 250
-seed 8761
-startsinglepart 2000
-totalwalkers 40000
-shiftdamp 0.05
-diagshift 0.0
-truncinitiator
-addtoinitiator 3
-maxwalkerbloom 3
-allrealcoeff
-realspawncutoff 0.0
-stepsshift 1
-load-balance-blocks off
-tau 0.0005 search
-semi-stochastic
-core-inits
-en2-initiator
-mp1-core 100
+    methods
+        method vertex fcimc
+    endmethods
+    memoryfacpart 5.0
+    memoryfacspawn 10.0
+    memoryfachash 1.0
+    nmcyc 250
+    seed 8761
+    startsinglepart 2000
+    totalwalkers 40000
+    shiftdamp 0.05
+    diagshift 0.0
+    truncinitiator
+    addtoinitiator 3
+    allrealcoeff
+    realspawncutoff off
+    stepsshift 1
+    load-balance-blocks off
+    tau-values \
+        start user-defined 0.0005
+    tau-search \
+        algorithm conventional \
+        maxwalkerbloom 3
+    semi-stochastic
+    core-inits
+    en2-initiator
+    mp1-core 100
 endcalc
 
 integral
-freeze 0 0
+    freeze 0 0
 endint
 
 logging
-paired-replicas
-replica-estimates
-popsfile -1
+    paired-replicas
+    replica-estimates
+    popsfile -1
 endlog
 end

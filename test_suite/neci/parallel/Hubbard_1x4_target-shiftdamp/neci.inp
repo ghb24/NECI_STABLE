@@ -1,33 +1,35 @@
 title
 
 system hubbard real-space
-lattice chain 4 1
-b -1
-u  8
-electrons 4
+    lattice chain 4 1
+    b -1
+    u  8
+    electrons 4
 endsys
 
 calc
 
-methods
-method vertex fcimc
-endmethods
+    methods
+    method vertex fcimc
+    endmethods
 
-seed 1
-load-balance-blocks off
+    seed 1
+    load-balance-blocks off
 
-totalwalkers   1000
-nmcyc 10000
+    totalwalkers   1000
+    nmcyc 10000
 
-tau 0.001
+    tau-values \
+        start user-defined 0.001
 
-start-neel-state
+    start-neel-state
 
-allrealcoeff
-startsinglepart 10
-target-shiftdamp 0.1
-stepsshift 10
-memoryfacpart  10.00
-memoryfacspawn  50.00
+    allrealcoeff
+    realspawncutoff off
+    startsinglepart 10
+    target-shiftdamp 0.1
+    stepsshift 10
+    memoryfacpart  10.00
+    memoryfacspawn  50.00
 endcalc
 end

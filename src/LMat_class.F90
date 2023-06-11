@@ -7,7 +7,7 @@ module LMat_class
     use MPI_wrapper
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
-    use constants
+    use constants, only: dp, int64
     use index_rhash, only: index_rhash_t
     use mpi
     use util_mod, only: get_free_unit, operator(.div.), near_zero
@@ -38,8 +38,8 @@ module LMat_class
         procedure(set_elem_t), deferred, private :: set_elem
 
         ! Allocation routines
-        procedure :: alloc => void_one
-        procedure :: dealloc => void_zero
+        procedure(alloc_t), deferred :: alloc
+        procedure(dealloc_t), deferred :: safe_dealloc
 
         ! I/O routines
         ! Interfaced read routine: Delegates to the read_kernel
@@ -73,7 +73,7 @@ module LMat_class
 
         ! Allocation routines
         procedure :: alloc => alloc_dense
-        procedure :: dealloc => dealloc_dense
+        procedure :: safe_dealloc => dealloc_dense
 
         ! I/O routines
         procedure, private :: read_kernel => read_dense
@@ -101,7 +101,7 @@ module LMat_class
 
         ! Allocation routines
         procedure :: alloc => alloc_sparse
-        procedure :: dealloc => dealloc_sparse
+        procedure :: safe_dealloc => dealloc_sparse
 
         ! I/O routines
         procedure, private :: read_kernel => read_sparse
@@ -139,10 +139,24 @@ module LMat_class
 
     ! Interfaces for deferred functions
     abstract interface
+
+        subroutine dealloc_t(this)
+            import :: lMat_t
+            implicit none
+            class(lMat_t), intent(inout) :: this
+        end subroutine dealloc_t
+
+        subroutine alloc_t(this, size)
+            import :: lMat_t, int64
+            implicit none
+            class(lMat_t), intent(inout) :: this
+            integer(int64), intent(in) :: size
+        end subroutine alloc_t
+
         !> Set an element of a lMat
         subroutine set_elem_t(this, index, element)
-            use constants
-            import :: lMat_t
+            import :: lMat_t, int64, dp
+            implicit none
             class(lMat_t), intent(inout) :: this
             integer(int64), intent(in) :: index
             HElement_t(dp), intent(in) :: element
@@ -150,8 +164,8 @@ module LMat_class
 
         !> Get an element of a lMat. This replaces the old lMatAccess function pointer
         function get_elem_t(this, index) result(element)
-            use constants
-            import :: lMat_t
+            import :: lMat_t, int64, dp
+            implicit none
             class(lMat_t), intent(in) :: this
             integer(int64), intent(in) :: index
             HElement_t(dp) :: element
@@ -160,14 +174,15 @@ module LMat_class
         !> Read a lMat from a file
         subroutine read_t(this, filename)
             import :: lMat_t
+            implicit none
             class(lMat_t), intent(inout) :: this
             character(*), intent(in) :: filename
         end subroutine read_t
 
         !> Read operation on a single block of data read from an hdf5 file
         subroutine read_op_t(this, indices, entries)
-            use constants
-            import :: lMat_t
+            import :: lMat_t, int64
+            implicit none
             class(lMat_t), intent(inout) :: this
             ! The read operation is allowed to deallocate the input to make
             ! memory available
@@ -176,27 +191,6 @@ module LMat_class
     end interface
 
 contains
-
-    !------------------------------------------------------------------------------------------!
-    ! Generic routines
-    !------------------------------------------------------------------------------------------!
-
-    !> Empty routine: This is the default operation without arguments
-    subroutine void_zero(this)
-        class(lMat_t), intent(inout) :: this
-
-        unused_var(this)
-    end subroutine void_zero
-
-    !> Empty routine: This is the default operation with one int64 argument
-    !> @param[in] size input argument (no operations performed)
-    subroutine void_one(this, size)
-        class(lMat_t), intent(inout) :: this
-        integer(int64), intent(in) :: size
-
-        unused_var(this)
-        unused_var(size)
-    end subroutine void_one
 
     !------------------------------------------------------------------------------------------!
 
@@ -393,12 +387,17 @@ contains
         integer(int64), allocatable, intent(inout) :: indices(:, :), entries(:, :)
         integer(int64) :: i, this_blocksize
         HElement_t(dp) :: rVal
+        routine_name("read_op_dense_hdf5")
 
         this_blocksize = size(entries, dim=2)
 
         do i = 1, this_blocksize
             ! truncate down to lMatEps
-            rVal = 3.0_dp * transfer(entries(1,i),rVal)
+#ifdef CMPLX_
+            call stop_all(this_routine, "not implemented for complex")
+#else
+            rVal = 3.0_dp * transfer(entries(1, i), rVal)
+#endif
             call freeze_lmat(rVal, indices(:,i))
             if(abs(rVal)>lMatEps) then
                 call this%set_elem(this%indexFunc(int(indices(1,i),int64),int(indices(2,i),int64),&
@@ -533,6 +532,8 @@ contains
         integer(int64), allocatable :: combined_inds(:)
         integer(int64) :: dummy
         HElement_t(dp) :: rVal
+        routine_name("read_op_sparse")
+
         block_size = size(indices, dim=2)
         allocate(combined_inds(block_size))
         ! Transfer the 6 orbitals to one contiguous index
@@ -543,9 +544,13 @@ contains
                 ! Only freeze once, when filling in the values (this read_op can be called
                 ! multiple times for the same block)
                 if(this%htable%known_conflicts()) then
-                    rVal = transfer(entries(1,i),rVal)
+#ifdef CMPLX_
+                    call stop_all(this_routine, "not implemented for complex")
+#else
+                    rVal = transfer(entries(1, i), rVal)
                     call add_core_en(rVal,indices(:,i))
                     entries(1,i) = transfer(rVal,entries(1,i))
+#endif
                 end if
             end if
 
@@ -605,6 +610,7 @@ contains
         integer(int64) :: i, total_size, pos
         ! For typecasts
         HElement_t(dp), parameter :: rVal = 0.0_dp
+        routine_name("read_data")
         ! Gather all data on node root
         call gather_block(indices, tmp_inds)
         call gather_block(entries, tmp_entries)
@@ -613,8 +619,14 @@ contains
         ! Then write there
         if (iProcIndex_intra == 0) then
             do i = 1, total_size
-                if(tmp_inds(i) > 0) &
+                if(tmp_inds(i) > 0) then
+#ifdef CMPLX_
+                    call stop_all(this_routine, "not implemented for complex")
+                    unused_var(this)
+#else
                     call this%set_elem(tmp_inds(i), 3.0_dp * transfer(tmp_entries(i), rVal))
+#endif
+                end if
             end do
         end if
         deallocate(tmp_inds)

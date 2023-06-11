@@ -1,7 +1,4 @@
 \usepackage{xcolor}
-
-\newcommand\verbatimLaTeX[1]{#1}
-
 \usepackage{tcolorbox}
 
 \newtcolorbox{myquote}{colback=red!5!white, colframe=red!75!black}
@@ -15,6 +12,8 @@
 \newenvironment{warning}{\begin{warningbox}\textbf{\underline{\textcolor{red}{WARNING}}}}{\end{warningbox}}
 \newenvironment{todo}{\begin{todobox}\textbf{\underline{\textcolor{green}{TODO}}}}{\end{todobox}}
 \newenvironment{bug}{\begin{bugbox}\textbf{\underline{\textcolor{red}{BUG}}}}{\end{bugbox}}
+
+\newcommand\verbatimLaTeX[1]{#1}
 
 
 % Default formatting for code

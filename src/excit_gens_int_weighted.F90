@@ -20,7 +20,8 @@ module excit_gens_int_weighted
                                class_count_ml
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, pParallel
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
     use bit_rep_data, only: NIfTot, NIfD, test_flag
     use bit_reps, only: decode_bit_det, get_initiator_flag, writebitdet
@@ -28,7 +29,7 @@ module excit_gens_int_weighted
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
     use OneEInts, only: GetTMATEl
-    use excitation_types, only: SingleExc_t
+    use excitation_types, only: Excite_1_t
     use sltcnd_mod, only: sltcnd_excit
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
                                     init_excit_gen_store, &
@@ -225,9 +226,9 @@ contains
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 write(stdout, *) 'Calculated and actual pgens differ.'
                 write(stdout, *) 'This will break HPHF calculations'
-                call write_det(6, nI, .false.)
+                call write_det(stdout, nI, .false.)
                 write(stdout, '(" --> ")', advance='no')
-                call write_det(6, nJ, .true.)
+                call write_det(stdout, nJ, .true.)
                 write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                     ExcitMat(2, 1:ic)
                 write(stdout, *) 'Generated pGen:  ', pgen
@@ -494,7 +495,7 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = "pgen_single_4ind"
 
-        integer :: cc_index, label_index, norb, ex(2), id_src, id_tgt
+        integer :: cc_index, label_index, norb, ex(2, 1), id_src, id_tgt
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt, cpt_tgt
         HElement_t(dp) :: hel
@@ -512,7 +513,7 @@ contains
 
         ! Some ids for utility
         id_src = gtID(src)
-        ex(1) = src
+        ex(1, 1) = src
 
         ! Generate the cumulative sum, as used in the excitation generator,
         ! and store the relevant term for generating the excitation.
@@ -520,8 +521,8 @@ contains
         do i = 1, norb
             orb = SymLabelList2(label_index + i - 1)
             if (IsNotOcc(ilutI, orb)) then
-                ex(2) = orb
-                hel = sltcnd_excit(nI, SingleExc_t(ex), .false.)
+                ex(2, 1) = orb
+                hel = sltcnd_excit(nI, Excite_1_t(ex), .false.)
                 cpt = abs_l1(hel)
 
                 if (t_matele_cutoff) then
@@ -554,7 +555,7 @@ contains
         real(dp) :: cum_sum, cumulative_arr(OrbClassCount(cc_index)), r
         real(dp) :: cpt_arr(OrbClassCount(cc_index))
         integer :: orb, norb, label_index, orb_index, i, j
-        integer :: id_src, id, ex(2)
+        integer :: id_src, id, ex(2, 1)
         HElement_t(dp) :: hel
         real(dp) :: cpt
 
@@ -564,7 +565,7 @@ contains
 
         ! Spatial orbital IDs
         id_src = gtID(src)
-        ex(1) = src
+        ex(1, 1) = src
         ASSERT(tExch)
 
         ! Construct the cumulative list of strengths
@@ -584,8 +585,8 @@ contains
 
                 ! This is based on an extract from sltcnd_1.
                 ! set the excitation we consider
-                ex(2) = orb
-                hel = sltcnd_excit(nI, SingleExc_t(ex), .false.)
+                ex(2, 1) = orb
+                hel = sltcnd_excit(nI, Excite_1_t(ex), .false.)
             end if
 
             ! And store the values for later searching
@@ -1359,9 +1360,9 @@ contains
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 write(stdout, *) 'Calculated and actual pgens differ.'
                 write(stdout, *) 'This will break HPHF calculations'
-                call write_det(6, nI, .false.)
+                call write_det(stdout, nI, .false.)
                 write(stdout, '(" --> ")', advance='no')
-                call write_det(6, nJ, .true.)
+                call write_det(stdout, nJ, .true.)
                 write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                     ExcitMat(2, 1:ic)
                 write(stdout, *) 'Generated pGen:  ', pgen
@@ -1748,7 +1749,7 @@ contains
             ! Just in case, add a check
             if (attempts > max_attempts) then
                 write(stdout, *) 'Unable to find unoccupied orbital'
-                call writebitdet(6, ilut, .true.)
+                call writebitdet(stdout, ilut, .true.)
                 call stop_all(this_routine, 'Out of attempts')
             end if
         end do
@@ -1777,7 +1778,7 @@ contains
             ! Just in case, add a check
             if (attempts > max_attempts) then
                 write(stdout, *) 'Unable to find unoccupied orbital'
-                call writebitdet(6, ilut, .true.)
+                call writebitdet(stdout, ilut, .true.)
                 call stop_all(t_r, 'Out of attempts')
             end if
         end do
@@ -2023,7 +2024,6 @@ contains
         use bit_reps, only: decode_bit_det
         use GenRandSymExcitNUMod, only: init_excit_gen_store
         use SymExcit3, only: CountExcitations3, GenExcitations3
-        use Determinants, only: write_det
         use DetBitOps, only: EncodeBitDet
         use sort_mod, only: sort
 

@@ -14,7 +14,7 @@ module sym_mod
 !                    tagSymConjTab, SymReps, SymClasses2, tagSymClasses2, &
 !                    tagSymReps
     use SymData
-    use util_mod, only: int_fmt, stop_all
+    use util_mod, only: int_fmt, stop_all, neci_flush
     use global_utilities
     use sort_mod
     implicit none
@@ -845,15 +845,15 @@ contains
                     IRREPCHARS(I, NSYM) = 1
                 end if
             end do
-!            CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
+!            CALL writeirreptab(stdout,IRREPCHARS,NROT,NSYM)
         end if
         LDO = .TRUE.
         NEXTSYMLAB = 1
         LDO2 = .TRUE.
         DO WHILE (LDO .OR. LDO2)
-!            CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
+!            CALL writeirreptab(stdout,IRREPCHARS,NROT,NSYM)
 !            write(stdout,*) NREPS," non-reducible"
-!            CALL WRITEIRREPTAB(6,REPCHARS,NROT,NREPS)
+!            CALL writeirreptab(stdout,REPCHARS,NROT,NREPS)
 !   First see if all the products of chars are decomposable
             LDO = .FALSE.
             NREPS = 0
@@ -867,7 +867,7 @@ contains
 
 !                  write(stdout,*) NREPS,"PROD",I,J
 !                  CALL N_MEMORY_CHECK
-!                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
+!                  CALL writechars(stdout,REPCHARS(1,NREPS),NROT,"ADDPRD")
                     IF (GETIRREPDECOMP(REPCHARS(1, NREPS), IRREPCHARS, NSYM, NROT, IDECOMP, NORM, TAbelian)) THEN
 !   CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
                         IF (ABS(NORM - NROT) <= 1.0e-2_dp) THEN
@@ -877,13 +877,13 @@ contains
                             DO K = 1, NROT
                                 IRREPCHARS(K, NSYM) = REPCHARS(K, NREPS)
                             end do
-!                        CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
+!                        CALL writeirreptab(stdout,IRREPCHARS,NROT,NSYM)
                             NREPS = NREPS - 1
                             LDO = .TRUE.
                             EXIT lp1
                         ELSE
 !                        write(stdout,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
-!                      CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"REMAIN")
+!                      CALL writechars(stdout,REPCHARS(1,NREPS),NROT,"REMAIN")
 !   It's not an irrep, but we cannot reduce it.  Store only if we think we've got all the irreps.
 !                        write(stdout,*) "NR",NREPS,LDO2
                             IF (LDO2) NREPS = NREPS - 1
@@ -904,7 +904,7 @@ contains
                 DO I = 1, NROT
                     REPCHARS(I, NREPS) = SYMLABELCHARS(I, NEXTSYMLAB)
                 end do
-!               CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDST ")
+!               CALL writechars(stdout,REPCHARS(1,NREPS),NROT,"ADDST ")
                 IF (GETIRREPDECOMP(REPCHARS(1, NREPS), IRREPCHARS, NSYM, NROT, IDECOMP, NORM, TAbelian)) THEN
 !   CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
                     IF (ABS(NORM - NROT) <= 1.0e-2_dp) THEN
@@ -914,13 +914,13 @@ contains
                         DO I = 1, NROT
                             IRREPCHARS(I, NSYM) = REPCHARS(I, NREPS)
                         end do
-!                     CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
+!                     CALL writeirreptab(stdout,IRREPCHARS,NROT,NSYM)
                         NREPS = NREPS - 1
                         LDO = .TRUE.
                         EXIT lp2
                     ELSE
 !                     write(stdout,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
-!                     CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"REMAIN")
+!                     CALL writechars(stdout,REPCHARS(1,NREPS),NROT,"REMAIN")
 !   It's not an irrep, but we cannot reduce it.  Store only if we think we've got all the irreps.
                         IF (LDO2) NREPS = NREPS - 1
                     end if
@@ -940,10 +940,10 @@ contains
         end do
 !
         write(stdout, *) "IRREP TABLE"
-        CALL WRITEIRREPTAB(6, IRREPCHARS, NROT, NSYM)
+        CALL writeirreptab(stdout, IRREPCHARS, NROT, NSYM)
         IF (NREPS > 0) THEN
             write(stdout, *) NREPS, " non-reducible"
-            CALL WRITEIRREPTAB(6, REPCHARS, NROT, NREPS)
+            CALL writeirreptab(stdout, REPCHARS, NROT, NREPS)
 !            IF(NREPS.GT.1) THEN
             call stop_all(this_routine, "More than 1 non-reducible reps found.")
 !            end if
@@ -1063,7 +1063,7 @@ contains
         IDECOMP%s = 0
         CALL DCOPY(NROT * 2, CHARSIN, 1, CHARS, 1)
 !         write(stdout,*) "Decompose Rep"
-!         CALL WRITECHARS(6,CHARS,NROT,"REP   ")
+!         CALL writechars(stdout,CHARS,NROT,"REP   ")
 !,. First check norm of this state
         CNORM = 0
         DO J = 1, NROT
@@ -1071,8 +1071,8 @@ contains
         end do
         DO I = 1, NSYM
             TOT = 0
-!            CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IR")
-!            CALL WRITECHARS(6,CHARS(1),NROT,"CH")
+!            CALL writechars(stdout,IRREPCHARS(1,I),NROT,"IR")
+!            CALL writechars(stdout,CHARS(1),NROT,"CH")
             DO J = 1, NROT
                 TOT = TOT + CONJG(IRREPCHARS(J, I)) * CHARS(J)
             end do
@@ -1087,8 +1087,8 @@ contains
                 DIFF = ABS(TOT - NINT(ABS(TOT / NORM)) * NORM)
                 IF (DIFF > 1.0e-2_dp) THEN
                     write(stdout, *) 'Symmetry decomposition not complete'
-                    CALL WRITECHARS(6, IRREPCHARS(1, I), NROT, "IRREP ")
-                    CALL WRITECHARS(6, CHARS, NROT, "CHARS ")
+                    CALL writechars(stdout, IRREPCHARS(1, I), NROT, "IRREP ")
+                    CALL writechars(stdout, CHARS, NROT, "CHARS ")
                     write(stdout, *) "Dot product: ", (TOT + 0.0_dp) / NORM, TOT, NORM
                     call stop_all(this_routine, 'Incomplete symmetry decomposition')
 !   The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
@@ -1102,8 +1102,8 @@ contains
                         CHARS(J) = CHARS(J) - (IRREPCHARS(J, I) * TOT) / NORM
                         CNORM = CNORM + real(CONJG(CHARS(J)) * CHARS(J), dp)
                     end do
-!                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"DIRREP")
-!                  CALL WRITECHARS(6,CHARS,NROT,"DCHARS")
+!                  CALL writechars(stdout,IRREPCHARS(1,I),NROT,"DIRREP")
+!                  CALL writechars(stdout,CHARS,NROT,"DCHARS")
                 end if
             end if
         end do
@@ -1147,8 +1147,8 @@ contains
                     NORM = NORM + real(CONJG(IRREPCHARS(J, I)) * IRREPCHARS(J, I), dp)
                 end do
 !               write(stdout,*) "IRREP ",I,(TOT+0.0_dp)/NORM
-!                CALL WRITECHARS(6,CHARS,NROT,"REP   ")
-!                CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
+!                CALL writechars(stdout,CHARS,NROT,"REP   ")
+!                CALL writechars(stdout,IRREPCHARS(1,I),NROT,"IRREP ")
                 DIFF = ABS(TOT - NINT(ABS(TOT / NORM)) * NORM)
                 IF (DIFF >= 1.0e-2_dp .AND. abs(CNORM - NROT) < 1.0e-12_dp) THEN
 !   The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
@@ -1156,7 +1156,7 @@ contains
 !                  DO J=1,NROT
 !                    IRREPCHARS(J,I)=IRREPCHARS(J,I)-CHARS(J)*TOT/CNORM
 !                  end do
-!                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"NOW   ")
+!                  CALL writechars(stdout,IRREPCHARS(1,I),NROT,"NOW   ")
                 else if (DIFF < 1.0e-2_dp) THEN
 !   We've found an (ir)rep which is wholly in CHARS
                     IDECOMP%s = IBSET(IDECOMP%s, I - 1)
@@ -1191,7 +1191,7 @@ contains
             end do
             IF (GETIRREPDECOMP(CHARS, IRREPCHARS, NSYM, NROT, IDECOMP, CNORM, TAbelian)) THEN
                 write(stdout, *) "Conjugate of SYM ", I, " not reducible,"
-                CALL WRITECHARS(6, CHARS, NROT, "REMAIN")
+                CALL writechars(stdout, CHARS, NROT, "REMAIN")
                 call stop_all(this_routine, "Symmetry table element not conjugable")
             end if
             K = 0
@@ -1211,7 +1211,7 @@ contains
                 end do
                 IF (GETIRREPDECOMP(CHARS, IRREPCHARS, NSYM, NROT, IDECOMP, CNORM, TAbelian)) THEN
                     write(stdout, *) "Multiplication of SYMS ", I, J, " not reducible,"
-                    CALL WRITECHARS(6, CHARS, NROT, "REMAIN")
+                    CALL writechars(stdout, CHARS, NROT, "REMAIN")
                     call stop_all(this_routine, "Symmetry table element not reducible")
                 end if
                 SYMTABLE(I, J) = IDECOMP
@@ -1587,9 +1587,9 @@ contains
         DO WHILE (J - I >= 1)
             N = (I + J) / 2
 !            write(stdout,"(3I4)",advance='no') I,J,N
-!            CALL WRITESYM(6,TAB(1,I),.FALSE.)
-!            CALL WRITESYM(6,TAB(1,J),.FALSE.)
-!            CALL WRITESYM(6,TAB(1,N),.TRUE.)
+!            CALL writesym(stdout,TAB(1,I),.FALSE.)
+!            CALL writesym(stdout,TAB(1,J),.FALSE.)
+!            CALL writesym(stdout,TAB(1,N),.TRUE.)
             IF (SYMLT(TAB(N), VAL) .AND. I /= N) THEN
                 IF (SYMNE(TAB(N), TAB(IFIRST))) IFIRST = N
 !   reset the lower limit
@@ -1626,7 +1626,7 @@ contains
         INTEGER NEL, nBasisMax(5, *)
         INTEGER LMS
         TYPE(BasisFN) IPARITY, ISYM, IMax(2)
-        LOGICAL TSPN, TPARITY, TSETUP, TMORE, TDONE, KALLOWED, TMORE2
+        LOGICAL TSPN, TPARITY, TSETUP, TMORE, TDONE, TMORE2
         INTEGER ILEV
         IF (TSETUP) THEN
             IMAX(1) = NullBasisFn
@@ -1747,7 +1747,7 @@ contains
         IMPLICIT NONE
         TYPE(BasisFN) ISym, ISym2
         INTEGER nBasisMax(5, *), IDEGEN, I, J
-        LOGICAL KALLOWED, TDO
+        LOGICAL TDO
         IDEGEN = 0
         IF (NBASISMAX(3, 3) == 0) THEN
 !   Hubbard
@@ -1858,9 +1858,9 @@ contains
         write(stdout, '(39("-"))')
         do i = 1, nSymLabels
             write(stdout, '("(",3i3,")"," | ")', advance='no') KpntSym(:, I)
-            call writesym(6, SymLabels(I), .false.)
+            call writesym(stdout, SymLabels(I), .false.)
             write(stdout, '(A)', advance='no') " | "
-            call writesym(6, SymConj(SymLabels(I)), .true.)
+            call writesym(stdout, SymConj(SymLabels(I)), .true.)
         end do
 !      write(stdout,'(/,a)') 'Symmetry Multiplication Table'
 !      do i=1,nSymLabels
@@ -1872,7 +1872,7 @@ contains
 !      write(stdout,'(/)')
 
 !        write(stdout,*) "SYMMETRY CLASSES"
-!        CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
+!        CALL writeirreptab(stdout, SYMLABELCHARS,NROT,NSYMLABELS)
 !.. Allocate memory gor irreps.
 !.. Assume there will be no more than 64 irreps
 !        CALL N_MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
@@ -1990,7 +1990,7 @@ contains
                 end do
             end if
             write(stdout, *) basirrep, SYMLABELINTSCUM(i), SYMLABELCOUNTSCUM(i)
-            call neci_flush(6)
+            call neci_flush(stdout)
         end do
         iSize = iSize + 2
         !This is to allow the index of '-1' in the array to give a zero value
@@ -2061,5 +2061,75 @@ contains
             if (.not. momcheck) return
         end do
     end function checkMomentumInvalidity
+
+    LOGICAL FUNCTION KALLOWED(G, NBASISMAX)
+! See if a given G vector is within a (possibly tilted) unit cell.
+! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
+        Type(BasisFN), intent(in) :: G
+        INTEGER nBasisMax(5, *), NMAXX, I, J, AX, AY
+        INTEGER KX, KY
+        real(dp) MX, MY, XX, YY
+        LOGICAL TALLOW
+        TALLOW = .TRUE.
+        IF (NBASISMAX(3, 3) == 1) THEN
+!.. spatial symmetries
+            IF (G%k(1) /= 0) TALLOW = .FALSE.
+        ELSEIF (NBASISMAX(3, 3) == 0) THEN
+!.. Hubbard
+            IF (NBASISMAX(1, 3) == 1) THEN
+!.. Tilted hubbard
+                NMAXX = NBASISMAX(1, 5)
+!         NMAXY=
+                AX = NBASISMAX(1, 4)
+                AY = NBASISMAX(2, 4)
+!.. (XX,YY) is the position of the bottom right corner of the unit cell
+                XX = ((AX + AY) / 2.0_dp) * NMAXX
+                YY = ((AY - AX) / 2.0_dp) * NMAXX
+                MX = XX * AX + YY * AY
+                MY = XX * AY - YY * AX
+                I = G%k(1)
+                J = G%k(2)
+                KX = I * AX + J * AY
+                KY = I * AY - J * AX
+                IF (KX > MX) TALLOW = .FALSE.
+                IF (KY > MY) TALLOW = .FALSE.
+                IF (KX <= -MX) TALLOW = .FALSE.
+                IF (KY <= -MY) TALLOW = .FALSE.
+            ELSEIF (NBASISMAX(1, 3) >= 4 .OR. NBASISMAX(1, 3) == 2) THEN
+!.. Real space Hubbard
+                IF (G%k(1) == 0 .AND. G%k(2) == 0 .AND. G%k(3) == 0) THEN
+                    TALLOW = .TRUE.
+                ELSE
+                    TALLOW = .FALSE.
+                END IF
+!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!.. mom space non-pbc non-tilt hub - parity sym
+!          IF(  (G(1).EQ.0.OR.G(1).EQ.1)
+!     &       .AND.(G(2).EQ.0.OR.G(2).EQ.1)
+!     &       .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
+!              TALLOW=.TRUE.
+!          ELSE
+!              TALLOW=.FALSE.
+!          ENDIF
+!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!.. non-pbc hubbard
+!          TALLOW=.TRUE.
+!          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
+!     &       TALLOW=.FALSE.
+!          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
+!     &       TALLOW=.FALSE.
+!          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
+!     &       TALLOW=.FALSE.
+            ELSE
+!.. Normal Hubbard
+                TALLOW = .TRUE.
+                IF (G%k(1) > NBASISMAX(1, 2) .OR. G%k(1) < NBASISMAX(1, 1)) TALLOW = .FALSE.
+                IF (G%k(2) > NBASISMAX(2, 2) .OR. G%k(2) < NBASISMAX(2, 1)) TALLOW = .FALSE.
+                IF (G%k(3) > NBASISMAX(3, 2) .OR. G%k(3) < NBASISMAX(3, 1)) TALLOW = .FALSE.
+            END IF
+        END IF
+        KALLOWED = TALLOW
+        RETURN
+    END FUNCTION KALLOWED
 
 end module sym_mod

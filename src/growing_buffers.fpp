@@ -18,7 +18,7 @@ $:  ', '.join(size_along if i == int(along) else 'size({var}, {i})'.format(var=v
 
 
 module growing_buffers
-    use constants
+    use constants, only: int32, int64, dp
     use fortran_strings, only: Token_t
     implicit none
 
@@ -192,7 +192,7 @@ contains
 
 
         ! If the buffer still has room, add the entry
-        if (this%pos < size(this%buf, ${rank}$)) then
+        if (this%pos < size(this%buf, ${rank}$, kind=int64)) then
             this%pos = this%pos + 1_int64
             @{select(this%buf, this%pos)}@ = val
         else

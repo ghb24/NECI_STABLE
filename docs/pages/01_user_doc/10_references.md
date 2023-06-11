@@ -4,7 +4,7 @@ title: Additional Reading with Technical Details
 
 ## Additional Reading with Technical Details
 
-A list of references can be found in the [references section](08_references.html). Here we simply point to some of them of which may be of interest to the reader.
+A list of references can be found in the [references section](literature.html). Here we simply point to some of them of which may be of interest to the reader.
 
 - The original FCIQMC method is in Ref [@Booth2009].
 

@@ -1,10 +1,10 @@
 module test_gasci_supergroup_index_mod
-    use fruit
+    use fruit, only: assert_equals, assert_true, assert_false, run_test_case
     use constants, only: dp, int64, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use util_mod, only: factrl, swap, cumsum, custom_findloc
 
-    use gasci, only: LocalGASSpec_t, CumulGASSpec_t
+    use gasci, only: LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions, &
         get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup, composition_from_idx
 
@@ -194,6 +194,32 @@ contains
             call assert_equals(4, indexer%idx_nI([6, 7, 11]))
 
             call assert_equals(5, indexer%idx_nI([7, 10, 11]))
+        end block
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec
+            type(SuperGroupIndexer_t) :: indexer
+            integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
+            integer :: i
+            logical :: correct
+
+            supergroups = reshape([[2, 1, 1, 0], [1, 2, 0, 1], [1, 1, 1, 1], [0, 1, 1, 2]], shape=[4, 4])
+            GAS_spec = FlexibleGASSpec_t(&
+                supergroups=supergroups, &
+                spat_GAS_orbs = [1, 2, 3, 4])
+
+            indexer = SuperGroupIndexer_t(GAS_spec, GAS_spec%N_particle())
+            supergroups_from_free = get_supergroups(GAS_spec, GAS_spec%N_particle())
+
+            correct = .true.
+            do i = 1, size(supergroups, 2)
+                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                        .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
+                    correct = .false.
+                end if
+            end do
+            call assert_true(correct)
+
         end block
     end subroutine
 
@@ -639,6 +665,35 @@ contains
             call assert_equals(sg, [-1, -1, -1, -1], 4)
         end block
 
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec
+            integer, allocatable :: sg(:)
+            integer(int64) :: idx_last
+
+            GAS_spec = FlexibleGASSpec_t(&
+                supergroups=reshape([[1, 1, 1, 1], [2, 1, 1, 0], [0, 1, 1, 2], [1, 2, 0, 1]], shape=[4, 4]), &
+                spat_GAS_orbs = [1, 2, 3, 4])
+
+            call assert_true(GAS_spec%is_valid())
+            idx_last = composition_idx(get_last_supergroup(GAS_spec, GAS_spec%N_particle()))
+
+            sg = get_first_supergroup(GAS_spec, GAS_spec%N_particle())
+            call assert_equals(sg, [2, 1, 1, 0], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 2, 0, 1], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [1, 1, 1, 1], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [0, 1, 1, 2], 4)
+
+            sg = next_supergroup(GAS_spec, idx_last, sg)
+            call assert_equals(sg, [-1, -1, -1, -1], 4)
+        end block
+
     end subroutine
 
 end module
@@ -646,8 +701,9 @@ end module
 
 program test_gasci_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count
+    use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_supergroup_index_mod, only: test_gasci_driver
 

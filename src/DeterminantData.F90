@@ -2,10 +2,12 @@
 
 module DeterminantData
     use bit_rep_data, only: NIfTot
-    use constants
     use SystemData, only: nel, nbasis
     use MemoryManager, only: TagIntType
-    implicit none
+    better_implicit_none
+    private
+    public :: write_det, write_det_len, tagFDet, Fdet, calculated_ms, &
+        get_lexicographic
 
     integer, pointer :: FDet(:)
     integer(TagIntType) :: tagFDet

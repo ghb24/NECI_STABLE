@@ -296,8 +296,8 @@ MODULE FciMCData
                    var_e_time, precond_e_time, proj_e_time, &
                    rescale_time, death_time, hash_test_time, &
                    hii_test_time, init_flag_time, &
-                   InitSpace_Init_Time, GetDiagMatel_Time, &
-                   GetOffDiagMatel_Time
+                   InitSpace_Init_Time, &
+                   GAS_PCHB_init_time
 
     ! Store the current value of S^2 between update cycles
     real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -472,16 +472,6 @@ MODULE FciMCData
     ! auxiliary variables used to determine AvMCExcits on the fly
     integer(int64) :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
 
-    ! Tau searching variables
-    ! tSearchTau specifies if we are searching tau
-    ! tSearchTauOption specifies if we have ever searched for tau
-    ! tSearchTauDeath is an override - if we need to adjust tau due to
-    !     particle death, when tSearchTau is disabled, but tSearchTauOption
-    !     is enabled.
-    logical :: tSearchTau, tSearchTauOption
-    logical :: tSearchTauDeath
-    real(dp) :: MaxTau
-
     !Variables for diagonalisation of the walker subspace
     integer :: unitWalkerDiag
 
@@ -498,6 +488,8 @@ MODULE FciMCData
 
     ! Number of Davidson max iterations
     integer, allocatable :: user_input_max_davidson_iters
+    ! Tolerance of Davidson residual norm
+    real(dp), allocatable :: user_input_davidson_tolerance
 
     ! If true (as is the case by default) then semi-stochastic calculations
     ! will start from the ground state of the core space

@@ -4,18 +4,17 @@ MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, nBasis, tNoBrillouin, tReal, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy, &
-                          t_lattice_model, t_non_hermitian, t_3_body_excits
-    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, tSpecifiedTau, &
-                        ScaleWalkers, tReadPopsRestart, tPopsJumpShift, t_hist_tau_search_option, &
+                          t_lattice_model, t_non_hermitian_2_body, t_3_body_excits
+    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, &
+                        ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
-                        iWeightPopRead, iPopsFileNoRead, Tau, tPopsAlias, &
+                        iWeightPopRead, iPopsFileNoRead, tPopsAlias, &
                         MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
-                        t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
-                        t_read_probs, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn, &
-                        t_hist_tau_search_option, hdf5_diagsft, tAutoAdaptiveShift, &
-                        pParallelIn
+                        pops_norm, tWritePopsNorm, &
+                        tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn, &
+                        hdf5_diagsft, tAutoAdaptiveShift, &
+                        pParallelIn, tStoredDets
 
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
@@ -27,11 +26,18 @@ MODULE PopsfileMod
     use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table, add_hash_table_entry
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
-    use bit_rep_data, only: extract_sign
-    use bit_reps
+    use bit_rep_data, only: extract_sign, flag_deterministic, flag_removed, &
+        flag_connected, flag_trial, flag_determ_parent, nifd, test_flag, &
+        NIfTot, IlutBits, test_flag
+    use bit_reps, only: get_initiator_flag, clr_flag, get_initiator_flag_by_run, &
+        extract_flags, decode_bit_det, encode_bit_rep, encode_sign, &
+        clr_flag_multi, set_flag, writebitdet, encode_flags
+    use DetBitOps, only: count_open_orbs
+    use FciMCData, only: WalkVecDets, MaxWalkersPart
     use constants
     use Parallel_neci
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
@@ -41,9 +47,12 @@ MODULE PopsfileMod
                            t_print_frq_histograms, tPopAutoAdaptiveShift, &
                            tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
-    use sort_mod
-    use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                          gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt, gamma_trip
+    use sort_mod, only: sort
+    use tau_main, only: input_tau_search_method, tau_search_method, &
+        possible_tau_search_methods, max_death_cpt, tau_start_val, possible_tau_start, &
+        t_scale_tau_to_death, min_tau, max_tau, tau, assign_value_to_tau
+    use tau_search_conventional, only: tau_search_stats
+    use tau_search_hist, only: finalize_hist_tau_search, t_fill_frequency_hists
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
                          t_initialized_roi, ilutref, perturbation, CurrentDets, AllSumENum, &
                          AllSumNoatHF, tSinglePartPhase, ProjEDet, SumNoatHF, ValidSpawnedList, &
@@ -52,7 +61,7 @@ MODULE PopsfileMod
                          iLutHF, MaxSpawned, PreviousCycles, ProjectionE, SpawnedParts, SpawnedParts2, &
                          spawnvectag, spawnvec2tag, SumENum, TotWalkers, TotWalkersOld, tPopsAlreadyRead, &
                          tReplicaReferencesDiffer, WalkVecDetsTag, tEScaleWalkers, Iter, pParallel, &
-                         TotImagTime, tSearchTau, tSearchTauOption, iBlockingIter, HashIndex, &
+                         TotImagTime, iBlockingIter, HashIndex, &
                          iEndFreeSlot, InstNoatHF, iStartFreeSlot, NoatHF, nWalkerHashes, popsfile_dets, &
                          nwalkerhashes
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -71,7 +80,8 @@ MODULE PopsfileMod
                              add_pops_norm_contrib
     use gdata_io, only: gdata_io_t
     use util_mod
-    use tau_search_hist, only: deallocate_histograms
+
+    use fortran_strings, only: str
 
     use lattice_mod, only: get_helement_lattice
 
@@ -84,17 +94,16 @@ MODULE PopsfileMod
 
     use guga_bitrepops, only: CSF_Info_t, getExcitation_guga
 
-    implicit none
+    better_implicit_none
 
     logical :: tRealPOPSfile
 
     interface
-        subroutine ChangeRefDet(det)
-            use SystemData, only: nel
-            implicit none
-            integer :: det(nel)
+        module subroutine ChangeRefDet(DetCurr)
+            integer, intent(in) :: DetCurr(nel)
         end subroutine
     end interface
+
 
 contains
 
@@ -243,7 +252,7 @@ contains
                 !if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
                 !call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
                 !endif
-                call neci_flush(6)
+                call neci_flush(stdout)
             ENDIF
 
             ! If read in particles are removed due to being unoccupied, or
@@ -511,7 +520,7 @@ contains
 
             write (stdout, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
                 " determinants at a time from POPSFILE"
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
         ! Keep reading until all of the particles have been read in!
@@ -1142,12 +1151,11 @@ contains
             AllSumENum = 0.0_dp
             AllSumNoatHF = 0
         ENDIF
-        if (abs(read_tau) < 1.0e-12_dp) then
+        if (near_zero(read_tau)) then
             !Using popsfile v.3, where tau is not written out.
             !Exit if trying to dynamically search for timestep
-            if (tSearchTau) then
-                call stop_all(this_routine, "Cannot dynamically search for timestep if reading &
-                    &in POPSFILE v.3. Manually specify timestep.")
+            if (tau_start_val == possible_tau_start%from_popsfile) then
+                call stop_all(this_routine, "Cannot read tau from popsfile version <= 3.x")
             endif
             write (stdout, *) "Old popsfile detected."
             write (stdout, *) "Therefore automatic blocking will only start from current run"
@@ -1157,8 +1165,8 @@ contains
             if (t_real_time_fciqmc) then
                 ! if reading from a real-time popsfile, also read in tau
                 ! this works because the real-time popsfile is read last
-                if (.not. tSpecifiedTau) then
-                    tau = read_tau
+                if (tau_start_val == possible_tau_start%from_popsfile) then
+                    call assign_value_to_tau(clamp(read_tau, min_tau, max_tau), 'Initialization from popsfile.')
                 endif
 
                 ! also use the adjusted pSingle etc. if provided
@@ -1184,25 +1192,8 @@ contains
             else
 
                 !Using popsfile v.4, where tau is written out and read in
-
-                ! [Werner Dobrautz 4.4.2017:]
-                ! Are we sure we want to stop searching if we are in the
-                ! variable shift mode? TODO
-                if ((tSearchTau .or. t_hist_tau_search) .or. t_previous_hist_tau &
-                    .or. t_read_probs) then
-                    if ((.not. tSinglePartPhase(1)) .or. (.not. tSinglePartPhase(inum_runs))) then
-                        tSearchTau = .false.
-                    endif
-                    if (tSpecifiedTau) then
-                        write (stdout, *) "time-step specified in input file!"
-                    else
-                        Tau = read_tau
-                        write (stdout, "(A)") "Using timestep specified in POPSFILE!"
-                    end if
-                    if (tSearchTau .or. t_hist_tau_search) then
-                        write (stdout, "(A)") "But continuing to dynamically adjust to optimise this"
-                    end if
-                    write (stdout, "(A,F12.8)") " used time-step: ", tau
+                which_tau_to_use: if (tau_start_val == possible_tau_start%from_popsfile) then
+                    call assign_value_to_tau(clamp(read_tau, min_tau, max_tau), 'Initialization from popsfile.')
 
                     ! If we have been searching for tau, we may have been searching
                     ! for psingles (it is done at the same time).
@@ -1231,49 +1222,9 @@ contains
                             write (stdout, "(A,F12.8)") " pParallel: ", pParallel
                         end if
                     end if
+                end if which_tau_to_use
 
-                else if (t_keep_tau_fixed) then
-                    if (tSpecifiedTau) then
-                        write (stdout, *) "time-step specified in input file!"
-                    else
-                        write (stdout, "(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
-                        write (stdout, *) "Timestep is tau=", tau
-                        tau = read_tau
-                    end if
-                    if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
-                        write (stdout, *) "using pSingles/pDoubles specified in input file!"
-                    else
-                        if (abs(read_psingles) > 1.0e-12_dp) then
-                            pSingles = read_psingles
-                            if (.not. tReltvy) then
-                                pDoubles = 1.0_dp - pSingles
-                            end if
-                            write (stdout, "(A)") "Using pSingles and pDoubles from POPSFILE: "
-                            write (stdout, "(A,F12.8)") " pSingles: ", pSingles
-                            write (stdout, "(A,F12.8)") " pDoubles: ", pDoubles
 
-                        end if
-                    end if
-
-                    if (allocated(pParallelIn)) then
-                        write (stdout, "(A)") "Using pParallel specified in input file!"
-                    else
-                        if (.not. near_zero(read_pparallel)) then
-                            pParallel = read_pparallel
-                            write (stdout, "(A)") "Using pParallel from POPSFILE: "
-                            write (stdout, "(A,F12.8)") " pParallel: ", pParallel
-                        end if
-                    end if
-                else
-                    !Tau specified. if it is different, write this here.
-                    if (abs(read_tau - Tau) > 1.0e-5_dp) then
-                        call warning_neci(this_routine, "Timestep specified in input file is different to that in the popsfile.")
-
-                        write (stdout, "(A,F12.8)") "Old timestep: ", read_tau
-                        write (stdout, "(A,F12.8)") "New timestep: ", tau
-
-                    endif
-                endif
                 if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
                     write (stdout, *) "using pSingles/pDoubles specified in input file!"
                 else
@@ -1286,6 +1237,7 @@ contains
                         write (stdout, *) "Using read-in pDoubles=", pDoubles
                     end if
                 end if
+
                 tReadPTriples = .false.
                 if (allocated(pTriplesIn)) then
                     write (stdout, "(A)") "Using pTriples specified in input file!"
@@ -1386,7 +1338,6 @@ contains
         real(dp) :: PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
-        logical :: PopPreviousHistTau
         integer :: PopAccumPopsCounter
         character(*), parameter :: this_routine = 'ReadPopsHeadv4'
         ! need dummy read-in variable, since we start from a converged real
@@ -1404,7 +1355,7 @@ contains
             PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
             PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
             PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
-            PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms, &
+            tPopAutoAdaptiveShift, tPopScaleBlooms, &
             tPopAccumPops, PopAccumPopsCounter
 
 
@@ -1422,7 +1373,6 @@ contains
 
         PopBalanceBlocks = -1
         PopNNodes = 0
-        PopPreviousHistTau = .false.
         tPopAutoAdaptiveShift = .false.
         tPopScaleBlooms = .false.
         tPopAccumPops = .false.
@@ -1486,7 +1436,6 @@ contains
         call MPIBcast(PopMaxDeathCpt)
         call MPIBcast(PopRandomHash)
         call MPIBcast(PopBalanceBlocks)
-        call MPIBCast(PopPreviousHistTau)
         call MPIBCast(tPopAutoAdaptiveShift)
         call MPIBCast(tPopScaleBlooms)
         call MPIBCast(tPopAccumPops)
@@ -1510,37 +1459,6 @@ contains
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
 
-        ! this is written if multiple replicas are used -> read it also in these cases
-        ! [Werner Dobrautz 5.5.2017:]
-        ! turn off the histogramming and the default old tau-search if
-        ! the run is continued from a run, where the histogramming tau-search
-        ! was already performed!
-        if (.not. t_restart_hist_tau) then
-            t_previous_hist_tau = PopPreviousHistTau
-
-            if (t_previous_hist_tau) then
-                Write (stdout, *) "Turning OFF the tau-search, since continued run!"
-                ! can i turn off the tau-seach here?
-                ! try it:
-                tSearchTau = .false.
-                tSearchTauOption = .false.
-
-                ! if histogramming tau-search was used, also deallocate the
-                ! histograms!
-                if (t_hist_tau_search) then
-                    call deallocate_histograms()
-                    t_hist_tau_search = .false.
-                    t_fill_frequency_hists = .false.
-
-                    ! i still want to do the death tau search.. so enable
-                    ! this:
-                    t_hist_tau_search_option = .true.
-                    ! but i do not want to print the frq_hists, since there
-                    ! is nothing to print..
-                    t_print_frq_histograms = .false.
-                end if
-            end if
-        end if
 
         ! in output generation, these fields are used when tMultiReplicas is set, so this should be
         ! used here, too (not tReplicaReferencesDiffer), given that the number of runs did not
@@ -1575,16 +1493,16 @@ contains
         call MPIBCast(PopSumNoatHF_out)
 
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
-        gamma_sing = PopGammaSing
-        gamma_doub = PopGammaDoub
-        gamma_trip = PopGammaTrip
+        tau_search_stats%gamma_sing = PopGammaSing
+        tau_search_stats%gamma_doub = PopGammaDoub
+        tau_search_stats%gamma_trip = PopGammaTrip
         if (tReltvy) then
-            gamma_sing_spindiff1 = PopGammaSing_spindiff1
-            gamma_doub_spindiff1 = PopGammaDoub_spindiff1
-            gamma_doub_spindiff2 = PopGammaDoub_spindiff2
+            tau_search_stats%gamma_sing_spindiff1 = PopGammaSing_spindiff1
+            tau_search_stats%gamma_doub_spindiff1 = PopGammaDoub_spindiff1
+            tau_search_stats%gamma_doub_spindiff2 = PopGammaDoub_spindiff2
         endif
-        gamma_opp = PopGammaOpp
-        gamma_par = PopGammaPar
+        tau_search_stats%gamma_opp = PopGammaOpp
+        tau_search_stats%gamma_par = PopGammaPar
         max_death_cpt = PopMaxDeathCpt
 
     end subroutine ReadPopsHeadv4
@@ -1753,7 +1671,7 @@ contains
 
         CALL MPIBarrier(error)  !sync
 !        write(stdout,*) "Get Here",nDets
-!        CALL neci_flush(6)
+!        CALL neci_flush(stdout)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers
 ! ,AllSumNoatHF and AllSumENum...
@@ -2084,15 +2002,15 @@ contains
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.
-        write (iunit, '(6(a,g18.12))') 'PopGammaSing=', gamma_sing, &
-            ',PopGammaDoub=', gamma_doub, &
-            ',PopGammaTrip=', gamma_trip, &
-            ',PopGammaOpp=', gamma_opp, &
-            ',PopGammaPar=', gamma_par, &
+        write (iunit, '(6(a,g18.12))') 'PopGammaSing=', tau_search_stats%gamma_sing, &
+            ',PopGammaDoub=', tau_search_stats%gamma_doub, &
+            ',PopGammaTrip=', tau_search_stats%gamma_trip, &
+            ',PopGammaOpp=', tau_search_stats%gamma_opp, &
+            ',PopGammaPar=', tau_search_stats%gamma_par, &
             ',PopMaxDeathCpt=', max_death_cpt
-        write (iunit, '(5(a,g18.12))') ',PopGammaSing_spindiff1=', gamma_sing_spindiff1, &
-            ',PopGammaDoub_spindiff1=', gamma_doub_spindiff1, &
-            ',PopGammaDoub_spindiff2=', gamma_doub_spindiff2
+        write (iunit, '(5(a,g18.12))') ',PopGammaSing_spindiff1=', tau_search_stats%gamma_sing_spindiff1, &
+            ',PopGammaDoub_spindiff1=', tau_search_stats%gamma_doub_spindiff1, &
+            ',PopGammaDoub_spindiff2=', tau_search_stats%gamma_doub_spindiff2
 
         if (tLoadBalanceBlocks) &
             write (iunit, '(a,i7)') 'PopBalanceBlocks=', balance_blocks
@@ -2107,21 +2025,6 @@ contains
             write (iunit, *)
         end if
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! in case of a histogramming tau-search and if the
-        ! histograms have been filled already, indicate that in the
-        ! POPSFILEHeader so that in a continued run neither of the
-        ! old or new tau-search is performed, except forced in the input
-        ! with the restart-hist-tau-search keyword:
-        ! intermediate: always print that to test if the restart works!
-!         if (t_hist_tau_search .and. (.not. t_fill_frequency_hists)) then
-        ! i also have to continue the writing of this flag, if i continue
-        ! runs more than once!
-        ! i have to use the keyword _option or?
-        ! since the other gets turned off if the histograms are full?
-        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
-            write (iunit, *) "PopPreviousHistTau=", .true.
-        end if
         ! add information about the global data stored in the popsfile:
         ! is auto-adaptive shift data available?
         write (iunit, *) "tPopAutoAdaptiveShift=", tAutoAdaptiveShift
@@ -2219,7 +2122,7 @@ contains
                     hf_helemt_trans = 0.0_dp
 
                     if (tGUGA) then
-                        ASSERT(.not. t_non_hermitian)
+                        ASSERT(.not. t_non_hermitian_2_body)
                         call calc_guga_matrix_element(&
                                 det, CSF_Info_t(det), iLutRef(:, 1), CSF_Info_t(iLutRef(:, 1)), &
                                 excitInfo, hf_helemt, .true.)
@@ -2232,7 +2135,7 @@ contains
                                 hf_helemt = hphf_off_diag_helement(ProjEDet(:, 1), &
                                                                    nI, iLutRef(:, 1), det)
 
-                                if (t_non_hermitian) then
+                                if (t_non_hermitian_2_body) then
                                     hf_helemt_trans = hphf_off_diag_helement(nI, &
                                                                              ProjEDet(:, 1), det, iLutRef(:, 1))
 
@@ -2241,14 +2144,14 @@ contains
                                 if (t_lattice_model) then
                                     hf_helemt = get_helement_lattice(ProjEDet(:, 1), &
                                                                      nI, ex_level)
-                                    if (t_non_hermitian) then
+                                    if (t_non_hermitian_2_body) then
                                         hf_helemt_trans = get_helement_lattice(nI, &
                                                                                ProjEDet(:, 1), ex_level)
                                     end if
                                 else
                                     hf_helemt = get_helement(ProjEDet(:, 1), nI, &
                                                              ex_level, iLutRef(:, 1), det)
-                                    if (t_non_hermitian) then
+                                    if (t_non_hermitian_2_body) then
                                         hf_helemt_trans = get_helement(nI, ProjEDet(:, 1), &
                                                                        ex_level, det, iLutRef(:, 1))
                                     end if
@@ -2286,7 +2189,7 @@ contains
                     endif
 
                     call writebitdet(iunit_2, det, .false.)
-                    if (t_non_hermitian) then
+                    if (t_non_hermitian_2_body) then
                         write (iunit_2, '(i5,i5,3f20.10,4i5)') &
                             ex_level, nopen, detenergy, hf_helemt, &
                             hf_helemt_trans, ex(1, 1), ex(1, 2), ex(2, 1), ex(2, 2)
@@ -2749,7 +2652,7 @@ contains
         write (stdout, "(A,F14.6,A)") " Initial memory (without excitgens) consists of : ", REAL(MemoryAlloc, dp) / 1048576.0_dp, " Mb"
         write (stdout, *) "Initial memory allocation successful..."
         write (stdout, *) "Excitgens will be regenerated when they are needed..."
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
 
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here

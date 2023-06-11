@@ -4,7 +4,7 @@
 module guga_matrixElements
     use SystemData, only: nEl, nBasis, ECore, t_tJ_model, t_heisenberg_model, t_new_hubbard, &
         t_new_real_space_hubbard, treal, nSpatOrbs, t_mixed_hubbard, ElecPairs, &
-        is_init_guga
+        is_init_guga, tStoquastize
     use constants, only: dp, n_int, hel_zero, int_rdm, bn2_, Root2
     use bit_reps, only: decode_bit_det
     use OneEInts, only: GetTMatEl
@@ -13,7 +13,7 @@ module guga_matrixElements
         convert_ilut_toGUGA, identify_excitation, findFirstSwitch, findLastSwitch, &
         calcb_vector_ilut, count_open_orbs_ij
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
-    use util_mod, only: binary_search, operator(.isclose.), stop_all, near_zero, operator(.div.)
+    use util_mod, only: binary_search_ilut, operator(.isclose.), stop_all, near_zero, operator(.div.)
     use guga_data, only: projE_replica, ExcitationInformation_t, excit_type, gen_type
 
     use guga_data, only: funA_0_2overR2, minFunA_2_0_overR2, funA_2_0_overR2, &
@@ -318,6 +318,8 @@ contains
             call stop_all(this_routine, "unexpected excitation type")
 
         end select
+
+        if (tStoquastize) mat_ele = -abs(mat_ele)
 
         if (t_matele_cutoff .and. abs(mat_ele) < matele_cutoff) mat_ele = h_cast(0.0_dp)
 
@@ -2359,7 +2361,8 @@ contains
         type(WeightObj_t) :: weights
         logical :: below_flag
         integer(int_rdm), allocatable :: tmp_rdm_ind(:)
-        real(dp), allocatable :: tmp_rdm_mat(:), temp_int
+        real(dp), allocatable :: tmp_rdm_mat(:)
+        HElement_t(dp), allocatable :: temp_int
         integer :: rdm_count, max_num_rdm
         logical :: rdm_flag, test_skip
 

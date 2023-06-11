@@ -6,13 +6,12 @@ module Integrals_neci
                           tRIIntegrals, tVASP, tComplexOrbs_RealInts, NEl, LMS, &
                           ECore, t_new_real_space_hubbard, t_trans_corr_hop, &
                           t_new_hubbard, t_k_space_hubbard, t_mol_3_body, &
-                          tContact, t12FoldSym
+                          tContact, t12FoldSym, t_tJ_model, t_heisenberg_model
+
 
     use UmatCache, only: tUmat2D, UMatInd, UMat2Ind, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts, setup_UMatInd
-
-    use vasp_neci_interface
 
     use IntegralsData
 
@@ -33,13 +32,11 @@ module Integrals_neci
 
     use constants
 
-    use tJ_model, only: t_tJ_model, t_heisenberg_model
-
     use sym_mod, only: symProd, symConj, totsymrep
 
     USE OneEInts, only: TMAT2D
 
-    use util_mod, only: get_free_unit, stop_all
+    use util_mod, only: get_free_unit, stop_all, neci_flush
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 
@@ -54,6 +51,18 @@ module Integrals_neci
     use input_parser_mod, only: FileReader_t, TokenIterator_t
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_realsp, to_realdp
+
+    use cpmdinit_mod, only: cpmdinit2indint
+
+    use gen_coul_mod, only: gen_coul
+
+    use init_coul_mod, only: initfou
+
+    use init_coul2D_mod, only: initfou2d
+
+    use hubbard_mod, only: calcumathubreal, write_kspace_umat, calctmathub
+
+    use Determinants, only: detfreezebasis, writebasis
     implicit none
 
 contains
@@ -374,6 +383,21 @@ contains
             case ("POSTFREEZEHF")
                 tPostFreezeHF = .true.
 
+            case("TCHINT-LIB")
+                t_use_tchint_lib = .true.
+                if (tokens%remaining_items() > 0) then
+                    tchint_mode = to_upper(tokens%next())
+                else
+                    tchint_mode = "PC"
+                end if
+
+            case ("NO-HASH-LMAT-CALC")
+                t_hash_lmat_calc = .false.
+
+            case ("RS-FACTORS")
+                ! read the range-separated factors instead of a TCDUMP file
+                t_rs_factors = .true.
+
             case ("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file
                 tHDF5LMat = .true.
@@ -521,7 +545,7 @@ contains
             write(stdout, *) "UMatSize: ", UMATINT
             UMatMem = REAL(UMatInt, dp) * REAL(HElement_t_sizeB, dp) * (9.536743164e-7_dp)
             write(stdout, "(A,G20.10,A)") "Memory required for integral storage: ", UMatMem, " Mb/Shared Memory"
-            call neci_flush(6)
+            call neci_flush(stdout)
             call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
             !allocate(UMat(UMatInt), stat=ierr)
             LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
@@ -796,7 +820,7 @@ contains
 
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
           CALL IntFREEZEBASIS(NHG, NBASIS, UMAT, UMAT2, ECORE, G1, NBASISMAX, ISPINSKIP, BRR, NFROZEN, NTFROZEN, NFROZENIN, NTFROZENIN, NEL)
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
             write(stdout, *) "ECORE now", ECORE
             write(stdout, *) "Number of orbitals remaining: ", NBASIS
             nel_pre_freezing = nel
@@ -819,7 +843,7 @@ contains
             tagUMat = tagUMat2
             tagUMat2 = 0
             call setup_UMatInd()
-            CALL WRITEBASIS(6, G1, NHG, ARR, BRR)
+            CALL writebasis(stdout, G1, NHG, ARR, BRR)
         end if
 
         ! Setup the umatel pointers as well
@@ -1205,7 +1229,7 @@ contains
                         ELSE
                             IF(IPB == 0 .or. JPB == 0) THEN
 !                           write(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
-!                           CALL neci_flush(6)
+!                           CALL neci_flush(stdout)
 !                           CALL Stop_All("","here 01")
                             end if
                             if(tOneElecDiag) then
@@ -1363,7 +1387,7 @@ contains
                             ELSE
 !                         IF(IPB.eq.0.or.JPB.eq.0) THEN
 !                              write(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
-!                              CALL neci_flush(6)
+!                              CALL neci_flush(stdout)
 !                              CALL Stop_All("","here 01")
 !                         end if
                                 if(tOneElecDiag) then
@@ -1417,8 +1441,8 @@ contains
                             call stop_all("IntFreezeBasis","Not implemented for tCPMD")
                         ELSE
 !                          IF(IPB.eq.0.or.JPB.eq.0) THEN
-!                               WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
-!                               CALL neci_flush(6)
+!                               WRITE(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+!                               CALL neci_flush(stdout)
 !                               CALL Stop_All("","here 01")
 !                          ENDIF
                            if(tOneElecDiag) then
@@ -1427,7 +1451,7 @@ contains
                               OneEFieldInts2(IPB,JPB,:)=OneEFieldInts(IB,JB,:)
                            endif
                         ENDIF
-!              WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
+!              WRITE(stdout,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
 !           IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) WRITE(16,*) I,J,TMAT2(IPB,JPB)
                      ENDDO
                  ENDDO
@@ -1876,10 +1900,13 @@ contains
     subroutine DumpFCIDUMP()
         use SystemData, only: G1, nBasis, nel
         integer :: i, j, k, l, iunit
-        character(len=*), parameter :: t_r = 'DumpFCIDUMP'
+        character(len=*), parameter :: this_routine = 'DumpFCIDUMP'
+        character(*), parameter :: formatter = "(F21.12,6I3)"
 
-        if(tStoreSpinOrbs) call stop_all(t_r, 'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
-        if(tFixLz) call stop_all(t_r, 'Dumping FCIDUMP not working with Lz')
+        ASSERT(nBasis / 2 <= 999) ! Otherwise the formatters have to be adapted
+
+        if(tStoreSpinOrbs) call stop_all(this_routine, 'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
+        if(tFixLz) call stop_all(this_routine, 'Dumping FCIDUMP not working with Lz')
 
         iunit = get_free_unit()
         open(iunit, file='FCIDUMP-NECI', status='unknown')
@@ -1897,7 +1924,7 @@ contains
                 do j = 2, nBasis, 2
                     do l = 2, j, 2
                         if((abs(real(umat(umatind(i / 2, j / 2, k / 2, l / 2)), dp))) > 1.0e-9_dp) then
-                            write(iunit, '(F21.12,4I3)') REAL(UMat(UMatInd(i / 2, j / 2, k / 2, l / 2)), dp), i / 2, k / 2, j / 2, l / 2
+                            write(iunit, formatter) REAL(UMat(UMatInd(i / 2, j / 2, k / 2, l / 2)), dp), i / 2, k / 2, j / 2, l / 2
                         end if
                     end do
                 end do
@@ -1907,12 +1934,12 @@ contains
         do i = 2, nBasis, 2
             do j = 2, i, 2
                 if(abs(real(tmat2d(i, j), dp)) > 1.0e-9_dp) then
-                    write(iunit, '(F21.12,4I3)') REAL(TMAT2D(i, j), dp), i / 2, j / 2, 0, 0
+                    write(iunit, formatter) REAL(TMAT2D(i, j), dp), i / 2, j / 2, 0, 0
                 end if
             end do
         end do
 
-        write(iunit, '(F21.12,4I3)') ECore, 0, 0, 0, 0
+        write(iunit, formatter) ECore, 0, 0, 0, 0
         call neci_flush(iunit)
         close(iunit)
 

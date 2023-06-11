@@ -12,14 +12,14 @@ module guga_bitRepOps
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
                          excit_names
-    use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64
+    use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64, stdout
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
                          CountBits, DetBitEQ
     use bit_rep_data, only: test_flag, flag_deltaB_single, IlutBits, &
                             flag_deltaB_double, flag_deltaB_sign, niftot, &
                             nIfGUGA, nIfd, BitRep_t, GugaBits
-    use util_mod, only: binary_search, binary_search_custom, operator(.div.), &
+    use util_mod, only: binary_search_ilut, binary_search_custom, operator(.div.), &
                         near_zero, stop_all, operator(.isclose.)
 
     use sort_mod, only: sort
@@ -1932,7 +1932,7 @@ contains
 
         do i = 1, nDets2
 
-            pos = binary_search(list1(0:nifd, min_ind:ndets1), list2(0:nifd, i))
+            pos = binary_search_ilut(list1(0:nifd, min_ind:ndets1), list2(0:nifd, i))
             if (pos > 0) then
                 ! try new implementation of that without the need of an extra
                 ! output list
@@ -2450,7 +2450,7 @@ contains
         integer, intent(in) :: spin, num_el
         logical :: flag
 
-        flag = (all(calcB_vector_int(ilut(0:GugaBits%len_orb)) > 0) &
+        flag = (all(calcB_vector_int(ilut(0:GugaBits%len_orb)) >= 0) &
             .and. (abs(return_ms(ilut, num_el)) == spin) &
             .and. (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) == num_el))
 
@@ -2483,7 +2483,7 @@ contains
             if (abs(return_ms(ilut)) /= STOT) then
                 if (t_print) then
                     print *, "CSF does not have correct total spin!:"
-                    call write_det_guga(6, ilut)
+                    call write_det_guga(stdout, ilut)
                     print *, "System S: ", STOT
                     print *, "CSF S: ", abs(return_ms(ilut))
                 end if
@@ -2493,7 +2493,7 @@ contains
             if (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) /= nEl) then
                 if (t_print) then
                     print *, "CSF does not have right number of electrons!:"
-                    call write_det_guga(6, ilut)
+                    call write_det_guga(stdout, ilut)
                     print *, "System electrons: ", nEl
                     print *, "CSF electrons: ", &
                         int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb))))

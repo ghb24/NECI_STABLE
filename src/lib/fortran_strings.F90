@@ -6,7 +6,8 @@ module fortran_strings
     save
     private
     public :: str, to_lower, to_upper, operator(.in.), split, Token_t, &
-        count_char, join, to_int, to_int32, to_int64, to_realsp, to_realdp
+        count_char, join, to_int, to_int32, to_int64, to_realsp, to_realdp, &
+        can_be_real, can_be_int
 
 !>  @brief
 !>    Convert to Fortran string
@@ -18,7 +19,7 @@ module fortran_strings
 !>
 !>  @param[in] An int32 or int64.
     interface str
-        module procedure int32_to_str, int64_to_str
+        module procedure int32_to_str, int64_to_str, realsp_to_str, realdp_to_str, bool_to_str
     end interface
 
     interface operator(.in.)
@@ -61,15 +62,40 @@ contains
         str = trim(tmp)
     end function
 
+    pure function realdp_to_str(x, after_comma) result(res)
+        real(dp), intent(in) :: x
+        integer, intent(in) :: after_comma
+        character(100) :: tmp
+        character(:), allocatable :: res
+        write(tmp, '(e100.'//str(after_comma)//')') x
+        res = trim(adjustl(tmp))
+    end function
+
+    pure function realsp_to_str(x, after_comma) result(res)
+        real(sp), intent(in) :: x
+        integer, intent(in) :: after_comma
+        character(:), allocatable :: res
+        res = str(real(x, dp), after_comma)
+    end function
+
+    pure function bool_to_str(cond) result(res)
+        logical, intent(in) :: cond
+        character(:), allocatable :: res
+        if (cond) then
+            res = "true"
+        else
+            res = "false"
+        end if
+    end function
+
 
     !> Changes a string to upper case
-    pure function to_upper (in_str) result (string)
+    pure function to_upper(in_str) result(string)
         character(*), intent(in) :: in_str
-        character(len(in_str)) :: string
-        integer :: ic, i, L
+        character(len_trim(in_str)) :: string
+        integer :: ic, i
 
-        L = len_trim(in_str)
-        do i = 1, L
+        do i = 1, len(string)
             ic = index(lowercase_chars, in_str(i:i))
             if (ic > 0) then
                 string(i:i) = UPPERCASE_chars(ic:ic)
@@ -77,17 +103,15 @@ contains
                 string(i:i) = in_str(i:i)
             end if
         end do
-        string(L + 1: ) = ' '
     end function to_upper
 
     !> Changes a string to lower case
-    pure function to_lower (in_str) result (string)
+    pure function to_lower (in_str) result(string)
         character(*), intent(in) :: in_str
-        character(len(in_str)) :: string
-        integer :: ic, i, L
+        character(len_trim(in_str)) :: string
+        integer :: ic, i
 
-        L = len_trim(in_str)
-        do i = 1, L
+        do i = 1, len(string)
             ic = index(UPPERCASE_chars, in_str(i:i))
             if (ic > 0) then
                 string(i:i) = lowercase_chars(ic:ic)
@@ -95,7 +119,6 @@ contains
                 string(i:i) = in_str(i:i)
             end if
         end do
-        string(L + 1: ) = ' '
     end function to_lower
 
     logical pure function contains(substring, string)
@@ -190,6 +213,22 @@ contains
     real(dp) elemental function to_realdp(str)
         character(*), intent(in) :: str
         read(unit=str, fmt=*) to_realdp
+    end function
+
+    logical elemental function can_be_real(str)
+        character(*), intent(in) :: str
+        integer :: err
+        real(dp) :: rtmp
+        read(unit=str, iostat=err, fmt=*) rtmp
+        can_be_real = err == 0
+    end function
+
+    logical elemental function can_be_int(str)
+        character(*), intent(in) :: str
+        integer :: itmp, err
+        read(unit=str, iostat=err, fmt=*) itmp
+        ! Some compilers parse 5.2 -> 5
+        can_be_int = err == 0 .and. .not. ('.' .in. str)
     end function
 
     logical elemental function eq_Token_t(this, other)

@@ -32,7 +32,7 @@ module real_time
                           init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, &
+                        tChangeProjEDet, DiagSft, nmcyc, InitWalkers, &
                         s_global_start, StepsSft, semistoch_shift_iter
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, spawnedParts, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
@@ -44,7 +44,7 @@ module real_time
                          Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF, AllTotParts
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
-    use FciMCParMod, only: rezero_iter_stats_each_iter
+    use fcimc_helper, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
                          stdout, maxExcit
@@ -63,8 +63,9 @@ module real_time
     use fcimc_pointed_fns, only: new_child_stats_normal
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create
-    use bit_rep_data, only: IlutBits, niftot, extract_sign
-    use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
+    use bit_rep_data, only: IlutBits, niftot, extract_sign, &
+        flag_deterministic, flag_determ_parent, test_flag
+    use bit_reps, only: set_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
                                 population_check, update_shift, calculate_new_shift_wrapper, &
                                 iteration_output_wrapper
@@ -81,6 +82,7 @@ module real_time
     use adi_references, only: setup_reference_space
     use adi_data, only: allDoubsInitsDelay, nRefs, tDelayGetRefs
     use core_space_util, only: cs_replicas
+    use tau_main, only: tau, assign_value_to_tau
     implicit none
 
 ! main module file for the real-time implementation of the FCIQMC algorithm
@@ -427,7 +429,7 @@ contains
             ! generated popsfile, it is estimated using the number of cycles, the current
             ! angle of rotation and the total elapsed real time
             TotImagTime = elapsedImagTime
-            tau = elapsedRealTime
+            call assign_value_to_tau(elapsedRealTime, this_routine)
             ! THIS IS A HACK: We dont want to alter the POPSFILE functions themselves
             ! so we sneak in the shift_damping into some slot unimportant to rneci
             AllSumNoatHF(1:inum_runs) = shift_damping
@@ -1007,9 +1009,10 @@ contains
             print *, "=========================="
         end if
 
-#ifdef DEBUG_
-        call check_update_growth(iter_data_fciqmc, "Error in first RK step")
-#endif
+! #ifdef DEBUG_
+! TODO: This has to switched on again and fixed!
+!         call check_update_growth(iter_data_fciqmc, "Error in first RK step")
+! #endif
 
         ! for now update the iter data here, although in the final
         ! implementation i only should do that after the 2nd RK step

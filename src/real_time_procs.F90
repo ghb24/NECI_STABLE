@@ -26,19 +26,18 @@ module real_time_procs
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, stdout, null_part, &
                          sizeof_int, MPIArg
-    use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
-                        set_flag, encode_bit_rep, extract_bit_rep, &
-                        flag_deterministic, encode_part_sign, &
-                        get_initiator_flag, get_initiator_flag_by_run, &
-                        clr_flag, test_flag_multi
+    use bit_rep_data, only: test_flag, flag_deterministic, &
+                        test_flag_multi, extract_sign, nifd, niftot, IlutBits
+    use bit_reps, only: decode_bit_det, encode_bit_rep, encode_sign, &
+        get_initiator_flag_by_run, set_flag, extract_bit_rep, &
+        clr_flag
     use util_mod, only: get_free_unit, get_unique_filename, near_zero, &
                         operator(.isclose.)
-    use bit_rep_data, only: extract_sign, nifd, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
                          iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &
                          InitialSpawnedSlots, iLutRef, inum_runs, max_cyc_spawn, core_run, &
-                         tSearchTau, tFillingStochRDMonFly, fcimc_iter_data, &
+                         tFillingStochRDMonFly, fcimc_iter_data, &
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
@@ -46,15 +45,17 @@ module real_time_procs
     use core_space_util, only: cs_replicas
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
                              init_perturbation_annihilation, apply_perturbation_array
-    use util_mod, only: int_fmt
+    use util_mod, only: int_fmt, stop_all, neci_flush
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
-                        tRealSpawnCutoff, RealSpawnCutoff, tau, RealCoeffExcitThresh, &
+                        tRealSpawnCutoff, RealSpawnCutoff, RealCoeffExcitThresh, &
                         DiagSft, tTruncInitiator, OccupiedThresh, tReadPops, InitiatorWalkNo, &
                         tSpinProject
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
-    use tau_search, only: log_spawn_magnitude
+    use tau_main, only: tau_search_method, possible_tau_search_methods, t_scale_tau_to_death, &
+        tau, assign_value_to_tau
+    use tau_search_conventional, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use global_det_data, only: global_determinant_data
 ! RT_M_Merge: Disabled rdms
@@ -400,7 +401,7 @@ contains
         if (abs(real_time_info%damping) < EPS .and. .not. t_rotated_time) then
             if (any(fac > 1.0_dp)) then
                 if (any(fac > 2.0_dp)) then
-                    if (tSearchTau) then
+                    if ((tau_search_method /= possible_tau_search_methods%OFF) .or. t_scale_tau_to_death) then
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
@@ -477,7 +478,7 @@ contains
             ! and also about the fac restrictions.. for now but it here anyway..
             if (any(fac > 1.0_dp)) then
                 if (any(fac > 2.0_dp)) then
-                    if (tSearchTau) then
+                    if ((tau_search_method /= possible_tau_search_methods%OFF) .or. t_scale_tau_to_death) then
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
@@ -764,8 +765,9 @@ contains
 
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+            if ((tau_search_method == possible_tau_search_methods%CONVENTIONAL) .and. (.not. tFillingStochRDMonFly)) then
                 call log_spawn_magnitude(ic, ex, matel, prob)
+            end if
 
             ! Keep track of the biggest spawn this cycle
             max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)
@@ -838,8 +840,9 @@ contains
 
                 ! n.b. if we ever end up with |walkerweight| /= 1, then this
                 !      will need to ffed further through.
-                if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+                if ((tau_search_method == possible_tau_search_methods%CONVENTIONAL) .and. (.not. tFillingStochRDMonFly)) then
                     call log_spawn_magnitude(ic, ex, matel, prob)
+                end if
 
                 ! Keep track of the biggest spawn this cycle
                 max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)
@@ -1063,7 +1066,7 @@ contains
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
         write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
-        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
             write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
@@ -1750,7 +1753,7 @@ contains
 
         ! the logging and reading are done before iter is updated
         real_time_info%time_angle = alphaCache(iter + 1)
-        tau = tauCache(iter + 1)
+        call assign_value_to_tau(tauCache(iter + 1), 'Update from cache.')
     end subroutine get_current_alpha_from_cache
 
 !------------------------------------------------------------------------------------------!

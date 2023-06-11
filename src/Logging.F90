@@ -37,6 +37,8 @@ MODULE Logging
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
 
+    use util_mod, only: stop_all
+
     IMPLICIT NONE
 
     logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp
@@ -248,6 +250,20 @@ contains
         logging: do while (file_reader%nextline(tokens, skip_empty=.true.))
             w = to_upper(tokens%next())
             select case (w)
+
+            case('CI-COEFFICIENTS')
+                ! collects ci coefficients of the wave function up to 3rd excitation level over a number of iter
+                t_store_ci_coeff = .true.
+                if (tokens%remaining_items() > 0) then
+                    n_iter_ci_coeff = to_int(tokens%next())
+                end if
+                if (tokens%remaining_items() > 0) then
+                    n_store_ci_level = to_int(tokens%next())
+                end if
+
+            case ("PRINT-HDF5-RDMS")
+                ! output density matrices as HDF5 files
+                t_print_hdf5_rdms = .true.
 
             case ("PRINT-MOLCAS-RDMS")
                 ! output density matrices also in Molcas format in the GUGA RDM

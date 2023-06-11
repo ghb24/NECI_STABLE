@@ -17,11 +17,11 @@ pipelines:
       - mkdir build
       - cd build
       - echo "building release version"
-      - cmake ..
+      - cmake -DENABLE_HDF5=OFF -DCMAKE_BUILD_TYPE=FastDebug ..
       - make -j neci test_neci
       - echo "done building release version"
       - echo "running unit tests"
-      - ctest --tests-regex 'test_neci_.*' -j
+      - ctest --allow-run-as-root --output-on-failure --tests-regex 'test_neci_.*' -j
       - echo "unit tests passed"
 
  branches:
@@ -35,11 +35,11 @@ pipelines:
         - mkdir build
         - cd build
         - echo "building release version"
-        - cmake ..
+        - cmake -DENABLE_HDF5=OFF ..
         - make -j
         - echo "done building release version"
         - echo "running unit tests"
-        - ctest -j
+        - ctest --allow-run-as-root --output-on-failure -j
         - echo "unit tests passed"
         # - echo "running limited test_suite(to save build-minutes)"
         # - useradd temp
@@ -55,11 +55,11 @@ pipelines:
         - mkdir build
         - cd build
         - echo "building release version"
-        - cmake ..
+        - cmake -DENABLE_HDF5=OFF ..
         - make -j
         - echo "done building release version"
         - echo "running unit tests"
-        - ctest -j
+        - ctest --allow-run-as-root --output-on-failure -j
         - echo "unit tests passed"
         # - echo "running limited test_suite(to save build-minutes)"
         # - useradd temp
@@ -78,14 +78,13 @@ pipelines:
       - mkdir build
       - cd build
       - echo "building release version"
-      - cmake ..
+      - cmake -DENABLE_HDF5=OFF ..
       - make -j
       - echo "done building release version"
       - echo "running unit tests"
-      - ctest -j
+      - ctest --allow-run-as-root --output-on-failure -j
       - echo "unit tests passed"
       - echo "running limited test_suite(to save build-minutes)"
       - useradd temp
       - cd ../test_suite
       - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
-

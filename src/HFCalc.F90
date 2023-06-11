@@ -1,6 +1,17 @@
 #include "macros.h"
 MODULE HFCalc
     use constants, only: dp, int64, MPIArg
+    use util_mod, only: stop_all, neci_flush
+    use Determinants, only: nUHFDet, writebasis
+    Use DeterminantData, only: FDet, write_det
+
+    use hfbasis_mod, only: readhftmat
+#ifndef CMPLX_
+    use hfbasis_mod, only: setuphfbasis, calchfbasis, readhfumat, calchfbasis, orderbasishf, calchfumat, calchftmat, &
+        readhfbasis
+#endif
+
+
     implicit none
     save
 contains
@@ -12,7 +23,6 @@ contains
         use SystemData, only: tCPMD, tHFOrder, nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS
         use SystemData, only: tHub, lmsbasis
         Use LoggingData, only: iLogging
-        Use Determinants, only: FDet, nUHFDet, write_det
         use IntegralsData, only: UMat, tagUMat, umat_win
         Use UMatCache, only: GetUMatSize
         Use OneEInts, only: TMat2D, TMat2D2, SetupTMat2, DestroyTMat
@@ -50,23 +60,35 @@ contains
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
 !C.. re-order the orbitals and give us some energy)
 !C.. HF basis is NOT using the LMS value set in the input
+#ifdef CMPLX_
+                call stop_all(this_routine, "not implemented for complex")
+#else
                 CALL CALCHFBASIS(NBASIS, NBASISMAX, G1, BRR, ECORE, UMAT, HFE, HFBASIS, 1, NEL, LMSBASIS, 1.0_dp, HFEDELTA, &
                                  HFCDELTA, .TRUE., 0, TREADHF, 0.0_dp, FDET, ILOGGING)
                 CALL ORDERBASISHF(ARR, BRR, HFE, HFBASIS, NBASIS, FDET, NEL)
+#endif
             else if (THFCALC) THEN
+#ifdef CMPLX_
+                call stop_all(this_routine, "not implemented for complex")
+#else
                 CALL CALCHFBASIS(NBASIS, NBASISMAX, G1, BRR, ECORE, UMAT, HFE, HFBASIS, NHFIT, NEL, LMS, HFMIX, HFEDELTA, &
                                  HFCDELTA, TRHF, IHFMETHOD, TREADHF, HFRAND, FDET, ILOGGING)
                 CALL SETUPHFBASIS(NBASISMAX, G1, NBASIS, HFE, ARR, BRR)
+#endif
             else if (THFBASIS) THEN
+#ifdef CMPLX_
+                call stop_all(this_routine, "not implemented for complex")
+#else
                 CALL READHFBASIS(HFBASIS, HFE, G1, NBASIS)
                 CALL SETUPHFBASIS(NBASISMAX, G1, NBASIS, HFE, ARR, BRR)
+#endif
             end if
             write(stdout, *) "FINAL HF BASIS"
-            CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
+            CALL writebasis(stdout, G1, nBasis, ARR, BRR)
 
             write(stdout, "(A)", advance='no') " Fermi det (D0):"
-            call write_det(6, FDET, .true.)
-            CALL neci_flush(6)
+            call write_det(stdout, FDET, .true.)
+            CALL neci_flush(stdout)
 !C.. If in Hubbard, we generate site-spin occupations
             IF (THUB) THEN
 !  Don't think this works
@@ -83,7 +105,11 @@ contains
                 IF (TREADTUMAT) THEN
                     CALL READHFTMAT(NBASIS)
                 ELSE
+#ifdef CMPLX_
+                    call stop_all(this_routine, "not implemented for complex")
+#else
                     CALL CALCHFTMAT(NBASIS, HFBASIS, NORBUSED)
+#endif
                 end if
                 CALL DestroyTMAT(.false.)
                 TMAT2D => TMAT2D2
@@ -96,11 +122,15 @@ contains
                 UMAT2 = 0.0_dp
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR
+#ifdef CMPLX_
+                call stop_all(this_routine, "not implemented for complex")
+#else
                 IF (TREADTUMAT) THEN
                     CALL READHFUMAT(UMAT2, NBASIS)
                 ELSE
                     CALL CALCHFUMAT(UMAT, UMAT2, NBASIS, HFBASIS, ISPINSKIP, NORBUSED)
                 end if
+#endif
 !C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !C.. to UMAT2
                 call shared_sync_mpi(umat2_win)
@@ -132,7 +162,7 @@ contains
             deallocate(HFE, HFBasis)
             call LogMemDealloc(this_routine, tagHFE)
             call LogMemDealloc(this_routine, tagHFBasis)
-            CALL neci_flush(6)
+            CALL neci_flush(stdout)
         end if
     End Subroutine HFDoCalc
 End Module HFCalc

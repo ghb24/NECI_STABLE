@@ -17,13 +17,19 @@ calc
     endmethods
     seed -7
     nmcyc 5000
-    max-tau 0.01
+    tau-values \
+        start refdet-connections \
+        max 0.01
+    tau-search \
+        algorithm conventional \
+        stop-condition OFF
     truncinitiator
     addtoinitiator 3
     totalwalkers 1000
     shiftdamp 0.1
     stepsshift 10
     allrealcoeff
+    realspawncutoff off
     back-spawn-flex
     load-balance-interval 1000
     memoryFacSpawn 10

@@ -17,7 +17,8 @@ calc
 
     totalwalkers   1000
 
-    tau 0.05
+    tau-values \
+        start user-defined 0.05
 
     semi-stochastic 10
     pops-core 20
@@ -35,8 +36,7 @@ calc
     truncinitiator
     addtoinitiator 1.2
     allrealcoeff
-    # max-tau 0.001
-    # maxwalkerbloom 1
+    realspawncutoff off
     startsinglepart 1
     shiftdamp 0.1
     stepsshift 1

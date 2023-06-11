@@ -10,13 +10,13 @@ MODULE HPHFRandExcitMod
 !excited and the determinant which was created.
 
     use SystemData, only: nel, Alat, G1, nbasis, nbasismax, nmsh, arr, &
-                          tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
+                          tOddS_HPHF, tStoquastize, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, &
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, &
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
-                          t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
+                          t_k_space_hubbard, t_uniform_excits, &
                           t_trans_corr_hop, t_spin_dependent_transcorr, &
-                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA, &
+                          t_fci_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA, &
                           t_pcpp_excitgen, max_ex_level, t_guga_pchb
 
     use IntegralsData, only: UMat, fck, nMax
@@ -43,7 +43,7 @@ MODULE HPHFRandExcitMod
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 
-    use bit_reps, only: NIfD, NIfTot
+    use bit_rep_data, only: NIfD, NIfTot
 
     use SymExcitDataMod, only: excit_gen_store_type
 
@@ -85,6 +85,8 @@ MODULE HPHFRandExcitMod
     use guga_pchb_excitgen, only: calc_pgen_guga_pchb
 
     use guga_bitRepOps, only: current_csf_i
+
+    use util_mod, only: stop_all
 
     IMPLICIT NONE
 
@@ -270,7 +272,7 @@ contains
                         HEl = MatEl * SQRT(2.0_dp)
                     end if
                 end if
-                if(IC /= 0 .and. modk_offdiag) hel = -abs(hel)
+                if(IC /= 0 .and. tStoquastize) hel = -abs(hel)
             end if
         ELSE
 !Open shell excitation - could we have generated the spin-coupled determinant instead?
@@ -416,7 +418,7 @@ contains
                         HEl = MatEl
 
                     end if   !Endif from open/closed shell det
-                    if(IC /= 0 .and. modk_offdiag) hel = -abs(hel)
+                    if(IC /= 0 .and. tStoquastize) hel = -abs(hel)
 
                 end if   !Endif want to generate matrix element
 
@@ -463,7 +465,7 @@ contains
                     end if
 
                     HEl = MatEl
-                    if(IC /= 0 .and. modk_offdiag) hel = -abs(hel)
+                    if(IC /= 0 .and. tStoquastize) hel = -abs(hel)
 
                 end if
 
@@ -607,8 +609,6 @@ contains
         INTEGER :: i, j, N, Comp
         LOGICAL :: tSuccess
 
-!        write(stdout,*) "Binary searching between ",MinInd, " and ",MaxInd
-!        CALL neci_flush(6)
         i = MinInd
         j = MaxInd
         IF(i - j == 0) THEN

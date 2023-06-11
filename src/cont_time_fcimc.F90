@@ -3,7 +3,7 @@ module cont_time
 
     use CalcData, only: tContTimeFull, tOrthogonaliseReplicas, &
                         orthogonalise_iter, use_spawn_hash_table, &
-                        tTruncInitiator, DiagSft, tau, tPairedReplicas
+                        tTruncInitiator, DiagSft, tPairedReplicas
     use fcimc_helper, only: rezero_iter_stats_each_iter, CalcParentFlag, &
                             create_particle, create_particle_with_hash_table, &
                             SumEContrib, end_iter_stats
@@ -14,7 +14,8 @@ module cont_time
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs
     use global_det_data, only: det_diagH, det_offdiagH, get_spawn_rate
     use GenRandSymExcitNUMod, only: init_excit_gen_store
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+    use DeterminantData, only: write_det
     use orthogonalise, only: orthogonalise_replicas
     use dSFMT_interface, only: genrand_real2_dSFMT
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
@@ -29,6 +30,7 @@ module cont_time
     use FciMCData
     use constants
     use util_mod
+    use tau_main, only: tau
     implicit none
     save
 
@@ -307,7 +309,7 @@ contains
                                 child(y)
                         end do
                         write(stdout, '("] ")', advance='no')
-                        call write_det(6, det_spwn, .true.)
+                        call write_det(stdout, det_spwn, .true.)
                         call neci_flush(stdout)
                     end if
 

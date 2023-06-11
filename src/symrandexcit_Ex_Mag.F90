@@ -24,7 +24,8 @@ module symrandexcit_Ex_mag
                                     init_excit_gen_store, clean_excit_gen_store
     use FciMCData, only: pDoubles, pSingles, iter, excit_gen_store_type, &
                          pDoub_spindiff1, pDoub_spindiff2, pSing_spindiff1
-    use bit_reps, only: niftot, decode_bit_det_lists, getExcitationType
+    use bit_rep_data, only: niftot
+    use bit_reps, only: decode_bit_det_lists, getExcitationType, decode_bit_det_spinsep
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
@@ -33,6 +34,8 @@ module symrandexcit_Ex_mag
     use symrandexcit3, only: pick_elec_pair, count_orb_pairs, select_syms, select_orb_pair, &
                              create_excit_det2, construct_class_counts
     use symexcit3, only: GenSingleExcit
+    use util_mod, only: stop_all, neci_flush
+    use excit_mod, only: FindExcitDet
 
     implicit none
 
@@ -457,7 +460,6 @@ contains
         use DetBitOps, only: EncodeBitDet, FindExcitBitDet
         use GenRandSymExcitNUMod, only: IsMomentumAllowed
         use constants, only: n_int
-        use bit_reps, only: NIfTot, decode_bit_det_spinsep
         use sym_mod, only: mompbcsym, GetLz
         use SymExcit4, only: CountExcitations4
         use neci_intfce
@@ -492,7 +494,7 @@ contains
         write(stdout, *) nI(:)
         write(stdout, *) Iterations
         write(stdout, *) "nSymLabels: ", nSymLabels
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
 
         call CountExcitations4(nI, 1, 1, 0, 0, nSing)
         call CountExcitations4(nI, 1, 1, 1, 1, nSing_1)
@@ -515,7 +517,7 @@ contains
         pDoub_spindiff2 = real(nDoub_2, dp) / real(excitcount, dp)
 
         write(stdout, *) "Determinant has ", excitcount, " total excitations from it."
-        CALL neci_flush(6)
+        CALL neci_flush(stdout)
 
         ! Allocate the accumulators
         allocate(DoublesHist(nbasis, nbasis, nbasis, nbasis))
@@ -562,7 +564,7 @@ contains
             IF (mod(i, 1) == 0) THEN
                 !IF(mod(i,40000).eq.0) THEN
                 !write(stdout,"(A,I10)") "Iteration: ",i
-                CALL neci_flush(6)
+                CALL neci_flush(stdout)
             end if
 
             call gen_rand_excit_Ex_Mag(nI, iLut, nJ, iLutnJ, 3, IC, ExcitMat, &
@@ -755,19 +757,3 @@ contains
     END SUBROUTINE
 
 end module
-
-! N.B. This is outside the module *sigh*
-!subroutine virt_uniform_sym_setup ()
-
-!    use SymExcitDataMod, only: ScratchSize, ScratchSize3
-!    implicit none
-
-! We use the third scratch array to store data for single
-! excitations
-
-!    call SpinOrbSymSetup ()
-
-!    ScratchSize3 = ScratchSize
-
-!end subroutine
-

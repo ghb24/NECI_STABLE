@@ -1,16 +1,20 @@
 #include "macros.h"
 module guga_plugin
     use dSFMT_interface, only: dSFMT_init
-    use constants
-    use DetBitOps
-    use SystemData
-    use guga_excitations
-    use guga_matrixElements, only: calcDiagMatEleGuga_nI, calc_guga_matrix_element
-    use guga_data
-    use guga_init
+    use constants, only: dp, n_int, int64
+    use bit_rep_data, only: NIfTot
+    use SystemData, only: nEl, tReadInt, eCore, lms, &
+        nBasis, nSpatOrbs, nbasismax, stot, &
+        tgen_guga_weighted, tgen_sym_guga_mol, &
+        tGUGA, tReadFreeFormat, tStoreSpinOrbs
+    use FCimcData, only: tFillingStochRDMOnFly
+    use read_fci, only: readfciint, fcidump_name, initfromfcid, &
+        UMatEps
+    use guga_data, only: ExcitationInformation_t
+    use guga_init, only: init_guga
     use guga_bitRepOps, only: CSF_Info_t
-    use read_fci
-    use FciMCData
+    use DetBitOps, only: EncodeBitDet
+    use guga_matrixElements, only: calcDiagMatEleGuga_nI, calc_guga_matrix_element
     use OneEInts, only: TMat2d
     use UMatCache, only: tTransGTID, GetUMatSize, tumat2d, umat2d, tdeferred_umat2d
     use Calc, only: SetCalcDefaults, CalcInit, CalcCleanup

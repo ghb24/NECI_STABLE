@@ -2,24 +2,41 @@
 
 program test_tJ_model
 
+    use constants, only: maxExcit, dp, n_int, EPS
     use SystemData, only: t_tJ_model, t_heisenberg_model, exchange_j, t_lattice_model, &
-                          nSpatOrbs
-    use tJ_model
-    use fruit
-    use lattice_mod, only: lat
-    use constants, only: maxExcit
-    use lattice_models_utils, only : csf_purify, create_heisenberg_fock_space, &
+                          nSpatOrbs, nEl, nBasis, G1, bhub, t_bipartite_order, &
+                          Ecore
+    use tJ_model, only: init_get_helement_heisenberg_guga, &
+        init_get_helement_heisenberg, init_guga_heisenberg_model, &
+        init_heisenberg_model, &
+        init_tJ_model, gen_excit_tj_model, calc_pgen_tj_model, &
+        setup_exchange_matrix, create_cum_list_tj_model, &
+        gen_excit_heisenberg_model, create_cum_list_heisenberg, &
+        calc_pgen_heisenberg_model, init_get_helement_tj, &
+        get_diag_helement_heisenberg, get_umat_el_heisenberg, &
+        get_offdiag_helement_heisenberg, get_offdiag_helement_tj, &
+        spin_free_exchange, exchange_matrix
+    use real_space_hubbard, only: init_tmat
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_true, assert_equals
+    use lattice_mod, only: lat, lattice
+    use lattice_models_utils, only : create_heisenberg_fock_space, &
                                      create_heisenberg_fock_space_guga
+    use tau_main, only: tau
+    use guga_bitRepOps, only: csf_purify
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
     use matrix_util, only: eig, print_matrix, store_hf_coeff, my_minloc, my_minval, &
                            print_vec
-    use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut
-    use util_mod, only: near_zero
+    use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut, &
+        write_det_guga
+    use util_mod, only: near_zero, get_free_unit, stop_all
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
-    use bit_rep_data, only: GugaBits
+    use bit_rep_data, only: GugaBits, nifd
+    use bit_reps, only: decode_bit_det
     use dsfmt_interface, only: dsfmt_init, genrand_real2_dSFMT
     use guga_excitations, only: csf_to_sds_ilut, csf_vector_to_sds
+    use tau_main, only: tau_search_method, possible_tau_search_methods, assign_value_to_tau
 
 
     implicit none
@@ -69,7 +86,6 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nel, orbital_order, &
                               tGUGA, t_input_order, t_open_bc_x, t_open_bc_y, &
                               t_open_bc_z
-        use util_mod, only: get_free_unit
         use lattice_models_utils, only: create_all_open_shell_dets
         use binomial_lookup, only: factorial
         use unit_test_helpers, only: create_lattice_hamil_ilut
@@ -1812,8 +1828,7 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
                               nbasis
         use OneEInts, only: tmat2d
-        use FciMCData, only: tsearchtau, tsearchtauoption, ilutref
-        use CalcData, only: tau
+        use FciMCData, only: ilutref
         use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
@@ -1828,7 +1843,7 @@ contains
         exchange_j = 1
         nbasis = 200
         bhub = -1.0
-        tau = 0.0_dp
+        call assign_value_to_tau(0.0_dp, 'Initialization in tJ model.')
         call init_bit_rep()
         allocate(ilutref(0:NIfTot,1))
         ilutref = 9
@@ -1858,8 +1873,7 @@ contains
         call assert_true(associated(tmat2d))
         call assert_true(associated(g1))
         call assert_equals(0.0_dp, ecore)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
         call assert_true(associated(get_umat_el))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
@@ -1877,8 +1891,6 @@ contains
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
                               ecore
         use OneEInts, only: tmat2d
-        use FciMCData, only: tsearchtau, tsearchtauoption
-        use CalcData, only: tau
         use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
@@ -1918,8 +1930,7 @@ contains
         call assert_true(associated(tmat2d))
         call assert_true(associated(g1))
         call assert_equals(0.0_dp, ecore)
-        call assert_true(.not. tsearchtau)
-        call assert_true(tsearchtauoption)
+        call assert_true(tau_search_method == possible_tau_search_methods%OFF)
         call assert_true(associated(get_umat_el))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
@@ -2618,7 +2629,6 @@ contains
 
     subroutine setup_exchange_matrix_test
         use SystemData, only: nbasis
-        use real_space_hubbard, only: lat
         use lattice_mod, only: lattice
 
         print *, ""
@@ -2642,7 +2652,6 @@ contains
         use Determinants, only: get_helement
         use procedure_pointers, only: get_umat_el
         use lattice_mod, only: lattice
-        use real_space_hubbard, only: lat
         use bit_rep_data, only: niftot, nifd
 
         integer(n_int), allocatable :: ilutI(:), ilutJ(:)
@@ -2767,7 +2776,6 @@ contains
         use Determinants, only: get_helement
         use procedure_pointers, only: get_umat_el
         use lattice_mod, only: lattice
-        use real_space_hubbard, only: lat
         use bit_rep_data, only: niftot, nifd
 
         integer(n_int), allocatable :: ilutI(:), ilutJ(:)
@@ -2869,7 +2877,6 @@ contains
     subroutine get_diag_helement_heisenberg_test
         use SystemData, only: nel, nbasis
         use bit_rep_data, only: NIfTot
-        use real_space_hubbard, only: lat
 
         nel = 4
         lat => lattice('square', 2, 2, 1, .true., .true., .true.)
@@ -2930,7 +2937,6 @@ contains
 
     subroutine get_offdiag_helement_heisenberg_test
         use SystemData, only: nel, nbasis
-        use real_space_hubbard, only: lat
         use lattice_mod, only: lattice
         use bit_rep_data, only: NIfTot
 
@@ -3062,7 +3068,6 @@ contains
     subroutine get_umat_el_heisenberg_test
         use SystemData, only: nbasis
         use lattice_mod, only: lattice
-        use real_space_hubbard, only: lat
 
         print *, ""
         print *, "testing: get_umat_el_heisenberg"
