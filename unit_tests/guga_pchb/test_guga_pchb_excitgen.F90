@@ -1,5 +1,5 @@
 #include "macros.h"
-program test_guga_pchb_excitgen
+module test_guga_pchb_mod
 
     use constants, only: dp, int64, n_int
     use SystemData, only: tstorespinorbs, tReadInt, UMatEps, tReadFreeFormat, &
@@ -16,7 +16,7 @@ program test_guga_pchb_excitgen
     use System, only: SetSysDefaults, SysInit
     use shared_memory_mpi, only: shared_allocate_mpi
     use DetCalc, only: DetCalcInit
-    use unit_test_helper_excitgen, only: generate_uniform_integrals
+    use unit_test_helper_excitgen, only: generate_uniform_integrals, init_guga_testsuite
     use IntegralsData, only: Umat, umat_win
     use Integrals_Neci, only: get_umat_el_normal
     use LoggingData, only: tExplicitAllRDM, tRDMonfly
@@ -26,8 +26,8 @@ program test_guga_pchb_excitgen
     use guga_bitRepOps, only: CSF_Info_t, encodebitdet_guga
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type
     use guga_pchb_class, only: PCHB_t, &
-        calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, &
-        pick_orbitals_pure_uniform_singles
+        calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole
+
     use Determinants, only: DetInit, DetPreFreezeInit
 
     use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
@@ -36,84 +36,11 @@ program test_guga_pchb_excitgen
 
     implicit none
 
-    integer :: failed_count
+    public :: guga_pchb_test_driver
 
-    call init_fruit()
-    call guga_pchb_test_driver()
-    call fruit_summary()
-    call fruit_finalize()
-
-    call get_failed_count(failed_count)
-    if (failed_count /= 0) stop -1
+    type(PCHB_t) :: exc_generator
 
 contains
-
-    subroutine init_guga_testsuite
-
-        integer(int64) :: umatsize
-        integer :: nBasisMax(5, 3), lms, stot
-        real(dp) :: ecore
-
-        umatsize = 0
-        nel = 4
-        nbasis = 8
-        nSpatOrbs = 4
-        stot = 0
-        lms = 0
-        tGUGA = .true.
-
-        tRDMonfly = .true.
-        tFillingStochRDMOnFly = .true.
-        call init_bit_rep()
-
-        t_guga_pchb_weighted_singles = .false.
-        t_guga_pchb = .true.
-        tdeferred_umat2d = .true.
-        tumat2d = .false.
-
-        ! set this to false before the init to setup all the ilut variables
-        tExplicitAllRDM = .false.
-
-        call init_guga()
-
-        fcidump_name = "FCIDUMP"
-        UMatEps = 1.0e-8
-        tStoreSpinOrbs = .false.
-        tTransGTID = .false.
-        tReadFreeFormat = .true.
-
-        call MPIInit(.false.)
-
-        call dSFMT_init(8)
-
-        call SetCalcDefaults()
-        call SetSysDefaults()
-        tReadInt = .true.
-
-        call generate_uniform_integrals()
-
-        get_umat_el => get_umat_el_normal
-
-        call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
-
-        call GetUMatSize(nBasis, umatsize)
-
-        allocate (TMat2d(nBasis, nBasis))
-
-        call shared_allocate_mpi(umat_win, umat, (/umatsize/))
-
-        call readfciint(UMat, umat_win, nBasis, ecore)
-        call SysInit()
-        ! required: set up the spin info
-
-        call DetInit()
-        call DetCalcInit()
-        ! call SpinOrbSymSetup()
-
-        call DetPreFreezeInit()
-
-        call CalcInit()
-    end subroutine init_guga_testsuite
 
     subroutine guga_pchb_test_driver()
 
@@ -147,6 +74,7 @@ contains
         type(CSF_Info_t) :: csf_info
 
         nI = [1, 2, 3, 4]
+        call exc_generator%init()
         call EncodeBitDet_guga(nI, ilut)
         csf_info = CSF_Info_t(ilut)
 
@@ -193,6 +121,7 @@ contains
         pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
         call assert_equals(1.0_dp / 12.0_dp, pgen)
 
+        call exc_generator%finalize()
     end subroutine calc_orb_pgen_uniform_singles_test
 
     subroutine pick_orbitals_pure_uniform_singles_test
@@ -203,6 +132,7 @@ contains
         type(CSF_Info_t) :: csf_info
 
         nI = [1, 2, 3, 4]
+        call exc_generator%init()
         call EncodeBitDet_guga(nI, ilut)
         csf_info = CSF_Info_t(ilut)
 
@@ -225,6 +155,19 @@ contains
         call assert_true(any(excitInfo%i == [1, 2, 3, 4]))
         call assert_true(excitInfo%i /= excitInfo%j)
         call assert_equals(1.0_dp / 12.0_dp, pgen)
+
+        call exc_generator%finalize()
+
+    contains
+
+        subroutine pick_orbitals_pure_uniform_singles(ilut, nI, csf_i, excitInfo, pgen)
+            integer(n_int), dimension(0:gugabits%len_tot), intent(in) :: ilut
+            integer, dimension(nel), intent(in) :: ni
+            type(csf_info_t), intent(in) :: csf_i
+            type(excitationinformation_t), intent(out) :: excitinfo
+            real(dp), intent(out) :: pgen
+            call exc_generator%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        end subroutine
 
     end subroutine pick_orbitals_pure_uniform_singles_test
 
@@ -278,5 +221,31 @@ contains
         call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
         call assert_equals(1.0_dp / 3.0_dp, pgen)
     end subroutine pick_uniform_spatial_hole_test
+
+end module
+
+
+program test_guga_pchb_excitgen
+
+    use util_mod, only: stop_all
+    use test_guga_pchb_mod, only: guga_pchb_test_driver
+    use Parallel_neci, only: MPIInit, MPIEnd
+
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, get_failed_count
+
+    implicit none
+
+    integer :: failed_count
+
+    call MPIInit(.false.)
+    call init_fruit()
+    call guga_pchb_test_driver()
+    call fruit_summary()
+    call fruit_finalize()
+
+    call get_failed_count(failed_count)
+    if (failed_count /= 0) call stop_all('test_guga_pchb_excitgen', 'Tests failed')
+
+    call MPIEnd(.false.)
 
 end program test_guga_pchb_excitgen
