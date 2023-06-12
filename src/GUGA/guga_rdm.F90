@@ -270,10 +270,9 @@ contains
         real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
             !! Molcas RDM arrays to be populated.
 
-        integer :: n_one_rdm, n_two_rdm, iproc, ielem
+        integer :: n_one_rdm, n_two_rdm, ielem
         integer :: pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
         integer(int_rdm) :: pqrs
-        integer :: ierr
         real(dp) :: rdm_sign(rdm%sign_length), rdm_sign_
         real(dp), allocatable :: dmat_loc(:), psmat_loc(:), pamat_loc(:)
 

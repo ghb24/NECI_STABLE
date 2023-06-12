@@ -12355,9 +12355,9 @@ contains
 
     end function get_excit_level_from_excitInfo
 
-    function calc_pgen_mol_guga_single(ilutI, nI, csf_i, ilutJ, nJ, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in) :: nI(nel), nJ(nel)
+    function calc_pgen_mol_guga_single(nI, ilutI, csf_i, excitInfo) result(pgen)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
@@ -12368,17 +12368,17 @@ contains
         ! i need the orbital picking part of pgen:
         p_orbs = calc_pgen_mol_guga_single_orbs(ilutI, nI, csf_i, excitInfo)
 
-        p_guga = calc_pgen_mol_guga_single_guga(ilutI, nI, ilutJ, nJ, excitInfo)
+        p_guga = calc_pgen_mol_guga_single_guga(nI, ilutI, excitInfo)
 
         pgen = p_orbs * p_guga
 
     end function calc_pgen_mol_guga_single
 
-    function calc_pgen_mol_guga_single_guga(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
+    function calc_pgen_mol_guga_single_guga(nI, ilutI, excitInfo) result(pgen)
         ! this function calculates the guga branching part of the
         ! generation probability!
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_mol_guga_single_guga"
@@ -12386,10 +12386,8 @@ contains
         call stop_all(this_routine, "TODO")
 
         ! todo
-        unused_var(ilutI)
         unused_var(nI)
-        unused_var(ilutJ)
-        unused_var(nJ)
+        unused_var(ilutI)
         unused_var(excitInfo)
 
         pgen = 0.0_dp

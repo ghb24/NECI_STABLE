@@ -82,10 +82,6 @@ MODULE HPHFRandExcitMod
 
     use procedure_pointers, only: generate_excitation_t
 
-    use guga_pchb_excitgen, only: calc_pgen_guga_pchb
-
-    use guga_bitRepOps, only: current_csf_i
-
     use util_mod, only: stop_all
 
     IMPLICIT NONE
@@ -805,7 +801,7 @@ contains
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
             else if (t_guga_pchb) then
-                pgen = calc_pgen_guga_pchb(ilutI, current_csf_i, ilutJ)
+                call stop_all(this_routine, 'GUGA and HPHF does not make sense.')
             else if(t_pcpp_excitgen) then
                 pgen = calc_pgen_pcpp(ilutI, ex, ic)
             else if (allocated(current_exc_generator)) then

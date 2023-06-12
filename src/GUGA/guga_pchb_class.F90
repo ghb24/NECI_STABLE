@@ -33,15 +33,16 @@ module guga_pchb_class
     use MPI_wrapper, only: iProcIndex_intra, iprocindex
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use procedure_pointers, only: get_umat_el
+    use guga_base_class, only: GUGABaseClass_t
 
 
     better_implicit_none
 
     private
-    public :: GugaAliasSampler_t
-    public :: pick_uniform_spatial_hole, pick_orbitals_pure_uniform_singles, calc_orb_pgen_uniform_singles
+    public :: PCHB_t
+    public :: pick_uniform_spatial_hole, calc_orb_pgen_uniform_singles
 
-    type :: GugaAliasSampler_t
+    type, extends(GUGABaseClass_t) :: PCHB_t
         private
 
         type(AliasSampler_1D_t), public :: alias_sampler
@@ -54,13 +55,13 @@ module guga_pchb_class
         procedure, public :: init => init_GugaAliasSampler_t
         procedure, public :: finalize => finalize_GugaAliasSampler_t
 
-        procedure, public :: pick_orbitals_double_pchb
-        procedure, public, nopass :: pick_orbitals_pure_uniform_singles
-        procedure, public :: calc_pgen_guga_pchb
+        procedure, public :: pickorbitals_double
+        procedure, public :: pickorbitals_single
+        procedure, public :: calc_pgen
 
-        procedure, public :: calc_orbital_pgen_contr_pchb
-        procedure, public :: calc_orbital_pgen_contr_start_pchb
-        procedure, public :: calc_orbital_pgen_contr_end_pchb
+        procedure, public :: calc_orbital_pgen_contr
+        procedure, public :: calc_orbital_pgen_contr_start
+        procedure, public :: calc_orbital_pgen_contr_end
 
         procedure :: new_info_table
         procedure :: set_info_entry
@@ -70,12 +71,12 @@ module guga_pchb_class
 
         procedure :: setup_pchb_sampler_conditional
 
-    end type GugaAliasSampler_t
+    end type PCHB_t
 
 contains
 
     subroutine new_info_table(this, nEntries, entrySize)
-        class(GugaAliasSampler_t) :: this
+        class(PCHB_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
@@ -94,7 +95,7 @@ contains
 
     function get_info_entry(this, iEntry, tgt) result(info)
         debug_function_name("get_info_entry")
-        class(GugaAliasSampler_t) :: this
+        class(PCHB_t) :: this
         integer, intent(in) :: iEntry, tgt
         integer(int64) :: info
 
@@ -103,7 +104,7 @@ contains
     end function
 
     subroutine set_info_entry(this, iEntry, infos)
-        class(GugaAliasSampler_t) :: this
+        class(PCHB_t) :: this
         integer, intent(in) :: iEntry
         integer(int64), intent(in) :: infos(:)
 
@@ -114,7 +115,7 @@ contains
     end subroutine
 
     subroutine init_GugaAliasSampler_t(this)
-        class(GugaAliasSampler_t), intent(inout) :: this
+        class(PCHB_t), intent(inout) :: this
         integer :: a, b
         integer(int64) :: memCost, ijMax, abMax, ab
 
@@ -167,7 +168,7 @@ contains
     end subroutine init_GugaAliasSampler_t
 
     subroutine setup_pchb_sampler_conditional(this)
-        class(GugaAliasSampler_t), intent(inout) :: this
+        class(PCHB_t), intent(inout) :: this
         integer :: i, j, ij, a, b, ab
         integer(int64) :: ijMax, abMax
         integer(int64), allocatable :: excit_info(:)
@@ -221,15 +222,15 @@ contains
     end subroutine setup_pchb_sampler_conditional
 
     subroutine finalize_GugaAliasSampler_t(this)
-        class(GugaAliasSampler_t), intent(inout) :: this
+        class(PCHB_t), intent(inout) :: this
         call this%alias_sampler%finalize()
         call this%all_info_table%shared_dealloc()
         deallocate(this%tgtOrbs)
     end subroutine
 
-    subroutine pick_orbitals_double_pchb(this, ilut, nI, csf_i, excitInfo, pgen)
-        debug_function_name("pick_orbitals_double_pchb")
-        class(GugaAliasSampler_t), intent(in) :: this
+    subroutine pickorbitals_double(this, ilut, nI, csf_i, excitInfo, pgen)
+        debug_function_name("pickorbitals_double")
+        class(PCHB_t), intent(in) :: this
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -299,10 +300,11 @@ contains
 
         pGen = pgen_elec * pgen_orbs
 
-    end subroutine pick_orbitals_double_pchb
+    end subroutine pickorbitals_double
 
-    subroutine pick_orbitals_pure_uniform_singles(ilut, nI, csf_i, excitInfo, pgen)
-        debug_function_name("pick_orbitals_pure_uniform_singles")
+    subroutine pickorbitals_single(this, ilut, nI, csf_i, excitInfo, pgen)
+        debug_function_name("pickorbitals_single")
+        class(PCHB_t), intent(in) :: this
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -313,7 +315,7 @@ contains
         real(dp) :: pgen_hole
         integer, allocatable :: occ_spat_orbs(:)
             !! The occupied spatial orbitals
-        unused_var(ilut); unused_var(nI)
+        unused_var(this); unused_var(ilut); unused_var(nI)
 
         occ_spat_orbs = pack([(i, i = 1, size(csf_i%Occ_int))], csf_i%stepvector /= 0)
         src_orb = occ_spat_orbs(1 + int(genrand_real2_dSFMT() * size(occ_spat_orbs)))
@@ -341,7 +343,7 @@ contains
             end if
         end if
 
-    end subroutine pick_orbitals_pure_uniform_singles
+    end subroutine pickorbitals_single
 
     subroutine pick_uniform_spatial_hole(csf_i, src_orb, tgt_orb, pgen)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -406,30 +408,22 @@ contains
 
 
 
-    function calc_pgen_guga_pchb(this, ilutI, csf_i, ilutJ, excitInfo_in) result(pgen)
-        class(GugaAliasSampler_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(GugaBits%len_tot)
+    function calc_pgen(this, nI, ilutI, csf_i, excitInfo) result(pgen)
+        class(PCHB_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
-        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
-        type(ExcitationInformation_t) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         integer :: ic
-        integer :: nI(nel), nJ(nel)
 
-        if (present(excitInfo_in)) then
-            excitInfo = excitInfo_in
-        else
-            excitInfo = identify_excitation(ilutI, ilutJ)
-        end if
+        unused_var(this)
 
         ic = get_excit_level_from_excitInfo(excitInfo)
 
         if (ic == 1) then
             if (t_guga_pchb_weighted_singles) then
-                call decode_bit_det(nI, ilutI)
-                call decode_bit_det(nJ, ilutJ)
-                pgen = calc_pgen_mol_guga_single( &
-                            ilutI, nI, csf_i, ilutJ, nJ, excitInfo)
+                pgen = calc_pgen_mol_guga_single(nI, ilutI, csf_i, excitInfo)
             else
                 pgen = calc_orb_pgen_uniform_singles(csf_i, excitInfo)
             end if
@@ -444,10 +438,10 @@ contains
             pgen = 0.0_dp
         end if
 
-    end function calc_pgen_guga_pchb
+    end function calc_pgen
 
     pure function calc_orb_pgen_guga_pchb_double(this, excitInfo) result(pgen)
-        class(GugaAliasSampler_t), intent(in) :: this
+        class(PCHB_t), intent(in) :: this
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
 
@@ -467,11 +461,11 @@ contains
 
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
-    pure subroutine calc_orbital_pgen_contr_pchb(this, csf_i, occ_orbs, cpt_a, cpt_b)
-        class(GugaAliasSampler_t), intent(in) :: this
+    pure subroutine calc_orbital_pgen_contr(this, csf_i, occ_orbs, above_cpt, below_cpt)
+        class(PCHB_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
-        real(dp), intent(out) :: cpt_a, cpt_b
+        real(dp), intent(out) :: above_cpt, below_cpt
 
         integer :: ij
         unused_var(csf_i)
@@ -485,22 +479,22 @@ contains
         ij = fuseIndex(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
 
         ! and both I and J are electron and hole indices here
-        cpt_a = this%alias_sampler%get_prob(ij, ij) / 2.0_dp
+        above_cpt = this%alias_sampler%get_prob(ij, ij) / 2.0_dp
         ! but since they will get added in later routines i actually have
         ! do divide by 2 here..
 
         ! and in the PCHB there is no difference between the 2!
-        cpt_b = cpt_a
+        below_cpt = above_cpt
 
-    end subroutine calc_orbital_pgen_contr_pchb
+    end subroutine calc_orbital_pgen_contr
 
 
     ! i think it would be better if i 'just' reimplement:
-    pure subroutine calc_orbital_pgen_contr_start_pchb(this, csf_i, occ_orbs, a, orb_pgen)
-        debug_function_name("calc_orbital_pgen_contr_start_pchb")
-        class(GugaAliasSampler_t), intent(in) :: this
+    pure subroutine calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)
+        debug_function_name("calc_orbital_pgen_contr_start")
+        class(PCHB_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: occ_orbs(2), a
+        integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
@@ -513,22 +507,22 @@ contains
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
-        ASSERT( i < a )
+        ASSERT( i < orb_a )
 
         ! here i is both electron and hole index!
 
         ij = fuseIndex(i, j)
-        ab = fuseIndex(i, a)
+        ab = fuseIndex(i, orb_a)
 
         orb_pgen = this%alias_sampler%get_prob(ij, ab)
 
-    end subroutine calc_orbital_pgen_contr_start_pchb
+    end subroutine calc_orbital_pgen_contr_start
 
-    pure subroutine calc_orbital_pgen_contr_end_pchb(this, csf_i, occ_orbs, a, orb_pgen)
-        debug_function_name("calc_orbital_pgen_contr_end_pchb")
-        class(GugaAliasSampler_t), intent(in) :: this
+    pure subroutine calc_orbital_pgen_contr_end(this, csf_i, occ_orbs, orb_a, orb_pgen)
+        debug_function_name("calc_orbital_pgen_contr_end")
+        class(PCHB_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: occ_orbs(2), a
+        integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
@@ -542,16 +536,16 @@ contains
         ! and j is at the same time electron and hole index!
 
         ! depending on L->R or R->L type a can be > i o r < i, but always < j!
-        ASSERT( a < j )
+        ASSERT( orb_a < j )
 
         ! j here is both elec and hole ind!
         ij = fuseIndex(i,j)
 
-        ab = fuseIndex(a,j)
+        ab = fuseIndex(orb_a,j)
 
         orb_pgen = this%alias_sampler%get_prob(ij,ab)
 
-    end subroutine calc_orbital_pgen_contr_end_pchb
+    end subroutine calc_orbital_pgen_contr_end
 
     function get_pchb_integral_contrib(i, j, a, b, typ) result(integral)
         ! specialized function to obtain the guga-integral contrib for

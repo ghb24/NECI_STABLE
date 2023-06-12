@@ -192,6 +192,8 @@ set( SRC_FILES
     GUGA/guga_procedure_pointers.F90
     GUGA/guga_types.F90
     GUGA/guga_plugin.F90
+    GUGA/guga_base_class.F90
+    GUGA/guga_base_class_impls.F90
     GUGA/guga_pchb_class.F90
     GUGA/guga_crude_approx.F90
     GUGA/guga_rdm.F90
@@ -393,6 +395,7 @@ set( RELAX_WARNINGS_SRCS
     tau/tau_main_impls.F90
     lib/error_handling_neci_impls.F90
     Determinants_impls.F90
+    GUGA/guga_base_class_impls.F90
 )
 
 set( FYPP_SRC_FILES

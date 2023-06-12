@@ -25,7 +25,7 @@ program test_guga_pchb_excitgen
     use guga_init, only: init_guga
     use guga_bitRepOps, only: CSF_Info_t, encodebitdet_guga
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type
-    use guga_pchb_class, only: GugaAliasSampler_t, &
+    use guga_pchb_class, only: PCHB_t, &
         calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, &
         pick_orbitals_pure_uniform_singles
     use Determinants, only: DetInit, DetPreFreezeInit

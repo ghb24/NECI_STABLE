@@ -5,7 +5,7 @@ module guga_pchb_excitgen
     use SystemData, only: nel
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitRepOps, only: CSF_Info_t
-    use guga_pchb_class, only: GugaAliasSampler_t
+    use guga_pchb_class, only: PCHB_t
 
     implicit none
 
@@ -15,7 +15,7 @@ module guga_pchb_excitgen
     public :: calc_orbital_pgen_contr_pchb, calc_orbital_pgen_contr_start_pchb, calc_orbital_pgen_contr_end_pchb
     public :: calc_pgen_guga_pchb
 
-    type(GugaAliasSampler_t), allocatable :: pchb_sampler
+    type(PCHB_t), allocatable :: pchb_sampler
 
 contains
 
@@ -35,7 +35,7 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call pchb_sampler%pick_orbitals_pure_uniform_singles(ilut, nI, csf_i, excitInfo, pgen)
+        call pchb_sampler%pickorbitals_single(ilut, nI, csf_i, excitInfo, pgen)
     end subroutine
 
     subroutine pick_orbitals_double_pchb(ilut, nI, csf_i, excitInfo, pgen)
@@ -44,7 +44,7 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call pchb_sampler%pick_orbitals_double_pchb(ilut, nI, csf_i, excitInfo, pgen)
+        call pchb_sampler%pickorbitals_double(ilut, nI, csf_i, excitInfo, pgen)
     end subroutine
 
     ! I need the pgen-recalculation routines for exchange type excitations
@@ -53,7 +53,7 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
-        call pchb_sampler%calc_orbital_pgen_contr_pchb(csf_i, occ_orbs, cpt_a, cpt_b)
+        call pchb_sampler%calc_orbital_pgen_contr(csf_i, occ_orbs, cpt_a, cpt_b)
     end subroutine calc_orbital_pgen_contr_pchb
 
 
@@ -62,22 +62,23 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
-        call pchb_sampler%calc_orbital_pgen_contr_start_pchb(csf_i, occ_orbs, a, orb_pgen)
+        call pchb_sampler%calc_orbital_pgen_contr_start(csf_i, occ_orbs, a, orb_pgen)
     end subroutine
 
     pure subroutine calc_orbital_pgen_contr_end_pchb(csf_i, occ_orbs, a, orb_pgen)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
-        call pchb_sampler%calc_orbital_pgen_contr_end_pchb(csf_i, occ_orbs, a, orb_pgen)
-    end subroutine calc_orbital_pgen_contr_end_pchb
+        call pchb_sampler%calc_orbital_pgen_contr_end(csf_i, occ_orbs, a, orb_pgen)
+    end subroutine
 
-    function calc_pgen_guga_pchb(ilutI, csf_i, ilutJ, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(GugaBits%len_tot)
+    function calc_pgen_guga_pchb(nI, ilutI, csf_i, excitInfo) result(pgen)
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in), optional :: excitInfo
         real(dp) :: pgen
-        pgen = pchb_sampler%calc_pgen_guga_pchb(ilutI, csf_i, ilutJ, excitInfo)
+        pgen = pchb_sampler%calc_pgen(nI, ilutI, csf_i, excitInfo)
     end function
 
 end module guga_pchb_excitgen
