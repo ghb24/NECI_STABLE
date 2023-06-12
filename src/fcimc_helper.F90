@@ -732,7 +732,7 @@ contains
                 .or. (ExcitLevel_local == 3 &
                     .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
 
-                if(tImportanceSampling)then
+                if (tImportanceSampling) then
                     importance_ratio = calcImportanceRatio(nI, ilut, ProjEDet(:, 1), ilutRef(:, 1))
                 else
                     importance_ratio = 1.0
@@ -740,15 +740,12 @@ contains
 
                 ! Obtain off-diagonal element
                 do run = 1, inum_runs
-                    if(t_evolve_adjoint(part_type_to_run(run))) then
+                    if (tHPHF) then
                         HOffDiag(run) = &
-                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
-                    else if (tHPHF) then
-                        HOffDiag(1:inum_runs) = &
                             hphf_off_diag_helement(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut) * importance_ratio
                     else
                         HOffDiag(run) = &
-                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1)) * importance_ratio
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
                     end if
                 end do
             end if
@@ -848,13 +845,8 @@ contains
     contains
         function enum_contrib() result(dE)
             HElement_t(dp) :: dE
-            if(tImportanceSampling)then
-                guideI = calcImportanceGuide(nI)
-            else
-                guideI = 1.0
-            endif
 
-            dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign, run)) / (dProbFin * guideI)
+            dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign, run)) / dProbFin
         end function enum_contrib
 
     end subroutine SumEContrib
@@ -2796,9 +2788,10 @@ contains
                         importance_ratio = 1.0
                     endif
 
-                    ENumInst(run) = ENumInst(run) + (importance_ratio*hoffdiag * sgn_run)
-                    if (tCalcAccumE) &
-                        ENumAccum(run) = ENumAccum(run) + (importance_ratio*hoffdiag * accum_sgn_run)
+                    ENumInst(run) = ENumInst(run) + (importance_ratio * hoffdiag * sgn_run)
+                    if (tCalcAccumE) then
+                        ENumAccum(run) = ENumAccum(run) + (importance_ratio * hoffdiag * accum_sgn_run)
+                    end if
                 end if
             end do
         end do
@@ -2887,8 +2880,8 @@ contains
                 call generate_connected_space(1, CurrentDets(:, j:j), connected_size, connected_dets)
                 do i = 1, connected_size
                     call decode_bit_det(other_det, connected_dets(:, i))
-                    if(tImportanceSampling)then
-                         importance_ratio = calcImportanceRatio(det, CurrentDets(:, j), other_det, connected_dets(:,i))
+                    if (tImportanceSampling) then
+                        importance_ratio = calcImportanceRatio(det, CurrentDets(:, j), other_det, connected_dets(:,i))
                     else
                         importance_ratio = 1.0
                     endif

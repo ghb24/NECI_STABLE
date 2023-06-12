@@ -3694,12 +3694,11 @@ contains
             case("PRINT-UMAT")
                 tPrintUMat = .true.
             case("HARTREE-FOCK")
-!                tImportanceSampling = .true.
-                tHartreeFockGuide=.true.
+                tHartreeFockGuide = .true.
             case('HARTREE-GUTZWILLER')
-                tImportanceSampling=.true.
-                tGutzwillerGuide=.true.
-                tHartreeGutzwiller =.true.
+                tImportanceSampling = .true.
+                tGutzwillerGuide = .true.
+                tHartreeGutzwiller = .true.
                 GutzwillerParam = to_realdp(tokens%next())
             ! necessary to introduce mutual exclusiveness of some keywords
             ! this should crash unless an orb_coeff file is not read
