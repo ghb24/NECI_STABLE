@@ -182,24 +182,25 @@ set( SRC_FILES
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
-    guga_main.F90
-    guga_bitRepOps.F90
-    guga_data.F90
-    guga_excitations.F90
-    guga_init.F90
-    guga_write_H_matrix.F90
-    guga_matrixElements.F90
-    guga_procedure_pointers.F90
-    guga_types.F90
-    guga_plugin.F90
-    guga_pchb_class.F90
-    guga_crude_approx.F90
+    GUGA/guga_main.F90
+    GUGA/guga_bitRepOps.F90
+    GUGA/guga_data.F90
+    GUGA/guga_excitations.F90
+    GUGA/guga_init.F90
+    GUGA/guga_write_H_matrix.F90
+    GUGA/guga_matrixElements.F90
+    GUGA/guga_procedure_pointers.F90
+    GUGA/guga_types.F90
+    GUGA/guga_plugin.F90
+    GUGA/guga_pchb_class.F90
+    GUGA/guga_crude_approx.F90
+    GUGA/guga_rdm.F90
+    GUGA/guga_pchb_excitgen.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
     lattice_models_utils.F90
     analyse_wf_symmetry.F90
-    guga_rdm.F90
     unit_test_helpers.F90
     real_time_data.F90
     cc_amplitudes.F90
@@ -210,7 +211,6 @@ set( SRC_FILES
     real_time_procs.F90
     real_time_read_input.F90
     verlet_aux.F90
-    guga_pchb_excitgen.F90
     local_spin.F90
     CAS_distribution_init.F90
     excitation_generators.F90
