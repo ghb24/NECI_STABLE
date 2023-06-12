@@ -225,7 +225,7 @@ contains
         class(PCHB_t), intent(inout) :: this
         call this%alias_sampler%finalize()
         call this%all_info_table%shared_dealloc()
-        deallocate(this%tgtOrbs)
+        deallocate(this%tgtOrbs, this%info_tables)
     end subroutine
 
     subroutine pickorbitals_double(this, ilut, nI, csf_i, excitInfo, pgen)

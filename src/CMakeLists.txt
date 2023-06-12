@@ -377,7 +377,7 @@ set( RELAX_WARNINGS_SRCS
     vasp_neci_interface_stub.F90
     double_occ.F90
     analyse_wf_symmetry.F90
-    guga_rdm.F90
+    GUGA/guga_rdm.F90
     unit_test_helpers.F90
     real_time_data.F90
     cepa_shifts.F90

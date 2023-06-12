@@ -8,7 +8,7 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen, tUHF, tMolpro
+                          tReadInt, t_pcpp_excitgen, nSpatOrbs, tGUGA, tUHF, tMolpro
     use sort_mod
     use gasci, only: GASSpec_t
     use System, only: SysInit, SetSysDefaults, SysCleanup
@@ -28,12 +28,13 @@ module unit_test_helper_excitgen
     use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
     use util_mod, only: stop_all, operator(.div.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
+    use DetCalc, only: DetCalcInit
     better_implicit_none
     private
     public :: test_excitation_generator, generate_uniform_integrals, FciDumpWriter_t, &
         init_excitgen_test, generate_random_integrals, set_ref, free_ref, calc_pgen, &
         finalize_excitgen_test, InputWriter_t, Writer_t, delete_file, &
-        RandomFcidumpWriter_t
+        RandomFcidumpWriter_t, init_guga_testsuite, finalize_guga_testuite
     abstract interface
         function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
             use constants
@@ -364,6 +365,70 @@ contains
         call CalcCleanup()
         call SysCleanup()
     end subroutine finalize_excitgen_test
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine init_guga_testsuite
+        integer(int64) :: umatsize
+        integer :: nBasisMax(5, 3), lms, stot
+        real(dp) :: ecore
+
+        umatsize = 0
+        nel = 4
+        nbasis = 8
+        nSpatOrbs = 4
+        stot = 0
+        lms = 0
+        tGUGA = .true.
+
+        call init_bit_rep()
+
+        fcidump_name = "FCIDUMP"
+        UMatEps = 1.0e-8
+        tStoreSpinOrbs = .false.
+        tTransGTID = .false.
+        tReadFreeFormat = .true.
+
+
+        call dSFMT_init(8)
+
+        call SetCalcDefaults()
+        call SetSysDefaults()
+        tReadInt = .true.
+
+        call generate_uniform_integrals()
+
+        get_umat_el => get_umat_el_normal
+
+        call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
+
+        call GetUMatSize(nBasis, umatsize)
+
+        allocate (TMat2d(nBasis, nBasis))
+
+        call shared_allocate_mpi(umat_win, umat, (/umatsize/))
+
+        call readfciint(UMat, umat_win, nBasis, ecore)
+        call SysInit()
+        ! required: set up the spin info
+
+        call DetInit()
+        call DetCalcInit()
+        ! call SpinOrbSymSetup()
+
+        call DetPreFreezeInit()
+
+        call CalcInit()
+    end subroutine init_guga_testsuite
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine finalize_guga_testuite()
+        deallocate(TMat2D)
+        call shared_deallocate_mpi(umat_win, UMat)
+        call CalcCleanup()
+        call SysCleanup()
+    end subroutine
 
     !------------------------------------------------------------------------------------------!
 
