@@ -1,6 +1,6 @@
 #include "macros.h"
-#:include "macros.fpph"
-#:include "algorithms.fpph"
+#:include "../macros.fpph"
+#:include "../algorithms.fpph"
 
 module gasci_pchb_doubles_spinorb_fastweighted
     !! spin-orbital-resolved GASCI-PCHB using the "fast weighted" scheme

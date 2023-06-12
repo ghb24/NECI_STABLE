@@ -1,6 +1,6 @@
 #include "macros.h"
-#:include "macros.fpph"
-#:include "algorithms.fpph"
+#:include "../macros.fpph"
+#:include "../algorithms.fpph"
 
 ! The main idea of the precomputed Heat bath sampling (PCHB) is taken from
 !    J. Li, M. Otten, A. A. Holmes, S. Sharma, and C. J. Umrigar, J. Comput. Phys. 149, 214110 (2018).

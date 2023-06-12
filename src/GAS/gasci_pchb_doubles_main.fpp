@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpph"
+#:include "../macros.fpph"
 
 module gasci_pchb_doubles_main
     use constants, only: stdout

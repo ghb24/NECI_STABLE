@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpph"
+#:include "../macros.fpph"
 
 module gasci_discarding
     use constants, only: n_int, dp, maxExcit

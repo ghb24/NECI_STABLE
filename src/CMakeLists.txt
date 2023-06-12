@@ -400,20 +400,20 @@ set( FYPP_SRC_FILES
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
-    gasci.fpp
-    gasci_discarding.fpp
-    gasci_disconnected.fpp
-    gasci_on_the_fly_heat_bath.fpp
-    gasci_pchb_main.fpp
-    gasci_singles_main.fpp
-    gasci_singles_pc_weighted.fpp
-    gasci_pchb_doubles_main.fpp
-    gasci_pchb_doubles_select_particles.fpp
-    gasci_pchb_doubles_spatorb_fastweighted.fpp
-    gasci_pchb_doubles_spinorb_fullyweighted.fpp
-    gasci_pchb_doubles_spinorb_fastweighted.fpp
-    gasci_supergroup_index.fpp
-    gasci_util.fpp
+    GAS/gasci.fpp
+    GAS/gasci_discarding.fpp
+    GAS/gasci_disconnected.fpp
+    GAS/gasci_on_the_fly_heat_bath.fpp
+    GAS/gasci_pchb_main.fpp
+    GAS/gasci_singles_main.fpp
+    GAS/gasci_singles_pc_weighted.fpp
+    GAS/gasci_pchb_doubles_main.fpp
+    GAS/gasci_pchb_doubles_select_particles.fpp
+    GAS/gasci_pchb_doubles_spatorb_fastweighted.fpp
+    GAS/gasci_pchb_doubles_spinorb_fullyweighted.fpp
+    GAS/gasci_pchb_doubles_spinorb_fastweighted.fpp
+    GAS/gasci_supergroup_index.fpp
+    GAS/gasci_util.fpp
     CDF_sampling.fpp
     orb_idx.fpp
     excitation_types.fpp

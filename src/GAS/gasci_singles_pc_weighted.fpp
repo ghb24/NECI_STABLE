@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpph"
+#:include "../macros.fpph"
 
 module gasci_singles_pc_weighted
     use constants, only: dp, stdout, n_int, bits_n_int, maxExcit

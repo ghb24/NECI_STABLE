@@ -1,6 +1,6 @@
 #include "macros.h"
-#:include "macros.fpph"
-#:include "algorithms.fpph"
+#:include "../macros.fpph"
+#:include "../algorithms.fpph"
 
 ! A list (order matters!) of k non-negative integers zero that sum to the positive integer
 ! n is an integer composition of n.
