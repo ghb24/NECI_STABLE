@@ -115,6 +115,10 @@ module guga_bitRepOps
         real(dp), allocatable :: cum_list(:)
             !! also use a fake cum-list of the non-doubly occupied orbital to increase
             !! preformance in the picking of orbitals (a)
+
+        integer :: idx_curr_dets = -1
+            !! The index in the current dets array.
+            !! Needed for faster lookup of stuff.
     contains
         private
         procedure :: eq_CSF_Info_t
@@ -2212,52 +2216,20 @@ contains
     end subroutine update_matrix_element_cmplx
 #endif
 
-    function count_beta_orbs_ij(csf_i, i, j) result(nOpen)
+    integer elemental function count_beta_orbs_ij(csf_i, i, j)
         ! function to count the number of 1s in a CSF det between spatial
         ! orbitals i and j
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
-        integer :: nOpen
-        character(*), parameter :: this_routine = "count_beta_orbs_ij"
-
-        integer :: k
-
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
-
-        nOpen = 0
-
-        ! quick and dirty fix to deal with the excitation range mask probs:
-        ! do i always call that for the current det the excitation is
-        ! calculated for?  i think so..
-        do k = i, j
-            if (csf_i%stepvector(k) == 1) then
-                nOpen = nOpen + 1
-            end if
-        end do
+        count_beta_orbs_ij = count(csf_i%stepvector(i : j) == 1)
     end function count_beta_orbs_ij
 
-    function count_alpha_orbs_ij(csf_i, i, j) result(nOpen)
+    integer elemental function count_alpha_orbs_ij(csf_i, i, j)
         ! function to count the number of 2s in a CSF det between spatial
         ! orbitals i and j
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
-        integer :: nOpen
-        character(*), parameter :: this_routine = "count_alpha_orbs_ij"
-
-        integer :: k
-
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
-
-        nOpen = 0
-
-        ! quick fix for now to see if thats the problem: loop and check!
-        do k = i, j
-            if (csf_i%stepvector(k) == 2) then
-                nOpen = nOpen + 1
-            end if
-        end do
+        count_alpha_orbs_ij = count(csf_i%stepvector(i : j) == 2)
     end function count_alpha_orbs_ij
 
     integer elemental function count_open_orbs_ij(csf_i, i, j)
@@ -2798,11 +2770,12 @@ contains
         end do
     end subroutine calc_csf_i
 
-    pure function construct_CSF_Info_t(ilut) result(csf_i)
+    pure function construct_CSF_Info_t(ilut, idx_curr_dets) result(csf_i)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in), optional :: idx_curr_dets
         type(CSF_Info_t) :: csf_i
         call new_CSF_Info_t(nSpatOrbs, csf_i)
-        call fill_csf_i(ilut, csf_i)
+        call fill_csf_i(ilut, csf_i, idx_curr_dets)
     end function
 
     elemental subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
@@ -2834,7 +2807,7 @@ contains
         res = .not. (csf_i == csf_j)
     end function
 
-    pure subroutine fill_csf_i(ilut, csf_i)
+    pure subroutine fill_csf_i(ilut, csf_i, idx_curr_dets)
         ! routine which sets up all the additional csf information, like
         ! stepvector, b vector, occupation etc. in various formats in one
         ! place
@@ -2842,10 +2815,11 @@ contains
         ! the seperate ones..
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(inout) :: csf_i
+        integer, intent(in), optional :: idx_curr_dets
         debug_function_name("fill_csf_i")
 
-        integer :: i, step, b_int
-        real(dp) :: b_real, cum_sum
+        integer :: i, step, b
+        real(dp) :: cum_sum
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(allocated(csf_i%stepvector))
@@ -2854,75 +2828,33 @@ contains
         ASSERT(allocated(csf_i%B_int))
         ASSERT(allocated(csf_i%Occ_int))
 
-        csf_i%stepvector = 0
-        csf_i%B_real = 0.0_dp
-        csf_i%Occ_real = 0.0_dp
-        csf_i%B_int = 0
-        csf_i%Occ_int = 0
-
-        b_real = 0.0_dp
-        b_int = 0
-
-
-        ! TODO(@Oskar): Use these functions instead
-        ! currentB_ilut = calcB_vector_ilut(ilut)
-        ! currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        ! currentOcc_int = calcOcc_vector_int(ilut)
-        ! current_stepvector = calcStepVector(ilut)
-        ! currentB_int = calcB_vector_int(ilut)
-
-        ! also create a fake cum-list of the non-doubly occupied orbitals
-        csf_i%cum_list = 0.0_dp
+        b = 0
         cum_sum = 0.0_dp
-
         do i = 1, nSpatOrbs
-
             step = getStepvalue(ilut, i)
-
             csf_i%stepvector(i) = step
-
             select case (step)
-
             case (0)
-
-                csf_i%Occ_real(i) = 0.0_dp
                 csf_i%Occ_int(i) = 0
-
                 cum_sum = cum_sum + 1.0_dp
-
             case (1)
-
-                csf_i%Occ_real(i) = 1.0_dp
                 csf_i%Occ_int(i) = 1
-
-                b_real = b_real + 1.0_dp
-                b_int = b_int + 1
-
+                b = b + 1
                 cum_sum = cum_sum + 1.0_dp
-
             case (2)
-
-                csf_i%Occ_real(i) = 1.0_dp
                 csf_i%Occ_int(i) = 1
-
-                b_real = b_real - 1.0_dp
-                b_int = b_int - 1
-
+                b = b - 1
                 cum_sum = cum_sum + 1.0_dp
-
             case (3)
-
-                csf_i%Occ_real(i) = 2.0_dp
                 csf_i%Occ_int(i) = 2
-
             end select
 
-            csf_i%B_real(i) = b_real
-            csf_i%B_int(i) = b_int
-
+            csf_i%B_int(i) = b
             csf_i%cum_list(i) = cum_sum
         end do
-
+        csf_i%occ_real = real(csf_i%occ_int, dp)
+        csf_i%b_real = real(csf_i%b_int, dp)
+        if (present(idx_curr_dets)) csf_i%idx_curr_dets = idx_curr_dets
     end subroutine fill_csf_i
 
     pure function is_compatible(ilut, csf_i) result(res)
@@ -3179,7 +3111,7 @@ contains
         ilutG(GugaBits%ind_rdm_ind) = rdm_ind
 
     end subroutine encode_rdm_ind
-    function encode_excit_info_vec(typ, inds) result(excit_info_int)
+    pure function encode_excit_info_vec(typ, inds) result(excit_info_int)
         ! function to encode the minimal information of an excit-info
         ! object into a single 64bit integer. used in the PCHB excitation
         ! generation.
@@ -3208,8 +3140,7 @@ contains
         case( excit_type%fullstart_stop_alike)
         case( excit_type%fullstart_stop_mixed)
         case default
-            print *, "incorrect typ: ", excit_names(typ)
-            call stop_all(this_routine, "see above")
+            call stop_all(this_routine, "incorrect typ: "//excit_names(typ)%str)
         end select
 #endif
 
@@ -3222,7 +3153,7 @@ contains
 
     end function encode_excit_info_vec
 
-    function encode_excit_info_scalar(typ, a, i, b, j) result(excit_info_int)
+    pure function encode_excit_info_scalar(typ, a, i, b, j) result(excit_info_int)
         ! function to encode the minimal information of an excit-info
         ! object into a single 64bit integer. used in the PCHB excitation
         ! generation.
@@ -3251,8 +3182,7 @@ contains
         case( excit_type%fullstart_stop_alike)
         case( excit_type%fullstart_stop_mixed)
         case default
-            print *, "incorrect typ: ", excit_names(typ)
-            call stop_all(this_routine, "see above")
+            call stop_all(this_routine, "incorrect typ: "//excit_names(typ)%str)
         end select
 #endif
 
@@ -3265,7 +3195,7 @@ contains
 
     end function encode_excit_info_scalar
 
-    subroutine encode_excit_info_type(excit_info_int, typ)
+    pure subroutine encode_excit_info_type(excit_info_int, typ)
         debug_function_name("encode_excit_info_type")
         integer(int64), intent(inout) :: excit_info_int
         integer, intent(in) :: typ
@@ -3291,8 +3221,7 @@ contains
         case( excit_type%fullstart_stop_alike)
         case( excit_type%fullstart_stop_mixed)
         case default
-            print *, "incorrect typ: ", excit_names(typ)
-            call stop_all(this_routine, "see above")
+            call stop_all(this_routine, "incorrect typ: "//excit_names(typ)%str)
         end select
 #endif
 
@@ -3310,7 +3239,7 @@ contains
 
     end function extract_excit_info_type
 
-    subroutine encode_excit_info_indices_vec(excit_info_int, inds)
+    pure subroutine encode_excit_info_indices_vec(excit_info_int, inds)
         debug_function_name("encode_excit_info_indices_vec")
         integer(int64), intent(inout) :: excit_info_int
         integer, intent(in) :: inds(4)
@@ -3832,7 +3761,7 @@ contains
 
     end function calc_remaining_excit_info
 
-    function encode_excit_info_obj(excitInfo) result(excit_info_int)
+    pure function encode_excit_info_obj(excitInfo) result(excit_info_int)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(int64) :: excit_info_int
 
