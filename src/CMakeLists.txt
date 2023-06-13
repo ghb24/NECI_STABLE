@@ -303,6 +303,7 @@ set( RELAX_WARNINGS_SRCS
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
+    GUGA/guga_rdm.F90
     LoggingData.F90
     Logging.F90
     modifiedHub.F90
