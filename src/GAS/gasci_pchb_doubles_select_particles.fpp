@@ -1,6 +1,6 @@
 #include "macros.h"
-#:include "macros.fpph"
-#:include "algorithms.fpph"
+#:include "../macros.fpph"
+#:include "../algorithms.fpph"
 
 module gasci_pchb_doubles_select_particles
     use constants, only: dp, int64, stdout, n_int, bits_n_int

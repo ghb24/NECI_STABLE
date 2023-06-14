@@ -1,4 +1,4 @@
-#:include "macros.fpph"
+#:include "../macros.fpph"
 #include "macros.h"
 module gasci_singles_main
     use util_mod, only: EnumBase_t, stop_all, operator(.implies.)
