@@ -161,6 +161,14 @@ tolerance = (1e-9, None, 'final_energy_1')
 program = neci
 tolerance = (5e-10, None, 'energy_summed')
 
+[neci/fixed_init/*]
+program = neci
+tolerance = (5e-10, None, 'energy_summed')
+
+[neci/imp_samp/*]
+program = neci
+tolerance = (5e-10, None, 'energy_summed')
+
 [neci/parallel/Ne_SS_Trial_Pops/]
 program = neci
 tolerance = (5e-10, None, 'energy_summed')

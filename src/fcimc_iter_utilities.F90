@@ -1417,7 +1417,8 @@ contains
             ! For the mod-shift-shift
             OldAllNoModShiftWalk = AllNoModShiftWalk
             OldAllNoNonModShiftWalk = AllNoNonModShiftWalk
-
+        end if
+        if (tBosonNoSpawn) then
             ! For the bosonized no-spawn
             OldAllNoBosonActiveWalk = AllNoBosonActiveWalk
         end if

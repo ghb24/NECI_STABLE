@@ -740,12 +740,15 @@ contains
 
                 ! Obtain off-diagonal element
                 do run = 1, inum_runs
-                    if (tHPHF) then
+                    if(t_evolve_adjoint(part_type_to_run(run))) then
+                        HOffDiag(run) = &
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
+                    else if (tHPHF) then
                         HOffDiag(run) = &
                             hphf_off_diag_helement(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut) * importance_ratio
                     else
                         HOffDiag(run) = &
-                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
+                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1)) * importance_ratio
                     end if
                 end do
             end if

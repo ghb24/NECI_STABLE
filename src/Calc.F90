@@ -2097,12 +2097,6 @@ contains
                 tNonInitModShift = .true.
                 tModShiftTarget = .true.
                 ModShiftTargetFrac = to_realdp(tokens%next())
-!                if (ModShiftTargetFrac < 0.0_dp) then
-!                    if (.not. tFixedN0) then
-!                        call stop_all(t_r, 'Automatic adjustment of the &
-!                            mod-shift ratio only works with FIXED-N0')
-!                    end if
-!                    tAutoModShiftRatio = .true.
                 if (ModShiftTargetFrac > 1.0_dp .or. ModShiftTargetFrac < 0.0_dp) then
                     call stop_all(t_r, 'Give a fraction between 0 and 1 for MOD-SHIFT-TARGET')
                 end if

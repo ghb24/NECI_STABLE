@@ -684,9 +684,9 @@ contains
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
         end if
 
-        if (tTargetShiftdamp .and. tFixedN0) then
-            call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
-        end if
+!        if (tTargetShiftdamp .and. tFixedN0) then
+!            call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
+!        end if
 
         if (tTargetShiftdamp .and. tWalkContGrow) then
             call stop_all(t_r, "TARGET-SHIFTDAMP and WALKCONTGROW not compatible.")
