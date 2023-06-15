@@ -181,7 +181,6 @@ contains
         tFixTrial(:) = .false.
         TrialTarget = 0.0
         tInitShift = .false.
-        tModShiftShift = .false.
         tModShiftTarget = .false.
         tModShiftPhase = .false.
         tModShiftCorr = .false.
@@ -2089,8 +2088,6 @@ contains
                 StepsSft = 1
             case("INIT-SHIFT")
                 tInitShift = .true.
-            case("MOD-SHIFT-SHIFT")
-                tModShiftShift = .true.
             case("MOD-SHIFT-TARGET")
                 tTruncInitiator = .true.
                 tTargetShiftdamp = .true.
@@ -2113,7 +2110,7 @@ contains
                 SftDamp2 = SftDamp**2./4.
                 if (tFixedN0) tModShiftPhase = .true.
             case("MOD-SHIFT-CORR")
-                if (.not. (tModShiftShift .or. tModShiftTarget)) then
+                if (.not. tModShiftTarget) then
                     call stop_all(t_r, 'Only works in conjunction with MOD-SHIFT-SHIFT or MOD-SHIFT-TARGET')
                 end if
                 tModShiftCorr = .true.
@@ -2121,7 +2118,7 @@ contains
                     ModShiftCorrPrefac = to_realdp(tokens%next())
                 end if
             case("MOD-SHIFT-CORR-ONLY-S1")
-                if (.not. (tModShiftShift .or. tModShiftTarget)) then
+                if (.not. tModShiftTarget) then
                     call stop_all(t_r, 'Only works in conjunction with MOD-SHIFT-SHIFT or MOD-SHIFT-TARGET')
                 end if
                 tModShiftCorr = .true.

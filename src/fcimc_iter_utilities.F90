@@ -15,9 +15,8 @@ module fcimc_iter_utils
                         tSkipRef, N0_Target, tSpinProject, &
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp, tInitShift, &
-                        tNonInitModShift, tModShiftShift, &
-                        TargetWalkers1, TargetWalkers2, DiagSft2Init, modShiftTargetIter, &
-                        tmodShiftPhase, modShiftConstIters, tRenorm, tBosonNoSpawn
+                        tNonInitModShift, TargetWalkers1, TargetWalkers2, DiagSft2Init, &
+                        modShiftTargetIter, tmodShiftPhase, modShiftConstIters, tRenorm, tBosonNoSpawn
 
     use tau_main, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
@@ -1220,9 +1219,6 @@ contains
                                                         log(AllNoNonModShiftWalk(run)/TargetWalkers2) * SftDamp2) / &
                                                         (Tau * StepsSft)
                                 end if
-                            else if (tModShiftShift) then
-                                DiagSft(run) = DiagSft(run) - (log(AllNoModShiftWalk(run)/OldAllNoModShiftWalk(run)) * SftDamp) / &
-                                               (Tau * StepsSft)
                             else if (tBosonNoSpawn) then
                                 DiagSft(run) = DiagSft(run) - (log(AllNoBosonActiveWalk(run)/OldAllNoBosonActiveWalk(run)) * SftDamp + &
                                                    log(AllNoBosonActiveWalk(run)/tot_walkers) * SftDamp2) / &

@@ -1090,6 +1090,40 @@ and is stopped after 10000 iterations.
         initiator space. A INITIATORSPACE file can be created by using
         the write-initiator option in the LOGGING block.
 
+-   **trunc-hubb \(p\) \(r\) \(a_max\) \(d_max\) [\(h_max\)]**<br>
+    Truncates the Hubbard Hilbert space according to certain rules,
+    specified by the parameters.
+    \(p\) specifies the pairing criterion, i.e. how far doublons and holons are
+    allowed to separate. 0 means they have to be nearest neighbours,
+    1 means they have to at least be diagonal neighbours, 2 means they
+    have to at least be next-nearest neighbours.
+    \(r\) specifies the repel criterion, which is the opposite of the
+    pairing criterion (doublons and holons that are close are truncated).
+    The same numbers apply.
+    \(a_max\) specifies how much a determinant may deviate from the totally
+    antiferromagnetic Neél state to not be truncated according to a penalty score.
+    \(d_max\) specifies a maximal number of doublons that a determinant may contain
+    to not be truncated.
+    The optional \(h_max\) gives the total number of holons allowed. If not
+    specified, it is set equal to \(d_max\).
+    If a parameter is set to \(-1\), the respective criterion is deactivated.
+
+-   **init-shift**<br>
+    Adapts the shift only w.r.t. the initiator walkers.
+
+-   **mod-shift-target \(r\) \(S_2^0\) \(i_1\) \(i_2\)**<br>
+    Activates the two-shift method.
+    \(r\) defines the target ratio between type-1 and type-2 walkers.
+    If `fixed-N0` is on, \(r\) is disregarded and the type-1 walkers are adapted
+    such that the reference population is kept at the respective value.
+    Type-2 walkers are allowed to spawn as soon after \(i_1\) iterations.
+    The secondary shift is allowed to change after \(i_1 + i_2\) iterations.
+    Before that, \(S_2^0\) is used for the secondary shift.
+    When using `mod-shift-target`, an additional column 36 is printed
+    in `FCIMCStats` which prints the secondary shift.
+    The number of type-1 and type-2 walkers is printed in `INITIATORStats`
+    in columns 14 and 15, respectively.
+
 #### Adaptive shift options
 
 -   **auto-adaptive-shift [\(t\) \(\alpha\) \(c\)]**<br>

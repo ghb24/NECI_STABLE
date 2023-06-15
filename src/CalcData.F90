@@ -131,7 +131,7 @@ module CalcData
     real(dp) :: modShift, modShiftTargetFrac, tot_walkers, TargetWalkers1, TargetWalkers2, DiagSft2Init, &
         ModShiftCorrPrefac
     integer :: modShiftTargetIter, modShiftConstIters
-    logical :: tInitShift, tModShiftShift, tModShiftTarget, tModShiftPhase
+    logical :: tInitShift, tModShiftTarget, tModShiftPhase
 ! Are all core-space determinants initiators?
     logical :: t_core_inits = .true.
     logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
