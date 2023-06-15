@@ -410,8 +410,6 @@ module SystemData
     logical :: tFixedNode = .false., tPartialNodeThresh = .false.
     real(dp) :: FixedNodeCutoff, PartialNodeGamma, PartialNodeThresh, &
         FixedNodeMinThresh, FixedNodeLowestVal
-! construct Hamiltonian with only positive entries
-    logical :: t_bosonize = .false.
 
 ! Activates optimisations for the Anderson model
     logical :: tAnderson = .false.

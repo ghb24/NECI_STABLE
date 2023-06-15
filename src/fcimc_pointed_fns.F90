@@ -7,7 +7,7 @@ module fcimc_pointed_fns
                           tUEG, nBasis, tgen_guga_crude, &
                           t_k_space_hubbard, t_new_real_space_hubbard, &
                           t_trans_corr_2body, t_trans_corr_hop, &
-                          t_precond_hub, uhub, t_bosonize, tFixedNode, &
+                          t_precond_hub, uhub, tFixedNode, &
                           PartialNodeGamma, tPartialNodeThresh, PartialNodeThresh
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
@@ -254,10 +254,6 @@ contains
         endif
 #endif
         
-        if (t_bosonize) then
-            rh_used = -abs(rh_used)
-        end if
-
         ! assign the matrix element
         HElGen = abs(rh_used)
 

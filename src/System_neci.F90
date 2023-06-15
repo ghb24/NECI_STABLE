@@ -945,11 +945,6 @@ contains
                         & and FIXED-NODE has to be on as well.")
                 end if
 
-            case('BOSONIZE')
-                ! construct Hamiltonian of corresponding bosonic system with
-                ! only positive entries
-                t_bosonize = .true.
-
             case ("TWISTED-BC")
                 t_twisted_bc = .true.
                 twisted_bc(1) = to_realdp(tokens%next())
