@@ -147,6 +147,18 @@ nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
 
+[neci/imp_samp/*/]
+program = neci
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
+
+[neci/fixed_init/*/]
+program = neci
+nprocs = 4
+min_nprocs = 4
+max_nprocs = 4
+
 # Jobs to test the various spaces in use for semi-stochastic and trial
 # wavefunctions.
 # Specify non-default tolerances.
@@ -158,14 +170,6 @@ program = neci
 tolerance = (1e-9, None, 'final_energy_1')
 
 [neci/serial/Ne_SS_Trial_Pops/]
-program = neci
-tolerance = (5e-10, None, 'energy_summed')
-
-[neci/fixed_init/*]
-program = neci
-tolerance = (5e-10, None, 'energy_summed')
-
-[neci/imp_samp/*]
 program = neci
 tolerance = (5e-10, None, 'energy_summed')
 
