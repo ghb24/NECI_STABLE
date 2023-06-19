@@ -568,13 +568,11 @@ module CalcData
     real(dp) :: GutzwillerParam2
     logical :: tHubbardDoublonHolon
     real(dp) :: GutzwillerParam3
-    logical :: tHartreeFockGuide
     logical :: tSignCriteria
     logical :: tAmpCriteria
     logical :: tSignFlip
     logical :: tHartreeGutzwiller
     logical :: tAbinitioGutzwillerGuide
-    logical :: tGutzwillerHF
     logical :: tControlZeroDenom
     logical :: tMeasureOverlap
 

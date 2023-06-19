@@ -1108,6 +1108,23 @@ and is stopped after 10000 iterations.
     specified, it is set equal to \(d_max\).
     If a parameter is set to \(-1\), the respective criterion is deactivated.
 
+-   **trunc-hubb-all-close**<br>
+    Only works in conjunction with `trunc-hubb`. Forces all doublons and holons to
+    fulfill the pairing criterion, even if there might be excess doublons or holons.
+
+-   **exlevel-af-trunc**<br>
+    Only works in conjunction with `trunc-hubb`. Instead of using the antiferromagnetic
+    penalty term, the excitation level (with the two Neèl states as the reference) of a specific
+    determinant is taken into account whether it is truncated or not. It is truncated if
+    \(e-d > a_max\), where \(e\) is the excitation level w.r.t. the closest Neél determinant
+    and \(d\) is the number of double occupancies of the respective determinant.
+
+-   **af-trunc-bracket \(a\)**<br>
+    Only works in conjunction with `trunc-hubb`. Extends the normal antiferromagnetic criterion
+    and also allows for determinants with a high penalty score not to be truncated. Only 
+    determinants with an intermediate penalty score between \(a\) and \(2*n_links - a\) are
+    truncated.
+
 -   **init-shift**<br>
     Adapts the shift only w.r.t. the initiator walkers.
 
@@ -1123,6 +1140,59 @@ and is stopped after 10000 iterations.
     in `FCIMCStats` which prints the secondary shift.
     The number of type-1 and type-2 walkers is printed in `INITIATORStats`
     in columns 14 and 15, respectively.
+
+-   **trunc-init-half**<br>
+    Only truncates initiators of one sign.
+
+-   **free-prop \(i_0\) \(i_1\) \(i_2\)**<br>
+    Activates a feature that initialises with an initiator run for \(i_0\) iterations.
+    After that, the initiator constraint is removed for \(i_1\) iterations and turned
+    back on for \(i_2\) iterations and so on. During the free propagation without the
+    initiator constraint, the initiator bias is lowered at the expense of reintroducing
+    a sign problem.
+
+-   **fp-min-ref \(N_0\)**<br>
+    Activates the free propagation until a minimum reference occupation \(N_0\) is reached.
+
+-   **renorm**<br>
+    Rescales all walker populations to reach a target population in every iteration.
+
+-   **stoq-nospawn \(S_min\) \(F_min\)**<br>
+    Does not allow spawns from determinants for which the walker number in the respective
+    stoquastised wavefunction exceeds \(S_min\), unless the current population in the
+    current fermionic run exceeds \(F_min\). The stoquastised wavefunction is read in
+    using an additional HDF5 popsfile `stoq.h5`.
+
+-   **nospawn-rev \(F'_min\)**<br>
+    When using `stoq-nospawn`, a determinant that has been deemed no-spawn according to
+    its weight in the stoquastised wavefunction is permanently allowed to spawn once it
+    exceeds \(F'_min\) at least at the end of one iteration.
+
+-   **init-expand \(i_0\) \(i_exp\) \(i_reset\)**<br>
+    Option to expand the initiator space gradually and add permanent initiators in a
+    stepwise manner. There is a initialisation period for the first \(i_0\) iterations.
+    After that, flags are added for \(i_exp\) iterations, followed by a recovery
+    period for \(i_reset\) iterations. Together they form the expansion period.
+    This process is repeated until the end of the calculation. The following additional
+    keywords define which determinants are flagged during the expansion period.
+
+-   **init-expand-add**<br>
+    Only works in conjunction with `init-expand`. Actually adds the flagged determinants
+    as initiators.
+
+-   **init-expand-reset**<br>
+    Only works in conjunction with `init-expand`. Removes empty determinants from the
+    expanded space after every iteration.
+
+-   **init-expand-annihil \(r\) \(i\)**<br>
+    Only works in conjunction with `init-expand`. Adds a determinant when its averaged
+    average ratio of annihilated spawned walkers onto it is lower than some threshold \(r\).
+    The average is taken over \(i\) iterations.
+
+-   **init-expand-full**<br>
+    Only works in conjunction with `init-expand`. Adds all determinats that are occupied
+    at least once during the first phase of each expansion period.
+    
 
 #### Adaptive shift options
 
@@ -1362,6 +1432,37 @@ and is stopped after 10000 iterations.
     This option disables the correction used for RDM calculation for the
     adaptive shift. Use this only for debugging purposes, as the
     resulting RDMs are flawed.
+
+#### Importance sampling options
+
+-   **gutzwiller-guide \(g\)**<br>
+    Activates the Gutzwiller-like guiding wavefunction for importance sampling,
+    i.e. only uses the prefactor of the Gutzwiller wavefunction.
+    Very cheap to calculate. Usable for both model and ab-initio Hamiltonians.
+    \(g\) is the Gutzwiller parameter.
+
+-   **hartree-gutzwiller \(g\)**<br>
+    Activates the full Gutzwiller guiding wavefunction for importance sampling,
+    i.e. also calculates the overlap with the \(U = 0\) wavefunction.
+    More expensive to calculate. Usable only with the internal Hubbard implementation.
+    \(g\) is the Gutzwiller parameter.
+
+-   **abinitio-gutzwiller-guide \(g\)**<br>
+    Activates the full Gutzwiller guiding wavefunction for importance sampling,
+    i.e. also calculates the overlap with the Hartree–Fock wavefunction.
+    More expensive to calculate. Usable only with the internal Hubbard implementation.
+    \(g\) is the Gutzwiller parameter.
+
+-   **gutzwiller-antiferro \(g_AF\)**<br>
+    Only available for Heisenberg and real-space Hubbard model. Only works in conjunction
+    with `gutzwiller-guide`. Uses a guiding wavefunction where determinants with many
+    ferromagnetic nearest-neighbour connections are exponentially suppressed.
+
+-   **hubbard-doublon-holon \(g_dh\)**<br>
+    Only available for Heisenberg and real-space Hubbard model. Only works in conjunction
+    with `gutzwiller-guide`. Uses a guiding wavefunction where determinants with large
+    separations between doublons and holons are exponentially suppressed.
+
 
 #### METHODS Block
 

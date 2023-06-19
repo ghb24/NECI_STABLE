@@ -68,7 +68,7 @@ module fcimc_pointed_fns
 
     use hphf_integrals, only: hphf_diag_helement
 
-    use Determinants, only: get_helement, calcImportanceRatio, calc_gutzwiller_weight
+    use Determinants, only: get_helement, calcImportanceRatio
     use global_det_data, only: get_tot_spawns, get_acc_spawns, get_corr_pop, death_corr_pop, reset_corr_pop, add_corr_pop
 
     implicit none

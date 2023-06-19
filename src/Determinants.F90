@@ -38,8 +38,7 @@ module Determinants
         GetUEGKE, DetFreezeBasis, GetH0Element3, tagSpecDet, specdet, tSpecDet, &
         geth0element4, tDefineDet, tagDefDet, DefDet, WriteDetBit, get_helement_det_only, &
         iactivebasis, nActiveBasis, nActiveSpace, DetInit, DetPreFreezeInit, &
-        DetPreFreezeInit_old, DetCleanup, calcImportanceRatio, calcImportanceGuide, &
-        calc_gutzwiller_weight
+        DetPreFreezeInit_old, DetCleanup, calcImportanceRatio, calcImportanceGuide
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
     !       list, or with only a bit-det
@@ -317,23 +316,6 @@ contains
         calculated_ms = sum(get_spin_pn(fdet(1:nel)))
 
     End Subroutine DetPreFreezeInit
-
-
-    subroutine calc_gutzwiller_weight(nI, gw_weight)
-        use CalcData, only: tGutzwillerHF, GutzwillerParam
-        use HartreeFockGuide, only: calc_hf_weight
-        integer, intent(in) :: nI(nel)
-        real(dp), intent(out) :: gw_weight
-        real(dp) :: prefac, hf_weight
-
-        if (tGutzwillerHF) then
-            prefac = exp(GutzwillerParam * real(get_helement(nI, nI, 0)))
-        else
-            prefac = 1.0_dp
-        end if
-        call calc_hf_weight(nI, hf_weight)
-        gw_weight = prefac * hf_weight
-    end subroutine calc_gutzwiller_weight
 
     function calcImportanceRatio(nI_, iLutnI_, nJ, iLutnJ) result(ratio)
         use CalcData, only: tGutzwillerGuide, GutzwillerParam, &

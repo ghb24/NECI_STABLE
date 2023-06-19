@@ -3684,17 +3684,10 @@ contains
                 GutzwillerParam = to_realdp(tokens%next())
             case("PRINT-UMAT")
                 tPrintUMat = .true.
-            case("HARTREE-FOCK")
-                tHartreeFockGuide = .true.
-            case('HARTREE-GUTZWILLER')
+            case("HARTREE-GUTZWILLER")
                 tImportanceSampling = .true.
                 tGutzwillerGuide = .true.
                 tHartreeGutzwiller = .true.
-                GutzwillerParam = to_realdp(tokens%next())
-            ! necessary to introduce mutual exclusiveness of some keywords
-            ! this should crash unless an orb_coeff file is not read
-            case('GUTZWILLER-HF')
-                tGutzwillerHF=.true.
                 GutzwillerParam = to_realdp(tokens%next())
             case("ABINITIO-GUTZWILLER-GUIDE")
                 tGutzwillerGuide = .true.
@@ -3716,7 +3709,6 @@ contains
                     call stop_all(t_r, "GUTZWILLER-ANTIFERRO only working in conjunction with GUTZWILLER-GUIDE")
                 tGutzwillerHubbardAF = .true.
                 GutzwillerParam2 = to_realdp(tokens%next())
-
             case("HUBBARD-DOUBLON-HOLON")
                 if(.not. (t_heisenberg_model .or. t_new_real_space_hubbard)) &
                     call stop_all(t_r, "HUBBARD-DOUBLON-HOLON is only valid for Heisenberg and real-space Hubbard model")
@@ -3754,11 +3746,11 @@ contains
             case("RENORM")
                 tRenorm = .true.
 
-            case("BOSON-NOSPAWN")
+            case("STOQ-NOSPAWN")
                 tBosonNoSpawn = .true.
                 BosonNoSpawnThreshold = to_realdp(tokens%next())
                 FermionNoSpawnThreshold = to_realdp(tokens%next())
-                bosonic_popsfile = 'bosonic.h5'
+                bosonic_popsfile = 'stoq.h5'
 
             case("NOSPAWN-REV")
                 tNoSpawnRev = .true.

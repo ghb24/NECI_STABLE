@@ -35,8 +35,7 @@ module fcimc_helper
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet, tAccumEmptyDet
 
-    use Determinants, only: get_helement, calcImportanceRatio, calcImportanceGuide, &
-        calc_gutzwiller_weight
+    use Determinants, only: get_helement, calcImportanceRatio, calcImportanceGuide
     use DeterminantData, only: write_det
     use FciMCData
     use hist, only: add_hist_spawn, add_hist_energies, HistMinInd

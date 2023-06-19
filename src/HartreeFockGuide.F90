@@ -7,7 +7,7 @@ module HartreeFockGuide
         use OneEInts, only: GetTMatEl 
         use constants, only: dp, EPS
         use SystemData, only: nel, nBasis, FixedNodeMinThresh, FixedNodeLowestVal
-        use CalcData, only: tControlZeroDenom, GutzwillerParam, tGutzwillerHF
+        use CalcData, only: tControlZeroDenom, GutzwillerParam
         use lattice_mod, only: lat
 
         implicit none
