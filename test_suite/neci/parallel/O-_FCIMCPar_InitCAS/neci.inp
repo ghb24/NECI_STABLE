@@ -1,42 +1,43 @@
 title
 
 system read noorder
-symignoreenergies
-electrons 9
-nonuniformrandexcits
-spin-restrict -1
-rotatedorbs
-rohf
+    symignoreenergies
+    electrons 9
+    nonuniformrandexcits
+    spin-restrict -1
+    rotatedorbs
+    rohf
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-nmcyc 20000
-diagshift 0.d+0
-initwalkers 2000000
-tau 0.0001
-startsinglepart
-truncatecas 5 7
-truncinitiator
-addtoinitiator 3
-directannihilation
-shiftdamp 0.10
-stepsshift 20
-memoryfacpart 2.0
-memoryfacspawn 0.5
-regenexcitgens
-load-balance-blocks off
+    methods
+    method vertex fcimc
+    endmethods
+    seed -7
+    nmcyc 20000
+    diagshift 0.d+0
+    initwalkers 2000000
+    tau-values \
+        start user-defined 0.0001
+    startsinglepart
+    truncatecas 5 7
+    truncinitiator
+    addtoinitiator 3
+    directannihilation
+    shiftdamp 0.10
+    stepsshift 20
+    memoryfacpart 2.0
+    memoryfacspawn 0.5
+    regenexcitgens
+    load-balance-blocks off
 endcalc
 
 integral
-freeze 0 0
+    freeze 0 0
 endint
 
 logging
-popsfile -10000
-blockingstartiter 200000
+    popsfile -10000
+    blockingstartiter 200000
 endlog
 end

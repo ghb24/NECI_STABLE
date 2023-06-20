@@ -20,7 +20,7 @@ description of each paragraph. Then come recommended options, marked in
 given in black.
 
 Keywords which are purely for debugging purposes and only interesting
-for developers are markes as **\textcolor{green}{green}**.
+for developers are marked in **\textcolor{green}{green}**.
 
 Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`)
 Line continuation is achieved with `\`. (A deprecated line continuation string found in legacy inputs is `+++`.)
@@ -150,6 +150,21 @@ considered. The block starts with the `system` keyword and ends with the
     parallel. The argument \(n\) is the number of wave functions
     (replicas). Requires `mneci` or `kmneci`.
 
+-   **nonhermitian [1-body] [2-body]**<br>
+    Specifies that the input is a non-Hermitian Hamiltonian, but makes no further
+    assumptions. By default it assumes both 1- and 2-body non-Hermiticity.
+    However, it has two optional keywords, if `1-body` is given, only the
+    1-body components of the Hamiltonian are non-Hermitian; if `2-body` is given
+    then only the 2-body components are non-Hermitian. Note that in the case of
+    transcorrelation, only the 2-body component would be non-Hermitian; hence
+    if you are running a transcorrelated mean-field calculation, use
+    `nonhermitian 2-body`.
+
+-   **stoquastize**<br>
+    Stoquastize the Hamiltonian. This means that the off-diagonal elements of the
+    original Hamiltonian become negative without changing the magnitudes,
+    i.e. \(H^{stoq}_{ij} = H_{ij}\delta_{ij} - |H_{ij}|(1 - \delta_{ij})\).
+
 #### Excitation generation options
 
 -   **\textcolor{blue}{nonUniformRandExcits}**<br>
@@ -163,11 +178,121 @@ considered. The block starts with the `system` keyword and ends with the
         elements using pre-computed alias tables. This excitation
         generator is extremely fast, while maintaining high acceptance
         rates and is generally recommended when memory is not an issue.
+        The keyword has to be followed by either `LOCALISED`,
+        `DELOCALISED`, or `MANUAL`.
+
+        With `LOCALISED` and `DELOCALISED` the fastest PCHB sampler is chosen automatically.
+        Specify `DELOCALISED` for Hartree-Fock like orbitals and
+        `LOCALISED` for localised orbitals.
+        With `MANUAL` one can select the PCHB sampler themselves.
+
+        When selecting `MANUAL`, first the singles are specified.
+        The precomputed weight is given by
+        \begin{equation}
+            S^{A}_{I}
+          =
+            \begin{cases}
+              | h_{AI} | + \sum_{R} |g_{AIRR} - g_{ARRI}|  & I \neq A \\
+              0 & \text{else}
+            \end{cases}
+        \end{equation}
+        Note that \( R \) runs over all spin-orbitals, not only the occupied.
+        This makes the weighting determinant-independent.
+        The probabilites are then given by:
+        \begin{equation}
+          p_1^{\text{PCHB}}(I)
+          =
+            \frac
+              {\sum_C S^{C}_{I} }
+              {\sum_{CL} S^{C}_{L} }
+          \qquad
+          p_1^{\text{PCHB}}(A | I)
+          =
+            \frac
+              { S^{A}_{I} }
+              {\sum_C S^{C}_{I} }
+          \quad.
+        \end{equation}
+
+        Now we can sample
+        weighted without guaranteeing (un-)occupiedness ( \( p_1^{\text{PCHB}}(I) \) or \( p_1^{\text{PCHB}}(A | I) \) ),
+        weighted with guaranteeing (un-)occupiedness ( \( p_1^{\text{PCHB}}(I)|_{I \in D_i} \) or \( p_1^{\text{PCHB}}(A | I)|_{A \notin D_i} \) ),
+        or uniformly ( \( p_1^{\text{uni}}(I)|_{I \in D_i} \) or \( p_1^{\text{uni}}(A | I)|_{A \notin D_i} \) ).
+
+        We will write `fast`, `full`, and `unif` for the three cases and separate the particle selection
+        from hole selelection with a colon.
+        This means that e.g. `unif:full` corresponds to sampling via
+        \( p_1^{\text{uni}}(I)|_{I \in D_i} \cdot p_1^{\text{PCHB}}(A | I)|_{A \notin D_i} \).
+
+        The possible specifications are one of the following `unif:unif`, `unif:fast`, `unif:full`, `full:full`, or `on-the-fly-heat-bath`.
+        Where `on-the-fly-heat-bath` uses the exact on-the-fly calculated matrix element for weighting (which is **slow**).
+
+        After the singles the doubles are specified.
+        The following weights are used for the doubles:
+        \begin{equation}
+            W^{AB}_{IJ}
+          =
+            \begin{cases}
+              | g_{AIBJ} - g_{AJBI}| & I \neq J \land  A \neq B \land \{I, J\} \cap \{A, B\} = \emptyset \\
+              0 & \text{else}
+            \end{cases}
+        \end{equation}
+        and the probalities are given by:
+        \begin{equation}
+        \label{Eq:PCHB_weights}
+        \begin{aligned}
+          p_2^{\text{PCHB}}(I)
+          &=
+            \frac
+              {\sum_{LCD} W^{CD}_{IL} }
+              {\sum_{KLCD} {W^{CD}_{KL}} }
+          &p_2^{\text{PCHB}}(J | I)
+          &=
+            \frac
+              {\sum_{CD}  {W^{CD}_{IJ}}}
+              {\sum_{LCD} {W^{CD}_{IL}}}
+          \\
+          p_2^{\text{PCHB}}(A | IJ)
+          &=
+            \frac
+              {\sum_{D}  {W^{AD}_{IJ}} }
+              {\sum_{CD} {W^{CD}_{IJ}} }
+          &p_2^{\text{PCHB}}(B | IJ A)
+          &=
+            \frac
+              { W^{AB}_{IJ} }
+              { \sum_D {W^{AD}_{IJ}} }
+          \quad.
+        \end{aligned}
+        \end{equation}
+
+        Again we can combine different combinations of uniform, fast-, and fully-weighted sampling.
+        We will specify the selection for the first and second particle and then
+        the first and second hole. Again the particle and hole selections are separated by a `:`.
+
+        The possible particle selections are `full-full` ( \( p_2^{\text{PCHB}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i} \) ),
+        `unif-full` ( \( p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I)|_{J \in D_i} \) ),
+        `unif-fast` ( \( p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{PCHB}}(J | I) \) ),
+        and `unif-unif` ( \( p_2^{\text{uni}}(I)|_{I \in D_i} \cdot p_2^{\text{unif}}(J | I)|_{J \in D_i} \) ).
+
+        The possible hole selections are `full-full` (\( p_2^{\text{PCHB}}(A | IJ)|_{A \notin D_i} \cdot p_2^{\text{PCHB}}(B | IJA)|_{B \notin D_i}  \))
+        and `fast-fast` (\( p_2^{\text{PCHB}}(A | IJ) \cdot p_2^{\text{PCHB}}(B | IJA)  \) ).
+
+        The particle and hole selections can be freely combined among eather, e.g. `unif-full:fast-fast`.
+
+        An example input is:
+
+            nonuniformrandexcits pchb localised
+
+        An example input for manual specification is
+
+            nonuniformrandexcits pchb manual \
+                unif:full unif-full:full-full
 
     -   **guga-pchb**<br>
         Uses the pre-computed alias tables for the spin-adapted GUGA implementation.
         Needs the `guga` keyword in the `System` block.
-        If it is used in conjunction with the `hist-tau-search` option, which
+        If it is used in conjunction with the histogramming tau-search, which
         is recommended for GUGA calculations in general, it automatically sets
         more reasonable defaults than for the usual `mol-guga-weighted`
         excitation generation option.
@@ -209,104 +334,130 @@ considered. The block starts with the `system` keyword and ends with the
         k-space/real-space Hubbard model calculations. It is mandatory
         to specify this keyword in this case!
 
+    -   **GAS-CI**<br>
+        Specify the actual implementation for GAS.
+        Requires a GAS specification via the `GAS-SPEC` keyword.
+
+        -   **PCHB**<br>
+            This is the default and the fastest implementation, if
+            sufficient memory is available. The double excitations work
+            similar to the FCI precomputed heat bath excitation generator
+            but automatically exclude GAS forbidden excitations.
+            The keyword has two optional sub-keywords,
+            `SINGLES`, `DOUBLES` which allow to tailor the algorithm
+            for your system.
+            (The default choice is usually sufficiently fast.)
+            With **SINGLES** one can select the single excitation algorithm:
+
+            -   **PC-WEIGHTED**<br>
+                Use precomputed weighted singles, which
+                is the default and recommended sampling scheme.
+                Read at Full CI PCHB for a deeper description.
+                It allows the same sampling schemes
+                `fully-weighted`, `weighted`, and `fast-weighted`.
+
+            -   **PC-UNIFORM**<br>
+                This is the default. It chooses GAS allowed single
+                excitations uniformly.
+
+            -   **ON-THE-FLY-HEAT-BATH**<br>
+                It chooses GAS allowed electrons weighted by their matrix
+                element.
+
+            With **doubles** one can select the particle- and hole-selection
+            algorithm for double excitations.
+            It is followed by `particle-selection` or `hole-selection`.
+            Read at Full CI PCHB for a deeper description.
+            It allows the same sampling schemes.
+
+            An example input is:
+
+                nonuniformrandexcits GAS-CI PCHB \
+                        singles pc-weighted weighted \
+                        doubles particle-selection weighted \
+                        doubles hole-selection fully-weighted
+
+        -   **DISCARDING**<br>
+            Use a Full CI excitation generator and just discard excitations
+            which are not contained in the GAS space. Currently PCHB is used
+            for Full CI.
+
+        -   **ON-THE-FLY-HEAT-BATH**<br>
+            Use heat bath on the fly general GAS, which is applicable to any
+            GAS specification, but a bit slower than necessary for
+            disconnected spaces.
+
+        -   **DISCONNECTED**<br>
+            Use the disconnected GAS implementations, which assumes
+            disconnected spaces and performs there a bit better than the
+            general implementation.
+
+
 -   **lattice-excitgen**<br>
     Generates uniform excitations using momentum conservation. Requires
     the `kpoints` keyword.
-
--   **pchb-weighted-singles**<br>
-    Use a weighted single excitation generator for the pchb excitation
-    generator. By default, singles are created uniformly, the weighted
-    generation is much more expensive, but can help if single matrix
-    elements are large.
 
 <!-- -->
 
 -   **GAS-SPEC**<br>
     Perform a *Generalized Active Spaces* (GAS) calculation and specify
-    the GAS spaces.[@Weser2021] It is possible to select the actual implementation
-    with the `GAS-CI` keyword. It is possible to use *local* or
-    *cumulative* constraints on the particle number. Local constraints
+    the GAS spaces.[@Weser2021] It is necessary to select the actual implementation
+    with the `GAS-CI` keyword. It is possible to use *local*,
+    *cumulative*, or *flexible* constraints on the particle number. Local constraints
     define the minimum and maximum particle number per GAS space.
     Cumulative constraints define cumulative minima and maxima of the
-    cumulative particle number. The specification is first `LOCAL` or
+    cumulative particle number.
+    The flexible constraints allow the user to list the allowed
+    supergroups, i.e. the allowed distribution of particles
+    among the GAS spaces.  The specification is first `LOCAL` or
     `CUMULATIVE` to define the kind of constraints followed by the
     number of GAS spaces \(n_\text{GAS}\). The next items are
-    \(3 \times n_\text{GAS}\) numbers which are the number of spatial
+    \(n_\text{GAS}\) rows with 3 numbers which are the number of spatial
     orbitals and (cumulative) minimum and maximum number of particles
-    per GAS space \(n_i, N_i^\text{min}, N_i^\text{max}\). Finally an
-    integer array denotes for each spatial orbital to which GAS space it
-    belongs. Instead of `1 1 1 1 1` one can write `5*1`. It is
-    advantageous to use the line continuation (`\`) for human-readable
-    formatting as table. Two benzenes with single inter-space excitation
+    per GAS space \(n_i, N_i^\text{min}, N_i^\text{max}\).
+    Finally the last row
+    denotes for each spatial orbital to which GAS space it
+    belongs. Instead of `1 1 1 1 1` one can write `5*1`.
+    Two benzenes with single inter-space excitation
     would be e.g. denoted as:
 
-        GAS-SPEC LOCAL 2 \
-                 6  5  7  \
-                 6  5  7  \
+        GAS-SPEC LOCAL 2
+                 6  5  7
+                 6  5  7
                  1  1  1  1  1  1  2  2  2  2  2  2
 
     or
 
-        GAS-SPEC LOCAL  2 \
-                 6  5  7  \
-                 6  5  7  \
+        GAS-SPEC LOCAL  2
+                 6  5  7
+                 6  5  7
                  6*1 6*2
 
     or
 
-        GAS-SPEC CUMULATIVE 2 \
-                 6  5  7  \
-                 6 12 12 \
+        GAS-SPEC CUMULATIVE 2
+                 6  5  7
+                 6 12 12
                  6*1 6*2
 
     In the given example the local and cumulative constraints are
     equivalent, but they are not always!
 
+    The flexible constraints start with the keyword `FLEXIBLE`
+    and require the number of GAS spaces and supergroups \(n_{\text{GAS}} \quad n_{\text{sg}}\).
+    The next \(n_{\text{sg}}\) rows list the allowed supergroups.
+    Again the last row denotes for each spatial orbital to which GAS space it
+    belongs.
+    The previous example of two benzene with single excitations would be
+
+        GAS-SPEC FLEXIBLE 2 3
+                6 6
+                5 7
+                7 5
+                6*1 6*2
+
     It is possible to switch off the spin recoupling between
     different GAS spaces by appending `NO-RECOUPLING`.
-
--   **GAS-CI**<br>
-    *Optional keyword.* Specify the actual implementation for GAS. If it
-    is ommitted, it will be deduced from `GAS-SPEC`.
-
-    -   **GENERAL-PCHB**<br>
-        This is the default and the fastest implementation, if
-        sufficient memory is available. The double excitations work
-        similar to the FCI precomputed heat bath excitation generator
-        but automatically exclude GAS forbidden excitations. If one
-        follows the keyword, by `SINGLES`, one can select the singles
-        for which there are three possibilities:
-
-        -   **PC-UNIFORM**<br>
-            This is the default. It chooses GAS allowed electrons
-            uniformly.
-
-        -   **DISCARDING-UNIFORM**<br>
-            It chooses electrons uniformly as in FCI and discards.
-
-        -   **ON-FLY-HEAT-BATH**<br>
-            It chooses GAS allowed electrons weighted by their matrix
-            element.
-
-        An example is
-
-            GAS-CI GENERAL-PCHB \
-                            SINGLES ON-FLY-HEAT-BATH
-
-    -   **DISCARDING**<br>
-        Use a Full CI excitation generator and just discard excitations
-        which are not contained in the GAS space. Currently PCHB is used
-        for Full CI.
-
-    -   **GENERAL**<br>
-        Use heat bath on the fly general GAS, which is applicable to any
-        GAS specification, but a bit slower than necessary for
-        disconnected spaces.
-
-    -   **DISCONNECTED**<br>
-        Use the disconnected GAS implementations, which assumes
-        disconnected spaces and performs there a bit better than the
-        general implementation.
 
 -   **OUTPUT-GAS-HILBERT-SPACE-SIZE**<br>
     *Optional keyword.* If a GAS calculation is performed, then output the
@@ -370,6 +521,11 @@ considered. The block starts with the `system` keyword and ends with the
     When using this option, non-uniform random excitation generator
     become inefficient, so using `nonUniformRandExcits` is discouraged.
 
+-   **adjoint-calculation**<br>
+    Instead of calculating \(H\), NECI solves for \(H^\dagger\). Note in the case
+    of transcorrelation, this is equivalent to switching the sign of your
+    Jastrow factor: \(J\) to \(-J\).
+
 -   **ueg-transcorr \(mode\)**<br>
     Enable the usage of a transcorrelated Hamiltonian for the uniform
     electron gas. This implies the non-hermiticity of the Hamiltonian as
@@ -394,7 +550,7 @@ considered. The block starts with the `system` keyword and ends with the
     account 3-body interactions for all other purposes.
 
 
--   **evolve-adjoint**<br>
+-   **adjoint-replicas**<br>
     For multiple replicas (mneci, system-replicas >=2) or a dneci run,
     evolves the left eigenvector for the even replicas, while still
     evolving the right eigenvector for the odd replicas.
@@ -481,18 +637,24 @@ and ends with the `endcalc` keyword.
     used if the excitation generator creates a lot of invalid
     excitations, but should be avoided else.
 
--   **scale-spawns**<br>
+-   **scale-spawns** [\(k_{\text{scale-spawn}}\)]<br>
     Store the maximum value of \(\frac{H_{ij}}{p_{gen}}\) for each
-    determinant and use it to estimate the number of spawns per walker
-    to prevent blooms. Useful when this fraction strongly depends on the
-    determinant.
+    determinant. If a bloom with more than \(k_{\text{scale-spawn}}\) spawns
+    happens, then several spawning attempts with individual lower probability
+    will happen instead.
+    \(k_{\text{scale-spawn}}\) has to be smaller equal than \(k_{\text{maxbloom}}\)
+    from equations \ref{Eq:conventional_tau_search} and \ref{Eq:histogramming_tau_search}.
 
 -   **davidson-max-iters \(n\)**<br>
     Set the number of iterations in Davidson's algorithm when this is used.
     Such algorithm computes a few of the smallest (or largest) eigenvalues
     of a large sparse real symmetric matrix. This method is used,
     for instance, in the semi-stochastic implementation or when
-    CI Davidson is used. The default value is \(25\).
+    CI Davidson is used. The default value is \(50\).
+
+-   **davidson-target-tolerance \(x\)**<br>
+    Set the target convergence tolerance of the residual norm of Davidson
+    diagonalization. The default value is \(10^{-7}\).
 
 #### Population control options
 
@@ -518,7 +680,7 @@ and ends with the `endcalc` keyword.
  \(\zeta^2 / 4\) to achieve critical damping. Both parameters have to
  be \(<1.0\) and \(\eta < \zeta\).
 
--   **\textcolor{blue}{stepsSft \(n\)}**<br>
+-   **\textcolor{blue}{stepsshift \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
     \(n\). Defaults to \(10\).
 
@@ -555,18 +717,21 @@ and ends with the `endcalc` keyword.
 #### Real walker coefficient options
 
 -   **\textcolor{blue}{allRealCoeff}**<br>
- Allow determinants to have non-integer population. There is
+    Allow determinants to have non-integer population. There is
     a minimal population below which the population of a determinant
     will be rounded stochastically. This defaults to \(1\).
 
--   **\textcolor{blue}{realSpawnCutoff \(x\)}**<br>
- Continuous real spawning will be performed, unless the spawn
+-   **realSpawnCutoff ( \(x\) | OFF | ON )**<br>
+    Continuous real spawning will be performed, unless the spawn
     has weight less than x. In this case, the weight of the spawning
     will be stochastically rounded up to x or down to zero, such that
     the average weight of the spawning does not change. This is a method
     of removing very low weighted spawnings from the spawned list, which
-    require extra memory, processing and communication. A reasonable
-    value for x is 0.01.
+    require extra memory, processing and communication.
+    This keyword is on by default with a value of \(x = 0.95 \).
+    It can be explicitly turned off via `OFF`, explicitly turned on
+    via `ON` (using the default value then), or it can read a user-supplied
+    value for \(x\).
 
 -   **realCoeffbyExcitLevel \(n\)**<br>
     Allow all determinants up to an excitation level of \(n\) to have
@@ -589,36 +754,148 @@ and ends with the `endcalc` keyword.
 
 #### Time-step options
 
--   **\textcolor{red}{tau \(\tau\)} [SEARCH]**<br>
-    Sets the timestep per iteration to \(\tau\). Has one optional
-    argument SEARCH. If given, the time-step will be iteratively updated
-    to keep the calculation stable.
+-   **\textcolor{red}{tau-values}**<br>
+    This keyword is mandatory.
+    It is followed by "start", "min", or "max" and their respective sub-keywords.
+    It is necessary to define the source of the starting value of \(\Delta \tau\),
+    this means that `start` is required.
 
--   **<span style="color: blue">hist-tau-search [\(c\) \(nbins\)
-    \(bound\)]</span>**<br>
- Update the time-step based on histogramming of the ratio
-    \(\frac{H_{ij}}{p(i|j)}\). Not compatible with the tau \(\tau\)
-    SEARCH option. The three arguments \(c\), \(nbins\) and \(bound\)
-    are optional. \(0<c<1\) is the fraction of the histogram used for
-    determining the new timestep, \(nbins\) the number of bins in the
-    histogram and \(bound\) is the maximum value of
-    \(\frac{H_{ij}}{p(i|j)}\) to be stored.<br>
-    For spin-adapted GUGA calculations this option is *highly*
-    recommended! Otherwise the time-step can become quite small in these
-    simulations.
+    -   **\textcolor{red}{start}**<br>
+        This defines the source of the initial \(\Delta \tau\).
 
--   **\textcolor{blue}{max-tau \(\tau_\text{max}\)}**<br>
- Sets the maximal value of the time-step to
-    \(\tau_\text{max}\). Defaults to \(1\).
+        Has to be followed by one of the following sub-keywords:
+        -   **\textcolor{blue}{user-defined} \(\Delta \tau\)**<br>
+            Has to be followed by a real number that is the initial \(\Delta \tau\).
 
--   **min-tau [\(\tau_\text{min}\)]**<br>
-    Sets the minimal value of the time-step to \(\tau_\text{min}\) and
-    enables the iterative update of the time-step. Defaults to
-    \(10^{-7}\). The argument \(\tau_\text{min}\) is optional.
+        -   **\textcolor{blue}{from-popsfile}**<br>
+            Use the value from a popsfile. Requires `readpops`.
 
--   **keepTauFixed**<br>
-    Do never update \(\tau\) and the related parameter
-    \(p_\text{singles}\), \(p_\text{doubles}\) or \(p_\text{parallel}\).
+        -   **tau-factor**<br>
+            Use `tau-factor` times the connections from the reference
+            determinant as starting guess.
+
+        -   **refdet-connections**<br>
+            Use information about the connections from the reference
+            determinant as starting guess.
+
+        -   **deterministic**<br>
+            Use the deterministic time-step:
+            \begin{equation}
+                \tau = \frac{1}{E_{\text{max}} - E_0}
+            \end{equation}
+            where \(E_{\text{max}} - E_0\) is approximated by the
+            spread of diagonal elements of \(\hat{H}\).
+
+        -   **not-needed**<br>
+            Say explicitly that \(\Delta \tau\) is not needed.
+            This is only relevant for fully deterministic calculations,
+            e.g. Lanczos CI.
+
+    - **[min \(\tau_{\text{min}}\)]**<br>
+        Optional keyword. It defines a minimum for the initial value of
+        \(\Delta \tau\) and following \(\Delta \tau\)-searches.
+
+    - **[max \(\tau_{\text{max}}\)]**<br>
+        Optional keyword. It defines a maximum for the initial value of
+        \(\Delta \tau\) and following \(\Delta \tau\)-searches.
+
+    - **[readpops-but-tau-not-from-popsfile]**<br>
+        Optional keyword.
+        If `readpops` is switched on, but \(\Delta \tau\) should not be read from
+        a popsfile then it is necessary to explicitly state that
+        it is indeed wanted.
+
+
+-   **\textcolor{blue}{tau-search}**<br>
+    The \(\Delta \tau\)-search is off by default,
+    but can be switched on with two different algorithms.
+    It can also be switched off again when certain stop conditions are reached,
+    since it is an unnecessary expensive operation when \(\Delta \tau\) has reached a
+    stable value.
+    Has the following sub-keywords:
+
+    -   **[\textcolor{blue}{algorithm}]**<br>
+        Optional keyword.
+        This defines the algorithm of the \(\Delta \tau\)-search.
+
+        Has to be followed by one of the following sub-keywords:
+
+        -   **conventional**<br>
+            Adjusts \(\Delta \tau\) such that:
+            \begin{equation}
+                \label{Eq:conventional_tau_search}
+                \Delta \tau = k_{\text{maxbloom}} \cdot \min_{i,j} \left( \frac{p_{\text{gen}}(i, j)}{H_{ij}} \right) \quad.
+            \end{equation}
+            The prefactor \(k_{\text{maxbloom}}\) is changed via `MaxWalkerBloom`.
+
+        -   **histogramming [\( (1 - c) \quad n_{\text{bins}} \quad b \)]**<br>
+            Update the time-step based on histogramming of the ratio
+            \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\).
+            \begin{equation}
+                \label{Eq:histogramming_tau_search}
+                \Delta \tau = k_{\text{maxbloom}} \cdot \left( \text{argmin}_{t} \Big| c - \int_0^t p(x)\,\mathrm{d}x \Big| \right)^{-1} \quad.
+            \end{equation}
+            Where \(p\) is the probability distribution of \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\)
+            which is obtained numerically by binning.
+            The three arguments \(1 - c\), \(n_{\text{bins}}\) and \(b\) are optional.
+            \(0<c<1\) is the fraction of the histogram used for
+            determining the new timestep, \(n_{\text{bins}}\) the number of bins in the
+            histogram and \(b\) is the maximum value of
+            \(\frac{H_{ij}}{p_{\text{gen}}(i|j)}\) to be stored.<br>
+            For spin-adapted GUGA calculations this option is *highly*
+            recommended! Otherwise the time-step can become quite small in these
+            simulations.
+            Note that for \(c = 1\) the conventional and histogramming time-search are
+            equivalent.
+            The prefactor \(k_{\text{maxbloom}}\) is changed via `MaxWalkerBloom`.
+
+    - **[stop-condition]**<br>
+        Optional keyword.
+        Defines a stop-condition for the \(\Delta \tau\)-search.
+        The default is `var-shift`, i.e. the search ends, when
+        variable shift mode is reached.
+
+        Has to be followed by one of the following sub-keywords:
+        -   **off**<br>
+            No stop-condition, i.e. run \(\Delta \tau\)-search until the
+            calculation ends.
+
+        -   **\textcolor{blue}{no-change \(i\)}**<br>
+            The \(\Delta \tau\)-search is switched off, if there
+            was no change of \(\Delta \tau\) in the last \(i\) iterations.
+
+        -   **max-iter \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th iteration.
+
+        -   **max-eq-iter \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th iteration counting from variable shift mode.
+
+        -   **n-opts \(i\)**<br>
+            The \(\Delta \tau\)-search is switched off
+            after the \(i\)-th optimization of \(\Delta \tau\).
+
+        -   **var-shift**<br>
+            The \(\Delta \tau\)-search is switched off if variable shift is reached.
+
+    -   **[off]**<br>
+        Switch the tau-search explicitly off.
+        (Equivalent to not having the `tau-search` keyword at all.)
+        Note that this keyword is incompatible with other options (e.g. `maxWalkerBloom`).
+
+    -   **[scale-tau-to-death]**<br>
+        Optional keyword. Off by default.
+        If the \(\Delta \tau\)-search is off, still scale
+        \(\Delta \tau\) such that the death probability is smaller than 1.0.
+
+    -   **maxWalkerBloom \(k_{\text{maxbloom}}\)**<br>
+        The time step is scaled such that at most \(k_{\text{maxbloom}}\)
+        walkers are spawned in a single attempt,
+        with the scaling being guessed from previous spawning attempts.
+        Changes the prefactor in equations \ref{Eq:conventional_tau_search}
+        and \ref{Eq:histogramming_tau_search}.
+
 
 -   **truncate-spawns [\(n\) UNOCC]**<br>
     Truncate spawns which are larger than a threshold value \(n\). Both
@@ -626,10 +903,37 @@ and ends with the `endcalc` keyword.
     the truncation is restricted to spawns onto unoccupied. Useful in
     combination with hist-tau-search.
 
--   **maxWalkerBloom \(n\)**<br>
-    The time step is scaled such that at most \(n\) walkers are spawned
-    in a single attempt, with the scaling being guessed from previous
-    spawning attempts.
+
+
+##### Example inputs for \(\Delta \tau\)
+
+The following input start with \(\Delta \tau = 0.002 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}} \)
+and keeps its value between \( 0.001 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}}\)
+and \(0.003 \frac{\mathrm{I} \cdot \hbar}{E_{\mathrm{h}}}\).
+The conventional \(\Delta \tau\)-search that is
+stopped if there was no change of \(\Delta \tau\) for 1000 iterations.
+
+        tau-values \
+            start user-defined 0.002 \
+            min 0.001 \
+            max 0.003
+
+        tau-search \
+            algorithm conventional \
+            stop-condition no-change 1000
+
+The following input start with \(\Delta \tau \) from a popsfile.
+The histogramming \(\Delta \tau \)-search
+is performed with \(c = 0.9999, n_{\text{bins}} = 1000, b = 2000 \)
+and is stopped after 10000 iterations.
+
+        tau-values \
+            start from-popsfile
+
+        tau-search \
+            algorithm histogramming 1e-4 1000 2000 \
+            stop-condition max-iter 10000
+
 
 #### Wave function initialization options
 
@@ -702,7 +1006,7 @@ and ends with the `endcalc` keyword.
     Makes any determinant that has a half-time of at least \(age\)
     iterations an initiator. \(age\) is optional and defaults to \(1\).
 
--   **superInitiator [\(n\)]**<br>
+-   **superInitiators [\(n\)]**<br>
     Create a list of \(n\) superinitiators, from which all connected
     determinants are set to be initiators. The superinitiators are
     chosen according to population. \(n\) is optional and defaults to
@@ -788,7 +1092,7 @@ and ends with the `endcalc` keyword.
 
 #### Adaptive shift options
 
--   **auto-adpative-shift [\(t\) \(\alpha\) \(c\)]**<br>
+-   **auto-adaptive-shift [\(t\) \(\alpha\) \(c\)]**<br>
     Scale the shift per determinant based on the acceptance rate on a
     determinant. Has three optional arguments. The first is the
     threshold value \(t\) which is the minimal number of spawning
@@ -806,11 +1110,6 @@ and ends with the `endcalc` keyword.
     applied at \(\sigma\) with a default of \(0\) and \(f_2\) is the
     shift fraction to be applied at the initiator threshold, defaults to
     \(1\). Every initiator is applied the full shift.
-
--   **exp-adaptive-shift [\(\alpha\)]**<br>
-    Scales the shift expoentially with the population of a determinant.
-    The optional argument \(\alpha\) is the exponent of scaling, the
-    default is \(2\).
 
 -   **core-adaptive-shift**<br>
     By default, determinants in the corespace are always applied the
@@ -904,7 +1203,9 @@ and ends with the `endcalc` keyword.
     Use all determinants to form the core space. A fully deterministic
     projection is therefore performed with this option.
     This option requires information about spin(-projection) and spatial
-    symmetry, so the keywords `sym` and `spin-restrict` are required.
+    symmetry, so the keywords `sym`, and `spin-restrict` for a
+    diagonalization in a Slater Determinant basis or `guga` for a
+    diagonalization in a Gelfand-Tsetlin basis are required.
 
 -   **read-core**<br>
     Use the determinants in the CORESPACE file to form the core space. A
@@ -999,7 +1300,7 @@ and ends with the `endcalc` keyword.
     few walkers on relatively many processors, a large factor might be
     needed. Defaults to \(3\).
 
--   **prone-walkers**<br>
+-   **prone-determinants**<br>
     Instead of terminating when running out of memory, randomly delete
     determinants with low population and few spawns.
 
@@ -1167,7 +1468,7 @@ terminated with the `end-kp-fciqmc` keyword.
     list, \(B\) is the number of Krylov vectors, and \(x\) is the value
     input with this option.
 
--   **num-walker-per-site-init \(x\)**<br>
+-   **num-walkers-per-site-init \(x\)**<br>
     For finite-temperature jobs, \(x\) specifies the number of walkers
     to place on a determinant when it is chosen to be occupied.
 
@@ -1325,7 +1626,7 @@ keyword.
 -   **\textcolor{blue}{endlog}**<br>
  Terminates the LOGGING block.
 
--   **\textcolor{blue}{hdf5-pops}**\
+-   **\textcolor{blue}{hdf5-pops}**<br>
  Sets the format to read and write the wave function to HDF5.
     Requires building with the `ENABLE-HDF5` cmake option.
 
@@ -1381,7 +1682,7 @@ keyword.
     shift over the energy of a determinant. Only has an effect if
     `auto-adaptive-shift` is used.
 
--   **fval-pops-hist**<br>
+-   **fval-pop-hist**<br>
     Create a histogram of the scaling factor used for the auto-adaptive
     shift over the population of a determinant. Only has an effect if
     `auto-adaptive-shift` is used.
@@ -1397,6 +1698,24 @@ keyword.
     to prevent user error.
     With this keyword the user can explicitly say that they want to sample RDMs without
     replica.
+
+-   **ci-coefficients [\(n\) \(excitation\)]**<br>
+    Enables the collection of CI coefficients and their average over a number of iterations.
+    The outputs are printed in separate ASCII files named `ci_coeff_*_av`.
+    Additional files named `ci_coeff_*` are printed in a sorted manner that can directly be fed into
+    Molpro [@MOLPRO-JCP] for tailored Coupled/Distinguishable Cluster calculations
+    [@Vitale2020]-[@Vitale2022].
+    The optional argument \textit{n} is the number of iterations for averaging the CI coefficients
+    and defaults to 1000.
+    This is done in the last iterations of the FCIQMC run (i.e. if NMCYC = 10000 and
+    \textit{n} = 1000, the CI coefficients collection will start at iteration 9001).
+    However, the collection can begin after the NECI run reaches the preset number of walkers,
+    but it should only take place when the projected correlation energy is already converged.
+    The second optional argument is the \textit{excitation} level of the CI coefficients
+    to be collected and defaults to 2 (i.e., only singles and doubles).
+    CI coefficients up to triples (i.e. setting \textit{excitation} = 3) are available.
+    The semi-stochastic approach is recommended, in order to reach a lower stochastic error
+    for equal time averaging of the CI coefficients.
 
 
 
@@ -1501,6 +1820,13 @@ the RDMs are calculated and the content of the files, please see section
     This option activates a full sampling of RDMs,
     at least in the semi-stochastic space.
     This option does increase the cost though.
+
+-   **print-hdf5-rdms**<br>
+    Output the density matrices in HDF5 format to a file called
+    `fciqmc.rdms.<statenumber>.h5`. Currently only pure state RDMs are
+    supported. This keyword needs to be used in conjunction with
+    `write-spin-free-rdm` for the 2RDM and `printonerdm` for the 1RDM
+    respectively.
 
 
 ### FCIMCStats output functions

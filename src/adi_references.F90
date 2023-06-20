@@ -1,6 +1,9 @@
 #include "macros.h"
 module adi_references
-    use Parallel_neci
+    use constants, only: dp, EPS, lenof_sign, inum_runs, stdout, n_int, &
+        MPIArg, int64
+    use Parallel_neci, only: MPIAllGather, nProcessors, iProcIndex, &
+        root, MPIBarrier, MPIAllGatherV
     use FciMCData, only: ilutRef, TotWalkers, CurrentDets, core_run
     use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
                         tAdiActive, tSetupSIs, NoTypeN, tSetupSIs, &
@@ -12,9 +15,9 @@ module adi_references
     use bit_reps, only: decode_bit_det
     use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
     use sort_mod, only: sort
-    use constants
     use SystemData, only: nel, t_3_body_excits, tGUGA
-    use util_mod, only: operator(.isclose.)
+    use util_mod, only: operator(.isclose.), stop_all, neci_flush
+    use Determinants, only: WriteDetBit
 
     implicit none
     private
@@ -489,6 +492,7 @@ contains
         ! If the new ilut has sign 0, there is no need to do any check on this run
         if (mag_of_run(ilut_sign, run) > eps) then
 #ifdef CMPLX_
+            unused_var(run)
             ! The complex coherence check is more effortive, so only do it in complex builds
             ! Get the relative phase of the signs
             tmp = cmplx(signRef(min_part_type(run)), signRef(max_part_type(run)), dp) / &

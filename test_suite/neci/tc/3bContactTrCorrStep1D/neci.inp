@@ -1,36 +1,38 @@
-SYSTEM UEG
-ELECTRONS   3
-DIMENSION 1
-cell 5 0 0
-NOBRILLOUINTHEOREM
-CONTACTINTERACTION -10
-UEG-TRANSCORR 3-body
-Transcorrcutoff STEP 1
-spin-restrict -1
-lattice-excitgen
-ENDSYS
+system ueg
+    electrons   3
+    dimension 1
+    cell 5 0 0
+    nobrillouintheorem
+    contactinteraction -10
+    ueg-transcorr 3-body
+    transcorrcutoff step 1
+    spin-restrict -1
+    lattice-excitgen
+endsys
 
-CALC
-METHODS
-METHOD VERTEX FCIMC
-ENDMETHODS
-nmcyc 2000
-SEED        -7
-tau 0.0001
-TOTALWALKERS       10000
-DIAGSHIFT       1.5000000000
-SHIFTDAMP       0.1000000000
-STEPSSHIFT      10
-MEMORYFACPART         1.500000000000000
-MEMORYFACSPAWN         5.
-TRUNCINITIATOR
-ADDTOINITIATOR        2
-allrealcoeff
-startsinglepart 10
-load-balance-interval 1000
-ENDCALC
+calc
+    methods
+        method vertex fcimc
+    endmethods
+    nmcyc 2000
+    seed        -7
+    tau-values \
+        start user-defined 1e-4
+    totalwalkers       10000
+    diagshift       1.5000000000
+    shiftdamp       0.1000000000
+    stepsshift      10
+    memoryfacpart         1.500000000000000
+    memoryfacspawn         5.
+    truncinitiator
+    addtoinitiator        2
+    allrealcoeff
+    realspawncutoff off
+    startsinglepart 10
+    load-balance-interval 1000
+endcalc
 
-LOGGING
-popsfile -1
-ENDLOG
-END
+logging
+    popsfile -1
+endlog
+end

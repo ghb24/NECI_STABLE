@@ -7,12 +7,13 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 seed -7
 nmcyc 39000
 totalwalkers 20000
-tau 0.001
+tau-values \
+    start user-defined 0.001
 startsinglepart
 truncinitiator
 addtoinitiator 3

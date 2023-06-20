@@ -30,7 +30,7 @@ macro( neci_compiler_flags _lang )
 
     # Language specific compilation flags (build type dependent)
 
-    foreach( _btype DEBUG RELEASE CLUSTER )
+    foreach( _btype DEBUG FASTDEBUG RELEASE CLUSTER )
       if ( DEFINED NECI_${_lang}_FLAGS_${_btype} )
         message(STATUS "${_lang} compiler: Overriding ${_btype} flags")
         set( CMAKE_${_lang}_FLAGS_${_btype} ${NECI_${_lang}_FLAGS_${_btype}} )
@@ -86,7 +86,7 @@ foreach( _lang C CXX Fortran )
   neci_compiler_flags( ${_lang} )
 endforeach()
 
-foreach( _btype DEBUG RELEASE CLUSTER )
+foreach( _btype DEBUG FASTDEBUG RELEASE CLUSTER )
     foreach( _obj EXE SHARED MODULE )
       if ( NECI_${_obj}_LINKER_FLAGS_${_btype} )
         set( CMAKE_${_obj}_LINKER_FLAGS_${_btype} ${NECI_${_obj}_LINKER_FLAGS_${_btype} )

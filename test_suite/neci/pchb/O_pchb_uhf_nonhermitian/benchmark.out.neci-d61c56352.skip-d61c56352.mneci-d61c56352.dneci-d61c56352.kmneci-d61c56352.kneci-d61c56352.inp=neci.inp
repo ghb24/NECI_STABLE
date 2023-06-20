@@ -1,0 +1,597 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Processor            2 /           4  moving to local output.
+ outfile=NodeFile2           
+ Processor            3 /           4  moving to local output.
+ outfile=NodeFile3           
+ Processor            4 /           4  moving to local output.
+ outfile=NodeFile4           
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Jan 26 2023 at 17:17:19
+ Compiled using configuration:
+     cmake-GNU--FASTDEBUG
+ VCS BASE repository version:
+     d61c56352e09c7b61010cc616441a015f185b4f5
+ Working directory: 
+     /home/phaupt/dev/neci/test_suite/neci/pchb/O_pchb_uhf_nonhermitian
+ Running on: alamdlogin1
+ Started running on 26/01/2023 at 17:21:19
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+    system read
+        electrons 8
+        spin-restrict -2
+        nobrillouintheorem
+        uhf
+        molpromimic
+        nonhermitian
+        # old one:
+        # nonuniformrandexcits 4ind-weighted
+        # what I am testing:
+        nonuniformrandexcits pchb doubles hole-selection fast-weighted
+    endsys
+
+    calc
+        # since this is a test, need it to be reproducible:
+        load-balance-blocks off
+        seed 9
+
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 1.e3
+        nmcyc 1000
+        definedet 1-6 7 9
+
+        startsinglepart 100
+        tau-values \
+            start user-defined 0.01
+        tau-search \
+            algorithm conventional \
+            stop-condition var-shift
+
+        shiftdamp 0.1
+        stepsshift 10
+
+        truncinitiator
+        addtoinitiator 3
+
+        semi-stochastic 2
+        allrealcoeff
+        pops-core 2
+
+        memoryfacspawn 50
+    endcalc
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+         2         2
+         3         3
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :    -2
+  GLOBAL MS :           -2
+  *** GENERIC SYSTEM ***  
+ Only one irrep found. Turning off symmetry for rest of calculation.
+ *** WARNING: LMS in FCIDUMP differs from input file ***
+  BASIS MS :            2
+  Unrestricted calculation.  Cave Arthropodia.  
+  NUMBER OF SPIN ORBITALS IN BASIS :    18
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   1
+ Turning Symmetry off
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+ Label, Sym, SymConjLabel, SymConj, SymProd
+           1           0           1           0           0
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+ Turning Symmetry off
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 52650
+Memory required for integral storage:     0.4016876221     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   1   5|   2   3):   -2.5734298826270254E-010
+Ignoring integral (chem. notation) (   1   8|   2   3):    2.1657191407785666E-010
+Ignoring integral (chem. notation) (   1   3|   2   5):   -2.5270601275804460E-010
+Ignoring integral (chem. notation) (   1   6|   2   5):    2.2991170485485240E-010
+Ignoring integral (chem. notation) (   2   3|   2   5):   -2.2616721130317652E-009
+Ignoring integral (chem. notation) (   1   5|   2   6):    1.0200805518655861E-010
+Ignoring integral (chem. notation) (   2   5|   2   6):    7.3283471379305297E-010
+Ignoring integral (chem. notation) (   2   3|   2   8):    6.4190394497745160E-010
+Ignoring integral (chem. notation) (   2   6|   2   8):   -1.5966757461739475E-010
+Ignoring integral (chem. notation) (   2   5|   3   1):   -2.5270605377653980E-010
+Ignoring integral (chem. notation) (   1   5|   3   2):   -2.5734299035319686E-010
+Ignoring integral (chem. notation) (   1   8|   3   2):    2.1657206658683450E-010
+Ignoring integral (chem. notation) (   2   5|   3   2):   -2.2616721281000359E-009
+Ignoring integral (chem. notation) (   2   8|   3   2):    6.4190413131431950E-010
+Ignoring integral (chem. notation) (   3   3|   3   4):   -2.7050689992711337E-009
+Ignoring integral (chem. notation) (   1   1|   3   5):    3.9319703044977347E-009
+Ignoring integral (chem. notation) (   1   2|   3   5):   -4.0601461438472012E-010
+Ignoring integral (chem. notation) (   1   9|   3   5):   -3.2347182695613489E-010
+Ignoring integral (chem. notation) (   2   1|   3   5):   -4.0601468769549005E-010
+Ignoring integral (chem. notation) (   2   2|   3   5):   -3.1781720499576093E-009
+Ignoring integral (chem. notation) (   2   9|   3   5):    1.7191229747969359E-009
+Ignoring integral (chem. notation) (   3   4|   3   5):   -1.5928301290218046E-010
+Ignoring integral (chem. notation) (   3   4|   3   6):   -3.9822126995419484E-010
+Ignoring integral (chem. notation) (   1   1|   3   7):   -2.6540787543123129E-010
+Ignoring integral (chem. notation) (   2   2|   3   7):    1.4045403891370557E-010
+Ignoring integral (chem. notation) (   2   9|   3   7):   -1.2621830829010812E-010
+Ignoring integral (chem. notation) (   3   3|   3   7):   -1.7780680580223246E-009
+Ignoring integral (chem. notation) (   3   6|   3   7):   -4.0488119645400635E-010
+Ignoring integral (chem. notation) (   1   1|   3   8):   -2.6124954810012119E-009
+Ignoring integral (chem. notation) (   1   2|   3   8):    2.4582199733575521E-010
+Ignoring integral (chem. notation) (   1   9|   3   8):    1.9786374095604260E-010
+Ignoring integral (chem. notation) (   2   1|   3   8):    2.4581947162669964E-010
+Ignoring integral (chem. notation) (   2   2|   3   8):    1.3825404777738226E-009
+Ignoring integral (chem. notation) (   2   9|   3   8):   -1.2424097240309451E-009
+Ignoring integral (chem. notation) (   3   6|   3   8):   -3.9853872947947087E-009
+Ignoring integral (chem. notation) (   2   5|   3   9):   -4.7748292908048433E-010
+Ignoring integral (chem. notation) (   3   3|   4   3):   -2.7648792372125420E-009
+Ignoring integral (chem. notation) (   3   5|   4   3):   -1.6307628980563319E-010
+Ignoring integral (chem. notation) (   3   6|   4   3):   -3.3840887572524769E-010
+Ignoring integral (chem. notation) (   3   5|   4   4):   -2.5254205342025966E-010
+Ignoring integral (chem. notation) (   3   8|   4   4):    7.3621678291167554E-010
+Ignoring integral (chem. notation) (   3   3|   4   5):   -1.6302315784358650E-010
+Ignoring integral (chem. notation) (   3   4|   4   5):   -5.3387270096604808E-010
+Ignoring integral (chem. notation) (   3   5|   4   5):    2.5561944627754346E-009
+Ignoring integral (chem. notation) (   3   7|   4   5):    1.3360608248639718E-010
+Ignoring integral (chem. notation) (   3   8|   4   5):    3.9694320832776108E-010
+Ignoring integral (chem. notation) (   4   3|   4   5):   -5.3236412288869922E-010
+Ignoring integral (chem. notation) (   3   3|   4   6):   -2.4645900338047146E-010
+Ignoring integral (chem. notation) (   4   5|   4   6):    1.2969925507331482E-010
+Ignoring integral (chem. notation) (   3   5|   4   7):   -2.6207705610515437E-009
+Ignoring integral (chem. notation) (   3   7|   4   7):    1.7654808423421046E-010
+Ignoring integral (chem. notation) (   3   8|   4   7):    1.8073655167459838E-009
+Ignoring integral (chem. notation) (   3   4|   4   8):    1.1372452524935431E-010
+Ignoring integral (chem. notation) (   3   5|   4   8):    6.0774063694202367E-010
+Ignoring integral (chem. notation) (   4   3|   4   8):    1.1239250487424888E-010
+Ignoring integral (chem. notation) (   2   3|   5   1):   -2.5734305339680390E-010
+Ignoring integral (chem. notation) (   2   6|   5   1):    1.0200619175693619E-010
+Ignoring integral (chem. notation) (   3   2|   5   1):   -2.5734305548729822E-010
+Ignoring integral (chem. notation) (   1   3|   5   2):   -2.5270601463535514E-010
+Ignoring integral (chem. notation) (   1   6|   5   2):    2.2991155288595443E-010
+Ignoring integral (chem. notation) (   2   3|   5   2):   -2.2616721276698209E-009
+Ignoring integral (chem. notation) (   2   6|   5   2):    7.3283453432467380E-010
+Ignoring integral (chem. notation) (   3   1|   5   2):   -2.5270605553247152E-010
+Ignoring integral (chem. notation) (   3   2|   5   2):   -2.2616721421804065E-009
+Ignoring integral (chem. notation) (   3   9|   5   2):   -4.7748292780571918E-010
+Ignoring integral (chem. notation) (   1   1|   5   3):    3.9319702814316156E-009
+Ignoring integral (chem. notation) (   1   2|   5   3):   -4.0601461306084815E-010
+Ignoring integral (chem. notation) (   1   9|   5   3):   -3.2347182593460737E-010
+Ignoring integral (chem. notation) (   2   1|   5   3):   -4.0601468637161808E-010
+Ignoring integral (chem. notation) (   2   2|   5   3):   -3.1781720425870392E-009
+Ignoring integral (chem. notation) (   2   9|   5   3):    1.7191229614644154E-009
+Ignoring integral (chem. notation) (   3   4|   5   3):   -1.6307628962653613E-010
+Ignoring integral (chem. notation) (   4   3|   5   3):   -1.6686956660508744E-010
+Ignoring integral (chem. notation) (   4   4|   5   3):   -2.5103346803150893E-010
+Ignoring integral (chem. notation) (   4   5|   5   3):    2.6201974934438179E-009
+Ignoring integral (chem. notation) (   4   7|   5   3):   -2.6265117493941593E-009
+Ignoring integral (chem. notation) (   4   8|   5   3):    5.5122798649461196E-010
+Ignoring integral (chem. notation) (   3   3|   5   4):   -1.6302315746241780E-010
+Ignoring integral (chem. notation) (   3   4|   5   4):   -5.3387270076088588E-010
+Ignoring integral (chem. notation) (   3   5|   5   4):    2.5561944625254317E-009
+Ignoring integral (chem. notation) (   3   7|   5   4):    1.3360608265400799E-010
+Ignoring integral (chem. notation) (   3   8|   5   4):    3.9694320809256866E-010
+Ignoring integral (chem. notation) (   4   3|   5   4):   -5.3236412268353703E-010
+Ignoring integral (chem. notation) (   4   6|   5   4):    1.2969925524037035E-010
+Ignoring integral (chem. notation) (   5   3|   5   4):    2.6201974932564950E-009
+Ignoring integral (chem. notation) (   3   4|   5   5):    2.5628255494561748E-009
+Ignoring integral (chem. notation) (   3   7|   5   5):    1.8208135264861767E-009
+Ignoring integral (chem. notation) (   4   3|   5   5):    2.6268285804353969E-009
+Ignoring integral (chem. notation) (   4   6|   5   5):    2.6354584764517345E-010
+Ignoring integral (chem. notation) (   1   1|   5   6):   -2.8234352563674548E-009
+Ignoring integral (chem. notation) (   1   2|   5   6):    2.7087115611419935E-010
+Ignoring integral (chem. notation) (   1   9|   5   6):    2.1798600700116174E-010
+Ignoring integral (chem. notation) (   2   1|   5   6):    2.7087354099210571E-010
+Ignoring integral (chem. notation) (   2   2|   5   6):    1.5760310803110508E-009
+Ignoring integral (chem. notation) (   2   9|   5   6):   -1.3229714098161729E-009
+Ignoring integral (chem. notation) (   3   6|   5   6):   -3.0305042696331181E-009
+Ignoring integral (chem. notation) (   4   4|   5   6):    7.5539112186913851E-010
+Ignoring integral (chem. notation) (   4   5|   5   6):    2.4879772179293185E-010
+Ignoring integral (chem. notation) (   4   7|   5   6):    1.9386201174304021E-009
+Ignoring integral (chem. notation) (   5   4|   5   6):    2.4879772158408198E-010
+ Ignored more than 100 integrals.
+ Further threshold truncations not reported explicitly
+ Number of removed two-index integrals:                  1429
+ Number of non-zero integrals:                  3365
+ ECORE=   5.2207199918152009E-002
+ Setting normal get_umat_el_normal routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    9)
+ Symmetry:  ( 0, 0, 0) 0
+NECI called from MOLPRO, so assuming orbitals ordered by occupation number.
+ N_alpha:5 ; N_beta:3 ; LMS:* ; NEl:8
+Calculating orbital energies...
+Reordering basis by orbital energies...
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -20.745408744      -20.745408744 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -20.675142553      -20.675142553 #
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -1.416812982       -1.416812982 #
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -1.110477310       -1.110477310 #
+      5      7      0      0      0     -1 ( 0, 0, 0) 0   0       -0.721025730       -0.721025730 #
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0       -0.549773489       -0.549773489 #
+      7      9      0      0      0     -1 ( 0, 0, 0) 0   0       -0.721025737       -0.721025737 #
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0        0.136777693        0.136777693
+      9      5      0      0      0     -1 ( 0, 0, 0) 0   0       -0.628541614       -0.628541614 #
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        0.136777693        0.136777693
+     11     13      0      0      0     -1 ( 0, 0, 0) 0   0        1.012612415        1.012612415
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0        1.104678655        1.104678655
+     13     15      0      0      0     -1 ( 0, 0, 0) 0   0        1.012612410        1.012612410
+     14     14      0      0      0      1 ( 0, 0, 0) 0   0        1.171258827        1.171258827
+     15     11      0      0      0     -1 ( 0, 0, 0) 0   0        1.071509164        1.071509164
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        1.171258826        1.171258826
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        1.132089527        1.132089527
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        1.218446367        1.218446367
+ Fock operator energy:  -46.516000959193960     
+ Setting normal get_umat_el_normal routine
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ SpinOrbSymLabel: 
+           1           0
+           2           0
+           3           0
+           4           0
+           5           0
+           6           0
+           7           0
+           8           0
+           9           0
+          10           0
+          11           0
+          12           0
+          13           0
+          14           0
+          15           0
+          16           0
+          17           0
+          18           0
+ SymInvLabel: 
+           0           0
+ Not storing the H matrix.
+ <D0|H|D0>=  -74.919013153810866     
+ <D0|T|D0>=  -103.37423254834590     
+ <D0|U|D0>   28.455219394535035     
+ FDet has     3 alpha electrons, and     5 beta electrons.
+                3  alpha-alpha occupied electron pairs
+               10  beta-beta occupied electron pairs
+               15  alpha-beta occupied electron pairs
+               15 alpha-alpha (vacant) hole pairs
+                6 beta-beta (vacant) hole pairs
+               24 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    9) E =    -74.919013154
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            9
+Running FCIQMC for            1000 iterations.
+Reference Energy set to:       -74.9190131538
+ No brillouin theorem assumed. Single excitations also used to calculate projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    465 double excitations, and      38 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.924453
+ pSingles set to:       0.075547
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:          503
+ PCHB with spin-orbital-resolved 'fast-weighting' selected.
+ Allocating PCHB excitation generator objects
+ Excitation generator requires   2.1786242723464966E-004 GB of memory
+ The number of supergroups is           1
+ Generating samplers for PCHB excitation generator
+ Depending on the number of supergroups this can take up to 10min.
+ Finished excitation generator initialization
+
+ Precomputed weighted singles with
+ | h_{I, A} | + \sum_{R} | g_{I, A, R, R} - g_{I, R, R, A} | weight.
+
+ We draw from \( \tilde{p}(I)|_{D_i} \) uniformly and then from
+ \( p(A | I)_{A \notin D_i} \).
+ I.e. only the second electron comes from the weighting scheme given in
+ `possible_PC_singles_weighting_t`.
+ We guarantee that \(I\) is occupied and \(A\) is unoccupied.
+
+Memory allocated for a maximum particle number per node of:         655360
+ Determinant related persistent storage requires:      25.000000 Mb / processor
+Spawning vectors allowing for a total of        12500 particles to be spawned in any one iteration per core.
+ Memory requirement   0.19073486328125000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             175
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        3
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    9)
+Initial number of particles set to        100 and shift will be held at     0.000 until particle number gets to            1000
+ Initial memory (without excitgens + temp arrays) consists of :      15.572205 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ >>> Initial tau from source: user defined is    1.0000000000000000E-002 .
+ >>> Tau-search activated. Using conventional algorithm. Stop if variable shift reached.
+ HF:            1           2           3           4           5           6           7           9
+ HF_true:            1           2           3           4           6           7           8           9
+ Ref:            1           2           3           4           5           6           7           9
+ ProjEDet:            1           2           3           4           5           6           7           9
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+           0    0.000000        0.000000        0.000000        100.0000        0.000000        0.000000        0.000000        0.000000        0.000000        0.000000        100.0000        0.000000        0.000000               1           0   0.0000    
+>>> Changing tau: 0.100000E-01 -> 0.478465E-02
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    1.0231805344062051E-002
+  pDoubles =   0.98976819465593791     
+          10    0.000000        28.39741        1.104556        128.3974       0.5859964        9.180085        73.59350      -0.4181740E-02    0.000000      -0.4181740E-02    100.0000        21.11540       0.4535733E-01          24          40  0.20202E-03
+          20    0.000000        12.21266        1.207807        140.6101        1.553183        12.90740        47.31471      -0.9226055E-02    0.000000      -0.1426911E-01    100.0529        37.31255       0.2439064E-01          29          37  0.19940E-03
+          30    0.000000        8.185768        1.084657        148.7958        1.476342        14.82451        45.56931      -0.1278901E-01    0.000000      -0.1990781E-01    100.1567        43.74748       0.2406930E-01          32          40  0.19910E-03
+          40    0.000000        7.145825        1.043626        155.9417        1.566597        14.50795        43.22238      -0.1535638E-01    0.000000      -0.2304802E-01    100.2040        48.54874       0.1925534E-01          34          51  0.20263E-03
+          50    0.000000        6.834577        1.069770        162.7762        5.605025        20.18557        53.99323      -0.1744706E-01    0.000000      -0.2579656E-01    100.2550        59.05536       0.2316599E-01          37          60  0.21033E-03
+>>> Changing tau: 0.478465E-02 -> 0.335041E-02
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    7.1647342970357882E-003
+  pDoubles =   0.99283526570296421     
+          60    0.000000        6.460859        1.026381        169.2371        4.351453        18.33756        55.64059      -0.1951781E-01    0.000000      -0.2984774E-01    100.4436        64.38349       0.2373151E-01          38          58  0.22135E-03
+          70    0.000000        8.272801        1.038640        177.5099        2.210614        13.21505        39.08369      -0.2148178E-01    0.000000      -0.3322527E-01    100.5444        71.08958       0.1389885E-01          42          45  0.22915E-03
+          80    0.000000        2.661387        1.025936        180.1713        3.147826        12.76455        37.49773      -0.2310729E-01    0.000000      -0.3443949E-01    100.6876        74.74697       0.1414905E-01          43          56  0.30564E-03
+          90    0.000000        6.202330        1.040331        186.3736        2.918527        15.12426        42.16958      -0.2448660E-01    0.000000      -0.3546455E-01    100.8497        76.68412       0.1478227E-01          47          58  0.23974E-03
+         100    0.000000        4.181036        1.018934        190.5547        2.784306        16.00526        37.27002      -0.2576761E-01    0.000000      -0.3722724E-01    100.9648        81.97847       0.1302107E-01          49          47  0.23898E-03
+         110    0.000000        8.746381        1.031693        199.3010        2.784408        20.27195        50.00092      -0.2692862E-01    0.000000      -0.3846175E-01    101.1017        84.44382       0.1721253E-01          54          75  0.24167E-03
+         120    0.000000       -1.705622        1.030291        197.5954        3.139753        20.18546        47.33677      -0.2801760E-01    0.000000      -0.3990698E-01    101.2455        84.03643       0.1562830E-01          51          50  0.24382E-03
+         130    0.000000        2.354623       0.9938971        199.9500        2.933067        16.55287        42.05209      -0.2901713E-01    0.000000      -0.4091285E-01    101.3972        85.78608       0.1506219E-01          51          69  0.24406E-03
+         140    0.000000      -0.4858198        1.014385        199.4642        3.711526        15.05105        42.27364      -0.2994152E-01    0.000000      -0.4184775E-01    101.5681        84.42563       0.1522882E-01          50          62  0.31532E-03
+         150    0.000000        9.412238        1.013577        208.8765        3.637376        14.85811        44.66838      -0.3076144E-01    0.000000      -0.4212642E-01    101.6741        88.05559       0.1606845E-01          56          60  0.24455E-03
+         160    0.000000        4.604517        1.039171        213.4810        3.790878        16.81073        46.05930      -0.3149342E-01    0.000000      -0.4236000E-01    101.7720        91.64251       0.1421848E-01          61          63  0.24704E-03
+         170    0.000000        5.150529        1.024917        218.6315        5.398785        19.95528        51.19034      -0.3216778E-01    0.000000      -0.4284132E-01    101.9142        92.26594       0.1469468E-01          67          67  0.25404E-03
+         180    0.000000       -1.783616        1.005033        216.8479        5.052477        20.02716        50.65175      -0.3275189E-01    0.000000      -0.4256420E-01    102.0985        88.35828       0.1537420E-01          64          81  0.25638E-03
+         190    0.000000       0.7274611       0.9978160        217.5753        4.338849        15.48563        43.32176      -0.3330845E-01    0.000000      -0.4319862E-01    102.2555        88.90169       0.1312436E-01          64          83  0.24633E-03
+         200    0.000000        9.581319        1.017842        227.1567        5.654611        17.34664        56.23459      -0.3384956E-01    0.000000      -0.4399350E-01    102.3897        93.63966       0.1888699E-01          71          83  0.32666E-03
+>>> Changing tau: 0.335041E-02 -> 0.258968E-02
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    6.0821298096186208E-003
+  pDoubles =   0.99391787019038136     
+         210    0.000000        2.815648        1.025858        229.9723        6.994049        21.76957        58.94345      -0.3437017E-01    0.000000      -0.4463311E-01    102.5570        97.63343       0.1710203E-01          73          75  0.25419E-03
+         220    0.000000      -0.3990485        1.009335        229.5733        4.068272        18.01544        44.14967      -0.3481703E-01    0.000000      -0.4406123E-01    102.6707        93.50447       0.1286392E-01          73          84  0.25685E-03
+         230    0.000000       -2.746668       0.9984194        226.8266        4.815560        19.04176        37.39535      -0.3522535E-01    0.000000      -0.4407131E-01    102.7875        92.60215       0.1052345E-01          71          71  0.25403E-03
+         240    0.000000        3.743267       0.9955156        230.5699        4.692298        17.02981        44.20015      -0.3558914E-01    0.000000      -0.4382299E-01    102.9652        94.32414       0.1089005E-01          74          84  0.25879E-03
+         250    0.000000        3.567550        1.019901        234.1374        3.715862        16.95292        44.63879      -0.3593584E-01    0.000000      -0.4411479E-01    103.1256        95.19303       0.1159472E-01          78          77  0.32295E-03
+         260    0.000000       -3.993658        1.002185        230.1438        6.024562        17.03559        41.99696      -0.3625987E-01    0.000000      -0.4421948E-01    103.2180        93.56610       0.1087636E-01          73          70  0.25417E-03
+         270    0.000000       -4.491439       0.9721499        225.6523        4.388632        13.49099        33.64493      -0.3656937E-01    0.000000      -0.4447277E-01    103.3461        90.49427       0.1047795E-01          69          72  0.25448E-03
+>>> Changing tau: 0.258968E-02 -> 0.258140E-02
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    9.2588618736932568E-003
+  pDoubles =   0.99074113812630671     
+         280    0.000000        7.901676        1.003758        233.5540        3.886012        14.78957        45.34835      -0.3686207E-01    0.000000      -0.4461848E-01    103.5070        92.80657       0.1252263E-01          76          71  0.25500E-03
+         290    0.000000        2.233527        1.033656        235.7875        4.351913        20.37991        47.14466      -0.3714970E-01    0.000000      -0.4505131E-01    103.5690        93.20322       0.1215065E-01          78          93  0.25938E-03
+>>> Changing tau: 0.258140E-02 -> 0.257638E-02
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    1.1183695327691156E-002
+  pDoubles =   0.98881630467230885     
+         300    0.000000        2.316502        1.006799        238.1040        3.867837        20.05003        49.30446      -0.3741460E-01    0.000000      -0.4494883E-01    103.6917        95.95617       0.1304102E-01          78          76  0.26135E-03
+         310    0.000000       0.6789951        1.012504        238.7830        4.519295        21.36599        46.87267      -0.3767212E-01    0.000000      -0.4524602E-01    103.7798        96.64741       0.1205242E-01          80          92  0.37941E-03
+         320    0.000000       0.6848233       0.9900491        239.4678        4.727197        18.98145        45.53983      -0.3792032E-01    0.000000      -0.4546061E-01    103.9397        95.06468       0.1175478E-01          80          80  0.26346E-03
+ Updating singles/doubles bias. pSingles =    1.1868741414177288E-002
+  pDoubles =   0.98813125858582274     
+         330    0.000000       -2.756620        1.000891        236.7112        4.161155        19.43938        47.16314      -0.3815582E-01    0.000000      -0.4553566E-01    104.0523        94.45556       0.1199280E-01          77          75  0.26324E-03
+         340    0.000000        3.201786        1.008803        239.9130        5.144024        17.26242        45.08551      -0.3834868E-01    0.000000      -0.4457517E-01    104.2287        95.20368       0.1240735E-01          80          80  0.26956E-03
+         350    0.000000       -1.573091       0.9904872        238.3399        3.844233        14.07446        37.66490      -0.3852443E-01    0.000000      -0.4436628E-01    104.3724        96.05588       0.1113641E-01          78          75  0.26927E-03
+         360    0.000000        3.264728        1.013117        241.6046        4.213355        15.84691        42.88423      -0.3868785E-01    0.000000      -0.4427702E-01    104.4547        101.1953       0.1199168E-01          80          74  0.32078E-03
+         370    0.000000       0.7042680        1.003613        242.3089        5.116364        17.57289        45.71834      -0.3886494E-01    0.000000      -0.4509313E-01    104.5619        99.27962       0.1206307E-01          79          89  0.33816E-03
+         380    0.000000      -0.5679154        1.001698        241.7410        4.202199        17.83655        48.52341      -0.3903283E-01    0.000000      -0.4510025E-01    104.6498        104.1581       0.1203855E-01          78          80  0.26829E-03
+         390    0.000000       -4.881291       0.9932397        236.8597        3.775758        19.19656        42.28531      -0.3919711E-01    0.000000      -0.4529163E-01    104.7589        101.7551       0.1111926E-01          73          81  0.26222E-03
+         400    0.000000        1.907022       0.9881548        238.7667        4.590365        17.39909        41.42273      -0.3935649E-01    0.000000      -0.4542181E-01    104.9083        102.6542       0.1204081E-01          74          75  0.26278E-03
+         410    0.000000      -0.6382598        1.013619        238.1285        3.836814        18.41363        45.49945      -0.3951545E-01    0.000000      -0.4571603E-01    105.0279        101.5100       0.1199457E-01          72          91  0.26643E-03
+         420    0.000000        1.228816        1.004437        239.3573        4.451436        18.26595        45.49240      -0.3965825E-01    0.000000      -0.4536429E-01    105.1358        100.8737       0.1214435E-01          74          85  0.38672E-03
+         430    0.000000        2.813353        1.003310        242.1706        4.646952        19.94782        47.49006      -0.3978376E-01    0.000000      -0.4492122E-01    105.1596        101.6856       0.1209333E-01          76          88  0.27067E-03
+         440    0.000000        1.532736        1.011329        243.7034        4.390541        21.25228        50.05176      -0.3990777E-01    0.000000      -0.4510482E-01    105.2779        104.6707       0.1163918E-01          78          84  0.26465E-03
+         450    0.000000      -0.4240997       0.9967049        243.2793        4.664296        21.16689        48.26385      -0.4002257E-01    0.000000      -0.4494315E-01    105.4102        102.7453       0.1191640E-01          77          77  0.26346E-03
+         460    0.000000        1.532955        1.003711        244.8122        3.916292        20.16193        50.93595      -0.4013738E-01    0.000000      -0.4516769E-01    105.5032        102.3492       0.1156616E-01          78          71  0.26796E-03
+         470    0.000000       -4.131607       0.9984340        240.6806        4.662784        18.95267        41.99303      -0.4025520E-01    0.000000      -0.4552967E-01    105.5939        100.0992       0.1081662E-01          74          70  0.27060E-03
+>>> Changing tau: 0.257460E-02 -> 0.119383E-02
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    5.5034685292022524E-003
+  pDoubles =   0.99449653147079775     
+         480    0.000000        4.275790        1.003210        244.9564        4.539343        18.94739        47.87203      -0.4036485E-01    0.000000      -0.4537796E-01    105.7456        99.05042       0.1395985E-01          76          81  0.33517E-03
+         490    0.000000        3.055510        1.005068        248.0119        2.176766        8.878974        25.68597      -0.4047026E-01    0.000000      -0.4538814E-01    105.8506        101.5567       0.5424478E-02          80          74  0.26892E-03
+         500    0.000000       -2.262523        1.006395        245.7494        1.874937        8.904542        21.11210      -0.4058242E-01    0.000000      -0.4592451E-01    105.8988        101.5785       0.5727918E-02          78          93  0.26786E-03
+         510    0.000000      -0.7241036       0.9865766        245.0253        2.217596        7.896240        18.64468      -0.4068792E-01    0.000000      -0.4581585E-01    105.9394        99.59548       0.5205983E-02          78          70  0.26213E-03
+         520    0.000000      -0.1409563        1.000115        244.8843        1.839949        7.907817        20.16180      -0.4078022E-01    0.000000      -0.4535771E-01    106.0024        98.74821       0.4843668E-02          78          64  0.25910E-03
+         530    0.000000       0.9920782        1.007979        245.8764        2.854846        8.518129        26.70321      -0.4087382E-01    0.000000      -0.4560550E-01    106.0354        98.90178       0.6263144E-02          79          87  0.27106E-03
+         540    0.000000       -2.144557       0.9966614        243.7319        2.380707        8.307681        21.29829      -0.4096629E-01    0.000000      -0.4573267E-01    106.0868        99.88436       0.5893645E-02          77          78  0.37364E-03
+>>> Changing tau: 0.119383E-02 -> 0.757777E-03
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    3.4933067719339320E-003
+  pDoubles =   0.99650669322806606     
+         550    0.000000        2.520635       0.9921680        246.2525        1.793671        7.123505        24.18978      -0.4106077E-01    0.000000      -0.4602427E-01    106.1045        101.9747       0.8168510E-02          77          80  0.25828E-03
+         560    0.000000       0.8621067        1.014603        247.1146        2.145872        5.135448        14.73367      -0.4115520E-01    0.000000      -0.4620820E-01    106.1360        102.5761       0.3751542E-02          78          83  0.26242E-03
+         570    0.000000      -0.4814231       0.9992908        246.6332        1.532804        5.228945        11.95659      -0.4124607E-01    0.000000      -0.4619833E-01    106.1726        102.1393       0.3514921E-02          78          69  0.26984E-03
+         580    0.000000       0.4996527       0.9974780        247.1328        1.785241        4.958406        13.66309      -0.4132897E-01    0.000000      -0.4592766E-01    106.2007        100.7444       0.3804316E-02          78          80  0.26105E-03
+         590    0.000000       0.4447223        1.005553        247.5776        1.238171        4.997432        13.33203      -0.4140292E-01    0.000000      -0.4557802E-01    106.2373        101.5987       0.3098751E-02          79          79  0.33190E-03
+         600    0.000000       -1.273696       0.9943833        246.3039        1.450868        4.955734        10.07824      -0.4147451E-01    0.000000      -0.4558710E-01    106.2644        101.3788       0.3183889E-02          78          87  0.32584E-03
+         610    0.000000      -0.5170569       0.9988718        245.7868        1.576016        4.907497        11.12461      -0.4154357E-01    0.000000      -0.4557881E-01    106.2816        101.0360       0.3301888E-02          78          77  0.26540E-03
+         620    0.000000       -3.296112       0.9959064        242.4907       0.9973271        4.801729        12.05127      -0.4160974E-01    0.000000      -0.4554065E-01    106.3243        99.89854       0.3369491E-02          75          83  0.26160E-03
+         630    0.000000        1.084360       0.9898450        243.5750        1.523266        4.555516        12.32316      -0.4168279E-01    0.000000      -0.4609412E-01    106.4354        102.0042       0.3475673E-02          76          81  0.26653E-03
+         640    0.000000        1.950657        1.006722        245.5257        1.264126        5.087255        12.41310      -0.4175477E-01    0.000000      -0.4616839E-01    106.4743        102.1446       0.3168868E-02          78          80  0.33241E-03
+         650    0.000000       -1.080090       0.9999317        244.4456        1.250389        5.087558        12.44210      -0.4182509E-01    0.000000      -0.4620701E-01    106.4916        102.0018       0.3181825E-02          77          85  0.25633E-03
+         660    0.000000        3.597888        1.014651        248.0435        1.790372        5.458949        16.25848      -0.4189419E-01    0.000000      -0.4626937E-01    106.4864        103.3426       0.3564794E-02          80          83  0.26753E-03
+         670    0.000000        1.281834        1.007567        249.3253        1.504909        5.839790        15.58749      -0.4196482E-01    0.000000      -0.4650559E-01    106.5417        100.6231       0.3252580E-02          81          85  0.27019E-03
+         680    0.000000       -3.991202       0.9851578        245.3341        1.274416        5.206375        13.01364      -0.4202543E-01    0.000000      -0.4598011E-01    106.5948        97.20502       0.3488461E-02          77          89  0.26572E-03
+         690    0.000000        3.979189        1.003764        249.3133        1.162784        5.063370        16.05088      -0.4208376E-01    0.000000      -0.4594705E-01    106.6441        101.2693       0.3224889E-02          81          74  0.26475E-03
+         700    0.000000        1.758779        1.011248        251.0721        1.388281        5.664128        14.54572      -0.4214677E-01    0.000000      -0.4638040E-01    106.6811        101.6143       0.3991755E-02          82          80  0.33474E-03
+         710    0.000000      -0.3997117        1.004264        250.6724        1.497182        6.104451        15.94424      -0.4220940E-01    0.000000      -0.4647929E-01    106.7170        102.2476       0.3689629E-02          82          78  0.27430E-03
+         720    0.000000       0.5447272       0.9997119        251.2171        1.543166        5.796858        14.87847      -0.4226837E-01    0.000000      -0.4634624E-01    106.7567        103.2515       0.3666502E-02          82          92  0.26841E-03
+         730    0.000000        2.891177        1.001235        254.1083        1.612583        5.779075        15.51359      -0.4232682E-01    0.000000      -0.4642533E-01    106.7876        104.3225       0.3413200E-02          85          84  0.26723E-03
+         740    0.000000       -7.270360       0.9991126        246.8379        1.122715        5.910152        11.83502      -0.4238420E-01    0.000000      -0.4646561E-01    106.7843        101.1855       0.3251502E-02          78          93  0.26733E-03
+         750    0.000000       0.6803474E-01   0.9863781        246.9060       0.9493404        5.364628        14.00720      -0.4243871E-01    0.000000      -0.4636893E-01    106.8182        102.1537       0.3434043E-02          78          91  0.33719E-03
+         760    0.000000       0.8803454        1.001009        247.7863        1.161498        5.666059        15.15137      -0.4249027E-01    0.000000      -0.4625835E-01    106.8594        103.1162       0.3764957E-02          79          83  0.37172E-03
+         770    0.000000       -1.950538       0.9942244        245.8358        1.523171        5.427139        13.65691      -0.4253736E-01    0.000000      -0.4602494E-01    106.8847        102.4525       0.3667604E-02          77          89  0.27492E-03
+         780    0.000000        3.829763        1.003278        249.6655        1.043687        5.429827        13.99637      -0.4258589E-01    0.000000      -0.4622801E-01    106.9151        104.9056       0.3604223E-02          80          77  0.27376E-03
+         790    0.000000      -0.9285231        1.007067        248.7370        1.276090        5.641644        13.64066      -0.4262851E-01    0.000000      -0.4586833E-01    106.9454        103.7906       0.3534251E-02          79          79  0.27971E-03
+         800    0.000000        2.601884       0.9975218        251.3389        1.329766        5.268055        14.25794      -0.4266887E-01    0.000000      -0.4577587E-01    106.9819        104.9640       0.4089299E-02          81          79  0.27418E-03
+         810    0.000000       -2.220763        1.008444        249.1181        1.135624        5.763803        11.60246      -0.4271145E-01    0.000000      -0.4603158E-01    107.0272        104.5843       0.3542654E-02          79          90  0.33987E-03
+         820    0.000000       0.4100679       0.9931561        249.5282        1.264949        5.570105        13.51886      -0.4275170E-01    0.000000      -0.4592845E-01    107.0574        105.9719       0.3631750E-02          79          82  0.28062E-03
+         830    0.000000       -3.309931       0.9934488        246.2183       0.9769568        5.436681        10.93666      -0.4279099E-01    0.000000      -0.4593046E-01    107.1084        103.8164       0.3513060E-02          76          89  0.26560E-03
+         840    0.000000       0.6454434        1.001764        246.8637        1.311682        5.278237        13.23831      -0.4283066E-01    0.000000      -0.4603894E-01    107.1468        104.4833       0.3425859E-02          77          81  0.30729E-03
+         850    0.000000       0.1939595        1.001316        247.0577        1.272909        4.970611        13.27477      -0.4286950E-01    0.000000      -0.4604903E-01    107.1690        103.7548       0.3218644E-02          77          92  0.26635E-03
+         860    0.000000      -0.3533985        1.002044        246.7043        1.570452        4.860578        15.24494      -0.4291505E-01    0.000000      -0.4668716E-01    107.2053        103.6246       0.3740465E-02          77          64  0.32215E-03
+         870    0.000000        2.382926       0.9979318        249.0872        1.010193        4.890372        14.21727      -0.4296026E-01    0.000000      -0.4674900E-01    107.2432        103.6977       0.3635549E-02          79          89  0.28408E-03
+         880    0.000000       -3.963887       0.9994341        245.1233        1.653909        5.063255        12.01043      -0.4300436E-01    0.000000      -0.4674243E-01    107.2994        100.6116       0.3327526E-02          75          81  0.27453E-03
+         890    0.000000       -1.013643       0.9897351        244.1097        1.185359        4.177748        10.43408      -0.4304627E-01    0.000000      -0.4663824E-01    107.3442        100.6297       0.2817597E-02          74          83  0.27045E-03
+         900    0.000000       0.8606105       0.9953428        244.9703        2.593449        3.953420        12.55605      -0.4308652E-01    0.000000      -0.4657640E-01    107.3816        100.5379       0.3493401E-02          75          93  0.28061E-03
+         910    0.000000        2.113974        1.011278        247.0843        1.089384        4.682548        15.15518      -0.4312532E-01    0.000000      -0.4652643E-01    107.4143        103.4338       0.3839829E-02          77          83  0.33636E-03
+         920    0.000000      -0.1257809       0.9995560        246.9585        1.663081        5.045632        15.72365      -0.4316047E-01    0.000000      -0.4627568E-01    107.4407        103.3753       0.3378421E-02          77          78  0.25646E-03
+>>> Changing tau: 0.757777E-03 -> 0.750984E-03
+>>> Reason: Conventional tau search
+ Updating singles/doubles bias. pSingles =    3.4619923629997532E-003
+  pDoubles =   0.99653800763700029     
+         930    0.000000        2.020828        1.002129        248.9793        1.159478        5.035083        13.98700      -0.4319360E-01    0.000000      -0.4616265E-01    107.4802        103.5527       0.3964342E-02          78          85  0.26065E-03
+         940    0.000000        4.698305        1.015889        253.6776        1.752744        5.901600        16.67172      -0.4322686E-01    0.000000      -0.4623975E-01    107.5092        106.6996       0.3217528E-02          83          93  0.25523E-03
+         950    0.000000       -3.814294        1.003297        249.8633        1.362616        6.490634        12.37446      -0.4325949E-01    0.000000      -0.4624642E-01    107.5368        104.0331       0.3153328E-02          80          80  0.25306E-03
+         960    0.000000       -1.305162       0.9873752        248.5582        3.873525        5.760458        13.66711      -0.4329066E-01    0.000000      -0.4617518E-01    107.5731        104.0788       0.3831458E-02          79          88  0.25739E-03
+         970    0.000000       -2.801550       0.9912524        245.7566        1.155732        5.343677        13.57128      -0.4332093E-01    0.000000      -0.4615078E-01    107.6191        101.9683       0.3324650E-02          76          91  0.40218E-03
+         980    0.000000        2.884046        1.002723        248.6406        1.049021        5.549770        16.02086      -0.4334974E-01    0.000000      -0.4607064E-01    107.6612        102.0813       0.3455334E-02          79          70  0.26380E-03
+         990    0.000000       -2.532709       0.9997565        246.1079        1.160178        5.828025        15.73087      -0.4337580E-01    0.000000      -0.4586209E-01    107.7122        104.1871       0.3986979E-02          76          83  0.25600E-03
+        1000    0.000000       -1.736884       0.9949202        244.3711        1.257989        5.519123        11.58152      -0.4340480E-01    0.000000      -0.4619910E-01    107.7439        105.5162       0.3223351E-02          74          71  0.25442E-03
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:   0.28313368745148182     
+ Time lost due to load imbalance:   0.15121737448498607     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+*********************************
+Writing a 64-bit POPSFILE...
+Writing a total of 74 determinants.
+*********************************
+
+ WRITINGPOPSFILE                                                                                                                                                                                                                                                        F
+ 
+Current reference: 
+(    1,    2,    3,    4,    5,    6,    7,    9)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-7  9 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+ Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   <D|H|D>  Proc
+111111101000000000    0    2    107.7439      0.98320  Y  -7.49190132E+01       3
+111100101011000000    2    2   -6.984468      0.06374  Y  -7.24774376E+01       3
+111110001001100000    2    4   -5.817000      0.05308  Y  -7.24623634E+01       0
+111110100001001000    2    4    5.491311      0.05011  Y  -7.24623634E+01       0
+111111000000101000    2    2   -5.127094      0.04679  Y  -7.24089972E+01       3
+111011001000100001    2    4   -4.729856      0.04316  Y  -7.17912088E+01       0
+111001101010000001    2    6   -4.668341      0.04260  Y  -7.18343840E+01       3
+111101001010100000    2    4    4.581295      0.04181  Y  -7.24496943E+01       3
+110110101001000010    2    6   -4.418009      0.04032  Y  -7.16611320E+01       3
+111101100010001000    2    4   -4.258814      0.03886  Y  -7.24496943E+01       1
+111011100000001001    2    4    4.212975      0.03844  Y  -7.17912088E+01       0
+110011101000000011    2    2   -3.674809      0.03353  Y  -7.09951079E+01       3
+110101101010000010    2    6    2.976111      0.02716  N  -7.17728326E+01       1
+110111001000100010    2    4    2.876172      0.02625  N  -7.17356860E+01       2
+110111100000001010    2    4   -2.849225      0.02600  N  -7.17356860E+01       2
+ 
+ Warning: attempting to log deallocation but never logged allocation.
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process      24.0000000000
+ Min number of determinants/process                 20
+ Max number of determinants/process                 27
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:      61.0927639487
+     Min number of walkers/process:           23.56546
+     Max number of walkers/process:          154.27952
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Calculation has not entered variable shift phase. Error analysis therefore not performed.
+Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias.
+ Current reference energy                             -74.919013153811
+ Projected correlation energy                          -0.043404795685
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy         -74.96241795
+
+
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      41.5
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datclean_global_det_da  25.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   15.0MB
+ UMat              IntInit            IntCleanup          411.3KB
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar  293.0KB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar  293.0KB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc      228.4KB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc      228.4KB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc      114.2KB
+ PC_singles_A_Probsshared_alloc       shared_dealloc        2.5KB
+ PC_particles_j_Proshared_alloc       shared_dealloc        2.5KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                1000      0.25
+ NECICUBE                                     1      0.04
+ StatsCommsTime                             100      0.01
+ AnnihilTime                               1000      0.00
+ CommsTime                                 1000      0.00
+ DeathTime                                 1000      0.00
+ AnnMainTime                               1000      0.00
+ SysInit                                      1      0.00
+ POPS-write                                   1      0.00
+ Compression interface                     1000      0.00
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   0.32
+
+ Global wall clock time          0.36
+ ================================================================
+ Calculation ended 26/01/2023 at 17:21:19
+ ================================================================

@@ -16,22 +16,24 @@ module fcimc_initialisation
                           tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, t_3_body_excits, breathingCont, &
-                          momIndexTable, t_trans_corr_2body, t_non_hermitian, &
+                          momIndexTable, t_trans_corr_2body, t_non_hermitian_2_body, &
                           tgen_guga_crude, t_impurity_excitgen, &
                           t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
                           irrepOrbOffset, nIrreps, t_trans_corr_hop, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr
+                          t_fci_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
+                          basisfn, t_mixed_excits, t_hole_focus_excits
+
 
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
     use dSFMT_interface, only: dSFMT_init
 
-    use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
-                        tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
-                        MaxWalkerBloom, InitialPart, tStartMP1, tReadPops, &
+    use CalcData, only: G_VMC_Seed, MemoryFacPart, StepsSftImag, &
+                        tCheckHighestPop, tSpatialOnlyHash, tStartCAS, &
+                        InitialPart, tStartMP1, tReadPops, &
                         InitialPartVec, iReadWalkersRoot, SinglesBias, NMCYC, &
                         tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
@@ -49,8 +51,8 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
-                        tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
+                        tMultipleInitialStates, initial_states, &
+                        t_back_spawn, &
                         t_trunc_nopen_diff, t_guga_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
@@ -58,10 +60,15 @@ module fcimc_initialisation
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tAutoAdaptiveShift, &
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
-                        AAS_Cut, &
+                        AAS_Cut, tTruncInitiator, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
                         tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
+
+    use tau_main, only: tau_search_method, &
+        tau_start_val, possible_tau_start, &
+        max_death_cpt, min_tau, max_tau, tau, taufactor, &
+        assign_value_to_tau, init_tau
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
@@ -86,7 +93,7 @@ module fcimc_initialisation
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, tMCOutput, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, &
+                           OffDiagBinRange, iDiagSubspaceIter, t_store_ci_coeff, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            t_spin_measurements,  t_measure_local_spin, &
@@ -98,17 +105,19 @@ module fcimc_initialisation
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
 
     use bit_rep_data, only: NIfTot, NIfD, IlutBits, flag_initiator, &
-                            flag_deterministic, extract_sign
+                            flag_deterministic, extract_sign, nIfGUGA, &
+                            test_flag_multi
 
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_run_sign, tBuildSpinSepLists, nifguga, &
+                        extract_run_sign, &
                         get_initiator_flag, writebitdet, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
                          BinRange
+
     use hist, only: init_hist_excit_tofrom, clean_hist_excit_tofrom
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
@@ -129,7 +138,7 @@ module fcimc_initialisation
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table, &
-                    hash_table_lookup
+                    hash_table_lookup, RandomHash2
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use load_balance, only: tLoadBalanceBlocks, addNormContribution, &
                             AddNewHashDet, clean_load_balance, &
@@ -139,7 +148,8 @@ module fcimc_initialisation
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only: InitHistInitPops
-    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
+    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2, &
+        tBuildSpinSepLists
     use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
                            extract_bit_rep_avsign_no_rdm
     use rdm_filling, only: fill_rdm_diag_currdet_norm
@@ -174,8 +184,6 @@ module fcimc_initialisation
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
     use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
 
-    use tau_search, only: init_tau_search, max_death_cpt
-
     use fcimc_helper, only: CalcParentFlag, update_run_reference
 
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
@@ -185,26 +193,121 @@ module fcimc_initialisation
 
     use get_excit, only: make_double
 
-    use excitation_types, only: NoExc_t
+    use excitation_types, only: Excite_0_t
     use sltcnd_mod, only: sltcnd_excit
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
                         ThisRDMIter
     use rdm_data, only: nrdms_transition_input
-    use Parallel_neci
 
-    use FciMCData
+    use Parallel_neci, only: MPI_2INTEGER, root, nProcessors, iProcIndex, &
+        MPISumAll, MPIBarrier, MPIBCast, MPISum, MPI_MAXLOC, nNodes, &
+        Sync_Time, MPIAllReduceDatatype
 
-    use util_mod
+    use util_mod, only: stop_all, get_free_unit, neci_flush, &
+        operator(.isclose.), operator(.div.), warning_neci
 
     use fortran_strings, only: str
 
-    use sort_mod
 
-    use sym_mod
+    use sym_mod, only: getsym_wrapper, WRITESYM, GetLz, GetSym
 
-    use HElem
+    use constants, only: dp, int32, int64, n_int, stdout, stderr, &
+        lenof_sign, inum_runs, EPS, bits_n_int, size_n_int, maxExcit, &
+        MPIArg
 
-    use constants
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
+
+    use FciMCData, only: &
+        Walker_Time, Annihil_Time, Sort_Time, &
+        Comms_Time, ACF_Time, AnnSpawned_time, AnnMain_time, BinSearch_time, &
+        SemiStoch_Comms_Time, SemiStoch_Multiply_Time, Trial_Search_Time, SemiStoch_Init_Time, SemiStoch_Hamil_Time, &
+        SemiStoch_Davidson_Time, Trial_Init_Time, InitSpace_Init_Time, kp_generate_time, Stats_Comms_Time, &
+        subspace_hamil_time, exact_subspace_h_time, subspace_spin_time, var_e_time, precond_e_time, &
+        proj_e_time, rescale_time, death_time, hash_test_time, hii_test_time, &
+        init_flag_time, iter_data_fciqmc, ll_node, GAS_PCHB_init_time
+
+    use FciMCData, only: all_norms, tDetermSpawnedTo, core_run, &
+        tSinglePartPhase, VaryShiftIter, con_send_buf, &
+        popsfile_dets, alloc_popsfile_dets
+
+    use FciMCData, only: &
+        nWalkerHashes, nreplicas, MaxWalkersUncorrected, MaxSpawned, &
+        HashLengthFrac, fcimc_excit_gen_store, tGenMatHEL, TempSpawnedPartsTag, &
+        SpinInvBRRTag, pSingles, pDoubles, &
+        pParallel, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
+        tReplicaReferencesDiffer, old_norm_psi
+
+    use FciMCData, only: &
+        AvSignHFD, AvSign, CASMask, CoreMask, AllTruncatedWeight, &
+        AllTotPartsOld, AllTotPartsLastOutput, allNValidExcits, &
+        AllNoRemoved, AllNoNonInitWalk, AllNoNonInitDets, &
+        tFillingExplicRDMonFly, tFillingStochRDMonFly, &
+        tot_init_trial_denom, tot_init_trial_numerator, tot_trial_denom, &
+        tot_trial_denom_inst, tot_trial_num_inst, tot_trial_numerator, &
+        tPrintHighPop, trial_denom, trial_denom_inst, &
+        pops_pert, &
+        FreeSlot, InstAnnihil, AvAnnihil, AllAvAnnihil, AllInstAnnihil, &
+        AttemptHist, SpawnHist, SinglesHist, DoublesHist, DoublesAttemptHist, &
+        SinglesAttemptHist, SinglesHistOccOcc, SinglesHistVirtOcc, SinglesHistOccVirt, &
+        SinglesHistVirtVirt, AllAttemptHist, AllSpawnHist, AllSinglesAttemptHist, &
+         AllSinglesHist, AllDoublesAttemptHist, AllDoublesHist, AllSinglesHistOccOcc, &
+        AllSinglesHistVirtOcc, AllSinglesHistOccVirt, AllSinglesHistVirtVirt, &
+        TempSpawnedParts, HighestPopDet, refdetflip, ilutrefflip
+
+    use FciMCData, only: &
+        ProjectionE, SumENum, InitsENumCyc, SumNoatHF, Annihilated, Acceptances, AvDiagSft, SumDiagSft, &
+        SumWalkersCyc, SumWalkersOut, NoAborted, NoRemoved, NoInitWalk, NoNonInitWalk, &
+        AllSumENum, AllInitsENumCyc, AllNoatDoubs, AllEXLEVEL_WNorm, AllSumNoatHF, &
+        AllGrowRate, AllGrowRateAbort, AllSumWalkersCyc, AllSumWalkersOut, AllNoBorn, &
+        AllSpawnFromSing, AllNoDied, AllAnnihilated, AllENumCyc, AllENumOut, AllHFCyc, &
+        AllHFOut, replica_overlaps_real, ValidSpawnedList
+#ifdef CMPLX_
+    use FciMCData, only: replica_overlaps_imag
+#endif
+
+    use FciMCData, only: HFDet_True, HFDet, tSpinCoupProjE, SpawnInfoVec2Tag, &
+        SpawnInfoVecTag, iRefProc, SpawnInfoVec, SpawnInfoVec2, &
+        SpawnVec2, SpawnVec2Tag, SpawnVec, SpawnVecTag, &
+        HashIndex, AllNoAbortedOld, sfTag, OldAllHFCyc, OldAllAvWalkersCyc, &
+        TotPartsOld, NoatHF, InitialSpawnedSlots, TotParts, &
+        proje_ref_energy_offsets, AllTotParts, ProjEDet, VaryShiftCycles, &
+        unitWalkerDiag, tZeroRef, truncatedWeight, TTruncSpace, &
+        tTimeExit, tRestart, TotImagTime, Tot_Unique_Dets_Unit, &
+        tfirst_cycle, tEScaleWalkers, TDebug, t_initialized_roi, &
+        sum_proje_denominator, SpawnFromSing, sFBeta, proje_iter_tot, &
+        proje_iter, PreviousCycles, nValidExcits, nInvalidExcits, &
+        nSingles, nDoubles, norm_semistoch_squared, norm_semistoch, &
+        norm_psi_squared, norm_psi, NoNonInitDets, NoInitDets, NoExtraInitDoubs, &
+        NoDied, NoBorn, NoAtDoubs, NoAddedInitiators, n_core_non_init, &
+        MaxTimeExit, maxdet, max_cyc_spawn, IterTime, iter, &
+        iPopsTimers, iOffDiagNoBins, InstShift, InputDiagSft, &
+        inits_proje_iter, InitRemoved, initiatorstats_unit, &
+        ilutRef, iLutHF_True, iLutHF, iHighestPop, iBlockingIter, &
+        Hii, HFSym, HFShift, HFOut, HFDetTag, HFCyc, HFConn, &
+        hash_iter, Fii, fcimcstats_unit, fcimcstats_unit2, EXLEVELStats_unit, &
+        DiagSftRe, DiagSftIm, ENumCyc, ENumCycAbs, ENumOut, exflag, &
+        CASmin, CASmax, bloom_count, bloom_sizes, cyc_proje_denominator, &
+        SpinInvBRR, ComplexStats_unit, all_cyc_proje_denominator, &
+        all_n_core_non_init, all_norm_psi_squared, AllAvSign, AllAvSignHFD, &
+        AllENumCycAbs, AllInitRemoved, allNInvalidExcits, AllNoAborted, &
+        AllNoAddedInitiators, AllNoExtraInitDoubs, AllNoInitDets, &
+        AllNoInitWalk, trial_num_inst, trial_numerator, tSinglePartPhase, &
+        CurrentDets, AbsProjE, AccRat, &
+        bloom_max, bloom_warn_string, max_calc_ex_level, con_space_size, &
+        CurrentDets, init_trial_denom, init_trial_numerator, MaxInitPopNeg, &
+        MaxInitPopPos, MaxWalkersPart, nhashes_spawn, &
+        SpawnedParts, SpawnedParts2, SpawnInfo, SpawnInfo2, &
+        WalkVecDets, WalkVecDetsTag, tPopsAlreadyRead, &
+        OldAllNoatHF, TotWalkers, TotWalkersOld, AllNoatHF, AllTotWalkers, &
+        AllTotWalkersOld, HFInd, InstNoatHF, OldAllNoatHF, &
+        TotWalkers, TotWalkersOld, iEndFreeSlot, iStartFreeSlot, OldAllNoatHF, &
+        SpawnInfoWidth, spawn_ht
+
+
+    use sort_mod, only: sort
+
+    ! use HElem
+
 
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
@@ -220,19 +323,19 @@ module fcimc_initialisation
 
     use adi_references, only: setup_reference_space, clean_adi
 
-    use tau_search_hist, only: init_hist_tau_search
-
     use double_occ_mod, only: init_spin_measurements
 
     use back_spawn, only: init_back_spawn, setup_virtual_mask
 
     use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard, &
-                                  t_hole_focus_excits, gen_excit_rs_hubbard, &
+                                  gen_excit_rs_hubbard, &
                                   gen_excit_rs_hubbard_transcorr_hole_focus, &
                                   gen_excit_rs_hubbard_transcorr_uniform, &
                                   gen_excit_rs_hubbard_transcorr, &
                                   gen_excit_rs_hubbard_spin_dependent_transcorr
 
+
+    use sdt_amplitudes, only: init_ciCoeff
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
@@ -247,7 +350,7 @@ module fcimc_initialisation
 
     use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard, &
                                gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr, &
-                               t_mixed_excits, gen_excit_k_space_hub, &
+                               gen_excit_k_space_hub, &
                                gen_excit_uniform_k_space_hub, &
                                gen_excit_mixed_k_space_hub_transcorr
 
@@ -268,7 +371,11 @@ module fcimc_initialisation
     use SD_spin_purification_mod, only: SD_spin_purification, possible_purification_methods, spin_pure_J
 
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
+
+    use blas_interface_mod, only: dgeev
     implicit none
+
+    external :: LargestBitSet
 
 contains
 
@@ -303,8 +410,6 @@ contains
 !Set timed routine names
         Walker_Time%timer_name = 'WalkerTime'
         Annihil_Time%timer_name = 'AnnihilTime'
-        GetDiagMatel_Time%timer_name = 'GetDiagMatelTime'
-        GetOffDiagMatel_Time%timer_name = 'GetOffDiagMatelTime'
         Sort_Time%timer_name = 'SortTime'
         Comms_Time%timer_name = 'CommsTime'
         ACF_Time%timer_name = 'ACFTime'
@@ -333,6 +438,8 @@ contains
         hash_test_time%timer_name = 'HashTestTime'
         hii_test_time%timer_name = 'HiiTestTime'
         init_flag_time%timer_name = 'InitFlagTime'
+        GAS_PCHB_init_time%timer_name = 'GAS_PCHB_init_time'
+
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -427,7 +534,7 @@ contains
             !This is not a compatible reference function.
             !Create single excitation of the correct symmetry
             !Use this as the reference.
-            write(6, "(A)") "Converging to ODD S eigenstate"
+            write(stdout, "(A)") "Converging to ODD S eigenstate"
 
             SymFinal = int((G1(HFDet(nel))%Sym%S)) + 1
 
@@ -457,7 +564,7 @@ contains
             call EncodeBitDet(HFDet, iLutHF)
             if (TestClosedShellDet(iLutHF)) &
                 call stop_all(t_r, "Fail to create open-shell determinant for reference to use with odd S")
-            write(6, *) "Reference determinant changed to the open-shell:"
+            write(stdout, *) "Reference determinant changed to the open-shell:"
             call write_det(stdout, HFDet, .true.)
         end if
 
@@ -564,9 +671,9 @@ contains
         end do
         CALL LargestBitSet(iLutHF, NIfD, LargestOrb)
         IF (LargestOrb /= hfdet(nel)) then
-            write(6, *) 'ilut HF', ilutHF
-            write(6, *) 'largest orb', largestorb
-            write(6, *) 'HFDet', hfdet
+            write(stdout, *) 'ilut HF', ilutHF
+            write(stdout, *) 'largest orb', largestorb
+            write(stdout, *) 'HFDet', hfdet
             CALL Stop_All(t_r, "LargestBitSet FAIL")
         end if
         nBits = CountBits(iLutHF, NIfD, NEl)
@@ -906,8 +1013,23 @@ contains
             write(stdout, "(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
             write(stdout, "(A,F25.15)") "This means tau should be no more than about ", UpperTau
             write(stdout, *) "Highest energy determinant is: ", HighEDet(:)
+
+            associate(deterministic_max_tau => UpperTau * 1.1_dp)
+            if (deterministic_max_tau < max_tau) then
+                write(stdout, "(A)") "The deterministic tau is smaller than max_tau."
+                write(stdout, "(A, F25.15)") "We will limit max_tau to:", deterministic_max_tau
+                max_tau = deterministic_max_tau
+                if (tau > max_tau) then
+                    call assign_value_to_tau(max_tau, 'Initial tau was higher than deterministic tau limit.')
+                end if
+            end if
+            end associate
         else
             UpperTau = 0.0_dp
+        end if
+
+        if (tau_start_val == possible_tau_start%deterministic) then
+            call assign_value_to_tau(UpperTau, 'Deterministically approximated value 1 / (E_max - E_0)')
         end if
 
         ! Initialise DiagSft according to the input parameters. If we have
@@ -1221,14 +1343,13 @@ contains
             ! memory limitations.. but i think we do not actually need it.
             CALL CalcApproxpDoubles()
         end if
-        IF (abs(TauFactor) > 1.0e-12_dp) THEN
-            if (t_trans_corr_2body .and. t_k_space_hubbard) then
-                call Stop_All(this_routine, &
-                              "finding the number of excits from HF breaks for too large lattice")
-            end if
+        IF (tau_start_val == possible_tau_start%tau_factor) THEN
             write(stdout, *) "TauFactor detected. Resetting Tau based on connectivity of: ", HFConn
-            Tau = TauFactor / REAL(HFConn, dp)
-            write(stdout, *) "Timestep set to: ", Tau
+            call assign_value_to_tau(TauFactor / REAL(HFConn, dp), 'Initialization from Tau-Factor.')
+        end if
+
+        if (t_store_ci_coeff) then
+            call init_ciCoeff()
         end if
 
         ! [W.D.] I guess I want to initialize that before the tau-search,
@@ -1422,7 +1543,8 @@ contains
     SUBROUTINE InitFCIMCCalcPar()
         INTEGER :: ierr, iunithead
         logical :: formpops, binpops, tStartedFromCoreGround
-        INTEGER :: error, MemoryAlloc, PopsVersion
+        integer(int64) :: MemoryAlloc
+        INTEGER :: error, PopsVersion
         character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
         real(dp) :: ExpectedMemWalk, read_tau, read_psingles, read_pparallel, read_ptriples
@@ -1755,42 +1877,7 @@ contains
                               "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! if this is a continued run from a histogramming tau-search
-        ! and a restart of the tau-search is not forced by input, turn
-        ! both the new and the old tau-search off!
-        ! i cannot do it here, since this is called before the popsfile read-in
-        if (t_previous_hist_tau) then
-            ! i have to check for tau-search option and stuff also, so that
-            ! the death tau adaption is still used atleast! todo!
-            tSearchTau = .false.
-            t_hist_tau_search = .false.
-            t_fill_frequency_hists = .false.
-            write(stdout, *) "Turning OFF the tau-search, since continued run!"
-        end if
-
-        if (tSearchTau) then
-            call init_tau_search()
-            if (t_hist_tau_search) then
-                call Stop_All(t_r, &
-                      "Input error! both standard AND Histogram tau-search chosen!")
-            end if
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
-        else
-            ! Add a couple of checks for sanity
-            if (nOccAlpha == 0 .or. nOccBeta == 0) then
-                pParallel = 1.0_dp
-            end if
-            if (nOccAlpha == 1 .and. nOccBeta == 1) then
-                pParallel = 0.0_dp
-            end if
-        end if
+        call init_tau()
 
         IF ((NMCyc /= 0) .and. (tRotateOrbs .and. (.not. tFindCINatOrbs))) then
             CALL Stop_All(this_routine, "Currently not set up to rotate and then go straight into a spawning &
@@ -2008,7 +2095,7 @@ contains
 
         else if (t_pcpp_excitgen) then
             generate_excitation => gen_rand_excit_pcpp
-        else if (t_pchb_excitgen) then
+        else if (t_fci_pchb_excitgen) then
             call class_managed(generate_excitation, gen_all_excits)
         else if (t_k_space_hubbard) then
             if (t_3_body_excits) then
@@ -2362,21 +2449,6 @@ contains
 
         call finalize_exz_gen_class()
 
-!There seems to be some problems freeing the derived mpi type.
-!        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-!Free the mpi derived type that we have created for the hashes.
-!            CALL MPI_Type_free(mpilongintegertype,error)
-!            IF(error.ne.MPI_SUCCESS) THEN
-!                CALL MPI_Error_string(error,message,length,temp)
-!                IF(temp.ne.MPI_SUCCESS) THEN
-!                    write(stdout,*) "REALLY SERIOUS PROBLEMS HERE!",temp
-!                    CALL neci_flush(stdout)
-!                end if
-!                write(stdout,*) message(1:length)
-!                write(stdout,*) "ERROR FOUND"
-!                CALL neci_flush(stdout)
-!            end if
-!        end if
 
     end subroutine DeallocFCIMCMemPar
 
@@ -2982,8 +3054,8 @@ contains
                 call MPIBCast(largest_det, NIfTot + 1, int(proc_highest))
 !                 call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
-                write(6, *) 'Setting ref', run
-                call writebitdet(6, largest_det, .true.)
+                write(stdout, *) 'Setting ref', run
+                call writebitdet(stdout, largest_det, .true.)
 
                 ! Set this det as the reference
                 call update_run_reference(largest_det, run)
@@ -3638,27 +3710,27 @@ contains
         ! The -1 is just because the sampling starts one iteration after IterRDMOnFly
         ! If we subtracted too much, jump one cycle backwards
         if (IterRDMOnFly < semistoch_shift_iter) IterRDMOnFly = IterRDMOnFly + coreSpaceUpdateCycle
-        write(6, *) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
+        write(stdout, *) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
 
         ! Now sync the update cycles
         if (RDMEnergyIter > coreSpaceUpdateCycle) then
             RDMEnergyIter = coreSpaceUpdateCycle
-            write(6, *) "The RDM sampling interval cannot be larger than the update " &
+            write(stdout, *) "The RDM sampling interval cannot be larger than the update " &
                 //"interval of the semi-stochastic space. Reducing it to ", RDMEnergyIter
         end if
         if (mod(coreSpaceUpdateCycle, RDMEnergyIter) /= 0) then
             ! first, try to ramp up the RDMEnergyIter to meet the coreSpaceUpdateCycle
             frac = coreSpaceUpdateCycle / RDMEnergyIter
             RDMEnergyIter = coreSpaceUpdateCycle / frac
-            write(6, *) "Update cycle of semi-stochastic space and RDM sampling interval" &
+            write(stdout, *) "Update cycle of semi-stochastic space and RDM sampling interval" &
                 //" out of sync. "
-            write(6, *) "Readjusting RDM sampling interval to ", RDMEnergyIter
+            write(stdout, *) "Readjusting RDM sampling interval to ", RDMEnergyIter
 
             ! now, if this did not succeed, adjust the coreSpaceUpdateCycle
             if (mod(coreSpaceUpdateCycle, RDMEnergyIter) /= 0) then
                 coreSpaceUpdateCycle = coreSpaceUpdateCycle - &
                                        mod(coreSpaceUpdateCycle, RDMEnergyIter)
-                write(6, *) "Adjusted update cycle of semi-stochastic space to ", &
+                write(stdout, *) "Adjusted update cycle of semi-stochastic space to ", &
                     coreSpaceUpdateCycle
             end if
         end if
@@ -3963,7 +4035,7 @@ contains
                 if (.not. (n_excits > 0) .or. n_excits < inum_runs - 1) then
                     print *, "n_excits: ", n_excits
                     print *, "requested excited states:", inum_runs - 1
-                    call write_guga_list(6, excitations(:, 1:n_excits))
+                    call write_guga_list(stdout, excitations(:, 1:n_excits))
                     call stop_all(this_routine, "not enough excitations from HF!")
                 end if
 
@@ -4013,11 +4085,10 @@ contains
                         energies(i) = 9999999.9_dp
                         do j = 1, norb
                             orb2 = SymLabelList2(label_idx + j - 1)
-                            if ((.not. any(orb2 == HFDet)) .and. &
-                                (.not. any(orb2 == found_orbs))) then
+                            if (.not. (any(orb2 == HFDet) .or. any(orb2 == found_orbs))) then
                                 det = HFDet
                                 det(i) = orb2
-                                hdiag = real(sltcnd_excit(det, NoExc_t()), dp)
+                                hdiag = real(sltcnd_excit(det, Excite_0_t()), dp)
                                 if (hdiag < energies(i)) then
                                     energies(i) = hdiag
                                     orbs(i) = orb2
@@ -4064,11 +4135,11 @@ contains
 
         end if
 
-        write(6, *) 'Generated reference determinants:'
+        write(stdout, *) 'Generated reference determinants:'
         do run = 1, inum_runs
-            call write_det(6, ProjEDet(:, run), .false.)
+            call write_det(stdout, ProjEDet(:, run), .false.)
             hdiag = real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
-            write(6, '(" E = ", f16.9)') hdiag
+            write(stdout, '(" E = ", f16.9)') hdiag
         end do
 
     end subroutine assign_reference_dets
@@ -4158,7 +4229,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-        use bit_rep_data, only: test_flag_multi
         ! initialize the norm_psi, norm_psi_squared
         implicit none
         integer(int64) :: j
@@ -4196,38 +4266,3 @@ contains
 !------------------------------------------------------------------------------------------!
 
 end module fcimc_initialisation
-
-! This routine will change the reference determinant to DetCurr. It will
-! also re-zero all the energy estimators, since they now correspond to
-! projection onto a different determinant.
-!
-! n.b. NOT MODULARISED. This is a little evil, but there is an unbreakable
-!      circular dependency otherwise.
-!
-! **** See interface in Popsfile.F90 ****
-subroutine ChangeRefDet(DetCurr)
-    use fcimc_initialisation
-    INTEGER :: DetCurr(NEl), i
-
-    do i = 1, NEl
-        FDet(i) = DetCurr(i)
-    end do
-
-    write(stdout, "(A)") "*** Changing the reference determinant ***"
-    write(stdout, "(A)") "Switching reference and zeroing energy counters - restarting simulation"
-!
-!Initialise variables for calculation on each node
-    Iter = 1
-    CALL DeallocFCIMCMemPar()
-    IF (iProcIndex == Root) THEN
-        close(fcimcstats_unit)
-        if (inum_runs == 2) close(fcimcstats_unit2)
-        IF (tTruncInitiator) close(initiatorstats_unit)
-        IF (tLogComplexPops) close(complexstats_unit)
-        if (tLogEXLEVELStats) close(EXLEVELStats_unit)
-    end if
-    IF (TDebug) close(11)
-    CALL SetupParameters()
-    CALL InitFCIMCCalcPar()
-
-end subroutine ChangeRefDet

@@ -4,17 +4,24 @@
 module hphf_integrals
     use constants, only: dp, n_int, sizeof_int, maxExcit
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model, &
+                          ALat, NMSH, tOddS_HPHF, tStoquastize, t_lattice_model, &
                           t_3_body_excits, max_ex_level
     use IntegralsData, only: UMat, FCK, NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
+    use orb_idx_mod, only: size
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs, GetBitExcitation
-    use excitation_types, only: NoExc_t, DoubleExc_t
+    use excitation_types, only: Excite_0_t, Excite_2_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
-    use bit_reps, only: NIfD, NIfTot, decode_bit_det
+    use bit_rep_data, only: NIfD, NIfTot
+    use bit_reps, only: decode_bit_det
     use lattice_mod, only: get_helement_lattice
+    use util_mod, only: stop_all
     implicit none
+    private
+    public :: hphf_off_diag_helement, hphf_spawn_sign, hphf_off_diag_helement_opt, &
+        hphf_off_diag_special_case, hphf_diag_helement, hphf_sign, &
+        hphf_off_diag_helement_norm, hphf_off_diag_helement_spawn
 
     interface hphf_off_diag_helement
         module procedure hphf_off_diag_helement_norm
@@ -49,8 +56,6 @@ contains
         unused_var(IC); unused_var(ex); unused_var(tParity); unused_var(HElGen)
 
         hel = hphf_off_diag_helement_norm(nI, nJ, iLutI, iLutJ)
-
-        if(IC /= 0 .and. modk_offdiag) hel = -abs(hel)
 
     end function
 
@@ -165,6 +170,9 @@ contains
                 end if
             end if
         end if
+
+        if(tStoquastize) hel = -abs(hel)
+
     end function
 
     function hphf_off_diag_helement_opt(nI, iLutnI, iLutnJ, IC, CS_I, CS_J) result(hel)
@@ -263,6 +271,8 @@ contains
             end if
         end if
 
+        if(tStoquastize) hel = -abs(hel)
+
     end function
 
     function hphf_off_diag_special_case(nI2, iLutnI2, iLutnJ, ExcitLevel, OpenOrbsI) result(hel)
@@ -331,6 +341,8 @@ contains
             end if
         end if
 
+        if(tStoquastize) hel = -abs(hel)
+
     end function
 
     function hphf_diag_helement(nI, iLutnI) result(hel)
@@ -354,7 +366,7 @@ contains
         if(t_lattice_model) then
             hel = get_helement_lattice(nI, nI)
         else
-            hel = sltcnd_excit(nI, NoExc_t())
+            hel = sltcnd_excit(nI, Excite_0_t())
         end if
 
         if(.not. TestClosedShellDet(iLutnI)) then

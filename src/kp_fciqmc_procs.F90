@@ -5,7 +5,7 @@ module kp_fciqmc_procs
     use bit_rep_data
     use bit_reps, only: decode_bit_det, encode_sign
     use constants
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, neci_flush, stop_all
     use Parallel_neci, only: iProcIndex, MPISum, nProcessors
     use kp_fciqmc_data_mod
     use SystemData, only: tGUGA
@@ -35,7 +35,7 @@ contains
 
         if (tPrintDataTables) then
             write(stdout, '(a71)', advance='no') "# Adding the current walker configuration to the Krylov vector array..."
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
         ! The index of the first element referring to the sign, for this ivec.
@@ -93,7 +93,7 @@ contains
                 "# Number unique determinants in the Krylov vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
             amp_fraction = real(nkrylov_amp_elems_used, dp) / real(nkrylov_amp_elems_tot, dp)
             write(stdout, '(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
-            call neci_flush(6)
+            call neci_flush(stdout)
         end if
 
     end subroutine store_krylov_vec

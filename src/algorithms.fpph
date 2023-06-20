@@ -22,9 +22,12 @@ $:  ', dimension(:{})'.format(', :' * (int(rank) - 1)) if int(rank) else ''
 $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank) + 1))+')'
 #:enddef
 
-#:def swap(type, kind, rank, a, b, tmp=None)
+#:def swap(type, kind, rank, a, b, tmp=None, incr_swaps=None)
     ! swap
     block
+#:if incr_swaps
+        ${incr_swaps}$ = ${incr_swaps}$ + 1
+#:endif
 #:if tmp
         associate(tmp => ${tmp}$)
 #:else
@@ -49,10 +52,10 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
 #:endif
 #:enddef
 
-#:def _bubble_sort(type, var, comp='<=', kind=None, rank=1, along=None, tmp=None)
+#:def _bubble_sort(type, var, comp='<=', kind=None, rank=1, along=None, tmp=None, incr_swaps=None)
     #:set along = rank if along is None else along
     #:set select = functools.partial(_select, rank, along)
-    #:set my_swap = functools.partial(swap, type, kind, int(rank) - 1)
+    #:set my_swap = functools.partial(swap, type, kind, int(rank) - 1, incr_swaps=incr_swaps)
     ! bubblesort
     block
       integer :: n, i
@@ -69,7 +72,7 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
 #:enddef
 
 
-#:def merge(type, A, B, C, comp='<=', kind=None, rank=1, along=None)
+#:def merge(type, A, B, C, comp='<=', kind=None, rank=1, along=None, incr_swaps=None)
     #:set along = rank if along is None else along
     #:set select = functools.partial(_select, rank, along)
     ! merge
@@ -78,56 +81,72 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
 
         associate(A => ${A}$, B => ${B}$, C => ${C}$)
 
-          if (size(A) + size(B) > size(C)) then
-            error stop
-          end if
-
-          i = lbound(A, ${along}$)
-          j = lbound(B, ${along}$)
-          do k = lbound(C, ${along}$), ubound(C, ${along}$)
-            if (i <= ubound(A, ${along}$) .and. j <= ubound(B, ${along}$)) then
-              if (@{_comp(${comp}$, ${select('A', 'i')}$, ${select('B', 'j')}$)}@) then
-                @{select(C, k)}@ = @{select(A, i)}@
-                i = i + 1
-              else
-                @{select(C, k)}@ = @{select(B, j)}@
-                j = j + 1
-              end if
-            else if (i <= ubound(A, ${along}$)) then
-              @{select(C, k)}@ = @{select(A, i)}@
-              i = i + 1
-            else if (j <= ubound(B, ${along}$)) then
-              @{select(C, k)}@ = @{select(B, j)}@
-              j = j + 1
+            if (size(A) + size(B) > size(C)) then
+                error stop
             end if
-          end do
+
+            i = lbound(A, ${along}$)
+            j = lbound(B, ${along}$)
+            do k = lbound(C, ${along}$), ubound(C, ${along}$)
+                if (i <= ubound(A, ${along}$) .and. j <= ubound(B, ${along}$)) then
+                    if (@{_comp(${comp}$, ${select('A', 'i')}$, ${select('B', 'j')}$)}@) then
+                        @{select(C, k)}@ = @{select(A, i)}@
+                        i = i + 1
+                    else
+                        @{select(C, k)}@ = @{select(B, j)}@
+                        j = j + 1
+                        #:if incr_swaps
+                            ${incr_swaps}$ = ${incr_swaps}$ + 1
+                        #:endif
+                    end if
+                else if (i <= ubound(A, ${along}$)) then
+                    @{select(C, k)}@ = @{select(A, i)}@
+                    i = i + 1
+                else if (j <= ubound(B, ${along}$)) then
+                    @{select(C, k)}@ = @{select(B, j)}@
+                    j = j + 1
+                    #:if incr_swaps
+                        ${incr_swaps}$ = ${incr_swaps}$ + 1
+                    #:endif
+                end if
+            end do
         end associate
     end block
 #:enddef
 
-#:def sort(type, var, comp='<=', kind=None, rank=1, along=None, method='merge_sort')
+#:def sort(type, var, comp='<=', kind=None, rank=1, along=None, method='merge_sort', count_swaps=None)
 #:if method == 'merge_sort'
-    ${_merge_sort(type, var, comp, kind, rank, along)}$
+    #:if count_swaps
+        ${count_swaps}$ = 0
+    #:endif
+    ${_merge_sort(type, var, comp, kind, rank, along, count_swaps)}$
 #:elif method == 'bubble_sort'
+    #:if count_swaps
+        #:stop "count_swaps is undefined for quicksort"
+    #:endif
     ${_bubble_sort(type, var, comp, kind, rank, along)}$
 #:else
     #:stop "Currently only methods 'merge_sort' and 'bubble_sort' supported"
 #:endif
 #:enddef
 
-#:def _merge_sort(type, var, comp='<=', kind=None, rank=1, along=None)
+#:def _merge_sort(type, var, comp, kind, rank, along, incr_swaps)
         #:set along = rank if along is None else along
         #:set select = functools.partial(_select, rank, along)
         #:def shape_like_except_along(rank, along, var, size_along)
         $:  ', '.join(size_along if i == int(along) else 'size({var}, {i})'.format(var=var, i =i) for i in range(1, int(rank) + 1))
         #:enddef
 
+        #:if var == 'tmp'
+            #:stop "var cannot be named tmp"
+        #:endif
+
         ! merge_sort
         block
             @{get_decl(${type}$, ${kind}$, ${rank}$, True)}@ :: tmp
             integer :: current_size, left, mid, right
             integer, parameter :: along = ${along}$, &
-                bubblesort_size = 12
+                bubblesort_size = 20
 
             associate(X => ${var}$)
                 ! Determine good number of starting splits
@@ -152,7 +171,7 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
                 ! Bubble sort bins of size `bubblesort_size`.
                 do left = lbound(X, along), ubound(X, along), current_size
                     right = min(left + bubblesort_size - 1, ubound(X, along))
-                    ${_bubble_sort(type, select('X', 'left : right'), comp, kind, rank, along, tmp=select('tmp', '1'))}$
+                    ${_bubble_sort(type, select('X', 'left : right'), comp, kind, rank, along, tmp=select('tmp', '1'), incr_swaps=incr_swaps)}$
                 end do
 
                 do while (current_size < size(X, along))
@@ -160,7 +179,7 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
                         right = min(left + 2 * current_size - 1, ubound(X, along))
                         mid = min(left + current_size, right) - 1
                         @{select(tmp, : mid - left + 1)}@ = @{select(X, left : mid)}@
-                        ${merge(type, select('tmp', ': mid - left + 1'), select('X', 'mid + 1 : right'), select('X', 'left : right'), comp, kind, rank, along)}$
+                        ${merge(type, select('tmp', ': mid - left + 1'), select('X', 'mid + 1 : right'), select('X', 'left : right'), comp, kind, rank, along, incr_swaps)}$
                     end do
                     current_size = 2 * current_size
                 end do

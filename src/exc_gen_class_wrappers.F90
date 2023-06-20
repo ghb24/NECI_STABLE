@@ -1,11 +1,12 @@
 #include "macros.h"
 module exc_gen_class_wrappers
     use constants, only: dp, n_int, maxExcit
-    use excitation_generators, only: SingleExcitationGenerator_t
+    use excitation_generators, only: FCISingleExcitationGenerator_t
     use FciMCData, only: pSingles, pDoubles, excit_gen_store_type
     use SystemData, only: nel
     use bit_rep_data, only: NIfTot
     use SymExcitDataMod, only: ScratchSize
+    use util_mod, only: stop_all
 
     use GenRandSymExcitNUMod, only: uniform_single_excit_wrapper, calc_pgen_symrandexcit2
     use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind
@@ -13,7 +14,7 @@ module exc_gen_class_wrappers
     private
     public :: UniformSingles_t, WeightedSingles_t
 
-    type, extends(SingleExcitationGenerator_t) :: UniformSingles_t
+    type, extends(FCISingleExcitationGenerator_t) :: UniformSingles_t
     contains
         private
         procedure, public :: gen_exc => UniformSingles_gen_exc
@@ -21,7 +22,7 @@ module exc_gen_class_wrappers
         procedure, public :: finalize => UniformSingles_do_nothing
     end type
 
-    type, extends(SingleExcitationGenerator_t) :: WeightedSingles_t
+    type, extends(FCISingleExcitationGenerator_t) :: WeightedSingles_t
     contains
         private
         procedure, public :: gen_exc => WeightedSingles_gen_exc

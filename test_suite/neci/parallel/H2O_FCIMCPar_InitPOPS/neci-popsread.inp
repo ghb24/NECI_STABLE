@@ -1,40 +1,42 @@
 title
 
 system read
-nonuniformrandexcits
-electrons 10
-spin-restrict 0
-hphf
+    nonuniformrandexcits
+    electrons 10
+    spin-restrict 0
+    hphf
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-nmcyc 10000
-diagshift 0.d+0
-initwalkers 1000000
-maxnoathf 10000
-tau 0.0005
-readpops
-seed -8
-truncinitiator
-addtoinitiator 1
-directannihilation
-shiftdamp 0.10
-stepsshift 20
-memoryfacpart 2.0
-memoryfacspawn 0.5
-regenexcitgens
-load-balance-blocks off
+    methods
+        method vertex fcimc
+    endmethods
+    nmcyc 10000
+    diagshift 0.d+0
+    initwalkers 1000000
+    maxnoathf 10000
+    tau-values \
+        start user-defined 0.0005 \
+        readpops-but-tau-not-from-popsfile
+    readpops
+    seed -8
+    truncinitiator
+    addtoinitiator 1
+    directannihilation
+    shiftdamp 0.10
+    stepsshift 20
+    memoryfacpart 2.0
+    memoryfacspawn 0.5
+    regenexcitgens
+    load-balance-blocks off
 endcalc
 
 integral
-freeze 0 0
+    freeze 0 0
 endint
 
 logging
-popsfile -1000
-blockingstartiter 500000
+    popsfile -1000
+    blockingstartiter 500000
 endlog
 end

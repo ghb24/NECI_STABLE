@@ -15,7 +15,8 @@ calc
         method vertex fcimc
     endmethods
 
-    tau 0.01
+    tau-values \
+        start user-defined 0.01
     definedet  3 4 5 6 7 8
 
     totalwalkers   1000
@@ -23,6 +24,7 @@ calc
     truncinitiator
     addtoinitiator 3.
     allrealcoeff
+    realspawncutoff off
 
     startsinglepart 100
     shiftdamp 0.02

@@ -11,8 +11,8 @@
 
 module sparse_arrays
 
-    use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: decode_bit_det, nifguga
+    use bit_rep_data, only: NIfTot, NIfD, nifguga
+    use bit_reps, only: decode_bit_det
     use CalcData, only: tReadPops
     use constants
     use DetBitOps, only: DetBitEq, CountBits, TestClosedShellDet
@@ -32,10 +32,12 @@ module sparse_arrays
     use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
                               CSF_Info_t
-    use util_mod, only: binary_search, near_zero
+    use util_mod, only: binary_search_ilut, near_zero
     use guga_data, only: tag_excitations, ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
     use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
+    use util_mod, only: stop_all
+    use basic_float_math, only: conjgt
 
     implicit none
 
@@ -318,14 +320,14 @@ contains
             disps(i) = disps(i - 1) + num_states(i - 1)
         end do
 
-        safe_realloc_e(sparse_ham, (num_states(iProcIndex)), ierr)
-        safe_realloc_e(SparseHamilTags, (2, num_states(iProcIndex)), ierr)
-        safe_realloc_e(hamiltonian_row, (num_states_tot), ierr)
-        call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag, ierr)
-        safe_realloc_e(hamil_diag, (num_states(iProcIndex)), ierr)
-        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex)), 8, t_r, HDiagTag, ierr)
-        safe_realloc_e(temp_store, (0:NIfTot, num_states_tot), ierr)
-        call LogMemAlloc('temp_store', num_states_tot * (NIfTot + 1), 8, t_r, TempStoreTag, ierr)
+        safe_realloc(sparse_ham, (num_states(iProcIndex)))
+        safe_realloc(SparseHamilTags, (2, num_states(iProcIndex)))
+        safe_realloc(hamiltonian_row, (num_states_tot))
+        call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag)
+        safe_realloc(hamil_diag, (num_states(iProcIndex)))
+        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex)), 8, t_r, HDiagTag)
+        safe_realloc(temp_store, (0:NIfTot, num_states_tot))
+        call LogMemAlloc('temp_store', num_states_tot * (NIfTot + 1), 8, t_r, TempStoreTag)
 
         ! Stick together the determinants from all processors, on all processors.
         call MPIAllGatherV(ilut_list(:, 1:num_states(iProcIndex)), temp_store, num_states, disps)
@@ -423,7 +425,6 @@ contains
 
     subroutine calc_determ_hamil_sparse(rep)
 
-        use SystemData, only: t_3_body_excits, t_mol_3_body, t_ueg_transcorr
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, row_size, counter, ierr
         integer :: nI(nel), nJ(nel)
@@ -438,8 +439,8 @@ contains
 
         character(len=*), parameter :: this_routine = "calc_determ_hamil_sparse"
 
-        integer(n_int) :: tmp(0:NIfD), ilutI_tmp(0:NIfTot)
-        integer :: IC, nI_tmp(nel)
+        integer(n_int) :: tmp(0:NIfD), ilutI_tmp(0:NIfTot), ilutJ_tmp(0:niftot)
+        integer :: IC, nI_tmp(nel), nJ_tmp(nel)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(CSF_Info_t) :: csf_i, csf_j
         HElement_t(dp) :: tmp_mat, tmp_mat_2, HOffDiag
@@ -477,42 +478,44 @@ contains
 
                 if(t_evolve_adjoint(rep%first_run())) then
                     nI_tmp = nJ
-                    nJ = nI
+                    nJ_tmp = nI
                     ilutI_tmp = ilutJ
-                    ilutJ = ilutI
+                    ilutJ_tmp = ilutI
                 else
                     nI_tmp = nI
+                    nJ_tmp = nJ
                     ilutI_tmp = ilutI
+                    ilutJ_tmp = ilutJ
                 end if
 
                 ! If on the diagonal of the Hamiltonian.
-                if (DetBitEq(IlutI, ilutJ, nifd)) then
+                if (DetBitEq(IlutI, ilutJ_tmp, nifd)) then
                     hamiltonian_row(j) = get_diagonal_matel(nI_tmp, IlutI_tmp) - Hii
                     rep%core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store the diagonal matrix element at
                     ! this point for later access.
                     if (.not. tReadPops) then
                         call set_det_diagH(i, Real(hamiltonian_row(j), dp))
-                        HOffDiag = get_off_diagonal_matel(nI, IlutI)
+                        HOffDiag = get_off_diagonal_matel(nI_tmp, ilutI_tmp)
                         call set_det_offdiagH(i, HOffDiag)
                     end if
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
                     if (tHPHF) then
-                        hamiltonian_row(j) = hphf_off_diag_helement(nI_tmp, nJ, IlutI_tmp, IlutJ)
+                        hamiltonian_row(j) = hphf_off_diag_helement(nI_tmp, nJ_tmp, IlutI_tmp, ilutJ_tmp)
                     else if (tGUGA) then
                         call calc_guga_matrix_element(&
-                                IlutI, csf_i, IlutJ, csf_j, excitInfo, tmp_mat, .true.)
+                                ilutI_tmp, csf_i, ilutJ_tmp, csf_j, excitInfo, tmp_mat, .true.)
 #ifdef DEBUG_
                         call calc_guga_matrix_element(&
-                                IlutI,  csf_i, IlutJ, csf_j, excitInfo, tmp_mat_2, .true.)
+                                ilutI_tmp,  csf_i, ilutJ_tmp, csf_j, excitInfo, tmp_mat_2, .true.)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "type 1 and 2 do not agree!")
                         end if
                         call calc_guga_matrix_element(&
-                                IlutJ, csf_j, IlutI, csf_i, excitInfo, tmp_mat_2, .true.)
-                        if (.not. near_zero(tmp_mat - tmp_mat_2)) then
+                                ilutJ_tmp, csf_j, ilutI_tmp, csf_i, excitInfo, tmp_mat_2, .true.)
+                        if (.not. near_zero(tmp_mat - conjgt(tmp_mat_2))) then
                             call stop_all(this_routine, "not hermititan!")
                         end if
 #endif
@@ -524,12 +527,13 @@ contains
 #endif
                     else
 
-                        tmp = ieor(IlutI_tmp(0:NIfD), IlutJ(0:NIfD))
+                        tmp = ieor(IlutI_tmp(0:NIfD), ilutJ_tmp(0:NIfD))
                         tmp = iand(IlutI_tmp(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
 
                         if (IC <= maxExcit) then
-                            hamiltonian_row(j) = get_helement(nI_tmp, nJ, IC, ilutI_tmp, IlutJ)
+!                             hamiltonian_row(j) = get_helement(nI_tmp, nJ_tmp, IC, ilutI_tmp, ilutJ_tmp)
+                            hamiltonian_row(j) = get_helement(nJ_tmp, nI_tmp, IC, ilutJ_tmp, ilutI_tmp)
                         end if
                     end if
                     if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
@@ -564,7 +568,6 @@ contains
         call LogMemDealloc(this_routine, TempStoreTag, ierr)
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(this_routine, HRTag, ierr)
-!         deallocate(temp_store_nI, stat=ierr)
 
     end subroutine calc_determ_hamil_sparse
 

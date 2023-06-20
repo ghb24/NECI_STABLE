@@ -12,11 +12,13 @@ module orthogonalise
                         tPairedReplicas, t_test_overlap, overlap_eps, n_stop_ortho
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance, only: CalcHashTableStats
-    use bit_reps, only: extract_sign, encode_sign
+    use bit_rep_data, only: extract_sign
+    use bit_reps, only: encode_sign
     use semi_stoch_procs, only: check_determ_flag
     use Parallel_neci
     use constants
     use util_mod
+    use basic_float_math, only: is_nan
     implicit none
 
 contains
@@ -622,8 +624,7 @@ contains
 
         S_half = matmul(evecs, evecs_t)
 
-        if (any(isnan_neci(s_half))) &
-            call stop_all(this_routine, "NaNs found")
+        if (any(is_nan(s_half))) call stop_all(this_routine, "NaNs found")
 
         ! Go through and update the values!
         HolesInList = 0

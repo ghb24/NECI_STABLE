@@ -25,7 +25,11 @@ calc
     diagshift 0.0
     stepsshift 10
     totalwalkers 1000
-    tau 0.05 search
+    tau-values \
+        start user-defined 0.05
+    tau-search \
+        algorithm conventional \
+        scale-tau-to-death
     startsinglepart
     shiftdamp 0.1
     nmcyc 15000

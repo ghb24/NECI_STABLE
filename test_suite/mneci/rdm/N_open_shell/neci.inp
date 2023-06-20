@@ -1,47 +1,51 @@
 title
 
 system read
-nonuniformrandexcits 4ind-weighted
-rohf
-electrons 7
-spin-restrict -3
-molpromimic
-freeformat
+    nonuniformrandexcits 4ind-weighted
+    rohf
+    electrons 7
+    spin-restrict -3
+    molpromimic
+    freeformat
 endsys
 
 calc
-methods
-method vertex fcimc
-endmethods
-seed -7
-memoryfacspawn 15.0
-memoryfacpart 2.0
-truncinitiator
-addtoinitiator 3
-walkcontgrow
-diagshift 0.0
-stepsshift 10
-totalwalkers 10000
-tau 0.05 search
-startsinglepart 2000
-shiftdamp 0.1
-nmcyc 1500
-allrealcoeff
-realspawncutoff 0.5
-proje-changeref 1.2
-load-balance-blocks off
-maxwalkerbloom 3.0
-death-before-comms
+    methods
+        method vertex fcimc
+    endmethods
+    seed -7
+    memoryfacspawn 15.0
+    memoryfacpart 2.0
+    truncinitiator
+    addtoinitiator 3
+    walkcontgrow
+    diagshift 0.0
+    stepsshift 10
+    totalwalkers 10000
+    tau-values \
+        start user-defined 0.05
+    tau-search \
+        algorithm conventional \
+        maxwalkerbloom 3.0 \
+        scale-tau-to-death
+    startsinglepart 2000
+    shiftdamp 0.1
+    nmcyc 1500
+    allrealcoeff
+    realspawncutoff 0.5
+    proje-changeref 1.2
+    load-balance-blocks off
+    death-before-comms
 endcalc
 
 integral
-freeze 2 0
+    freeze 2 0
 endint
 
 logging
-popsfile -1
-write-spin-free-rdm
-printonerdm
-calcrdmonfly 3 500 50
+    popsfile -1
+    write-spin-free-rdm
+    printonerdm
+    calcrdmonfly 3 500 50
 endlog
 end

@@ -72,12 +72,15 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use MPI_wrapper
-    use Parallel_neci
-    use constants
-    use hdf5_util
-    use util_mod
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn, pTriplesIn
+    use MPI_wrapper, only: CommGlobal, mpiInfoNull
+    use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, stop_all, MPISumAll, &
+                             MPIAllLORLogical, MPIAllGather, MPIArg, MPIAlltoAllV, &
+                             MPIAlltoAll, nProcessors, MPI_MAX, MPIAllReduce, MPISum
+    use error_handling_neci, only: neci_flush
+    use constants, only: dp, stdout, n_int, int32, int64, hdf_log, hdf_err, lenof_sign, &
+                         inum_runs, build_64bit
+    use util_mod, only: near_zero, operator(.div.), get_unique_filename
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
@@ -86,9 +89,29 @@ module hdf5_popsfile
         SpawnedParts
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
 #ifdef USE_HDF_
-    use hdf5
+    use hdf5, only: h5pcreate_f, h5gopen_f, h5gcreate_f, h5gopen_f, h5dopen_f, H5P_FILE_ACCESS_F, &
+                    H5F_ACC_TRUNC_F, H5F_ACC_RDONLY_F, h5fcreate_f, hid_t, hsize_t, h5garbage_collect_f, &
+                    h5close_f, h5pclose_f, h5pset_fapl_mpio_f, h5open_f, h5close_f, &
+                    h5fclose_f, h5gclose_f, h5dclose_f, h5fopen_f, H5T_INTEGER_F, &
+                    H5T_FLOAT_F, H5_REAL_KIND, h5kind_to_type, h5lexists_f, H5_INTEGER_KIND
     use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
+    use hdf5_util, only: write_int32_attribute, write_int64_attribute, write_string_attribute, &
+                         write_log_scalar , write_dp_scalar, read_string_attribute, &
+                         write_int64_scalar, write_dp_1d_dataset, read_dp_scalar, &
+                         read_dp_1d_dataset, read_log_scalar, read_int64_scalar, &
+                         write_dp_1d_attribute, read_dp_1d_attribute, read_int64_attribute, &
+                         check_dataset_params, read_int32_attribute, write_2d_multi_arr_chunk_buff, &
+                         read_2d_multi_chunk, tmp_lenof_sign, tmp_inum_runs, read_cplx_1d_dataset, &
+                         write_cplx_1d_dataset
 #endif
+    use tau_main, only: tau_search_method, input_tau_search_method, &
+        possible_tau_search_methods, tau_start_val, possible_tau_start, &
+        max_death_cpt, min_tau, max_tau, tau, assign_value_to_tau
+    use tau_search_hist, only: finalize_hist_tau_search
+    use tau_search_conventional, only: tau_search_stats
+    use fortran_strings, only: str
+    use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
+    use bit_reps, only: decode_bit_det
     implicit none
     private
 
@@ -149,8 +172,10 @@ module hdf5_popsfile
         nm_gdata = 'gdata', &
         nm_gdata_old = 'fvals'
 
+#ifdef USE_HDF_
     integer(n_int), dimension(:, :), allocatable :: receivebuff
     integer:: receivebuff_tag
+#endif
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
@@ -171,7 +196,9 @@ contains
 
         integer, intent(in), optional :: MaxEx
         logical, intent(in), optional :: IterSuffix
-        character(*), parameter :: t_r = 'write_popsfile_hdf5'
+#ifndef USE_HDF_
+        character(*), parameter :: this_routine = 'write_popsfile_hdf5'
+#endif
 #ifdef USE_HDF_
         integer(hid_t) :: plist_id, file_id
         integer(hdf_err) :: err
@@ -248,17 +275,23 @@ contains
         write(stdout, *) "popsfile write successful"
 
 #else
-        call stop_all(t_r, 'HDF5 support not enabled at compile time')
+        call stop_all(this_routine, 'HDF5 support not enabled at compile time')
         unused_var(MaxEx)
         unused_var(IterSuffix)
+        unused_var(tIncrementPops)
+        unused_var(iPopsFileNoWrite)
+        unused_var(iter)
+        unused_var(PreviousCycles)
 #endif
 
     end subroutine write_popsfile_hdf5
 
     function read_popsfile_hdf5(dets) result(CurrWalkers)
 
+#ifdef USE_HDF_
         use CalcData, only: iPopsFileNoRead
         use LoggingData, only: tIncrementPops
+#endif
 
         ! Read a popsfile in, prior to running a new calculation
         ! TODO: Integrate with CheckPopsParams
@@ -307,7 +340,7 @@ contains
         call h5fclose_f(file_id, err)
         call h5close_f(err)
 
-        call neci_flush(6)
+        call neci_flush(stdout)
         call MPIBarrier(mpi_err)
 #else
         CurrWalkers = 0
@@ -359,7 +392,6 @@ contains
         ! Read in the macroscopic metadata applicable to the restart file.
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: attribute
 
         logical :: exists
         character(100) :: str_buf
@@ -391,7 +423,6 @@ contains
 
     subroutine write_calc_data(parent)
 
-        use load_balance_calcnodes, only: RandomOrbIndex
         use FciMCData, only: Iter, PreviousCycles, TotImagTime, Hii
         use CalcData, only: DiagSft
 
@@ -421,12 +452,8 @@ contains
 
     subroutine write_tau_opt(parent)
 
-        use tau_search, only: cnt_sing, cnt_doub, cnt_trip, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-                            enough_sing, enough_doub, enough_trip, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
-        use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp
@@ -445,22 +472,22 @@ contains
         ! We want to use the maximised values across all the processors
         ! (there is nothing ensuring that all the processors are adjusted to
         ! the same values...)
-        call MPIAllReduce(gamma_sing, MPI_MAX, max_gam_sing)
-        call MPIAllReduce(gamma_doub, MPI_MAX, max_gam_doub)
-        call MPIAllReduce(gamma_trip, MPI_MAX, max_gam_trip)
-        call MPIAllReduce(gamma_opp, MPI_MAX, max_gam_opp)
-        call MPIAllReduce(gamma_par, MPI_MAX, max_gam_par)
+        call MPIAllReduce(tau_search_stats%gamma_sing, MPI_MAX, max_gam_sing)
+        call MPIAllReduce(tau_search_stats%gamma_doub, MPI_MAX, max_gam_doub)
+        call MPIAllReduce(tau_search_stats%gamma_trip, MPI_MAX, max_gam_trip)
+        call MPIAllReduce(tau_search_stats%gamma_opp, MPI_MAX, max_gam_opp)
+        call MPIAllReduce(tau_search_stats%gamma_par, MPI_MAX, max_gam_par)
         call MPIAllReduce(max_death_cpt, MPI_MAX, max_max_death_cpt)
-        call MPIAllLORLogical(enough_sing, all_en_sing)
-        call MPIAllLORLogical(enough_doub, all_en_doub)
-        call MPIAllLORLogical(enough_trip, all_en_trip)
-        call MPIAllLORLogical(enough_opp, all_en_opp)
-        call MPIAllLORLogical(enough_par, all_en_par)
-        call MPIAllReduce(cnt_sing, MPI_MAX, max_cnt_sing)
-        call MPIAllReduce(cnt_doub, MPI_MAX, max_cnt_doub)
-        call MPIAllReduce(cnt_trip, MPI_MAX, max_cnt_trip)
-        call MPIAllReduce(cnt_opp, MPI_MAX, max_cnt_opp)
-        call MPIAllReduce(cnt_par, MPI_MAX, max_cnt_par)
+        call MPIAllLORLogical(tau_search_stats%enough_sing, all_en_sing)
+        call MPIAllLORLogical(tau_search_stats%enough_doub, all_en_doub)
+        call MPIAllLORLogical(tau_search_stats%enough_trip, all_en_trip)
+        call MPIAllLORLogical(tau_search_stats%enough_opp, all_en_opp)
+        call MPIAllLORLogical(tau_search_stats%enough_par, all_en_par)
+        call MPIAllReduce(tau_search_stats%cnt_sing, MPI_MAX, max_cnt_sing)
+        call MPIAllReduce(tau_search_stats%cnt_doub, MPI_MAX, max_cnt_doub)
+        call MPIAllReduce(tau_search_stats%cnt_trip, MPI_MAX, max_cnt_trip)
+        call MPIAllReduce(tau_search_stats%cnt_opp, MPI_MAX, max_cnt_opp)
+        call MPIAllReduce(tau_search_stats%cnt_par, MPI_MAX, max_cnt_par)
 
         if (.not. near_zero(max_gam_sing)) &
             call write_dp_scalar(tau_grp, nm_gam_sing, max_gam_sing)
@@ -513,8 +540,10 @@ contains
         ! [W.D.]:
         ! for the new hist-tau search i essentially only need to indicat
         ! that a histogramming tau-search was used:
-        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
-            call write_log_scalar(tau_grp, nm_hist_tau, .true.)
+        if (allocated(input_tau_search_method)) then
+            if (input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+                call write_log_scalar(tau_grp, nm_hist_tau, .true.)
+            end if
         end if
 
         ! Clear up
@@ -551,17 +580,15 @@ contains
 
     subroutine read_calc_data(parent)
 
-        use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption, &
-                             tSearchTau, pSingles, pDoubles, pParallel
-        use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search, &
-                            hdf5_diagsft
+        use FciMCData, only: PreviousCycles, Hii, TotImagTime, &
+                             pSingles, pDoubles, pParallel
+        use CalcData, only: DiagSft, tWalkContGrow, hdf5_diagsft
         use tc_three_body_data, only: pTriples, tReadPTriples
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
-        integer :: tmp_inum_runs
-        logical :: exists, t_resize
+        logical :: exists
+        debug_function_name("read_calc_data")
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
 
@@ -614,9 +641,13 @@ contains
         write(stdout, *) "pDoubles: ", pDoubles
         if (tReadPTriples) write(stdout, *) "pTriples: ", pTriples
         write(stdout, *) "pParallel: ", pParallel
-        if (tSearchTau .or. t_hist_tau_search) then
-            write(stdout, *) "continuing tau-search!"
+
+        if (tau_search_method == possible_tau_search_methods%CONVENTIONAL) then
+            write(stdout, *) "continuing conventional tau-search!"
+        else if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+            write(stdout, *) "continuing histogramming tau-search!"
         else
+            ASSERT(tau_search_method == possible_tau_search_methods%OFF)
             write(stdout, *) "Do not continue tau-search!"
         end if
 
@@ -632,18 +663,8 @@ contains
 
     subroutine read_tau_opt(parent)
 
-        use tau_search, only: gamma_sing, gamma_doub, gamma_trip, gamma_opp, gamma_par, &
-                              enough_sing, enough_doub, enough_trip, enough_opp, &
-                              enough_par, cnt_sing, cnt_doub, cnt_trip, cnt_opp, &
-                              cnt_par, max_death_cpt, update_tau
-        use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
-                             tSearchTauOption
+        use FciMCData, only: pSingles, pDoubles, pParallel
         use tc_three_body_data, only: pTriples, tReadPTriples
-        use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
-                            t_hist_tau_search, t_hist_tau_search_option, &
-                            t_fill_frequency_hists
-        use LoggingData, only: t_print_frq_histograms
-        use tau_search_hist, only: deallocate_histograms
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...
@@ -652,6 +673,7 @@ contains
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         logical :: ppar_set, tau_set, hist_tau, temp_previous
+        character(*), parameter :: this_routine = "read_tau_opt"
 
         real(dp) :: temp_tau
 
@@ -659,22 +681,22 @@ contains
 
         ! These are all optional things to have in the popsfile. If they don't
         ! exist, then they will be left unchanged.
-        call read_dp_scalar(grp_id, nm_gam_sing, gamma_sing)
-        call read_dp_scalar(grp_id, nm_gam_doub, gamma_doub)
-        call read_dp_scalar(grp_id, nm_gam_trip, gamma_trip)
-        call read_dp_scalar(grp_id, nm_gam_opp, gamma_opp)
-        call read_dp_scalar(grp_id, nm_gam_par, gamma_par)
+        call read_dp_scalar(grp_id, nm_gam_sing, tau_search_stats%gamma_sing)
+        call read_dp_scalar(grp_id, nm_gam_doub, tau_search_stats%gamma_doub)
+        call read_dp_scalar(grp_id, nm_gam_trip, tau_search_stats%gamma_trip)
+        call read_dp_scalar(grp_id, nm_gam_opp, tau_search_stats%gamma_opp)
+        call read_dp_scalar(grp_id, nm_gam_par, tau_search_stats%gamma_par)
         call read_dp_scalar(grp_id, nm_max_death, max_death_cpt)
-        call read_log_scalar(grp_id, nm_en_sing, enough_sing)
-        call read_log_scalar(grp_id, nm_en_doub, enough_doub)
-        call read_log_scalar(grp_id, nm_en_trip, enough_trip)
-        call read_log_scalar(grp_id, nm_en_opp, enough_opp)
-        call read_log_scalar(grp_id, nm_en_par, enough_par)
-        call read_int64_scalar(grp_id, nm_cnt_sing, cnt_sing)
-        call read_int64_scalar(grp_id, nm_cnt_doub, cnt_doub)
-        call read_int64_scalar(grp_id, nm_cnt_trip, cnt_trip)
-        call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
-        call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
+        call read_log_scalar(grp_id, nm_en_sing, tau_search_stats%enough_sing)
+        call read_log_scalar(grp_id, nm_en_doub, tau_search_stats%enough_doub)
+        call read_log_scalar(grp_id, nm_en_trip, tau_search_stats%enough_trip)
+        call read_log_scalar(grp_id, nm_en_opp, tau_search_stats%enough_opp)
+        call read_log_scalar(grp_id, nm_en_par, tau_search_stats%enough_par)
+        call read_int64_scalar(grp_id, nm_cnt_sing, tau_search_stats%cnt_sing)
+        call read_int64_scalar(grp_id, nm_cnt_doub, tau_search_stats%cnt_doub)
+        call read_int64_scalar(grp_id, nm_cnt_trip, tau_search_stats%cnt_trip)
+        call read_int64_scalar(grp_id, nm_cnt_opp, tau_search_stats%cnt_opp)
+        call read_int64_scalar(grp_id, nm_cnt_par, tau_search_stats%cnt_par)
 
         if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
             write(stdout,*) "pSingles or pDoubles specified in input file, which take precedence"
@@ -690,61 +712,20 @@ contains
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
         ! here i want to make the distinction if we want to tau-search
         ! or not
+        call read_log_scalar(grp_id, nm_hist_tau, temp_previous, exists=hist_tau)
         call read_dp_scalar(grp_id, nm_tau, temp_tau, exists=tau_set)
-
-        call read_log_scalar(grp_id, nm_hist_tau, temp_previous, &
-                             exists=hist_tau)
 
         call h5gclose_f(grp_id, err)
 
-        ! Disable tau search in variable-shift mode (like in Popsfile.F90).
-        if (.not.tSinglePartPhase(1) .or. .not.tSinglePartPhase(inum_runs)) &
-            tSearchTau = .false.
-
-        if (tSpecifiedTau) then
-            write(stdout, *) "time-step specified in input, which takes precedence!"
-        else
-            if (tSearchTauOption .and. tau_set) then
-                tau = temp_tau
-            end if
-
-            ! also set if previous hist-tau
-            if (hist_tau .and. tau_set) then
-                tau = temp_tau
-                ! and turn off if i dont want to force restart!
-                if (.not. t_restart_hist_tau) then
-                    t_previous_hist_tau = temp_previous
-
-                    if (t_previous_hist_tau) then
-                        tSearchTau = .false.
-                        tSearchTauOption = .false.
-
-                        if (t_hist_tau_search) then
-                            call deallocate_histograms()
-                            t_hist_tau_search = .false.
-                            t_fill_frequency_hists = .false.
-
-                            t_hist_tau_search_option = .true.
-                            t_print_frq_histograms = .false.
-                        end if
-                    end if
+        if (tau_start_val == possible_tau_start%from_popsfile) then
+            if (tau_set) then
+                if (temp_tau < min_tau .or. temp_tau > max_tau) then
+                    call stop_all(this_routine, "The read tau "//str(temp_tau, after_comma=5)//" is smaller than min_tau or larger than max_tau")
                 end if
+                call assign_value_to_tau(temp_tau, 'Initialization from HDF5 file.')
+            else
+                call stop_all(this_routine, 'Time-step does not exist in Popsfile')
             end if
-        end if
-
-        ! if tau is 0, because no input provided, use the one here too
-        if (near_zero(tau) .and. (.not. near_zero(temp_tau))) then
-            tau = temp_tau
-        end if
-
-        ! Deal with a previous bug, that leads to popsfiles existing with all
-        ! the optimising parameters excluding tau, such that the first
-        ! iteration results in chaos
-        ! [W.D]: this if should suffice or?
-        if (.not. hist_tau) then
-            t_previous_hist_tau = .false.
-            if (ppar_set .and. .not. tau_set) &
-                call update_tau()
         end if
 
     end subroutine
@@ -774,10 +755,8 @@ contains
 
     subroutine write_walkers(parent, MaxEx)
 
-        use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
-        use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
-                             TotWalkers, iLutHF, Iter, PreviousCycles
-        use CalcData, only: tUseRealCoeffs
+        use FciMCData, only: CurrentDets, &
+                             TotWalkers, iLutHF
         use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
         use global_det_data, only: writeFValsAsInt, writeAPValsAsInt
 
@@ -786,24 +765,18 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer, intent(in), optional :: MaxEx
-        type(c_ptr) :: cptr
-        integer(int32), pointer :: ptr(:)
-        integer(int32) :: boop
 
         character(*), parameter :: t_r = 'write_walkers'
 
-        integer(hid_t) :: wfn_grp_id, dataspace, dataset, memspace
+        integer(hid_t) :: wfn_grp_id
         integer(hdf_err) :: err
-        integer(hid_t) :: plist_id
 
         integer(hsize_t) :: counts(0:nProcessors - 1)
         integer(hsize_t) :: all_count
 
         integer(int32) :: bit_rep_width
-        integer(hsize_t) :: mem_offset(2), write_offset(2)
-        integer(hsize_t) :: dims(2), hyperdims(2)
+        integer(hsize_t) :: write_offset(2)
         real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
-        integer(hsize_t) :: block_size, block_start, block_end
         integer :: ierr
         integer(n_int), allocatable :: gdata_buf(:, :)
 
@@ -811,11 +784,15 @@ contains
         integer(hsize_t) :: printed_count
         integer(kind=n_int), allocatable, target :: TmpVecDets(:, :)
         integer(kind=n_int), pointer :: PrintedDets(:, :)
-        integer :: i, run
+        integer :: i
         real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
                     printed_norm_sqr(inum_runs)
         type(gdata_io_t) :: gdata_write_handler
         integer :: gdata_size
+#ifdef CMPLX_
+        integer :: run
+#endif
+
 
         ! We do not want to print all dets. At least empty dets should be skipped
         ! Let us find out which ones to be printed and copy them
@@ -875,7 +852,7 @@ contains
 
         ! TODO: Refactor these chunks into their own little subroutines.
         ! We fix the format of the binary file. Thus if we are on a 32-bit
-        ! build, we need to convert the data into 64-bit compatibile chunks.
+        ! build, we need to convert the data into 64-bit compatible chunks.
         if (build_64bit) then
             bit_rep_width = NIfD + 1
         else
@@ -883,7 +860,7 @@ contains
             call stop_all(t_r, "Needs manual, careful, testing")
         end if
 
-        ! How many occuiped determinants are there on each of the processors
+        ! How many occupied determinants are there on each of the processors
         call MPIAllGather(printed_count, counts, ierr)
         all_count = sum(counts)
         write_offset = [0_hsize_t, sum(counts(0:iProcIndex - 1))]
@@ -955,9 +932,7 @@ contains
 
     subroutine read_walkers(parent, dets, CurrWalkers)
 
-        use bit_rep_data, only: NIfD, NIfTot
         use CalcData, only: pops_norm
-        use FciMCData, only: InitialSpawnedSlots
 
         ! This is the routine that has complexity!!!
         !
@@ -994,7 +969,6 @@ contains
         logical :: running, any_running
         integer(hsize_t), dimension(:, :), allocatable :: temp_ilut, temp_sgns
         integer(hsize_t), dimension(:, :), allocatable :: gdata_buf
-        integer(hsize_t), dimension(:, :), allocatable :: tmp_gdata, tmp_mr
         integer :: temp_ilut_tag, temp_sgns_tag, rest
         integer(int32) :: read_lenof_sign
         type(gdata_io_t) :: gdata_read_handler
@@ -1289,8 +1263,6 @@ contains
     subroutine read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, block_size, &
                                       bit_rep_width, temp_ilut, temp_sgns, gdata_buf)
 
-        use bit_rep_data, only: NIfD
-        use FciMCData, only: SpawnedParts2
 
         ! Read the walkers into the array spawnedparts2
         !
@@ -1305,7 +1277,6 @@ contains
         integer(int32), intent(in) :: bit_rep_width
         integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns
         integer(hsize_t), dimension(:, :) :: gdata_buf
-        integer(hid_t) :: plist_id
         integer :: gdata_size
 
 #ifdef INT64_
@@ -1393,22 +1364,19 @@ contains
                                          gdata_buf, gdata_loc, gdata_comm, sendcount)
 
         use load_balance_calcnodes, only: DetermineDetNode
-        use bit_reps, only: decode_bit_det, extract_sign
-        use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList
+        use FciMCData, only: SpawnedParts2, SpawnedParts
 
-        use Determinants, only: write_det
-        use bit_rep_data, only: NIfD, IlutBits
+        use DeterminantData, only: write_det
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
-        character(*), parameter :: t_r = 'distribute_walkers_from_block'
         integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns, gdata_buf, gdata_comm
         integer(hsize_t), dimension(:, :) :: gdata_loc
         integer(hsize_t) :: onepart(0:IlutBits%len_bcast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
         integer(MPIArg) :: sendcount(0:nProcessors - 1)
         integer :: index, index2
-        logical :: list_full, t_read_gdata
+        logical :: t_read_gdata
 
         sizeilut = size(temp_ilut, 1)
         t_read_gdata = size(gdata_buf, dim=1) > 0
@@ -1542,7 +1510,6 @@ contains
     subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, &
                              gdata_write, gdata_read_handler)
         use CalcData, only: iWeightPopRead
-        use bit_reps, only: extract_sign
 
         ! Integrate the just-read block of walkers into the main list.
 
@@ -1612,8 +1579,6 @@ contains
                                     pops_det_count, pops_num_parts, &
                                     pops_norm_sqr)
 
-        use CalcData, only: pops_norm
-
         ! Check that the values received in these routines are valid
         !
         ! nread_walkers  - Number of determinant/walker lines read (this proc)
@@ -1629,7 +1594,7 @@ contains
         real(dp), intent(in) :: norm(lenof_sign), parts(lenof_sign)
         character(*), parameter :: t_r = 'check_read_particles'
 
-        integer(int64) :: all_read_walkers, tot_walkers
+        integer(int64) :: all_read_walkers
         real(dp) :: all_norm(lenof_sign), all_parts(lenof_sign)
 
         ! Have all the sites been correctly read in from the file
@@ -1685,8 +1650,6 @@ contains
     ! This is only here for dependency circuit breaking
     subroutine add_pops_norm_contrib(ilut)
 
-        use bit_rep_data, only: NIfTot
-        use bit_reps, only: extract_sign
         use CalcData, only: pops_norm
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)

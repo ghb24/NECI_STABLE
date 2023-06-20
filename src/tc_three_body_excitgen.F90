@@ -10,7 +10,7 @@ module tc_three_body_excitgen
     use FciMCData, only: excit_gen_store_type, pDoubles, pSingles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use lattice_models_utils, only: make_ilutJ
-    use util_mod, only: choose_i64, swap
+    use util_mod, only: choose_i64, swap, stop_all
     use excit_gens_int_weighted, only: pick_biased_elecs, pick_oppspin_elecs
     use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
                                     createSingleExcit, createDoubExcit, construct_class_counts, &

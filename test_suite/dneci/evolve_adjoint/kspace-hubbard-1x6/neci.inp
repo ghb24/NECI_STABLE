@@ -15,7 +15,8 @@ calc
     endmethods
 
 
-    tau 0.01
+    tau-values \
+        start user-defined 0.01
     definedet  3 4 5 6 7 8
 
     totalwalkers   500
@@ -23,9 +24,11 @@ calc
     truncinitiator
     addtoinitiator 3.
     allrealcoeff
+    realspawncutoff off
 
     shiftdamp 0.1
     stepsshift 10
+
     time 5400
     seed 1
     load-balance-blocks off

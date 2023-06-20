@@ -1,8 +1,13 @@
 ! replace _template by whatever one needs
 program test_cepa_shifts
 
-    use fruit
-    use cepa_shifts
+    use constants, only: dp
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals
+    use cepa_shifts, only: cepa_0, cepa_aqcc, cepa_shift_double, &
+        cepa_acpf, init_cepa_shifts, cepa_shift_single, &
+        cepa_shift, cepa_method, aqcc_factor
+    use CalcData, only: diagsft
 
     implicit none
 

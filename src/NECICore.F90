@@ -224,7 +224,7 @@ subroutine NECICodeEnd(tCPMD, tVASP)
     use timing_neci, only: end_timing, print_timing_report
     use SystemData, only: tMolpro, tMolproMimic, called_as_lib, arr, brr, g1, &
                           tagArr, tagBrr, tagG1
-    use Determinants, only: FDet, tagFDet
+    use DeterminantData, only: FDet, tagFDet
 #ifdef USE_MPI
     use Parallel_neci, only: MPIEnd
     USE MolproPlugin
@@ -275,7 +275,7 @@ subroutine NECICalcInit(iCacheFlag)
     use RotateOrbsMod, only: RotateOrbs
     use replica_data, only: init_replica_arrays
     use gen_coul_ueg_mod, only: GEN_Umat_TC, prep_ueg_dump, GEN_Umat_TC_Contact
-    use LMat_mod, only: readLMat
+    use LMat_mod, only: readLMat, setup_tchint_ints
     use guga_init, only: init_guga
     implicit none
     integer, intent(in) :: iCacheFlag
@@ -285,6 +285,7 @@ subroutine NECICalcInit(iCacheFlag)
     ! These are essentially constant arrays available after the input has
     ! been read
     call init_replica_arrays()
+    if (t_mol_3_body) call setup_tchint_ints()
 
 !   Initlialize the system.  Sets up ...
 !   Symmetry is a subset of the system
@@ -390,7 +391,7 @@ subroutine NECICalcEnd(iCacheFlag)
     use Parallel_neci, only: clean_parallel
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel
     use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
-    use Determinants, only: FDet, tagFDet
+    use DeterminantData, only: FDet, tagFDet
     use MemoryManager
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
     use LoggingData, only: tCalcPropEst

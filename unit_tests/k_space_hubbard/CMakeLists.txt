@@ -1,1 +1,1 @@
-add_unit_test_all_configs( k_space_hubbard )
+add_unit_test( neci k_space_hubbard )

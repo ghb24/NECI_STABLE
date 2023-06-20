@@ -4,22 +4,23 @@ module guga_pchb_class
     use aliasSampling, only: AliasSampler_1D_t
     use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm
     use bit_rep_data, only: IlutBits, GugaBits
-    use SystemData, only: nel, G1, t_pchb_weighted_singles, &
+    use SystemData, only: nel, G1, t_guga_pchb_weighted_singles, &
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
+    use tau_main, only: max_tau, tau_search_method, possible_tau_search_methods
+    use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, swap, binary_search_first_ge, &
                         get_free_unit, stop_all, operator(.isclose.)
-    use CalcData, only: t_matele_cutoff, matele_cutoff, frq_ratio_cutoff, &
-                        max_frequency_bound, n_frequency_bins, &
-                        t_hist_tau_search, t_truncate_spawns
+    use CalcData, only: t_matele_cutoff, matele_cutoff, t_truncate_spawns
     use sym_general_mod, only: ClassCountInd
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
                                sym_label_list_spat, SpinOrbSymLabel
     use UMatCache, only: gtID
+    use MPI_wrapper, only: root
     use guga_excitations, only: assign_excitinfo_values_single, &
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
@@ -119,12 +120,7 @@ contains
 
         ! also set some more strict defaults for the PCHB implo:
         root_print "Setting reasonable defaults for GUGA-PCHB:"
-        if (near_zero(MaxTau) .or. MaxTau > 1e-3) then
-            root_print "max-tau zero or > 1e-3. setting it to: 1e-3"
-            MaxTau = 1e-3
-        end if
-
-        if (t_hist_tau_search) then
+        if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             if (frq_ratio_cutoff < 0.999999) then
                 root_print "setting frequency cutoff to 0.999999"
                 frq_ratio_cutoff = 0.999999
@@ -217,7 +213,7 @@ contains
                         call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
                     end do
                 end do
-                call this%alias_sampler%setup_entry(ij,w)
+                call this%alias_sampler%setup_entry(ij, root, w)
                 call this%set_info_entry(ij, excit_info)
 
             end do
@@ -429,7 +425,7 @@ contains
         ic = get_excit_level_from_excitInfo(excitInfo)
 
         if (ic == 1) then
-            if (t_pchb_weighted_singles) then
+            if (t_guga_pchb_weighted_singles) then
                 call decode_bit_det(nI, ilutI)
                 call decode_bit_det(nJ, ilutJ)
                 pgen = calc_pgen_mol_guga_single( &
@@ -564,7 +560,7 @@ contains
         real(dp) :: integral
         debug_function_name("get_pchb_integral_contrib")
         logical :: flag_
-        real(dp) :: cpt1, cpt2, cpt3, cpt4
+        HElement_t(dp) :: cpt1, cpt2, cpt3, cpt4
 
         ASSERT(0 < a .and. a <= nSpatOrbs)
         ASSERT(0 < i .and. i <= nSpatOrbs)
@@ -601,9 +597,9 @@ contains
             cpt2 = abs(cpt2)
 
             if (flag_) then
-                integral = cpt4
+                integral = abs(cpt4)
             else
-                integral = maxval([cpt1, cpt2, cpt3, cpt4])
+                integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
 
         case (excit_type%double_L_to_R_to_L, excit_type%double_R_to_L_to_R, &
@@ -619,7 +615,7 @@ contains
             if (flag_) then
                 integral = abs(cpt2)
             else
-                integral = maxval([abs(cpt1),abs(cpt2)/2.0_dp, cpt3, cpt4])
+                integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
 
 

@@ -1,9 +1,12 @@
 #include "macros.h"
 program test_back_spawn_excit_gen
 
-    use back_spawn_excit_gen
-    use fruit
-    use bit_rep_data, only: IlutBits
+    use back_spawn_excit_gen, only: calc_pgen_back_spawn_hubbard, &
+        calc_pgen_back_spawn_ueg, calc_pgen_back_spawn_ueg_new
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case, assert_equals
+    use bit_rep_data, only: IlutBits, nIfTot, test_flag
+    use bit_reps, only: set_flag, get_initiator_flag
 
     implicit none
 
@@ -38,8 +41,6 @@ contains
         use FciMCData, only: projedet, ilutref
         use dSFMT_interface, only: dSFMT_init
         use constants, only: dp, n_int
-        use bit_reps, only: set_flag, get_initiator_flag, test_flag
-        use bit_rep_data, only: niftot
         use detbitops, only: encodebitdet
         use CalcData, only: occ_virt_level
         use symexcitdatamod, only: kpointtobasisfn
@@ -228,8 +229,6 @@ contains
         use FciMCData, only: projedet, ilutref
         use dSFMT_interface, only: dSFMT_init
         use constants, only: dp, n_int
-        use bit_reps, only: set_flag, get_initiator_flag, test_flag
-        use bit_rep_data, only: niftot
         use detbitops, only: encodebitdet
         use CalcData, only: occ_virt_level, t_back_spawn
 
@@ -368,11 +367,9 @@ contains
     subroutine calc_pgen_back_spawn_ueg_new_test
         use SystemData, only: nel, nBasis, G1, nmaxx, nmaxy, nmaxz, ElecPairs, &
                               tOrbECutoff
-        use bit_rep_data, only: niftot
         use constants, only: dp, n_int
         use detbitops, only: encodebitdet
         use dSFMT_interface, only: dSFMT_init
-        use bit_reps, only: set_flag, get_initiator_flag, test_flag
         use symexcitdatamod, only: kpointtobasisfn
         use procedure_pointers, only: get_umat_el
         use CalcData, only: t_back_spawn_flex, occ_virt_level

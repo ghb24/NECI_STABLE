@@ -3,18 +3,18 @@
 !Module to non-iteratively calculate the RPA energy under the quasi-boson approximation
 module RPA_Mod
     use SystemData, only: nel, nBasis, Arr, Brr, G1, tReltvy
-    use excitation_types, only: DoubleExc_t
+    use excitation_types, only: Excite_2_t
     use sltcnd_mod, only: sltcnd_excit
     use constants, only: dp, int64, n_int, maxExcit, stdout
-    use Determinants, only: get_helement, fDet
     use SymExcit3, only: GenExcitations3
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
-    use Determinants, only: GetH0Element3
-    use bit_reps, only: NIfTot
+    use Determinants, only: get_helement, GetH0Element3
+    use DeterminantData, only: fDet
+    use bit_rep_data, only: NIfTot
     use DetBitops, only: EncodeBitDet
     use Integrals_neci, only: get_umat_el
     use UMatCache, only: GTID
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, stop_all, neci_flush
 
     implicit none
 
@@ -62,7 +62,7 @@ contains
         end if
         write(stdout, "(A)") "**************************************"
         write(stdout, "(A)")
-        call neci_flush(6)
+        call neci_flush(stdout)
 
         HDiagTemp = get_helement(fDet, fDet, 0)
         Energy = real(HDiagTemp, dp)
@@ -155,8 +155,8 @@ contains
                             B_mat(mi_ind, nj_ind) = real(hel1, dp)
                         else
                             !Full antisymmetrized integrals
-                            HEl1 = sltcnd_excit(nJ, DoubleExc_t(ex), .false.)
-                            HEl2 = sltcnd_excit(nJ, DoubleExc_t(ex2), .false.)
+                            HEl1 = sltcnd_excit(nJ, Excite_2_t(ex), .false.)
+                            HEl2 = sltcnd_excit(nJ, Excite_2_t(ex2), .false.)
                             A_mat(mi_ind, nj_ind) = real(HEl1, dp)
                             B_mat(mi_ind, nj_ind) = real(HEl2, dp)
                         end if

@@ -7,12 +7,12 @@ module lanczos_general
     !   http://dx.doi.org/10.1016/0024-3795(80)90167-6
     !
     use constants
-    use SystemData, only: nel, t_non_hermitian
+    use SystemData, only: nel, t_non_hermitian_2_body
     use FciMCData, only: hamiltonian, LanczosTag
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
-    use MPI_wrapper, only: root
+    use MPI_wrapper, only: root, MPI_WTime
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
     use hamiltonian_linalg, only: &
@@ -28,6 +28,9 @@ module lanczos_general
         inner_product, &
         euclidean_norm_square, &
         euclidean_norm
+    use util_mod, only: stop_all, neci_flush
+
+    implicit none
 
     type LanczosCalcType
         ! "super type" for common hamiltonian data
@@ -580,7 +583,7 @@ contains
                 call project_hamiltonian_lanczos(this, 1)
 
                 if (print_info) then
-                    write(stdout, '(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(6)
+                    write(stdout, '(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(stdout)
                 end if
                 ! start Lanczos main loop
                 do k = 1, this%super%max_subspace_size - 1
@@ -629,7 +632,7 @@ contains
                             this%lanczos_vector = this%lanczos_vector - getBeta(this, k + 1) * old_v
                         end if
 
-                        if (t_non_hermitian) then
+                        if (t_non_hermitian_2_body) then
                             call diagonalise_tridiagonal_non_hermitian(this, k, .false.)
                         else
                             call diagonalise_tridiagonal(this, k, .false.)
@@ -641,7 +644,7 @@ contains
                             if (.not. this%t_states_converged(i)) then
                                 if (print_info) then
                                     write(stdout, trim(main_output_fmt)) k, i, this%ritz_values(i), end_time - start_time
-                                    call neci_flush(6)
+                                    call neci_flush(stdout)
                                 end if
                             end if
                         end do
@@ -657,7 +660,7 @@ contains
                 end do
 
                 if (iprocindex == root) then
-                    if (t_non_hermitian) then
+                    if (t_non_hermitian_2_body) then
                         call diagonalise_tridiagonal_non_hermitian(this, k, .true.)
                     else
                         call diagonalise_tridiagonal(this, k, .true.)
@@ -720,7 +723,7 @@ contains
                     if (print_info) then
                         write(stdout, '(i2" eigenvalues(s) were successfully converged to within ",5ES16.7)') &
                             this%n_states, this%convergence_error
-                        call neci_flush(6)
+                        call neci_flush(stdout)
                     end if
                 end if
 
@@ -730,7 +733,7 @@ contains
                     write(stdout, '(/,1x,"Final calculated energies:")')
                     do i = 1, this%n_states
                         write(stdout, final_output_fmt) i, this%eigenvalues(i)
-                        call neci_flush(6)
+                        call neci_flush(stdout)
                     end do
                 end if
             end if
@@ -741,7 +744,7 @@ contains
                 exp_val = get_rayleigh_quotient(this, i)
                 if (print_info) then
                     write(stdout, final_output_fmt) i, exp_val
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                 end if
             end do
 
@@ -750,7 +753,7 @@ contains
                 exp_val = compute_residual_norm(this, i)
                 if (print_info) then
                     write(stdout, final_output_fmt) i, exp_val
-                    call neci_flush(6)
+                    call neci_flush(stdout)
                 end if
             end do
 

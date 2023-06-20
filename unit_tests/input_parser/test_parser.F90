@@ -1,11 +1,11 @@
 #include "macros.h"
 
 module test_parser_mod
-    use fruit
+    use fruit, only: run_test_case, assert_equals, assert_true, &
+        assert_false
     use constants, only: dp, n_int, int64, stdout
     use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t, tokenize, get_range
     use fortran_strings, only: Token_t, to_lower, to_upper, to_int, to_int64
-    ! use util_mod, only: remove
     better_implicit_none
     private
     public :: test_parser_driver
@@ -44,7 +44,9 @@ contains
 
             call assert_true(file_reader%nextline(tokens, skip_empty=.true.))
             call assert_equals(2, tokens%remaining_items())
+            call assert_equals('System', tokens%glimpse())
             call assert_equals('System', tokens%next())
+            call assert_equals('read', to_lower(tokens%glimpse()))
             call assert_equals('read', to_lower(tokens%next()))
             call assert_equals(1, file_reader%get_current_line())
             call assert_equals(0, tokens%remaining_items())
@@ -142,8 +144,8 @@ end module test_parser_mod
 
 program test_parser_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_parser_mod, only: test_parser_driver
     use util_mod, only: stop_all

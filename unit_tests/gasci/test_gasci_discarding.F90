@@ -1,7 +1,7 @@
 module test_gasci_discarding_mod
-    use fruit
+    use fruit, only: assert_true, assert_false, assert_equals
     use constants, only: dp, n_int, maxExcit
-    use util_mod, only: operator(.div.), operator(.isclose.), near_zero
+    use util_mod, only: operator(.div.), operator(.isclose.), near_zero, stop_all
     use SystemData, only: nEl
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
@@ -13,7 +13,7 @@ module test_gasci_discarding_mod
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-        FciDumpWriter_t
+        RandomFcidumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
@@ -42,8 +42,12 @@ contains
         call assert_true(GAS_spec%is_valid())
         call assert_true(GAS_spec%contains_conf(det_I))
 
-        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        call init_excitgen_test(det_I, &
+            RandomFcidumpWriter_t(&
+                GAS_spec, det_I, sparse=1.0_dp, sparseT=1.0_dp) &
+        )
         call exc_generator%init(GAS_spec)
+
         call run_excit_gen_tester( &
             exc_generator, 'discarding GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_dets=n_iters, &
@@ -55,17 +59,6 @@ contains
 
     contains
 
-        subroutine random_fcidump(iunit)
-            integer, intent(in) :: iunit
-            integer :: n_spat_orb, iGAS
-
-            n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
-
-            call generate_random_integrals(&
-                iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
-                sparse=1.0_dp, sparseT=1.0_dp, total_ms=sum(calc_spin_raw(det_I)))
-        end subroutine
-
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
@@ -74,17 +67,16 @@ contains
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
 
-
     end subroutine test_pgen
 end module test_gasci_discarding_mod
 
 program test_gasci_program
 
-    use mpi
-    use fruit
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
+        get_failed_count, run_test_case
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_discarding_mod, only: test_pgen
-
+    use util_mod, only: stop_all
 
     implicit none
     integer :: failed_count

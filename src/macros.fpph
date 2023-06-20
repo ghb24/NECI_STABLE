@@ -8,6 +8,11 @@
 #endif
 #:enddef unused_var
 
+#:def safe_deallocate(*args)
+    #:for arg in args
+        if(allocated(${arg}$)) deallocate(${arg}$)
+    #:endfor
+#:enddef safe_deallocate
 
 #:def log_alloc(arr, tag, ierr)
 block

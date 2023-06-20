@@ -18,10 +18,10 @@ module tJ_model
 
     use procedure_pointers, only: get_umat_el
 
-    use FciMCData, only: tsearchtau, tsearchtauoption, excit_gen_store_type, &
-                         pSingles, pDoubles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
 
-    use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
+    use tau_main, only: tau_search_method, possible_tau_search_methods, tau, &
+        assign_value_to_tau, min_tau, max_tau
 
     use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits
 
@@ -65,7 +65,22 @@ module tJ_model
     use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij, &
                               write_det_guga, CSF_Info_t
 
+    use excit_mod, only: getexcitation
+
     implicit none
+    private
+    public :: init_get_helement_heisenberg_guga, &
+        init_get_helement_heisenberg, init_guga_heisenberg_model, &
+        init_heisenberg_model, &
+        init_tJ_model, gen_excit_tj_model, calc_pgen_tj_model, &
+        setup_exchange_matrix, create_cum_list_tj_model, &
+        gen_excit_heisenberg_model, create_cum_list_heisenberg, &
+        calc_pgen_heisenberg_model, init_get_helement_tj, &
+        get_diag_helement_heisenberg, get_umat_el_heisenberg, &
+        get_offdiag_helement_heisenberg, get_offdiag_helement_tj, &
+        spin_free_exchange, exchange_matrix, pick_orbitals_guga_heisenberg, &
+        calc_orbital_pgen_contr_heisenberg, init_get_helement_tj_guga, &
+        init_guga_tj_model, pick_orbitals_guga_tJ
 
     real(dp), allocatable :: exchange_matrix(:, :)
     real(dp), allocatable :: spin_free_exchange(:, :)
@@ -149,10 +164,9 @@ contains
 
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
@@ -225,22 +239,17 @@ contains
         ! where i need the connectivity of the lattice i guess?
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value asdf.')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
         if (t_start_neel_state) then
             root_print "starting from the Neel state: "
@@ -317,22 +326,18 @@ contains
         ! TODO: maybe I need the tau-search for the GUGA..
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
 
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
     end subroutine init_guga_heisenberg_model
 
@@ -399,30 +404,24 @@ contains
         ! where i need the connectivity of the lattice i guess?
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            root_print "setting time-step to optimally determined time-step: ", tau_opt
-            root_print "times: ", lat_tau_factor
-            tau = lat_tau_factor * tau_opt
-
+            call assign_value_to_tau(&
+                lat_tau_factor * tau_opt, &
+                'Initialization with optimal tau value')
         else
             root_print "optimal time-step would be: ", tau_opt
             root_print "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
-
-        t_hist_tau_search = .false.
-        t_hist_tau_search_option = .false.
+        if (tau_search_method /= possible_tau_search_methods%OFF) then
+            call stop_all(this_routine, "tau-search should be switched off")
+        end if
 
         if (t_start_neel_state) then
-!             neel_state_ni = create_neel_state(ilut_neel)
-
             root_print "starting from the Neel state: "
             if (nel > nbasis / 2) then
-                call stop_all(this_routine, &
-                              "more than half-filling! does neel state make sense?")
+                call stop_all(&
+                    this_routine, &
+                    "more than half-filling! does neel state make sense?")
             end if
 
         end if
@@ -923,7 +922,6 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
-        character(*), parameter :: this_routine = "pick_orbitals_guga_tJ"
 
         integer :: elec, id, ind, tgt
         real(dp) :: p_elec, cum_sum, r, p_orb
@@ -976,7 +974,6 @@ contains
         real(dp), allocatable, intent(out) :: cum_arr(:)
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: tgt_pgen
-        character(*), parameter :: this_routine = "gen_guga_tJ_cum_list"
 
         integer, allocatable :: neighbors(:)
         integer :: i, n
@@ -1024,7 +1021,6 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
-        character(*), parameter :: this_routine = "pick_orbitals_guga_heisenberg"
 
         integer :: elec, src, id, ind, tgt, start, ende
         real(dp) :: p_elec, cum_sum, r, p_orb
@@ -1091,7 +1087,6 @@ contains
         real(dp), allocatable, intent(out) :: cum_arr(:)
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: tgt_pgen
-        character(*), parameter :: this_routine = "gen_guga_heisenberg_cum_list"
 
         integer :: step, i, n
         integer, allocatable :: neighbors(:)
@@ -1785,23 +1780,6 @@ contains
         if (tpar) hel = -hel
 
     end function get_offdiag_helement_heisenberg
-
-    function determine_optimal_time_step_heisenberg() result(time_step)
-        real(dp) :: time_step
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "determine_optimal_time_step_heisenberg"
-#endif
-        real(dp) :: p_elec, p_hole, mat_ele, max_diag
-
-        p_elec = 1.0_dp / real(nel, dp)
-
-        p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp)
-
-        mat_ele = real(abs(exchange_j), dp)
-
-        time_step = p_elec * p_hole / mat_ele
-
-    end function determine_optimal_time_step_heisenberg
 
     pure function get_umat_heisenberg_spin_free(i, j, k, l) result(hel)
         ! for the spin-free form, I do not need information about

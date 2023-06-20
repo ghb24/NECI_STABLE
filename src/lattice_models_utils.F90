@@ -7,8 +7,8 @@ module lattice_models_utils
 
     use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
-    use util_mod, only: binary_search, binary_search_first_ge, choose_i64, swap, &
-                        operator(.isclose.), operator(.div.)
+    use util_mod, only: binary_search_ilut, binary_search_first_ge, choose_i64, swap, &
+                        operator(.isclose.), operator(.div.), stop_all
 
     use sort_mod, only: sort
 
@@ -21,11 +21,11 @@ module lattice_models_utils
 
     use symdata, only: symtable, SymConjTab
 
-    use bit_rep_data, only: niftot, nifd, GugaBits
+    use bit_rep_data, only: niftot, nifd, GugaBits, extract_sign
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, return_hphf_sym_det
 
-    use bit_reps, only: decode_bit_det, extract_sign, init_bit_rep
+    use bit_reps, only: decode_bit_det, init_bit_rep
 
     use SymExcitDataMod, only: KPointToBasisFn
 
@@ -40,6 +40,26 @@ module lattice_models_utils
     use guga_bitRepOps, only: csf_purify
 
     implicit none
+    private
+
+    public :: find_minority_spin, pick_spin_par_elecs, &
+        pick_three_opp_elecs, pick_spin_opp_elecs, make_ilutJ, &
+        get_orb_from_kpoints, get_ispn, get_occ_neighbors, &
+        get_spin_density_neighbors, find_elec_in_ni, &
+        get_orb_from_kpoints_three, create_all_open_shell_dets, &
+        get_spin_opp_neighbors, create_one_spin_basis, calc_n_double, &
+        create_neel_state_chain, create_neel_state, &
+        pick_from_cum_list, combine_spin_basis, set_alpha_beta_spins, &
+        right_most_zero, &
+        swap_excitations, pick_spin_opp_holes, pick_random_hole, &
+        get_opp_spin, create_all_dets, &
+        create_hilbert_space_realspace, &
+        create_heisenberg_fock_space, &
+        create_heisenberg_fock_space_guga, gen_all_triples_k_space, &
+        create_hilbert_space_kspace, &
+        gen_all_excits_r_space_hubbard, gen_all_excits_k_space_hubbard
+
+    public :: gen_all_doubles_k_space, gen_all_singles_rs_hub_default, gen_all_singles_rs_hub
 
     interface swap_excitations
         module procedure swap_excitations_higher
@@ -104,9 +124,6 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2)
         real(dp), intent(out) :: p_elec
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "pick_spin_opp_elecs"
-#endif
         ! think of a routine to get the possible spin-opposite electron
         ! pairs. i think i could do that way more efficiently, but do it in
         ! the simple loop way for now
@@ -134,9 +151,6 @@ contains
         real(dp), intent(in) :: cum_arr(:), cum_sum
         integer, intent(out) :: ind
         real(dp), intent(out) :: pgen
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "pick_from_cum_list"
-#endif
         real(dp) :: r
 
         if (cum_sum < EPS) then
@@ -166,9 +180,8 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        character(*), parameter :: this_routine = "gen_all_excits_r_space_hubbard"
 
-        integer :: save_excits, n_doubles, i
+        integer :: save_excits, n_doubles
         integer(n_int), allocatable :: double_dets(:, :), temp_dets(:, :)
 
         call gen_all_singles_rs_hub(nI, n_excits, det_list)
@@ -209,7 +222,6 @@ contains
             call spin_purify(save_excits, temp_dets, n_excits, det_list)
 
         end if
-
     end subroutine gen_all_excits_r_space_hubbard
 
     subroutine spin_purify(n_excits_in, det_list_in, n_excits_out, det_list_out)
@@ -219,12 +231,8 @@ contains
         integer(n_int), intent(in) :: det_list_in(0:NIfTot, n_excits_in)
         integer, intent(out) :: n_excits_out
         integer(n_int), intent(out), allocatable :: det_list_out(:, :)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "spin_purify"
-#endif
-        integer :: nI(nel), nJ(nel), i, pos, cnt
+        integer :: i, pos, cnt
         integer(n_int) :: ilut(0:NIfTot), ilut_sym(0:NIfTot)
-        logical :: t_swapped
         integer(n_int), allocatable :: temp_dets(:, :)
 
         allocate(temp_dets(0:NIfTot, n_excits_in))
@@ -240,7 +248,7 @@ contains
             ! det-list, if i undertand the function below correctly
             ilut_sym = return_hphf_sym_det(ilut)
 
-            pos = binary_search(temp_dets(:, 1:cnt), ilut, nifd + 1)
+            pos = binary_search_ilut(temp_dets(:, 1:cnt), ilut, nifd + 1)
 
             if (pos < 0) then
                 ! then we have to store it
@@ -261,13 +269,9 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "gen_all_doubles_rs_hub_hop_transcorr"
-#endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
-        integer :: n_bound, i, src(2), j, neigh, ex(2, 2), pos, a, b
+        integer :: n_bound, i, src(2), j, ex(2, 2), pos, a, b
         integer(n_int), allocatable :: temp_list(:, :)
-        integer, allocatable :: neighbors(:)
         real(dp) :: elem
 
         call EncodeBitDet(nI, ilut)
@@ -304,7 +308,7 @@ contains
                             ! actually a search is not really necessary.. since
                             ! all the single excitations are unique.. but
                             ! just to be sure
-                            pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                            pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                             if (pos < 0) then
 
@@ -332,7 +336,6 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        character(*), parameter :: this_routine = "gen_all_singles_rs_hub"
 
         if (t_trans_corr_hop) then
             call gen_all_singles_rs_hub_hop_transcorr(nI, n_excits, det_list)
@@ -346,13 +349,9 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "gen_all_singles_rs_hub_hop_transcorr"
-#endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
-        integer :: n_bound, i, src, j, neigh, ex(2, 2), pos, a
+        integer :: n_bound, i, src, ex(2, 2), pos, a
         integer(n_int), allocatable :: temp_list(:, :)
-        integer, allocatable :: neighbors(:)
         real(dp) :: elem
 
         call EncodeBitDet(nI, ilut)
@@ -384,7 +383,7 @@ contains
                         ! actually a search is not really necessary.. since
                         ! all the single excitations are unique.. but
                         ! just to be sure
-                        pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                        pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                         if (pos < 0) then
 
@@ -410,14 +409,14 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
         real(dp), intent(out), allocatable, optional :: sign_list(:)
-#ifdef DEBUG_
+#if defined(DEBUG_) || defined(CMPLX_)
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub_default"
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
         integer :: n_bound, i, src, j, neigh, ex(2, 2), pos, nJ(nel)
         integer(n_int), allocatable :: temp_list(:, :)
         integer, allocatable :: neighbors(:)
-        real(dp) :: elem
+        HElement_t(dp) :: elem
         real(dp), allocatable :: temp_sign(:)
         logical :: t_sign, tpar
 
@@ -442,7 +441,6 @@ contains
         ! loop over electrons
         do i = 1, nel
             src = nI(i)
-
             ex(1, 1) = src
             neighbors = lat%get_spinorb_neighbors(src)
 
@@ -470,15 +468,19 @@ contains
                         ! actually a search is not really necessary.. since
                         ! all the single excitations are unique.. but
                         ! just to be sure
-                        pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                        pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                         if (pos < 0) then
 
                             temp_list(:, n_excits) = ilutJ
 
                             if (t_sign) then
+#ifdef CMPLX_
+                                call stop_all(this_routine, "not implemented for complex")
+#else
                                 temp_sign(n_excits) = sign(1.0_dp, elem)
                                 call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
+#endif
                             else
                                 call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                             end if
@@ -653,8 +655,6 @@ contains
 
         integer, allocatable :: n_dets(:)
         integer(n_int), allocatable :: open_shells(:,:), max_basis(:)
-        integer :: n_max, n_min
-        integer :: nI(nel)
 
         n_dets = calc_n_double(n_orbs, n_alpha, n_beta)
 
@@ -933,9 +933,6 @@ contains
         ! dependent orbital n_orbs
         integer(n_int), intent(in) :: i
         integer, intent(in) :: n_orbs
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "right_most_zero"
-#endif
         integer, allocatable :: nZeros(:), nOnes(:)
         integer(n_int) :: j
 
@@ -1029,9 +1026,6 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: orbs(2)
         real(dp), intent(out) :: p_orb
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "pick_spin_opp_holes"
-#endif
 
         integer, parameter :: max_trials = 100
         integer :: cnt
@@ -1142,7 +1136,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_spin_opp_neighbors"
 #endif
-        integer :: i, flip
+        integer :: i
         integer, allocatable :: neighbors(:)
 
         ASSERT(associated(lat))
@@ -1318,11 +1312,9 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        character(*), parameter :: this_routine = "gen_all_excits_k_space_hubbard"
 
         integer(n_int), allocatable :: triple_dets(:, :), temp_dets(:, :)
         integer :: n_triples, save_excits
-        real(dp), allocatable :: sign_list(:)
 
         call gen_all_doubles_k_space(nI, n_excits, det_list)!, sign_list)
 
@@ -1691,9 +1683,8 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        character(*), parameter :: this_routine = "gen_all_triples_k_space"
 
-        integer :: i, j, k, a, b, c, spin, ind, src(3), ex(2, 3), n_bound, pos
+        integer :: i, j, k, a, b, c, spin, src(3), ex(2, 3), n_bound, pos
         integer(n_int) :: ilut(0:niftot), ilutJ(0:NIfTot)
         integer(n_int), allocatable :: temp_list(:, :)
         real(dp) :: elem
@@ -1749,7 +1740,7 @@ contains
 
                                                 ! and to be save, search if we have
                                                 ! this excitation already..
-                                                pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                                                pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                                                 if (pos < 0) then
                                                     ! new excitation
@@ -1782,7 +1773,7 @@ contains
         integer(n_int) :: ilutJ(0:niftot), ilut(0:niftot)
         integer :: n_bound, i, j, a, b, src(2), ex(2, 2), pos, n_par, n_opp, nj(nel)
         integer(n_int), allocatable :: temp_list(:, :)
-        real(dp) :: elem
+        HElement_t(dp) :: elem
         logical :: t_sign, tpar
         real(dp), allocatable :: temp_sign(:)
 
@@ -1837,15 +1828,19 @@ contains
 
                                 ilutJ = make_ilutJ(ilut, ex, 2)
 
-                                pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
+                                pos = binary_search_ilut(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                                 if (pos < 0) then
 
                                     temp_list(:, n_excits) = ilutJ
 
                                     if (t_sign) then
+#ifdef CMPLX_
+                                        call stop_all(this_routine, "not implemented for complex")
+#else
                                         temp_sign(n_excits) = sign(1.0_dp, elem)
                                         call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
+#endif
                                     else
                                         call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                                     end if

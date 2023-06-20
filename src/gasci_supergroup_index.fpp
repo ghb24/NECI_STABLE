@@ -55,7 +55,7 @@ module gasci_supergroup_index
     use constants, only: int64, n_int
     use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc
     use bit_rep_data, only: nIfD
-    use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t
+    use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
     use hash, only: hash_table_lookup
     use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use util_mod, only: stop_all, cumsum
@@ -280,6 +280,7 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS + 1
             end do
+            @:pure_ASSERT(remaining == 0)
         type is(CumulGASSpec_t)
             res = GAS_spec%get_cmin() &
                     - eoshift(GAS_spec%get_cmax(), shift=-1)
@@ -292,8 +293,12 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS + 1
             end do
+            @:pure_ASSERT(remaining == 0)
+        type is(FlexibleGASSpec_t)
+            res = GAS_spec%supergroups(:, 1)
+        class default
+            call stop_all(this_routine, 'Wrong class.')
         end select
-        @:pure_ASSERT(remaining == 0)
     end function
 
 
@@ -323,6 +328,7 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS - 1
             end do
+            @:pure_ASSERT(remaining == 0)
         type is(CumulGASSpec_t)
             res = min(GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1), &
                       GAS_spec%GAS_size())
@@ -335,8 +341,12 @@ contains
                 remaining = remaining - to_add
                 iGAS = iGAS - 1
             end do
+            @:pure_ASSERT(remaining == 0)
+        type is(FlexibleGASSpec_t)
+            res = GAS_spec%supergroups(:, size(GAS_spec%supergroups, 2))
+        class default
+            call stop_all(this_routine, 'Wrong class.')
         end select
-        @:pure_ASSERT(remaining == 0)
     end function
 
 
@@ -348,11 +358,11 @@ contains
             !! "Last" as defined by lexicographically decreasing order.
         integer, intent(in) :: previous(:)
             !! The previous supergroup.
+        routine_name("next_supergroup")
         integer :: res(size(previous))
         integer :: k, n, src, tgt
         integer(int64) :: comp_idx
 
-        debug_function_name("next_supergroup")
         k = size(previous)
         n = sum(previous)
         if (k == 0) then
@@ -373,6 +383,19 @@ contains
             type is(CumulGASSpec_t)
                 call find_flip_cumul(GAS_spec, previous, src, tgt)
                 res = move_particles_cumul(GAS_spec, previous, src, tgt)
+            type is (FlexibleGASSpec_t)
+            ! This is certainly not efficient and can and should be improved
+            block
+                integer :: i_sg
+                do i_sg = 1, size(GAS_spec%supergroups, 2)
+                    if (all(previous == GAS_spec%supergroups(:, i_sg))) then
+                        res = GAS_spec%supergroups(:, i_sg + 1)
+                        return
+                    end if
+                end do
+            end block
+            class default
+                call stop_all(this_routine, 'Wrong class.')
             end select
         end if
 
@@ -426,7 +449,7 @@ contains
         integer, intent(in) :: src, tgt
             !! Source and target GAS space
         integer :: res(size(previous))
-        debug_function_name("move_particles")
+        debug_function_name("move_particles_local")
 
         if (tgt == 0) then
             res(:) = -1
@@ -604,6 +627,7 @@ contains
         class(SuperGroupIndexer_t), intent(in) :: this
         integer, allocatable :: res(:, :)
         integer(int64) :: i
+        routine_name("indexer_get_supergroups")
 
         allocate(res(this%GAS_spec%nGAS(), this%n_supergroups()))
         if (this%GAS_spec%is_connected()) then
@@ -618,6 +642,8 @@ contains
                 res(:, 1) = GAS_spec%get_min()
             type is(CumulGASSpec_t)
                 res(:, 1) = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1)
+            class default
+                call stop_all(this_routine, 'Wrong class.')
             end select
             end associate
         end if
@@ -704,11 +730,16 @@ contains
     logical elemental function has_enough_room(GAS_spec, N)
         class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: N
+        routine_name("has_enough_room")
         select type(GAS_spec)
         type is(LocalGASSpec_t)
             has_enough_room = sum(GAS_spec%get_max()) >= N
         type is(CumulGASSpec_t)
             has_enough_room = GAS_spec%get_cmax(GAS_spec%nGAS()) >= N
+        type is(FlexibleGASSpec_t)
+            has_enough_room = GAS_spec%N_particle() == N
+        class default
+            call stop_all(this_routine, 'Wrong class.')
         end select
     end function
 end module gasci_supergroup_index

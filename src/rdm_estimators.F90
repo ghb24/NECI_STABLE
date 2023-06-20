@@ -11,7 +11,7 @@ module rdm_estimators
     use SystemData, only: tGUGA
     use guga_rdm, only: calc_rdm_energy_guga
     use guga_bitRepOps, only: extract_2_rdm_ind
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, neci_flush
 
     implicit none
 
@@ -430,7 +430,7 @@ contains
                     est%energy_num(irdm) / est%norm(irdm)
 
                 if (tEN2) then
-                    write (6, '(1x,"EN2 corrections are below. Note that these may have a much &
+                    write (stdout, '(1x,"EN2 corrections are below. Note that these may have a much &
                                   &larger error bar than the",/," variational energy above. Please do a &
                                   &blocking analysis rather than just using the energies below.")')
                     write(stdout, '(1x,"EN2 energy correction:",1x,es17.10)') est%energy_pert(irdm) / est%norm(irdm)
@@ -573,8 +573,8 @@ contains
             ! Obtain spin orbital labels.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             ! Obtain spatial orbital labels.
-            p = spatial(i); q = spatial(j); 
-            r = spatial(k); s = spatial(l); 
+            p = spatial(i); q = spatial(j);
+            r = spatial(k); s = spatial(l);
             ! Note to the reader for the following code: if mod(i,2) == 1 then
             ! i is a beta (b) orbital, if mod(i,2) == 0 then it is an alpha (a)
             ! obrital.

@@ -1,0 +1,42 @@
+title
+
+    system read
+        electrons 8
+        spin-restrict -2
+        nonuniformrandexcits pchb manual \
+            unif:full unif-full:fast-fast spin-orb-resolved
+    endsys
+
+    calc
+        # since this is a test, need it to be reproducible:
+        load-balance-blocks off
+        seed 9
+
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 1.e3
+        nmcyc 1000
+        definedet 1-6 7 9
+
+        startsinglepart 100
+        tau-values \
+            start user-defined 0.01
+        tau-search \
+            algorithm conventional \
+            stop-condition var-shift
+
+        shiftdamp 0.1
+        stepsshift 10
+
+        truncinitiator
+        addtoinitiator 3
+
+        semi-stochastic 2
+        allrealcoeff
+        realspawncutoff off
+        pops-core 2
+
+        memoryfacspawn 100
+    endcalc
+end

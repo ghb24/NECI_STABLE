@@ -9,7 +9,9 @@ module unit_test_helpers
 
     use lattice_mod, only: get_helement_lattice, lattice
 
-    use Determinants, only: get_helement, write_det
+    use Determinants, only: get_helement
+
+    use DeterminantData, only: write_det
 
     use SystemData, only: t_lattice_model, nOccAlpha, nOccBeta, &
                           trans_corr_param_2body, omega, nel, nBasis, &
@@ -17,13 +19,14 @@ module unit_test_helpers
 
     use fcimcdata, only: excit_gen_store_type, pSingles, pDoubles
 
-    use util_mod, only: binary_search, choose_i64, operator(.div.), operator(.isclose.), near_zero
+    use util_mod, only: binary_search_ilut, choose_i64, &
+        operator(.div.), operator(.isclose.), near_zero, stop_all
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 
-    use bit_reps, only: decode_bit_det, extract_sign, get_weight
+    use bit_reps, only: decode_bit_det
 
-    use bit_rep_data, only: niftot, nifd
+    use bit_rep_data, only: niftot, nifd, extract_sign, get_weight
 
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
 
@@ -32,7 +35,7 @@ module unit_test_helpers
 
     use orb_idx_mod, only: SpinOrbIdx_t, new_write_det => write_det, size
 
-    use excitation_types, only: Excitation_t, get_excitation, SingleExc_t, DoubleExc_t
+    use excitation_types, only: Excitation_t, get_excitation, Excite_1_t, Excite_2_t
 
     use sort_mod, only: sort
 
@@ -363,7 +366,7 @@ contains
             call sort(ilut_list, ilut_lt, ilut_gt)
         end if
 
-        pos = binary_search(ilut_list, tgt_ilut, nifd + 1)
+        pos = binary_search_ilut(ilut_list, tgt_ilut, nifd + 1)
 
         if (pos > 0) then
             is_in_list_ilut = .true.
@@ -525,7 +528,7 @@ contains
 
         block
             integer(int64) :: L
-            type(timer), save :: loop_timer
+            type(timer) :: loop_timer
             loop_timer%timer_name = 'loop '//excit_gen_name
 
             L = n_dets_target .div. 100
@@ -542,7 +545,7 @@ contains
 
                 if (nJ(1) == 0) cycle
                 call EncodeBitDet(nJ, tgt_ilut)
-                pos = binary_search(det_list, tgt_ilut, nifd + 1)
+                pos = binary_search_ilut(det_list, tgt_ilut, nifd + 1)
                 if (pos < 0) then
                     write(i_unit_, *) "nJ: ", nJ
                     write(i_unit_, *) "ilutJ:", tgt_ilut
@@ -852,7 +855,7 @@ contains
                 ! now i have to check if those states are already in the list
                 do j = 1, n_excits
 
-                    pos = binary_search(temp_list_ilut(:, 1:(tmp_n_states + cnt)), &
+                    pos = binary_search_ilut(temp_list_ilut(:, 1:(tmp_n_states + cnt)), &
                                         excit_list(:, j), nifd + 1)
 
                     ! if not yet found:

@@ -11,12 +11,13 @@ endsys
 calc
 eigenvalues 10
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 nmcyc 40000
 diagshift 0.0
 initwalkers 10000
-tau 0.0015
+tau-values \
+    start user-defined 0.0015
 seed -17
 startsinglepart 20
 directannihilation
