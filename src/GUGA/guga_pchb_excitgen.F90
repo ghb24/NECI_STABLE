@@ -10,7 +10,6 @@ module guga_pchb_excitgen
     implicit none
 
     private
-    public :: init_guga_pchb_excitgen, finalize_pchb_excitgen_guga
     public :: pick_orbitals_pure_uniform_singles, pick_orbitals_double_pchb
     public :: calc_orbital_pgen_contr_pchb, calc_orbital_pgen_contr_start_pchb, calc_orbital_pgen_contr_end_pchb
     public :: calc_pgen_guga_pchb
@@ -18,16 +17,6 @@ module guga_pchb_excitgen
     type(PCHB_t), allocatable :: pchb_sampler
 
 contains
-
-    subroutine init_guga_pchb_excitgen()
-        allocate(pchb_sampler)
-        call pchb_sampler%init()
-    end subroutine
-
-    subroutine finalize_pchb_excitgen_guga()
-        call pchb_sampler%finalize()
-        deallocate(pchb_sampler)
-    end subroutine
 
     subroutine pick_orbitals_pure_uniform_singles(ilut, nI, csf_i, excitInfo, pgen)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)

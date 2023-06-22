@@ -336,10 +336,6 @@ subroutine NECICalcInit(iCacheFlag)
 
     call IntFreeze()
     if(t_mol_3_body) call readLMat()
-    ! can i initialize the GUGA stuff here? after freezing? or otherwise
-    ! it is incorrectly setup..
-    ! try to init guga here..
-    if (tGUGA) call init_guga
 
     if (tPostFreezeHF) call HFDoCalc()
 
@@ -361,6 +357,11 @@ subroutine NECICalcInit(iCacheFlag)
 !   Do any initializations we need to do for calculations (e.g. ...?)
 
     call CalcInit()
+
+    ! can i initialize the GUGA stuff here? after freezing? or otherwise
+    ! it is incorrectly setup..
+    ! try to init guga here..
+    if (tGUGA) call init_guga
 
     IF (tRotateOrbs .and. (.not. tFindCINatOrbs)) THEN
         CALL RotateOrbs()
