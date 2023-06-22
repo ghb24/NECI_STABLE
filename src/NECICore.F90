@@ -291,8 +291,6 @@ subroutine NECICalcInit(iCacheFlag)
 !   Symmetry is a subset of the system
     call SysInit()
 
-    if (tGUGA) call init_guga
-
 !   Initialize the integrals.  This will read in integrals, as well as calculating
 !   some relevant integrals if they are calculated
     call IntInit(iCacheFlag)
