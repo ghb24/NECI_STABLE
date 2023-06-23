@@ -98,32 +98,32 @@ module guga_data
     type :: ExcitationTypeValues_t
         ! save type of excitation encoded as integer: all different possibs:
         integer :: &
-            invalid = 0, & ! 0 ... indicate invalid excitation
-            weight = 1, & ! 0 ... pure weight identifier
-            single = 2, & ! 1 ... all kind of single excitations which dont need much care
-            raising = 3, & ! 2 ... weight raising
-            lowering = 4, & ! 3 ... weight lowering
-            non_overlap = 5, & ! 4 ... non overlap
-            single_overlap_lowering = 6, & ! 5 ... single overlap 2 lowering
-            single_overlap_raising = 7, & ! 6 ... single overlap 2 raising
-            single_overlap_L_to_R = 8, & ! 7 ... single overlap lowering into raising
-            single_overlap_R_to_L = 9, & ! 8 ... single overlap raising into lowering
-            double_lowering = 10, & ! 9 ... normal double two lowering
-            double_raising = 11, & ! 10 .. normal double two raising
-            double_L_to_R_to_L = 12, & ! 11 .. lowering into raising into lowering
-            double_R_to_L_to_R = 13, & ! 12 .. raising into lowering into raising
-            double_L_to_R = 14, & ! 13 .. lowering into raising double
-            double_R_to_L = 15, & ! 14 .. raising into lowering double
-            fullstop_lowering = 16, & ! 15 .. full stop 2 lowering
-            fullstop_raising = 17, & ! 16 .. full stop 2 raising
-            fullstop_L_to_R = 18, & ! 17 .. full stop lowering into raising
-            fullstop_R_to_L = 19, & ! 18 .. full stop raising into lowering
-            fullstart_lowering = 20, & ! 19 .. full start 2 lowering
-            fullstart_raising = 21, & ! 20 .. full start 2 raising
-            fullstart_L_to_R = 22, & ! 21 .. full start lowering into raising
-            fullstart_R_to_L = 23, & ! 22 .. full start raising into lowering
-            fullstart_stop_alike = 24, & ! 23 .. full start into full stop alike
-            fullstart_stop_mixed = 25    ! 24 .. full start into full stop mixed
+            invalid = 0, & ! ... indicate invalid excitation
+            weight = 1, & ! ... pure weight identifier
+            single = 2, & ! ... all kind of single excitations which dont need much care
+            raising = 3, & ! ... weight raising
+            lowering = 4, & ! ... weight lowering
+            non_overlap = 5, & ! ... non overlap
+            single_overlap_lowering = 6, & ! ... single overlap 2 lowering
+            single_overlap_raising = 7, & ! ... single overlap 2 raising
+            single_overlap_L_to_R = 8, & ! ... single overlap lowering into raising
+            single_overlap_R_to_L = 9, & ! ... single overlap raising into lowering
+            double_lowering = 10, & ! ... normal double two lowering
+            double_raising = 11, & ! .. normal double two raising
+            double_L_to_R_to_L = 12, & ! .. lowering into raising into lowering
+            double_R_to_L_to_R = 13, & ! .. raising into lowering into raising
+            double_L_to_R = 14, & ! .. lowering into raising double
+            double_R_to_L = 15, & ! .. raising into lowering double
+            fullstop_lowering = 16, & ! .. full stop 2 lowering
+            fullstop_raising = 17, & ! .. full stop 2 raising
+            fullstop_L_to_R = 18, & ! .. full stop lowering into raising
+            fullstop_R_to_L = 19, & ! .. full stop raising into lowering
+            fullstart_lowering = 20, & ! .. full start 2 lowering
+            fullstart_raising = 21, & ! .. full start 2 raising
+            fullstart_L_to_R = 22, & ! .. full start lowering into raising
+            fullstart_R_to_L = 23, & ! .. full start raising into lowering
+            fullstart_stop_alike = 24, & ! .. full start into full stop alike
+            fullstart_stop_mixed = 25    ! .. full start into full stop mixed
 
     end type ExcitationTypeValues_t
 
