@@ -12346,13 +12346,10 @@ contains
     function get_excit_level_from_excitInfo(excitInfo) result(ic)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer :: ic
-
         character(*), parameter :: this_routine = "get_excit_level_from_excitInfo"
-
-        call stop_all(this_routine, "TODO")
-        unused_var(excitInfo)
-        ic = 0
-
+        ASSERT(excitInfo%i /= -1 .and. excitInfo%j /= -1)
+        ASSERT(excitInfo%k /= -1 .eqv. excitInfo%l /= -1)
+        ic = merge(1, 2, excitInfo%k == -1)
     end function get_excit_level_from_excitInfo
 
     function calc_pgen_mol_guga_single(nI, ilutI, csf_i, excitInfo) result(pgen)

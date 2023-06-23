@@ -466,7 +466,7 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: src_orb
         integer, allocatable :: valid_orbs(:)
-        character(*), parameter :: this_routine = 'pick_uniform_spatial_hole'
+        character(*), parameter :: this_routine = 'get_valid_orbs'
 
         integer(n_int) :: &
             ilut_doubly_occupied(0:this%L_spat_bits), ilut_valid(0:this%L_spat_bits)
