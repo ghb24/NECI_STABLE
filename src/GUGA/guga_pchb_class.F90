@@ -1,37 +1,14 @@
 #include "macros.h"
 module guga_pchb_class
 
-    use aliasSampling, only: AliasSampler_1D_t
-    use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm, bits_n_int
-    use bit_rep_data, only: IlutBits, GugaBits
-    use SystemData, only: nel, G1, &
-                          nBasis, nSpatOrbs, ElecPairs, &
-                          t_analyze_pchb, t_old_pchb, t_exchange_pchb
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
-    use guga_data, only: ExcitationInformation_t, gen_type, excit_type
-    use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
-    use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: near_zero, fuseIndex, binary_search_first_ge, &
-                        get_free_unit, stop_all, operator(.isclose.)
-    use guga_excitations, only: assign_excitinfo_values_single, &
-                                pick_elec_pair_uniform_guga, &
-                                excitationIdentifier_double, get_guga_integral_contrib_spat, &
-                                calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, init_singleWeight, &
-                                checkCompatibility_single
-    use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &
-                              contract_2_rdm_ind
-    use bit_reps, only: decode_bit_det
-    use shared_array, only: shared_array_int64_t, shared_array_real_t
-    use MPI_wrapper, only: iProcIndex_intra, iprocindex
-    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
-    use procedure_pointers, only: get_umat_el
-
-    use guga_gas_pchb_mod, only: GAS_PCHB_t
-
-    use gasci, only: LocalGASSpec_t
-
+    use constants, only: n_int, dp
+    use bit_rep_data, only: GugaBits
+    use SystemData, only: nel, nSpatOrbs
+    use guga_data, only: ExcitationInformation_t
+    use guga_bitrepops, only: CSF_Info_t
     use guga_base_class, only: GUGABaseClass_t
-
+    use guga_gas_pchb_mod, only: GAS_PCHB_t
+    use gasci, only: LocalGASSpec_t
 
     better_implicit_none
 
