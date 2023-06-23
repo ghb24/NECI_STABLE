@@ -57,6 +57,7 @@ module gasci_supergroup_index
     use bit_rep_data, only: nIfD
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
     use hash, only: hash_table_lookup
+    use guga_bitRepOps, only: CSF_Info_t
     use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use util_mod, only: stop_all, cumsum
 
@@ -79,6 +80,7 @@ module gasci_supergroup_index
         procedure, public :: nEl => get_nEl
         procedure, public :: idx_supergroup => get_supergroup_idx
         procedure, public :: idx_nI => get_supergroup_idx_det
+        procedure, public :: idx_csf => get_supergroup_idx_csf
         procedure, public :: lookup_supergroup_idx
         procedure, public :: n_supergroups => get_n_supergroups
         procedure, public :: get_supergroups => indexer_get_supergroups
@@ -675,6 +677,25 @@ contains
         @:pure_ASSERT(this%GAS_spec%contains_conf(nI))
         if (this%GAS_spec%is_connected()) then
             idx = this%idx_supergroup(this%GAS_spec%count_per_GAS(nI))
+        else
+            idx = 1
+        end if
+        @:pure_ASSERT(idx /= -1)
+    end function
+
+    !>  @brief
+    !>  Calculate the supergroup index for a determinant nI
+    !>
+    !>  @param[in] nI The determinant for which the supergroup index should be calculated.
+    pure function get_supergroup_idx_csf(self, csf_i) result(idx)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer :: idx
+        character(*), parameter :: this_routine = 'get_supergroup_idx_det'
+
+        @:pure_ASSERT(self%GAS_spec%contains_conf(csf_i))
+        if (self%GAS_spec%is_connected()) then
+            idx = self%idx_supergroup(self%GAS_spec%count_per_GAS(csf_i))
         else
             idx = 1
         end if

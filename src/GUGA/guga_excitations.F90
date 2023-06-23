@@ -15740,7 +15740,7 @@ contains
 
     end subroutine gen_a_orb_cum_list_guga_mol
 
-    function get_guga_integral_contrib_spat(occ_orbs, orb_a, orb_b) result(cpt)
+    pure function get_guga_integral_contrib_spat(occ_orbs, orb_a, orb_b) result(cpt)
         integer, intent(in) :: occ_orbs(2), orb_a, orb_b
         real(dp) :: cpt
 
@@ -15786,7 +15786,7 @@ contains
 
     end function get_guga_integral_contrib_spat
 
-    function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
+    pure function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
         ! routine which gets the correct FCIDUMP integral contribution for
         ! orbital a, where electrons i and j are already picked!
         ! have to still figure out how to do that correctly..
