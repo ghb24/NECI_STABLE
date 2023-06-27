@@ -233,7 +233,8 @@ contains
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
                               tGen_4ind_lin_exact, tGen_4ind_2, tGAS, &
-                              tComplexOrbs_RealInts, tLatticeGens
+                              tComplexOrbs_RealInts, tLatticeGens, &
+                              t_heisenberg_model, t_new_real_space_hubbard
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -250,7 +251,9 @@ contains
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
                             user_input_seed, tTargetShiftdamp, tFixedN0, t_core_inits, &
-                            tWalkContGrow
+                            tWalkContGrow, tAFTruncBracket, tTruncateHubbard, &
+                            tExlevelAFCriterion, tGutzwillerGuide, &
+                            tGutzwillerHubbardAF, tTruncHubbAllClose
         use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
@@ -694,6 +697,26 @@ contains
 
         if (.not. (tInfInit .implies. t_core_inits)) then
             call stop_all(t_r, 'INFINITE-INIT requires CORE-INITS OFF.')
+        end if
+
+        if (tGutzwillerHubbardAF .and. .not. (t_heisenberg_model .or. t_new_real_space_hubbard)) then
+            call stop_all(t_r, "GUTZWILLER-ANTIFERRO is only valid for Heisenberg and real-space Hubbard model")
+        end if
+
+        if (tGutzwillerHubbardAF .and. .not. tGutzwillerGuide) then
+            call stop_all(t_r, "GUTZWILLER-ANTIFERRO only working in conjunction with GUTZWILLER-GUIDE")
+        end if
+
+        if (tTruncHubbAllClose .and. .not. tTruncateHubbard) then
+            call stop_all(t_r, "TRUNC-HUBB-ALL-CLOSE only works in conjunction with TRUNC-HUBB")
+        end if
+
+        if (tAFTruncBracket .and. .not. tTruncateHubbard) then
+            call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
+        end if
+        
+        if (tExLevelAFCriterion .and. .not. tTruncateHubbard) then
+            call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
         end if
 
         block

@@ -3703,17 +3703,9 @@ contains
                 ! trial wave function determined by the population (TRIAL-WAVEFUNCTION).
                 tMeasureOverlap = .true.
             case("GUTZWILLER-ANTIFERRO")
-                if(.not. (t_heisenberg_model .or. t_new_real_space_hubbard)) &
-                    call stop_all(t_r, "GUTZWILLER-ANTIFERRO is only valid for Heisenberg and real-space Hubbard model")
-                if(.not. tGutzwillerGuide) &
-                    call stop_all(t_r, "GUTZWILLER-ANTIFERRO only working in conjunction with GUTZWILLER-GUIDE")
                 tGutzwillerHubbardAF = .true.
                 GutzwillerParam2 = to_realdp(tokens%next())
             case("HUBBARD-DOUBLON-HOLON")
-                if(.not. (t_heisenberg_model .or. t_new_real_space_hubbard)) &
-                    call stop_all(t_r, "HUBBARD-DOUBLON-HOLON is only valid for Heisenberg and real-space Hubbard model")
-                if(.not. tGutzwillerGuide) &
-                    call stop_all(t_r, "HUBBARD-DOUBLON-HOLON only in combination with GUTZWILLER-GUIDE")
                 tHubbardDoublonHolon = .true.
                 GutzwillerParam3 = to_realdp(tokens%next())
 
@@ -3817,17 +3809,12 @@ contains
                 endif
 
             case("TRUNC-HUBB-ALL-CLOSE")
-                if (.not. tTruncateHubbard) then
-                    call stop_all(t_r, "TRUNC-HUBB-ALL-CLOSE only works in conjunction with TRUNC-HUBB")
-                end if
                 tTruncHubbAllClose = .true.
 
             case ("EXLEVEL-AF-TRUNC")
-                if (.not. tTruncateHubbard) call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
                 tExLevelAFCriterion = .true.
 
             case ("AF-TRUNC-BRACKET")
-                if (.not. tTruncateHubbard) call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
                 tAFTruncBracket = .true.
                 if (tokens%remaining_items() > 0) then
                     af_criterion_bracket = to_int(tokens%next())

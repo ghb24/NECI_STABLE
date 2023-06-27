@@ -1301,7 +1301,7 @@ contains
             ! The determinants become
             ! non-initiators again if their population falls below
             ! n_add (this is on by default).
-
+            
             ! All of the references stay initiators
             if (DetBitEQ(ilut, ilutRef(:, run), nifd)) staticInit = .true.
             ! If det. is the HF det, or it
@@ -1311,6 +1311,7 @@ contains
                 .and. .not. Senior &
                 .and. .not. tExpandedState &
                 .and. (.not. popInit)) then
+
                 ! Population has fallen too low. Initiator status
                 ! removed.
                 initiator = .false.
