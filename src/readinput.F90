@@ -321,7 +321,6 @@ contains
         if (t_mol_3_body .or. t_ueg_3_body) then
             call stop_all(t_r, "The current implementation of PCHB supports only up to 2-body interactions.")
         end if
-        t_non_hermitian = t_non_hermitian_1_body .or. t_non_hermitian_2_body
 
         nWalkerHashes = nint(HashLengthFrac * InitWalkers)
 
