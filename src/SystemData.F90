@@ -466,7 +466,7 @@ contains
         res = BasisFN(Symmetry(int(mdk(1), int64)), mdk(2:4), mdk(5), 0, 0)
     end function
 
-    logical function non_hermitian()
+    pure logical function non_hermitian()
         !! logical that cannot be modified directly by the user, but rather is
         !! used whenever querying any kind of nonhermiticity
         non_hermitian = t_non_hermitian_1_body .or. t_non_hermitian_2_body
