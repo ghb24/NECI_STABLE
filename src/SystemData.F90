@@ -358,7 +358,7 @@ module SystemData
 ! also use an additional flag to indicate that 3-body excitations are possible
     logical :: t_3_body_excits = .false.
 
-! make a general Flag to indicat a non-hermitian Hamiltonian
+! make a general Flag to indicate a non-hermitian Hamiltonian
     logical :: t_non_hermitian_2_body = .false.
     logical :: t_non_hermitian_1_body = .false.
 
@@ -465,5 +465,11 @@ contains
         type(BasisFN) :: res
         res = BasisFN(Symmetry(int(mdk(1), int64)), mdk(2:4), mdk(5), 0, 0)
     end function
+
+    logical function non_hermitian()
+        !! logical that cannot be modified directly by the user, but rather is
+        !! used whenever querying any kind of nonhermiticity
+        non_hermitian = t_non_hermitian_1_body .or. t_non_hermitian_2_body
+    end
 
 end module SystemData

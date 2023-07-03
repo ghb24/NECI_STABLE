@@ -1,6 +1,6 @@
 #include "macros.h"
-#:include "macros.fpph"
-#:include "algorithms.fpph"
+#:include "../macros.fpph"
+#:include "../algorithms.fpph"
 
 module gasci_pchb_doubles_spatorb_fastweighted
     !! precomputed heat bath implementation for GASCI using spatial orbitals

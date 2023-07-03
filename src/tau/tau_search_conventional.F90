@@ -10,7 +10,7 @@ module tau_search_conventional
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, &
                           t_trans_corr, tHub, t_trans_corr_hop, &
                           t_exclude_3_body_excits, t_ueg_3_body, &
-                          t_fci_pchb_excitgen, tGAS
+                          t_fci_pchb_excitgen, tGAS, nBasis, nEl, tUHF
 
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, pExcit2, pExcit4, &
@@ -41,11 +41,7 @@ module tau_search_conventional
 
     use gasci, only: possible_GAS_exc_gen, GAS_exc_gen
 
-    use gasci_pchb_doubles_select_particles, only: PCHB_particle_selection_vals
-
-    use gasci_pchb_main, only: GAS_PCHB_options
-
-    use pchb_excitgen, only: FCI_PCHB_options, FCI_PCHB_options_vals
+    use pchb_excitgen, only: FCI_PCHB_options_vals, FCI_PCHB_user_input, decide_on_PCHB_options, FCI_PCHB_options_t
 
     implicit none
     private
@@ -93,14 +89,23 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
-        else if ((t_fci_pchb_excitgen .and. .not. tGUGA) &
-                .and. (FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIFORM)) then
-            ! The default pchb excitgen also uses parallel biases
-            consider_par_bias = .true.
-        else if (tGAS &
-            .and. (GAS_exc_gen /= possible_GAS_exc_gen%PCHB &
-                    .or. GAS_PCHB_options%doubles%particle_selection == PCHB_particle_selection_vals%UNIFORM)) then
-            consider_par_bias = .true.
+        else if (t_fci_pchb_excitgen .and. .not. tGUGA) then
+            block
+                type(FCI_PCHB_options_t) :: FCI_PCHB_options
+                FCI_PCHB_options = decide_on_PCHB_options(FCI_PCHB_user_input, nBasis, nEl, tUHF)
+                consider_par_bias = FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF
+            end block
+        else if (tGAS) then
+            if (GAS_exc_gen /= possible_GAS_exc_gen%PCHB) then
+                consider_par_bias = .true.
+            else
+                block
+                    use gasci_pchb_main, only: GAS_PCHB_user_input, decide_on_PCHB_options, GAS_PCHB_options_vals, GAS_PCHB_options_t
+                    type(GAS_PCHB_options_t) :: GAS_PCHB_options
+                    GAS_PCHB_options = decide_on_PCHB_options(GAS_PCHB_user_input, nBasis, nEl, tUHF)
+                    consider_par_bias = GAS_PCHB_options%doubles%particle_selection == GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF
+                end block
+            end if
         else
             consider_par_bias = .false.
         end if
