@@ -124,7 +124,7 @@ contains
             call calc_trial_states_direct(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
                                           space_sizes, space_displs, reorder)
             return
-        else if (t_non_hermitian_2_body .or. t_non_hermitian_1_body) then
+        else if (non_hermitian()) then
             call stop_all(this_routine, "Sparse diagonalisation not yet supported for non-Hermitian matrices")
         end if
 
