@@ -1911,8 +1911,7 @@ contains
             CALL LogMemAlloc('V2', DetLen * NEVAL, 8, t_r, V2Tag, ierr)
             V2 = 0.0_dp
             !C..Lanczos iterative diagonalising routine
-            if (non_hermitian()
-) then
+            if (non_hermitian()) then
                 call stop_all(t_r, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
@@ -1953,8 +1952,7 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = DetLen + 1
             nBlocks = 1
-            if (non_hermitian()
-) then
+            if (non_hermitian()) then
                 call stop_all(t_r, &
                               "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if
