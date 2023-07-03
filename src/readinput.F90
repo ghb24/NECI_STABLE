@@ -295,9 +295,6 @@ contains
         if (tCalcVariationalEnergy .and. .not. tEnergy) then
             call stop_all(t_r, "CALCVARIATIONALENERGY requires initial FCI calculation")
         end if
-        if (t_mol_3_body .or. t_ueg_3_body) then
-            call stop_all(t_r, "The current implementation of PCHB supports only up to 2-body interactions.")
-        end if
 
         nWalkerHashes = nint(HashLengthFrac * InitWalkers)
 
