@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpph"
+#:include "../macros.fpph"
 
 #:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']
 

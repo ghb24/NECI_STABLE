@@ -6,9 +6,6 @@ MODULE ReadInput_neci
     use constants, only: stdout, stdin
     use SystemData, only: tUHF, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
                          tROHF
-    use pchb_excitgen, only: FCI_PCHB_options
-    use gasci_pchb_main, only: GAS_PCHB_options
-    use gasci_pchb_doubles_main, only: possible_PCHB_hole_selection
     use util_mod, only: operator(.implies.), stop_all
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s, t_k_space_hubbard, t_trans_corr_2body
@@ -198,19 +195,12 @@ contains
         use CalcData, only: user_input_seed, G_VMC_SEED
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
 
-        if (tGAS .and. allocated(user_input_GAS_exc_gen)) then
-            GAS_exc_gen = user_input_GAS_exc_gen
-            ! set fast weighting in case of indeterminate setting
-            if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
-                if (GAS_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
-                    if (tUHF) then
-                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
-                    else
-                        GAS_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
-                    end if
-                end if ! gasci pchb
-            end if ! indeterminate fast-weighted
+        if (tGAS) then
+            if (.not. allocated(user_input_GAS_exc_gen)) then
+                call stop_all(this_routine, "decide on a GAS excitation generator")
+            else
+                GAS_exc_gen = user_input_GAS_exc_gen
+            end if
         end if
 
         if (allocated(user_input_seed)) then
@@ -230,18 +220,6 @@ contains
         ! we still want tstorespinorbs = .true.
 
         tStoreSpinOrbs = (tMolpro .and. tUHF) .or. (tUHF .and. (.not. tROHF))
-        ! set fci pchb hole selection in case of indeterminate setting
-        if (t_fci_pchb_excitgen) then
-            if (FCI_PCHB_options%doubles%hole_selection &
-                    == possible_PCHB_hole_selection%INDETERMINATE_FAST_WEIGHTED) then
-                if (tUHF) then
-                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPINORB_FAST_WEIGHTED
-                else
-                    FCI_PCHB_options%doubles%hole_selection = possible_PCHB_hole_selection%SPATORB_FAST_WEIGHTED
-                end if
-            end if
-        end if
-
     end subroutine
 
     subroutine checkinput()

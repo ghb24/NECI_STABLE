@@ -3,7 +3,9 @@ title
 system read noorder
     electrons 3
     nobrillouintheorem
-    nonuniformrandexcits pchb
+    nonuniformrandexcits pchb \
+        manual unif:full unif-full:full-full
+
     molecular-transcorr 3-body
 endsys
 

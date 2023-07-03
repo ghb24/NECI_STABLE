@@ -182,24 +182,25 @@ set( SRC_FILES
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
-    guga_main.F90
-    guga_bitRepOps.F90
-    guga_data.F90
-    guga_excitations.F90
-    guga_init.F90
-    guga_write_H_matrix.F90
-    guga_matrixElements.F90
-    guga_procedure_pointers.F90
-    guga_types.F90
-    guga_plugin.F90
-    guga_pchb_class.F90
-    guga_crude_approx.F90
+    GUGA/guga_main.F90
+    GUGA/guga_bitRepOps.F90
+    GUGA/guga_data.F90
+    GUGA/guga_excitations.F90
+    GUGA/guga_init.F90
+    GUGA/guga_write_H_matrix.F90
+    GUGA/guga_matrixElements.F90
+    GUGA/guga_procedure_pointers.F90
+    GUGA/guga_types.F90
+    GUGA/guga_plugin.F90
+    GUGA/guga_pchb_class.F90
+    GUGA/guga_crude_approx.F90
+    GUGA/guga_rdm.F90
+    GUGA/guga_pchb_excitgen.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
     lattice_models_utils.F90
     analyse_wf_symmetry.F90
-    guga_rdm.F90
     unit_test_helpers.F90
     real_time_data.F90
     cc_amplitudes.F90
@@ -210,7 +211,6 @@ set( SRC_FILES
     real_time_procs.F90
     real_time_read_input.F90
     verlet_aux.F90
-    guga_pchb_excitgen.F90
     local_spin.F90
     CAS_distribution_init.F90
     excitation_generators.F90
@@ -301,6 +301,7 @@ set( RELAX_WARNINGS_SRCS
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
+    GUGA/guga_rdm.F90
     LoggingData.F90
     Logging.F90
     modifiedHub.F90
@@ -375,7 +376,6 @@ set( RELAX_WARNINGS_SRCS
     vasp_neci_interface_stub.F90
     double_occ.F90
     analyse_wf_symmetry.F90
-    guga_rdm.F90
     unit_test_helpers.F90
     real_time_data.F90
     cepa_shifts.F90
@@ -400,20 +400,20 @@ set( FYPP_SRC_FILES
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
-    gasci.fpp
-    gasci_discarding.fpp
-    gasci_disconnected.fpp
-    gasci_on_the_fly_heat_bath.fpp
-    gasci_pchb_main.fpp
-    gasci_singles_main.fpp
-    gasci_singles_pc_weighted.fpp
-    gasci_pchb_doubles_main.fpp
-    gasci_pchb_doubles_select_particles.fpp
-    gasci_pchb_doubles_spatorb_fastweighted.fpp
-    gasci_pchb_doubles_spinorb_fullyweighted.fpp
-    gasci_pchb_doubles_spinorb_fastweighted.fpp
-    gasci_supergroup_index.fpp
-    gasci_util.fpp
+    GAS/gasci.fpp
+    GAS/gasci_discarding.fpp
+    GAS/gasci_disconnected.fpp
+    GAS/gasci_on_the_fly_heat_bath.fpp
+    GAS/gasci_pchb_main.fpp
+    GAS/gasci_singles_main.fpp
+    GAS/gasci_singles_pc_weighted.fpp
+    GAS/gasci_pchb_doubles_main.fpp
+    GAS/gasci_pchb_doubles_select_particles.fpp
+    GAS/gasci_pchb_doubles_spatorb_fastweighted.fpp
+    GAS/gasci_pchb_doubles_spinorb_fullyweighted.fpp
+    GAS/gasci_pchb_doubles_spinorb_fastweighted.fpp
+    GAS/gasci_supergroup_index.fpp
+    GAS/gasci_util.fpp
     CDF_sampling.fpp
     orb_idx.fpp
     excitation_types.fpp

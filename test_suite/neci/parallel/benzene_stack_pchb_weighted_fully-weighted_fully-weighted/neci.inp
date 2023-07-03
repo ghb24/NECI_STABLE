@@ -4,9 +4,7 @@ System read
     electrons  30
     nobrillouintheorem
     nonuniformrandexcits pchb \
-        singles pc-weighted weighted \
-        doubles particle-selection fully-weighted \
-        doubles hole-selection fully-weighted
+        manual unif:full full-full:full-full
     freeformat
     FCIDUMP-name benzene_3.0_Ang.FciDmp
 endsys

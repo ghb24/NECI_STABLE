@@ -5,9 +5,7 @@ system read noorder
     nobrillouintheorem
     molecular-transcorr 3-body
     nonuniformrandexcits pchb \
-        singles uniform \
-        doubles particle-selection uniform \
-        doubles hole-selection fast-weighted
+        manual unif:unif unif-unif:fast-fast
     hphf 0
 endsys
 
