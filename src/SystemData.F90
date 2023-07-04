@@ -1,5 +1,4 @@
 module SystemData
-
     use constants, only: n_int, int64, dp, NEL_UNINITIALIZED
     use MemoryManager, only: TagIntType
 
