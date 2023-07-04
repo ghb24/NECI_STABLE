@@ -6,7 +6,6 @@ module pchb_excitgen
     use util_mod, only: operator(.div.), EnumBase_t, stop_all, operator(.implies.)
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use SystemData, only: tUHF
-
     use gasci, only: GASSpec_t, LocalGASSpec_t
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t, &
         SingleExcitationGenerator_t

@@ -6,7 +6,7 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tRef_Not_HF, &
-                          tGUGA, t_3_body_excits, t_non_hermitian_2_body, &
+                          tGUGA, t_3_body_excits, non_hermitian, &
                           t_ueg_3_body, t_mol_3_body, t_pcpp_excitgen
     use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -1911,7 +1911,7 @@ contains
             CALL LogMemAlloc('V2', DetLen * NEVAL, 8, t_r, V2Tag, ierr)
             V2 = 0.0_dp
             !C..Lanczos iterative diagonalising routine
-            if (t_non_hermitian_2_body) then
+            if (non_hermitian()) then
                 call stop_all(t_r, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
@@ -1952,7 +1952,7 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = DetLen + 1
             nBlocks = 1
-            if (t_non_hermitian_2_body) then
+            if (non_hermitian()) then
                 call stop_all(t_r, &
                               "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if
