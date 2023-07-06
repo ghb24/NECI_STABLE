@@ -1285,9 +1285,6 @@ and is stopped after 10000 iterations.
         deterministic projection is therefore performed with this
         option.
 
-    -   **write-trial**<br>
-        Writes the trial space out in a file called `TRIALSPACE`.
-
     -   **read-trial**<br>
         Reads the trial space from a file `TRIALSPACE` instead of generating a
         new one.
@@ -1739,6 +1736,10 @@ keyword.
     CI coefficients up to triples (i.e. setting \textit{excitation} = 3) are available.
     The semi-stochastic approach is recommended, in order to reach a lower stochastic error
     for equal time averaging of the CI coefficients.
+
+
+-   **write-trial**<br>
+    Writes the trial space out in a file called `TRIALSPACE`.
 
 
 
