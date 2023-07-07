@@ -20,7 +20,7 @@ module guga_bitRepOps
                             flag_deltaB_double, flag_deltaB_sign, niftot, &
                             nIfGUGA, nIfd, BitRep_t, GugaBits
     use util_mod, only: binary_search_ilut, binary_search_custom, operator(.div.), &
-                        near_zero, stop_all, operator(.isclose.)
+                        near_zero, stop_all, operator(.isclose.), EnumBase_t
 
     use sort_mod, only: sort
 
@@ -58,7 +58,9 @@ module guga_bitRepOps
             extract_excit_lvl_rdm, extract_excit_type_rdm, &
             encode_excit_info, encode_excit_info_type, extract_excit_info_type, &
             encode_excit_info_indices, extract_excit_info_indices, &
-            extract_excit_info, isProperCSF_flexible, find_guga_excit_lvl
+            extract_excit_info, isProperCSF_flexible, find_guga_excit_lvl, &
+            StepVector_t, StepVectorVals_t, stepvector_vals
+
 
     ! interfaces
     interface isProperCSF_ilut
@@ -106,6 +108,23 @@ module guga_bitRepOps
         module procedure encode_excit_info_indices_vec
         module procedure encode_excit_info_indices_scalar
     end interface encode_excit_info_indices
+
+    type, extends(EnumBase_t) :: StepVector_t
+    end type
+
+    type :: StepVectorVals_t
+        type(StepVector_t) :: &
+            s0 = StepVector_t(0), &
+            u = StepVector_t(1), &
+            d = StepVector_t(2), &
+            s2 = StepVector_t(3)
+    end type
+
+    type(StepVectorVals_t), parameter :: stepvector_vals = StepVectorVals_t()
+
+    interface convert_guga_to_ni
+        module procedure convert_guga_to_ni_int, convert_guga_to_ni_stepv
+    end interface
 
     type :: CSF_Info_t
         integer, allocatable :: stepvector(:)
@@ -2653,6 +2672,7 @@ contains
         end do
 
     end function calcB_vector_int
+
     pure subroutine EncodeBitDet_guga(nI, ilut)
         ! special function to encode bit dets for the use in the guga
         ! excitation generation
@@ -2688,11 +2708,10 @@ contains
 
     end function getSpatialOccupation
 
-    pure function convert_guga_to_ni(csf, siz) result(nI)
+    pure function convert_guga_to_ni_int(csf) result(nI)
         ! function to make it easier for me to input a csf in my used notation
         ! to a nI NECI array..
-        integer, intent(in) :: siz
-        integer, intent(in) :: csf(siz)
+        integer, intent(in) :: csf(:)
         integer :: nI(nel)
 
         integer :: i, cnt_orbs, cnt_ind
@@ -2700,41 +2719,34 @@ contains
         cnt_orbs = 0
         cnt_ind = 0
 
-        do i = 1, siz
-
+        do i = 1, size(csf)
             select case (csf(i))
-
             case (0)
                 ! nothing to do actually except update the
-
             case (1)
-                ! beta orbital
                 cnt_ind = cnt_ind + 1
-
                 nI(cnt_ind) = cnt_orbs + 1
-
             case (2)
-                ! alpha orbs
-
                 cnt_ind = cnt_ind + 1
-
                 nI(cnt_ind) = cnt_orbs + 2
-
             case (3)
                 ! doubly occupied
                 cnt_ind = cnt_ind + 1
                 nI(cnt_ind) = cnt_orbs + 1
                 cnt_ind = cnt_ind + 1
                 nI(cnt_ind) = cnt_orbs + 2
-
             end select
 
             ! update orbitals for every csf entry
             cnt_orbs = cnt_orbs + 2
-
         end do
+    end function
 
-    end function convert_guga_to_ni
+    pure function convert_guga_to_ni_stepv(csf) result(nI)
+        type(StepVector_t), intent(in) :: csf(:)
+        integer :: nI(nel)
+        nI = convert_guga_to_ni(csf%val)
+    end function
 
     pure subroutine calc_csf_i(ilut, step_vector, b_vector, occ_vector)
         ! routine to calculate the csf information for specific outputted
@@ -2827,6 +2839,8 @@ contains
         ASSERT(allocated(csf_i%Occ_real))
         ASSERT(allocated(csf_i%B_int))
         ASSERT(allocated(csf_i%Occ_int))
+
+
 
         b = 0
         cum_sum = 0.0_dp

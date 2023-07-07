@@ -161,6 +161,7 @@ contains
         ! different types of excitations
         ! essentially i can just mimick the stochastic excitation creation
         ! routines but with a fixed chosen excitation
+
         select case (excitInfo%typ)
 
         case (excit_type%single)
