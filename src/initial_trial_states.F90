@@ -24,6 +24,7 @@ module initial_trial_states
     use matrix_util, only: eig, print_matrix
 #endif
     use util_mod, only: operator(.div.), stop_all
+    use CalcData, only: t_left_trial
     use parallel_neci, only: MPIAllGather, MPIBarrier
 
     better_implicit_none
@@ -123,6 +124,8 @@ contains
             call calc_trial_states_direct(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
                                           space_sizes, space_displs, reorder)
             return
+        else if (non_hermitian()) then
+            call stop_all(this_routine, "Sparse diagonalisation not yet supported for non-Hermitian matrices")
         end if
 
         if (ndets_all_procs < nexcit) call stop_all(this_routine, "The number of excited states that you have asked &
@@ -463,11 +466,18 @@ contains
                 allocate(evecs_all(ndets_all_procs, ndets_all_procs), stat=ierr)
                 evecs_all = 0.0_dp
 
-                ! i think i need the left eigenvector for the trial-projection
-                ! if it is non-hermitian..
-                ! apparently not.. maybe with the j,i convention above not..
-                ! confusing
-                call eig(H_tmp, evals_all, evecs_all, .false.)
+#ifdef DEBUG_
+                block
+                    use hamiltonian_linalg, only: pretty_print
+                    if (size(H_tmp, dim=1)<=100) then
+                        write(stdout, *) "Hamiltonian produced from top determinants:"
+                        call pretty_print(stdout, H_tmp)
+                    end if
+                end block
+#endif
+                ! depending on the flag t_left_trial, we take the left eigenvector
+                ! of the diagonalisation for calculating the projected energy
+                call eig(H_tmp, evals_all, evecs_all, t_left_trial)
 
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:, 1:nexcit)
