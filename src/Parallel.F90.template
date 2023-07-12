@@ -613,8 +613,7 @@ contains
                     nrt, comm, ierr)
         end if
 
-        if (ierr /= MPI_SUCCESS) &
-            call stop_all (t_r, 'MPI Error. Terminating.')
+        if (ierr /= MPI_SUCCESS) call stop_all (t_r, 'MPI Error. Terminating.')
 #endif
     end subroutine
 
@@ -629,6 +628,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIAlltoAll'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -639,6 +639,7 @@ contains
                 %(mpitype)s, &
                 comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         Ret = v
         ierr = 0
@@ -659,6 +660,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIAlltoAllV'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -671,6 +673,7 @@ contains
                 %(mpitype)s, &
                 comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
 #if %(ndim)s != 0
         Ret() = v(1:size(Ret,%(ndim)s))
@@ -693,6 +696,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIAllGather_len'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -703,6 +707,7 @@ contains
                 %(mpitype)s, &
                 comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         Ret(1) = v
         ierr = 0
@@ -721,6 +726,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIAllGather_auto'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -733,6 +739,7 @@ contains
                 %(mpitype)s, &
                 comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         ret(1) = v
         ierr = 0
@@ -750,6 +757,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIAllGather_auto2'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node)
@@ -762,6 +770,7 @@ contains
                 %(mpitype)s, &
                 comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         !ret(1:%%(mpilen)s) = v(1:%%(mpilen)s)
         ret = v
@@ -778,7 +787,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: ierr
         type(MPI_Comm) :: Comm
-        character(*), parameter :: t_r = 'MPIAllGatherV'
+        character(*), parameter :: t_r = 'MPIAllGatherV_auto'
 
         ! The displacements multiplied up by other array dims
         integer(MPIArg) :: dispsN(ubound(Disps,1)-lbound(Disps,1)+1)
@@ -823,6 +832,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: rt, err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIGather_len'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -833,6 +843,7 @@ contains
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         Ret(1) = v
         ierr = 0
@@ -850,6 +861,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: rt, err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIGather_auto'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -862,6 +874,7 @@ contains
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         ret(1) = v
         ierr = 0
@@ -883,6 +896,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: rt, err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIGatherV_auto2'
 
         ! The displacements multiplied up by other array dims
         integer(MPIArg) :: dispsN(ubound(Disps,1)-lbound(Disps,1)+1)
@@ -906,6 +920,7 @@ contains
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         ret(Disps(1)+1:Disps(1)+Lengths(1)) = v(:)
         ierr = 0
@@ -928,6 +943,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: rt, err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIScatterV_len2'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -938,6 +954,7 @@ contains
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         !The length is divided by the dimensionality of
         !the array, as it is a total number of elements.
@@ -958,6 +975,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: rt, err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIScatter_len'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -968,6 +986,7 @@ contains
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         Ret = v(1)
         ierr = 0
@@ -986,6 +1005,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: rt, err
         type(MPI_Comm) :: Comm
+        character(*), parameter :: t_r = 'MPIScatter_auto'
 
 #ifdef USE_MPI
         call GetComm (Comm, Node, rt)
@@ -999,6 +1019,7 @@ contains
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         Ret = v(1)
         ierr = 0
@@ -1012,6 +1033,7 @@ contains
         %(type1)s, intent(out), target :: Ret()
         integer, intent(in) :: BuffSize, tag, source
         integer, intent(out) :: ierr
+        character(*), parameter :: t_r = 'MPIRecv'
 
 #ifdef USE_MPI
         !integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
@@ -1022,6 +1044,7 @@ contains
                 int(Source, MPIArg), int(Tag, MPIArg), CommGlobal, &
                 stat, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         ierr = 0
         ret = ret
@@ -1035,6 +1058,7 @@ contains
         %(type1)s, intent(in), target :: v()
         integer, intent(in) :: BuffSize, tag, dest
         integer, intent(out) :: ierr
+        character(*), parameter :: t_r = 'MPISend'
 
 #ifdef USE_MPI
         integer(MPIArg) :: err
@@ -1042,6 +1066,7 @@ contains
                 %(mpitype)s, &
                 int(Dest, MPIArg), int(Tag, MPIArg), CommGlobal, err)
         ierr = err
+        if (ierr /= MPI_SUCCESS) call stop_all(t_r, 'MPI error.')
 #else
         ierr = 0
 #endif

@@ -24,7 +24,7 @@ module LMat_mod
 #endif
     use IntegralsData, only: t_use_tchint_lib, tchint_mode, t_rs_factors
 #ifdef USE_TCHINT_
-    use tchint, only: tc_matel, tchint_init
+    use tchint, only: tc_matel, tchint_init, tchint_finalize
 #endif
     implicit none
 
@@ -213,17 +213,21 @@ contains
 
     !------------------------------------------------------------------------------------------------!
 
-    pure function external_lMat_matel(nI, ex) result(matel)
-      integer, intent(in) :: nI(:)
-      integer, intent(in) :: ex(:,:)
-      HElement_t(dp) :: matel
+    function external_lMat_matel(nI, ex) result(matel)
+        ! @note
+        ! this function should normally be pure but the tchint function is not,
+        ! so until that has been modified to be pure, this function will be impure
+        ! @endnote
+        integer, intent(in) :: nI(:)
+        integer, intent(in) :: ex(:,:)
+        HElement_t(dp) :: matel
 
 #ifdef USE_TCHINT_
-      matel = tc_matel(nI, ex)
+        matel = tc_matel(nI, ex)
 #else
-      character(*), parameter :: t_r = "external_lMat_matel"
-      unused_var(nI); unused_var(ex); unused_var(matel)
-      call stop_all(t_r, "Did not compile with TCHINT support")
+        character(*), parameter :: t_r = "external_lMat_matel"
+        unused_var(nI); unused_var(ex); unused_var(matel)
+        call stop_all(t_r, "Did not compile with TCHINT support")
 #endif
 
     end function external_lMat_matel

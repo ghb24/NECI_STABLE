@@ -120,11 +120,6 @@ contains
 
         ! also set some more strict defaults for the PCHB implo:
         root_print "Setting reasonable defaults for GUGA-PCHB:"
-        if (near_zero(max_tau) .or. max_tau > 1e-3) then
-            root_print "max-tau zero or > 1e-3. setting it to: 1e-3"
-            max_tau = 1e-3
-        end if
-
         if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
             if (frq_ratio_cutoff < 0.999999) then
                 root_print "setting frequency cutoff to 0.999999"
