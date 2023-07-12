@@ -76,7 +76,7 @@ contains
 #else
             Call neci_GetArg(1, cInp)      !Read argument 1 into inp
 #endif
-            write(stdout, *) "Processing arguments", cinp
+            write(stdout, *) "Processing arguments ", cinp
             write(stdout, *) "Reading from file: ", Trim(cInp)
             file_reader = ManagingFileReader_t(trim(adjustl(cInp)))
         Else

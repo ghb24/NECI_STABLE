@@ -2,6 +2,7 @@
 
 module fast_determ_hamil
 
+    use mpi_f08, only: MPI_Win, MPI_Win_Sync
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: decode_bit_det
     use constants
@@ -89,8 +90,9 @@ contains
         real(dp) :: total_time
 
         ! Shared resources
-        integer(n_int), pointer :: beta_list(:, :), alpha_list(:, :), beta_list_ptr(:, :), alpha_list_ptr(:, :)
-        integer(MPIArg) :: beta_list_win, alpha_list_win
+        integer(n_int), pointer :: beta_list(:,:), alpha_list(:, :), beta_list_ptr(:,:), alpha_list_ptr(:, :)
+        !integer(n_int), pointer, dimension(:,:) :: beta_list => null(), beta_list_ptr => null()
+        type(MPI_Win) :: beta_list_win, alpha_list_win
 
         type(shared_array_int32_t) :: nbeta_dets, nalpha_dets
         type(shared_array_bool_t) :: cs
@@ -890,6 +892,7 @@ contains
     end subroutine calc_determ_hamil_opt_hphf
 
     subroutine calc_determ_hamil_opt(rep)
+
         use DetBitOps, only: MaskAlpha, MaskBeta
         use FciMCData, only: ll_node
         use hash, only: init_hash_table, clear_hash_table
@@ -940,7 +943,7 @@ contains
         ! Shared resources
         integer(n_int), pointer :: beta_list(:, :), alpha_list(:, :), &
             beta_list_ptr(:, :), alpha_list_ptr(:, :)
-        integer(MPIArg) :: beta_list_win, alpha_list_win
+        type(MPI_Win) :: beta_list_win, alpha_list_win
 
         type(shared_array_int32_t) :: nbeta_dets, nalpha_dets
         type(shared_rhash_t) :: beta_rht, alpha_rht

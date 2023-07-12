@@ -1,6 +1,7 @@
 module read_fci
     use constants, only: dp, int64, stdout, sizeof_int, nel_uninitialized
     use util_mod, only: stop_all, get_free_unit, near_zero
+    use mpi_f08, only: MPI_Win
 
     use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, &
         tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
@@ -586,7 +587,7 @@ contains
         integer, intent(in) :: NBASIS
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(inout) :: UMAT(:)
-        integer(MPIArg) :: umat_win
+        type(MPI_Win) :: umat_win
         HElement_t(dp) Z
 #ifndef CMPLX_
         COMPLEX(dp) :: CompInt

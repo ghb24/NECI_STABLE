@@ -555,6 +555,7 @@ contains
                 if (tGUGA) csf_j = CSF_Info_t(trial_space(0:NIfTot, j))
 
                 if (all(con_space(0:nifd, i) == trial_space(0:nifd, j))) then
+                    ! these are diagonal
                     if (tHPHF) then
                         H_ij = hphf_diag_helement(nI, trial_space(:, j))
                     else if (tGUGA) then
@@ -566,8 +567,8 @@ contains
                     ! need guga changes here!
                     ! and need
                     if (tHPHF) then
-                        ! maybe i need a non-hermitian keyword here..
-                        ! since I am not sure if this breaks the kneci
+                        ! NOTE we need to act with the *adjoint* in case we have
+                        ! a non-Hermitian Hamiltonian (e.g. TC)
                         H_ij = hphf_off_diag_helement(nJ, nI, trial_space(:, j), con_space(:, i))
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
@@ -758,6 +759,12 @@ contains
     end subroutine update_compare_trial_file
 
     subroutine init_current_trial_amps()
+        !! @note
+        !! `current_trial_amps` contains both the trial wave function $\Psi_T$
+        !! itself, as well as the vector $H^\dagger\Psi_T$. Presumably this was
+        !! to make the code more compact and/or memory saving at some point,
+        !! though no longer necessary (however, refactoring would require work)
+        !! @endnote
 
         use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
         use FciMCData, only: con_space_vecs, current_trial_amps, HashIndex, trial_wfs, nWalkerHashes

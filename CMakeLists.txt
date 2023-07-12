@@ -13,7 +13,6 @@ project(NECI Fortran CXX C)
 # Get access to custom cmake modules
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
-
 # install git hooks
 execute_process( COMMAND "${PROJECT_SOURCE_DIR}/tools/install_hooks.sh" ${PROJECT_SOURCE_DIR})
 

@@ -1710,10 +1710,10 @@ contains
             write(stdout, *) "Memory requirement ", IlutBits%len_bcast * 8.0_dp * ( &
                 MaxSpawned / 1048576.0_dp), "MB"
 
-            allocate(SpawnVec(0:IlutBits%len_bcast, MaxSpawned), &
+            allocate(SpawnVec(0 : IlutBits%len_bcast, MaxSpawned), &
                       stat=ierr, source=0_n_int)
             @:log_alloc(SpawnVec, SpawnVecTag, ierr)
-            allocate(SpawnVec2(0:IlutBits%len_bcast, MaxSpawned), &
+            allocate(SpawnVec2(0 : IlutBits%len_bcast, MaxSpawned), &
                       stat=ierr, source=0_n_int)
             @:log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
