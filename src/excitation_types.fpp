@@ -335,19 +335,17 @@ contains
     end function
 
 !>  Create an excitation from an excitation matrix and excitation level IC
-    pure function create_excitation(ic, ex) result(exc)
+    subroutine create_excitation(exc, ic, ex)
+        !>  An excitation of type excitation_t.
+        !>      By using select type(exc) one can select the actual type at runtime
+        !>      **and** statically dispatch as much as possible at runtime.
+        class(Excitation_t), intent(out), allocatable :: exc
         !>  The excitation level. (1=Excite_1_t, 2=Excite_2_t, ...)
         integer, intent(in) :: IC
         !>  An excitation matrix as in the %val component of
         !>      the excitation types.
         integer, intent(in), optional :: ex(2, ic)
-        !>  An excitation of type excitation_t.
-        !>      By using select type(exc) one can select the actual type at runtime
-        !>      **and** statically dispatch as much as possible at runtime.
-        class(Excitation_t), allocatable :: exc
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = 'create_excitation'
-#endif
+        routine_name("create_excitation")
 
         select case (IC)
         #:for rank, excite_t in zip(excit_ranks, defined_excitations)
@@ -357,9 +355,7 @@ contains
         case (${max_excit_rank + 1}$ :)
             allocate(Excite_Further_t :: exc)
         case (:-1)
-#ifdef DEBUG_
             call stop_all(this_routine, 'invalid IC < 0 passed.')
-#endif
         end select
 
         if (present(ex)) then
@@ -370,9 +366,11 @@ contains
                 exc%val = ex
             type is (Excite_3_t)
                 exc%val = ex
+            class default
+                call stop_all(this_routine, 'Invalid combination of `ex` and `ic`.')
             end select
         end if
-    end function
+    end subroutine
 
 !>  Create an excitation from nI to nJ where the excitation level
 !>  is already known.
@@ -388,7 +386,7 @@ contains
         !>  The parity of the excitation.
         logical, intent(out) :: tParity
 
-        exc = create_excitation(ic)
+        call create_excitation(exc, ic)
 
         ! The compiler has to statically know, what the type of exc is.
         select type (exc)
@@ -427,7 +425,7 @@ contains
         logical, intent(out) :: tParity
         routine_name("get_bit_excitation")
 
-        exc = create_excitation(ic)
+        call create_excitation(exc, ic)
         tParity = .false.
 
         ! The compiler has to statically know, what the type of exc is.
