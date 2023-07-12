@@ -69,6 +69,7 @@ module MPI_wrapper
     type(CommI)          :: Roots
 
 contains
+
     Subroutine GetComm(Comm, Node, rt, tMe)
         type(CommI), intent(in), optional :: Node
         type(MPI_Comm), intent(out) :: Comm
@@ -172,7 +173,7 @@ contains
 
     subroutine MPIGroupIncl(grp, n, rnks, ogrp, ierr)
 
-        type(MPI_Group), intent(in) :: grp 
+        type(MPI_Group), intent(in) :: grp
         integer, intent(in) :: n
         integer, intent(in) :: rnks(:)
         integer, intent(out) :: ierr
