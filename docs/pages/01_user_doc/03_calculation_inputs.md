@@ -1285,6 +1285,26 @@ and is stopped after 10000 iterations.
         deterministic projection is therefore performed with this
         option.
 
+    -   **read-trial**<br>
+        Reads the trial space from a file `TRIALSPACE` instead of generating a
+        new one.
+
+    -   **left-trial-evec**
+        When diagonalising the matrix formed from the top determinants, take
+        the left eigenvector as your trial wave function instead of the right.
+        This keyword is intended to be used for non-Hermitian systems.
+        @note
+        The mathematically correct approach is to run a separate calculation with
+        the `adjoint-calculation` and without this keyword (so taking the right
+        eigenvector), and outputting the top determinants. Then feed this input
+        into a calculation without the `adjoint-calculation` keyword, but with
+        the `left-trial-evec` keyword. However, this is tedious and inefficient,
+        and simply using `left-trial-evec` without the previous calculation is
+        a good approximation (the only difference is the choice of the top
+        determinants). Reading and writing trial spaces can be done using the
+        keywords `read-trial` and `write-trial` respectively.
+        @endnote
+
 #### Memory options
 
 -   **memoryFacPart \(x\)**<br>
@@ -1716,6 +1736,10 @@ keyword.
     CI coefficients up to triples (i.e. setting \textit{excitation} = 3) are available.
     The semi-stochastic approach is recommended, in order to reach a lower stochastic error
     for equal time averaging of the CI coefficients.
+
+
+-   **write-trial**<br>
+    Writes the trial space out in a file called `TRIALSPACE`.
 
 
 
