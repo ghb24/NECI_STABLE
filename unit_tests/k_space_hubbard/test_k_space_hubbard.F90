@@ -82,7 +82,7 @@ program test_k_space_hubbard
 
     use matrix_util, only: check_symmetric, calc_eigenvalues, matrix_exponential, linspace, &
         norm, det, eig, print_matrix, find_degeneracies, eig_sym, store_hf_coeff, &
-        my_minloc, my_minval, print_vec
+        print_vec
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_triples_k_space, create_hilbert_space_kspace, &

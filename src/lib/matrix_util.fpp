@@ -1,31 +1,56 @@
 #include "macros.h"
+#:include "../macros.fpph"
+#:include "../algorithms.fpph"
+
+#:set primitive_types = {'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
+#:set ZEROS = {'real': {'sp': '0._sp', 'dp': '0._dp'}, 'complex': {'sp': '(0._sp, 0._sp)', 'dp': '(0._dp, 0._dp)'}}
 
 module matrix_util
     use constants, only: sp, dp, EPS
-    use util_mod, only: near_zero, get_free_unit, stop_all
+    use util_mod, only: near_zero, get_free_unit, stop_all, isclose
     use sort_mod, only: sort
     use blas_interface_mod, only: dgetrf, dgetri, dgemm, dsyev, zheev, dgeev, zgemm
+    use util_mod, only: custom_findloc, operator(.isclose.)
+    use display_matrices, only: write_matrix
     implicit none
     private
-    public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
-        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx, &
-        store_hf_coeff, my_minloc, my_minval, matrix_inverse, print_vec
+    public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, &
+        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm, &
+        store_hf_coeff, matrix_inverse, print_vec, gram_schmidt, my_minval, my_minloc, &
+        canonicalize, is_orthonormal
 
 
     interface linspace
-        module procedure linspace_sp
-        module procedure linspace_dp
-    end interface linspace
+        #:for kind in primitive_types['real']
+            module procedure linspace_${kind}$
+        #:endfor
+    end interface
 
     interface eig
         module procedure eig_cmplx
         module procedure eig_real
-    end interface eig
+    end interface
 
     interface calc_eigenvalues
         module procedure calc_eigenvalues_real
         module procedure calc_eigenvalues_cmplx
-    end interface calc_eigenvalues
+    end interface
+
+    interface norm
+    #:for type, kinds in primitive_types.items()
+    #:for kind in kinds
+        module procedure norm_${type}$_${kind}$
+    #:endfor
+    #:endfor
+    end interface
+
+    interface is_orthonormal
+    #:for type, kinds in primitive_types.items()
+    #:for kind in kinds
+        module procedure is_orthonormal_${type}$_${kind}$
+    #:endfor
+    #:endfor
+    end interface
 
 contains
 
@@ -344,19 +369,13 @@ contains
 
     end subroutine eig_sym
 
-    logical function check_symmetric(matrix)
+    pure logical function check_symmetric(matrix)
         ! function to check if a given matrix is symmetric
         ! for a square matrix!
-        real(dp), intent(in) :: matrix(:,:)
-
-        real(dp) :: diff(size(matrix,1),size(matrix,2))
-
-        diff = matrix - transpose(matrix)
-
-        check_symmetric = .false.
-
-        if (near_zero(sum(abs(diff)))) check_symmetric = .true.
-
+        real(dp), intent(in) :: matrix(:, :)
+        debug_function_name("check_symmetric")
+        ASSERT(size(matrix, 1) == size(matrix, 2))
+        check_symmetric = near_zero(sum(abs(matrix - transpose(matrix))))
     end function check_symmetric
 
     subroutine print_matrix(matrix, iunit)
@@ -418,6 +437,9 @@ contains
         integer, allocatable :: ipiv(:)
         real(dp) :: sgn
         real(dp), allocatable :: tmp_matrix(:,:)
+        debug_function_name("det")
+
+        ASSERT(size(matrix, 1) == size(matrix, 2))
 
         n = size(matrix,1)
         allocate(tmp_matrix(n,n), source = matrix)
@@ -461,52 +483,20 @@ contains
 #endif
     end function blas_matmul
 
-    function linspace_sp(start_val, end_val, n_opt) result(vec)
-        real(sp), intent(in) :: start_val, end_val
-        integer, intent(in), optional :: n_opt
-        real(sp), allocatable :: vec(:)
+    #:for kind in primitive_types['real']
+        pure function linspace_${kind}$(start_val, end_val, n_opt) result(vec)
+            real(${kind}$), intent(in) :: start_val, end_val
+            integer, intent(in) :: n_opt
+            real(${kind}$), allocatable :: vec(:)
 
-        integer :: n, i
-        real(sp) :: dist
+            integer :: i
+            real(${kind}$) :: dist
 
-        ! set default
-        if (present(n_opt)) then
-            n = n_opt
-        else
-            n = 100
-        end if
+            dist = (end_val - start_val) / real(n_opt - 1, ${kind}$)
+            vec = [ ( start_val + i * dist, i = 0, n_opt - 1)]
+        end function linspace_${kind}$
+    #:endfor
 
-        dist = (end_val - start_val) / real(n - 1, sp)
-
-        allocate(vec(n))
-
-        vec = [ ( start_val + i * dist, i = 0,n-1)]
-
-    end function linspace_sp
-
-
-    function linspace_dp(start_val, end_val, n_opt) result(vec)
-        real(dp), intent(in) :: start_val, end_val
-        integer, intent(in), optional :: n_opt
-        real(dp), allocatable :: vec(:)
-
-        integer :: n, i
-        real(dp) :: dist
-
-        ! set default
-        if (present(n_opt)) then
-            n = n_opt
-        else
-            n = 100
-        end if
-
-        dist = (end_val - start_val) / real(n - 1, dp)
-
-        allocate(vec(n))
-
-        vec = [ ( start_val + i * dist, i = 0,n-1)]
-
-    end function linspace_dp
 
     function matrix_exponential(matrix) result(exp_matrix)
         ! calculate the matrix exponential of a real, symmetric 2-D matrix with lapack
@@ -588,34 +578,6 @@ contains
 
     end function matrix_inverse
 
-    real(dp) function norm(vec,p_in)
-        ! function to calculate the Lp norm of a given vector
-        ! if p_in = -1 this indicates the p_inf norm
-        real(dp), intent(in) :: vec(:)
-        integer, intent(in), optional :: p_in
-        integer :: p, i
-
-        if (present(p_in)) then
-!             ASSERT(p_in == -1 .or. p_in >= 0)
-            p = p_in
-        else
-            ! default is the L2 norm
-            p = 2
-        end if
-
-        if (p == -1) then
-            norm = maxval(abs(vec))
-        else
-            norm = 0.0_dp
-            do i = 1, size(vec)
-                norm = norm + abs(vec(i))**p
-            end do
-
-            norm = norm**(1.0_dp/real(p,dp))
-        end if
-
-    end function norm
-
     subroutine store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
         real(dp), intent(in) :: e_values(:), e_vecs(:,:)
         integer, intent(in), optional :: target_state
@@ -668,32 +630,34 @@ contains
 
     end function my_minloc
 
-    real(dp) function norm_cmplx(vec,p_in)
-        ! function to calculate the Lp norm of a given vector
-        ! if p_in = -1 this indicates the p_inf norm
-        complex(dp), intent(in) :: vec(:)
-        integer, intent(in), optional :: p_in
-        integer :: p, i
+    #:for type, kinds in primitive_types.items()
+    #:for kind in kinds
+        pure function norm_${type}$_${kind}$(vec, p) result(res)
+            ! function to calculate the Lp norm of a given vector
+            ! if p_in = -1 this indicates the p_inf norm
+            ${type}$(${kind}$), intent(in) :: vec(:)
+            integer, intent(in), optional :: p
+            real(dp) :: res
+            routine_name("norm_${type}$_${kind}$")
+            integer :: p_
 
-        if (present(p_in)) then
-            p = p_in
-        else
-            ! default is the L2 norm
-            p = 2
-        end if
+            def_default(p_, p, 2)
 
-        if (p == -1) then
-            norm_cmplx = maxval(abs(vec))
-        else
-            norm_cmplx = 0.0_dp
-            do i = 1, size(vec)
-                norm_cmplx = norm_cmplx + abs(vec(i))**p
-            end do
-
-            norm_cmplx = norm_cmplx**(1.0_dp/real(p,dp))
-        end if
-
-    end function norm_cmplx
+            select case(p_)
+            case(-1)
+                res = maxval(abs(vec))
+            case(1)
+                res = sum(abs(vec))
+            case(2)
+                res = sqrt(sum(abs(vec)**2))
+            case(3:)
+                res = sum(abs(vec)**p_)**(1.0_dp / real(p_, dp))
+            case default
+                call stop_all(this_routine, 'invalid p')
+            end select
+        end function
+    #:endfor
+    #:endfor
 
 
     subroutine find_degeneracies(e_values, ind, pairs)
@@ -707,7 +671,7 @@ contains
         real(dp), intent(in) :: e_values(:)
         integer, intent(out), allocatable :: ind(:,:), pairs(:,:)
 
-        integer :: i,j,tmp_ind(size(e_values),size(e_values)+1), e_ind
+        integer :: i, j, tmp_ind(size(e_values), size(e_values) + 1), e_ind
         integer :: max_val
 
         tmp_ind = 0
@@ -758,5 +722,171 @@ contains
 
     end subroutine find_degeneracies
 
+    pure subroutine canonicalize(V, lambda)
+        !! This routine canonicales the eigenvector matrix V and the
+        !! corresponding eigenvalues lambda
+        !!
+        !! This procedure is particularly useful for tests,
+        !! where degenerate Eigenspaces might result in different
+        !! Eigenvectors.
+        real(kind=dp), intent(inout) :: V(:, :), lambda(:)
+        real(kind=dp), allocatable :: norms_projections(:)
+            !! The norms of the projections
+        integer :: low, i, j, d
+        integer, allocatable :: idx(:), dimensions(:)
+        real(kind=dp), allocatable :: projections(:, :)
+        debug_function_name('canonicalize')
+
+        ASSERT(size(V, 1) == size(V, 2) .and. size(V, 1) == size(lambda))
+
+        allocate(norms_projections(size(V, 2)))
+
+        idx = [(i, i = 1, size(lambda, 1))]
+        call sort(lambda, idx)
+        V(:, :) = V(:, idx)
+
+        call determine_eigenspaces(lambda, dimensions)
+
+        low = 1
+        do j = 1, size(dimensions)
+            d = dimensions(j)
+            if (d == 1) then
+                V(:, low) = V(:, low) / norm(V(:, low))
+                low = low + d
+                cycle
+            end if
+            ! Ensure that the basis of each subspace is orthonormal
+            V(:, low : low + d - 1) = gram_schmidt(V(:, low : low + d - 1))
+
+            projections = project_canonical_unit_vectors(V(:, low : low + d - 1))
+
+            do i = 1, size(norms_projections)
+                norms_projections(i) = norm(projections(:, i))
+            end do
+
+            idx = [(i, i = 1, size(norms_projections))]
+            @:sort(integer, idx, comp_idx)
+            @:sort(integer, idx(: d))
+
+            ! reorthogonalize
+            V(:, low : low + d - 1) = gram_schmidt(projections(:, idx(: d)))
+
+            where (near_zero(V(:, low : low + d - 1)))
+                V(:, low : low + d - 1) = 0._dp
+            end where
+            low = low + d
+        end do
+
+        contains
+
+            pure logical function comp_idx(i, j)
+                integer, intent(in) :: i, j
+                comp_idx = norms_projections(i) >= norms_projections(j)
+            end function
+    end subroutine canonicalize
+
+
+    pure function gram_schmidt(V) result(U)
+        real(dp), intent(in) :: V(:, :)
+        real(dp) :: U(size(V, 1), size(V, 2)), norm_factor
+        routine_name("gram_schmidt")
+        integer :: j, k
+
+        U(:, 1) = V(:, 1) / norm(V(:, 1))
+
+        do j = 2, size(V, 2)
+            do k = 1, j - 1
+                U(:, j) = V(:, j) - dot_product(V(:, j), U(:, k)) * U(:, k)
+            end do
+            norm_factor = norm(U(:, j))
+            if (near_zero(norm_factor)) then
+                call stop_all(this_routine, 'linear dependent vectors')
+            end if
+            U(:, j) = U(:, j) / norm_factor
+        end do
+    end function
+
+    pure function project_canonical_unit_vectors(M) result(P)
+        real(dp), intent(in) :: M(:, :)
+        real(dp) :: P(size(M, 1), size(M, 1))
+        integer :: i, j
+
+        P(:, :) = 0._dp
+        ! calculate projections of basis b_j into eigenvectors v_i:
+        ! p_j = sum_i < b_j | v_i > v_i
+        ! if b_j are canonical unit vectors, the dot product is the j-th
+        ! component of v_i
+        do j = 1, size(P, 2)
+            do i = 1, size(M, 2)
+                P(:, j) = P(:, j) + M(j, i)*M(:, i)
+            end do
+        end do
+    end function
+
+    pure subroutine determine_eigenspaces(lambda,dimensions)
+        real(dp), intent(inout) :: lambda(:)
+        integer, allocatable, intent(out) :: dimensions(:)
+        integer, allocatable :: d_buffer(:)
+        integer :: i, low
+        integer :: n_spaces
+        debug_function_name("determine_eigenspaces")
+
+        ASSERT(all(lambda(: size(lambda) - 1) <= lambda(2 : )))
+
+        allocate(d_buffer(size(lambda)), source=0)
+
+        low = 1
+        n_spaces = 1
+        do i=1, size(lambda)
+            d_buffer(n_spaces) = d_buffer(n_spaces)+1
+            if (i + 1 <= size(lambda)) then
+                if (.not. isclose(lambda(i), lambda(i + 1), &
+                                   epsilon(lambda) * 1.0e3_dp, 1.0e-8_dp)) then
+                    n_spaces = n_spaces + 1
+                    lambda(low : i) = mean(lambda(low : i))
+                    low = i+1
+                end if
+            else
+                lambda(low:i) = mean(lambda(low:i))
+            end if
+        end do
+
+        dimensions = d_buffer(:n_spaces)
+
+        contains
+
+            real(dp) pure function mean(X)
+                real(dp), intent(in) :: X(:)
+                mean = sum(X) / size(X)
+            end function mean
+    end subroutine determine_eigenspaces
+
+    #:for type, kinds in primitive_types.items()
+    #:for kind in kinds
+    pure function is_orthonormal_${type}$_${kind}$(M) result(res)
+        !! Check if all < M(:, i) | M(:, j) > = 0
+        !!
+        !! Note that M does not have to be square.
+        ${type}$(${kind}$), intent(in) :: M(:, :)
+        logical :: res
+
+        integer :: i, j
+
+        res = .true.
+        do i = 1, size(M, 2)
+            if (.not. (norm(M(:, i)) .isclose. 1._dp)) then
+                res = .false.
+                return
+            end if
+            do j = i + 1, size(M, 2)
+                if (.not. near_zero(dot_product(M(:, i), M(:, j)))) then
+                    res = .false.
+                    return
+                end if
+            end do
+        end do
+    end function
+    #:endfor
+    #:endfor
 
 end module

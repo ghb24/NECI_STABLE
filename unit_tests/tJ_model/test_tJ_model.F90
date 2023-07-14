@@ -26,7 +26,7 @@ program test_tJ_model
     use guga_bitRepOps, only: csf_purify
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
-    use matrix_util, only: eig, print_matrix, store_hf_coeff, my_minloc, my_minval, &
+    use matrix_util, only: eig, print_matrix, store_hf_coeff, my_minval, &
                            print_vec
     use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut, &
         write_det_guga
