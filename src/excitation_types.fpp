@@ -334,6 +334,10 @@ contains
         if (present(tgt2)) res%val(2, 3) = tgt3
     end function
 
+
+! NOTE: One might be tempted to change `create_excitation` into a function.
+!  Due to a bug in gfortran (https://stackoverflow.com/questions/76653898/memory-leak-with-runtime-polymorphism)
+!  one cannot write factory functions that return polymorphic allocatables.
 !>  Create an excitation from an excitation matrix and excitation level IC
     subroutine create_excitation(exc, ic, ex)
         !>  An excitation of type excitation_t.
