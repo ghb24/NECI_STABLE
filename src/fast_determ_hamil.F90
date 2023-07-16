@@ -90,8 +90,8 @@ contains
         real(dp) :: total_time
 
         ! Shared resources
-        integer(n_int), pointer :: beta_list(:,:), alpha_list(:, :), beta_list_ptr(:,:), alpha_list_ptr(:, :)
-        !integer(n_int), pointer, dimension(:,:) :: beta_list => null(), beta_list_ptr => null()
+        integer(n_int), pointer :: beta_list(:, :) => null(), alpha_list(:, :) => null(), &
+                                    beta_list_ptr(:, :) => null(), alpha_list_ptr(:, :) => null()
         type(MPI_Win) :: beta_list_win, alpha_list_win
 
         type(shared_array_int32_t) :: nbeta_dets, nalpha_dets
