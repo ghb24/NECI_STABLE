@@ -762,7 +762,7 @@ contains
         HElement_t(dp), pointer :: UMAT2(:)
         INTEGER(TagIntType) tagUMat2
         INTEGER nOcc
-        integer(MPIArg) :: umat2_win
+        type(MPI_Win) :: umat2_win
         integer(int64) :: UMATInt
         integer nHG
 
@@ -835,7 +835,7 @@ contains
 !!C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !!C.. to UMAT2
             LogDealloc(tagUMat)
-            call shared_deallocate_mpi(int(umat_win, MPIArg), umat)
+            call shared_deallocate_mpi(umat_win, umat)
             !Deallocate(UMat)
             umat_win = umat2_win
             UMat => UMat2
@@ -882,7 +882,7 @@ contains
         ! Cleanup UMAT array
         if(associated(UMAT)) then
             LogDealloc(tagUMat)
-            call shared_deallocate_mpi(int(umat_win, MPIArg), UMAT)
+            call shared_deallocate_mpi(umat_win, UMAT)
         end if
 
         if(allocated(frozen_orb_list)) then

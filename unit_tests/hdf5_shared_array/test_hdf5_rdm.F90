@@ -42,7 +42,7 @@ contains
 
         call h5open_f(err)
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
-        call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
+        call h5pset_fapl_mpio_f(plist_id, CommGlobal%MPI_VAL, mpiInfoNull%MPI_VAL, err)
         call h5fcreate_f('unittest.h5', H5F_ACC_TRUNC_F, file_id, err, access_prp=plist_id)
         call h5pclose_f(plist_id, err)
         call h5gcreate_f(file_id, 'unit_test', grp_id, err)

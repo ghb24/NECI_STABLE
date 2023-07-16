@@ -9,7 +9,7 @@ module LMat_class
     use procedure_pointers, only: lMatInd_t
     use constants, only: dp, int64
     use index_rhash, only: index_rhash_t
-    use mpi
+    !use mpi
     use util_mod, only: get_free_unit, operator(.div.), near_zero
     use tc_three_body_data, only: lMatEps, tHDF5LMat
     use HElem, only: HElement_t_sizeB
@@ -641,6 +641,7 @@ contains
     !> @param[in] data_block  on each proc, the data from this proc to be gathered
     !> @param[out] tmp  on return, on node-root the gathered data from all procs on this node, empty on all other procs. Guaranteed to be allocated on return (of size 0 on other than node-root).
     subroutine gather_block(data_block, tmp)
+        use mpi_f08, only: MPI_INTEGER
         integer(int64), intent(in) :: data_block(:)
         integer(int64), allocatable, intent(out) :: tmp(:)
 
@@ -655,8 +656,8 @@ contains
         allocate(block_sizes(0:procs_per_node - 1))
         this_block_size = int(size(data_block), MPIArg)
         ! Check how much data was read in in total (needs to be known on node root)
-        call MPI_Gather(this_block_size, 1, MPI_INT, &
-                        block_sizes, 1, MPI_INT, 0, mpi_comm_intra, ierr)
+        call MPI_Gather(this_block_size, 1, MPI_INTEGER, &
+                        block_sizes, 1, MPI_INTEGER, 0, mpi_comm_intra, ierr)
 
         allocate(displs(0:procs_per_node - 1))
         displs(0) = 0
@@ -740,7 +741,7 @@ contains
 
         call h5open_f(err)
         call h5pcreate_f(H5P_FILE_ACCESS_F, this%plist_id, err)
-        call h5pset_fapl_mpio_f(this%plist_id, mpi_comm_intra, mpiInfoNull, err)
+        call h5pset_fapl_mpio_f(this%plist_id, mpi_comm_intra%MPI_VAL, mpiInfoNull%MPI_VAL, err)
 
         ! open the file
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, this%file_id, err, access_prp=this%plist_id)
