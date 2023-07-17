@@ -6,7 +6,7 @@ module input_parser_mod
     !! Oskar Weser, 2022
     use constants, only: stderr, stdout
     use util_mod, only: stop_all
-    use fortran_strings, only: str, Token_t, split, to_int
+    use fortran_strings, only: str, Token_t, split, to_int, WHITESPACE
     better_implicit_none
     private
     public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, &
@@ -14,7 +14,7 @@ module input_parser_mod
 
     integer, parameter :: max_line_length = 1028
 
-    character(*), parameter :: delimiter = ' ', comment = '#', alt_comment = '(', concat = '\', alt_concat = '+++'
+    character(*), parameter :: delimiter = WHITESPACE, comment = '#', alt_comment = '(', concat = '\', alt_concat = '+++'
 
     type, abstract :: FileReader_t
         !! An abstract class that supports tokenized reading of lines.

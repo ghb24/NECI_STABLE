@@ -5,9 +5,9 @@ module fortran_strings
     implicit none
     save
     private
-    public :: str, to_lower, to_upper, operator(.in.), split, Token_t, &
-        count_char, join, to_int, to_int32, to_int64, to_realsp, to_realdp, &
-        can_be_real, can_be_int
+    public :: str, to_lower, to_upper, operator(.in.), operator(.notin.), &
+        split, Token_t, count_char, join, to_int, to_int32, to_int64, &
+        to_realsp, to_realdp, can_be_real, can_be_int, TAB, WHITESPACE
 
 !>  @brief
 !>    Convert to Fortran string
@@ -26,9 +26,15 @@ module fortran_strings
         module procedure contains
     end interface
 
-character(*), parameter ::  &
-    UPPERCASE_chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',&
-    lowercase_chars = 'abcdefghijklmnopqrstuvwxyz'
+    interface operator(.notin.)
+        module procedure not_contains
+    end interface
+
+    character(*), parameter :: TAB = ACHAR(9), WHITESPACE = ' '//TAB
+
+    character(*), parameter ::  &
+        UPPERCASE_chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',&
+        lowercase_chars = 'abcdefghijklmnopqrstuvwxyz'
 
 
     type :: Token_t
@@ -127,23 +133,29 @@ contains
         contains = index(string, substring) /= 0
     end function
 
+    logical pure function not_contains(substring, string)
+        character(*), intent(in) :: string, substring
+
+        not_contains = .not. (substring .in. string)
+    end function
+
     !> @brief
-    !> Split string by delimiter (defaults to space).
-    pure function split(expr, delimiter) result(res)
+    !> Split string by delimiters (defaults to whitespace).
+    pure function split(expr, delimiters) result(res)
         character(*), intent(in) :: expr
-        character(1), intent(in), optional :: delimiter
+        character(*), intent(in), optional :: delimiters
         type(Token_t), allocatable :: res(:)
         type(Token_t), allocatable :: tmp(:)
-        character(len=1) :: delimiter_
+        character(:), allocatable :: delimiter_
 
         integer :: n, low, high
 
-        def_default(delimiter_, delimiter, ' ')
+        def_default(delimiter_, delimiters, WHITESPACE)
 
         allocate(tmp(len(expr) / 2 + 1))
         low = 1; n = 0
         do while (low <= len(expr))
-            do while (expr(low : low) == delimiter_)
+            do while (expr(low : low) .in. delimiter_)
                 low = low + 1
                 if (low > len(expr)) exit
             end do
@@ -151,7 +163,7 @@ contains
 
             high = low
             if (high < len(expr)) then
-                do while (expr(high + 1 : high + 1) /= delimiter_)
+                do while (expr(high + 1 : high + 1) .notin. delimiter_)
                     high = high + 1
                     if (high == len(expr)) exit
                 end do
