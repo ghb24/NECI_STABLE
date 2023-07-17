@@ -269,7 +269,7 @@ contains
             integer, intent(in) :: i
             integer, intent(inout) :: overfull(:), cV, underfull(:), cU
 
-            if (this%bias%ptr(i) >= 1.0_dp) then
+            if (this%bias%ptr(i) > 1.0_dp) then
                 cV = cV + 1
                 overfull(cV) = i
             else
