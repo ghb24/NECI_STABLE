@@ -18,6 +18,7 @@ System read
 endsys
 
 calc
+    time 30
     seed 7
     load-balance-interval 1000
 

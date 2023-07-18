@@ -7,6 +7,7 @@ System read
 endsys
 
 calc
+    time 30
 
     methods
         method vertex fcimc
@@ -29,7 +30,6 @@ calc
     allrealcoeff
     realspawncutoff off
 
-    time 2700
     nmcyc 3000
 
     seed 1

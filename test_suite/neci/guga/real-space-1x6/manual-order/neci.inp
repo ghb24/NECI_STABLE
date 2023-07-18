@@ -12,6 +12,7 @@ system hubbard real-space
 endsys
 
 calc
+    time 30
 
     methods
         method vertex fcimc
@@ -36,7 +37,6 @@ calc
     stepsshift 10
     memoryfacpart  5.00
     memoryfacspawn  20.00
-    time 5400
 endcalc
 
 logging

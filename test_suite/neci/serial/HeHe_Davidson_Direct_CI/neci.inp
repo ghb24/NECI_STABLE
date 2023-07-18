@@ -5,6 +5,7 @@ system read
 endsys
 
 calc
+    time 30
     methods
         davidson 2 0 8 0 4
     endmethods

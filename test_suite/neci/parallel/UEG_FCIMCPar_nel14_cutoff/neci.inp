@@ -15,6 +15,7 @@ system ueg
 endsys
 
 calc
+    time 30
     seed -1
     methods
     method vertex fcimc
