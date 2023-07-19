@@ -7,12 +7,12 @@ system ueg
     ueg-transcorr 3-body rand-excitgen
     transcorrcutoff step 1 100
     transcorrinfsum calc
-        time 30
     spin-restrict -1
     lattice-excitgen
 endsys
 
 calc
+    time 30
     methods
         method vertex fcimc
     endmethods
