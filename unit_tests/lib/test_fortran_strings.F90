@@ -2,7 +2,7 @@ module test_fortran_strings_mod
     use fruit, only: assert_true, assert_false, run_test_case
     use constants, only: dp
     use fortran_strings, only: split, Token_t, can_be_real, can_be_int, str, &
-        to_upper, to_lower
+        to_upper, to_lower, TAB, operator(.in.), WHITESPACE
     implicit none
     private
     public :: test_driver
@@ -27,6 +27,14 @@ contains
 
             physicists = "  Curie    Schroedinger   Newton  "
             tokens = split(physicists, ' ')
+            call assert_true(tokens(1)%str == 'Curie')
+            call assert_true(tokens(2)%str == 'Schroedinger')
+            call assert_true(tokens(3)%str == 'Newton')
+
+
+            physicists = "  Curie   "//TAB//"Schroedinger"//TAB//"Newton"
+            tokens = split(physicists, WHITESPACE)
+
             call assert_true(tokens(1)%str == 'Curie')
             call assert_true(tokens(2)%str == 'Schroedinger')
             call assert_true(tokens(3)%str == 'Newton')
@@ -66,6 +74,16 @@ contains
     end subroutine
 
 
+    subroutine test_operator_in()
+
+        call assert_true("5" .in. "5asdf")
+
+        call assert_true(" " .in. WHITESPACE)
+        call assert_true(TAB .in. WHITESPACE)
+
+    end subroutine
+
+
     subroutine test_conversion()
 
         call assert_true(str(5) == ("5"))
@@ -82,6 +100,7 @@ contains
         call run_test_case(test_split, "test_split")
         call run_test_case(test_if_numbers, "test_if_numbers")
         call run_test_case(test_conversion, "test_conversion")
+        call run_test_case(test_operator_in, "test_operator_in")
     end subroutine
 
 end module test_fortran_strings_mod
