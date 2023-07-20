@@ -560,7 +560,7 @@ contains
                     select case (w)
                     case ("ZERO-DELIMITED")
                         tZeroDelimitedFCIDUMP = .true.
-                    case ("SPIN-ORB-INDEX")
+                    case ("SPIN-MINOR-INDEX")
                         tZeroDelimitedFCIDUMP = .false.
                     case default
                         call stop_all(this_routine, "UHF "//trim(w)//" not valid.")
