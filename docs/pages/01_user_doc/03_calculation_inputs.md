@@ -68,6 +68,13 @@ considered. The block starts with the `system` keyword and ends with the
 -   **\textcolor{red}{electrons \(n\), nel \(n\)}**<br>
  Sets the number of electrons to \(n\)
 
+-   **UHF [zero-delimited|spin-orb-index]**
+    Indicates that the given FCIDUMP is in UHF format. Takes one mandatory
+    argument. If given `zero-delimited` then uses the format used by Molpro,
+    where different spin sectors are delimited by a line of zeros. If given
+    `spin-orb-index`, then uses the format where each index in the FCIDUMP is
+    assumed correspond to a spin-orbital as opposed to the usual spatial orbital.
+
 -   **spin-restrict [\(m\)]**<br>
     Sets the total \(S_z\) quantum number to \(\frac{m}{2}\). The
     argument \(m\) is optional and defaults to 0.
