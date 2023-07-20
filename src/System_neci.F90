@@ -555,6 +555,21 @@ contains
             ! but do not want to include singles in the energy calculations
             ! (e.g. by nobrillouintheorem)
                 tUHF = .true.
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
+                    select case (w)
+                    case ("ZERO-DELIMITED")
+                        tZeroDelimitedFCIDUMP = .true.
+                        tSpinOrbIndexFCIDUMP = .false.
+                    case ("SPIN-ORB-INDEX")
+                        tZeroDelimitedFCIDUMP = .false.
+                        tSpinOrbIndexFCIDUMP = .true.
+                    case default
+                        call stop_all(this_routine, "UHF "//trim(w)//" not valid.")
+                    end select
+                else
+                    call stop_all(this_routine, "Please specify a UHF format.")
+                end if
             case ("RS")
                 FUEGRS = to_realdp(tokens%next())
             case ("EXCHANGE-CUTOFF")
