@@ -1194,7 +1194,8 @@ contains
         real(dp), intent(out) :: time(2)
         real(dp) :: ret
 
-#if defined(IFORT_) || defined(INTELLLVM_)
+#if (defined(IFORT_) || defined(INTELLLVM_)) && __INTEL_COMPILER != 2021
+        ! Version ifort 2021.8.0 has a bug in etime function
         ! intels etime takes a real(4)
         real(sp) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules.
