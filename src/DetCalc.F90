@@ -63,9 +63,10 @@ CONTAINS
 
         Use global_utilities
         Use IntegralsData, only: NFROZEN
-        use SystemData, only: lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
-        use SystemData, only: Alat, arr, brr, boa, box, coa, ecore, g1, Beta
-        use SystemData, only: tParity, tSpn, Symmetry, STot, NullBasisFn, tUHF, tMolpro
+        use SystemData, only: lms, lms2, nBasis, nBasisMax, nEl, SymRestrict, &
+                              Alat, arr, brr, boa, box, coa, ecore, g1, Beta, &
+                              tParity, tSpn, Symmetry, STot, NullBasisFn, tUHF, &
+                              tMolpro, tZeroDelimitedFCIDUMP
         use sym_mod
         use LoggingData, only: tLogDets
         use HElem
@@ -145,7 +146,7 @@ CONTAINS
                 IF (TSPN) THEN
                     write(stdout, *) "Using spin restriction:", LMS
                 end if
-                if (tUHF .and. tMolpro) then
+                if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS_BLK(NEL, nBasis, BRR, NBASISMAX, NMRKS, .TRUE.,             &
          &                NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, -LMS2, TPARITY,        &
@@ -164,7 +165,7 @@ CONTAINS
                 IF (TSPN) THEN
                     write(stdout, *) "Using spin restriction:", LMS
                 end if
-                if (tUHF .and. tMolpro) then
+                if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS(NEL, nBasis, BRR, NBASISMAX, NMRKS, .TRUE., G1, TSPN, -LMS, TPARITY, SymRestrict, II, IFDET)
                 else
@@ -211,7 +212,7 @@ CONTAINS
                 NBLOCKSTARTS(2) = II + 1
                 IFDET = 1
             else if (TBLOCK) THEN
-                if (tUHF .and. tMolpro) then
+                if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS_BLK(NEL, nBasis, BRR, NBASISMAX, NMRKS, .FALSE., NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, -LMS2, TPARITY, &
          &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
@@ -220,7 +221,7 @@ CONTAINS
          &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
                 end if
             ELSE
-                if (tUHF .and. tMolpro) then
+                if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS(NEL, nBasis, BRR, NBASISMAX, NMRKS, .FALSE., G1, TSPN, -LMS, TPARITY, SymRestrict, II, IFDET)
                 else

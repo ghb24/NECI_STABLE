@@ -8,7 +8,7 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen, tUHF, tMolpro
+                          tReadInt, t_pcpp_excitgen, tUHF, tMolpro, tZeroDelimitedFCIDUMP
     use sort_mod
     use gasci, only: GASSpec_t
     use System, only: SysInit, SetSysDefaults, SysCleanup
@@ -302,11 +302,7 @@ contains
 
         fcidump_name = "FCIDUMP"
         UMatEps = 1.0e-8
-        if (tUHF .and. tMolpro) then
-            tStoreSpinOrbs = .true.
-        else
-            tStoreSpinOrbs = .false.
-        end if
+        tStoreSpinOrbs = tZeroDelimitedFCIDUMP
         tTransGTID = .false.
         tReadFreeFormat = .true.
 

@@ -8,7 +8,7 @@ module read_fci
         tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
         BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
         UMatEps, t_non_hermitian_1_body, tRIIntegrals, SYMMAX, irrepOrbOffset, &
-        t_complex_ints
+        t_complex_ints, tZeroDelimitedFCIDUMP
 
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
 
@@ -218,19 +218,11 @@ contains
         NBASISMAX(4, 2) = 1
 
 !the indicator of UHF (which becomes ISpinSkip or ISS later
-        if (tMolpro) then
-            if (tUHF) then
-                NBASISMAX(2, 3) = 1
-            else
-                NBASISMAX(2, 3) = 2
-            end if
+        tStoreSpinOrbs = tStoreSpinOrbs .or. tRel
+        if (tZeroDelimitedFCIDUMP) then
+            NBASISMAX(2, 3) = 1
         else
-            tStoreSpinOrbs = tStoreSpinOrbs .or. tRel
-            IF ((UHF .and. (.not. tROHF)) .or. tRel) then
-                NBASISMAX(2, 3) = 1
-            else
-                NBASISMAX(2, 3) = 2
-            end if
+            NBASISMAX(2, 3) = 2
         end if
 
 ! Show that there's no momentum conservation
@@ -664,7 +656,7 @@ contains
 
         ISPINS = 2
         IF (UHF .and. (.not. tROHF)) ISPINS = 1
-        if (tMolpro .and. tUHF) ISPINS = 1
+        if (tZeroDelimitedFCIDUMP) ISPINS = 1
         if (tReltvy) ISPINS = 1
 
         IF (tROHF .and. (.not. tMolpro)) THEN
@@ -678,7 +670,7 @@ contains
             write (stdout, '("Two-electron integrals with a magnitude over ", &
                       &g16.7," are screened")') UMatEps
 
-            if (tMolpro .and. tUHF) then
+            if (tZeroDelimitedFCIDUMP) then
                 !In molpro, UHF FCIDUMPs are written out as:
                 !1: aaaa
                 !2: bbbb
@@ -789,7 +781,7 @@ contains
                 IF (L /= 0) THEN
                     L = GTID(L)
                 end if
-            else if (tMolpro .and. tUHF) then
+            else if (tZeroDelimitedFCIDUMP) then
                 if (i /= 0) then
                     !Need to transfer the orbital index into spin orbital notation
                     if ((iSpinType == 1) .or. (iSpinType == 4)) then
@@ -815,7 +807,7 @@ contains
             end if
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
             IF (I == 0) THEN
-                if (tMolpro .and. tUHF .and. (iSpinType /= 6)) then
+                if (tZeroDelimitedFCIDUMP .and. (iSpinType /= 6)) then
                     if (abs(real(z, dp)) > 1.0e-8_dp) then
                         call stop_all(t_r, "This is not a delimiter in the FCIDUMP reading")
                     end if
@@ -901,8 +893,8 @@ contains
 199         CONTINUE
 
             close(iunit)
-            if (tMolpro .and. tUHF .and. (iSpinType /= 6)) then
-                call stop_all(t_r, "Error in reading UHF FCIDUMP from molpro")
+            if (tZeroDelimitedFCIDUMP .and. (iSpinType /= 6)) then
+                call stop_all(t_r, "Error in reading zero-delimited UHF FCIDUMP.")
             end if
         end if
 
