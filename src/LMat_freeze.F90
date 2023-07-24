@@ -151,7 +151,7 @@ contains
                         ! Use a remote update of UMat
                         call MPI_Accumulate(delta, 1, MPI_DOUBLE_PRECISION, 0, &
                                             idx(ct) - 1, 1, MPI_DOUBLE_PRECISION, MPI_SUM, umat_win, ierr)
-                        ! Flush the RMA operation:   
+                        ! Flush the RMA operation:    
                         ! This calls synchronize RMA operations (MPI_Get, MPI_Put or MPI_Accumulate)
                         call MPI_Win_flush(0, umat_win)
                     endif
