@@ -723,7 +723,7 @@ contains
     end subroutine find_degeneracies
 
     pure subroutine canonicalize(V, lambda)
-        !! This routine canonicales the eigenvector matrix V and the
+        !! This routine canonicalizes the eigenvector matrix V and the
         !! corresponding eigenvalues lambda
         !!
         !! This procedure is particularly useful for tests,
