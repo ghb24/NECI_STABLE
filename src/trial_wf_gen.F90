@@ -582,10 +582,9 @@ contains
 !                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
 !                             excitInfo, H_ij, .true., 1)
                     else
-                        ! maybe i need a non-hermitian keyword here..
-                        ! since I am not sure if this breaks the kneci
-                        H_ij = get_helement(nJ, nI, trial_space(:, j), con_space(:, i))
-                        ! H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                        ! NOTE we need to act with the *adjoint* in case we have
+                        ! a non-Hermitian Hamiltonian (e.g. TC)
+                        H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     end if
                 end if
                 ! workaround for complex matrix elements here:
