@@ -13,6 +13,7 @@ system read noorder
 endsys
 
 calc
+    time 30
 
     lanczos-store-vectors
 

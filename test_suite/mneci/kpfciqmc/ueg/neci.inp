@@ -13,6 +13,7 @@ system ueg
 endsys
 
 calc
+    time 30
     tau-values \
         start user-defined 0.01 \
         readpops-but-tau-not-from-popsfile

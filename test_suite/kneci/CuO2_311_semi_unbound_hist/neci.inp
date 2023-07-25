@@ -9,6 +9,7 @@ system read
 endsys
 
 calc
+    time 30
     methods
     method vertex fcimc
     endmethods
@@ -39,7 +40,6 @@ calc
 
     memoryfacspawn 25.0
     memoryfacpart 5.0
-    time 1200.0
     nmcyc 500
 endcalc
 

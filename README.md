@@ -15,7 +15,7 @@ Ali Alavi, Robert Anderson, Nick Blunt, George Booth, Deirdre Cleland, Werner Do
 Khaldoon Ghanem, Kai Guther, Philip Haupt, Peter Jeszenski, Giovanni Li Manni,
 Niklas Liebermann, Florian Merz, Jennifer Mohr, Catherine Overy, Arta Safari, Pradipta Samanta,
 Simon Smart, James Shepherd, James Spencer, Anthony Stone, Lauretta Schwarz, Pierre-Louis Taillat,
-Alex Thom, Robert Thomas, David Thompson, Eugenio Vitale, Oskar Weser.
+Alex Thom, Robert Thomas, David Thompson, Demetrio Vilardi, Eugenio Vitale, Oskar Weser.
 
 ## Documentation
 

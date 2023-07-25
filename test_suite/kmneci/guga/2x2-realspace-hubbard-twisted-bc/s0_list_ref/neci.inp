@@ -12,6 +12,7 @@ system hubbard real-space
 endsys
 
 calc
+    time 30
 
     methods
         method vertex fcimc

@@ -12,10 +12,10 @@ system read noorder
 endsys
 
 calc
+    time 30
     methods
         method vertex fcimc
     endmethods
-    time 20
     memoryfacpart 20.0
     memoryfacspawn 20.0
     totalwalkers 200000

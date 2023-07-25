@@ -9,7 +9,7 @@ module LMat_freeze
     use SystemData, only: ECore
     use Parallel_neci
     use MPI_wrapper
-    use mpi_f08, only: MPI_DOUBLE_PRECISION
+    use mpi_f08, only: MPI_DOUBLE_PRECISION, MPI_Accumulate
     implicit none
 
     private
@@ -151,6 +151,9 @@ contains
                         ! Use a remote update of UMat
                         call MPI_Accumulate(delta, 1, MPI_DOUBLE_PRECISION, 0, &
                                             idx(ct) - 1, 1, MPI_DOUBLE_PRECISION, MPI_SUM, umat_win, ierr)
+                        ! Flush the RMA operation:    
+                        ! This calls synchronize RMA operations (MPI_Get, MPI_Put or MPI_Accumulate)
+                        call MPI_Win_flush(0, umat_win)
                     endif
                 end do
                 ! 2 => single excitation

@@ -9,6 +9,7 @@ system read
 endsys
 
 calc
+    time 30
     methods
     method vertex fcimc
     endmethods
@@ -33,7 +34,6 @@ calc
     tau-search off
     memoryfacspawn 25.0
     memoryfacpart 5.0
-    time 1200.0
     nmcyc 300
     readpops
 endcalc

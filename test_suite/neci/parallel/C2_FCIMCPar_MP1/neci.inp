@@ -8,6 +8,7 @@ spin-restrict 0
 endsys
 
 calc
+    time 30
 methods
 method vertex fcimc
 endmethods
