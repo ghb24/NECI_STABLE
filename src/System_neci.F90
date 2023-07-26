@@ -215,7 +215,7 @@ contains
         DiagMaxMinFac = -1
         OneElMaxMinFac = 1
         tDiagonalizehij = .false.
-        tHFNoOrder = .false.
+        tHFNoOrder = .true.
         tSymIgnoreEnergies = .false.
         tPickVirtUniform = .false.
         tStoquastize = .false.
@@ -309,9 +309,12 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                ! for some absolutely asinine reason, NECI has both tHFOrder and
+                ! tHFNoOrder flags which do different things. Here, we want to
+                ! modifiy tHFNoOrder.
+                tHFOrder = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                tHFNoOrder = .true.
             end select
         case ("BINREAD")            ! Instead, specify Binary within the system block.
             TREADINT = .true.
@@ -321,7 +324,7 @@ contains
             case ("ORDER")
                 THFORDER = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                tHFNoOrder = .true.
             end select
         case ("READ", "GENERIC")
             TREADINT = .true.
@@ -330,7 +333,7 @@ contains
             case ("ORDER")
                 THFORDER = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                tHFNoOrder = .true.
             end select
 
         case ("HUBBARD")
@@ -524,6 +527,11 @@ contains
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
                 pParallel = 0.0_dp
+
+            case ("ORDER-BY-1ELEC-ENERGY")
+            ! do the old default behaviour
+                tHFNoOrder = .false.
+                tHFOrder = .false.
 
             case ("SYM")
                 TPARITY = .true.
@@ -2437,7 +2445,7 @@ contains
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
-                IF (.NOT. THFNOORDER) THEN
+                IF (.not. tHFNoOrder) THEN
                     CALL ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
                 ELSE
                     !.. copy the default ordered energies.
@@ -3188,7 +3196,7 @@ contains
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
-        IF (.NOT. THFNOORDER) THEN
+        IF (.not. tHFNoOrder) THEN
             CALL ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
         ELSE
 !.. copy the default ordered energies.
@@ -3610,4 +3618,3 @@ contains
     end subroutine
 
 END MODULE System
-
