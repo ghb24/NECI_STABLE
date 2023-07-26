@@ -1,0 +1,40 @@
+# Arnoldi exact diagonalisation result: -74.96652067547232
+title
+
+    system read
+        electrons 4
+        spin-restrict 2
+        nobrillouintheorem
+        nonuniformrandexcits pchb delocalised
+        nonhermitian all
+        uhf zero-delimited
+        # molpromimic
+    endsys
+
+    calc
+        time 30
+        # since this is a test, need it to be reproducible:
+        load-balance-blocks off
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 1.e3
+        nmcyc 15000
+        definedet 1 2 4 6
+
+        startsinglepart 100
+
+
+        tau-values \
+            start user-defined 0.01
+
+        tau-search \
+            algorithm conventional \
+            maxWalkerBloom 3
+
+        shiftdamp 0.1
+        stepsshift 10
+
+        MEMORYFACSPAWN 50
+    endcalc
+end
