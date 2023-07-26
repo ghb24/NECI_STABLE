@@ -218,11 +218,19 @@ contains
         NBASISMAX(4, 2) = 1
 
 !the indicator of UHF (which becomes ISpinSkip or ISS later
-        tStoreSpinOrbs = tStoreSpinOrbs .or. tRel
-        if (tZeroDelimitedFCIDUMP) then
-            NBASISMAX(2, 3) = 1
+        if (tMolpro) then
+            if (tUHF) then
+                NBASISMAX(2, 3) = 1
+            else
+                NBASISMAX(2, 3) = 2
+            end if
         else
-            NBASISMAX(2, 3) = 2
+            tStoreSpinOrbs = tStoreSpinOrbs .or. tRel
+            IF ((UHF .and. (.not. tROHF)) .or. tRel) then
+                NBASISMAX(2, 3) = 1
+            else
+                NBASISMAX(2, 3) = 2
+            end if
         end if
 
 ! Show that there's no momentum conservation
@@ -837,8 +845,9 @@ contains
                         write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
                         call stop_all("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
                     end if
+                    ! @jphaupt I suspect there is an error here, fixed?
+                    TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
                     if (.not. t_non_hermitian_1_body) then
-                        TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
 #ifdef CMPLX_
                         TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
 #else
@@ -979,13 +988,14 @@ contains
         else if (K == 0) THEN
 !.. 1-e integrals
 !.. These are stored as spinorbitals (with elements between different spins being 0
+            ! @jphaupt there may be another error here, fixed?
+            TMAT2D(2 * I - 1, 2 * J - 1) = Z
+            TMAT2D(2 * I, 2 * J) = Z
             if (.not. t_non_hermitian_1_body) then
-                TMAT2D(2 * I - 1, 2 * J - 1) = Z
-                TMAT2D(2 * I, 2 * J) = Z
+                TMAT2D(2 * J - 1, 2 * I - 1) = Z
+                TMAT2D(2 * J, 2 * I) = Z
             end if
 
-            TMAT2D(2 * J - 1, 2 * I - 1) = Z
-            TMAT2D(2 * J, 2 * I) = Z
         ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)

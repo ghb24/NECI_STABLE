@@ -2466,7 +2466,7 @@ contains
                 end if
 !      write(stdout,*) THFNOORDER, " THFNOORDER"
 
-                if (.not. tMolpro) then
+                if (.not. (tMolpro .or. tZeroDelimitedFCIDUMP)) then
                     !If we are calling from molpro, we write the basis later (after reordering)
                     CALL writebasis(stdout, G1, nBasis, ARR, BRR)
                 end if
