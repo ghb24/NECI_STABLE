@@ -1,4 +1,3 @@
-# Arnoldi exact diagonalisation result: -74.96652067547232
 title
 
     system read
@@ -21,15 +20,15 @@ title
         nmcyc 15000
         definedet 1 2 4 6
 
-        startsinglepart 100
+        startsinglepart 10
 
 
         tau-values \
-            start user-defined 0.01
+            start user-defined 0.005 \
+            max 0.05
 
         tau-search \
-            algorithm conventional \
-            maxWalkerBloom 3
+            algorithm conventional
 
         shiftdamp 0.1
         stepsshift 10
