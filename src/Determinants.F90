@@ -83,7 +83,9 @@ contains
         logical :: tGenFDet
         HElement_t(dp) :: OrbE
         character(25), parameter :: this_routine = 'DetPreFreezeInit_old'
-        call stop_all(this_routine, "This routine is deprecated. Use DetPreFreezeInit instead.")
+        ! seems this is only used in one place in the code, and only for GUGA.
+        write(stdout, "(A)") "WARNING: Routine DetPreFreezeInit_old is deprecated. &
+                            &Use DetPreFreezeInit instead."
         allocate (FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
         IF (tDefineDet) THEN
