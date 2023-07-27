@@ -310,8 +310,7 @@ contains
             select case (w)
             case ("ORDER")
                 ! for some absolutely asinine reason, NECI has both tHFOrder and
-                ! tHFNoOrder flags which do different things. Here, we want to
-                ! modifiy tHFNoOrder.
+                ! tHFNoOrder flags which do different things.
                 tHFOrder = .true.
             case ("NOORDER")
                 tHFNoOrder = .true.
