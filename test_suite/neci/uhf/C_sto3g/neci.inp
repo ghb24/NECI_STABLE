@@ -3,8 +3,7 @@ title
     system read
         electrons 4
         # at the moment, only the uniform excitgen works with uhf
-        uhf
-        molpromimic
+        uhf zero-delimited
     endsys
 
     calc

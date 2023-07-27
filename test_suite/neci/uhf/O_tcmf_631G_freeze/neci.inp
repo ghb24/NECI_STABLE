@@ -8,7 +8,6 @@ title
         nonuniformrandexcits pchb delocalised
         nonhermitian all
         uhf zero-delimited
-        # molpromimic
     endsys
 
     calc

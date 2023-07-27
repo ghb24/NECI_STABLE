@@ -6,10 +6,9 @@ title
         spin-restrict -2
         nobrillouintheorem
         nonuniformrandexcits 4ind-weighted
-        nonhermitian
+        nonhermitian 2-body
         adjoint-calculation
-        uhf
-        molpromimic
+        uhf zero-delimited
     endsys
 
     calc

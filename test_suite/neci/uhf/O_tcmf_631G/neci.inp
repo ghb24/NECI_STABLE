@@ -6,9 +6,8 @@ title
         spin-restrict -2
         nobrillouintheorem
         nonuniformrandexcits 4ind-weighted
-        nonhermitian
-        uhf
-        molpromimic
+        nonhermitian 2-body
+        uhf zer-delimited
     endsys
 
     calc
