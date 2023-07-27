@@ -1,6 +1,7 @@
 title
 
 system read
+order-by-1elec-energy
 electrons 10
 nonuniformrandexcits 4ind-reverse
 endsys

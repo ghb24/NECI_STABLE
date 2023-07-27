@@ -1,6 +1,7 @@
 title
 
 system read
+order-by-1elec-energy
 nonuniformrandexcits mol_guga_weighted
 electrons 4
 guga 0
