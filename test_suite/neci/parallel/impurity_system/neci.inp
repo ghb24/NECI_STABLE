@@ -1,6 +1,7 @@
 title
 
 system read
+    order-by-1elec-energy
     electrons 9
     spin-restrict 1
     nobrillouintheorem

@@ -1,6 +1,7 @@
 title
 
 system read
+order-by-1elec-energy
 usebrillouintheorem
 electrons 4
 endsys
