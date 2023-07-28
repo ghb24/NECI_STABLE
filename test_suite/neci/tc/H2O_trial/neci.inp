@@ -1,6 +1,6 @@
 title
 
-system read noorder
+system read
     electrons 10
     nobrillouintheorem
     nonhermitian 2-body

@@ -1,6 +1,6 @@
 title
 
-system read noorder
+system read
     symignoreenergies
     freeformat
     electrons 18

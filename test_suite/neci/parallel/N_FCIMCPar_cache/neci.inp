@@ -1,6 +1,6 @@
 title
 
-system read noorder
+system read
     uhf
     symignoreenergies
     electrons 7
