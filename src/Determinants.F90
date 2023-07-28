@@ -14,7 +14,7 @@ module Determinants
         tfixlz, tguga, thphfints, thub, tmolpro, tpickvirtuniform, &
         tref_not_hf, tspn, tstoreasexcitations, tsymset, tueg, tueg2, &
         tuegspecifymomentum, tusebrillouin, t_k_space_hubbard, &
-        tStoquastize, tZeroDelimitedFCIDUMP
+        tStoquastize, tZeroDelimitedFCIDUMP, tHFOrder, tHFNoOrder
     use bit_rep_data, only: nIfTot
     use blas_interface_mod, only: dcopy
     use constants, only: Pi, Pi2, THIRD, dp, n_int, bits_n_int, int64, maxExcit, stdout
@@ -297,19 +297,19 @@ contains
                 !of 'orbital energies'
                 CALL GENFDET(FDETTEMP)
             end if
-            if (tMolpro) then
-                write (stdout, "(A)") "Calculating orbital energies..."
-                do i = 1, nBasis
-                    OrbE = CalcFockOrbEnergy(i, FDetTemp)
-                    Arr(i, 1) = real(OrbE, dp)
-                    Brr(i) = i
-                end do
+            write (stdout, "(A)") "Calculating orbital energies..."
+            do i = 1, nBasis
+                OrbE = CalcFockOrbEnergy(i, FDetTemp)
+                Arr(i, 1) = real(OrbE, dp)
+                Brr(i) = i
+            end do
+            if (tMolpro .or. tHFOrder .or. .not. tHFNoOrder) then
                 write (stdout, "(A)") "Reordering basis by orbital energies..."
                 OrbOrder(:, :) = 0
-                !However, we reorder them here
                 call ORDERBASIS(NBASIS, Arr, Brr, OrbOrder, nBasisMax, G1)
             else
-                write (stdout, "(A)") "Zero-delimited FCIDUMP without Molpro."
+                write (stdout, "(A)") "Not reordering basis."
+                CALL DCOPY(NBASIS, ARR(1, 1), 1, ARR(1, 2), 1)
             end if
             call writebasis(stdout, G1, nBasis, Arr, Brr)
         end if
