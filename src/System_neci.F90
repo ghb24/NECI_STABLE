@@ -313,6 +313,9 @@ contains
                 ! tHFNoOrder flags which do different things.
                 tHFOrder = .true.
             case ("NOORDER")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            Note the default behaviour is to not
+                                            order orbitals.")
                 tHFNoOrder = .true.
             end select
         case ("BINREAD")            ! Instead, specify Binary within the system block.
@@ -323,6 +326,9 @@ contains
             case ("ORDER")
                 tHFOrder = .true.
             case ("NOORDER")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            Note the default behaviour is to not
+                                            order orbitals.")
                 tHFNoOrder = .true.
             end select
         case ("READ", "GENERIC")
@@ -332,6 +338,9 @@ contains
             case ("ORDER")
                 tHFOrder = .true.
             case ("NOORDER")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            Note the default behaviour is to not
+                                            order orbitals.")
                 tHFNoOrder = .true.
             end select
 
