@@ -442,7 +442,7 @@ contains
         Use UMatCache, only: SetupUMatCache
         use SystemData, only: nBasisMax, Alpha, BHub, BRR, nmsh, nEl
         use SystemData, only: G1, iSpinSkip, nBasis, nMax, nMaxZ
-        use SystemData, only: Omega, tAlpha, TBIN, tCPMD, tDFread, THFORDER
+        use SystemData, only: Omega, tAlpha, TBIN, tCPMD, tDFread, tHFOrder
         use SystemData, only: thub, tpbc, treadint, ttilt, TUEG, tPickVirtUniform
         use SystemData, only: uhub, arr, alat, treal, tReltvy
         use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -503,7 +503,7 @@ contains
             LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
             CALL GENSymStatePairs(nBasis / 2, .false.)
             CALL SetupTMAT(nBasis, 2, TMATINT)
-            CALL CPMDINIT2INDINT(nBasis, I, G1, NEL, ECORE, THFORDER, ARR, BRR, iCacheFlag)
+            CALL CPMDINIT2INDINT(nBasis, I, G1, NEL, ECORE, tHFOrder, ARR, BRR, iCacheFlag)
         else if(tVASP) THEN
             call shared_allocate_mpi(umat_win, umat,(/1_int64/))
             !allocate(UMat(1), stat=ierr)
@@ -2031,4 +2031,3 @@ SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
     if(iProcIndex == Root) close(iunit)
     RETURN
 END SUBROUTINE CALCTMATUEG
-
