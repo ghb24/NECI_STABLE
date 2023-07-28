@@ -1839,8 +1839,8 @@ contains
                 ! Use the impurity model excitation generator (star geometry)
                 t_impurity_excitgen = .true.
             case ("MOLPROMIMIC")
-                call write (stdout, "(A)") "WARNING: using the molpromimc is strongly &
-                                            &discouraged. Consider order-by-1elec-energy instead."
+                write (stdout, "(A)") "WARNING: using the molpromimic keyword is strongly &
+                                            & discouraged. Consider order-by-1elec-energy instead."
                 !Mimic the run-time behaviour of molpros NECI implementation
                 tMolpro = .true.
                 tMolproMimic = .true.
