@@ -7,7 +7,7 @@ title
         nobrillouintheorem
         nonuniformrandexcits 4ind-weighted
         nonhermitian 2-body
-        uhf zer-delimited
+        uhf zero-delimited
     endsys
 
     calc
