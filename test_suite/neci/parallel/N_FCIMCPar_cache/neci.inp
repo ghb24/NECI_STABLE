@@ -1,6 +1,6 @@
 title
 
-system read noorder
+system read
     uhf spin-minor-index
     symignoreenergies
     electrons 7

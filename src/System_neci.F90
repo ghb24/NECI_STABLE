@@ -116,7 +116,7 @@ contains
         tCycleOrbs = .false.
         TSTARBIN = .false.
         TREADINT = .false.
-        THFORDER = .false.
+        tHFOrder = .false.
         TDFREAD = .false.
         tRIIntegrals = .false.
         TPBC = .false.
@@ -313,6 +313,9 @@ contains
                 ! tHFNoOrder flags which do different things.
                 tHFOrder = .true.
             case ("NOORDER")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            Note the default behaviour is to not
+                                            order orbitals.")
                 tHFNoOrder = .true.
             end select
         case ("BINREAD")            ! Instead, specify Binary within the system block.
@@ -321,8 +324,11 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             case ("NOORDER")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            Note the default behaviour is to not
+                                            order orbitals.")
                 tHFNoOrder = .true.
             end select
         case ("READ", "GENERIC")
@@ -330,8 +336,11 @@ contains
             w = to_upper(incompletely_parsed_tokens%next(if_exhausted=''))
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             case ("NOORDER")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            Note the default behaviour is to not
+                                            order orbitals.")
                 tHFNoOrder = .true.
             end select
 
@@ -411,7 +420,7 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             end select
         case ("BOX")
             tOneElecDiag = .true.   !One electron integrals diagonal
@@ -2165,7 +2174,7 @@ contains
                 write(stdout, "(A)", advance='no') '  SYMMETRIES : '
                 CALL WRITEALLSYM(5, SymRestrict, .true.)
             end if
-            IF (THFORDER) write(stdout, '(A)') "  Ordering according to 1-electron energies.  "
+            IF (tHFOrder) write(stdout, '(A)') "  Ordering according to 1-electron energies.  "
         else if (tVASP) THEN
             write(stdout, '(A)') '  *** GENERIC SYSTEM USING HF ORBITALS PRODUCED BY VASP ***  '
             CALL VASPSystemInit(LEN)
