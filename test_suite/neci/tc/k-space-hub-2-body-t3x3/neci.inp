@@ -1,6 +1,7 @@
 title
 
 system hubbard k-space
+    order-by-1elec-energy
     2-body-transcorr 0.05
     lattice tilted 3 3
     b -1

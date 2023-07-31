@@ -1,6 +1,7 @@
 Title
 
 System read
+    order-by-1elec-energy
     electrons  6
     nonuniformrandexcits mol_guga_weighted
     guga 0
@@ -40,4 +41,3 @@ logging
     popsfile -1
 endlog
 end
-
