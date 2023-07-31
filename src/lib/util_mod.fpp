@@ -25,7 +25,7 @@ module util_mod
     use dSFMT_interface, only: genrand_real2_dSFMT
     use DetBitOps, only: DetBitLt
     use, intrinsic :: iso_c_binding, only: c_char, c_int, c_double
-    use mpi, only: MPI_WTIME
+    use mpi_f08, only: MPI_WTIME
     use error_handling_neci, only: stop_all, neci_flush, warning_neci
 
     ! We want to use the builtin etime intrinsic with ifort to
@@ -1194,7 +1194,8 @@ contains
         real(dp), intent(out) :: time(2)
         real(dp) :: ret
 
-#if defined(IFORT_) || defined(INTELLLVM_)
+#if (defined(IFORT_) || defined(INTELLLVM_)) && __INTEL_COMPILER != 2021
+        ! Version ifort 2021.8.0 has a bug in etime function
         ! intels etime takes a real(4)
         real(sp) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules.

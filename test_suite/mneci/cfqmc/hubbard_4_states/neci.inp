@@ -12,6 +12,7 @@ system hubbard
 endsys
 
 calc
+    time 30
     lanczos-max-subspace-size 30
     lanczos-energy-precision 6
     lanczos-ritz-overlap-precision 3

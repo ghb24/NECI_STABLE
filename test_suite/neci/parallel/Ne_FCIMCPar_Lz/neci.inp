@@ -9,6 +9,7 @@ sym 0 0 0 0
 endsys
 
 calc
+    time 30
 eigenvalues 10
 methods
 method vertex fcimc

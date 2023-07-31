@@ -76,7 +76,7 @@ contains
 #else
             Call neci_GetArg(1, cInp)      !Read argument 1 into inp
 #endif
-            write(stdout, *) "Processing arguments", cinp
+            write(stdout, *) "Processing arguments ", cinp
             write(stdout, *) "Reading from file: ", Trim(cInp)
             file_reader = ManagingFileReader_t(trim(adjustl(cInp)))
         Else
@@ -227,8 +227,8 @@ contains
         ! Check that the specified runtime options are consistent and valid
 
         use SystemData, only: nel, tUseBrillouin, beta, tFixLz, &
-                              tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT, &
-                              tSpn, tUHF, tGenHelWeighted, tHPHF, &
+                              tFindCINatOrbs, tNoRenormRandExcits, LMS, &
+                              tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
@@ -714,7 +714,7 @@ contains
         if (tAFTruncBracket .and. .not. tTruncateHubbard) then
             call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
         end if
-        
+
         if (tExLevelAFCriterion .and. .not. tTruncateHubbard) then
             call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
         end if

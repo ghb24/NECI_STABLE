@@ -11,6 +11,7 @@ system hubbard
 endsys
 
 calc
+    time 30
     memoryfacspawn 30.0
     memoryfacpart 300.0
     totalwalkers 750

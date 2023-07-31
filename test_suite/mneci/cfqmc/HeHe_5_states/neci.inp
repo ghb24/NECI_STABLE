@@ -8,6 +8,7 @@ system read
 endsys
 
 calc
+    time 30
     tau-values \
         start user-defined 0.005
     totalwalkers 500

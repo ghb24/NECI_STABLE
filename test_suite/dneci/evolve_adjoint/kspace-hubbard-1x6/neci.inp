@@ -10,6 +10,7 @@ system hubbard k-space
 endsys
 
 calc
+    time 30
     methods
         method vertex fcimc
     endmethods
@@ -29,7 +30,6 @@ calc
     shiftdamp 0.1
     stepsshift 10
 
-    time 5400
     seed 1
     load-balance-blocks off
     nmcyc 10000

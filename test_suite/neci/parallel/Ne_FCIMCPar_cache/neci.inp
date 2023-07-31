@@ -7,6 +7,7 @@ umatepsilon 1.d-6
 endsys
 
 calc
+    time 30
 methods
 method vertex fcimc
 endmethods

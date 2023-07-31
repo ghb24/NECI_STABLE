@@ -9,6 +9,7 @@ system read
 endsys
 
 calc
+    time 30
     definedet    1    2    3    6   11   12   13   14   17   18   19   25   26   28
 
     methods
@@ -35,7 +36,6 @@ calc
     jump-shift
     memoryfacspawn 10.0
     memoryfacpart 5.0
-    time 2800
     startsinglepart 100
     readpops
     semi-stochastic

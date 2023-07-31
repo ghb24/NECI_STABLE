@@ -15,6 +15,7 @@ System read
 endsys
 
 calc
+    time 30
     seed 7
     load-balance-interval 1000
 
@@ -47,7 +48,6 @@ calc
         maxwalkerbloom 1
     memoryfacspawn 10.00
     memoryfacpart 5.00
-    time 200
     startsinglepart 10
 endcalc
 

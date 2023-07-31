@@ -8,6 +8,7 @@ nonuniformrandexcits mol_guga_weighted
 endsys
 
 calc
+    time 30
     methods
     method vertex fcimc
     endmethods

@@ -15,7 +15,8 @@ module semi_stoch_procs
 
     use calcrho_mod, only: igetexcitlevel
 
-    use mpi
+    use mpi_f08, only: MPI_INTEGER, MPI_INTEGER8, MPI_IN_PLACE, MPI_AllGather, &
+                       MPI_AllGatherv
 
     use CalcData
 

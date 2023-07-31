@@ -1,5 +1,5 @@
-#:include "macros.fpph"
-#:include "algorithms.fpph"
+#:include "../macros.fpph"
+#:include "../algorithms.fpph"
 
 
 #:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']

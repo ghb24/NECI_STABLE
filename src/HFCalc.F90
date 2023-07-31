@@ -33,7 +33,7 @@ contains
         character(25), parameter :: this_routine = 'HFDoCalc'
         HElement_t(dp), ALLOCATABLE :: HFBASIS(:), HFE(:)
         HElement_t(dp), pointer :: UMat2(:)
-        INTEGER(MPIArg):: umat2_win
+        type(MPI_Win):: umat2_win
         integer i
         integer nOrbUsed
         integer TMatInt

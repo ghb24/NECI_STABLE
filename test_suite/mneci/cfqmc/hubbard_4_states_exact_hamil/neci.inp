@@ -12,6 +12,7 @@ system hubbard
 endsys
 
 calc
+    time 30
     tau-values \
         start user-defined 0.01
     totalwalkers 18000

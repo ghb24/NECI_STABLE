@@ -250,7 +250,7 @@ contains
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
 !         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
-        call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
+        call h5pset_fapl_mpio_f(plist_id, CommGlobal%MPI_VAL, mpiInfoNull%MPI_VAL, err)
 
         ! TODO: Do sensible file handling here...
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
@@ -331,7 +331,7 @@ contains
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
 !         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
-        call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
+        call h5pset_fapl_mpio_f(plist_id, CommGlobal%MPI_VAL, mpiInfoNull%MPI_VAL, err)
 
         ! Open the popsfile
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &
@@ -941,7 +941,7 @@ contains
             [int(lenof_sign, hsize_t), all_count], & ! all dims
             [0_hsize_t, sum(counts(0:iProcIndex - 1))] & ! output offset
             )
-        
+
         call write_2d_multi_arr_chunk_buff( &
             wfn_grp_id, nm_flags, h5kind_to_type(int64, H5_INTEGER_KIND), &
             PrintedDets, &
@@ -1729,7 +1729,7 @@ contains
         integer(hid_t) :: file_id, plist_id
         integer(hdf_err) :: err
         integer :: mpi_err
-        
+
 
         write(6, *)
         write(6, *) "========== Reading in Bosonic WF from HDF5 popsfile =========="
@@ -1741,7 +1741,7 @@ contains
         ! Set up a property list to ensure file handling across all nodes.
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
 !         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
-        call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
+        call h5pset_fapl_mpio_f(plist_id, CommGlobal%MPI_VAL, mpiInfoNull%MPI_VAL, err)
 
         ! Open the popsfile
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &

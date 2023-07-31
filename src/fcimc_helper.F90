@@ -6,11 +6,9 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tRef_Not_HF, &
-                          tGUGA, t_3_body_excits, t_non_hermitian_2_body, &
+                          tGUGA, t_3_body_excits, non_hermitian, &
                           t_ueg_3_body, t_mol_3_body, t_pcpp_excitgen, t_heisenberg_model, &
-                          length_x, length_y, t_open_bc_x, t_open_bc_y, &
-                          FixedNodeCutoff, t_new_real_space_hubbard, &
-                          tPartialNodeThresh, PartialNodeThresh
+                          length_x, length_y, t_open_bc_x, t_open_bc_y
     use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
@@ -1301,7 +1299,7 @@ contains
             ! The determinants become
             ! non-initiators again if their population falls below
             ! n_add (this is on by default).
-            
+
             ! All of the references stay initiators
             if (DetBitEQ(ilut, ilutRef(:, run), nifd)) staticInit = .true.
             ! If det. is the HF det, or it
@@ -1433,7 +1431,7 @@ contains
             NoNonModShiftWalk = 0.0_dp
         end if
         InitRemoved = 0_int64
-        
+
         if (tBosonNoSpawn) then
             NoBosonActiveWalk = 0.0_dp
             NoSpawnDets = 0
@@ -1989,7 +1987,7 @@ contains
             CALL LogMemAlloc('V2', DetLen * NEVAL, 8, t_r, V2Tag, ierr)
             V2 = 0.0_dp
             !C..Lanczos iterative diagonalising routine
-            if (t_non_hermitian_2_body) then
+            if (non_hermitian()) then
                 call stop_all(t_r, &
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
@@ -2030,7 +2028,7 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = DetLen + 1
             nBlocks = 1
-            if (t_non_hermitian_2_body) then
+            if (non_hermitian()) then
                 call stop_all(t_r, &
                               "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if
@@ -2912,7 +2910,7 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: sgn(lenof_sign), change(lenof_sign)
         integer :: run, pt
-    
+
         call extract_sign(CurrentDets(:, det_idx), Sgn)
         call encode_sign(CurrentDets(:, det_idx), Sgn*ScaleFactor)
 
@@ -2944,7 +2942,7 @@ contains
         integer :: i, j, af_param, max_diff
         logical :: paired
         procedure(check_close), pointer :: are_close
-        
+
         if (lat%get_name() == 'square' .or. lat%get_name() == 'rectangle' .or. &
             lat%get_name() == 'hexagonal' .or. lat%get_name() == 'honeycomb') then
             are_close => are_close_direct
@@ -3056,13 +3054,13 @@ contains
                 end if
             end if
         endif
-        contains 
+        contains
 
         function af_func(ilut) result(val)
             integer(n_int), intent(in) :: ilut(0:niftot)
             integer :: i, j, idx, val
             integer, allocatable :: neighbors(:)
-            
+
             val = lat%get_total_links()
             do i = 1, lat%get_nsites()
                 neighbors = lat%get_neighbors(i)
@@ -3083,7 +3081,7 @@ contains
             integer :: r1(3), r2(3), x1, x2, y1, y2, dx, dy, lx, ly
             logical :: nearby, t_hc
             character(*), parameter :: this_routine = 'are_close_direct'
-            
+
             t_hc = ((lat%get_name() == 'hexagonal') .or. (lat%get_name() == 'honeycomb'))
 
             if(t_hc)then
@@ -3096,12 +3094,12 @@ contains
 
             r1 = lat%get_r_vec(site1)
             r2 = lat%get_r_vec(site2)
-            
+
             x1 = r1(1)
             x2 = r2(1)
 
             y1 = r1(2)
-            y2 = r2(2)            
+            y2 = r2(2)
 
             if(t_open_bc_x)then
                 dx = abs(x1-x2)
@@ -3114,7 +3112,7 @@ contains
             else
                 dy = min(modulo(y1-y2, ly), modulo(y2-y1, ly))
             endif
-            
+
             if(t_hc)then
                 select case(criterion)
 
@@ -3159,7 +3157,7 @@ contains
                 if (any(lat%get_neighbors(site1) == site2)) nearby = .true.
             else if (criterion == 1) then
                 diag_neighs = find_diag_neighs(lat%get_nn_neighbors(site1), &
-                    lat%get_num_neighbors(site1)**2) 
+                    lat%get_num_neighbors(site1)**2)
                 if (any(lat%get_neighbors(site1) == site2) .or. &
                     any(diag_neighs == site2)) nearby = .true.
             else if (criterion == 2) then
@@ -3173,7 +3171,7 @@ contains
             integer :: res(num_nn_neighs)
             integer, allocatable :: diag_neighs(:)
             integer :: i, j, ind, k
-            
+
             k = 0
             do i = 1, size(nn_neighs)
                 ind = nn_neighs(i)

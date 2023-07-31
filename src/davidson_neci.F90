@@ -63,7 +63,7 @@ module davidson_neci
 contains
 
     subroutine perform_davidson(this, hamil_type_in, print_info_in)
-        use mpi
+        use mpi_f08, only: MPI_WTIME
         integer, intent(in) :: hamil_type_in
         logical, intent(in) :: print_info_in
         logical :: print_info

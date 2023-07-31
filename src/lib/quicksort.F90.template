@@ -555,11 +555,14 @@ contains
         ! it IS a problem in debug build, however
         ! *** HACK MOD ***
         !to prevent crashes in debug mode
-        if((ubound(arr,%(dim-arr)s) - lbound(arr,%(dim-arr)s) + 1) &
-        > 0 ) a = arr(1)
+        %(custom_compare_prefix)s if((ubound(arr,%(dim-arr)s) - lbound(arr,%(dim-arr)s) + 1) > 0 ) then
+        %(custom_compare_prefix)s     a = arr(1)
+        %(custom_compare_prefix)s end if
 #endif
-        %(custom_compare_prefix)s if (custom_lt(a, a)) i = i
-        %(custom_compare_prefix)s if (custom_gt(a, a)) i = i
+        %(custom_compare_prefix)s if((ubound(arr,%(dim-arr)s) - lbound(arr,%(dim-arr)s) + 1) > 0 ) then
+        %(custom_compare_prefix)s     if (custom_lt(a, a)) i = i
+        %(custom_compare_prefix)s     if (custom_gt(a, a)) i = i
+        %(custom_compare_prefix)s end if
 
         if (present(nskip)) then
             nskip_ = nskip

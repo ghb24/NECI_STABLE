@@ -315,6 +315,10 @@ module CalcData
 ! trial wave functions estimates
     integer :: ntrial_ex_calc = 0
 
+! select the left (instead of right) eigenvector during the exact diagonalisation
+! step for the trial wave function
+    logical :: t_left_trial = .false.
+
 ! if we want to choose a specific excited states as the trial wf, if we
 ! have a reasonable estimate. this must be done for all replicas if
 ! multiple are used

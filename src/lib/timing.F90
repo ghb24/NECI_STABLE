@@ -39,7 +39,7 @@ module timing_neci
 != See the individual routines for more information.
 ! ========================================================================
     use constants, only: dp
-    use mpi, only: MPI_WTIME
+    use mpi_f08, only: MPI_WTIME
     use error_handling_neci, only: neci_flush, stop_all, warning_neci
     implicit none
     save
