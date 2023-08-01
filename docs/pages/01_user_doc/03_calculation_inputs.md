@@ -39,6 +39,14 @@ considered. The block starts with the `system` keyword and ends with the
         Read in the integrals from a FCIDUMP file, used for ab-initio
         calculations.
 
+    -   **order**<br>
+        Orders the orbitals (by default, does no reordering).
+        @warning
+        Please note, for best results you may wish to rather use
+        `order-by-1elec-energy` below, also in the system block as the
+        behaviour is better understood.
+        @endwarning
+
     -   **FCIDUMP-name**<br>
         Specify the name of the FCIDUMP file. Defaults to FCIDUMP.
 
@@ -966,6 +974,11 @@ and is stopped after 10000 iterations.
     `definedet 1 2 3 5`<br>
     with the first spatial orbital doubly occupied and 2 open-shell
     orbitals (positively spin coupled, hence odd numbers).
+
+-   **order-by-1elec-energy**<br>
+    Orders the orbitals based on the 1-electron energies. Not that this
+    take precedence if both this keyword and an order keyword in the header
+    was given. Recommended when running model Hamiltonian calculations.
 
 -   **readPops**<br>
     Read in the wave function from a file and use the read-in wave

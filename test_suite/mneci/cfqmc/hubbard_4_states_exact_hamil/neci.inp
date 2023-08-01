@@ -1,4 +1,5 @@
 system hubbard
+    order-by-1elec-energy
     system-replicas 8
     cell 12 1 1
     b -1

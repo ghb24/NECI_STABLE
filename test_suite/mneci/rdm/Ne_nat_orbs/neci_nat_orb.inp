@@ -4,6 +4,7 @@ system read
     electrons 8
     nonuniformrandexcits 4ind-weighted
     FCIDUMP-name ROFCIDUMP
+    order-by-1elec-energy
 endsys
 
 calc

@@ -116,7 +116,7 @@ contains
         tCycleOrbs = .false.
         TSTARBIN = .false.
         TREADINT = .false.
-        THFORDER = .false.
+        tHFOrder = .false.
         TDFREAD = .false.
         tRIIntegrals = .false.
         TPBC = .false.
@@ -215,7 +215,7 @@ contains
         DiagMaxMinFac = -1
         OneElMaxMinFac = 1
         tDiagonalizehij = .false.
-        tHFNoOrder = .false.
+        tHFNoOrder = .true.
         tSymIgnoreEnergies = .false.
         tPickVirtUniform = .false.
         tStoquastize = .false.
@@ -316,9 +316,14 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                ! for some absolutely asinine reason, NECI has both tHFOrder and
+                ! tHFNoOrder flags which do different things.
+                tHFOrder = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            &Note the default behaviour is to not &
+                                            &order orbitals.")
+                tHFNoOrder = .true.
             end select
         case ("BINREAD")            ! Instead, specify Binary within the system block.
             TREADINT = .true.
@@ -326,18 +331,24 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            &Note the default behaviour is to not &
+                                            &order orbitals.")
+                tHFNoOrder = .true.
             end select
         case ("READ", "GENERIC")
             TREADINT = .true.
             w = to_upper(incompletely_parsed_tokens%next(if_exhausted=''))
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            &Note the default behaviour is to not &
+                                            &order orbitals.")
+                tHFNoOrder = .true.
             end select
 
         case ("HUBBARD")
@@ -416,7 +427,7 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             end select
         case ("BOX")
             tOneElecDiag = .true.   !One electron integrals diagonal
@@ -531,6 +542,11 @@ contains
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
                 pParallel = 0.0_dp
+
+            case ("ORDER-BY-1ELEC-ENERGY")
+            ! do the old default behaviour
+                tHFNoOrder = .false.
+                tHFOrder = .false.
 
             case ("SYM")
                 TPARITY = .true.
@@ -2180,7 +2196,7 @@ contains
                 write(stdout, "(A)", advance='no') '  SYMMETRIES : '
                 CALL WRITEALLSYM(5, SymRestrict, .true.)
             end if
-            IF (THFORDER) write(stdout, '(A)') "  Ordering according to 1-electron energies.  "
+            IF (tHFOrder) write(stdout, '(A)') "  Ordering according to 1-electron energies.  "
         else if (tVASP) THEN
             write(stdout, '(A)') '  *** GENERIC SYSTEM USING HF ORBITALS PRODUCED BY VASP ***  '
             CALL VASPSystemInit(LEN)
@@ -2472,7 +2488,7 @@ contains
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
-                IF (.NOT. THFNOORDER) THEN
+                IF (.not. tHFNoOrder) THEN
                     CALL ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
                 ELSE
                     !.. copy the default ordered energies.
@@ -3223,7 +3239,7 @@ contains
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
-        IF (.NOT. THFNOORDER) THEN
+        IF (.not. tHFNoOrder) THEN
             CALL ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
         ELSE
 !.. copy the default ordered energies.
@@ -3645,4 +3661,3 @@ contains
     end subroutine
 
 END MODULE System
-

@@ -1,6 +1,7 @@
 title
 
 system hubbard k-space
+    order-by-1elec-energy
     2-body-transcorr 0.1
     lattice chain 6 1
     b -1

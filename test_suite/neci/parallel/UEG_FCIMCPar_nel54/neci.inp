@@ -1,6 +1,7 @@
 title
 
 system ueg
+    order-by-1elec-energy
     electrons 54
     nosymmetry
     nonuniformrandexcits nosymgen

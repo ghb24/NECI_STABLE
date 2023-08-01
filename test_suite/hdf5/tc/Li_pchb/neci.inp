@@ -1,6 +1,6 @@
 title
 
-system read noorder
+system read
     electrons 3
     nobrillouintheorem
     nonuniformrandexcits pchb \

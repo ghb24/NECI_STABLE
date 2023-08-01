@@ -1,4 +1,5 @@
 system ueg
+    order-by-1elec-energy
     electrons   3
     dimension 3
     cell 3 3 3
