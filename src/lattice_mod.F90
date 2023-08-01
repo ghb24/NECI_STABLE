@@ -589,7 +589,7 @@ module lattice_mod
             integer :: n_sites
         end function calc_nsites_t
 
-        logical pure function is_periodic_t(this, dimen)
+        logical elemental function is_periodic_t(this, dimen)
             import :: lattice
             class(lattice), intent(in) :: this
             integer, intent(in), optional :: dimen
@@ -1355,7 +1355,7 @@ contains
     end function is_k_space
 
     ! for the beginning set the aim periodicity to false all the time!
-    logical pure function is_periodic_aim(this, dimen)
+    logical elemental function is_periodic_aim(this, dimen)
         class(aim), intent(in) :: this
         integer, intent(in), optional :: dimen
         unused_var(this)
@@ -4108,9 +4108,9 @@ contains
 
     end subroutine aim_deconstructor
 
-    function get_neighbors_site(this) result(neighbors)
+    pure function get_neighbors_site(this) result(neighbors)
         ! this is a generic routine to get the neighbors of a site
-        class(site) :: this
+        class(site), intent(in) :: this
         ! i need assumed array shape and size here or? check how i do that!
         ! can i use the stored number of neighbors in the type?
         ! i can use n_neighbors directly but not the function which gets me
@@ -4121,8 +4121,8 @@ contains
 
     end function get_neighbors_site
 
-    function get_num_neighbors_lattice(this, ind) result(n_neighbors)
-        class(lattice) :: this
+    pure function get_num_neighbors_lattice(this, ind) result(n_neighbors)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: ind
         integer :: n_neighbors
 #ifdef DEBUG_
@@ -4140,8 +4140,8 @@ contains
 
     end function get_num_neighbors_lattice
 
-    function get_neighbors_lattice(this, ind) result(neighbors)
-        class(lattice) :: this
+    pure function get_neighbors_lattice(this, ind) result(neighbors)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: ind
         ! i can't really use the stored information here, since it is
         ! input dependent and this can be out of bound.. exactly what i
@@ -4173,28 +4173,19 @@ contains
 
     end function get_neighbors_lattice
 
-    function get_nn_neighbors_lattice(this, ind) result(res)
-        class(lattice) :: this
+    pure function get_nn_neighbors_lattice(this, ind) result(res)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: ind
         integer :: i, j, k, nn_ind, num_nn_neighbors_dup, neigh
         integer, allocatable :: neighbors(:)
         integer, allocatable :: nn_neighbors_dup(:), res(:)
-!        integer :: len
-!        integer, allocatable :: inp(:)
 
         neighbors = this%get_neighbors(ind)
-        
-!        num_nn_neighbors = 0
-!        do i = 1, this%sites(ind)%get_num_neighbors()
-!            ! The original site is always also a neighbor of neighbors
-!            ! but we do not want to include it in this counting, thus -1.
-!            num_nn_neighbors = num_nn_neighbors + this%sites(i)%get_num_neighbors() - 1
-!        end do
-        
+
         ! Be careful for more exotic lattices! Check later.
         num_nn_neighbors_dup = this%sites(ind)%get_num_neighbors()
         allocate(nn_neighbors_dup(num_nn_neighbors_dup**2))
-        
+
         k = 0
         do i = 1, this%sites(ind)%get_num_neighbors()
             neigh = this%sites(ind)%neighbors(i)
@@ -4206,13 +4197,11 @@ contains
                 end if
             end do
         end do
-        
-        allocate(res(k))
-        res(1:k) = nn_neighbors_dup(1:k)
+        res = nn_neighbors_dup(1:k)
     end function get_nn_neighbors_lattice
 
-    function get_spinorb_neighbors_lat(this, spinorb) result(neighbors)
-        class(lattice) :: this
+    pure function get_spinorb_neighbors_lat(this, spinorb) result(neighbors)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: spinorb
         integer, allocatable :: neighbors(:)
 #ifdef DEBUG_
@@ -4234,16 +4223,16 @@ contains
 
     end function get_spinorb_neighbors_lat
 
-    function get_spinorb_nn_neighbors_lat(this, spinorb) result(neighbors)
-        class(lattice) :: this 
+    pure function get_spinorb_nn_neighbors_lat(this, spinorb) result(neighbors)
+        class(lattice), intent(in) :: this
         integer, intent(in) :: spinorb
-        integer, allocatable :: neighbors(:) 
+        integer, allocatable :: neighbors(:)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_spinorb_neighbors_lat"
 #endif
 
         ASSERT(spinorb <= 2*this%get_nsites())
-        ASSERT(spinorb > 0) 
+        ASSERT(spinorb > 0)
         ASSERT(allocated(this%sites))
         ASSERT(allocated(this%sites(get_spatial(spinorb))%neighbors))
 
@@ -4251,7 +4240,7 @@ contains
 
         if (is_beta(spinorb)) then
             neighbors = 2 * neighbors - 1
-        else 
+        else
             neighbors = 2 * neighbors
         end if
 
@@ -4310,7 +4299,7 @@ contains
 
     end function calc_nsites_star
 
-    logical pure function is_periodic_aim_star(this, dimen)
+    logical elemental function is_periodic_aim_star(this, dimen)
         class(aim_star), intent(in) :: this
         integer, intent(in), optional :: dimen
         unused_var(this)
@@ -4726,7 +4715,7 @@ contains
 
     end subroutine set_length_aim_chain
 
-    logical pure function is_periodic_star(this, dimen)
+    logical elemental function is_periodic_star(this, dimen)
         ! this is always false.. the star geometry can't be periodic
         class(star), intent(in) :: this
         integer, intent(in), optional :: dimen
@@ -4738,7 +4727,7 @@ contains
 
     end function is_periodic_star
 
-    logical pure function is_periodic_chain(this, dimen)
+    logical elemental function is_periodic_chain(this, dimen)
         class(chain), intent(in) :: this
         integer, intent(in), optional :: dimen
         debug_function_name("is_periodic_chain")
@@ -4746,7 +4735,7 @@ contains
         is_periodic_chain = this%t_periodic(1)
     end function is_periodic_chain
 
-    logical pure function is_periodic_cube(this, dimen)
+    logical elemental function is_periodic_cube(this, dimen)
         class(cube), intent(in) :: this
         integer, intent(in), optional :: dimen
         debug_function_name("is_periodic_cube")
@@ -4759,7 +4748,7 @@ contains
         end if
     end function is_periodic_cube
 
-    logical pure function is_periodic_rect(this, dimen)
+    logical elemental function is_periodic_rect(this, dimen)
         class(rectangle), intent(in) :: this
         integer, intent(in), optional :: dimen
         debug_function_name("is_periodic_rect")
@@ -4771,15 +4760,15 @@ contains
         end if
     end function is_periodic_rect
 
-    logical function is_periodic_x(this)
-        class(lattice) :: this
+    elemental logical function is_periodic_x(this)
+        class(lattice), intent(in) :: this
 
         is_periodic_x = this%t_periodic_x
 
     end function is_periodic_x
 
-    logical function is_periodic_y(this)
-        class(lattice) :: this
+    elemental logical function is_periodic_y(this)
+        class(lattice), intent(in) :: this
 
         is_periodic_y = this%t_periodic_y
 
@@ -4932,7 +4921,7 @@ contains
     function calc_total_links(this) result(total_links)
         class(lattice) :: this
         integer :: ind, total_links
-        
+
         total_links = 0
         do ind = 1, this%get_nsites()
             total_links = total_links + this%get_num_neighbors(ind)
@@ -5034,7 +5023,7 @@ contains
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
         hel = get_helement_lattice_ex_mat(nI, ic, ex, tpar)
-        if (tStoquastize .and. ic /= 0) hel = -abs(hel)        
+        if (tStoquastize .and. ic /= 0) hel = -abs(hel)
     end function
 
     ! These wrapper functions just exist because of this bug
@@ -5045,6 +5034,6 @@ contains
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel
         hel = get_helement_lattice_general(nI, nJ, ic_ret)
-        if (tStoquastize .and. .not. all(nI == nJ)) hel = -abs(hel)        
+        if (tStoquastize .and. .not. all(nI == nJ)) hel = -abs(hel)
     end function
 end module lattice_mod

@@ -1045,9 +1045,11 @@ contains
                             if (iter < (ModShiftTargetIter+ModShiftConstIters)) then
                                 DiagSft2(run) = DiagSft2Init
                             else
-                                DiagSft2(run) = DiagSft2(run) - (log(AllNoNonModShiftWalk(run)/OldAllNoNonModShiftWalk(run)) * SftDamp + &
-                                    log(AllNoNonModShiftWalk(run)/TargetWalkers2) * SftDamp2) / &
-                                    (Tau * StepsSft)
+                                DiagSft2(run) = &
+                                    DiagSft2(run) &
+                                    - (log(AllNoNonModShiftWalk(run)/OldAllNoNonModShiftWalk(run)) * SftDamp &
+                                            + log(AllNoNonModShiftWalk(run)/TargetWalkers2) * SftDamp2) &
+                                        / (Tau * StepsSft)
                             end if
                         end if
 
@@ -1164,7 +1166,7 @@ contains
 
                     ! How should the shift change for the entire ensemble of walkers
                     ! over all processors.
-                    
+
                     if (tModShiftTarget .and. iter > ModShiftTargetIter) then
                         tModShiftPhase = .true.
                     end if
@@ -1405,7 +1407,7 @@ contains
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
-        
+
         ! For the init-shift
         OldAllNoInitWalk = AllNoInitWalk
 

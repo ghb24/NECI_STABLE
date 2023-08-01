@@ -1027,7 +1027,7 @@ contains
 
             ! for scaled walkers, truncation is done here
             t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
-            
+
 
             if (tSuccess) then
                 ! Our SpawnedParts determinant is found in CurrentDets.
@@ -1076,12 +1076,14 @@ contains
                 tExpandedState = test_flag(CurrentDets(:, PartInd), flag_expanded)
                 ! Transfer new sign across.
 
-                if (sum(abs(CurrentSign)) >= 1e-12_dp .or. tDetermState .or. tExpandedState .or. &
-                    test_flag(CurrentDets(:, PartInd), flag_nospawn)) then
+                if (sum(abs(CurrentSign)) >= 1e-12_dp .or. tDetermState &
+                    .or. tExpandedState &
+                    .or. test_flag(CurrentDets(:, PartInd), flag_nospawn)) then
 
                     ! If the sign changed, the adi check has to be redone
-                    if (any(real(SignProd, dp) < 0.0_dp)) &
+                    if (any(real(SignProd, dp) < 0.0_dp)) then
                         call clr_flag(CurrentDets(:, PartInd), flag_adi_checked)
+                    end if
 
                     ! this det is not prone anymore
                     if (t_prone_walkers) call clr_flag(CurrentDets(:, PartInd), flag_prone)
@@ -1094,8 +1096,10 @@ contains
                             ! run we're considering. We need to
                             ! decide whether to abort it or not.
                             if (tTruncInitiator .and. .not. tAllowSpawnEmpty .and. .not. tModShiftPhase) then
-                                if (.not. test_flag(SpawnedParts(:, i), get_initiator_flag(j)) .and. &
-                                    .not. tDetermState .and. .not. tExpandedState) then
+                                if (.not. (test_flag(SpawnedParts(:, i), get_initiator_flag(j)) &
+                                            .or. tDetermState .or. tExpandedState) &
+                                    ) then
+
                                     ! Walkers came from outside initiator space.
                                     ! have to also keep track which RK step
                                     if (.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
@@ -1167,7 +1171,7 @@ contains
                             end if
                         end if
                         if (tNoNegSpawns) then
-                            if (test_flag(CurrentDets(:, PartInd), flag_signflip(run))) then 
+                            if (test_flag(CurrentDets(:, PartInd), flag_signflip(run))) then
                                 prefac(run) = -1.0_dp
                             else
                                 prefac(run) = 1.0_dp
@@ -1181,20 +1185,21 @@ contains
                             !print *, "existing 2: ", get_corr_pop(PartInd, run)
                         end if
                     end do ! over all components of the sign
-                    
+
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
                     call encode_sign(SpawnedParts(:, i), null_part)
 
-                    if (.not. tDetermState .and. .not. tExpandedState) then
+                    if (.not. (tDetermState .or. tExpandedState)) then
                         call extract_sign(CurrentDets(:, PartInd), SignTemp)
                         if (IsUnoccDet(SignTemp)) then
                             ! All walkers in this main list have been annihilated
                             ! away. Remove it from the hash index array so that
                             ! no others find it (it is impossible to have another
                             ! spawned walker yet to find this determinant).
-                            if (.not. tAccumEmptyDet(CurrentDets(:, PartInd)) &
-                                .and. .not. test_flag(CurrentDets(:, PartInd), flag_nospawn)) then 
+                            if (.not. (tAccumEmptyDet(CurrentDets(:, PartInd)) &
+                                        .or. test_flag(CurrentDets(:, PartInd), flag_nospawn)) &
+                                ) then
                                 call RemoveHashDet(HashIndex, nJ, PartInd)
                             end if
                         end if
@@ -1234,11 +1239,7 @@ contains
                     ! initiator criterion?
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-                        if (tModShiftPhase) then
-                            abort(j) = .false.
-                        else
-                            abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
-                        end if
+                        abort(j) = .not. tModShiftPhase .and. test_abort_spawn(SpawnedParts(:, i), j)
                     end do
 
                     ! If calculating an EN2 correction to initiator error,
@@ -1303,11 +1304,8 @@ contains
                                 do j = 1, lenof_sign
                                     run = part_type_to_run(j)
                                     call add_corr_pop(PartInd, run, SpawnedSign(j))
-                                    !print *, "new 1: ", SpawnedSign(j)
-                                    !print *, "new 2: ", get_corr_pop(PartInd, run)
                                 end do
                             end if
-                            ! abort upon error
                             if (err /= 0) return
                         end if
                     end if
@@ -1316,17 +1314,6 @@ contains
                     ! Determinant in newly spawned list is not found in
                     ! CurrentDets. If coeff <1, apply removal criterion.
                     call extract_sign(SpawnedParts(:, i), SpawnedSign)
-                    
-!                    if (tNoNegSpawns) then
-!                        do j = 1, lenof_sign
-!                            run = part_type_to_run(j)
-!                            if (test_flag(SpawnedParts(:, i), flag_signflip(run))) then
-!                                SpawnedSign(j) = -SpawnedSign(j)
-!                                call clr_flag(SpawnedParts(:, i), flag_signflip(run))
-!                            end if
-!                        end do
-!                        call encode_sign(SpawnedParts(:, i), SpawnedSign)
-!                    end if
 
                     ! no chance to kill the spawn by initiator criterium
                     ! so get the diagH immediately

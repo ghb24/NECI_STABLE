@@ -609,8 +609,9 @@ contains
                 if (ntrial_excits == 1) then
                     trial_numerator = trial_numerator + conjg(current_trial_amps(1, ind)) * cmplxwsign / guideI
                     if (test_flag(ilut, get_initiator_flag_by_run(1))) &
-                        init_trial_numerator = init_trial_numerator + conjg( &
-                                               current_trial_amps(1, ind)) * CmplxwSign / guideI
+                        init_trial_numerator = &
+                              init_trial_numerator &
+                              + conjg(current_trial_amps(1, ind)) * CmplxwSign / guideI
                 else if (ntrial_excits == lenof_sign) then
                     call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
                 end if
@@ -1382,8 +1383,8 @@ contains
             tot_sgn = mag_of_run(sign, run)
         end if
         ! make it an initiator
-        init_flag = (tot_sgn > scaledInitiatorWalkNo &
-            .or. (tTruncInitHalf .and. (sign(run) .gt. 0.0_dp)))
+        init_flag = tot_sgn > scaledInitiatorWalkNo &
+                     .or. (tTruncInitHalf .and. (sign(run) > 0.0_dp))
     end function initiator_criterium
 
     function spawn_criterium(idx) result(spawnInit)
@@ -2426,8 +2427,8 @@ contains
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
 
         ! In the initiator approximation, abort any anti-particles.
-        if (tTruncInitiator .and. any(abs(CopySign) > 1.0e-12_dp) .and. .not. &
-            tModShiftPhase) then
+        if (tTruncInitiator .and. any(abs(CopySign) > 1.0e-12_dp) &
+                .and. .not. tModShiftPhase) then
             do i = 1, lenof_sign
                 if (CopySign(i) > 0.0_dp .neqv. RealwSign(i) > 0.0_dp) then
                     NoAborted(i) = NoAborted(i) + abs(CopySign(i))
@@ -3146,27 +3147,27 @@ contains
             endif
         end function are_close_direct
 
-        function are_close_via_neighbors(site1, site2, criterion) result(nearby)
+        pure function are_close_via_neighbors(site1, site2, criterion) result(nearby)
             integer, intent(in) :: site1, site2
             integer, intent(in) :: criterion
             integer, allocatable :: diag_neighs(:)
             logical :: nearby
 
-            nearby = .false.
             if (criterion == 0) then
-                if (any(lat%get_neighbors(site1) == site2)) nearby = .true.
+                nearby = any(lat%get_neighbors(site1) == site2)
             else if (criterion == 1) then
-                diag_neighs = find_diag_neighs(lat%get_nn_neighbors(site1), &
-                    lat%get_num_neighbors(site1)**2)
-                if (any(lat%get_neighbors(site1) == site2) .or. &
-                    any(diag_neighs == site2)) nearby = .true.
+                diag_neighs = find_diag_neighs(&
+                            lat%get_nn_neighbors(site1), &
+                            lat%get_num_neighbors(site1)**2)
+                nearby = any(lat%get_neighbors(site1) == site2) &
+                            .or. any(diag_neighs == site2)
             else if (criterion == 2) then
-                if (any(lat%get_neighbors(site1) == site2) .or. &
-                    any(lat%get_nn_neighbors(site1) == site2)) nearby = .true.
+                nearby = any(lat%get_neighbors(site1) == site2) &
+                            .or.  any(lat%get_nn_neighbors(site1) == site2)
             end if
         end function are_close_via_neighbors
 
-        function find_diag_neighs(nn_neighs, num_nn_neighs) result(diag_neighs)
+        pure function find_diag_neighs(nn_neighs, num_nn_neighs) result(diag_neighs)
             integer, intent(in) :: num_nn_neighs, nn_neighs(num_nn_neighs)
             integer :: res(num_nn_neighs)
             integer, allocatable :: diag_neighs(:)
@@ -3175,7 +3176,7 @@ contains
             k = 0
             do i = 1, size(nn_neighs)
                 ind = nn_neighs(i)
-                do j = i+1, size(nn_neighs)
+                do j = i + 1, size(nn_neighs)
                     if (nn_neighs(j) == ind) then
                         k = k + 1
                         res(k) = ind
@@ -3183,9 +3184,7 @@ contains
                 end do
             end do
 
-            allocate(diag_neighs(k))
-
-            diag_neighs(1:k) = res(1:k)
+            diag_neighs = res(1:k)
         end function
 
     end function IsTruncated

@@ -234,7 +234,7 @@ contains
                                    (/"IC0   ", "single", "double", "triple"/)
 
         integer :: tmp_det(nel)
-        
+
         real(dp) :: t_rat
 
         if (tJustBlocking) then
@@ -661,11 +661,11 @@ contains
                     call calc_FullProjE()
                     if(iProcIndex == root) then
                         write(FullProjE_Unit,"(i12,4g16.7)",advance = 'yes') &
-                        Iter + PreviousCycles, &                   
-                        DiagSft(1) + Hii, &                           
-                        AllTotParts(1), & 
-                        FullProjE_Num(1), &
-                        FullProjE_Den(1)
+                            Iter + PreviousCycles, &
+                            DiagSft(1) + Hii, &
+                            AllTotParts(1), &
+                            FullProjE_Num(1), &
+                            FullProjE_Den(1)
                     end if
                 endif
 
@@ -731,7 +731,7 @@ contains
                     endif
                 endif
 
-                if(tInitExpand)then
+                InitExpand: if (tInitExpand)then
                     do run = 1, inum_runs
                         if(Iter+PreviousCycles==InitExpandStart)then
                             tTruncInitiator = .false.
@@ -772,10 +772,10 @@ contains
                                     enddo
                                 endif
                             endif
-                            if(tInitExpandAnnihil)then
+                            if (tInitExpandAnnihil) then
                                 if(mod(Iter+PreviousCycles-InitExpandStart, InitExpandPeriod)==InitExpandIters+InitExpandAnnihilIters)then
                                     tInitProbation = .false.
-                                    if(abs(AllNoatHF(run))<=DBLE(N0_Target))then
+                                    if(abs(AllNoatHF(run)) <= real(N0_Target, dp))then
                                         tFixedN0 = .true.
                                         tSkipRef(run) = .true.
                                     else
@@ -785,13 +785,13 @@ contains
                                                 call clr_flag(CurrentDets(:, j), get_initiator_flag_by_run(run))
                                                 call clr_flag(CurrentDets(:, j), flag_expanded)
                                             endif
-                                        enddo
+                                        end do
                                     endif
                                 endif
                             endif
                         endif
                     enddo
-                endif
+                end if InitExpand
 
                 if (iProcIndex == root) TotalTime8 = real(s_end - s_global_start, dp)
 
@@ -1347,7 +1347,7 @@ contains
         real(dp):: RenormFactor(lenof_sign)
         integer :: lb, ub
 
-        real(dp), dimension(lenof_sign) :: prefac
+        real(dp) :: prefac(lenof_sign)
 
         call set_timer(Walker_Time, 30)
         err = 0
@@ -1447,7 +1447,7 @@ contains
         endif
 
         loop_over_determinants: do j = 1, int(TotWalkers, sizeof_int)
-            
+
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
@@ -1615,7 +1615,7 @@ contains
                     .or. tAccumEmptyDet(CurrentDets(:, j)) &
                     .or. test_flag(CurrentDets(:, j), flag_nospawn) &
                     .or. test_flag(CurrentDets(:, j), flag_expanded)) cycle
-                
+
                 !It has been removed from the hash table already
                 !Just add to the "freeslot" list
                 iEndFreeSlot = iEndFreeSlot + 1
@@ -1814,7 +1814,7 @@ contains
                         cycle
                     endif
                 endif
-                
+
                 if (tNoNegSpawns .and. (SignCurr(part_type) .le. 0.0_dp)) cycle
 
                 run = part_type_to_run(part_type)
@@ -1979,12 +1979,6 @@ contains
                                   HDiagCurr, SignCurr, j, WalkExcitLevel, &
                                   t_core_die_=.false.)
             end if
-            
-!            if (tModShiftCorr) then
-!                if (.not. test_flag(CurrentDets(:, j), flag_modshift)) then
-!                    call scale_corr_pop(j, run, ModShiftCorrPrefac*(DiagSft(run)-DiagSft2(run))*tau)
-!                end if
-!            end if
 
         end do loop_over_determinants
 
@@ -2075,7 +2069,7 @@ contains
             call perform_death_all_walkers(iter_data)
             call halt_timer(death_time)
         end if
-            
+
         call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data, err)
 
         ! if any proc ran out of memory, terminate

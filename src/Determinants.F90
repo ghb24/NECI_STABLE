@@ -1,6 +1,7 @@
 #include "macros.h"
 module Determinants
-    use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det, GetBitExcitation
+    use DetBitOps, only: EncodeBitDet, count_open_orbs, &
+        spatial_bit_det, GetBitExcitation, FindBitExcitLevel, FindExcitBitDetSym
     use DeterminantData, only: Fdet, calculated_ms, tagfdet, write_det, write_det_len
     use IntegralsData, only: UMat, FCK, NMAX, nFrozen, nFrozenIn
     use MemoryManager, only: TagIntType
@@ -16,6 +17,7 @@ module Determinants
         tuegspecifymomentum, tusebrillouin, t_k_space_hubbard, &
         tStoquastize, t_heisenberg_model, tHPHF, exchange_j
     use bit_rep_data, only: nIfTot
+    use bit_reps, only: decode_bit_det
     use blas_interface_mod, only: dcopy
     use constants, only: Pi, Pi2, THIRD, dp, n_int, bits_n_int, int64, maxExcit, stdout
     use excitation_types, only: Excitation_t, Excite_2_t, get_excitation
@@ -30,6 +32,12 @@ module Determinants
     use util_mod, only: NECI_ICOPY, operator(.div.)
     use error_handling_neci, only: stop_all
     use fmt_utils, only: int_fmt
+    use FCIMCData, only: Hii
+    use CalcData, only: tGutzwillerGuide, GutzwillerParam, &
+        tGutzwillerHubbardAF, GutzwillerParam2, &
+        tHubbardDoublonHolon, GutzwillerParam3, tHartreeGutzwiller, &
+        tAbinitioGutzwillerGuide, orb_coeff
+    use HartreeFockGuide, only: calc_det_ratio, calc_abinitio_det_ratio
 
     better_implicit_none
     private
@@ -318,14 +326,6 @@ contains
     End Subroutine DetPreFreezeInit
 
     function calcImportanceRatio(nI_, iLutnI_, nJ, iLutnJ) result(ratio)
-        use CalcData, only: tGutzwillerGuide, GutzwillerParam, &
-            tGutzwillerHubbardAF, GutzwillerParam2, &
-            tHubbardDoublonHolon, GutzwillerParam3, tHartreeGutzwiller, &
-            tAbinitioGutzwillerGuide, orb_coeff
-        use HartreeFockGuide, only: calc_det_ratio, calc_abinitio_det_ratio
-        use DetBitOps, only: FindBitExcitLevel, FindExcitBitDetSym
-        use lattice_mod, only: lat
-        use bit_reps, only: decode_bit_det
         integer, intent(in) :: nI_(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutnI_(0:niftot), iLutnJ(0:niftot)
         integer(kind=n_int) :: iLutnI(0:niftot)
@@ -342,7 +342,7 @@ contains
             !Make sure to have the connected pair
             ExcitLevel = FindBitExcitLevel(ilutnI_, ilutnJ, 3)
             if(ExcitLevel>2)then
-                call FindExcitBitDetSym(iLutnI_, iLutnI) 
+                call FindExcitBitDetSym(iLutnI_, iLutnI)
                 call decode_bit_det(nI, iLutnI)
             else
                 iLutnI = iLutnI_
@@ -376,18 +376,27 @@ contains
                 !psi = exp(-b*\sum_{i} n_{i \uparrow} n_{i \downarrow})
                 !(number of double occupations in the exponent which is given by
                 !the diagonal matrix element of the respective determinant)
-                
+
                 if (tHartreeGutzwiller) then
                       call calc_det_ratio(nJ,nI,det_ratio)
-                      ratio = abs(det_ratio)*exp(GutzwillerParam* &
-                      (real(get_helement(nJ,nJ,0))-real(get_helement(nI,nI,0))))
+                      ratio = abs(det_ratio) &
+                                * exp(GutzwillerParam &
+                                        * (real(get_helement(nJ, nJ, 0)) &
+                                            - real(get_helement(nI, nI, 0)) &
+                                          ) &
+                                )
                 else if (tAbinitioGutzwillerGuide) then
                     call calc_abinitio_det_ratio(nJ, nI, orb_coeff, det_ratio)
-                    ratio = abs(det_ratio)*exp(GutzwillerParam*(real(get_helement(nJ,nJ,0))&
-                                                               -real(get_helement(nI,nI,0)))) 
-                else 
-                     ratio = exp(GutzwillerParam* &
-                    (real(get_helement(nJ,nJ,0))-real(get_helement(nI,nI,0))))
+                    ratio = abs(det_ratio) &
+                             * exp(GutzwillerParam &
+                                        * (real(get_helement(nJ, nJ, 0)) &
+                                            - real(get_helement(nI, nI, 0))) &
+                                )
+                else
+                     ratio = exp(GutzwillerParam &
+                                  * (real(get_helement(nJ, nJ, 0)) &
+                                      - real(get_helement(nI, nI, 0))) &
+                            )
                 end if
 
                 if(tGutzwillerHubbardAF)then
@@ -420,8 +429,8 @@ contains
                     ratio = ratio * exp(contrib * GutzwillerParam2)
                 endif
                 if(tHubbardDoublonHolon)then
-                    ! Implementing a diagonal guiding wavefunction that enhances 
-                    ! doublons and holons to be nearby. In a first step only nearest 
+                    ! Implementing a diagonal guiding wavefunction that enhances
+                    ! doublons and holons to be nearby. In a first step only nearest
                     ! neighbours are considered:
                     ! \sum_<i, j> = d_i d_j + h_i h_j - d_i h_j - h_i d_j
                     ! with d_i = n_{i, up} n_{i, down}
@@ -432,7 +441,7 @@ contains
                     ASSERT(same_spin(ex(1,1),ex(2,1)))
                     ! Factor 2 because also the contribution of the neighbouring
                     ! sites changes, respectively.
-                    contrib = 2.0*(calcDoubHolContrib(ilutnJ, ex(1,1)) & 
+                    contrib = 2.0*(calcDoubHolContrib(ilutnJ, ex(1,1)) &
                         + calcDoubHolContrib(ilutnJ, ex(2,1)) &
                         - calcDoubHolContrib(ilutnI, ex(1,1)) &
                         - calcDoubHolContrib(ilutnI, ex(2,1)))
@@ -444,7 +453,7 @@ contains
         endif
 
 
-        contains 
+        contains
 
         function calcSiteContrib(i) result(contrib)
 
@@ -452,7 +461,7 @@ contains
             integer, allocatable :: neighbors(:)
             real(dp) :: contrib
             integer :: idx, j
-                
+
             neighbors = lat%get_spinorb_neighbors(i)
             contrib = 0.0
             do idx=1, size(neighbors)
@@ -471,7 +480,7 @@ contains
 
 
         function calcDoubHolContrib(ilut, i) result(contrib)
-            
+
             integer, intent(in) :: i
             integer, allocatable :: neighbors(:)
             real(dp) :: contrib
@@ -510,8 +519,6 @@ contains
     end function
 
     function calcImportanceGuide(nI) result(val)
-        use CalcData, only: tGutzwillerGuide, GutzwillerParam
-        use FCIMCData, only: Hii
         integer, intent(in) :: nI(nel)
         real(dp) :: val
 
@@ -520,8 +527,8 @@ contains
         !of the reference determinante
         if(tGutzwillerGuide)then
             if(t_heisenberg_model)then
-                !For the Heisenberg model the guiding wavefunction in 
-                !calcImportanceRatio differs from diagonal elements by a 
+                !For the Heisenberg model the guiding wavefunction in
+                !calcImportanceRatio differs from diagonal elements by a
                 !factor exchage_j/2. So we add it for consistency.
                 val = exp(-GutzwillerParam*(real(get_helement(nI,nI,0))-Hii)*2.0/exchange_j)
             else

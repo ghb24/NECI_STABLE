@@ -774,6 +774,13 @@ contains
             end if
         end block time_step
 
+        block
+            use CalcData, only: tModShiftCorr, tModShiftTarget, tModShiftCorrOnlyS1
+            if (.not. ((tModShiftCorr .or. tModShiftCorrOnlyS1) .implies. tModShiftTarget)) then
+                call stop_all(t_r, 'Only works in conjunction with MOD-SHIFT-SHIFT or MOD-SHIFT-TARGET')
+            end if
+        end block
+
     end subroutine checkinput
 
 end Module ReadInput_neci

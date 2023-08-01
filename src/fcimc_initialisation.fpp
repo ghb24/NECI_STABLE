@@ -384,9 +384,9 @@ module fcimc_initialisation
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
 
     use blas_interface_mod, only: dgeev
-    implicit none
 
-    external :: LargestBitSet
+    use DetBitOps, only: LargestBitSet
+    implicit none
 
 contains
 
@@ -680,7 +680,7 @@ contains
                 CALL Stop_All(t_r, "HF Determinant incorrectly decoded.")
             end if
         end do
-        CALL LargestBitSet(iLutHF, NIfD, LargestOrb)
+        LargestOrb = LargestBitSet(iLutHF, NIfD)
         IF (LargestOrb /= hfdet(nel)) then
             write(stdout, *) 'ilut HF', ilutHF
             write(stdout, *) 'largest orb', largestorb
@@ -1154,7 +1154,6 @@ contains
         if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:, :, :) = 0.0_dp
         AllSumNoatHF(:) = 0.0_dp
         AllGrowRate(:) = 0.0_dp
-!        AllMeanExcitLevel=0.0_dp
         AllSumWalkersCyc(:) = 0
         AllSumWalkersOut(:) = 0.0_dp
         AllAvSign = 0.0_dp
@@ -1169,7 +1168,6 @@ contains
         AllHFCyc(:) = 0.0_dp
         all_cyc_proje_denominator = 1.0_dp
         AllHFOut(:) = 0.0_dp
-!        AllDetsNorm=0.0_dp
         AllNoAborted = 0
         AllNoRemoved = 0
         AllNoAddedInitiators = 0
@@ -2053,17 +2051,17 @@ contains
                                         &error as the initiator method is not in use.")
         end if
 
-        if(tFullProjE)then
+        if (tFullProjE) then
             allocate(connected_dets(0:NIfTot, max_connected_size), stat=ierr)
             call LogMemAlloc("connected_dets", max_connected_size * (NIfTot + 1), size_n_int, t_r, ConnectedTag, ierr)
         end if
 
-        if(tBosonNoSpawn)then
+        if (tBosonNoSpawn) then
             call ReadBosonicPopsfile(bosonic_popsfile)
-            SftDamp2 = SftDamp**2./4.
+            SftDamp2 = SftDamp**2 / 4._dp
         endif
 
-        if(tInitExpandAnnihil)then
+        if (tInitExpandAnnihil) then
             tInitProbation = .false.
         endif
 
@@ -2770,12 +2768,12 @@ contains
         integer :: run, DetHash
         real(dp), dimension(lenof_sign) :: InitialSign
         HElement_t(dp) :: h_temp
-        
+
         if (tOrthogonaliseReplicas) then
             call InitFCIMC_HF_orthog()
             return
         end if
-        
+
         InitialPartVec = 0.0_dp
         do run = 1, inum_runs
             InitialPartVec(min_part_type(run)) = InitialPart
@@ -2862,7 +2860,7 @@ contains
             TotWalkers = 0
             TotWalkersOld = 0
         end if
-        
+
 
         OldAllNoatHF(:) = 0.0_dp
         AllNoatHF(:) = 0.0_dp

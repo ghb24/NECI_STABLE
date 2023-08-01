@@ -2098,7 +2098,7 @@ contains
                 tNonInitModShift = .true.
                 tModShiftTarget = .true.
                 ModShiftTargetFrac = to_realdp(tokens%next())
-                if (ModShiftTargetFrac > 1.0_dp .or. ModShiftTargetFrac < 0.0_dp) then
+                if (.not. (0._dp <= ModShiftTargetFrac .and. ModShiftTargetFrac <= 1._dp)) then
                     call stop_all(t_r, 'Give a fraction between 0 and 1 for MOD-SHIFT-TARGET')
                 end if
                 tot_walkers = real(InitWalkers, dp) * real(nProcessors, dp)
@@ -2111,12 +2111,9 @@ contains
                     ModShiftTargetIter = 0
                     ModShiftConstIters = 0
                 end if
-                SftDamp2 = SftDamp**2./4.
-                if (tFixedN0) tModShiftPhase = .true.
+                SftDamp2 = SftDamp**2 / 4._dp
+                tModShiftPhase = tModShiftPhase .or. tFixedN0
             case("MOD-SHIFT-CORR")
-                if (.not. tModShiftTarget) then
-                    call stop_all(t_r, 'Only works in conjunction with MOD-SHIFT-SHIFT or MOD-SHIFT-TARGET')
-                end if
                 tModShiftCorr = .true.
                 if(tokens%remaining_items() > 0) then
                     ModShiftCorrPrefac = to_realdp(tokens%next())
@@ -3722,17 +3719,11 @@ contains
                 if (tokens%remaining_items() > 0) then
                     RecoveryPeriod = to_int(tokens%next())
                 endif
-
-                if(FreePropPeriod<=0) then
-                    FreePropSwitch = 0.0 !This indicates that we first need to
-                    ! determine FreePropPeriod based on ref population
-                else
-                    FreePropSwitch = FreePropStart
-                endif
+                FreePropSwitch = merge(0, FreePropStart, FreePropPeriod <= 0)
 
                 !If recovery period is not specified use the same number of
                 !iterations used for the initial initiator period
-                if(RecoveryPeriod<=0) RecoveryPeriod = FreePropStart
+                if (RecoveryPeriod <= 0) RecoveryPeriod = FreePropStart
 
                 tTruncInitiator = .true.
 
@@ -3788,24 +3779,18 @@ contains
                 ! - two: next nearest neightbors
                 if (tokens%remaining_items() > 0) then
                     pairing_criterion = to_int(tokens%next())
-                    if(pairing_criterion>2)then
-
+                    if (pairing_criterion > 2)then
                         call stop_all(t_r, "Pairing criterion should be less than or equal 2")
                     endif
                 endif
                 if (tokens%remaining_items() > 0) then
                     repel_criterion = to_int(tokens%next())
-                    if(repel_criterion>2)then
-
+                    if (repel_criterion > 2)then
                         call stop_all(t_r, "Repel criterion should be less than or equal 2")
                     endif
                 endif
-                if (tokens%remaining_items() > 0) then
-                    af_criterion = to_int(tokens%next())
-                endif
-                if (tokens%remaining_items() > 0) then
-                    max_doublons = to_int(tokens%next())
-                endif
+                af_criterion = to_int(tokens%next())
+                max_doublons = to_int(tokens%next())
                 if (tokens%remaining_items() > 0) then
                     max_holons = to_int(tokens%next())
                 else
@@ -3823,7 +3808,7 @@ contains
                 if (tokens%remaining_items() > 0) then
                     af_criterion_bracket = to_int(tokens%next())
                 else
-                    af_criterion_bracket = 2*lat%get_total_links()-af_criterion
+                    af_criterion_bracket = 2 * lat%get_total_links() - af_criterion
                 endif
 
             case default

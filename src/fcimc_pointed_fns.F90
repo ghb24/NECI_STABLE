@@ -253,7 +253,7 @@ contains
 #if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
         endif
 #endif
-        
+
         ! assign the matrix element
         HElGen = abs(rh_used)
 
@@ -375,7 +375,6 @@ contains
             end if
 #endif
 
-!             ASSERT(prob /= 0.0_dp)
             if(tImportanceSampling .and. ((MatEl > 0.0_dp) .or. (MatEl < 0.0_dp)))then
                 importance_ratio = calcImportanceRatio(DetCurr, iLutCurr, nJ, iLutnJ)
             else
@@ -383,35 +382,19 @@ contains
             endif
 
             if (tModShiftCorr) then
-!                if (.not. test_flag(iLutCurr, flag_modshift) .and. (DiagSft(run) > DiagSft2(run))) then
                 if (.not. test_flag(iLutCurr, flag_modshift)) then
                     ! With the only-S1 option only scale spawns to the S1 space
                     if (tModShiftCorrOnlyS1 .and. (.not. test_flag(iLutnJ, flag_modshift))) then
                         continue
                     else
-!                        if ((abs(get_corr_pop(j, run)) < abs(RealwSign(part_type))) &
-!                            .and. (abs(get_corr_pop(j, run)) < 1.0_dp)) then
-!                            call reset_corr_pop(j, run)
-!                            call add_corr_pop(j, run, RealwSign(part_type))
-!                        end if
-                        walkerweight_added = get_corr_pop(j, run)/abs(RealwSign(part_type)) - walkerweight 
+                        walkerweight_added = get_corr_pop(j, run)/abs(RealwSign(part_type)) - walkerweight
                         walkerweight = (walkerweight + walkerweight_added) * ModShiftCorrPrefac
                     end if
                 else
-!                    if (get_corr_pop(j, run) == 0.0_dp) then
-!                        call add_corr_pop(j, run, RealwSign(part_type))
-!                    end if
-!                    walkerweight = get_corr_pop(j, run)/abs(RealwSign(part_type))
                     continue
                 end if
             end if
 
-!            if (test_flag(iLutCurr, flag_modshift)) then
-!                if (get_corr_pop(j, run) /= RealwSign(part_type)) then
-!                  print *, get_corr_pop(j, run), RealwSign(part_type)
-!                end if
-!            end if
-            
             nSpawn = -importance_ratio * tau * MatEl * walkerweight / prob
 
 #ifdef DEBUG_
