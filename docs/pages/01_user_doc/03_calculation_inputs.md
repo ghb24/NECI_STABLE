@@ -1763,7 +1763,8 @@ keyword.
 -   **write-trial**<br>
     Writes the trial space out in a file called `TRIALSPACE`.
 
-
+-   **printorboccs**<br>
+    Writes out the normalised orbital occupations to a file called `ORBOCCUPATIONS`.
 
 #### Semi-stochastic output options
 
