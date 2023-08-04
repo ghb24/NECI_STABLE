@@ -72,6 +72,12 @@ considered. The block starts with the `system` keyword and ends with the
     Sets the total \(S_z\) quantum number to \(\frac{m}{2}\). The
     argument \(m\) is optional and defaults to 0.
 
+-   **ignore-fcidump-header**<br>
+    Tells NECI to ignore the contents of the FCIDUMP input file. This is useful
+    when, for example, you wish to calculation an ionisation potential and
+    need to e.g. run NECI with $n-1$ electrons where the FCIDUMP has `NELEC=`$n$
+    (otherwise, NECI will crash due to the inconsistency).
+
 -   **hphf \(s\)**<br>
     Uses a basis of (anti-)symmetric combinations of Slater determinants
     with respect to global spin-flip. \(s=0\) indicates anti-symmetric
@@ -172,6 +178,9 @@ considered. The block starts with the `system` keyword and ends with the
     Stoquastize the Hamiltonian. This means that the off-diagonal elements of the
     original Hamiltonian become negative without changing the magnitudes,
     i.e. \(H^{stoq}_{ij} = H_{ij}\delta_{ij} - |H_{ij}|(1 - \delta_{ij})\).
+
+-   **nosymmetry**<br>
+    Assume no symmetry in the system.
 
 #### Excitation generation options
 

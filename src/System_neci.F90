@@ -450,11 +450,14 @@ contains
                 end if
                 TSPN = .true.
 
-                ! ==================== GUGA Implementation ====================
-                ! activate total spin preserving graphical unitary group approach and
-                ! default total spin operator eigenvalue to 0, or else give as integer
-                ! CONVENTION: give S in units of h/2, so S directly relates to the
-                ! number of unpaired electrons
+            case ("IGNORE-FCIDUMP-HEADER")
+                tIgnoreFCIDUMPHeader = .true.
+
+            ! ==================== GUGA Implementation ====================
+            ! activate total spin preserving graphical unitary group approach and
+            ! default total spin operator eigenvalue to 0, or else give as integer
+            ! CONVENTION: give S in units of h/2, so S directly relates to the
+            ! number of unpaired electrons
             case ("GUGA")
                 if (tokens%remaining_items() > 0) then
                     STOT = to_int(tokens%next())

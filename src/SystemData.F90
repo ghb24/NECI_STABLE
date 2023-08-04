@@ -40,6 +40,8 @@ module SystemData
     !but kpoint symmetry can still be used.
     logical :: tReadFreeFormat, tReltvy
 
+    logical :: tIgnoreFCIDUMPHeader = .false.
+
     logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
     logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in
     ! spin-orbital notation

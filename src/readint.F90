@@ -8,7 +8,7 @@ module read_fci
         tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
         BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
         UMatEps, t_non_hermitian_1_body, tRIIntegrals, SYMMAX, irrepOrbOffset, &
-        t_complex_ints
+        t_complex_ints, tIgnoreFCIDUMPHeader
 
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
 
@@ -184,16 +184,15 @@ contains
             if( NEL == NEL_UNINITIALIZED ) then
                 write(stdout,*) "No number of electrons given, using NEL in FCIDUMP"
                 NEL = NELEC
-            else
-                write(stdout, *)                                                 &
-                    &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
-                write(stdout, *) ' NUMBER OF ELECTRONS : ', NEL
+            else if (.not. tIgnoreFCIDUMPHeader) then
+                call stop_all(this_routine, 'NEL in FCIDUMP differs from input file. &
+                        &Use ignore-fcidump-header keyword if you wish to continue anyway.')
             endif
         end if
 !         NEL=NELEC
         IF (LMS /= MS2) THEN
-            write(stdout, *)                                                  &
-     &      '*** WARNING: LMS in FCIDUMP differs from input file ***'
+            if (.not. tIgnoreFCIDUMPHeader) call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. &
+                        &Use ignore-fcidump-header keyword if you wish to continue anyway.')
             LMS = MS2
             write(stdout, *) ' BASIS MS : ', LMS
         end if
@@ -351,8 +350,9 @@ contains
         end if
 
         ! Count the number of orbs per irrep
-        if (any(ORBSYM(1:NORB) == 0)) then
-            write(stdout, *) "WARNING: Invalid ORBSYM in FCIDUMP, are you sure you know what you are doing?"
+        if (any(ORBSYM(1:NORB) == 0) .and. .not. lNoSymmetry) then
+            call stop_all(this_routine, "WARNING: Invalid ORBSYM in FCIDUMP. Use the NOSYMMETRY &
+             &keyword if you wish to ignore this and continue without symmetry.")
         else
             orbsPerIrrep = 0
             do i = 1, NORB
