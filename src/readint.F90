@@ -351,7 +351,7 @@ contains
 
         ! Count the number of orbs per irrep
         if (any(ORBSYM(1:NORB) == 0) .and. .not. lNoSymmetry) then
-            call stop_all(this_routine, "WARNING: Invalid ORBSYM in FCIDUMP. Use the NOSYMMETRY &
+            call stop_all(t_r, "WARNING: Invalid ORBSYM in FCIDUMP. Use the NOSYMMETRY &
              &keyword if you wish to ignore this and continue without symmetry.")
         else
             orbsPerIrrep = 0
