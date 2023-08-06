@@ -59,7 +59,7 @@ contains
         FROZEN = -1
         allocate(FOCK(1000), source=0.0_dp)
         ! [W.D. 15.5.2017:]
-        ! with the new relativistic calculations, withoug a ms value in the
+        ! with the new relativistic calculations, without a ms value in the
         ! FCIDUMP, we have to set some more defaults..
         MS2 = 0
         IF (iProcIndex == 0) THEN
@@ -190,7 +190,7 @@ contains
             endif
         end if
 !         NEL=NELEC
-        IF (LMS /= MS2) THEN
+        IF (abs(LMS) /= MS2) THEN
             if (.not. tIgnoreFCIDUMPHeader) call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. &
                         &Use ignore-fcidump-header keyword if you wish to continue anyway.')
             LMS = MS2
