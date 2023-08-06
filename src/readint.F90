@@ -190,7 +190,7 @@ contains
             endif
         end if
 !         NEL=NELEC
-        IF (abs(LMS) /= MS2) THEN
+        IF (abs(LMS) /= abs(MS2)) THEN
             if (.not. tIgnoreFCIDUMPHeader) call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. &
                         &Use ignore-fcidump-header keyword if you wish to continue anyway.')
             LMS = MS2
