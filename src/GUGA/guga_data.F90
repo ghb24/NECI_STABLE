@@ -95,6 +95,9 @@ module guga_data
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them
     ! this may also be used/needed for the excitation generation
+
+
+    ! TODO reference Figure 4.4 in Werner's thesis
     type :: ExcitationTypeValues_t
         ! save type of excitation encoded as integer: all different possibs:
         integer :: &
@@ -104,7 +107,7 @@ module guga_data
             raising = 3, & ! ... weight raising
             lowering = 4, & ! ... weight lowering
             non_overlap = 5, & ! ... non overlap
-            single_overlap_lowering = 6, & ! ... single overlap 2 lowering
+            single_overlap_lowering = 6, & ! ... single overlap 2 lowering    _L   ^LL_  ^L
             single_overlap_raising = 7, & ! ... single overlap 2 raising
             single_overlap_L_to_R = 8, & ! ... single overlap lowering into raising
             single_overlap_R_to_L = 9, & ! ... single overlap raising into lowering
