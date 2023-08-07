@@ -1,6 +1,7 @@
 title
 
 system read
+    ignore-fcidump-header
     electrons 4
     spin-restrict 0
     system-replicas 2
