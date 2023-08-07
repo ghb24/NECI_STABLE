@@ -12,7 +12,9 @@ title
     endsys
 
     calc
+        time 30
         # since this is a test, need it to be reproducible:
+        seed 32411112
         load-balance-blocks off
         methods
             method vertex fcimc
