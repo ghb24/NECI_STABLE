@@ -73,10 +73,11 @@ considered. The block starts with the `system` keyword and ends with the
     argument \(m\) is optional and defaults to 0.
 
 -   **ignore-fcidump-header**<br>
-    Tells NECI to ignore the contents of the FCIDUMP input file. This is useful
-    when, for example, you wish to calculation an ionisation potential and
-    need to e.g. run NECI with $n-1$ electrons where the FCIDUMP has `NELEC=`$n$
-    (otherwise, NECI will crash due to the inconsistency).
+    Tells NECI to ignore the contents of the header of the FCIDUMP input file
+    (e.g. particle number or symmetry labels). This is useful
+    if, for example, you wish to calculate an ionisation potential and
+    need to e.g. run NECI with \( n-1 \) electrons where the FCIDUMP has
+    `NELEC=`\( n \) (otherwise, NECI will crash due to the inconsistency).
 
 -   **hphf \(s\)**<br>
     Uses a basis of (anti-)symmetric combinations of Slater determinants
