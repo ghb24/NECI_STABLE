@@ -2,22 +2,17 @@ module read_fci
     use constants, only: dp, int64, stdout, sizeof_int, nel_uninitialized
     use util_mod, only: stop_all, get_free_unit, near_zero
     use mpi_f08, only: MPI_Win
-
     use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, &
         tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
         tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
         BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
         UMatEps, t_non_hermitian_1_body, tRIIntegrals, SYMMAX, irrepOrbOffset, &
         t_complex_ints, tIgnoreFCIDUMPHeader
-
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-
     use UMatCache, only: GetCacheIndexStates, GTID, &
         UMatInd, UMatConj, UMAT2D, TUMAT2D, CacheFCIDUMP, &
         FillUpCache, GTID, nStates, GetUMatSize
-
     use OneEInts, only: TMatind, TMat2D, CalcTMatSize
-
     use Parallel_neci, only: MPIBCast, iProcIndex, MPIBcast, MPIArg
     use shared_memory_mpi, only: shared_sync_mpi, MPIBCast_inter_byte
     implicit none
