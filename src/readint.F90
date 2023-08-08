@@ -184,7 +184,6 @@ contains
                         &Use ignore-fcidump-header keyword if you wish to continue anyway.')
             endif
         end if
-!         NEL=NELEC
         IF (abs(LMS) /= abs(MS2)) THEN
             if (.not. tIgnoreFCIDUMPHeader) then
                 call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. &
