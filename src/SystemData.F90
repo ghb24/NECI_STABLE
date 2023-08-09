@@ -174,7 +174,7 @@ module SystemData
 ! Empty basis function is used in many places.
 ! This is useful so if BasisFn changes, we don't have to go
 ! through the code and change the explicit null statements.
-    type(BasisFn) :: NullBasisFn = BasisFn(Symmetry(0), (/0, 0, 0/), 0, 0, 0)
+    type(BasisFn), parameter :: NullBasisFn = BasisFn(Symmetry(0), [0, 0, 0], 0, 0, 0)
 
     integer, PARAMETER :: BasisFNSize = SymmetrySize + 5
     integer, PARAMETER :: BasisFNSizeB = BasisFNSize * 8
