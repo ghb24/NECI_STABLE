@@ -32,7 +32,8 @@ program test_guga
         count_open_orbs_ij, calcb_vector_ni, calcb_vector_ilut, isProperCSF_ilut, &
         transfer_stochastic_rdm_info
     use guga_data, only: getMixedFullStop, getSingleMatrixElement, &
-        excit_type, gen_type, getDoubleMatrixElement, ExcitationInformation_t
+        excit_type, gen_type, getDoubleMatrixElement, ExcitationInformation_t, &
+        ExcitationType_t
     use guga_excitations, only: actHamiltonian, calcDoubleL2R2L_stochastic, &
         checkCompatibility, excitationIdentifier, print_excitInfo, &
         calcFullStartFullStopMixed, calcDoubleR2L_stochastic, &
@@ -1475,28 +1476,28 @@ contains
         excit_info_int = 0_int64
 
         call encode_excit_info_type(excit_info_int, excit_type%single_overlap_R_to_L)
-        call assert_equals(excit_type%single_overlap_R_to_L, int(excit_info_int))
+        call assert_equals(excit_type%single_overlap_R_to_L%val, int(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%double_lowering)
-        call assert_equals(excit_type%double_lowering, int(excit_info_int))
+        call assert_equals(excit_type%double_lowering%val, int(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%double_R_to_L)
-        call assert_equals(excit_type%double_R_to_L, int(excit_info_int))
+        call assert_equals(excit_type%double_R_to_L%val, int(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%fullstop_R_to_L)
-        call assert_equals(excit_type%fullstop_R_to_L, int(excit_info_int))
+        call assert_equals(excit_type%fullstop_R_to_L%val, int(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%fullstart_R_to_L)
-        call assert_equals(excit_type%fullstart_R_to_L, int(excit_info_int))
+        call assert_equals(excit_type%fullstart_R_to_L%val, int(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%fullstop_raising)
-        call assert_equals(excit_type%fullstop_raising, int(excit_info_int))
+        call assert_equals(excit_type%fullstop_raising%val, int(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%fullstart_stop_mixed)
-        call assert_equals(excit_type%fullstart_stop_mixed, int(excit_info_int))
+        call assert_equals(excit_type%fullstart_stop_mixed%val, int(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%single_overlap_L_to_R)
-        call assert_equals(excit_type%single_overlap_L_to_R, int(excit_info_int))
+        call assert_equals(excit_type%single_overlap_L_to_R%val, int(excit_info_int))
 
     end subroutine encode_excit_info_type_test
 
@@ -1505,50 +1506,45 @@ contains
 
         excit_info_int = 0_int64
         call encode_excit_info_type(excit_info_int, excit_type%single_overlap_R_to_L)
-        call assert_equals(excit_type%single_overlap_R_to_L, &
-                           extract_excit_info_type(excit_info_int))
+        call assert_true(excit_type%single_overlap_R_to_L == extract_excit_info_type(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%fullstop_R_to_L)
-        call assert_equals(excit_type%fullstop_R_to_L, &
-                           extract_excit_info_type(excit_info_int))
+        call assert_true(excit_type%fullstop_R_to_L == extract_excit_info_type(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%fullstart_R_to_L)
-        call assert_equals(excit_type%fullstart_R_to_L, &
-                           extract_excit_info_type(excit_info_int))
+        call assert_true(excit_type%fullstart_R_to_L == extract_excit_info_type(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%double_lowering)
-        call assert_equals(excit_type%double_lowering, &
-                           extract_excit_info_type(excit_info_int))
+        call assert_true(excit_type%double_lowering == extract_excit_info_type(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%double_R_to_L)
-        call assert_equals(excit_type%double_R_to_L, &
-                           extract_excit_info_type(excit_info_int))
+        call assert_true(excit_type%double_R_to_L == extract_excit_info_type(excit_info_int))
 
         call encode_excit_info_type(excit_info_int, excit_type%fullstart_stop_alike)
-        call assert_equals(excit_type%fullstart_stop_alike, &
-                           extract_excit_info_type(excit_info_int))
+        call assert_true(excit_type%fullstart_stop_alike == extract_excit_info_type(excit_info_int))
 
     end subroutine extract_excit_info_type_test
 
     subroutine encode_and_extract_excit_info_test
         integer(int64) :: excit_info_int
-        integer :: typ, a, i, b, j, inds(4)
+        integer :: a, i, b, j, inds(4)
+        type(ExcitationType_t) :: typ
         type(ExcitationInformation_t) :: excitInfo
 
         excit_info_int = encode_excit_info(excit_type%double_R_to_L_to_R, &
                                            1, 4, 3, 2)
 
         call extract_excit_info(excit_info_int, typ, a, i, b, j)
-        call assert_equals(excit_type%double_R_to_L_to_R, typ)
+        call assert_true(excit_type%double_R_to_L_to_R == typ)
         call extract_excit_info(excit_info_int, typ, inds)
-        call assert_equals(excit_type%double_R_to_L_to_R, typ)
+        call assert_true(excit_type%double_R_to_L_to_R == typ)
         call extract_excit_info(excit_info_int, excitInfo)
         call assert_equals(1, a)
         call assert_equals(4, i)
         call assert_equals(3, b)
         call assert_equals(2, j)
         call assert_equals([1, 4, 3, 2], inds, 4)
-        call assert_equals(excit_type%double_R_to_L_to_R, excitInfo%typ)
+        call assert_true(excit_type%double_R_to_L_to_R == excitInfo%typ)
         call assert_equals(gen_type%R, excitInfo%gen1)
         call assert_equals(gen_type%L, excitInfo%gen2)
 
@@ -1556,16 +1552,16 @@ contains
                                            [2, 3, 4, 1])
 
         call extract_excit_info(excit_info_int, typ, a, i, b, j)
-        call assert_equals(excit_type%double_L_to_R_to_L, typ)
+        call assert_true(excit_type%double_L_to_R_to_L == typ)
         call extract_excit_info(excit_info_int, typ, inds)
-        call assert_equals(excit_type%double_L_to_R_to_L, typ)
+        call assert_true(excit_type%double_L_to_R_to_L == typ)
         call extract_excit_info(excit_info_int, excitInfo)
         call assert_equals(2, a)
         call assert_equals(3, i)
         call assert_equals(4, b)
         call assert_equals(1, j)
         call assert_equals([2, 3, 4, 1], inds, 4)
-        call assert_equals(excit_type%double_L_to_R_to_L, excitInfo%typ)
+        call assert_true(excit_type%double_L_to_R_to_L == excitInfo%typ)
         call assert_equals(gen_type%R, excitInfo%gen1)
         call assert_equals(gen_type%L, excitInfo%gen2)
 
@@ -1578,16 +1574,16 @@ contains
         excit_info_int = encode_excit_info(excitInfo)
 
         call extract_excit_info(excit_info_int, typ, a, i, b, j)
-        call assert_equals(excit_type%fullstart_stop_mixed, typ)
+        call assert_true(excit_type%fullstart_stop_mixed == typ)
         call extract_excit_info(excit_info_int, typ, inds)
-        call assert_equals(excit_type%fullstart_stop_mixed, typ)
+        call assert_true(excit_type%fullstart_stop_mixed == typ)
         call extract_excit_info(excit_info_int, excitInfo)
         call assert_equals(1, a)
         call assert_equals(4, i)
         call assert_equals(4, b)
         call assert_equals(1, j)
         call assert_equals([1, 4, 4, 1], inds, 4)
-        call assert_equals(excit_type%fullstart_stop_mixed, excitInfo%typ)
+        call assert_true(excit_type%fullstart_stop_mixed == excitInfo%typ)
         call assert_equals(gen_type%R, excitInfo%gen1)
         call assert_equals(gen_type%L, excitInfo%gen2)
 
@@ -1734,7 +1730,7 @@ contains
         rdm_ind = contract_1_rdm_ind(1, 2, 1)
         call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind))
 
-        rdm_ind = contract_1_rdm_ind(1, 2, 1, 2)
+        rdm_ind = contract_1_rdm_ind(1, 2, 1, excit_type%single)
         call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind))
 
         rdm_ind_orig = contract_2_rdm_ind(1, 2, 3, 4)
@@ -1743,7 +1739,7 @@ contains
         rdm_ind = contract_2_rdm_ind(1, 2, 3, 4, 2)
         call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind))
 
-        rdm_ind = contract_2_rdm_ind(1, 2, 3, 4, 2, 10)
+        rdm_ind = contract_2_rdm_ind(1, 2, 3, 4, 2, excit_type%double_lowering)
         call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind))
 
         print *, ""
@@ -1795,7 +1791,8 @@ contains
 
     subroutine test_contract_extract_1_rdm_with_excitInfo
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, excit_lvl, excit_typ
+        integer :: i, j, excit_lvl
+        type(ExcitationType_t) :: excit_typ
 
         print *, ""
         print *, "testing: contract and extract 1 rdm index with the additional excitInfo"
@@ -1812,11 +1809,11 @@ contains
         call assert_equals(1, i)
         call assert_equals(1, j)
         call assert_equals(0, excit_lvl)
-        call assert_equals(excit_type%invalid, excit_typ)
+        call assert_true(excit_type%invalid == excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ=excit_typ)
         call assert_equals(1, i)
         call assert_equals(1, j)
-        call assert_equals(excit_type%invalid, excit_typ)
+        call assert_true(excit_type%invalid == excit_typ)
 
         rdm_ind = contract_1_rdm_ind(1, 1, 0)
         call extract_1_rdm_ind(rdm_ind, i, j)
@@ -1830,11 +1827,11 @@ contains
         call assert_equals(1, i)
         call assert_equals(1, j)
         call assert_equals(0, excit_lvl)
-        call assert_equals(0, excit_typ)
+        call assert_equals(0, excit_typ%val)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ=excit_typ)
         call assert_equals(1, i)
         call assert_equals(1, j)
-        call assert_equals(0, excit_typ)
+        call assert_equals(0, excit_typ%val)
 
         rdm_ind = contract_1_rdm_ind(1, 1, excit_typ=excit_type%invalid)
         call extract_1_rdm_ind(rdm_ind, i, j)
@@ -1848,11 +1845,11 @@ contains
         call assert_equals(1, i)
         call assert_equals(1, j)
         call assert_equals(0, excit_lvl)
-        call assert_equals(excit_type%invalid, excit_typ)
+        call assert_true(excit_type%invalid == excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ=excit_typ)
         call assert_equals(1, i)
         call assert_equals(1, j)
-        call assert_equals(excit_type%invalid, excit_typ)
+        call assert_true(excit_type%invalid == excit_typ)
 
         rdm_ind = contract_1_rdm_ind(1, 2, 1, excit_type%single)
         call extract_1_rdm_ind(rdm_ind, i, j)
@@ -1866,11 +1863,11 @@ contains
         call assert_equals(1, i)
         call assert_equals(2, j)
         call assert_equals(1, excit_lvl)
-        call assert_equals(excit_type%single, excit_typ)
+        call assert_true(excit_type%single == excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ=excit_typ)
         call assert_equals(1, i)
         call assert_equals(2, j)
-        call assert_equals(excit_type%single, excit_typ)
+        call assert_true(excit_type%single == excit_typ)
 
         rdm_ind = contract_1_rdm_ind(1, 2, 1)
         call extract_1_rdm_ind(rdm_ind, i, j)
@@ -1884,11 +1881,11 @@ contains
         call assert_equals(1, i)
         call assert_equals(2, j)
         call assert_equals(1, excit_lvl)
-        call assert_equals(excit_type%invalid, excit_typ)
+        call assert_true(excit_type%invalid == excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ=excit_typ)
         call assert_equals(1, i)
         call assert_equals(2, j)
-        call assert_equals(excit_type%invalid, excit_typ)
+        call assert_true(excit_type%invalid == excit_typ)
 
         rdm_ind = contract_1_rdm_ind(1, 2, excit_typ=excit_type%single)
         call extract_1_rdm_ind(rdm_ind, i, j)
@@ -1902,11 +1899,11 @@ contains
         call assert_equals(1, i)
         call assert_equals(2, j)
         call assert_equals(0, excit_lvl)
-        call assert_equals(excit_type%single, excit_typ)
+        call assert_true(excit_type%single == excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ=excit_typ)
         call assert_equals(1, i)
         call assert_equals(2, j)
-        call assert_equals(excit_type%single, excit_typ)
+        call assert_true(excit_type%single == excit_typ)
 
         print *, ""
         print *, "testing: contrat and extract 1 rdm index with the additional excitInfo. DONE"
@@ -1916,7 +1913,8 @@ contains
     subroutine test_contract_extract_2_rdm_with_excitInfo
 
         integer(int_rdm) :: rdm_ind, ij, kl
-        integer :: i, j, k, l, excit_lvl, excit_typ
+        integer :: i, j, k, l, excit_lvl
+        type(ExcitationType_t) :: excit_typ
         print *, ""
         print *, "testing: contract and exctract 2 rdm index with excit info"
 
@@ -1927,7 +1925,7 @@ contains
         call assert_equals(1, k)
         call assert_equals(1, l)
         call assert_equals(0, excit_lvl)
-        call assert_equals(excit_typ, excit_type%weight)
+        call assert_true(excit_typ == excit_type%weight)
 
         rdm_ind = contract_2_rdm_ind(1, 2, 3, 4, 2, excit_type%non_overlap)
         call extract_2_rdm_ind(rdm_ind, i, j, k, l, ij, kl, excit_lvl, excit_typ)
@@ -1936,7 +1934,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(4, l)
         call assert_equals(2, excit_lvl)
-        call assert_equals(excit_typ, excit_type%non_overlap)
+        call assert_true(excit_typ == excit_type%non_overlap)
 
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
         call assert_equals(1, i)
@@ -1951,7 +1949,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(4, l)
         call assert_equals(2, excit_lvl)
-        call assert_equals(excit_typ, excit_type%non_overlap)
+        call assert_true(excit_typ == excit_type%non_overlap)
 
         rdm_ind = contract_2_rdm_ind(1, 2, 3, 4, excit_lvl=2)
         call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl=excit_lvl, &
@@ -1961,7 +1959,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(4, l)
         call assert_equals(2, excit_lvl)
-        call assert_equals(excit_typ, excit_type%invalid)
+        call assert_true(excit_typ == excit_type%invalid)
 
         rdm_ind = contract_2_rdm_ind(1, 2, 3, 4, excit_typ=excit_type%double_lowering)
         call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl=excit_lvl, &
@@ -1972,7 +1970,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(4, l)
         call assert_equals(0, excit_lvl)
-        call assert_equals(excit_typ, excit_type%double_lowering)
+        call assert_true(excit_typ == excit_type%double_lowering)
 
         print *, ""
         print *, "testing: contract and exctract 2 rdm index with excit info. DONE!"
@@ -3916,7 +3914,7 @@ contains
 
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -3954,7 +3952,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -3993,7 +3991,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4032,7 +4030,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4071,7 +4069,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4110,7 +4108,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4149,7 +4147,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4188,7 +4186,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4227,7 +4225,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4266,7 +4264,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4305,7 +4303,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4344,7 +4342,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4383,7 +4381,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4422,7 +4420,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4461,7 +4459,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4500,7 +4498,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4539,7 +4537,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4578,7 +4576,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4617,7 +4615,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4656,7 +4654,7 @@ contains
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilutGi, global_csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -4692,7 +4690,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -4727,7 +4726,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(2, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_R_to_L, ex_typ)
+        call assert_true(excit_type%double_R_to_L == ex_typ)
 
         ! mixed: -1
         ! nonover: +2 -> +2
@@ -4759,7 +4758,7 @@ contains
         call assert_equals(1, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_R_to_L, ex_typ)
+        call assert_true(excit_type%double_R_to_L == ex_typ)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 2, 1, 3)
@@ -4783,7 +4782,7 @@ contains
         call assert_equals(1, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_R_to_L, ex_typ)
+        call assert_true(excit_type%double_R_to_L == ex_typ)
 
         ! nonoverlap : -2
         ! mixed: +1 -> -1
@@ -4801,7 +4800,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -4837,7 +4837,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_L_to_R, ex_typ)
+        call assert_true(excit_type%double_L_to_R == ex_typ)
 
         ! mixed matele: -1
         ! nonover: 2 -> +1
@@ -4869,7 +4869,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(1, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_L_to_R, ex_typ)
+        call assert_true(excit_type%double_L_to_R == ex_typ)
 
         ! mixed: -2
         ! nonover: +1 -> -1
@@ -4888,7 +4888,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -4923,7 +4924,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(2, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_R_to_L_to_R, ex_typ)
+        call assert_true(excit_type%double_R_to_L_to_R == ex_typ)
 
         ! 0123
         ! 1032
@@ -4954,7 +4955,7 @@ contains
         call assert_equals(1, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_R_to_L_to_R, ex_typ)
+        call assert_true(excit_type%double_R_to_L_to_R == ex_typ)
 
         ! mixes matele: -1
         ! nonoverlp: 2 -> +1
@@ -4972,7 +4973,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -5010,7 +5012,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_L_to_R_to_L, ex_typ)
+        call assert_true(excit_type%double_L_to_R_to_L == ex_typ)
 
         ! 1032
         ! 0123
@@ -5040,7 +5042,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(1, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_L_to_R_to_L, ex_typ)
+        call assert_true(excit_type%double_L_to_R_to_L == ex_typ)
 
         print *, ""
         print *, "calcDoubleL2R2L_stochastic tests passed!"
@@ -5056,7 +5058,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -5091,7 +5094,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_raising, ex_typ)
+        call assert_true(excit_type%double_raising == ex_typ)
 
         excitInfo = excitationIdentifier(2, 4, 1, 3)
 
@@ -5115,7 +5118,7 @@ contains
         call assert_equals(1, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_raising, ex_typ)
+        call assert_true(excit_type%double_raising == ex_typ)
 
         ! 0132
         ! 1320
@@ -5145,7 +5148,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_raising, ex_typ)
+        call assert_true(excit_type%double_raising == ex_typ)
 
         excitInfo = excitationIdentifier(1, 3, 2, 4)
 
@@ -5168,7 +5171,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_raising, ex_typ)
+        call assert_true(excit_type%double_raising == ex_typ)
 
         print *, ""
         print *, "calcDoubleRaisingStochastic tests passed!"
@@ -5184,7 +5187,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -5221,7 +5225,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(2, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_lowering, ex_typ)
+        call assert_true(excit_type%double_lowering == ex_typ)
 
         excitInfo = excitationIdentifier(3, 2, 4, 1)
 
@@ -5245,7 +5249,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(1, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_lowering, ex_typ)
+        call assert_true(excit_type%double_lowering == ex_typ)
 
         ! 3120
         ! 1032
@@ -5274,7 +5278,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(2, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_lowering, ex_typ)
+        call assert_true(excit_type%double_lowering == ex_typ)
 
         excitInfo = excitationIdentifier(3, 1, 4, 2)
 
@@ -5297,7 +5301,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(2, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%double_lowering, ex_typ)
+        call assert_true(excit_type%double_lowering == ex_typ)
 
         print *, ""
         print *, "calcDoubleLoweringStochastic tests passed!"
@@ -5313,7 +5317,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -5326,7 +5331,7 @@ contains
         print *, ""
         print *, "testing calcFullStopR2L_stochastic(ilut,csf_i, exinfo,ex,pgen):"
         print *, ""
-        call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
+        call assert_true(excit_type%fullstop_R_to_L == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5349,7 +5354,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 4, 2)
 
-        call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
+        call assert_true(excit_type%fullstop_R_to_L == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5366,13 +5371,13 @@ contains
         call assert_equals(4, k)
         call assert_equals(2, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstop_R_to_L, ex_typ)
+        call assert_true(excit_type%fullstop_R_to_L == ex_typ)
         call assert_equals(0.0_dp, x0)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 3, 3, 2)
 
-        call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
+        call assert_true(excit_type%fullstop_R_to_L == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5389,7 +5394,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(2, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstop_R_to_L, ex_typ)
+        call assert_true(excit_type%fullstop_R_to_L == ex_typ)
         call assert_equals(0.0_dp, x0)
 
         print *, ""
@@ -5406,7 +5411,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
         ! encode det
@@ -5418,7 +5424,7 @@ contains
         print *, ""
         print *, "testing calcFullStopL2R_stochastic(ilut,exInfo,ex,pgen)"
         print *, ""
-        call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
+        call assert_true(excit_type%fullstop_L_to_R == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5438,7 +5444,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 1, 2, 4)
 
-        call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
+        call assert_true(excit_type%fullstop_L_to_R == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5459,12 +5465,12 @@ contains
         call assert_equals(2, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstop_L_to_R, ex_typ)
+        call assert_true(excit_type%fullstop_L_to_R == ex_typ)
         call assert_equals(0.0_dp, x0)
 
         excitInfo = excitationIdentifier(2, 4, 4, 1)
 
-        call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
+        call assert_true(excit_type%fullstop_L_to_R == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5482,7 +5488,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(1, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstop_L_to_R, ex_typ)
+        call assert_true(excit_type%fullstop_L_to_R == ex_typ)
         call assert_equals(0.0_dp, x0)
 
         print *, ""
@@ -5499,7 +5505,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
         ! encode det
@@ -5511,7 +5518,7 @@ contains
         print *, ""
         print *, "testing calcFullStartR2L_stochastic(ilut,exInfo,ex,pgen):"
         print *, ""
-        call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
+        call assert_true(excit_type%fullstart_R_to_L == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5530,7 +5537,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 3, 4, 1)
 
-        call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
+        call assert_true(excit_type%fullstart_R_to_L == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5548,13 +5555,13 @@ contains
         call assert_equals(4, k)
         call assert_equals(1, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstart_R_to_L, ex_typ)
+        call assert_true(excit_type%fullstart_R_to_L == ex_typ)
         call assert_equals(0.0_dp, x0)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 2, 2, 3)
 
-        call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
+        call assert_true(excit_type%fullstart_R_to_L == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5572,7 +5579,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstart_R_to_L, ex_typ)
+        call assert_true(excit_type%fullstart_R_to_L == ex_typ)
         call assert_equals(0.0_dp, x0)
 
         print *, ""
@@ -5589,7 +5596,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
         ! encode det
@@ -5601,7 +5609,7 @@ contains
         print *, ""
         print *, "testing calcFullStartL2R_stochastic(ilut, exInfo, ex, pgen)"
         print *, ""
-        call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
+        call assert_true(excit_type%fullstart_L_to_R == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5619,7 +5627,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 3, 1)
 
-        call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
+        call assert_true(excit_type%fullstart_L_to_R == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5637,13 +5645,13 @@ contains
         call assert_equals(3, k)
         call assert_equals(1, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstart_L_to_R, ex_typ)
+        call assert_true(excit_type%fullstart_L_to_R == ex_typ)
         call assert_equals(0.0_dp, x0)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3, 2, 2, 4)
 
-        call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
+        call assert_true(excit_type%fullstart_L_to_R == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5661,7 +5669,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstart_L_to_R, ex_typ)
+        call assert_true(excit_type%fullstart_L_to_R == ex_typ)
         call assert_equals(0.0_dp, x0)
 
         print *, ""
@@ -5931,7 +5939,8 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -5943,7 +5952,7 @@ contains
         print *, ""
         print *, "testing calcSingleOverlapMixedStochastic(ilut, exInfo, ex, pgen):"
         print *, ""
-        call assert_equals(excit_type%single_overlap_R_to_L, excitInfo%typ)
+        call assert_true(excit_type%single_overlap_R_to_L == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5965,7 +5974,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%single_overlap_R_to_L, ex_typ)
+        call assert_true(excit_type%single_overlap_R_to_L == ex_typ)
         call assert_equals(0.0_dp, x1)
         call assert_equals(-Root2, x0)
 
@@ -5975,7 +5984,7 @@ contains
 
         excitInfo = excitationIdentifier(3, 1, 3, 4)
 
-        call assert_equals(excit_type%single_overlap_L_to_R, excitInfo%typ)
+        call assert_true(excit_type%single_overlap_L_to_R == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
@@ -5997,7 +6006,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%single_overlap_L_to_R, ex_typ)
+        call assert_true(excit_type%single_overlap_L_to_R == ex_typ)
         call assert_equals(0.0_dp, x1)
         call assert_equals(Root2, x0, 1e-12_dp)
 
@@ -6014,7 +6023,8 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -6027,7 +6037,7 @@ contains
         print *, ""
         print *, "testing calcFullStopLoweringStochastic(ilut, exInfo, ex, pgen):"
         print *, ""
-        call assert_equals(excit_type%fullstop_lowering, excitInfo%typ)
+        call assert_true(excit_type%fullstop_lowering == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
         call calcFullStopLoweringStochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
@@ -6047,7 +6057,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(3, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstop_lowering, ex_typ)
+        call assert_true(excit_type%fullstop_lowering == ex_typ)
         call assert_equals(0.0_dp, x1)
         call assert_equals(-Root2, x0)
 
@@ -6064,7 +6074,8 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -6076,7 +6087,7 @@ contains
         print *, ""
         print *, "testing calcFullStopRaisingStochastic(ilut, exInfo, ex, pgen):"
         print *, ""
-        call assert_equals(excit_type%fullstop_raising, excitInfo%typ)
+        call assert_true(excit_type%fullstop_raising == excitInfo%typ)
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
         call calcFullStopRaisingStochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
@@ -6096,7 +6107,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstop_raising, ex_typ)
+        call assert_true(excit_type%fullstop_raising == ex_typ)
         call assert_equals(0.0_dp, x1)
         call assert_equals(-Root2, x0)
 
@@ -6113,7 +6124,8 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -6138,7 +6150,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(1, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstart_lowering, ex_typ)
+        call assert_true(excit_type%fullstart_lowering == ex_typ)
         call assert_equals(0.0_dp, x1)
 
         excitInfo = excitationIdentifier(2, 1, 4, 1)
@@ -6164,7 +6176,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(1, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstart_lowering, ex_typ)
+        call assert_true(excit_type%fullstart_lowering == ex_typ)
         call assert_equals(0.0_dp, x1)
 
         print *, ""
@@ -6180,7 +6192,8 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer :: i, j, k, l, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: x0, x1
         type(CSF_Info_t) :: csf_i
 
@@ -6214,7 +6227,7 @@ contains
         call assert_equals(1, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstart_raising, ex_typ)
+        call assert_true(excit_type%fullstart_raising == ex_typ)
         call assert_equals(0.0_dp, x1)
         call assert_equals(-Root2, x0)
 
@@ -6240,7 +6253,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(4, l)
         call assert_equals(2, ex_lvl)
-        call assert_equals(excit_type%fullstart_raising, ex_typ)
+        call assert_true(excit_type%fullstart_raising == ex_typ)
         call assert_equals(0.0_dp, x1)
         call assert_equals(-Root2, x0)
 
@@ -6978,7 +6991,7 @@ contains
             call assert_true(pos > 0)
             call assert_true(abs(extract_matrix_element(t, 1) - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
-            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+            call assert_true(excit_type%single == extract_excit_type_rdm(rdm_ind))
 
             call calc_explicit_1_rdm_guga(ilut, csf_i, nEx, ex)
             pos = binary_search_ilut(ex(0:nifd, 1:nex), t(0:nifd), nifd)

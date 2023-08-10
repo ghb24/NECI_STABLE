@@ -38,19 +38,19 @@ contains
         call finalize_guga_testuite()
 
         call init_guga_testsuite()
-        ! call my_run_test_case(pick_uniform_spatial_hole_test, &
-        !                       "pick_uniform_spatial_hole_test", "pick_uniform_spatial_hole")
-        ! call my_run_test_case(pick_orbitals_pure_uniform_singles_test, &
-        !                       "pick_orbitals_pure_uniform_singles_test", &
-        !                       "pick_orbitals_pure_uniform_singles")
+        call my_run_test_case(pick_uniform_spatial_hole_test, &
+                              "pick_uniform_spatial_hole_test", "pick_uniform_spatial_hole")
+        call my_run_test_case(pick_orbitals_pure_uniform_singles_test, &
+                              "pick_orbitals_pure_uniform_singles_test", &
+                              "pick_orbitals_pure_uniform_singles")
         call my_run_test_case(calc_orb_pgen_uniform_singles_test, &
             "calc_orb_pgen_uniform_singles_test", &
             "calc_orb_pgen_uniform_singles_ex() and &
             & calc_orb_pgen_uniform_singles_excitInfo")
 
-        ! call my_run_test_case(guga_pchb_sampler_test, &
-        !                       "guga_pchb_sampler_test", "guga_pchb_sampler type")
-        !
+        call my_run_test_case(guga_pchb_sampler_test, &
+                              "guga_pchb_sampler_test", "guga_pchb_sampler type")
+
         call finalize_guga_testuite()
     end subroutine guga_pchb_test_driver
 
@@ -129,7 +129,7 @@ contains
 
         call pick_orbitals_pure_uniform_singles(ilut, nI, csf_info, excitInfo, pgen)
 
-        call assert_equals(excitInfo%typ, excit_type%single)
+        call assert_true(excitInfo%typ == excit_type%single)
         call assert_equals(gen_type%L, excitInfo%gen1)
         call assert_true(excitInfo%j == 1 .or. excitInfo%j == 2)
         call assert_true(excitInfo%i == 3 .or. excitInfo%i == 4)
@@ -141,7 +141,7 @@ contains
 
         call pick_orbitals_pure_uniform_singles(ilut, nI, csf_info, excitInfo, pgen)
 
-        call assert_equals(excitInfo%typ, excit_type%single)
+        call assert_true(excitInfo%typ == excit_type%single)
         call assert_true(any(excitInfo%j == [1, 2, 3, 4]))
         call assert_true(any(excitInfo%i == [1, 2, 3, 4]))
         call assert_true(excitInfo%i /= excitInfo%j)
