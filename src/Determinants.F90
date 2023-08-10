@@ -309,7 +309,7 @@ contains
                 call ORDERBASIS(NBASIS, Arr, Brr, OrbOrder, nBasisMax, G1)
             else
                 write (stdout, "(A)") "Not reordering basis."
-                arr(1, 2) = arr(1, 1)
+                Arr(:nBasis, 2) = Arr(:nBasis, 1)
             end if
             call writebasis(stdout, G1, nBasis, Arr, Brr)
         end if
