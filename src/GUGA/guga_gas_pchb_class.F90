@@ -38,6 +38,7 @@ module guga_gas_pchb_mod
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use sets_mod, only: is_sorted, is_set
 
     better_implicit_none
 
@@ -697,7 +698,23 @@ contains
 
             integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
 
-        case(excit_type%double_lowering, excit_type%double_raising)
+        case(excit_type%double_raising)
+
+            cpt1 = (get_umat_el(b, a, j, i) + get_umat_el(a, b, i, j))
+            cpt2 = (get_umat_el(a, b, j, i) + get_umat_el(b, a, i, j))
+            cpt3 = abs(cpt1 + cpt2) / 2.0_dp
+            cpt4 = abs(cpt1 - cpt2) / 2.0_dp
+
+            cpt1 = abs(cpt1)
+            cpt2 = abs(cpt2)
+
+            if (flag_) then
+                integral = abs(cpt4)
+            else
+                integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
+            end if
+
+        case(excit_type%double_lowering)
 
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
@@ -713,11 +730,40 @@ contains
                 integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
 
-        case(excit_type%double_L_to_R_to_L, excit_type%double_R_to_L_to_R, &
-             excit_type%double_L_to_R, excit_type%double_R_to_L)
+        case(excit_type%double_R_to_L_to_R)
 
-            cpt1 = (get_umat_el(a, b, j, i) + get_umat_el(b, a, i, j))
-            cpt2 = (get_umat_el(b, a, j, i) + get_umat_el(a, b, i, j))
+            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
+            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
+
+            cpt3 = abs(cpt2 - cpt1)
+            ! cpt4 = abs(cpt1 + cpt2)
+            cpt4 = abs(cpt2 - 2.0_dp * cpt1) / 2.0_dp
+
+            if (flag_) then
+                integral = abs(cpt2)
+            else
+                integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
+            end if
+
+        case(excit_type%double_R_to_L)
+
+            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
+            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
+
+            cpt3 = abs(cpt2 - cpt1)
+            ! cpt4 = abs(cpt1 + cpt2)
+            cpt4 = abs(cpt2 - 2.0_dp * cpt1) / 2.0_dp
+
+            if (flag_) then
+                integral = abs(cpt2)
+            else
+                integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
+            end if
+
+        case(excit_type%double_L_to_R_to_L, excit_type%double_L_to_R)
+
+            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
+            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
 
             cpt3 = abs(cpt2 - cpt1)
             ! cpt4 = abs(cpt1 + cpt2)
@@ -737,13 +783,21 @@ contains
 
             integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
 
-        case(excit_type%fullstop_R_to_L, excit_type%fullstop_L_to_R)
+        case(excit_type%fullstop_R_to_L)
 
-            integral = abs(get_umat_el(b, a, j, b) + get_umat_el(a, b, b, j)) / 2.0_dp
+            integral = abs(get_umat_el(j, a, i, b) + get_umat_el(a, b, j, i)) / 2.0_dp
 
-        case(excit_type%fullstart_L_to_R, excit_type%fullstart_R_to_L)
+        case(excit_type%fullstop_L_to_R)
 
-            integral = abs(get_umat_el(a, b, i, a) + get_umat_el(b, a, a, i)) / 2.0_dp
+            integral = abs(get_umat_el(b, a, i, b) + get_umat_el(a, b, b, i)) / 2.0_dp
+
+        case(excit_type%fullstart_L_to_R)
+
+            integral = abs(get_umat_el(a, b, j, a) + get_umat_el(b, a, a, j)) / 2.0_dp
+
+        case(excit_type%fullstart_R_to_L)
+
+            integral = abs(get_umat_el(a, b, j, a) + get_umat_el(b, a, a, j)) / 2.0_dp
 
         case(excit_type%fullstart_stop_alike)
 
@@ -751,7 +805,7 @@ contains
 
         case(excit_type%fullstart_stop_mixed)
 
-            integral = abs(get_umat_el(a, i, i, a) + get_umat_el(i, a, a, i)) / 2.0_dp
+            integral = abs(get_umat_el(a, j, j, a) + get_umat_el(j, a, a, j)) / 2.0_dp
 
 #ifdef DEBUG_
         case default
@@ -763,6 +817,7 @@ contains
 
     elemental function get_weight(i, j, a, b) result(w)
         integer, intent(in) :: i, j, a, b
+        debug_function_name("get_weight")
         real(dp) :: w
         w = 0._dp
         if (i == j) then
@@ -820,7 +875,7 @@ contains
                 if (a < i) then
                     if (b < i) then
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=b, b=a, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%double_raising)
                         ! in E_{ai}E_{bi} form this would be
                         ! _R(a) -> RR_(b) -> ^RR(i) -> ^R(j)
@@ -838,9 +893,10 @@ contains
                         ! b == i also NOT allowed here,
                         ! since this would correspond to
                         ! a single!
-                    else if (b > i .and. b < j) then
+                    else if (i < b .and. b < j) then
+                        ASSERT(is_set([a, i, b, j]))
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%double_R_to_L_to_R)
                         ! for E_{ai}E_{bj} this would
                         ! correspond to a non-overlap:
@@ -850,14 +906,14 @@ contains
                         ! _R{a} -> _LR(i) -> ^LR(b) -> ^R(j)
                     else if (b == j) then
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%fullstop_R_to_L)
                         ! here we also have to switch
                         ! indices to E_{aj}E_{bi} to get:
                         ! _R(i) -> _LR(a) -> ^LR^(j)
                     else if (b > j) then
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%double_R_to_L)
                         ! here we have to switch to
                         ! E_{aj}E_{bi} to get:
@@ -867,41 +923,47 @@ contains
                     ! b > i is ensured here since b > a in here!
                     if (b < j) then
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%fullstart_L_to_R)
                         ! here we have to switch again:
                         ! E_{aj}E_{bi}:
                         ! _RL_(i) -> ^LR(b) -> ^R(j)
                     else if (b == j) then
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%fullstart_stop_mixed)
                         ! switch again: E_{aj}E_{bi}
                         ! _RL_(i) -> _RL_(j)
                     else if (b > j) then
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%fullstart_R_to_L)
                         ! switch again: E_{aj}E_{bi}
                         ! _RL_(i) -> ^RL(j) -> ^L(b)
                     end if
-                else if (a > i .and. a < j) then
+                else if (i < a .and. a < j) then
                     ! b > a still ensured!
                     if (b < j) then
+                        ASSERT(is_set([i, a, b, j]))
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%double_L_to_R)
                         ! switch: E_{aj}E_{bi}:
                         ! _L(j) -> _RL(a) -> ^LR(b) -> ^R(j)
                     else if (b == j) then
+                        ASSERT(is_sorted([i, a, b, j]) .and. is_set([i, a, b]) .and. all([i, a, b, j] == [i, a, b, b]))
+                        ! ASSERT(i < b .and. b < a .and. a == j)
+                        ASSERT(i < a .and. a < b .and. b == j)
+
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%fullstop_L_to_R)
                         ! switch: E_{aj}E_{bi}
                         ! _L(i) -> _RL(a) -> ^RL^(j)
                     else if (b > j) then
+                        ASSERT(is_set([i, a, j, b]))
                         w = get_pchb_integral_contrib( &
-                            i=j, j=i, a=a, b=b, &
+                            i=i, j=j, a=a, b=b, &
                             typ=excit_type%double_L_to_R_to_L)
                         ! switch: E_{aj}E_{bi}
                         ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
@@ -910,6 +972,7 @@ contains
                     ! a == j also NOT allowed here!
                 else if (a > j) then
                     ! b > a > j implied here!
+                    ASSERT(is_set([i, j, a, b]))
                     w = get_pchb_integral_contrib( &
                         i=i, j=j, a=a, b=b, &
                         typ=excit_type%double_lowering)
@@ -1006,7 +1069,7 @@ contains
                         ! b == i also NOT allowed here,
                         ! since this would correspond to
                         ! a single!
-                    else if (b > i .and. b < j) then
+                    else if (i < b .and. b < j) then
                         ! for E_{ai}E_{bj} this would
                         ! correspond to a non-overlap:
                         ! _R(a) -> ^R(i) + _R(b) > ^R(j)
@@ -1054,7 +1117,7 @@ contains
                                typ=excit_type%fullstart_R_to_L, &
                                a=a, i=j, b=b, j=i)
                     end if
-                else if (a > i .and. a < j) then
+                else if (i < a .and. a < j) then
                     ! b > a still ensured!
                     if (b < j) then
                         ! switch: E_{aj}E_{bi}:
