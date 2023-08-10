@@ -8,7 +8,7 @@ module guga_gas_pchb_mod
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
-    use guga_data, only: ExcitationInformation_t, gen_type, excit_type
+    use guga_data, only: ExcitationInformation_t, gen_type, excit_type, ExcitationType_t
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, binary_search_first_ge, &
@@ -668,7 +668,8 @@ contains
     pure function get_pchb_integral_contrib(i, j, a, b, typ) result(integral)
         ! specialized function to obtain the guga-integral contrib for
         ! the pchb weights
-        integer, intent(in) :: a, i, b, j, typ
+        integer, intent(in) :: a, i, b, j
+        type(ExcitationType_t), intent(in) :: typ
         real(dp) :: integral
         debug_function_name("get_pchb_integral_contrib")
         logical :: flag_
@@ -687,18 +688,18 @@ contains
 
         flag_ = t_exchange_pchb
 
-        select case(typ)
+        select case(typ%val)
 
             ! i need to get the correct indices for the integral contributions!
-        case(excit_type%single_overlap_L_to_R)
+        case(excit_type%single_overlap_L_to_R%val)
 
             integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i)) / 2.0_dp
 
-        case(excit_type%single_overlap_R_to_L)
+        case(excit_type%single_overlap_R_to_L%val)
 
             integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
 
-        case(excit_type%double_raising)
+        case(excit_type%double_raising%val)
 
             cpt1 = (get_umat_el(b, a, j, i) + get_umat_el(a, b, i, j))
             cpt2 = (get_umat_el(a, b, j, i) + get_umat_el(b, a, i, j))
@@ -714,7 +715,7 @@ contains
                 integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
 
-        case(excit_type%double_lowering)
+        case(excit_type%double_lowering%val)
 
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
@@ -730,7 +731,7 @@ contains
                 integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
 
-        case(excit_type%double_R_to_L_to_R)
+        case(excit_type%double_R_to_L_to_R%val)
 
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
@@ -745,7 +746,7 @@ contains
                 integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
 
-        case(excit_type%double_R_to_L)
+        case(excit_type%double_R_to_L%val)
 
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
@@ -760,7 +761,7 @@ contains
                 integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
 
-        case(excit_type%double_L_to_R_to_L, excit_type%double_L_to_R)
+        case(excit_type%double_L_to_R_to_L%val, excit_type%double_L_to_R%val)
 
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
@@ -775,35 +776,35 @@ contains
                 integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
 
-        case(excit_type%fullstop_lowering, excit_type%fullstart_raising)
+        case(excit_type%fullstop_lowering%val, excit_type%fullstart_raising%val)
 
             integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i)) / 2.0_dp
 
-        case(excit_type%fullstop_raising, excit_type%fullstart_lowering)
+        case(excit_type%fullstop_raising%val, excit_type%fullstart_lowering%val)
 
             integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
 
-        case(excit_type%fullstop_R_to_L)
+        case(excit_type%fullstop_R_to_L%val)
 
             integral = abs(get_umat_el(j, a, i, b) + get_umat_el(a, b, j, i)) / 2.0_dp
 
-        case(excit_type%fullstop_L_to_R)
+        case(excit_type%fullstop_L_to_R%val)
 
             integral = abs(get_umat_el(b, a, i, b) + get_umat_el(a, b, b, i)) / 2.0_dp
 
-        case(excit_type%fullstart_L_to_R)
+        case(excit_type%fullstart_L_to_R%val)
 
             integral = abs(get_umat_el(a, b, j, a) + get_umat_el(b, a, a, j)) / 2.0_dp
 
-        case(excit_type%fullstart_R_to_L)
+        case(excit_type%fullstart_R_to_L%val)
 
             integral = abs(get_umat_el(a, b, j, a) + get_umat_el(b, a, a, j)) / 2.0_dp
 
-        case(excit_type%fullstart_stop_alike)
+        case(excit_type%fullstart_stop_alike%val)
 
             integral = abs(get_umat_el(a, a, i, i)) / 2.0_dp
 
-        case(excit_type%fullstart_stop_mixed)
+        case(excit_type%fullstart_stop_mixed%val)
 
             integral = abs(get_umat_el(a, j, j, a) + get_umat_el(j, a, a, j)) / 2.0_dp
 
@@ -995,12 +996,12 @@ contains
                 if (a < i) then
                     ! _RR_(a) -> ^RR^(i)
                     info = encode_excit_info( &
-                           typ=excit_type%fullstart_stop_alike, &
+                           get_type(i, j, a, b), &
                            a=a, i=i, b=b, j=j)
                 else if (a > i) then
                     ! _LL_(i) > ^LL^(a)
                     info = encode_excit_info( &
-                           typ=excit_type%fullstart_stop_alike, &
+                           get_type(i, j, a, b), &
                            a=a, i=i, b=b, j=j)
                 end if
             else if (a /= b) then
@@ -1011,19 +1012,19 @@ contains
                     if (b < i) then
                         ! _R(a) -> _RR(b) -> ^RR^(i)
                         info = encode_excit_info( &
-                               typ=excit_type%fullstop_raising, &
+                               get_type(i, j, a, b), &
                                a=a, i=i, b=b, j=j)
                     else if (b > i) then
                         ! _R(a) -> ^RL_(i) -> ^L(b)
                         info = encode_excit_info( &
-                               typ=excit_type%single_overlap_R_to_L, &
+                               get_type(i, j, a, b), &
                                a=a, i=i, b=b, j=j)
                     end if
                 else if (a > i) then
                     ! since b > a ensured only:
                     ! _LL_(i) -> ^LL(a) -> ^L(b)
                     info = encode_excit_info( &
-                           typ=excit_type%fullstart_lowering, &
+                           get_type(i, j, a, b), &
                            a=a, i=i, b=b, j=j)
                 end if
             end if
@@ -1033,17 +1034,17 @@ contains
                 if (a < i) then
                     ! _RR_(a) -> ^RR(i) -> ^R(j)
                     info = encode_excit_info( &
-                           typ=excit_type%fullstart_raising, &
+                           get_type(i, j, a, b), &
                            a=a, i=i, b=b, j=j)
                 else if (a > i .and. a < j) then
                     ! _L(i) -> ^LR_(a) -> ^R(j)
                     info = encode_excit_info( &
-                           typ=excit_type%single_overlap_L_to_R, &
+                           get_type(i, j, a, b), &
                            a=a, i=i, b=b, j=j)
                 else if (a > j) then
                     ! _L(i) -> _LL(j) -> ^LL^(a)
                     info = encode_excit_info( &
-                           typ=excit_type%fullstop_lowering, &
+                           get_type(i, j, a, b), &
                            a=a, i=i, b=b, j=j)
                 end if
             else if (a /= b) then
@@ -1147,8 +1148,78 @@ contains
                     ! which has the correct sign convention
                     ! as in the Shavitt 81 paper
                     info = encode_excit_info( &
-                           typ=excit_type%double_lowering, &
+                           get_type(i, j, a, b), &
                            a=a, i=i, b=b, j=j)
+                end if
+            end if
+        end if
+    end function
+
+
+    elemental function get_type(i, j, a, b) result(typ)
+        integer, intent(in) :: i, j, a, b
+        type(ExcitationType_t) :: typ
+        if (i == j) then
+            if (a == b) then
+                ! here we only have a contribution if
+                ! a != i
+                if (a < i) then
+                    typ = excit_type%fullstart_stop_alike
+                else if (a > i) then
+                    ! _LL_(i) > ^LL^(a)
+                    typ = excit_type%fullstart_stop_alike
+                end if
+            else if (a /= b) then
+                if (a < i) then
+                    if (b < i) then
+                        typ = excit_type%fullstop_raising
+                    else if (b > i) then
+                        typ = excit_type%single_overlap_R_to_L
+                    end if
+                else if (a > i) then
+                    ! since b > a ensured only:
+                    ! _LL_(i) -> ^LL(a) -> ^L(b)
+                    typ = excit_type%fullstart_lowering
+                end if
+            end if
+        else if (i /= j) then
+            if (a == b) then
+                if (a < i) then
+                    typ = excit_type%fullstart_raising
+                else if (a > i .and. a < j) then
+                    typ = excit_type%single_overlap_L_to_R
+                else if (a > j) then
+                    typ = excit_type%fullstop_lowering
+                end if
+            else if (a /= b) then
+                if (a < i) then
+                    if (b < i) then
+                        typ = excit_type%double_raising
+                    else if (i < b .and. b < j) then
+                        typ = excit_type%double_R_to_L_to_R
+                    else if (b == j) then
+                        typ = excit_type%fullstop_R_to_L
+                    else if (b > j) then
+                        typ = excit_type%double_R_to_L
+                    end if
+                else if (a == i) then
+                    if (b < j) then
+                        typ = excit_type%fullstart_L_to_R
+                    else if (b == j) then
+                        typ = excit_type%fullstart_stop_mixed
+                    else if (b > j) then
+                        typ = excit_type%fullstart_R_to_L
+                    end if
+                else if (i < a .and. a < j) then
+                    if (b < j) then
+                        typ = excit_type%double_L_to_R
+                    else if (b == j) then
+                        typ = excit_type%fullstop_L_to_R
+                    else if (b > j) then
+                        typ = excit_type%double_L_to_R_to_L
+                    end if
+                else if (a > j) then
+                    typ = excit_type%double_lowering
                 end if
             end if
         end if

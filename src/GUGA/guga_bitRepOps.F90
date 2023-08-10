@@ -11,7 +11,7 @@ module guga_bitRepOps
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
-                         excit_names
+                         excit_names, ExcitationType_t
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64, stdout
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -1592,7 +1592,8 @@ contains
                 result(excitInfo)
         ! version of the excitation information filler for the exact
         ! matrix element calculation between 2 given CSFs
-        integer, intent(in) :: typ, gen1, gen2, currentGen, firstGen, lastGen, &
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: gen1, gen2, currentGen, firstGen, lastGen, &
                                i, j, k, l, fullStart, secondStart, firstEnd, &
                                fullEnd, weight, excitLvl
         integer, intent(in), optional :: overlap
@@ -1637,7 +1638,7 @@ contains
     pure function assign_excitInfo_values_single_ex(gen, i, j, fullStart, fullEnd, typ) &
         result(excitInfo)
         integer, intent(in) :: gen, i, j, fullStart, fullEnd
-        integer, intent(in), optional :: typ
+        type(ExcitationType_t), intent(in), optional :: typ
         type(ExcitationInformation_t) :: excitInfo
 
         ! set default values for single excitations: which cause errors if
@@ -2973,7 +2974,8 @@ contains
         ! indices for the 1-RDM
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(out) :: i, a
-        integer, intent(out), optional :: excit_lvl, excit_typ
+        integer, intent(out), optional :: excit_lvl
+        type(ExcitationType_t), intent(out), optional :: excit_typ
 
         integer(int_rdm) :: rdm_ind_
 
@@ -3000,7 +3002,8 @@ contains
         ! the inverse function of the routine above, to give the combined
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
-        integer, intent(in), optional :: excit_lvl, excit_typ
+        integer, intent(in), optional :: excit_lvl
+        type(ExcitationType_t), intent(in), optional :: excit_typ
         integer(int_rdm) :: rdm_ind
 
         rdm_ind = nSpatOrbs * (i - 1) + a
@@ -3017,9 +3020,9 @@ contains
 
     pure function extract_excit_type_rdm(rdm_ind) result(excit_typ)
         integer(int_rdm), intent(in) :: rdm_ind
-        integer :: excit_typ
+        type(ExcitationType_t) :: excit_typ
 
-        excit_typ = int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits))
+        excit_typ = ExcitationType_t(int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits)))
 
     end function extract_excit_type_rdm
 
@@ -3033,9 +3036,9 @@ contains
 
     pure subroutine encode_excit_typ_rdm(rdm_ind, excit_typ)
         integer(int_rdm), intent(inout) :: rdm_ind
-        integer, intent(in) :: excit_typ
+        type(ExcitationType_t), intent(in) :: excit_typ
 
-        call mvbits(int(excit_typ, int_rdm), 0, n_excit_type_bits, &
+        call mvbits(int(excit_typ%val, int_rdm), 0, n_excit_type_bits, &
                     rdm_ind, pos_excit_type_bits)
 
     end subroutine encode_excit_typ_rdm
@@ -3056,7 +3059,8 @@ contains
         ! since I only ever have spatial orbitals in the GUGA-RDM make
         ! the definition of the RDM-index combination differently
         integer, intent(in) :: i, j, k, l
-        integer, intent(in), optional :: excit_lvl, excit_typ
+        integer, intent(in), optional :: excit_lvl
+        type(ExcitationType_t), intent(in), optional :: excit_typ
         integer(int_rdm) :: ijkl
 
         integer(int_rdm) :: ij, kl
@@ -3084,7 +3088,8 @@ contains
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: i, j, k, l
         integer(int_rdm), intent(out), optional :: ij_out, kl_out
-        integer, intent(out), optional :: excit_lvl, excit_typ
+        integer, intent(out), optional :: excit_lvl
+        type(ExcitationType_t), intent(out), optional :: excit_typ
 
         integer(int_rdm) :: ij, kl
 
@@ -3130,31 +3135,32 @@ contains
         ! object into a single 64bit integer. used in the PCHB excitation
         ! generation.
         debug_function_name("encode_excit_info_vec")
-        integer, intent(in) :: typ, inds(4)
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: inds(4)
         integer(int64) :: excit_info_int
 
 #ifdef DEBUG_
-        select case(typ)
-        case( excit_type%single_overlap_L_to_R)
-        case( excit_type%single_overlap_R_to_L )
-        case( excit_type%double_lowering )
-        case( excit_type%double_raising )
-        case( excit_type%double_L_to_R_to_L)
-        case( excit_type%double_R_to_L_to_R )
-        case( excit_type%double_L_to_R )
-        case( excit_type%double_R_to_L )
-        case( excit_type%fullstop_lowering )
-        case( excit_type%fullstop_raising )
-        case( excit_type%fullstop_L_to_R )
-        case( excit_type%fullstop_R_to_L )
-        case( excit_type%fullstart_lowering)
-        case( excit_type%fullstart_raising)
-        case( excit_type%fullstart_L_to_R)
-        case( excit_type%fullstart_R_to_L)
-        case( excit_type%fullstart_stop_alike)
-        case( excit_type%fullstart_stop_mixed)
+        select case(typ%val)
+        case( excit_type%single_overlap_L_to_R%val)
+        case( excit_type%single_overlap_R_to_L%val )
+        case( excit_type%double_lowering%val)
+        case( excit_type%double_raising%val )
+        case( excit_type%double_L_to_R_to_L%val)
+        case( excit_type%double_R_to_L_to_R%val )
+        case( excit_type%double_L_to_R%val )
+        case( excit_type%double_R_to_L%val )
+        case( excit_type%fullstop_lowering%val )
+        case( excit_type%fullstop_raising%val )
+        case( excit_type%fullstop_L_to_R%val )
+        case( excit_type%fullstop_R_to_L%val )
+        case( excit_type%fullstart_lowering%val)
+        case( excit_type%fullstart_raising%val)
+        case( excit_type%fullstart_L_to_R%val)
+        case( excit_type%fullstart_R_to_L%val)
+        case( excit_type%fullstart_stop_alike%val)
+        case( excit_type%fullstart_stop_mixed%val)
         case default
-            call stop_all(this_routine, "incorrect typ: "//excit_names(typ)%str)
+            call stop_all(this_routine, "incorrect typ: "//excit_names(typ%val)%str)
         end select
 #endif
 
@@ -3172,31 +3178,32 @@ contains
         ! object into a single 64bit integer. used in the PCHB excitation
         ! generation.
         debug_function_name("encode_excit_info_scalar")
-        integer, intent(in) :: typ, a, i, b, j
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: a, i, b, j
         integer(int64) :: excit_info_int
 
 #ifdef DEBUG_
-        select case(typ)
-        case( excit_type%single_overlap_L_to_R)
-        case( excit_type%single_overlap_R_to_L )
-        case( excit_type%double_lowering )
-        case( excit_type%double_raising )
-        case( excit_type%double_L_to_R_to_L)
-        case( excit_type%double_R_to_L_to_R )
-        case( excit_type%double_L_to_R )
-        case( excit_type%double_R_to_L )
-        case( excit_type%fullstop_lowering )
-        case( excit_type%fullstop_raising )
-        case( excit_type%fullstop_L_to_R )
-        case( excit_type%fullstop_R_to_L )
-        case( excit_type%fullstart_lowering)
-        case( excit_type%fullstart_raising)
-        case( excit_type%fullstart_L_to_R)
-        case( excit_type%fullstart_R_to_L)
-        case( excit_type%fullstart_stop_alike)
-        case( excit_type%fullstart_stop_mixed)
+        select case(typ%val)
+        case( excit_type%single_overlap_L_to_R%val)
+        case( excit_type%single_overlap_R_to_L%val )
+        case( excit_type%double_lowering%val )
+        case( excit_type%double_raising%val )
+        case( excit_type%double_L_to_R_to_L%val)
+        case( excit_type%double_R_to_L_to_R%val )
+        case( excit_type%double_L_to_R%val )
+        case( excit_type%double_R_to_L%val )
+        case( excit_type%fullstop_lowering%val )
+        case( excit_type%fullstop_raising%val )
+        case( excit_type%fullstop_L_to_R%val )
+        case( excit_type%fullstop_R_to_L%val )
+        case( excit_type%fullstart_lowering%val)
+        case( excit_type%fullstart_raising%val)
+        case( excit_type%fullstart_L_to_R%val)
+        case( excit_type%fullstart_R_to_L%val)
+        case( excit_type%fullstart_stop_alike%val)
+        case( excit_type%fullstart_stop_mixed%val)
         case default
-            call stop_all(this_routine, "incorrect typ: "//excit_names(typ)%str)
+            call stop_all(this_routine, "incorrect typ: "//excit_names(typ%val)%str)
         end select
 #endif
 
@@ -3212,44 +3219,44 @@ contains
     pure subroutine encode_excit_info_type(excit_info_int, typ)
         debug_function_name("encode_excit_info_type")
         integer(int64), intent(inout) :: excit_info_int
-        integer, intent(in) :: typ
+        type(ExcitationType_t), intent(in) :: typ
 
 #ifdef DEBUG_
-        select case(typ)
-        case( excit_type%single_overlap_L_to_R)
-        case( excit_type%single_overlap_R_to_L )
-        case( excit_type%double_lowering )
-        case( excit_type%double_raising )
-        case( excit_type%double_L_to_R_to_L)
-        case( excit_type%double_R_to_L_to_R )
-        case( excit_type%double_L_to_R )
-        case( excit_type%double_R_to_L )
-        case( excit_type%fullstop_lowering )
-        case( excit_type%fullstop_raising )
-        case( excit_type%fullstop_L_to_R )
-        case( excit_type%fullstop_R_to_L )
-        case( excit_type%fullstart_lowering)
-        case( excit_type%fullstart_raising)
-        case( excit_type%fullstart_L_to_R)
-        case( excit_type%fullstart_R_to_L)
-        case( excit_type%fullstart_stop_alike)
-        case( excit_type%fullstart_stop_mixed)
+        select case(typ%val)
+        case( excit_type%single_overlap_L_to_R%val)
+        case( excit_type%single_overlap_R_to_L%val )
+        case( excit_type%double_lowering%val )
+        case( excit_type%double_raising%val )
+        case( excit_type%double_L_to_R_to_L%val)
+        case( excit_type%double_R_to_L_to_R%val )
+        case( excit_type%double_L_to_R%val )
+        case( excit_type%double_R_to_L%val )
+        case( excit_type%fullstop_lowering%val )
+        case( excit_type%fullstop_raising%val )
+        case( excit_type%fullstop_L_to_R%val )
+        case( excit_type%fullstop_R_to_L%val )
+        case( excit_type%fullstart_lowering%val)
+        case( excit_type%fullstart_raising%val)
+        case( excit_type%fullstart_L_to_R%val)
+        case( excit_type%fullstart_R_to_L%val)
+        case( excit_type%fullstart_stop_alike%val)
+        case( excit_type%fullstart_stop_mixed%val)
         case default
-            call stop_all(this_routine, "incorrect typ: "//excit_names(typ)%str)
+            call stop_all(this_routine, "incorrect typ: "//excit_names(typ%val)%str)
         end select
 #endif
 
         ! the convention is to store the excit-type 'first' at the LSB
         ! so this should be fine:
-        call mvbits(int(typ, int64), 0, n_excit_type_bits, excit_info_int, 0)
+        call mvbits(int(typ%val, int64), 0, n_excit_type_bits, excit_info_int, 0)
 
     end subroutine encode_excit_info_type
 
     pure function extract_excit_info_type(excit_info_int) result(typ)
         integer(int64), intent(in) :: excit_info_int
-        integer :: typ
+        type(ExcitationType_t) :: typ
 
-        typ = int(ibits(excit_info_int, 0, n_excit_type_bits))
+        typ = ExcitationType_t(int(ibits(excit_info_int, 0, n_excit_type_bits)))
 
     end function extract_excit_info_type
 
@@ -3322,7 +3329,8 @@ contains
 
     subroutine extract_excit_info_scalar(excit_info_int, typ, a, i, b, j)
         integer(int64), intent(in) :: excit_info_int
-        integer, intent(out) :: typ, a, i, b, j
+        type(ExcitationType_t), intent(out) :: typ
+        integer, intent(out) :: a, i, b, j
 
         typ = extract_excit_info_type(excit_info_int)
 
@@ -3332,7 +3340,8 @@ contains
 
     subroutine extract_excit_info_vector(excit_info_int, typ, inds)
         integer(int64), intent(in) :: excit_info_int
-        integer, intent(out) :: typ, inds(4)
+        type(ExcitationType_t), intent(out) :: typ
+        integer, intent(out) :: inds(4)
 
         typ = extract_excit_info_type(excit_info_int)
 
@@ -3344,7 +3353,8 @@ contains
         integer(int64), intent(in) :: excit_info_int
         type(ExcitationInformation_t), intent(out) :: excitInfo
 
-        integer :: typ, a, i, b, j
+        type(ExcitationType_t) :: typ
+        integer :: a, i, b, j
 
         ! this function needs to do additional processing of the
         ! minimal info stored in excit_info_int
@@ -3359,7 +3369,8 @@ contains
 
     function calc_remaining_excit_info(typ, a, i, b, j) result(excitInfo)
         debug_function_name("calc_remaining_excit_info")
-        integer, intent(in) :: typ, a, i, b, j
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: a, i, b, j
         type(ExcitationInformation_t) :: excitInfo
 
         integer :: gen1, gen2, currentGen, firstGen, lastGen, fullstart, &
@@ -3367,27 +3378,27 @@ contains
         real(dp) :: order, order1
 
 #ifdef DEBUG_
-        select case(typ)
-        case( excit_type%single_overlap_L_to_R)
-        case( excit_type%single_overlap_R_to_L )
-        case( excit_type%double_lowering )
-        case( excit_type%double_raising )
-        case( excit_type%double_L_to_R_to_L)
-        case( excit_type%double_R_to_L_to_R )
-        case( excit_type%double_L_to_R )
-        case( excit_type%double_R_to_L )
-        case( excit_type%fullstop_lowering )
-        case( excit_type%fullstop_raising )
-        case( excit_type%fullstop_L_to_R )
-        case( excit_type%fullstop_R_to_L )
-        case( excit_type%fullstart_lowering)
-        case( excit_type%fullstart_raising)
-        case( excit_type%fullstart_L_to_R)
-        case( excit_type%fullstart_R_to_L)
-        case( excit_type%fullstart_stop_alike)
-        case( excit_type%fullstart_stop_mixed)
+        select case(typ%val)
+        case( excit_type%single_overlap_L_to_R%val)
+        case( excit_type%single_overlap_R_to_L%val )
+        case( excit_type%double_lowering%val )
+        case( excit_type%double_raising%val )
+        case( excit_type%double_L_to_R_to_L%val)
+        case( excit_type%double_R_to_L_to_R%val )
+        case( excit_type%double_L_to_R%val )
+        case( excit_type%double_R_to_L%val )
+        case( excit_type%fullstop_lowering%val )
+        case( excit_type%fullstop_raising%val )
+        case( excit_type%fullstop_L_to_R%val )
+        case( excit_type%fullstop_R_to_L%val )
+        case( excit_type%fullstart_lowering%val)
+        case( excit_type%fullstart_raising%val)
+        case( excit_type%fullstart_L_to_R%val)
+        case( excit_type%fullstart_R_to_L%val)
+        case( excit_type%fullstart_stop_alike%val)
+        case( excit_type%fullstart_stop_mixed%val)
         case default
-            print *, "incorrect typ: ", excit_names(typ)
+            print *, "incorrect typ: ", excit_names(typ%val)
             call stop_all(this_routine, "see above")
         end select
 #endif
@@ -3412,9 +3423,9 @@ contains
         order = 1.0_dp
         order1 = 1.0_dp
 
-        select case (typ)
+        select case (typ%val)
 
-        case ( excit_type%single_overlap_L_to_R )
+        case ( excit_type%single_overlap_L_to_R%val )
 
             ASSERT(a == b)
             ASSERT(i < j)
@@ -3433,7 +3444,7 @@ contains
 
 
 
-        case ( excit_type%single_overlap_R_to_L )
+        case ( excit_type%single_overlap_R_to_L%val )
 
             ASSERT(i == j)
             ASSERT(a < b)
@@ -3450,7 +3461,7 @@ contains
             fullEnd     = b
             overlap     = 1
 
-        case ( excit_type%double_lowering )
+        case ( excit_type%double_lowering%val )
 
             ASSERT(i < j)
             ASSERT(j < a)
@@ -3468,7 +3479,7 @@ contains
             overlap     = firstEnd - secondStart + 1
 
 
-        case ( excit_type%double_raising )
+        case ( excit_type%double_raising%val )
 
             ! in this assignment i switch to E_{bj}E_{ai} assignement to
             ! ensure 'correct' sign convention of the x1 coupling coeffs!
@@ -3488,7 +3499,7 @@ contains
 
             overlap     = firstEnd - secondStart + 1
 
-        case ( excit_type%double_L_to_R_to_L )
+        case ( excit_type%double_L_to_R_to_L%val )
             ! here we switch to E_{aj}E_{bi}
 
             ASSERT( j < a )
@@ -3508,7 +3519,7 @@ contains
             overlap     = firstEnd - secondStart + 1
 
 
-        case ( excit_type%double_R_to_L_to_R )
+        case ( excit_type%double_R_to_L_to_R%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( a < j )
@@ -3527,7 +3538,7 @@ contains
 
             overlap = firstEnd - secondStart + 1
 
-        case ( excit_type%double_L_to_R )
+        case ( excit_type%double_L_to_R%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( j < a )
@@ -3547,7 +3558,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%double_R_to_L )
+        case ( excit_type%double_R_to_L%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( a < j )
@@ -3567,7 +3578,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstop_lowering )
+        case ( excit_type%fullstop_lowering%val )
 
             ASSERT( i < j )
             ASSERT( j < a )
@@ -3586,7 +3597,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstop_raising )
+        case ( excit_type%fullstop_raising%val )
 
             ASSERT(a < b )
             ASSERT(b < i )
@@ -3605,7 +3616,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstop_R_to_L )
+        case ( excit_type%fullstop_R_to_L%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT(a < j )
@@ -3625,7 +3636,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstop_L_to_R )
+        case ( excit_type%fullstop_L_to_R%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( j < a )
@@ -3645,7 +3656,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_lowering )
+        case ( excit_type%fullstart_lowering%val )
 
             ASSERT( i == j)
             ASSERT( j < a )
@@ -3664,7 +3675,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_raising )
+        case ( excit_type%fullstart_raising%val )
 
             ASSERT( a == b )
             ASSERT( b < i )
@@ -3683,7 +3694,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_L_to_R )
+        case ( excit_type%fullstart_L_to_R%val )
 
             ! switch to E_{aj} E_{bi}
             ASSERT( a == j )
@@ -3703,7 +3714,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_R_to_L )
+        case ( excit_type%fullstart_R_to_L%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( a == j )
@@ -3723,7 +3734,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_stop_alike )
+        case ( excit_type%fullstart_stop_alike%val )
 
             ! here i need if statement..
 
@@ -3748,7 +3759,7 @@ contains
 
             overlap = firstEnd - secondStart + 1
 
-        case ( excit_type%fullstart_stop_mixed )
+        case ( excit_type%fullstart_stop_mixed%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT(a == j)

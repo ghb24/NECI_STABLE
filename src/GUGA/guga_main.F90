@@ -584,9 +584,9 @@ contains
         ! excitation calculators. similar to the exact calculation
         ! only certain cases, where the excitation really can not be
         ! described by a single excitation, should arrive here.
-        select case (excitInfo%typ)
+        select case (excitInfo%typ%val)
 
-        case (excit_type%single_overlap_L_to_R)
+        case (excit_type%single_overlap_L_to_R%val)
             ! single overlap lowering into raising
             ! similar to a single excitation except the (predetermined)
             ! single overlap site.
@@ -595,7 +595,7 @@ contains
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%single_overlap_R_to_L) ! single overlap raising into lowering
+        case (excit_type%single_overlap_R_to_L%val) ! single overlap raising into lowering
             ! similar to a single excitation except the (predetermined)
             ! single overlap site.
             !todo: mention on the weight input here: in some routines below,
@@ -608,19 +608,19 @@ contains
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%double_lowering) ! normal double two lowering
+        case (excit_type%double_lowering%val) ! normal double two lowering
             call calcDoubleLoweringStochastic(ilut, csf_i, excitInfo, excitation, branch_pgen, &
                                               posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%double_raising) ! normal double two raising
+        case (excit_type%double_raising%val) ! normal double two raising
             call calcDoubleRaisingStochastic(ilut, csf_i, excitInfo, excitation, branch_pgen, &
                                              posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%double_L_to_R_to_L) ! lowergin into raising into lowering
+        case (excit_type%double_L_to_R_to_L%val) ! lowergin into raising into lowering
             ! should be able to use the same general function as above to
             ! calculate the excitation, but the matrix element calculation
             ! should be a little bit different... maybe additional input needed
@@ -629,26 +629,26 @@ contains
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
+        case (excit_type%double_R_to_L_to_R%val) ! raising into lowering into raising
             ! dito about matrix elements as above...
             call calcDoubleR2L2R_stochastic(ilut, csf_i, excitInfo, excitation, branch_pgen, &
                                             posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%double_L_to_R) ! lowering into raising double
+        case (excit_type%double_L_to_R%val) ! lowering into raising double
             call calcDoubleL2R_stochastic(ilut, csf_i, excitInfo, excitation, branch_pgen, &
                                           posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%double_R_to_L) ! raising into lowering double
+        case (excit_type%double_R_to_L%val) ! raising into lowering double
             call calcDoubleR2L_stochastic(ilut, csf_i, excitInfo, excitation, branch_pgen, &
                                           posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%fullstop_lowering) ! full stop 2 lowering
+        case (excit_type%fullstop_lowering%val) ! full stop 2 lowering
             ! again the double overlap part is easy to deal with, since its
             ! only the deltaB=0 branch
             call calcFullstopLoweringStochastic(ilut, csf_i, excitInfo, excitation, &
@@ -656,14 +656,14 @@ contains
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%fullstop_raising) ! full-stop 2 raising
+        case (excit_type%fullstop_raising%val) ! full-stop 2 raising
             ! again only deltaB = 0 branch in DE overlap region
             call calcFullstopRaisingStochastic(ilut, csf_i, excitInfo, excitation, &
                                                branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%fullstop_L_to_R) ! full-stop lowering into raising
+        case (excit_type%fullstop_L_to_R%val) ! full-stop lowering into raising
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
                 ! in case of "crude" exchange excitation perform a
@@ -695,7 +695,7 @@ contains
 
             end if
 
-        case (excit_type%fullstop_R_to_L) ! full-stop raising into lowering
+        case (excit_type%fullstop_R_to_L%val) ! full-stop raising into lowering
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
                 call perform_crude_excitation(ilut, csf_i, excitInfo, excitation, compFlag)
@@ -724,14 +724,14 @@ contains
 
             end if
 
-        case (excit_type%fullstart_lowering) ! full-start 2 lowering
+        case (excit_type%fullstart_lowering%val) ! full-start 2 lowering
             ! again only deltaB = 0 branch in DE overlap region
             call calcFullStartLoweringStochastic(ilut, csf_i, excitInfo, excitation, &
                                                  branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%fullstart_raising) ! full-start 2 raising
+        case (excit_type%fullstart_raising%val) ! full-start 2 raising
             ! the double overlap part is again really easy here, since only
             ! the deltaB=0 branch is non-zero -> and the second part can be
             ! treated as a single excitation
@@ -740,7 +740,7 @@ contains
 
             pgen = orb_pgen * branch_pgen
 
-        case (excit_type%fullStart_L_to_R) ! full-start lowering into raising
+        case (excit_type%fullStart_L_to_R%val) ! full-start lowering into raising
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
                 call perform_crude_excitation(ilut, csf_i, excitInfo, excitation, compFlag)
@@ -769,7 +769,7 @@ contains
 
             end if
 
-        case (excit_type%fullstart_R_to_L) ! full-start raising into lowering
+        case (excit_type%fullstart_R_to_L%val) ! full-start raising into lowering
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
                 call perform_crude_excitation(ilut, csf_i, excitInfo, excitation, compFlag)
@@ -799,7 +799,7 @@ contains
             end if
 
             ! start, case by case how they appear in the documentary
-        case (excit_type%fullstart_stop_alike) ! full-start into full-stop alike
+        case (excit_type%fullstart_stop_alike%val) ! full-start into full-stop alike
             ! since there is only the deltaB = 0 branch with non-zero weight
             ! only 1 excitation is possible, which is calculated by the
             ! exact version
@@ -832,7 +832,7 @@ contains
 
             deallocate(excitations)
 
-        case (excit_type%fullstart_stop_mixed) ! full-start into full-stop mixed
+        case (excit_type%fullstart_stop_mixed%val) ! full-start into full-stop mixed
             ! here it is garuanteed that its a open orbital at the start and
             ! end to allow for an non-diagonal excitation.
             ! but somehow i have to ensure, that the deltaB=0 path is left
@@ -952,20 +952,20 @@ contains
             end select
         end if
 
-        select case(excitInfo%typ)
-        case (excit_type%single_overlap_L_to_R, &
-              excit_type%single_overlap_R_to_L, &
-              excit_type%double_lowering, &
-              excit_type%double_raising, &
-              excit_type%double_L_to_R_to_L, &
-              excit_type%double_R_to_L_to_R, &
-              excit_type%double_L_to_R, &
-              excit_type%double_R_to_L, &
-              excit_type%fullstop_raising, &
-              excit_type%fullstop_lowering, &
-              excit_type%fullstart_lowering, &
-              excit_type%fullstart_raising, &
-              excit_type%fullstart_stop_alike)
+        select case(excitInfo%typ%val)
+        case (excit_type%single_overlap_L_to_R%val, &
+              excit_type%single_overlap_R_to_L%val, &
+              excit_type%double_lowering%val, &
+              excit_type%double_raising%val, &
+              excit_type%double_L_to_R_to_L%val, &
+              excit_type%double_R_to_L_to_R%val, &
+              excit_type%double_L_to_R%val, &
+              excit_type%double_R_to_L%val, &
+              excit_type%fullstop_raising%val, &
+              excit_type%fullstop_lowering%val, &
+              excit_type%fullstart_lowering%val, &
+              excit_type%fullstart_raising%val, &
+              excit_type%fullstart_stop_alike%val)
 
             ! in the other cases global_excitInfo gets assigned before it
             ! gets changed
@@ -1154,10 +1154,10 @@ contains
 
             ! there is now a difference depending on some type of
             ! excitations
-            select case (excitInfo%typ)
-            case (excit_type%single_overlap_L_to_R, &
-                  excit_type%fullstop_lowering, &
-                  excit_type%fullstart_raising)
+            select case (excitInfo%typ%val)
+            case (excit_type%single_overlap_L_to_R%val, &
+                  excit_type%fullstop_lowering%val, &
+                  excit_type%fullstart_raising%val)
 
                 ! here i know the spatial orbital indices are the same
                 ASSERT(orb_1 == orb_2)
@@ -1175,9 +1175,9 @@ contains
 
                 flag = test_increase_on_loc(loc_elec, loc_orb, 2)
 
-            case (excit_type%single_overlap_R_to_L, &
-                  excit_type%fullstop_raising, &
-                  excit_type%fullstart_lowering)
+            case (excit_type%single_overlap_R_to_L%val, &
+                  excit_type%fullstop_raising%val, &
+                  excit_type%fullstart_lowering%val)
 
                 ! here i know both spatial electon indices are the same
                 ASSERT(elec_1 == elec_2)
@@ -1191,10 +1191,10 @@ contains
 
                 flag = test_increase_on_loc(loc_elec, loc_orb, 2)
 
-            case (excit_type%fullstop_L_to_R, &
-                  excit_type%fullstop_R_to_L, &
-                  excit_type%fullStart_L_to_R, &
-                  excit_type%fullstart_R_to_L)
+            case (excit_type%fullstop_L_to_R%val, &
+                  excit_type%fullstop_R_to_L%val, &
+                  excit_type%fullStart_L_to_R%val, &
+                  excit_type%fullstart_R_to_L%val)
 
                 ! here i know one electron and one hole index are the same
                 ASSERT(elec_1 /= elec_2)
@@ -1242,7 +1242,7 @@ contains
 
                 flag = test_increase_on_loc(loc_elec, loc_orb, 1)
 
-            case (excit_type%fullstart_stop_mixed)
+            case (excit_type%fullstart_stop_mixed%val)
                 ! here i do not change the 'orbital excitation level'
                 if (n_guga_back_spawn_lvl < 0) then
                     flag = .true.
