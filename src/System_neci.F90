@@ -3639,5 +3639,4 @@ contains
         end do
         call buffer%dump_reset(spat_GAS_orbs)
     end subroutine
-
 END MODULE System
