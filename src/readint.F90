@@ -37,7 +37,6 @@ contains
         logical :: uhf, trel, tDetectSym
         character(*), parameter :: this_routine = 'INITFROMFCID'
         real(dp), allocatable :: FOCK(:)
-
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
