@@ -7,7 +7,7 @@ module read_fci
         tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
         BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
         UMatEps, t_non_hermitian_1_body, tRIIntegrals, SYMMAX, irrepOrbOffset, &
-        t_complex_ints, tIgnoreFCIDUMPHeader
+        t_complex_ints, tZeroDelimitedFCIDUMP, tIgnoreFCIDUMPHeader
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
     use UMatCache, only: GetCacheIndexStates, GTID, &
         UMatInd, UMatConj, UMAT2D, TUMAT2D, CacheFCIDUMP, &
@@ -662,7 +662,7 @@ contains
 
         ISPINS = 2
         IF (UHF .and. (.not. tROHF)) ISPINS = 1
-        if (tMolpro .and. tUHF) ISPINS = 1
+        if (tZeroDelimitedFCIDUMP) ISPINS = 1
         if (tReltvy) ISPINS = 1
 
         IF (tROHF .and. (.not. tMolpro)) THEN
@@ -676,7 +676,7 @@ contains
             write (stdout, '("Two-electron integrals with a magnitude over ", &
                       &g16.7," are screened")') UMatEps
 
-            if (tMolpro .and. tUHF) then
+            if (tZeroDelimitedFCIDUMP) then
                 !In molpro, UHF FCIDUMPs are written out as:
                 !1: aaaa
                 !2: bbbb
@@ -787,7 +787,7 @@ contains
                 IF (L /= 0) THEN
                     L = GTID(L)
                 end if
-            else if (tMolpro .and. tUHF) then
+            else if (tZeroDelimitedFCIDUMP) then
                 if (i /= 0) then
                     !Need to transfer the orbital index into spin orbital notation
                     if ((iSpinType == 1) .or. (iSpinType == 4)) then
@@ -813,7 +813,7 @@ contains
             end if
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
             IF (I == 0) THEN
-                if (tMolpro .and. tUHF .and. (iSpinType /= 6)) then
+                if (tZeroDelimitedFCIDUMP .and. (iSpinType /= 6)) then
                     if (abs(real(z, dp)) > 1.0e-8_dp) then
                         call stop_all(t_r, "This is not a delimiter in the FCIDUMP reading")
                     end if
@@ -843,8 +843,8 @@ contains
                         write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
                         call stop_all("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
                     end if
+                    TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
                     if (.not. t_non_hermitian_1_body) then
-                        TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
 #ifdef CMPLX_
                         TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
 #else
@@ -899,8 +899,8 @@ contains
 199         CONTINUE
 
             close(iunit)
-            if (tMolpro .and. tUHF .and. (iSpinType /= 6)) then
-                call stop_all(t_r, "Error in reading UHF FCIDUMP from molpro")
+            if (tZeroDelimitedFCIDUMP .and. (iSpinType /= 6)) then
+                call stop_all(t_r, "Error in reading zero-delimited UHF FCIDUMP.")
             end if
         end if
 
@@ -985,13 +985,13 @@ contains
         else if (K == 0) THEN
 !.. 1-e integrals
 !.. These are stored as spinorbitals (with elements between different spins being 0
+            TMAT2D(2 * I - 1, 2 * J - 1) = Z
+            TMAT2D(2 * I, 2 * J) = Z
             if (.not. t_non_hermitian_1_body) then
-                TMAT2D(2 * I - 1, 2 * J - 1) = Z
-                TMAT2D(2 * I, 2 * J) = Z
+                TMAT2D(2 * J - 1, 2 * I - 1) = Z
+                TMAT2D(2 * J, 2 * I) = Z
             end if
 
-            TMAT2D(2 * J - 1, 2 * I - 1) = Z
-            TMAT2D(2 * J, 2 * I) = Z
         ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)

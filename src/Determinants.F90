@@ -14,7 +14,7 @@ module Determinants
         tfixlz, tguga, thphfints, thub, tmolpro, tpickvirtuniform, &
         tref_not_hf, tspn, tstoreasexcitations, tsymset, tueg, tueg2, &
         tuegspecifymomentum, tusebrillouin, t_k_space_hubbard, &
-        tStoquastize
+        tStoquastize, tZeroDelimitedFCIDUMP, tHFOrder, tHFNoOrder
     use bit_rep_data, only: nIfTot
     use blas_interface_mod, only: dcopy
     use constants, only: Pi, Pi2, THIRD, dp, n_int, bits_n_int, int64, maxExcit, stdout
@@ -83,6 +83,9 @@ contains
         logical :: tGenFDet
         HElement_t(dp) :: OrbE
         character(25), parameter :: this_routine = 'DetPreFreezeInit_old'
+        ! seems this is only used in one place in the code, and only for GUGA.
+        write(stdout, "(A)") "WARNING: Routine DetPreFreezeInit_old is deprecated. &
+                            &Use DetPreFreezeInit instead."
         allocate (FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
         IF (tDefineDet) THEN
@@ -283,10 +286,10 @@ contains
             write (stdout, "(A,I5)") "Lz of Fermi det:", Lz
         end if
         CALL NECI_ICOPY(NEL, FDET, 1, NUHFDET, 1)
-        if (tMolpro) then
+        if (tMolpro .or. tZeroDelimitedFCIDUMP) then
             !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
             !Therefore, we know HF determinant is first four occupied orbitals.
-            write (stdout, "(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
+            if (tMolpro) write (stdout, "(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
             if (.not. tDefineDet) then
                 FDetTemp(:) = FDet(:)
             else
@@ -300,10 +303,14 @@ contains
                 Arr(i, 1) = real(OrbE, dp)
                 Brr(i) = i
             end do
-            write (stdout, "(A)") "Reordering basis by orbital energies..."
-            OrbOrder(:, :) = 0
-            call ORDERBASIS(NBASIS, Arr, Brr, OrbOrder, nBasisMax, G1)
-            !However, we reorder them here
+            if (tMolpro .or. tHFOrder .or. .not. tHFNoOrder) then
+                write (stdout, "(A)") "Reordering basis by orbital energies..."
+                OrbOrder(:, :) = 0
+                call ORDERBASIS(NBASIS, Arr, Brr, OrbOrder, nBasisMax, G1)
+            else
+                write (stdout, "(A)") "Not reordering basis."
+                Arr(:nBasis, 2) = Arr(:nBasis, 1)
+            end if
             call writebasis(stdout, G1, nBasis, Arr, Brr)
         end if
         E0HFDET = ECORE

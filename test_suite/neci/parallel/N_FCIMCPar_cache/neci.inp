@@ -1,7 +1,7 @@
 title
 
 system read
-    uhf
+    uhf spin-minor-index
     symignoreenergies
     electrons 7
     nonuniformrandexcits

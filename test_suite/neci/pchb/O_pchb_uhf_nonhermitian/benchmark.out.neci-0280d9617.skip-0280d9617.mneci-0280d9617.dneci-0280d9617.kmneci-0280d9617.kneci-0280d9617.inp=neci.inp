@@ -1,0 +1,944 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Jul 28 2023 at 15:12:54
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     0280d9617a0ea311c45abc2c8cc2b210ce3c0545
+ Working directory: 
+     /home/phaupt/dev/neci_2merge/test_suite/neci/pchb/O_pchb_uhf_nonhermitian
+ Running on: alamdlogin1
+ Started running on 28/07/2023 at 15:27:02
+ ================================================================
+
+ Processing arguments neci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+    system read
+        electrons 8
+        spin-restrict -2
+        nobrillouintheorem
+        uhf zero-delimited
+        nonhermitian 2-body
+Treating 2-body integrals as non-Hermitian.
+        nonuniformrandexcits pchb \
+            manual unif:unif unif-unif:fast-fast
+    endsys
+
+    calc
+        time 30
+        # since this is a test, need it to be reproducible:
+        load-balance-blocks off
+        seed 9
+
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 1.e3
+        nmcyc 5000
+        definedet 1-6 7 9
+
+        startsinglepart 10
+        tau-values \
+            start user-defined 0.01
+        tau-search \
+            algorithm conventional \
+            stop-condition var-shift \
+            maxwalkerbloom 2
+
+        # diagshift 0.0
+        target-shiftdamp 0.1
+        stepsshift 10
+
+        truncinitiator
+        addtoinitiator 3
+
+        memoryfacspawn 50
+    endcalc
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :    -2
+  GLOBAL MS :           -2
+  *** GENERIC SYSTEM ***  
+ Only one irrep found. Turning off symmetry for rest of calculation.
+ *** WARNING: LMS in FCIDUMP differs from input file ***
+  BASIS MS :            2
+  Unrestricted calculation.  Cave Arthropodia.  
+  NUMBER OF SPIN ORBITALS IN BASIS :    18
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   1
+ Turning Symmetry off
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      7      7      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     11     11      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     13     13      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     14     14      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+ Turning Symmetry off
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 52650
+Memory required for integral storage:     0.4016876221     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   1   5|   2   3):   -2.5734298826270254E-010
+Ignoring integral (chem. notation) (   1   8|   2   3):    2.1657191407785666E-010
+Ignoring integral (chem. notation) (   1   3|   2   5):   -2.5270601275804460E-010
+Ignoring integral (chem. notation) (   1   6|   2   5):    2.2991170485485240E-010
+Ignoring integral (chem. notation) (   2   3|   2   5):   -2.2616721130317652E-009
+Ignoring integral (chem. notation) (   1   5|   2   6):    1.0200805518655861E-010
+Ignoring integral (chem. notation) (   2   5|   2   6):    7.3283471379305297E-010
+Ignoring integral (chem. notation) (   2   3|   2   8):    6.4190394497745160E-010
+Ignoring integral (chem. notation) (   2   6|   2   8):   -1.5966757461739475E-010
+Ignoring integral (chem. notation) (   2   5|   3   1):   -2.5270605377653980E-010
+Ignoring integral (chem. notation) (   1   5|   3   2):   -2.5734299035319686E-010
+Ignoring integral (chem. notation) (   1   8|   3   2):    2.1657206658683450E-010
+Ignoring integral (chem. notation) (   2   5|   3   2):   -2.2616721281000359E-009
+Ignoring integral (chem. notation) (   2   8|   3   2):    6.4190413131431950E-010
+Ignoring integral (chem. notation) (   3   3|   3   4):   -2.7050689992711337E-009
+Ignoring integral (chem. notation) (   1   1|   3   5):    3.9319703044977347E-009
+Ignoring integral (chem. notation) (   1   2|   3   5):   -4.0601461438472012E-010
+Ignoring integral (chem. notation) (   1   9|   3   5):   -3.2347182695613489E-010
+Ignoring integral (chem. notation) (   2   1|   3   5):   -4.0601468769549005E-010
+Ignoring integral (chem. notation) (   2   2|   3   5):   -3.1781720499576093E-009
+Ignoring integral (chem. notation) (   2   9|   3   5):    1.7191229747969359E-009
+Ignoring integral (chem. notation) (   3   4|   3   5):   -1.5928301290218046E-010
+Ignoring integral (chem. notation) (   3   4|   3   6):   -3.9822126995419484E-010
+Ignoring integral (chem. notation) (   1   1|   3   7):   -2.6540787543123129E-010
+Ignoring integral (chem. notation) (   2   2|   3   7):    1.4045403891370557E-010
+Ignoring integral (chem. notation) (   2   9|   3   7):   -1.2621830829010812E-010
+Ignoring integral (chem. notation) (   3   3|   3   7):   -1.7780680580223246E-009
+Ignoring integral (chem. notation) (   3   6|   3   7):   -4.0488119645400635E-010
+Ignoring integral (chem. notation) (   1   1|   3   8):   -2.6124954810012119E-009
+Ignoring integral (chem. notation) (   1   2|   3   8):    2.4582199733575521E-010
+Ignoring integral (chem. notation) (   1   9|   3   8):    1.9786374095604260E-010
+Ignoring integral (chem. notation) (   2   1|   3   8):    2.4581947162669964E-010
+Ignoring integral (chem. notation) (   2   2|   3   8):    1.3825404777738226E-009
+Ignoring integral (chem. notation) (   2   9|   3   8):   -1.2424097240309451E-009
+Ignoring integral (chem. notation) (   3   6|   3   8):   -3.9853872947947087E-009
+Ignoring integral (chem. notation) (   2   5|   3   9):   -4.7748292908048433E-010
+Ignoring integral (chem. notation) (   3   3|   4   3):   -2.7648792372125420E-009
+Ignoring integral (chem. notation) (   3   5|   4   3):   -1.6307628980563319E-010
+Ignoring integral (chem. notation) (   3   6|   4   3):   -3.3840887572524769E-010
+Ignoring integral (chem. notation) (   3   5|   4   4):   -2.5254205342025966E-010
+Ignoring integral (chem. notation) (   3   8|   4   4):    7.3621678291167554E-010
+Ignoring integral (chem. notation) (   3   3|   4   5):   -1.6302315784358650E-010
+Ignoring integral (chem. notation) (   3   4|   4   5):   -5.3387270096604808E-010
+Ignoring integral (chem. notation) (   3   5|   4   5):    2.5561944627754346E-009
+Ignoring integral (chem. notation) (   3   7|   4   5):    1.3360608248639718E-010
+Ignoring integral (chem. notation) (   3   8|   4   5):    3.9694320832776108E-010
+Ignoring integral (chem. notation) (   4   3|   4   5):   -5.3236412288869922E-010
+Ignoring integral (chem. notation) (   3   3|   4   6):   -2.4645900338047146E-010
+Ignoring integral (chem. notation) (   4   5|   4   6):    1.2969925507331482E-010
+Ignoring integral (chem. notation) (   3   5|   4   7):   -2.6207705610515437E-009
+Ignoring integral (chem. notation) (   3   7|   4   7):    1.7654808423421046E-010
+Ignoring integral (chem. notation) (   3   8|   4   7):    1.8073655167459838E-009
+Ignoring integral (chem. notation) (   3   4|   4   8):    1.1372452524935431E-010
+Ignoring integral (chem. notation) (   3   5|   4   8):    6.0774063694202367E-010
+Ignoring integral (chem. notation) (   4   3|   4   8):    1.1239250487424888E-010
+Ignoring integral (chem. notation) (   2   3|   5   1):   -2.5734305339680390E-010
+Ignoring integral (chem. notation) (   2   6|   5   1):    1.0200619175693619E-010
+Ignoring integral (chem. notation) (   3   2|   5   1):   -2.5734305548729822E-010
+Ignoring integral (chem. notation) (   1   3|   5   2):   -2.5270601463535514E-010
+Ignoring integral (chem. notation) (   1   6|   5   2):    2.2991155288595443E-010
+Ignoring integral (chem. notation) (   2   3|   5   2):   -2.2616721276698209E-009
+Ignoring integral (chem. notation) (   2   6|   5   2):    7.3283453432467380E-010
+Ignoring integral (chem. notation) (   3   1|   5   2):   -2.5270605553247152E-010
+Ignoring integral (chem. notation) (   3   2|   5   2):   -2.2616721421804065E-009
+Ignoring integral (chem. notation) (   3   9|   5   2):   -4.7748292780571918E-010
+Ignoring integral (chem. notation) (   1   1|   5   3):    3.9319702814316156E-009
+Ignoring integral (chem. notation) (   1   2|   5   3):   -4.0601461306084815E-010
+Ignoring integral (chem. notation) (   1   9|   5   3):   -3.2347182593460737E-010
+Ignoring integral (chem. notation) (   2   1|   5   3):   -4.0601468637161808E-010
+Ignoring integral (chem. notation) (   2   2|   5   3):   -3.1781720425870392E-009
+Ignoring integral (chem. notation) (   2   9|   5   3):    1.7191229614644154E-009
+Ignoring integral (chem. notation) (   3   4|   5   3):   -1.6307628962653613E-010
+Ignoring integral (chem. notation) (   4   3|   5   3):   -1.6686956660508744E-010
+Ignoring integral (chem. notation) (   4   4|   5   3):   -2.5103346803150893E-010
+Ignoring integral (chem. notation) (   4   5|   5   3):    2.6201974934438179E-009
+Ignoring integral (chem. notation) (   4   7|   5   3):   -2.6265117493941593E-009
+Ignoring integral (chem. notation) (   4   8|   5   3):    5.5122798649461196E-010
+Ignoring integral (chem. notation) (   3   3|   5   4):   -1.6302315746241780E-010
+Ignoring integral (chem. notation) (   3   4|   5   4):   -5.3387270076088588E-010
+Ignoring integral (chem. notation) (   3   5|   5   4):    2.5561944625254317E-009
+Ignoring integral (chem. notation) (   3   7|   5   4):    1.3360608265400799E-010
+Ignoring integral (chem. notation) (   3   8|   5   4):    3.9694320809256866E-010
+Ignoring integral (chem. notation) (   4   3|   5   4):   -5.3236412268353703E-010
+Ignoring integral (chem. notation) (   4   6|   5   4):    1.2969925524037035E-010
+Ignoring integral (chem. notation) (   5   3|   5   4):    2.6201974932564950E-009
+Ignoring integral (chem. notation) (   3   4|   5   5):    2.5628255494561748E-009
+Ignoring integral (chem. notation) (   3   7|   5   5):    1.8208135264861767E-009
+Ignoring integral (chem. notation) (   4   3|   5   5):    2.6268285804353969E-009
+Ignoring integral (chem. notation) (   4   6|   5   5):    2.6354584764517345E-010
+Ignoring integral (chem. notation) (   1   1|   5   6):   -2.8234352563674548E-009
+Ignoring integral (chem. notation) (   1   2|   5   6):    2.7087115611419935E-010
+Ignoring integral (chem. notation) (   1   9|   5   6):    2.1798600700116174E-010
+Ignoring integral (chem. notation) (   2   1|   5   6):    2.7087354099210571E-010
+Ignoring integral (chem. notation) (   2   2|   5   6):    1.5760310803110508E-009
+Ignoring integral (chem. notation) (   2   9|   5   6):   -1.3229714098161729E-009
+Ignoring integral (chem. notation) (   3   6|   5   6):   -3.0305042696331181E-009
+Ignoring integral (chem. notation) (   4   4|   5   6):    7.5539112186913851E-010
+Ignoring integral (chem. notation) (   4   5|   5   6):    2.4879772179293185E-010
+Ignoring integral (chem. notation) (   4   7|   5   6):    1.9386201174304021E-009
+Ignoring integral (chem. notation) (   5   4|   5   6):    2.4879772158408198E-010
+ Ignored more than 100 integrals.
+ Further threshold truncations not reported explicitly
+ Number of removed two-index integrals:                  1429
+ Number of non-zero integrals:                  3365
+ ECORE=   5.2207199918152009E-002
+ Setting normal get_umat_el_normal routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    9)
+ Symmetry:  ( 0, 0, 0) 0
+ N_alpha:5 ; N_beta:3 ; LMS:* ; NEl:8
+Calculating orbital energies...
+Not reordering basis.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -20.745408744      -20.745408744 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -20.675142553      -20.675142553 #
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -1.416812982       -1.416812982 #
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -1.110477310       -1.110477310 #
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0       -0.628541614       -0.628541614 #
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0       -0.549773489       -0.549773489 #
+      7      7      0      0      0     -1 ( 0, 0, 0) 0   0       -0.721025730       -0.721025730 #
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0        0.136777693        0.136777693
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0       -0.721025737       -0.721025737 #
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        0.136777693        0.136777693
+     11     11      0      0      0     -1 ( 0, 0, 0) 0   0        1.071509164        1.071509164
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0        1.104678655        1.104678655
+     13     13      0      0      0     -1 ( 0, 0, 0) 0   0        1.012612415        1.012612415
+     14     14      0      0      0      1 ( 0, 0, 0) 0   0        1.171258827        1.171258827
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0        1.012612410        1.012612410
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        1.171258826        1.171258826
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        1.132089527        1.132089527
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        1.218446367        1.218446367
+ Fock operator energy:  -46.516000959193960     
+ Setting normal get_umat_el_normal routine
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -74.919013153810866     
+ <D0|T|D0>=  -103.37423254834590     
+ <D0|U|D0>=   28.455219394535035     
+ FDet has     3 alpha electrons, and     5 beta electrons.
+                3  alpha-alpha occupied electron pairs
+               10  beta-beta occupied electron pairs
+               15  alpha-beta occupied electron pairs
+               15 alpha-alpha (vacant) hole pairs
+                6 beta-beta (vacant) hole pairs
+               24 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    9) E =    -74.919013154
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            9
+Reference Energy set to:       -74.9190131538
+ No brillouin theorem assumed. Single excitations also used to calculate projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    465 double excitations, and      38 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.924453
+ pSingles set to:       0.075547
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:          503
+FCI PCHB with UNIF:UNIF UNIF-UNIF:FAST-FAST is used
+ Allocating PCHB excitation generator objects
+ Excitation generator requires   2.1786242723464966E-004 GB of memory
+ The number of supergroups is           1
+ Generating samplers for PCHB excitation generator
+ Depending on the number of supergroups this can take up to 10min.
+ Finished excitation generator initialization
+Memory allocated for a maximum particle number per node of:         655360
+ Determinant related persistent storage requires:      25.000000 Mb / processor
+Spawning vectors allowing for a total of        12500 particles to be spawned in any one iteration per core.
+ Memory requirement   0.19073486328125000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             175
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        3
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    9)
+Initial number of particles set to         10 and shift will be held at     0.000 until particle number gets to            1000
+ Initial memory (without excitgens + temp arrays) consists of :      15.572205 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ >>> Initial tau from source: user defined is    1.0000000000000000E-002 .
+ >>> Tau-search activated. Using conventional algorithm. Stop if variable shift reached.
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+           0    0.000000        0.000000        0.000000        10.00000        0.000000        0.000000        0.000000        0.000000        0.000000        0.000000        10.00000        0.000000        0.000000               1           0   0.0000    
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population1
+
+ The current tau search method is: Conventional
+ It is switched off now because of: Variable Shift reached
+
+          10    0.000000        5.000000        1.220000        15.00000        0.000000        0.000000        5.000000      -0.1681903E-01    0.000000      -0.1681903E-01    10.00000        5.000000       0.4098361E-01           6           0  0.31000E-04
+          20  -0.8786303E-01    1.000000        1.213115        16.00000        0.000000        2.000000        3.000000      -0.3738746E-01    0.000000      -0.5795589E-01    10.00000        5.000000       0.2027027E-01           7           1  0.17223E-04
+          30  -0.9398635E-01    3.000000        1.114865        19.00000        0.000000        1.000000        5.000000      -0.5332375E-01    0.000000      -0.8519635E-01    10.00000        8.000000       0.3030303E-01           8           1  0.16125E-04
+          40  -0.1782561        3.000000        1.200000        22.00000        0.000000        1.000000        6.000000      -0.7093921E-01    0.000000      -0.1217530        11.00000        10.00000       0.3030303E-01           9           1  0.15550E-04
+          50  -0.6455509E-01   -3.000000       0.9848485        19.00000        0.000000        4.000000        2.000000      -0.7642782E-01    0.000000      -0.9658600E-01    11.00000        8.000000       0.1025641E-01           7           0  0.15926E-04
+          60   0.2341916E-01   -1.000000        1.010256        18.00000        0.000000        3.000000        5.000000      -0.7924162E-01    0.000000      -0.9238975E-01    11.00000        6.000000       0.2538071E-01           6           0  0.15904E-04
+          70   0.1915722        1.000000       0.9340102        19.00000        0.000000        1.000000        4.000000      -0.7853128E-01    0.000000      -0.7450172E-01    11.00000        6.000000       0.2173913E-01           8           1  0.14771E-04
+          80   0.3370204       -2.000000       0.9565217        17.00000        0.000000        2.000000        1.000000      -0.7735880E-01    0.000000      -0.6953517E-01    11.00000        5.000000       0.5681818E-02           6           0  0.12926E-04
+          90   0.4149822        2.000000        1.022727        19.00000        0.000000       -1.000000        3.000000      -0.7570393E-01    0.000000      -0.6312090E-01    12.00000        5.000000       0.1666667E-01           7           0  0.13002E-04
+         100   0.4599978        0.000000        1.055556        19.00000        0.000000        0.000000        0.000000      -0.7378464E-01    0.000000      -0.5851028E-01    12.00000        5.000000        0.000000               7           0  0.12348E-04
+         110   0.3543746        5.000000        1.221053        24.00000        0.000000        1.000000        7.000000      -0.7357237E-01    0.000000      -0.7185670E-01    14.00000        9.000000       0.3017241E-01          11           0  0.15216E-04
+         120   0.4137156        0.000000        1.034483        24.00000        0.000000        0.000000        2.000000      -0.7206421E-01    0.000000      -0.5905093E-01    14.00000        8.000000       0.8333333E-02          11           0  0.15836E-04
+         130   0.5112379        0.000000       0.9958333        24.00000        0.000000        2.000000        4.000000      -0.6962743E-01    0.000000      -0.4616474E-01    14.00000        7.000000       0.1673640E-01          11           0  0.16164E-04
+         140   0.4987369        5.000000        1.108787        29.00000        0.000000        0.000000        8.000000      -0.7005446E-01    0.000000      -0.7459317E-01    14.00000        12.00000       0.3018868E-01          14           0  0.16660E-04
+         150   0.4353729        1.000000        1.162264        30.00000        0.000000        2.000000        6.000000      -0.7329664E-01    0.000000      -0.1092033        15.00000        13.00000       0.1948052E-01          13           0  0.16610E-04
+         160   0.5493542        2.000000       0.9740260        32.00000        0.000000        2.000000        5.000000      -0.7550634E-01    0.000000      -0.1016544        15.00000        13.00000       0.1666667E-01          15           1  0.16748E-04
+         170   0.5708662        0.000000        1.066667        32.00000        0.000000        2.000000        4.000000      -0.7695306E-01    0.000000      -0.9492045E-01    16.00000        13.00000       0.1250000E-01          15           0  0.16518E-04
+         180   0.6828674       -1.000000       0.9750000        31.00000        0.000000        5.000000        9.000000      -0.7770358E-01    0.000000      -0.8733983E-01    17.00000        10.00000       0.2884615E-01          11           0  0.16372E-04
+         190   0.6905441        5.000000        1.080128        36.00000        0.000000       -2.000000        6.000000      -0.7566304E-01    0.000000      -0.5244024E-01    21.00000        10.00000       0.1780415E-01          13           0  0.16176E-04
+         200   0.6361522        4.000000        1.145401        40.00000        0.000000        0.000000        6.000000      -0.7293236E-01    0.000000      -0.4397536E-01    24.00000        10.00000       0.1554404E-01          14           0  0.17500E-04
+         210   0.6657361        0.000000        1.051813        40.00000        2.000000        1.000000        10.00000      -0.7064053E-01    0.000000      -0.4546802E-01    25.00000        10.00000       0.2463054E-01          13           0  0.19345E-04
+         220   0.6798416        6.000000        1.066502        46.00000        0.000000        2.000000        9.000000      -0.6968209E-01    0.000000      -0.5851819E-01    25.00000        16.00000       0.2078522E-01          16           1  0.19433E-04
+         230   0.6315723        7.000000        1.131640        53.00000        0.000000        3.000000        14.00000      -0.7020976E-01    0.000000      -0.7657815E-01    27.00000        20.00000       0.2857143E-01          19           0  0.20410E-04
+         240   0.6343025       -3.000000        1.073469        50.00000        0.000000        9.000000        9.000000      -0.7048400E-01    0.000000      -0.7396175E-01    27.00000        17.00000       0.1711027E-01          19           0  0.20913E-04
+         250   0.7355795        2.000000       0.9733840        52.00000        2.000000        3.000000        16.00000      -0.6960797E-01    0.000000      -0.5800910E-01    29.00000        16.00000       0.3125000E-01          18           0  0.19990E-04
+         260   0.7515149        3.000000        1.058594        55.00000        0.000000        3.000000        10.00000      -0.6857085E-01    0.000000      -0.5469728E-01    30.00000        18.00000       0.1845018E-01          19           0  0.20077E-04
+         270   0.7964101        2.000000        1.027675        57.00000        0.000000        4.000000        10.00000      -0.6734487E-01    0.000000      -0.5067314E-01    33.00000        18.00000       0.1795332E-01          18           0  0.19592E-04
+         280   0.7604259        9.000000        1.111311        66.00000        2.000000        0.000000        15.00000      -0.6614432E-01    0.000000      -0.5064201E-01    38.00000        20.00000       0.2423263E-01          20           2  0.20997E-04
+         290   0.7246401        7.000000        1.108239        73.00000        2.000000       -2.000000        12.00000      -0.6483603E-01    0.000000      -0.4907586E-01    45.00000        23.00000       0.1749271E-01          20           0  0.22846E-04
+         300   0.6639499        8.000000        1.132653        81.00000        0.000000        2.000000        16.00000      -0.6337169E-01    0.000000      -0.4705341E-01    50.00000        27.00000       0.2059202E-01          22           1  0.27803E-04
+         310   0.6381961        10.00000        1.091377        91.00000        2.000000        0.000000        17.00000      -0.6220841E-01    0.000000      -0.4939042E-01    54.00000        30.00000       0.2004717E-01          26           2  0.27566E-04
+         320   0.6130153        4.000000        1.088443        95.00000        2.000000        6.000000        21.00000      -0.6139722E-01    0.000000      -0.5218731E-01    57.00000        31.00000       0.2275190E-01          26           1  0.29520E-04
+         330   0.6259101        5.000000        1.046587        100.0000        4.000000        3.000000        20.00000      -0.6066200E-01    0.000000      -0.5201193E-01    61.00000        29.00000       0.2070393E-01          27           2  0.30825E-04
+         340   0.5988734        10.00000        1.086957        110.0000        4.000000        0.000000        16.00000      -0.5992162E-01    0.000000      -0.5107234E-01    64.00000        34.00000       0.1523810E-01          26           0  0.31638E-04
+         350   0.5754297        3.000000        1.080952        113.0000        6.000000        10.00000        24.00000      -0.5934757E-01    0.000000      -0.5222973E-01    67.00000        32.00000       0.2114537E-01          26           1  0.32599E-04
+         360   0.5676352        18.00000        1.062555        131.0000        2.000000       -1.000000        26.00000      -0.5855034E-01    0.000000      -0.4862450E-01    75.00000        36.00000       0.2155887E-01          29           4  0.34657E-04
+         370   0.4905763        20.00000        1.135158        151.0000        0.000000        5.000000        31.00000      -0.5766552E-01    0.000000      -0.4702971E-01    82.00000        44.00000       0.2264427E-01          34           5  0.38801E-04
+         380   0.4176497        9.000000        1.127100        160.0000        6.000000        14.00000        36.00000      -0.5740295E-01    0.000000      -0.5420684E-01    86.00000        51.00000       0.2333117E-01          36           6  0.45463E-04
+         390   0.4000060        0.000000        1.064809        160.0000        0.000000        17.00000        20.00000      -0.5721345E-01    0.000000      -0.5488265E-01    93.00000        48.00000       0.1217285E-01          36           0  0.42436E-04
+         400   0.3952367        28.00000        1.049909        188.0000        0.000000        1.000000        36.00000      -0.5690195E-01    0.000000      -0.5300874E-01    99.00000        61.00000       0.2086957E-01          45           4  0.43995E-04
+         410   0.3602856       -1.000000        1.080000        187.0000        10.00000        24.00000        39.00000      -0.5701940E-01    0.000000      -0.5854000E-01    101.0000        64.00000       0.2093398E-01          44           2  0.48942E-04
+         420   0.4033965       -2.000000       0.9989265        185.0000        10.00000        14.00000        26.00000      -0.5674724E-01    0.000000      -0.5305800E-01    106.0000        55.00000       0.1397098E-01          42           1  0.45969E-04
+         430   0.4113086        13.00000        1.033853        198.0000        6.000000        11.00000        37.00000      -0.5615858E-01    0.000000      -0.4800828E-01    111.0000        60.00000       0.1923077E-01          43           2  0.45950E-04
+         440   0.4148558        5.000000        1.037422        203.0000        10.00000        17.00000        43.00000      -0.5578498E-01    0.000000      -0.5050616E-01    116.0000        65.00000       0.2154309E-01          44           5  0.47277E-04
+         450   0.4050340        7.000000        1.050100        210.0000        8.000000        14.00000        35.00000      -0.5552086E-01    0.000000      -0.5171499E-01    122.0000        67.00000       0.1669847E-01          45           0  0.49881E-04
+         460   0.4090065        17.00000        1.034828        227.0000        18.00000        18.00000        63.00000      -0.5497308E-01    0.000000      -0.4693447E-01    129.0000        69.00000       0.2904564E-01          44          11  0.52598E-04
+         470   0.4119142       -7.000000        1.035039        220.0000        4.000000        27.00000        35.00000      -0.5462827E-01    0.000000      -0.4944587E-01    133.0000        64.00000       0.1559020E-01          39           2  0.55378E-04
+         480   0.4244525        16.00000        1.024499        236.0000        10.00000        19.00000        53.00000      -0.5404664E-01    0.000000      -0.4520192E-01    144.0000        66.00000       0.2304348E-01          46           3  0.60320E-04
+         490   0.4107602        15.00000        1.050435        251.0000        8.000000        18.00000        53.00000      -0.5323813E-01    0.000000      -0.4107562E-01    153.0000        72.00000       0.2193709E-01          48           5  0.57336E-04
+         500   0.3813404        20.00000        1.065397        271.0000        14.00000        17.00000        56.00000      -0.5261187E-01    0.000000      -0.4305851E-01    160.0000        72.00000       0.2175602E-01          48          10  0.57411E-04
+         510   0.3312051        11.00000        1.085470        282.0000        18.00000        22.00000        62.00000      -0.5195739E-01    0.000000      -0.4190297E-01    169.0000        74.00000       0.2219041E-01          49           6  0.62254E-04
+         520   0.3112228        27.00000        1.051897        309.0000        14.00000        20.00000        69.00000      -0.5129977E-01    0.000000      -0.4100512E-01    176.0000        83.00000       0.2347737E-01          56           6  0.66090E-04
+         530   0.3085525        2.000000        1.033004        311.0000        16.00000        42.00000        70.00000      -0.5068418E-01    0.000000      -0.4075845E-01    182.0000        85.00000       0.2305665E-01          55          11  0.67166E-04
+         540   0.2966731        12.00000        1.041502        323.0000        16.00000        25.00000        70.00000      -0.5021931E-01    0.000000      -0.4259136E-01    191.0000        84.00000       0.2213789E-01          55           4  0.69897E-04
+         550   0.3087383       -1.000000        1.016445        322.0000        20.00000        28.00000        55.00000      -0.4963047E-01    0.000000      -0.3980530E-01    198.0000        82.00000       0.1711263E-01          51           4  0.75066E-04
+         560   0.2903602        25.00000        1.046671        347.0000        12.00000        37.00000        91.00000      -0.4919735E-01    0.000000      -0.4182119E-01    206.0000        104.0000       0.2705113E-01          56           9  0.76980E-04
+         570   0.2532362        20.00000        1.064804        367.0000        20.00000        28.00000        79.00000      -0.4923763E-01    0.000000      -0.4993808E-01    213.0000        113.0000       0.2205472E-01          58          10  0.76677E-04
+         580   0.2234839        31.00000        1.055556        398.0000        16.00000        31.00000        88.00000      -0.4919539E-01    0.000000      -0.4844206E-01    220.0000        124.0000       0.2327427E-01          65          12  0.80940E-04
+         590   0.1733108        20.00000        1.075377        418.0000        16.00000        35.00000        81.00000      -0.4941159E-01    0.000000      -0.5335929E-01    225.0000        132.0000       0.1992130E-01          70          10  0.82676E-04
+         600   0.1810425        5.000000        1.014511        423.0000        18.00000        55.00000        89.00000      -0.4971103E-01    0.000000      -0.5535188E-01    230.0000        134.0000       0.2157576E-01          67           9  0.91187E-04
+         610   0.1598779        13.00000        1.043152        436.0000        14.00000        56.00000        94.00000      -0.4995506E-01    0.000000      -0.5472299E-01    234.0000        152.0000       0.2184522E-01          68           8  0.90333E-04
+         620   0.1816746       -5.000000       0.9993028        431.0000        24.00000        59.00000        84.00000      -0.4981136E-01    0.000000      -0.4690506E-01    237.0000        139.0000       0.1953488E-01          72          10  0.84946E-04
+         630   0.1829436        11.00000        1.019535        442.0000        20.00000        55.00000        96.00000      -0.4962501E-01    0.000000      -0.4574900E-01    243.0000        138.0000       0.2189781E-01          72           9  0.90197E-04
+         640   0.2005243       -5.000000        1.002965        437.0000        28.00000        60.00000        95.00000      -0.4945736E-01    0.000000      -0.4589050E-01    248.0000        132.0000       0.2160564E-01          65           8  0.87731E-04
+         650   0.2057947        23.00000        1.015010        460.0000        14.00000        53.00000        101.0000      -0.4928133E-01    0.000000      -0.4545171E-01    256.0000        137.0000       0.2263052E-01          73          12  0.92957E-04
+         660   0.1722749        20.00000        1.053775        480.0000        14.00000        45.00000        90.00000      -0.4927359E-01    0.000000      -0.4910250E-01    261.0000        149.0000       0.1913672E-01          76           6  0.90787E-04
+         670   0.1650965        5.000000        1.025728        485.0000        16.00000        53.00000        90.00000      -0.4935957E-01    0.000000      -0.5130206E-01    268.0000        154.0000       0.1865672E-01          77           5  0.94496E-04
+         680   0.1854481        1.000000       0.9979270        486.0000        20.00000        49.00000        85.00000      -0.4944577E-01    0.000000      -0.5144618E-01    272.0000        152.0000       0.1765683E-01          74           9  0.95767E-04
+         690   0.1891373        19.00000        1.014333        505.0000        18.00000        57.00000        107.0000      -0.4944579E-01    0.000000      -0.4944622E-01    276.0000        150.0000       0.2191276E-01          77          14  0.10336E-03
+         700   0.1691440        9.000000        1.037682        514.0000        26.00000        56.00000        102.0000      -0.4959327E-01    0.000000      -0.5317711E-01    282.0000        158.0000       0.2013025E-01          71          10  0.99419E-04
+         710   0.1513369        13.00000        1.034537        527.0000        24.00000        70.00000        120.0000      -0.4981016E-01    0.000000      -0.5518424E-01    289.0000        162.0000       0.2289203E-01          84          12  0.10289E-03
+         720   0.1563986       -3.000000        1.010874        524.0000        28.00000        65.00000        102.0000      -0.4995681E-01    0.000000      -0.5365694E-01    294.0000        158.0000       0.1924891E-01          83           6  0.10266E-03
+         730   0.1884572       -1.000000       0.9843367        523.0000        22.00000        70.00000        108.0000      -0.4993005E-01    0.000000      -0.4924310E-01    303.0000        145.0000       0.2070552E-01          77           9  0.10779E-03
+         740   0.1850707        19.00000        1.019363        542.0000        30.00000        63.00000        121.0000      -0.4990359E-01    0.000000      -0.4921937E-01    311.0000        151.0000       0.2275719E-01          72          15  0.10736E-03
+         750   0.1851755        7.000000        1.015422        549.0000        32.00000        54.00000        106.0000      -0.4977183E-01    0.000000      -0.4632886E-01    319.0000        150.0000       0.1963327E-01          77          11  0.10610E-03
+         760   0.1590992        14.00000        1.041304        563.0000        26.00000        64.00000        121.0000      -0.4974996E-01    0.000000      -0.4917072E-01    329.0000        156.0000       0.2152259E-01          81           9  0.11206E-03
+         770   0.1568590        12.00000        1.016364        575.0000        20.00000        57.00000        108.0000      -0.4964464E-01    0.000000      -0.4684240E-01    338.0000        160.0000       0.1890095E-01          82          10  0.11657E-03
+         780   0.1612094        3.000000        1.009450        578.0000        36.00000        67.00000        114.0000      -0.4946935E-01    0.000000      -0.4473477E-01    346.0000        156.0000       0.1976422E-01          77          13  0.11586E-03
+         790   0.1585712        1.000000        1.016123        579.0000        32.00000        63.00000        118.0000      -0.4927996E-01    0.000000      -0.4410098E-01    353.0000        150.0000       0.2013308E-01          78           6  0.11669E-03
+         800   0.1545868        37.00000        1.017062        616.0000        28.00000        51.00000        126.0000      -0.4907130E-01    0.000000      -0.4328225E-01    363.0000        171.0000       0.2113739E-01          90          16  0.12294E-03
+         810   0.1252447        16.00000        1.042107        632.0000        38.00000        70.00000        134.0000      -0.4895099E-01    0.000000      -0.4558383E-01    372.0000        179.0000       0.2157115E-01          90           9  0.12341E-03
+         820   0.1101163        8.000000        1.026722        640.0000        36.00000        95.00000        153.0000      -0.4895902E-01    0.000000      -0.4918748E-01    377.0000        180.0000       0.2398871E-01          81          19  0.12591E-03
+         830   0.1136745        5.000000        1.007526        645.0000        30.00000        81.00000        131.0000      -0.4901242E-01    0.000000      -0.5055573E-01    383.0000        188.0000       0.2038593E-01          81          18  0.13110E-03
+         840   0.1032635        19.00000        1.021164        664.0000        26.00000        83.00000        137.0000      -0.4899842E-01    0.000000      -0.4858732E-01    392.0000        200.0000       0.2087778E-01          86          10  0.13041E-03
+         850   0.1103651       -3.000000        1.003353        661.0000        38.00000        93.00000        141.0000      -0.4890556E-01    0.000000      -0.4612102E-01    395.0000        196.0000       0.2141555E-01          76          12  0.13040E-03
+         860   0.9863729E-01    27.00000        1.021871        688.0000        40.00000        76.00000        158.0000      -0.4890520E-01    0.000000      -0.4889428E-01    401.0000        193.0000       0.2348395E-01          83          27  0.13450E-03
+         870   0.7305979E-01    10.00000        1.035226        698.0000        40.00000        91.00000        155.0000      -0.4900767E-01    0.000000      -0.5220871E-01    407.0000        207.0000       0.2225413E-01          82          11  0.13134E-03
+         880   0.7097807E-01    20.00000        1.010912        718.0000        30.00000        102.0000        164.0000      -0.4901745E-01    0.000000      -0.4932663E-01    414.0000        201.0000       0.2329215E-01          92          17  0.13180E-03
+         890   0.5359076E-01    0.000000        1.025849        718.0000        36.00000        102.0000        151.0000      -0.4909443E-01    0.000000      -0.5156934E-01    420.0000        218.0000       0.2090544E-01          82          14  0.13626E-03
+         900   0.5634527E-01    8.000000        1.005261        726.0000        38.00000        85.00000        138.0000      -0.4920301E-01    0.000000      -0.5275203E-01    424.0000        231.0000       0.1900565E-01          80          12  0.13201E-03
+         910   0.6265437E-01    22.00000        1.001653        748.0000        18.00000        86.00000        136.0000      -0.4926703E-01    0.000000      -0.5140545E-01    430.0000        227.0000       0.1869930E-01          82          13  0.13526E-03
+         920   0.2931920E-01    23.00000        1.041111        771.0000        36.00000        94.00000        165.0000      -0.4937585E-01    0.000000      -0.5307101E-01    434.0000        235.0000       0.2179081E-01          89          16  0.14430E-03
+         930   0.8100644E-02    14.00000        1.027866        785.0000        22.00000        110.0000        167.0000      -0.4951600E-01    0.000000      -0.5434704E-01    440.0000        242.0000       0.2145702E-01          92          20  0.14153E-03
+         940  -0.3907031E-02    21.00000        1.017988        806.0000        30.00000        120.0000        185.0000      -0.4963763E-01    0.000000      -0.5390139E-01    444.0000        249.0000       0.2334974E-01          98          22  0.14612E-03
+         950  -0.1311229E-01   -10.00000        1.014767        796.0000        50.00000        126.0000        183.0000      -0.4980078E-01    0.000000      -0.5565400E-01    447.0000        232.0000       0.2276119E-01         105          19  0.14735E-03
+         960   0.2849264E-02    1.000000       0.9898010        797.0000        26.00000        122.0000        168.0000      -0.4982572E-01    0.000000      -0.5074035E-01    449.0000        230.0000       0.2111083E-01         110          21  0.14933E-03
+         970   0.1930609E-01   -17.00000       0.9895702        780.0000        40.00000        116.0000        155.0000      -0.4977389E-01    0.000000      -0.4782988E-01    451.0000        224.0000       0.1968254E-01         107          15  0.15096E-03
+         980   0.3115233E-01   -14.00000       0.9942857        766.0000        40.00000        119.0000        154.0000      -0.4975732E-01    0.000000      -0.4912156E-01    453.0000        211.0000       0.1966794E-01         103          17  0.14585E-03
+         990   0.6580648E-01   -12.00000       0.9725415        754.0000        40.00000        107.0000        147.0000      -0.4967744E-01    0.000000      -0.4655105E-01    456.0000        196.0000       0.1930401E-01          95          13  0.14869E-03
+        1000   0.7679931E-01    6.000000       0.9959291        760.0000        38.00000        105.0000        157.0000      -0.4958876E-01    0.000000      -0.4606144E-01    460.0000        220.0000       0.2070148E-01          87          17  0.14468E-03
+Beginning to average shift value on iteration:           1010
+        1010   0.7162076E-01    18.00000        1.011867        778.0000        40.00000        97.00000        169.0000      -0.4956093E-01   0.7162076E-01  -0.4843627E-01    466.0000        227.0000       0.2202241E-01          96          18  0.14689E-03
+        1020   0.4771087E-01    24.00000        1.030232        802.0000        28.00000        102.0000        167.0000      -0.4956391E-01   0.5966581E-01  -0.4968544E-01    472.0000        243.0000       0.2112320E-01          94          18  0.15095E-03
+        1030   0.2192614E-01    34.00000        1.031369        836.0000        38.00000        97.00000        186.0000      -0.4958576E-01   0.4708592E-01  -0.5048629E-01    479.0000        252.0000       0.2281089E-01          96          16  0.15182E-03
+        1040   0.6370558E-02   -1.000000        1.020358        835.0000        30.00000        124.0000        166.0000      -0.4961852E-01   0.3690708E-01  -0.5098443E-01    483.0000        247.0000       0.1995192E-01          98          19  0.15462E-03
+        1050   0.3725650E-02    20.00000        1.007091        855.0000        26.00000        118.0000        176.0000      -0.4965519E-01   0.3027079E-01  -0.5121383E-01    486.0000        249.0000       0.2100489E-01         106          21  0.15411E-03
+        1060   0.5215349E-02   -14.00000        1.002864        841.0000        32.00000        123.0000        159.0000      -0.4964815E-01   0.2609489E-01  -0.4934370E-01    489.0000        235.0000       0.1892181E-01          99          20  0.15286E-03
+        1070   0.9443284E-02    4.000000        1.000119        845.0000        48.00000        120.0000        188.0000      -0.4965603E-01   0.2371609E-01  -0.5000251E-01    492.0000        239.0000       0.2237030E-01         104          16  0.16091E-03
+        1080   0.3475206E-02    28.00000        1.010114        873.0000        44.00000        113.0000        203.0000      -0.4967389E-01   0.2118598E-01  -0.5046870E-01    500.0000        257.0000       0.2391330E-01         101          20  0.16122E-03
+        1090  -0.1227958E-01   -4.000000        1.019555        869.0000        60.00000        125.0000        198.0000      -0.4967946E-01   0.1746758E-01  -0.4992903E-01    505.0000        259.0000       0.2287695E-01          91          21  0.16853E-03
+        1100  -0.1574958E-01   -6.000000        1.006932        863.0000        42.00000        135.0000        196.0000      -0.4969974E-01   0.1414586E-01  -0.5062446E-01    505.0000        246.0000       0.2248996E-01          99          23  0.16517E-03
+        1110  -0.4874547E-02   -3.000000       0.9927711        860.0000        54.00000        141.0000        204.0000      -0.4971009E-01   0.1241674E-01  -0.5019156E-01    508.0000        246.0000       0.2357836E-01          99          22  0.16813E-03
+        1120   0.2900167E-02    2.000000       0.9959547        862.0000        26.00000        128.0000        170.0000      -0.4972616E-01   0.1162369E-01  -0.5048489E-01    510.0000        252.0000       0.1972844E-01          93          17  0.16592E-03
+        1130   0.1438249E-01   -21.00000       0.9924568        841.0000        52.00000        129.0000        182.0000      -0.4970257E-01   0.1183590E-01  -0.4856908E-01    512.0000        239.0000       0.2128157E-01          93          15  0.16599E-03
+        1140   0.1685573E-01    30.00000        1.001403        871.0000        60.00000        107.0000        217.0000      -0.4966020E-01   0.1219446E-01  -0.4758738E-01    515.0000        255.0000       0.2533863E-01          98          18  0.17076E-03
+        1150   0.1321849E-01    4.000000        1.007356        875.0000        40.00000        121.0000        183.0000      -0.4963230E-01   0.1226273E-01  -0.4824760E-01    517.0000        251.0000       0.2121247E-01          93          18  0.16261E-03
+        1160   0.6155339E-02    11.00000        1.010548        886.0000        38.00000        112.0000        167.0000      -0.4964832E-01   0.1188102E-01  -0.5045643E-01    518.0000        262.0000       0.1915577E-01          90          19  0.17054E-03
+        1170  -0.8362936E-02    4.000000        1.017665        890.0000        54.00000        118.0000        190.0000      -0.4967119E-01   0.1069020E-01  -0.5084389E-01    520.0000        244.0000       0.2141569E-01         108          20  0.17014E-03
+        1180   0.1587468E-01   -31.00000       0.9794860        859.0000        40.00000        124.0000        144.0000      -0.4963511E-01   0.1097823E-01  -0.4775006E-01    519.0000        232.0000       0.1657077E-01          90          12  0.16940E-03
+        1190   0.7890411E-02    37.00000        1.011277        896.0000        46.00000        92.00000        189.0000      -0.4965399E-01   0.1081571E-01  -0.5065742E-01    522.0000        259.0000       0.2150660E-01          94          21  0.16677E-03
+        1200  -0.1467875E-01    17.00000        1.025489        913.0000        28.00000        110.0000        174.0000      -0.4969971E-01   0.9540986E-02  -0.5215245E-01    528.0000        279.0000       0.1930759E-01          98          15  0.17211E-03
+        1210  -0.2608532E-01    10.00000        1.013759        923.0000        52.00000        125.0000        197.0000      -0.4969755E-01   0.7844495E-02  -0.4958150E-01    536.0000        265.0000       0.2156305E-01         113          23  0.16961E-03
+        1220  -0.3742329E-01   -4.000000        1.013354        919.0000        66.00000        133.0000        212.0000      -0.4967384E-01   0.5786869E-02  -0.4838434E-01    537.0000        267.0000       0.2289911E-01         108          14  0.17548E-03
+        1230  -0.2111318E-01   -9.000000       0.9860661        910.0000        48.00000        138.0000        198.0000      -0.4966000E-01   0.4617301E-02  -0.4889200E-01    536.0000        261.0000       0.2168912E-01         100          22  0.17126E-03
+        1240  -0.2432194E-01    6.000000        1.005368        916.0000        32.00000        135.0000        187.0000      -0.4964110E-01   0.3411499E-02  -0.4857310E-01    536.0000        263.0000       0.2037481E-01         104          18  0.17300E-03
+        1250  -0.2217755E-01   -21.00000        1.000000        895.0000        46.00000        149.0000        188.0000      -0.4964592E-01   0.2387937E-02  -0.4992308E-01    536.0000        250.0000       0.2048377E-01          99          13  0.17619E-03
+        1260   0.9422896E-02    5.000000       0.9716714        900.0000        36.00000        128.0000        187.0000      -0.4958132E-01   0.2658513E-02  -0.4580061E-01    538.0000        249.0000       0.2096883E-01         103          18  0.17092E-03
+        1270  -0.1202012E-01    15.00000        1.023996        915.0000        30.00000        116.0000        173.0000      -0.4956301E-01   0.2114860E-02  -0.4847950E-01    540.0000        280.0000       0.1894437E-01          98          13  0.17179E-03
+        1280  -0.2843552E-01    13.00000        1.018397        928.0000        42.00000        119.0000        188.0000      -0.4958873E-01   0.1023775E-02  -0.5113776E-01    538.0000        278.0000       0.2021505E-01         109          15  0.17200E-03
+        1290  -0.2562884E-01    11.00000       0.9990323        939.0000        56.00000        132.0000        211.0000      -0.4958443E-01   0.1047190E-03  -0.4932140E-01    540.0000        275.0000       0.2271015E-01         109          24  0.17431E-03
+        1300  -0.3268771E-01   -15.00000        1.008718        924.0000        46.00000        127.0000        185.0000      -0.4954224E-01  -0.9883618E-03  -0.4692824E-01    544.0000        280.0000       0.1973965E-01         100          17  0.16816E-03
+        1310  -0.2294086E-01   -3.000000       0.9921041        921.0000        48.00000        122.0000        189.0000      -0.4949786E-01  -0.1696507E-02  -0.4672474E-01    546.0000        276.0000       0.2032695E-01          97          17  0.17350E-03
+        1320  -0.9703268E-02    10.00000       0.9889223        931.0000        58.00000        124.0000        202.0000      -0.4943187E-01  -0.1946718E-02  -0.4524668E-01    546.0000        272.0000       0.2196846E-01          93          21  0.16995E-03
+        1330  -0.3314614E-01    23.00000        1.025231        954.0000        48.00000        118.0000        206.0000      -0.4939193E-01  -0.2892155E-02  -0.4682589E-01    549.0000        287.0000       0.2185213E-01         101          20  0.17519E-03
+        1340  -0.6050987E-01    24.00000        1.028535        978.0000        44.00000        128.0000        215.0000      -0.4939235E-01  -0.4586794E-02  -0.4941974E-01    552.0000        294.0000       0.2217409E-01         104          21  0.17458E-03
+        1350  -0.7474474E-01    21.00000        1.014748        999.0000        52.00000        133.0000        230.0000      -0.4939750E-01  -0.6591307E-02  -0.4973627E-01    552.0000        306.0000       0.2337636E-01         115          20  0.18149E-03
+        1360  -0.8943710E-01    1.000000        1.014839        1000.000        42.00000        151.0000        205.0000      -0.4945214E-01  -0.8892579E-02  -0.5311415E-01    547.0000        310.0000       0.2053080E-01         121          22  0.17947E-03
+        1370  -0.8600638E-01   -15.00000       0.9966950        985.0000        50.00000        159.0000        206.0000      -0.4950544E-01  -0.1097674E-01  -0.5314706E-01    545.0000        300.0000       0.2069936E-01         117          27  0.18693E-03
+        1380  -0.6843533E-01   -13.00000       0.9831190        972.0000        64.00000        141.0000        202.0000      -0.4954540E-01  -0.1248880E-01  -0.5233544E-01    543.0000        291.0000       0.2064595E-01         110          22  0.17523E-03
+        1390  -0.5524013E-01   -13.00000       0.9877351        959.0000        60.00000        141.0000        207.0000      -0.4957197E-01  -0.1358499E-01  -0.5146035E-01    540.0000        295.0000       0.2141970E-01          97          23  0.18121E-03
+        1400  -0.4565136E-01    1.000000       0.9915149        960.0000        54.00000        139.0000        212.0000      -0.4960848E-01  -0.1438665E-01  -0.5224397E-01    539.0000        294.0000       0.2212482E-01         104          23  0.16942E-03
+        1410  -0.3932885E-01   -3.000000       0.9948862        957.0000        42.00000        150.0000        204.0000      -0.4964236E-01  -0.1499500E-01  -0.5212703E-01    540.0000        299.0000       0.2139935E-01         103          24  0.16907E-03
+        1420  -0.3738028E-01    7.000000       0.9992657        964.0000        50.00000        132.0000        205.0000      -0.4969095E-01  -0.1552798E-01  -0.5330419E-01    538.0000        298.0000       0.2152005E-01         105          24  0.17268E-03
+        1430  -0.5735814E-01    7.000000        1.020890        971.0000        50.00000        146.0000        226.0000      -0.4975763E-01  -0.1650077E-01  -0.5478775E-01    539.0000        315.0000       0.2323907E-01         106          16  0.17427E-03
+        1440  -0.4286680E-01   -17.00000       0.9866324        954.0000        50.00000        154.0000        198.0000      -0.4979998E-01  -0.1710000E-01  -0.5304659E-01    536.0000        295.0000       0.2063575E-01          99          21  0.17672E-03
+        1450  -0.4055051E-01    8.000000       0.9987493        962.0000        46.00000        130.0000        201.0000      -0.4982835E-01  -0.1762113E-01  -0.5202478E-01    538.0000        294.0000       0.2097464E-01         106          25  0.17864E-03
+        1460  -0.4726416E-01    13.00000        1.007618        975.0000        54.00000        135.0000        222.0000      -0.4984214E-01  -0.1826554E-01  -0.5092305E-01    540.0000        288.0000       0.2299089E-01         116          21  0.18163E-03
+        1470  -0.6386043E-01    17.00000        1.017191        992.0000        54.00000        124.0000        214.0000      -0.4986316E-01  -0.1923564E-01  -0.5152538E-01    540.0000        296.0000       0.2178782E-01         120          21  0.17583E-03
+        1480  -0.7740376E-01    0.000000        1.013745        992.0000        76.00000        148.0000        239.0000      -0.4988088E-01  -0.2044748E-01  -0.5130189E-01    541.0000        286.0000       0.2400321E-01         113          26  0.18682E-03
+        1490  -0.6840450E-01   -3.000000       0.9913629        989.0000        70.00000        147.0000        238.0000      -0.4987078E-01  -0.2142619E-01  -0.4905241E-01    541.0000        291.0000       0.2411103E-01         117          27  0.17833E-03
+        1500  -0.6516826E-01   -7.000000       0.9971634        982.0000        64.00000        136.0000        221.0000      -0.4988072E-01  -0.2230103E-01  -0.5069663E-01    541.0000        297.0000       0.2245250E-01         113          27  0.18208E-03
+        1510  -0.7296647E-01    13.00000        1.008026        995.0000        82.00000        140.0000        251.0000      -0.4991374E-01  -0.2329447E-01  -0.5264981E-01    543.0000        302.0000       0.2529732E-01         125          32  0.17949E-03
+        1520  -0.6280506E-01   -13.00000       0.9903245        982.0000        50.00000        159.0000        211.0000      -0.4994531E-01  -0.2405429E-01  -0.5258856E-01    542.0000        294.0000       0.2147364E-01         109          28  0.18651E-03
+        1530  -0.6288768E-01    6.000000        1.000509        988.0000        68.00000        128.0000        218.0000      -0.4996249E-01  -0.2478700E-01  -0.5142494E-01    541.0000        295.0000       0.2217475E-01         118          22  0.17515E-03
+        1540  -0.7602969E-01    7.000000        1.013325        995.0000        52.00000        149.0000        222.0000      -0.4998900E-01  -0.2573594E-01  -0.5227103E-01    539.0000        301.0000       0.2228468E-01         116          23  0.18912E-03
+        1550  -0.7881142E-01   -2.000000        1.002811        993.0000        50.00000        146.0000        210.0000      -0.5003350E-01  -0.2670095E-01  -0.5391937E-01    539.0000        311.0000       0.2102102E-01         107          25  0.18208E-03
+        1560  -0.6951032E-01   -7.000000       0.9909910        986.0000        46.00000        146.0000        195.0000      -0.5007260E-01  -0.2746540E-01  -0.5352630E-01    541.0000        305.0000       0.1969697E-01         111          22  0.18624E-03
+        1570  -0.6229862E-01    5.000000       0.9932323        991.0000        62.00000        133.0000        213.0000      -0.5009868E-01  -0.2807651E-01  -0.5242739E-01    539.0000        309.0000       0.2166175E-01         105          26  0.18360E-03
+        1580  -0.6146054E-01   -24.00000       0.9995932        967.0000        68.00000        145.0000        209.0000      -0.5013208E-01  -0.2865210E-01  -0.5315188E-01    539.0000        303.0000       0.2126361E-01          99          16  0.18545E-03
+        1590  -0.4516037E-01    7.000000       0.9846373        974.0000        42.00000        127.0000        183.0000      -0.5014570E-01  -0.2893190E-01  -0.5139372E-01    535.0000        305.0000       0.1890887E-01         110          20  0.17634E-03
+        1600  -0.5193944E-01   -16.00000        1.007440        958.0000        52.00000        156.0000        202.0000      -0.5016871E-01  -0.2931536E-01  -0.5230561E-01    538.0000        289.0000       0.2071795E-01         106          23  0.18017E-03
+        1610  -0.2586777E-01   -14.00000       0.9754872        944.0000        70.00000        134.0000        201.0000      -0.5015846E-01  -0.2925884E-01  -0.4919893E-01    537.0000        288.0000       0.2113342E-01         103           9  0.17263E-03
+        1620  -0.7005244E-02   -33.00000       0.9829671        911.0000        72.00000        143.0000        198.0000      -0.5014000E-01  -0.2889991E-01  -0.4838874E-01    536.0000        262.0000       0.2117874E-01          97          14  0.17611E-03
+        1630   0.2602095E-02    31.00000       0.9922986        942.0000        48.00000        115.0000        209.0000      -0.5011215E-01  -0.2839988E-01  -0.4743956E-01    536.0000        267.0000       0.2252883E-01         110          21  0.17212E-03
+        1640   0.5083859E-03   -21.00000        1.003881        921.0000        54.00000        123.0000        175.0000      -0.5007942E-01  -0.2794819E-01  -0.4691422E-01    537.0000        264.0000       0.1879094E-01         105          13  0.16944E-03
+        1650  -0.2095193E-04    20.00000        1.002255        941.0000        60.00000        105.0000        212.0000      -0.5006925E-01  -0.2751854E-01  -0.4907955E-01    542.0000        275.0000       0.2271266E-01         101          23  0.17656E-03
+        1660  -0.7480998E-02    16.00000        1.008999        957.0000        46.00000        123.0000        206.0000      -0.5005472E-01  -0.2721494E-01  -0.4864257E-01    546.0000        272.0000       0.2187301E-01         107          25  0.17360E-03
+        1670  -0.3071302E-01    16.00000        1.024421        973.0000        58.00000        132.0000        223.0000      -0.5005069E-01  -0.2726715E-01  -0.4965828E-01    552.0000        283.0000       0.2311360E-01         105          20  0.18427E-03
+        1680  -0.4531661E-01    3.000000        1.015236        976.0000        54.00000        162.0000        233.0000      -0.5005560E-01  -0.2753258E-01  -0.5053599E-01    554.0000        277.0000       0.2378765E-01         105          18  0.18064E-03
+        1690  -0.3057342E-01   -10.00000       0.9862175        966.0000        56.00000        147.0000        207.0000      -0.5003902E-01  -0.2757665E-01  -0.4839924E-01    552.0000        275.0000       0.2142857E-01         108          18  0.17890E-03
+        1700  -0.2641401E-01   -15.00000       0.9967909        951.0000        60.00000        139.0000        204.0000      -0.5001243E-01  -0.2756004E-01  -0.4734906E-01    550.0000        268.0000       0.2118600E-01         100          12  0.17217E-03
+        1710  -0.2141579E-01    9.000000       0.9960536        960.0000        58.00000        131.0000        217.0000      -0.4999989E-01  -0.2747350E-01  -0.4872770E-01    549.0000        283.0000       0.2262538E-01         108          23  0.17979E-03
+        1720  -0.1200177E-01   -7.000000       0.9918674        953.0000        38.00000        123.0000        173.0000      -0.4999291E-01  -0.2725862E-01  -0.4927770E-01    551.0000        285.0000       0.1818564E-01          97          26  0.16969E-03
+        1730  -0.1483987E-01    4.000000        1.003995        957.0000        42.00000        132.0000        194.0000      -0.4997165E-01  -0.2708850E-01  -0.4777814E-01    553.0000        278.0000       0.2031201E-01         103          15  0.17975E-03
+        1740  -0.3019224E-01    6.000000        1.016229        963.0000        52.00000        142.0000        212.0000      -0.4998158E-01  -0.2713044E-01  -0.5100918E-01    558.0000        287.0000       0.2184216E-01         101          22  0.17967E-03
+        1750  -0.2807243E-01   -3.000000       0.9986606        960.0000        46.00000        138.0000        190.0000      -0.4996403E-01  -0.2714300E-01  -0.4813713E-01    556.0000        280.0000       0.1960177E-01         100          18  0.18258E-03
+        1760  -0.1280955E-01   -9.000000       0.9859693        951.0000        48.00000        139.0000        194.0000      -0.4993323E-01  -0.2695440E-01  -0.4668775E-01    555.0000        267.0000       0.2029926E-01         104          21  0.17559E-03
+        1770  -0.1060369E-01    12.00000       0.9989536        963.0000        52.00000        131.0000        208.0000      -0.4990469E-01  -0.2674205E-01  -0.4687079E-01    557.0000        278.0000       0.2178695E-01          98          25  0.18189E-03
+        1780  -0.2394316E-01    0.000000        1.014245        963.0000        68.00000        123.0000        211.0000      -0.4990658E-01  -0.2670617E-01  -0.5010892E-01    560.0000        267.0000       0.2179077E-01         104          21  0.17862E-03
+        1790  -0.1312558E-02   -35.00000       0.9789321        928.0000        48.00000        149.0000        178.0000      -0.4987479E-01  -0.2638473E-01  -0.4647133E-01    562.0000        256.0000       0.1877835E-01          92          17  0.17600E-03
+        1800   0.1461842E-01    26.00000       0.9858635        954.0000        50.00000        112.0000        203.0000      -0.4982390E-01  -0.2587219E-01  -0.4432386E-01    565.0000        274.0000       0.2172285E-01         102          23  0.17469E-03
+        1810   0.5944606E-02   -7.000000        1.010166        947.0000        46.00000        136.0000        198.0000      -0.4978366E-01  -0.2547939E-01  -0.4542788E-01    570.0000        264.0000       0.2097458E-01          97          24  0.17852E-03
+        1820   0.3517884E-03    17.00000        1.006886        964.0000        44.00000        123.0000        200.0000      -0.4972817E-01  -0.2516438E-01  -0.4375313E-01    576.0000        270.0000       0.2104156E-01          94          19  0.17693E-03
+        1830  -0.1919464E-01    12.00000        1.020516        976.0000        54.00000        135.0000        215.0000      -0.4969432E-01  -0.2509246E-01  -0.4602806E-01    577.0000        269.0000       0.2216495E-01          96          22  0.18390E-03
+        1840  -0.2967796E-01    12.00000        1.011031        988.0000        36.00000        138.0000        211.0000      -0.4967010E-01  -0.2514704E-01  -0.4701901E-01    576.0000        291.0000       0.2151524E-01         105          16  0.18179E-03
+        1850  -0.3117464E-01   -17.00000        1.001937        971.0000        60.00000        136.0000        190.0000      -0.4964539E-01  -0.2521796E-01  -0.4692033E-01    576.0000        273.0000       0.1933645E-01         108          23  0.18495E-03
+        1860  -0.1961834E-01   -2.000000       0.9892123        969.0000        58.00000        130.0000        198.0000      -0.4960191E-01  -0.2515285E-01  -0.4476111E-01    578.0000        266.0000       0.2037037E-01         102          16  0.17835E-03
+        1870  -0.2437728E-01    16.00000        1.005350        985.0000        46.00000        143.0000        228.0000      -0.4955339E-01  -0.2514393E-01  -0.4413304E-01    580.0000        269.0000       0.2333197E-01         112          30  0.18363E-03
+        1880  -0.3267791E-01   -2.000000        1.008698        983.0000        54.00000        126.0000        198.0000      -0.4951792E-01  -0.2522954E-01  -0.4553014E-01    582.0000        277.0000       0.2008725E-01         102          20  0.18182E-03
+        1890  -0.3946793E-01    14.00000        1.007000        997.0000        36.00000        125.0000        197.0000      -0.4949678E-01  -0.2538953E-01  -0.4709861E-01    581.0000        293.0000       0.1984687E-01         105          16  0.18261E-03
+        1900  -0.5821027E-01    14.00000        1.018638        1011.000        54.00000        123.0000        206.0000      -0.4948833E-01  -0.2575420E-01  -0.4852081E-01    581.0000        319.0000       0.2037385E-01         107          24  0.18166E-03
+        1910  -0.6051173E-01    1.000000        1.001978        1012.000        34.00000        145.0000        196.0000      -0.4948071E-01  -0.2613615E-01  -0.4859902E-01    579.0000        300.0000       0.1934656E-01         112          20  0.18615E-03
+        1920  -0.5850744E-01   -1.000000       0.9977297        1011.000        32.00000        156.0000        197.0000      -0.4946921E-01  -0.2648801E-01  -0.4812172E-01    578.0000        300.0000       0.1948951E-01         107          17  0.18139E-03
+        1930  -0.3860201E-01   -21.00000       0.9805105        990.0000        60.00000        147.0000        202.0000      -0.4943243E-01  -0.2661827E-01  -0.4509278E-01    577.0000        273.0000       0.2038139E-01         101          31  0.17953E-03
+        1940  -0.5020339E-01    18.00000        1.011603        1008.000        40.00000        127.0000        198.0000      -0.4942253E-01  -0.2686918E-01  -0.4824126E-01    577.0000        301.0000       0.1974865E-01         104          15  0.18469E-03
+        1950  -0.5251499E-01    3.000000        1.002194        1011.000        62.00000        137.0000        220.0000      -0.4939864E-01  -0.2713913E-01  -0.4653649E-01    581.0000        293.0000       0.2189490E-01         116          20  0.18423E-03
+        1960  -0.5222659E-01    12.00000       0.9996019        1023.000        52.00000        134.0000        215.0000      -0.4937186E-01  -0.2740046E-01  -0.4615956E-01    585.0000        295.0000       0.2140581E-01         106          22  0.18719E-03
+        1970  -0.6026557E-01   -30.00000        1.007766        993.0000        38.00000        159.0000        187.0000      -0.4934886E-01  -0.2773928E-01  -0.4657271E-01    584.0000        284.0000       0.1847461E-01         104          17  0.18352E-03
+        1980  -0.5528940E-01    21.00000       0.9948627        1014.000        34.00000        145.0000        220.0000      -0.4932468E-01  -0.2802040E-01  -0.4637394E-01    582.0000        298.0000       0.2184707E-01         114          24  0.18880E-03
+        1990  -0.5942583E-01   -10.00000        1.003873        1004.000        48.00000        141.0000        198.0000      -0.4930722E-01  -0.2833763E-01  -0.4715264E-01    580.0000        304.0000       0.1958651E-01         101          20  0.18449E-03
+        2000  -0.5328900E-01   -3.000000       0.9937679        1001.000        32.00000        149.0000        196.0000      -0.4929286E-01  -0.2858714E-01  -0.4750667E-01    582.0000        304.0000       0.1951025E-01         103          24  0.18688E-03
+        2010  -0.5370978E-01   -1.000000        1.000299        1000.000        36.00000        157.0000        204.0000      -0.4927070E-01  -0.2883588E-01  -0.4649458E-01    582.0000        295.0000       0.2030053E-01         106          15  0.19021E-03
+        2020  -0.6921992E-01    26.00000        1.015126        1026.000        46.00000        132.0000        212.0000      -0.4927300E-01  -0.2923180E-01  -0.4956480E-01    580.0000        320.0000       0.2078228E-01         109          20  0.18558E-03
+        2030  -0.6760518E-01   -6.000000       0.9979414        1020.000        58.00000        141.0000        215.0000      -0.4928340E-01  -0.2960436E-01  -0.5061661E-01    576.0000        308.0000       0.2111984E-01         110          22  0.19169E-03
+        2040  -0.6744687E-01    5.000000       0.9994106        1025.000        50.00000        142.0000        219.0000      -0.4931075E-01  -0.2996823E-01  -0.5285748E-01    575.0000        316.0000       0.2152546E-01         121          33  0.18673E-03
+        2050  -0.6968997E-01    0.000000        1.001769        1025.000        50.00000        152.0000        215.0000      -0.4933275E-01  -0.3034653E-01  -0.5221736E-01    573.0000        316.0000       0.2109498E-01         114          21  0.18932E-03
+        2060  -0.8136772E-01    8.000000        1.010989        1033.000        46.00000        134.0000        200.0000      -0.4938788E-01  -0.3082786E-01  -0.5671932E-01    569.0000        328.0000       0.1940994E-01         108          23  0.18154E-03
+        2070  -0.9516383E-01    2.000000        1.012811        1035.000        54.00000        137.0000        207.0000      -0.4943945E-01  -0.3142913E-01  -0.5637132E-01    567.0000        322.0000       0.1983519E-01         116          16  0.18976E-03
+        2080  -0.6926204E-01   -19.00000       0.9740322        1016.000        38.00000        173.0000        204.0000      -0.4946783E-01  -0.3177944E-01  -0.5333111E-01    564.0000        300.0000       0.2006886E-01         111          33  0.18464E-03
+        2090  -0.6835946E-01   -17.00000       0.9987211        999.0000        64.00000        150.0000        222.0000      -0.4949390E-01  -0.3211503E-01  -0.5308060E-01    563.0000        300.0000       0.2186761E-01         111          19  0.19034E-03
+        2100  -0.5132447E-01   -9.000000       0.9831560        990.0000        66.00000        131.0000        207.0000      -0.4951778E-01  -0.3228967E-01  -0.5283180E-01    561.0000        310.0000       0.2073940E-01         104          15  0.18008E-03
+        2110  -0.4095563E-01   -20.00000       0.9899810        970.0000        42.00000        138.0000        184.0000      -0.4955336E-01  -0.3236774E-01  -0.5454899E-01    559.0000        298.0000       0.1862160E-01          98          15  0.18370E-03
+        2120  -0.1725853E-01    0.000000       0.9774314        970.0000        50.00000        147.0000        205.0000      -0.4956841E-01  -0.3223283E-01  -0.5169949E-01    559.0000        288.0000       0.2122593E-01         107          20  0.18317E-03
+        2130  -0.1967332E-01    5.000000        1.003210        975.0000        62.00000        125.0000        204.0000      -0.4957289E-01  -0.3212169E-01  -0.5021026E-01    563.0000        299.0000       0.2105480E-01         113          16  0.18684E-03
+        2140  -0.3254473E-01    13.00000        1.013417        988.0000        54.00000        132.0000        218.0000      -0.4956965E-01  -0.3212540E-01  -0.4910766E-01    565.0000        304.0000       0.2220185E-01         114          23  0.18406E-03
+        2150  -0.3542312E-01   -26.00000        1.003259        962.0000        56.00000        159.0000        210.0000      -0.4955772E-01  -0.3215407E-01  -0.4785081E-01    566.0000        293.0000       0.2131763E-01          99          21  0.18683E-03
+        2160  -0.1359868E-01    9.000000       0.9792914        971.0000        46.00000        131.0000        202.0000      -0.4953169E-01  -0.3199411E-01  -0.4579486E-01    567.0000        276.0000       0.2093915E-01         111          25  0.17923E-03
+        2170  -0.5342588E-02   -15.00000       0.9928475        956.0000        62.00000        135.0000        194.0000      -0.4949922E-01  -0.3176632E-01  -0.4480301E-01    567.0000        280.0000       0.2025475E-01          99          16  0.17881E-03
+        2180  -0.5654947E-02   -1.000000        1.001357        955.0000        60.00000        130.0000        212.0000      -0.4947949E-01  -0.3154504E-01  -0.4660494E-01    567.0000        291.0000       0.2210406E-01         106          23  0.18167E-03
+        2190  -0.1651115E-01    19.00000        1.011678        974.0000        62.00000        122.0000        218.0000      -0.4947492E-01  -0.3141871E-01  -0.4880541E-01    567.0000        302.0000       0.2246728E-01         107          25  0.17651E-03
+        2200  -0.1902695E-01    0.000000        1.003195        974.0000        48.00000        117.0000        181.0000      -0.4946714E-01  -0.3131544E-01  -0.4832620E-01    572.0000        303.0000       0.1859462E-01         104          15  0.17797E-03
+        2210  -0.2266122E-01    8.000000        1.004212        982.0000        56.00000        123.0000        201.0000      -0.4945215E-01  -0.3124392E-01  -0.4724148E-01    571.0000        318.0000       0.2056266E-01         101          26  0.17849E-03
+        2220  -0.2961449E-01    12.00000        1.007366        994.0000        32.00000        149.0000        208.0000      -0.4942577E-01  -0.3123056E-01  -0.4552186E-01    574.0000        295.0000       0.2112318E-01         106          29  0.18326E-03
+        2230  -0.5228453E-01    13.00000        1.022748        1007.000        50.00000        136.0000        213.0000      -0.4941070E-01  -0.3140173E-01  -0.4716822E-01    573.0000        319.0000       0.2114984E-01         105          18  0.18128E-03
+        2240  -0.5956118E-01    11.00000        1.006951        1018.000        52.00000        150.0000        234.0000      -0.4939153E-01  -0.3162883E-01  -0.4650346E-01    569.0000        319.0000       0.2307465E-01         111          19  0.18735E-03
+        2250  -0.7675267E-01    25.00000        1.016566        1043.000        48.00000        132.0000        227.0000      -0.4937996E-01  -0.3198982E-01  -0.4761227E-01    566.0000        322.0000       0.2201959E-01         122          23  0.18346E-03
+        2260  -0.8059111E-01   -19.00000        1.003007        1024.000        68.00000        155.0000        234.0000      -0.4936797E-01  -0.3237554E-01  -0.4752139E-01    566.0000        325.0000       0.2263056E-01         111          18  0.18694E-03
+        2270  -0.7934314E-01   -12.00000       0.9979691        1012.000        64.00000        158.0000        231.0000      -0.4935590E-01  -0.3274536E-01  -0.4747755E-01    562.0000        318.0000       0.2238589E-01         111          12  0.17911E-03
+        2280  -0.7275118E-01    19.00000       0.9928288        1031.000        52.00000        150.0000        244.0000      -0.4934364E-01  -0.3305791E-01  -0.4741606E-01    561.0000        325.0000       0.2381650E-01         118          15  0.18104E-03
+        2290  -0.7025008E-01   -11.00000       0.9969741        1020.000        50.00000        152.0000        208.0000      -0.4933639E-01  -0.3334622E-01  -0.4818601E-01    558.0000        324.0000       0.2036421E-01         112          26  0.17449E-03
+        2300  -0.6997631E-01   -4.000000       0.9992168        1016.000        70.00000        148.0000        230.0000      -0.4933429E-01  -0.3362799E-01  -0.4899842E-01    559.0000        321.0000       0.2253576E-01         106          24  0.18040E-03
+        2310  -0.7199143E-01    8.000000        1.001470        1024.000        68.00000        143.0000        241.0000      -0.4933799E-01  -0.3392084E-01  -0.4993641E-01    555.0000        332.0000       0.2357891E-01         116          24  0.17691E-03
+        2320  -0.7113298E-01   -14.00000       0.9986303        1010.000        74.00000        150.0000        227.0000      -0.4933879E-01  -0.3420275E-01  -0.4946882E-01    554.0000        311.0000       0.2223964E-01         119          19  0.18090E-03
+        2330  -0.5310137E-01   -18.00000       0.9820711        992.0000        50.00000        155.0000        201.0000      -0.4933316E-01  -0.3434485E-01  -0.4840501E-01    552.0000        296.0000       0.2005188E-01         113          17  0.17498E-03
+        2340  -0.4463883E-01   -6.000000       0.9917199        986.0000        48.00000        148.0000        204.0000      -0.4933366E-01  -0.3442167E-01  -0.4941713E-01    551.0000        309.0000       0.2052107E-01         108          18  0.17706E-03
+        2350  -0.3558500E-01    4.000000       0.9913490        990.0000        54.00000        133.0000        210.0000      -0.4932779E-01  -0.3443028E-01  -0.4834177E-01    548.0000        302.0000       0.2130898E-01         111          23  0.17773E-03
+        2360  -0.3833535E-01   -1.000000        1.003044        989.0000        66.00000        132.0000        212.0000      -0.4932661E-01  -0.3445900E-01  -0.4912735E-01    549.0000        300.0000       0.2144664E-01         108          21  0.18001E-03
+        2370  -0.3232717E-01   -12.00000       0.9944360        977.0000        50.00000        150.0000        202.0000      -0.4932017E-01  -0.3444344E-01  -0.4822548E-01    549.0000        291.0000       0.2054934E-01         111          24  0.17280E-03
+        2380  -0.3346142E-01    13.00000        1.001526        990.0000        60.00000        135.0000        224.0000      -0.4930546E-01  -0.3443632E-01  -0.4680253E-01    553.0000        288.0000       0.2275267E-01         118          19  0.17919E-03
+        2390  -0.3369538E-01    7.000000        1.000609        997.0000        60.00000        135.0000        220.0000      -0.4929609E-01  -0.3443099E-01  -0.4769194E-01    552.0000        300.0000       0.2233276E-01         115          17  0.17485E-03
+        2400  -0.6204781E-01    27.00000        1.028424        1024.000        46.00000        134.0000        224.0000      -0.4930908E-01  -0.3462825E-01  -0.5153318E-01    557.0000        314.0000       0.2211035E-01         121          22  0.18285E-03
+        2410  -0.5230763E-01   -47.00000       0.9902280        977.0000        54.00000        170.0000        190.0000      -0.4931526E-01  -0.3475364E-01  -0.5037520E-01    555.0000        297.0000       0.1893939E-01         112          19  0.17618E-03
+        2420  -0.1757499E-01   -11.00000       0.9666069        966.0000        38.00000        135.0000        176.0000      -0.4929509E-01  -0.3463266E-01  -0.4581492E-01    557.0000        277.0000       0.1814994E-01         111          15  0.17133E-03
+        2430  -0.2102520E-01    17.00000        1.004125        983.0000        58.00000        144.0000        231.0000      -0.4928528E-01  -0.3453751E-01  -0.4759219E-01    561.0000        297.0000       0.2372394E-01         111          18  0.18109E-03
+        2440  -0.3727209E-01    15.00000        1.016638        998.0000        48.00000        134.0000        217.0000      -0.4927871E-01  -0.3455650E-01  -0.4814541E-01    565.0000        303.0000       0.2192141E-01         109          23  0.17534E-03
+        2450  -0.3794980E-01   -6.000000        1.000909        992.0000        62.00000        139.0000        209.0000      -0.4927703E-01  -0.3457990E-01  -0.4898607E-01    563.0000        297.0000       0.2109407E-01         110          17  0.18194E-03
+        2460  -0.2428582E-01   -26.00000       0.9869802        966.0000        52.00000        135.0000        178.0000      -0.4925664E-01  -0.3450939E-01  -0.4569918E-01    564.0000        272.0000       0.1820227E-01         109          22  0.17528E-03
+        2470  -0.7030877E-02    4.000000       0.9838429        970.0000        40.00000        129.0000        191.0000      -0.4922233E-01  -0.3432246E-01  -0.4321365E-01    565.0000        281.0000       0.1985241E-01         108          21  0.18053E-03
+        2480  -0.4358931E-02   -25.00000       0.9983370        945.0000        58.00000        154.0000        203.0000      -0.4919457E-01  -0.3412001E-01  -0.4433065E-01    569.0000        270.0000       0.2113483E-01         105          17  0.17857E-03
+        2490   0.1451820E-01    23.00000       0.9827173        968.0000        40.00000        134.0000        212.0000      -0.4915496E-01  -0.3379358E-01  -0.4219791E-01    569.0000        272.0000       0.2246001E-01         103          27  0.17823E-03
+        2500  -0.1379098E-01    17.00000        1.029452        985.0000        32.00000        120.0000        187.0000      -0.4911903E-01  -0.3366022E-01  -0.4280009E-01    573.0000        279.0000       0.1924462E-01         102          16  0.17292E-03
+        2510  -0.1738908E-01   -7.000000        1.004219        978.0000        44.00000        138.0000        190.0000      -0.4908769E-01  -0.3355247E-01  -0.4356919E-01    575.0000        277.0000       0.1947120E-01         107          17  0.17809E-03
+        2520  -0.1856080E-01   -1.000000        1.001742        977.0000        38.00000        132.0000        189.0000      -0.4905122E-01  -0.3345384E-01  -0.4259255E-01    573.0000        267.0000       0.1933504E-01         115          17  0.17917E-03
+        2530  -0.1683777E-01    6.000000       0.9988747        983.0000        54.00000        129.0000        207.0000      -0.4902102E-01  -0.3334524E-01  -0.4362992E-01    575.0000        271.0000       0.2120033E-01         109          25  0.18395E-03
+        2540  -0.2314590E-01   -3.000000        1.006760        980.0000        52.00000        139.0000        208.0000      -0.4900420E-01  -0.3327901E-01  -0.4599848E-01    576.0000        273.0000       0.2115972E-01         110          19  0.17978E-03
+        2550  -0.2812513E-01    16.00000        1.005290        996.0000        34.00000        144.0000        204.0000      -0.4898737E-01  -0.3324576E-01  -0.4596363E-01    576.0000        283.0000       0.2064359E-01         120          17  0.18458E-03
+        2560  -0.2283749E-01   -26.00000       0.9951427        970.0000        66.00000        138.0000        197.0000      -0.4897401E-01  -0.3317904E-01  -0.4655389E-01    574.0000        269.0000       0.2003254E-01         114          12  0.18302E-03
+        2570  -0.6346429E-02   -5.000000       0.9844417        965.0000        58.00000        136.0000        208.0000      -0.4895505E-01  -0.3300813E-01  -0.4552584E-01    579.0000        270.0000       0.2148538E-01         105          25  0.18575E-03
+        2580   0.1337782E-01   -13.00000       0.9817168        952.0000        54.00000        128.0000        179.0000      -0.4892651E-01  -0.3271455E-01  -0.4376550E-01    582.0000        263.0000       0.1883418E-01          98          16  0.17739E-03
+        2590  -0.3840526E-02    23.00000        1.018203        975.0000        54.00000        127.0000        216.0000      -0.4890373E-01  -0.3253295E-01  -0.4478732E-01    587.0000        273.0000       0.2232097E-01          98          20  0.18279E-03
+        2600  -0.1292825E-01    8.000000        1.009714        983.0000        42.00000        124.0000        193.0000      -0.4889335E-01  -0.3241042E-01  -0.4701778E-01    589.0000        290.0000       0.1975233E-01         106          20  0.17968E-03
+        2610  -0.1684999E-01    6.000000        1.004401        989.0000        42.00000        137.0000        202.0000      -0.4890058E-01  -0.3231377E-01  -0.5021106E-01    591.0000        292.0000       0.2058284E-01          96          17  0.18804E-03
+        2620  -0.4124720E-01    29.00000        1.024557        1018.000        44.00000        123.0000        208.0000      -0.4890393E-01  -0.3236892E-01  -0.4951006E-01    595.0000        286.0000       0.2068623E-01         107          20  0.18592E-03
+        2630  -0.4067050E-01   -7.000000       0.9993038        1011.000        74.00000        145.0000        227.0000      -0.4889793E-01  -0.3241985E-01  -0.4780807E-01    594.0000        282.0000       0.2259156E-01         113          24  0.19316E-03
+        2640  -0.5457057E-01    5.000000        1.013535        1016.000        48.00000        159.0000        227.0000      -0.4889358E-01  -0.3255491E-01  -0.4809946E-01    596.0000        294.0000       0.2228987E-01         107          18  0.19148E-03
+        2650  -0.5753951E-01   -3.000000        1.002455        1013.000        58.00000        148.0000        226.0000      -0.4889977E-01  -0.3270633E-01  -0.5003283E-01    596.0000        305.0000       0.2213733E-01         100          22  0.19373E-03
+        2660  -0.4512397E-01   -8.000000       0.9874620        1005.000        64.00000        129.0000        201.0000      -0.4890509E-01  -0.3278114E-01  -0.4988221E-01    599.0000        293.0000       0.1993850E-01         101          19  0.18501E-03
+        2670  -0.6206649E-01    35.00000        1.016467        1040.000        40.00000        147.0000        237.0000      -0.4890398E-01  -0.3295650E-01  -0.4869869E-01    599.0000        306.0000       0.2312872E-01         116          22  0.19511E-03
+        2680  -0.7549971E-01   -24.00000        1.012589        1016.000        56.00000        162.0000        218.0000      -0.4889844E-01  -0.3320973E-01  -0.4787310E-01    599.0000        297.0000       0.2101002E-01         110          24  0.19120E-03
+        2690  -0.6868808E-01    2.000000       0.9924827        1018.000        52.00000        159.0000        230.0000      -0.4889407E-01  -0.3341966E-01  -0.4807846E-01    597.0000        297.0000       0.2233443E-01         108          23  0.19547E-03
+        2700  -0.4382358E-01   -25.00000       0.9753350        993.0000        74.00000        161.0000        233.0000      -0.4887815E-01  -0.3348086E-01  -0.4587165E-01    593.0000        276.0000       0.2319793E-01         107          26  0.18501E-03
+        2710  -0.3470735E-01    20.00000       0.9910394        1013.000        64.00000        131.0000        232.0000      -0.4885177E-01  -0.3348804E-01  -0.4382648E-01    593.0000        284.0000       0.2330721E-01         115          33  0.18746E-03
+        2720  -0.5518453E-01    12.00000        1.020293        1025.000        54.00000        137.0000        217.0000      -0.4884058E-01  -0.3361418E-01  -0.4670409E-01    595.0000        315.0000       0.2136668E-01         111          23  0.18366E-03
+        2730  -0.6980368E-01   -2.000000        1.013982        1023.000        56.00000        141.0000        208.0000      -0.4884643E-01  -0.3382337E-01  -0.4996956E-01    592.0000        315.0000       0.2019810E-01         109          20  0.18944E-03
+        2740  -0.6714804E-01    26.00000       0.9966984        1049.000        50.00000        140.0000        236.0000      -0.4885106E-01  -0.3401489E-01  -0.4974939E-01    593.0000        316.0000       0.2299299E-01         122          25  0.18773E-03
+        2750  -0.7089059E-01   -36.00000        1.003020        1013.000        64.00000        149.0000        200.0000      -0.4885758E-01  -0.3422561E-01  -0.5012589E-01    592.0000        301.0000       0.1942691E-01         103          17  0.19028E-03
+        2760  -0.5818840E-01    25.00000       0.9869840        1038.000        42.00000        125.0000        207.0000      -0.4884686E-01  -0.3436176E-01  -0.4674209E-01    587.0000        309.0000       0.2037201E-01         120          19  0.18252E-03
+        2770  -0.6482300E-01   -13.00000        1.006102        1025.000        50.00000        158.0000        203.0000      -0.4884353E-01  -0.3453386E-01  -0.4818129E-01    586.0000        301.0000       0.1985718E-01         115          21  0.18960E-03
+        2780  -0.5134205E-01   -25.00000       0.9864032        1000.000        58.00000        168.0000        221.0000      -0.4884254E-01  -0.3462828E-01  -0.4864583E-01    587.0000        279.0000       0.2191591E-01         116          26  0.18634E-03
+        2790  -0.5165281E-01   -10.00000        1.000099        990.0000        46.00000        143.0000        189.0000      -0.4884460E-01  -0.3472339E-01  -0.4925731E-01    586.0000        287.0000       0.1874070E-01         107           9  0.19169E-03
+        2800  -0.2216714E-01   -17.00000       0.9714427        973.0000        60.00000        121.0000        178.0000      -0.4882974E-01  -0.3465364E-01  -0.4582866E-01    585.0000        266.0000       0.1816883E-01         110          17  0.18591E-03
+        2810  -0.7644124E-02   -15.00000       0.9864244        958.0000        62.00000        143.0000        206.0000      -0.4880840E-01  -0.3450441E-01  -0.4447549E-01    585.0000        245.0000       0.2131623E-01          97          26  0.18884E-03
+        2820  -0.2992939E-03    15.00000       0.9936879        973.0000        42.00000        123.0000        195.0000      -0.4877491E-01  -0.3431647E-01  -0.4197175E-01    588.0000        262.0000       0.2030615E-01          91          21  0.18325E-03
+        2830  -0.1327995E-01    3.000000        1.013746        976.0000        40.00000        129.0000        184.0000      -0.4875878E-01  -0.3420152E-01  -0.4548579E-01    593.0000        277.0000       0.1890087E-01          95          18  0.18912E-03
+        2840  -0.2537409E-01    22.00000        1.012532        998.0000        50.00000        131.0000        220.0000      -0.4874331E-01  -0.3415354E-01  -0.4560015E-01    593.0000        281.0000       0.2231916E-01          95          23  0.18407E-03
+        2850  -0.2563774E-01    3.000000        1.000609        1001.000        52.00000        129.0000        204.0000      -0.4872760E-01  -0.3410751E-01  -0.4552859E-01    595.0000        274.0000       0.2068336E-01         100          29  0.18813E-03
+        2860  -0.4495256E-01   -2.000000        1.019365        999.0000        56.00000        144.0000        212.0000      -0.4872112E-01  -0.3416582E-01  -0.4739864E-01    597.0000        291.0000       0.2108613E-01         100          20  0.18464E-03
+        2870  -0.4243308E-01   -3.000000       0.9974140        996.0000        64.00000        143.0000        217.0000      -0.4871025E-01  -0.3421003E-01  -0.4649070E-01    598.0000        285.0000       0.2163941E-01         101          22  0.19171E-03
+        2880  -0.3057707E-01   -7.000000       0.9884324        989.0000        46.00000        151.0000        209.0000      -0.4868812E-01  -0.3419070E-01  -0.4414788E-01    598.0000        273.0000       0.2108555E-01          98          21  0.19058E-03
+        2890  -0.1357039E-01   -31.00000       0.9837571        958.0000        76.00000        134.0000        192.0000      -0.4864882E-01  -0.3408160E-01  -0.4053304E-01    598.0000        261.0000       0.1969029E-01          84          22  0.18392E-03
+        2900  -0.1146730E-01    27.00000       0.9985642        985.0000        38.00000        123.0000        199.0000      -0.4861862E-01  -0.3396258E-01  -0.4234341E-01    598.0000        275.0000       0.2043751E-01          97          23  0.18740E-03
+        2910  -0.3586185E-01    18.00000        1.024751        1003.000        60.00000        135.0000        237.0000      -0.4859868E-01  -0.3397252E-01  -0.4444175E-01    598.0000        296.0000       0.2375225E-01         101          21  0.19346E-03
+        2920  -0.4551960E-01    2.000000        1.009521        1005.000        60.00000        134.0000        224.0000      -0.4857899E-01  -0.3403266E-01  -0.4446935E-01    600.0000        305.0000       0.2223767E-01          96          16  0.19054E-03
+        2930  -0.5178875E-01    15.00000        1.005957        1020.000        54.00000        132.0000        220.0000      -0.4855919E-01  -0.3412466E-01  -0.4439845E-01    597.0000        309.0000       0.2171124E-01         101          21  0.18400E-03
+        2940  -0.6188439E-01   -1.000000        1.009573        1019.000        52.00000        145.0000        223.0000      -0.4854694E-01  -0.3426776E-01  -0.4595120E-01    597.0000        316.0000       0.2179863E-01         111          18  0.19324E-03
+        2950  -0.6824781E-01    11.00000        1.005670        1030.000        52.00000        135.0000        208.0000      -0.4854154E-01  -0.3444201E-01  -0.4739211E-01    596.0000        310.0000       0.2021773E-01         114          20  0.19095E-03
+        2960  -0.6005193E-01   -4.000000       0.9913491        1026.000        48.00000        150.0000        212.0000      -0.4853156E-01  -0.3457268E-01  -0.4638784E-01    593.0000        320.0000       0.2078635E-01         117          24  0.19136E-03
+        2970  -0.6205094E-01   -17.00000        1.001471        1009.000        38.00000        164.0000        197.0000      -0.4852476E-01  -0.3471216E-01  -0.4705155E-01    590.0000        310.0000       0.1928725E-01         108          15  0.18734E-03
+        2980  -0.5117727E-01   -5.000000       0.9889368        1004.000        56.00000        148.0000        223.0000      -0.4852432E-01  -0.3479532E-01  -0.4842761E-01    585.0000        318.0000       0.2207702E-01         106          14  0.18680E-03
+        2990  -0.5213859E-01    30.00000        1.000693        1034.000        32.00000        143.0000        220.0000      -0.4852210E-01  -0.3488247E-01  -0.4803216E-01    587.0000        332.0000       0.2176494E-01         108          23  0.18217E-03
+        3000  -0.6700637E-01   -22.00000        1.014345        1012.000        50.00000        144.0000        187.0000      -0.4852114E-01  -0.3504309E-01  -0.4830863E-01    589.0000        316.0000       0.1823856E-01         109          19  0.18883E-03
+        3010  -0.3533687E-01   -12.00000       0.9689847        1000.000        60.00000        131.0000        202.0000      -0.4851740E-01  -0.3504455E-01  -0.4768370E-01    584.0000        304.0000       0.2033216E-01         103          17  0.17966E-03
+        3020  -0.4441739E-01    4.000000        1.009059        1004.000        54.00000        126.0000        206.0000      -0.4851601E-01  -0.3509095E-01  -0.4820471E-01    584.0000        311.0000       0.2054863E-01         112          27  0.18898E-03
+        3030  -0.4284260E-01    1.000000       0.9984040        1005.000        50.00000        129.0000        196.0000      -0.4851166E-01  -0.3512914E-01  -0.4752969E-01    584.0000        306.0000       0.1958238E-01         107          21  0.18073E-03
+        3040  -0.5609239E-01    23.00000        1.012988        1028.000        50.00000        149.0000        239.0000      -0.4851841E-01  -0.3523190E-01  -0.5004755E-01    583.0000        326.0000       0.2357234E-01         116          21  0.18890E-03
+        3050  -0.7338169E-01    5.000000        1.016668        1033.000        62.00000        142.0000        233.0000      -0.4853607E-01  -0.3541799E-01  -0.5255764E-01    583.0000        322.0000       0.2260380E-01         116          17  0.18801E-03
+        3060  -0.6002263E-01   -36.00000       0.9863213        997.0000        54.00000        160.0000        200.0000      -0.4854984E-01  -0.3553743E-01  -0.5172031E-01    579.0000        298.0000       0.1967149E-01         114          11  0.19365E-03
+        3070  -0.2285735E-01   -30.00000       0.9640012        967.0000        60.00000        160.0000        211.0000      -0.4853931E-01  -0.3547618E-01  -0.4609649E-01    577.0000        272.0000       0.2152842E-01         105          25  0.18145E-03
+        3080  -0.2590444E-01    11.00000        1.003469        978.0000        44.00000        132.0000        210.0000      -0.4852238E-01  -0.3543016E-01  -0.4458576E-01    581.0000        272.0000       0.2135231E-01         114          15  0.18430E-03
+        3090  -0.3420578E-01    12.00000        1.008541        990.0000        56.00000        144.0000        231.0000      -0.4850535E-01  -0.3542430E-01  -0.4453367E-01    580.0000        277.0000       0.2328864E-01         120          25  0.18208E-03
+        3100  -0.1565185E-01   -47.00000       0.9822563        943.0000        64.00000        144.0000        186.0000      -0.4847767E-01  -0.3533015E-01  -0.4199575E-01    580.0000        250.0000       0.1909063E-01         104          18  0.18215E-03
+        3110   0.9701611E-02    11.00000       0.9761880        954.0000        44.00000        121.0000        191.0000      -0.4845202E-01  -0.3511672E-01  -0.4240486E-01    580.0000        264.0000       0.2008201E-01         102          15  0.17822E-03
+        3120   0.1835258E-02   -2.000000        1.008937        952.0000        58.00000        133.0000        206.0000      -0.4843169E-01  -0.3494242E-01  -0.4363333E-01    581.0000        262.0000       0.2146728E-01         102          17  0.18567E-03
+        3130  -0.8182802E-02    20.00000        1.010838        972.0000        44.00000        125.0000        215.0000      -0.4841112E-01  -0.3481679E-01  -0.4354117E-01    582.0000        273.0000       0.2216495E-01          99          13  0.17833E-03
+        3140  -0.1991956E-01    23.00000        1.012268        995.0000        48.00000        119.0000        205.0000      -0.4839289E-01  -0.3474718E-01  -0.4408465E-01    586.0000        274.0000       0.2087789E-01         110          18  0.18469E-03
+        3150  -0.3869774E-01    23.00000        1.018943        1018.000        62.00000        119.0000        221.0000      -0.4837080E-01  -0.3476555E-01  -0.4313888E-01    587.0000        283.0000       0.2208896E-01         120          26  0.18081E-03
+        3160  -0.5648378E-01    5.000000        1.017491        1023.000        70.00000        151.0000        244.0000      -0.4836392E-01  -0.3486610E-01  -0.4673134E-01    587.0000        289.0000       0.2396857E-01         109          23  0.19005E-03
+        3170  -0.5713113E-01   -25.00000        1.000196        998.0000        60.00000        149.0000        197.0000      -0.4836244E-01  -0.3496870E-01  -0.4801083E-01    588.0000        282.0000       0.1934787E-01         112          21  0.18289E-03
+        3180  -0.4011926E-01   -7.000000       0.9831074        991.0000        58.00000        137.0000        209.0000      -0.4835877E-01  -0.3499233E-01  -0.4747683E-01    584.0000        280.0000       0.2087912E-01         107          15  0.18831E-03
+        3190  -0.4075844E-01    22.00000        1.000599        1013.000        66.00000        133.0000        237.0000      -0.4835138E-01  -0.3501866E-01  -0.4656488E-01    582.0000        298.0000       0.2366214E-01         121          27  0.18246E-03
+        3200  -0.3967210E-01   -12.00000       0.9989018        1001.000        44.00000        145.0000        193.0000      -0.4834885E-01  -0.3503981E-01  -0.4773193E-01    583.0000        287.0000       0.1929035E-01         109          31  0.18610E-03
+        3210  -0.3475522E-01   -8.000000       0.9952024        993.0000        36.00000        152.0000        191.0000      -0.4835123E-01  -0.3503852E-01  -0.4893335E-01    583.0000        291.0000       0.1918248E-01         105          23  0.18081E-03
+        3220  -0.3010797E-01   -4.000000       0.9955810        989.0000        38.00000        144.0000        196.0000      -0.4835011E-01  -0.3501631E-01  -0.4807549E-01    585.0000        285.0000       0.1977202E-01          99          17  0.18687E-03
+        3230  -0.3319298E-01    21.00000        1.003228        1010.000        40.00000        126.0000        202.0000      -0.4834919E-01  -0.3500814E-01  -0.4812438E-01    587.0000        295.0000       0.2031171E-01         108          23  0.18455E-03
+        3240  -0.4728220E-01    5.000000        1.013977        1015.000        78.00000        138.0000        238.0000      -0.4835214E-01  -0.3506293E-01  -0.4907612E-01    587.0000        305.0000       0.2360175E-01         111          22  0.18964E-03
+        3250  -0.5911448E-01    6.000000        1.011404        1021.000        48.00000        149.0000        218.0000      -0.4835648E-01  -0.3516983E-01  -0.4942328E-01    588.0000        311.0000       0.2137464E-01         110          20  0.18713E-03
+        3260  -0.4360380E-01   -32.00000       0.9845083        989.0000        68.00000        165.0000        211.0000      -0.4834993E-01  -0.3520715E-01  -0.4673382E-01    588.0000        279.0000       0.2101384E-01         104          34  0.18614E-03
+        3270  -0.2350027E-01    0.000000       0.9804800        989.0000        34.00000        141.0000        185.0000      -0.4833204E-01  -0.3515557E-01  -0.4390538E-01    592.0000        280.0000       0.1879126E-01         100          26  0.18548E-03
+        3280  -0.1422164E-01   -16.00000       0.9913662        973.0000        50.00000        132.0000        176.0000      -0.4830637E-01  -0.3506376E-01  -0.4195877E-01    592.0000        268.0000       0.1803279E-01          98          15  0.18615E-03
+        3290  -0.1066952E-01    7.000000       0.9971311        980.0000        68.00000        133.0000        221.0000      -0.4827929E-01  -0.3495723E-01  -0.4155815E-01    593.0000        272.0000       0.2270859E-01         101          20  0.18568E-03
+        3300  -0.2618675E-01    35.00000        1.015927        1015.000        60.00000        115.0000        223.0000      -0.4826010E-01  -0.3491910E-01  -0.4349698E-01    595.0000        285.0000       0.2255487E-01         113          26  0.18945E-03
+        3310  -0.5825066E-01    17.00000        1.032062        1032.000        48.00000        136.0000        217.0000      -0.4825160E-01  -0.3502010E-01  -0.4614384E-01    600.0000        292.0000       0.2126617E-01         113          18  0.18687E-03
+        3320  -0.7024276E-01    5.000000        1.011270        1037.000        50.00000        145.0000        211.0000      -0.4824369E-01  -0.3517193E-01  -0.4628647E-01    601.0000        300.0000       0.2044772E-01         113          21  0.19250E-03
+        3330  -0.7053103E-01   -3.000000       0.9995155        1034.000        72.00000        137.0000        224.0000      -0.4823745E-01  -0.3532368E-01  -0.4668701E-01    601.0000        295.0000       0.2171805E-01         116          22  0.19154E-03
+        3340  -0.6412354E-01   -17.00000       0.9930192        1017.000        62.00000        162.0000        222.0000      -0.4822323E-01  -0.3544676E-01  -0.4466385E-01    598.0000        281.0000       0.2167545E-01         111          30  0.18777E-03
+        3350  -0.4725993E-01   -2.000000       0.9831088        1015.000        64.00000        159.0000        235.0000      -0.4820477E-01  -0.3549703E-01  -0.4355544E-01    597.0000        293.0000       0.2333896E-01         110          32  0.18451E-03
+        3360  -0.6298999E-01    15.00000        1.015294        1030.000        56.00000        131.0000        222.0000      -0.4819716E-01  -0.3561352E-01  -0.4627742E-01    600.0000        299.0000       0.2171574E-01         111          29  0.18758E-03
+        3370  -0.6103169E-01    4.000000       0.9975545        1034.000        56.00000        152.0000        225.0000      -0.4818642E-01  -0.3572077E-01  -0.4548083E-01    602.0000        299.0000       0.2206315E-01         112          32  0.18888E-03
+        3380  -0.7052807E-01   -27.00000        1.008825        1007.000        64.00000        160.0000        218.0000      -0.4818003E-01  -0.3586702E-01  -0.4655698E-01    598.0000        290.0000       0.2118974E-01         116          23  0.19104E-03
+        3390  -0.4643098E-01   -8.000000       0.9760886        999.0000        46.00000        159.0000        218.0000      -0.4816100E-01  -0.3591122E-01  -0.4328081E-01    595.0000        278.0000       0.2170882E-01         110          21  0.18647E-03
+        3400  -0.4520797E-01    13.00000       0.9987054        1012.000        50.00000        154.0000        234.0000      -0.4814555E-01  -0.3594996E-01  -0.4415063E-01    594.0000        289.0000       0.2333234E-01         102          18  0.19115E-03
+        3410  -0.6160446E-01    17.00000        1.016053        1029.000        38.00000        117.0000        185.0000      -0.4814282E-01  -0.3605641E-01  -0.4743283E-01    593.0000        301.0000       0.1815505E-01         107          23  0.18458E-03
+        3420  -0.7526747E-01   -18.00000        1.012954        1011.000        58.00000        148.0000        208.0000      -0.4814306E-01  -0.3621844E-01  -0.4820720E-01    591.0000        297.0000       0.2015113E-01         109          13  0.18742E-03
+        3430  -0.4878924E-01   -28.00000       0.9737454        983.0000        66.00000        162.0000        217.0000      -0.4812834E-01  -0.3627017E-01  -0.4425531E-01    590.0000        286.0000       0.2158989E-01         106          21  0.18170E-03
+        3440  -0.2508413E-01   -19.00000       0.9770172        964.0000        68.00000        143.0000        206.0000      -0.4811712E-01  -0.3622432E-01  -0.4514801E-01    588.0000        277.0000       0.2097760E-01          89          18  0.18228E-03
+        3450  -0.7791867E-02   -1.000000       0.9837067        963.0000        50.00000        125.0000        182.0000      -0.4810467E-01  -0.3610827E-01  -0.4479268E-01    590.0000        276.0000       0.1884058E-01          89          13  0.17680E-03
+        3460  -0.2136171E-01    22.00000        1.014182        985.0000        56.00000        137.0000        232.0000      -0.4809444E-01  -0.3604833E-01  -0.4537241E-01    591.0000        282.0000       0.2368072E-01          95          17  0.18120E-03
+        3470  -0.1823005E-01    0.000000       0.9974482        985.0000        54.00000        135.0000        199.0000      -0.4808722E-01  -0.3597619E-01  -0.4616189E-01    592.0000        287.0000       0.2036431E-01          96          25  0.17924E-03
+        3480  -0.3543478E-01    29.00000        1.017499        1014.000        52.00000        129.0000        230.0000      -0.4808685E-01  -0.3597401E-01  -0.4798785E-01    592.0000        307.0000       0.2313185E-01         101          24  0.18782E-03
+        3490  -0.6014157E-01    3.000000        1.024540        1017.000        48.00000        130.0000        192.0000      -0.4809211E-01  -0.3607106E-01  -0.4950012E-01    596.0000        311.0000       0.1884755E-01         101          21  0.18178E-03
+        3500  -0.7181252E-01    6.000000        1.010994        1023.000        42.00000        166.0000        235.0000      -0.4809911E-01  -0.3621403E-01  -0.4997505E-01    593.0000        323.0000       0.2281775E-01         104          22  0.19107E-03
+        3510  -0.6796069E-01    0.000000       0.9955335        1023.000        56.00000        156.0000        231.0000      -0.4811275E-01  -0.3634051E-01  -0.5181230E-01    589.0000        319.0000       0.2252999E-01         107          17  0.18868E-03
+        3520  -0.6958454E-01    22.00000        1.000975        1045.000        56.00000        140.0000        228.0000      -0.4813707E-01  -0.3647243E-01  -0.5478887E-01    588.0000        323.0000       0.2221573E-01         118          27  0.18968E-03
+        3530  -0.8854556E-01   -18.00000        1.018026        1027.000        54.00000        172.0000        231.0000      -0.4817015E-01  -0.3667825E-01  -0.5725646E-01    585.0000        321.0000       0.2210949E-01         120          23  0.18694E-03
+        3540  -0.6169622E-01   -22.00000       0.9731049        1005.000        46.00000        159.0000        202.0000      -0.4818606E-01  -0.3677675E-01  -0.5258438E-01    585.0000        309.0000       0.1986820E-01         104          24  0.18620E-03
+        3550  -0.6563279E-01    1.000000        1.003443        1006.000        40.00000        141.0000        196.0000      -0.4820256E-01  -0.3688991E-01  -0.5277636E-01    588.0000        307.0000       0.1921192E-01         105          14  0.18427E-03
+        3560  -0.4512147E-01   -10.00000       0.9797099        996.0000        62.00000        139.0000        202.0000      -0.4820874E-01  -0.3692207E-01  -0.4992210E-01    590.0000        293.0000       0.2021011E-01          98          18  0.18849E-03
+        3570  -0.4828314E-01    5.000000        1.003102        1001.000        46.00000        141.0000        209.0000      -0.4821413E-01  -0.3696627E-01  -0.4970640E-01    591.0000        288.0000       0.2084580E-01         103          19  0.18458E-03
+        3580  -0.5405724E-01    11.00000        1.005585        1012.000        52.00000        147.0000        217.0000      -0.4821805E-01  -0.3703252E-01  -0.4931151E-01    586.0000        301.0000       0.2152351E-01         106          27  0.19002E-03
+        3590  -0.5811746E-01    11.00000        1.003769        1023.000        38.00000        140.0000        201.0000      -0.4823168E-01  -0.3711393E-01  -0.5207222E-01    585.0000        309.0000       0.1986166E-01         118          23  0.18377E-03
+        3600  -0.6638609E-01   -16.00000        1.007806        1007.000        42.00000        156.0000        198.0000      -0.4823933E-01  -0.3722651E-01  -0.5039494E-01    587.0000        302.0000       0.1941367E-01         108          18  0.19038E-03
+        3610  -0.6707968E-01    22.00000        1.000196        1029.000        56.00000        135.0000        227.0000      -0.4824767E-01  -0.3734089E-01  -0.5060798E-01    586.0000        318.0000       0.2225272E-01         112          18  0.18418E-03
+        3620  -0.7458680E-01   -5.000000        1.006862        1024.000        52.00000        138.0000        201.0000      -0.4825646E-01  -0.3748305E-01  -0.5075529E-01    585.0000        311.0000       0.1956966E-01         112          15  0.18668E-03
+        3630  -0.6250224E-01   -9.000000       0.9876351        1015.000        42.00000        150.0000        198.0000      -0.4826262E-01  -0.3757818E-01  -0.5002465E-01    585.0000        301.0000       0.1951893E-01         114          20  0.18039E-03
+        3640  -0.6789951E-01   -1.000000        1.004929        1014.000        42.00000        157.0000        214.0000      -0.4827290E-01  -0.3769303E-01  -0.5121647E-01    584.0000        309.0000       0.2099274E-01         106          17  0.18885E-03
+        3650  -0.6717256E-01    9.000000       0.9988228        1023.000        42.00000        146.0000        218.0000      -0.4828725E-01  -0.3780428E-01  -0.5243291E-01    583.0000        312.0000       0.2141033E-01         107          24  0.18564E-03
+        3660  -0.7833873E-01    24.00000        1.010509        1047.000        58.00000        136.0000        237.0000      -0.4830134E-01  -0.3795666E-01  -0.5238605E-01    583.0000        323.0000       0.2303431E-01         119          20  0.19351E-03
+        3670  -0.7905098E-01   -37.00000        1.000000        1010.000        44.00000        159.0000        181.0000      -0.4831527E-01  -0.3811057E-01  -0.5237502E-01    580.0000        305.0000       0.1759160E-01         106          12  0.18452E-03
+        3680  -0.6055681E-01    11.00000       0.9814365        1021.000        42.00000        134.0000        203.0000      -0.4832765E-01  -0.3819433E-01  -0.5195904E-01    581.0000        300.0000       0.2010299E-01         111          11  0.19079E-03
+        3690  -0.7521405E-01    4.000000        1.014161        1025.000        62.00000        139.0000        223.0000      -0.4833215E-01  -0.3833195E-01  -0.4965104E-01    581.0000        293.0000       0.2177522E-01         119          21  0.18438E-03
+        3700  -0.7820871E-01    4.000000        1.002344        1029.000        56.00000        159.0000        240.0000      -0.4832936E-01  -0.3847964E-01  -0.4750500E-01    579.0000        293.0000       0.2338042E-01         117          23  0.18982E-03
+        3710  -0.7696360E-01   -13.00000       0.9981491        1016.000        52.00000        153.0000        209.0000      -0.4833505E-01  -0.3862165E-01  -0.5002507E-01    576.0000        300.0000       0.2039820E-01         110          18  0.17979E-03
+        3720  -0.7114858E-01    4.000000       0.9937537        1020.000        64.00000        147.0000        234.0000      -0.4833941E-01  -0.3874123E-01  -0.4964626E-01    574.0000        306.0000       0.2298173E-01         121          26  0.18819E-03
+        3730  -0.6513641E-01    4.000000       0.9937144        1024.000        52.00000        148.0000        220.0000      -0.4833937E-01  -0.3883792E-01  -0.4832782E-01    572.0000        301.0000       0.2174343E-01         123          25  0.18342E-03
+        3740  -0.6360458E-01   -26.00000       0.9982210        998.0000        62.00000        159.0000        212.0000      -0.4833846E-01  -0.3892831E-01  -0.4806111E-01    571.0000        302.0000       0.2099010E-01         104          19  0.19164E-03
+        3750  -0.6029519E-01    19.00000       0.9965347        1017.000        38.00000        146.0000        225.0000      -0.4834182E-01  -0.3900600E-01  -0.4937068E-01    570.0000        315.0000       0.2235469E-01         115          22  0.18482E-03
+        3760  -0.7210214E-01    2.000000        1.011426        1019.000        58.00000        162.0000        242.0000      -0.4835087E-01  -0.3912592E-01  -0.5112437E-01    570.0000        304.0000       0.2377210E-01         114          20  0.19261E-03
+        3770  -0.5733262E-01   -25.00000       0.9852652        994.0000        56.00000        165.0000        209.0000      -0.4835348E-01  -0.3919165E-01  -0.4915336E-01    572.0000        296.0000       0.2083749E-01         106          22  0.18542E-03
+        3780  -0.5710088E-01    28.00000       0.9997009        1022.000        62.00000        128.0000        231.0000      -0.4835194E-01  -0.3925607E-01  -0.4787972E-01    576.0000        303.0000       0.2303780E-01         118          28  0.19414E-03
+        3790  -0.8201187E-01    30.00000        1.024534        1052.000        70.00000        129.0000        248.0000      -0.4835628E-01  -0.3940931E-01  -0.4967921E-01    579.0000        313.0000       0.2414095E-01         122          30  0.19002E-03
+        3800  -0.8428039E-01   -38.00000        1.001557        1014.000        74.00000        167.0000        225.0000      -0.4835273E-01  -0.3956957E-01  -0.4726982E-01    581.0000        289.0000       0.2186801E-01         110          24  0.19468E-03
+        3810  -0.6416085E-01    7.000000       0.9798814        1021.000        40.00000        148.0000        213.0000      -0.4834331E-01  -0.3965708E-01  -0.4545512E-01    578.0000        301.0000       0.2112676E-01         115          20  0.18116E-03
+        3820  -0.7428020E-01   -14.00000        1.009720        1007.000        38.00000        166.0000        210.0000      -0.4834326E-01  -0.3977986E-01  -0.4832631E-01    578.0000        286.0000       0.2062868E-01         111          23  0.18740E-03
+        3830  -0.6155252E-01   -17.00000       0.9872299        990.0000        46.00000        144.0000        190.0000      -0.4833717E-01  -0.3985679E-01  -0.4644787E-01    573.0000        281.0000       0.1890547E-01          97          19  0.18027E-03
+        3840  -0.4926152E-01    17.00000       0.9879602        1007.000        48.00000        145.0000        214.0000      -0.4832801E-01  -0.3988991E-01  -0.4545908E-01    570.0000        279.0000       0.2155303E-01         110          30  0.18700E-03
+        3850  -0.6820841E-01    2.000000        1.018834        1009.000        50.00000        151.0000        220.0000      -0.4833173E-01  -0.3998927E-01  -0.4950504E-01    570.0000        292.0000       0.2174773E-01         114          20  0.18579E-03
+        3860  -0.6565572E-01    9.000000       0.9972321        1018.000        54.00000        143.0000        223.0000      -0.4833143E-01  -0.4007902E-01  -0.4823844E-01    571.0000        292.0000       0.2210547E-01         124          16  0.18785E-03
+        3870  -0.7296260E-01   -9.000000        1.006939        1009.000        60.00000        158.0000        223.0000      -0.4833157E-01  -0.4019359E-01  -0.4837408E-01    571.0000        285.0000       0.2195314E-01         126          16  0.18886E-03
+        3880  -0.5831061E-01   -19.00000       0.9854302        990.0000        64.00000        153.0000        217.0000      -0.4833170E-01  -0.4025650E-01  -0.4837485E-01    568.0000        279.0000       0.2167832E-01         122          23  0.19380E-03
+        3890  -0.4098680E-01   -17.00000       0.9832168        973.0000        54.00000        149.0000        205.0000      -0.4833005E-01  -0.4025903E-01  -0.4779966E-01    567.0000        272.0000       0.2082910E-01         105          20  0.18636E-03
+        3900  -0.2674842E-01    4.000000       0.9865881        977.0000        36.00000        136.0000        186.0000      -0.4832193E-01  -0.4021244E-01  -0.4570218E-01    567.0000        276.0000       0.1915551E-01         110          24  0.19017E-03
+        3910  -0.2156951E-01   -8.000000       0.9956746        969.0000        48.00000        143.0000        203.0000      -0.4831849E-01  -0.4014837E-01  -0.4720035E-01    561.0000        276.0000       0.2099710E-01         114          20  0.18503E-03
+        3920  -0.3723684E-01    33.00000        1.016239        1002.000        44.00000        133.0000        231.0000      -0.4832499E-01  -0.4013840E-01  -0.5046431E-01    558.0000        301.0000       0.2351145E-01         122          22  0.18599E-03
+        3930  -0.5949392E-01    15.00000        1.022392        1017.000        70.00000        151.0000        252.0000      -0.4833345E-01  -0.4020446E-01  -0.5111830E-01    562.0000        305.0000       0.2508711E-01         119          23  0.18134E-03
+        3940  -0.6743335E-01   -4.000000        1.007666        1013.000        40.00000        163.0000        216.0000      -0.4834341E-01  -0.4029708E-01  -0.5162414E-01    562.0000        312.0000       0.2133966E-01         118          17  0.18563E-03
+        3950  -0.4407334E-01   -41.00000       0.9771784        972.0000        56.00000        156.0000        189.0000      -0.4834889E-01  -0.4030988E-01  -0.5015857E-01    560.0000        287.0000       0.1910828E-01         102          20  0.17993E-03
+        3960  -0.3714550E-01    4.000000       0.9935295        976.0000        42.00000        134.0000        193.0000      -0.4835058E-01  -0.4029919E-01  -0.4891385E-01    561.0000        293.0000       0.1963977E-01         109          29  0.18258E-03
+        3970  -0.3284266E-01    13.00000       0.9962349        989.0000        46.00000        132.0000        209.0000      -0.4835260E-01  -0.4027408E-01  -0.4902504E-01    560.0000        295.0000       0.2134831E-01         118          22  0.18396E-03
+        3980  -0.5324597E-01    12.00000        1.020633        1001.000        50.00000        151.0000        232.0000      -0.4836229E-01  -0.4031761E-01  -0.5160360E-01    559.0000        309.0000       0.2321857E-01         122          26  0.18584E-03
+        3990  -0.6748777E-01    14.00000        1.014011        1015.000        54.00000        150.0000        241.0000      -0.4837383E-01  -0.4040848E-01  -0.5224292E-01    561.0000        314.0000       0.2378602E-01         128          20  0.18317E-03
+        4000  -0.6081138E-01   -11.00000       0.9931899        1004.000        54.00000        143.0000        206.0000      -0.4838388E-01  -0.4047649E-01  -0.5175988E-01    559.0000        304.0000       0.2047103E-01         117          30  0.18750E-03
+        4010  -0.5524839E-01    10.00000       0.9944351        1014.000        62.00000        152.0000        239.0000      -0.4839420E-01  -0.4052557E-01  -0.5187042E-01    562.0000        312.0000       0.2388328E-01         121          30  0.18663E-03
+        4020  -0.5966086E-01   -12.00000        1.004297        1002.000        52.00000        158.0000        218.0000      -0.4840436E-01  -0.4058893E-01  -0.5182837E-01    561.0000        306.0000       0.2169154E-01         112          19  0.18580E-03
+        4030  -0.4468229E-01   -4.000000       0.9853731        998.0000        62.00000        147.0000        224.0000      -0.4840740E-01  -0.4060244E-01  -0.4943720E-01    561.0000        293.0000       0.2261941E-01         119          24  0.18217E-03
+        4040  -0.4918876E-01   -10.00000        1.004645        988.0000        52.00000        140.0000        200.0000      -0.4840925E-01  -0.4063068E-01  -0.4903830E-01    560.0000        296.0000       0.2010252E-01         120          18  0.18642E-03
+        4050  -0.4565545E-01    3.000000       0.9966831        991.0000        52.00000        142.0000        213.0000      -0.4840713E-01  -0.4064716E-01  -0.4768188E-01    560.0000        307.0000       0.2148044E-01         110          21  0.18127E-03
+        4060  -0.4977686E-01    15.00000        1.004236        1006.000        42.00000        128.0000        211.0000      -0.4841017E-01  -0.4067699E-01  -0.4945202E-01    560.0000        322.0000       0.2118899E-01         121          18  0.18511E-03
+        4070  -0.5634050E-01    7.000000        1.006527        1013.000        38.00000        150.0000        213.0000      -0.4841364E-01  -0.4072801E-01  -0.4960545E-01    558.0000        320.0000       0.2125112E-01         119          21  0.18112E-03
+        4080  -0.6940495E-01    6.000000        1.012771        1019.000        54.00000        157.0000        236.0000      -0.4842753E-01  -0.4082112E-01  -0.5325157E-01    554.0000        335.0000       0.2324894E-01         118          22  0.18665E-03
+        4090  -0.6755576E-01   -6.000000       0.9978327        1013.000        62.00000        151.0000        219.0000      -0.4843911E-01  -0.4090764E-01  -0.5248549E-01    552.0000        330.0000       0.2162109E-01         123          19  0.18209E-03
+        4100  -0.6442979E-01   -1.000000       0.9966433        1012.000        60.00000        162.0000        242.0000      -0.4844282E-01  -0.4098352E-01  -0.4974293E-01    552.0000        313.0000       0.2397226E-01         119          35  0.18598E-03
+        4110  -0.6405678E-01   -5.000000       0.9994056        1007.000        54.00000        155.0000        234.0000      -0.4845350E-01  -0.4105771E-01  -0.5222420E-01    550.0000        321.0000       0.2319358E-01         126          22  0.18191E-03
+        4120  -0.4468746E-01   -34.00000       0.9810685        973.0000        64.00000        174.0000        216.0000      -0.4846310E-01  -0.4106934E-01  -0.5187326E-01    548.0000        309.0000       0.2182259E-01         109          19  0.18721E-03
+        4130  -0.2498641E-01   -11.00000       0.9812083        962.0000        60.00000        129.0000        200.0000      -0.4846806E-01  -0.4101796E-01  -0.5023399E-01    549.0000        291.0000       0.2059308E-01         108          14  0.17643E-03
+        4140  -0.2404474E-01    10.00000       0.9997941        972.0000        58.00000        134.0000        225.0000      -0.4846970E-01  -0.4096390E-01  -0.4905843E-01    549.0000        291.0000       0.2317199E-01         116          25  0.18094E-03
+        4150  -0.2825843E-01    1.000000        1.004840        973.0000        66.00000        143.0000        233.0000      -0.4846821E-01  -0.4092357E-01  -0.4793691E-01    552.0000        290.0000       0.2388029E-01         110          20  0.17888E-03
+        4160  -0.5770832E-02   -28.00000       0.9788870        945.0000        54.00000        143.0000        182.0000      -0.4846070E-01  -0.4081233E-01  -0.4576903E-01    551.0000        279.0000       0.1905560E-01         105          18  0.17930E-03
+        4170   0.9751336E-02   -3.000000       0.9860748        942.0000        54.00000        132.0000        200.0000      -0.4845379E-01  -0.4065282E-01  -0.4598283E-01    555.0000        284.0000       0.2123593E-01          94          20  0.17559E-03
+        4180  -0.6979500E-02    34.00000        1.017944        976.0000        26.00000        121.0000        195.0000      -0.4845137E-01  -0.4054693E-01  -0.4759360E-01    561.0000        291.0000       0.2034004E-01         103          18  0.18244E-03
+        4190  -0.2635483E-01   -2.000000        1.020131        974.0000        60.00000        129.0000        207.0000      -0.4844817E-01  -0.4050244E-01  -0.4731494E-01    561.0000        301.0000       0.2116564E-01         105          23  0.17574E-03
+        4200  -0.2128211E-01    5.000000       0.9956033        979.0000        36.00000        135.0000        186.0000      -0.4844557E-01  -0.4044238E-01  -0.4752000E-01    561.0000        304.0000       0.1910239E-01          92          22  0.18333E-03
+        4210  -0.2994215E-01   -7.000000        1.009140        972.0000        48.00000        147.0000        197.0000      -0.4845017E-01  -0.4040967E-01  -0.5008536E-01    563.0000        299.0000       0.2004885E-01          95          21  0.18224E-03
+        4220  -0.3044173E-01    21.00000        1.000916        993.0000        44.00000        123.0000        204.0000      -0.4845327E-01  -0.4037871E-01  -0.4955682E-01    563.0000        305.0000       0.2074225E-01         102          22  0.18659E-03
+        4230  -0.5066060E-01    3.000000        1.020336        996.0000        50.00000        145.0000        215.0000      -0.4846210E-01  -0.4041054E-01  -0.5161889E-01    562.0000        313.0000       0.2142501E-01         107          11  0.18473E-03
+        4240  -0.4244084E-01   -7.000000       0.9919283        989.0000        52.00000        157.0000        219.0000      -0.4846872E-01  -0.4041681E-01  -0.5083737E-01    564.0000        309.0000       0.2200121E-01         104          20  0.18763E-03
+        4250  -0.3415820E-01   -3.000000       0.9920635        986.0000        58.00000        136.0000        208.0000      -0.4847403E-01  -0.4039755E-01  -0.5037920E-01    566.0000        301.0000       0.2106329E-01         101          14  0.18084E-03
+        4260  -0.3726333E-01    6.000000        1.003342        992.0000        42.00000        138.0000        208.0000      -0.4847924E-01  -0.4038794E-01  -0.5034133E-01    567.0000        306.0000       0.2099314E-01         102          19  0.18522E-03
+        4270  -0.4311782E-01   -4.000000        1.005955        988.0000        60.00000        130.0000        201.0000      -0.4848770E-01  -0.4039628E-01  -0.5151347E-01    568.0000        304.0000       0.2016655E-01          99          17  0.18224E-03
+        4280  -0.2874419E-01   -7.000000       0.9861543        981.0000        38.00000        133.0000        181.0000      -0.4848440E-01  -0.4036076E-01  -0.4729819E-01    568.0000        285.0000       0.1841489E-01         109          18  0.18139E-03
+        4290  -0.2235154E-01    1.000000       0.9942008        982.0000        62.00000        118.0000        211.0000      -0.4848266E-01  -0.4030602E-01  -0.4785470E-01    568.0000        288.0000       0.2159230E-01         113          17  0.17818E-03
+        4300  -0.2700615E-01   -4.000000        1.005117        978.0000        50.00000        136.0000        198.0000      -0.4848591E-01  -0.4026572E-01  -0.4966032E-01    567.0000        297.0000       0.2015883E-01         108          14  0.17686E-03
+        4310  -0.1575156E-01    3.000000       0.9895133        981.0000        38.00000        123.0000        179.0000      -0.4849096E-01  -0.4019166E-01  -0.5032236E-01    568.0000        287.0000       0.1841753E-01         109          16  0.18275E-03
+        4320  -0.3550418E-01    25.00000        1.020167        1006.000        56.00000        118.0000        220.0000      -0.4849810E-01  -0.4017754E-01  -0.5109135E-01    569.0000        306.0000       0.2218860E-01         112          20  0.18359E-03
+        4330  -0.4116648E-01   -6.000000        1.005749        1000.000        66.00000        134.0000        214.0000      -0.4850014E-01  -0.4018051E-01  -0.4924119E-01    571.0000        287.0000       0.2146009E-01         111          24  0.18952E-03
+        4340  -0.5528523E-01    20.00000        1.013939        1020.000        50.00000        129.0000        220.0000      -0.4851173E-01  -0.4022573E-01  -0.5271464E-01    572.0000        315.0000       0.2175848E-01         101          18  0.18403E-03
+        4350  -0.6041567E-01   -4.000000        1.004747        1016.000        58.00000        142.0000        217.0000      -0.4853172E-01  -0.4028600E-01  -0.5581988E-01    568.0000        327.0000       0.2136037E-01         112          23  0.18649E-03
+        4360  -0.5575280E-01   -17.00000       0.9950783        999.0000        58.00000        150.0000        217.0000      -0.4854461E-01  -0.4033203E-01  -0.5327406E-01    567.0000        307.0000       0.2146602E-01         111          21  0.18140E-03
+        4370  -0.4224331E-01    7.000000       0.9866456        1006.000        54.00000        154.0000        229.0000      -0.4855455E-01  -0.4033770E-01  -0.5223423E-01    564.0000        319.0000       0.2295970E-01         121          23  0.18639E-03
+        4380  -0.4269193E-01    1.000000        1.000501        1007.000        62.00000        144.0000        222.0000      -0.4856486E-01  -0.4034467E-01  -0.5238571E-01    566.0000        309.0000       0.2224672E-01         116          28  0.18140E-03
+        4390  -0.5803327E-01    2.000000        1.015132        1009.000        50.00000        164.0000        233.0000      -0.4857687E-01  -0.4039685E-01  -0.5302717E-01    569.0000        306.0000       0.2300099E-01         118          20  0.18568E-03
+        4400  -0.4450186E-01   -20.00000       0.9865745        989.0000        42.00000        156.0000        199.0000      -0.4858754E-01  -0.4040892E-01  -0.5253632E-01    571.0000        296.0000       0.1991195E-01         109          18  0.18037E-03
+        4410  -0.3220879E-01   -20.00000       0.9880929        969.0000        52.00000        139.0000        185.0000      -0.4859020E-01  -0.4038487E-01  -0.4957496E-01    571.0000        290.0000       0.1873418E-01         106          22  0.17967E-03
+        4420  -0.1229806E-01    12.00000       0.9810633        981.0000        48.00000        128.0000        206.0000      -0.4858458E-01  -0.4030275E-01  -0.4651042E-01    577.0000        278.0000       0.2126342E-01         114          22  0.17345E-03
+        4430  -0.3483181E-01    10.00000        1.023018        991.0000        44.00000        142.0000        216.0000      -0.4857786E-01  -0.4028680E-01  -0.4611458E-01    581.0000        275.0000       0.2179397E-01         112          23  0.18287E-03
+        4440  -0.2588397E-01   -12.00000       0.9915246        979.0000        56.00000        132.0000        197.0000      -0.4856508E-01  -0.4024493E-01  -0.4390254E-01    584.0000        269.0000       0.2004681E-01         110          33  0.17817E-03
+        4450  -0.2021915E-01    4.000000       0.9949120        983.0000        32.00000        140.0000        194.0000      -0.4855307E-01  -0.4018688E-01  -0.4416064E-01    585.0000        275.0000       0.1984249E-01         103          26  0.18646E-03
+        4460  -0.2384030E-01    10.00000        1.004091        993.0000        58.00000        134.0000        217.0000      -0.4854854E-01  -0.4013964E-01  -0.4689655E-01    587.0000        293.0000       0.2210451E-01         104          19  0.18468E-03
+        4470  -0.3066138E-01   -17.00000        1.007130        976.0000        50.00000        135.0000        184.0000      -0.4854667E-01  -0.4011232E-01  -0.4786365E-01    587.0000        290.0000       0.1861030E-01         100          11  0.18752E-03
+        4480  -0.2882102E-01    33.00000       0.9984829        1009.000        74.00000        122.0000        241.0000      -0.4855128E-01  -0.4007988E-01  -0.5024108E-01    586.0000        316.0000       0.2441248E-01         104          23  0.18422E-03
+        4490  -0.4650986E-01    0.000000        1.017727        1009.000        64.00000        147.0000        232.0000      -0.4855545E-01  -0.4009830E-01  -0.5008454E-01    588.0000        299.0000       0.2309147E-01         113          24  0.19137E-03
+        4500  -0.3884405E-01   -7.000000       0.9924356        1002.000        54.00000        155.0000        223.0000      -0.4855330E-01  -0.4009472E-01  -0.4776312E-01    587.0000        295.0000       0.2236486E-01         101          26  0.18215E-03
+        4510  -0.4787988E-01    18.00000        1.008926        1020.000        46.00000        142.0000        214.0000      -0.4855366E-01  -0.4011690E-01  -0.4868914E-01    588.0000        306.0000       0.2127237E-01         107          18  0.18849E-03
+        4520  -0.5857146E-01    1.000000        1.010338        1021.000        52.00000        150.0000        218.0000      -0.4855168E-01  -0.4016933E-01  -0.4781753E-01    588.0000        307.0000       0.2144825E-01         111          19  0.18421E-03
+        4530  -0.6631359E-01   -17.00000        1.007182        1004.000        56.00000        161.0000        214.0000      -0.4855395E-01  -0.4024339E-01  -0.4939556E-01    587.0000        297.0000       0.2090456E-01         114          23  0.18676E-03
+        4540  -0.4370975E-01   -6.000000       0.9776302        998.0000        48.00000        141.0000        204.0000      -0.4854634E-01  -0.4025318E-01  -0.4570930E-01    585.0000        292.0000       0.2038369E-01         106          23  0.18368E-03
+        4550  -0.2241145E-01   -20.00000       0.9794165        978.0000        58.00000        133.0000        188.0000      -0.4853624E-01  -0.4020292E-01  -0.4474547E-01    585.0000        285.0000       0.1917976E-01          99          21  0.17978E-03
+        4560  -0.2410512E-01   -1.000000        1.002142        977.0000        50.00000        150.0000        212.0000      -0.4852454E-01  -0.4015770E-01  -0.4413333E-01    586.0000        271.0000       0.2158200E-01         110          19  0.18053E-03
+        4570  -0.1895226E-01   -6.000000       0.9954189        971.0000        72.00000        140.0000        212.0000      -0.4850313E-01  -0.4009831E-01  -0.4044589E-01    587.0000        269.0000       0.2168133E-01         110          16  0.18373E-03
+        4580   0.3648301E-02   -5.000000       0.9787278        966.0000        50.00000        132.0000        197.0000      -0.4848032E-01  -0.3997611E-01  -0.3988945E-01    587.0000        262.0000       0.2058516E-01         106          18  0.17495E-03
+        4590  -0.1978438E-02   -15.00000        1.006583        951.0000        38.00000        131.0000        173.0000      -0.4846306E-01  -0.3987027E-01  -0.4195145E-01    588.0000        265.0000       0.1795910E-01          89          12  0.18232E-03
+        4600  -0.3806483E-02    24.00000        1.002699        975.0000        46.00000        123.0000        206.0000      -0.4844771E-01  -0.3977009E-01  -0.4266303E-01    592.0000        266.0000       0.2132726E-01         105          26  0.17947E-03
+        4610  -0.1915247E-01    15.00000        1.015944        990.0000        66.00000        115.0000        206.0000      -0.4843684E-01  -0.3971298E-01  -0.4435433E-01    594.0000        284.0000       0.2099256E-01         106          24  0.18804E-03
+        4620  -0.2958988E-01    11.00000        1.010700        1001.000        54.00000        141.0000        229.0000      -0.4843254E-01  -0.3968501E-01  -0.4682100E-01    596.0000        288.0000       0.2308933E-01         101          24  0.18664E-03
+        4630  -0.4527900E-01    14.00000        1.015628        1015.000        62.00000        136.0000        226.0000      -0.4842980E-01  -0.3970042E-01  -0.4740226E-01    597.0000        297.0000       0.2243622E-01         110          25  0.19159E-03
+        4640  -0.5619074E-01    10.00000        1.010523        1025.000        42.00000        131.0000        201.0000      -0.4842638E-01  -0.3974573E-01  -0.4713788E-01    596.0000        304.0000       0.1974654E-01         108          19  0.18751E-03
+        4650  -0.6675461E-01    7.000000        1.009922        1032.000        36.00000        139.0000        200.0000      -0.4842652E-01  -0.3981972E-01  -0.4847781E-01    595.0000        306.0000       0.1945525E-01         116          14  0.19429E-03
+        4660  -0.8533513E-01    13.00000        1.017607        1045.000        42.00000        141.0000        208.0000      -0.4843191E-01  -0.3994408E-01  -0.5047700E-01    596.0000        317.0000       0.1988338E-01         114          12  0.19127E-03
+        4670  -0.9456235E-01    13.00000        1.007934        1058.000        64.00000        149.0000        249.0000      -0.4843587E-01  -0.4009290E-01  -0.4994204E-01    594.0000        317.0000       0.2361533E-01         114          23  0.19532E-03
+        4680  -0.7952235E-01   -25.00000       0.9841616        1033.000        68.00000        146.0000        208.0000      -0.4843613E-01  -0.4020005E-01  -0.4853918E-01    593.0000        296.0000       0.2004433E-01         113          23  0.19080E-03
+        4690  -0.7876695E-01   -18.00000       0.9983618        1015.000        38.00000        152.0000        198.0000      -0.4843988E-01  -0.4030457E-01  -0.4988347E-01    588.0000        295.0000       0.1911197E-01         101          21  0.19127E-03
+        4700  -0.6560504E-01    28.00000       0.9863900        1043.000        54.00000        142.0000        243.0000      -0.4844624E-01  -0.4037295E-01  -0.5093101E-01    583.0000        315.0000       0.2377923E-01         108          27  0.18898E-03
+        4710  -0.8118163E-01   -12.00000        1.014776        1031.000        72.00000        154.0000        229.0000      -0.4845605E-01  -0.4048294E-01  -0.5230928E-01    586.0000        311.0000       0.2208293E-01         109          19  0.19072E-03
+        4720  -0.8238641E-01    14.00000        1.000289        1045.000        40.00000        156.0000        227.0000      -0.4846274E-01  -0.4059559E-01  -0.5108575E-01    585.0000        321.0000       0.2188374E-01         110          23  0.18854E-03
+        4730  -0.7805136E-01   -17.00000       0.9948906        1028.000        66.00000        145.0000        213.0000      -0.4846731E-01  -0.4069600E-01  -0.5026572E-01    586.0000        301.0000       0.2063953E-01         115          20  0.18818E-03
+        4740  -0.6685039E-01   -27.00000       0.9883721        1001.000        62.00000        162.0000        214.0000      -0.4845907E-01  -0.4076594E-01  -0.4521531E-01    585.0000        283.0000       0.2098039E-01         110          25  0.18370E-03
+        4750  -0.3829802E-01   -13.00000       0.9720588        988.0000        60.00000        171.0000        228.0000      -0.4845071E-01  -0.4075936E-01  -0.4512853E-01    580.0000        283.0000       0.2299546E-01         111          19  0.18927E-03
+        4760  -0.1835741E-01   -13.00000       0.9809380        975.0000        50.00000        151.0000        202.0000      -0.4844015E-01  -0.4069978E-01  -0.4421383E-01    579.0000        275.0000       0.2076907E-01         103          23  0.18374E-03
+        4770  -0.3137648E-01    17.00000        1.013469        992.0000        36.00000        141.0000        224.0000      -0.4843686E-01  -0.4067505E-01  -0.4711745E-01    582.0000        303.0000       0.2272497E-01         109          18  0.18519E-03
+        4780  -0.1867189E-01   -44.00000       0.9880288        948.0000        54.00000        154.0000        179.0000      -0.4842998E-01  -0.4061684E-01  -0.4568640E-01    586.0000        259.0000       0.1837971E-01         100          20  0.17964E-03
+        4790  -0.6785917E-04    23.00000       0.9826471        971.0000        48.00000        127.0000        210.0000      -0.4841723E-01  -0.4050985E-01  -0.4334042E-01    586.0000        271.0000       0.2194357E-01         105          24  0.18406E-03
+        4800  -0.7608102E-02   -3.000000        1.008464        968.0000        48.00000        134.0000        193.0000      -0.4840187E-01  -0.4042326E-01  -0.4227946E-01    589.0000        267.0000       0.1999793E-01         106          23  0.17662E-03
+        4810  -0.1391674E-01    7.000000        1.007046        975.0000        50.00000        130.0000        201.0000      -0.4838606E-01  -0.4035369E-01  -0.4207499E-01    588.0000        276.0000       0.2068114E-01          98          15  0.18841E-03
+        4820  -0.2286119E-01    11.00000        1.009466        986.0000        60.00000        124.0000        212.0000      -0.4836920E-01  -0.4030790E-01  -0.4163107E-01    590.0000        276.0000       0.2160840E-01         102          18  0.18226E-03
+        4830  -0.3246843E-01    6.000000        1.009887        992.0000        56.00000        143.0000        212.0000      -0.4835522E-01  -0.4028743E-01  -0.4276414E-01    590.0000        283.0000       0.2139685E-01         106          25  0.18730E-03
+        4840  -0.3595488E-01    3.000000        1.003633        995.0000        50.00000        140.0000        211.0000      -0.4834510E-01  -0.4027615E-01  -0.4429391E-01    592.0000        301.0000       0.2121883E-01         100          18  0.18236E-03
+        4850  -0.4566244E-01    28.00000        1.009654        1023.000        66.00000        135.0000        244.0000      -0.4834217E-01  -0.4029014E-01  -0.4716783E-01    593.0000        306.0000       0.2430279E-01         115          20  0.19505E-03
+        4860  -0.6076152E-01   -10.00000        1.014741        1013.000        56.00000        164.0000        225.0000      -0.4834161E-01  -0.4034317E-01  -0.4811988E-01    593.0000        295.0000       0.2208481E-01         109          29  0.18969E-03
+        4870  -0.5961615E-01    9.000000       0.9984295        1022.000        52.00000        141.0000        220.0000      -0.4833665E-01  -0.4039297E-01  -0.4634668E-01    594.0000        301.0000       0.2162800E-01         110          25  0.19257E-03
+        4880  -0.6677174E-01    11.00000        1.006587        1033.000        56.00000        140.0000        219.0000      -0.4833444E-01  -0.4046096E-01  -0.4744692E-01    596.0000        310.0000       0.2138881E-01         110          23  0.18845E-03
+        4890  -0.6545840E-01   -14.00000       0.9981444        1019.000        70.00000        138.0000        222.0000      -0.4833470E-01  -0.4052522E-01  -0.4843909E-01    590.0000        298.0000       0.2172211E-01         111          24  0.19175E-03
+        4900  -0.6339148E-01   -1.000000       0.9974560        1018.000        46.00000        148.0000        215.0000      -0.4833675E-01  -0.4058385E-01  -0.4917094E-01    592.0000        301.0000       0.2109084E-01         118          24  0.19152E-03
+        4910  -0.6387184E-01    10.00000        1.000000        1028.000        54.00000        156.0000        244.0000      -0.4833856E-01  -0.4064341E-01  -0.4907891E-01    590.0000        310.0000       0.2393565E-01         112          31  0.19495E-03
+        4920  -0.7376052E-01   -13.00000        1.009221        1015.000        60.00000        162.0000        228.0000      -0.4834010E-01  -0.4072790E-01  -0.4897044E-01    585.0000        305.0000       0.2216174E-01         119          20  0.19165E-03
+        4930  -0.5961792E-01   -4.000000       0.9856143        1011.000        44.00000        152.0000        213.0000      -0.4833952E-01  -0.4077596E-01  -0.4809733E-01    584.0000        304.0000       0.2100592E-01         121          22  0.18628E-03
+        4940  -0.3727537E-01   -30.00000       0.9781065        981.0000        46.00000        148.0000        189.0000      -0.4833221E-01  -0.4076708E-01  -0.4529471E-01    581.0000        279.0000       0.1905626E-01         110          19  0.18667E-03
+        4950  -0.3572513E-01    20.00000       0.9986893        1001.000        38.00000        126.0000        203.0000      -0.4832859E-01  -0.4075431E-01  -0.4681354E-01    583.0000        293.0000       0.2049470E-01         119          16  0.18593E-03
+        4960  -0.4987269E-01    2.000000        1.014134        1003.000        46.00000        142.0000        212.0000      -0.4832947E-01  -0.4077734E-01  -0.4869826E-01    584.0000        291.0000       0.2110503E-01         107          21  0.18986E-03
+        4970  -0.4640727E-01   -12.00000       0.9965157        991.0000        56.00000        161.0000        226.0000      -0.4832979E-01  -0.4079152E-01  -0.4846412E-01    583.0000        292.0000       0.2257742E-01         114          20  0.18817E-03
+        4980  -0.4366379E-01    8.000000       0.9973027        999.0000        40.00000        133.0000        199.0000      -0.4832765E-01  -0.4079874E-01  -0.4743133E-01    586.0000        284.0000       0.1993389E-01         110          22  0.18766E-03
+        4990  -0.5231165E-01    7.000000        1.008514        1006.000        38.00000        147.0000        205.0000      -0.4832991E-01  -0.4082759E-01  -0.4927654E-01    582.0000        308.0000       0.2036154E-01         109          15  0.18542E-03
+        5000  -0.5095282E-01   -2.000000       0.9985101        1004.000        70.00000        135.0000        220.0000      -0.4833195E-01  -0.4085290E-01  -0.4919312E-01    583.0000        306.0000       0.2188401E-01         108          16  0.18574E-03
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:   0.83683063462376595     
+ Time lost due to load imbalance:   0.43978543579578400     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+*********************************
+Writing a 64-bit POPSFILE...
+Writing a total of 108 determinants.
+*********************************
+
+ WRITINGPOPSFILE                                                                                                                                                                                                                                                        F
+ 
+Current reference: 
+(    1,    2,    3,    4,    5,    6,    7,    9)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-7  9 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+ Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   <D|H|D>  Proc
+111111101000000000    0    2    583.0000      0.99450  Y  -7.49190132E+01       3
+111110001001100000    2    4   -18.00000      0.03070  Y  -7.24623634E+01       0
+111011100100000010    2    4    16.00000      0.02729  Y  -7.30531123E+01       0
+111110100001001000    2    4    15.00000      0.02559  Y  -7.24623634E+01       0
+111101101010000000    1    4    15.00000      0.02559  Y  -7.37093338E+01       2
+111100101011000000    2    2   -15.00000      0.02559  Y  -7.24774376E+01       3
+111001101010000001    2    6   -15.00000      0.02559  Y  -7.18343840E+01       3
+111011101000000001    1    4   -14.00000      0.02388  Y  -7.31023650E+01       2
+111111000000101000    2    2   -14.00000      0.02388  Y  -7.24089972E+01       3
+110111101000000010    1    4   -13.00000      0.02218  Y  -7.28844511E+01       0
+111001101001000010    2    6    13.00000      0.02218  Y  -7.20518835E+01       3
+111011011000000010    2    4    12.00000      0.02047  Y  -7.30531123E+01       2
+111100101000000011    2    2   -12.00000      0.02047  Y  -7.23966330E+01       2
+111101001010100000    2    4    11.00000      0.01876  Y  -7.24496943E+01       3
+111110001010010000    2    4    10.00000      0.01706  Y  -7.25946277E+01       0
+ 
+ Warning: attempting to log deallocation but never logged allocation.
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process      39.2500000000
+ Min number of determinants/process                 33
+ Max number of determinants/process                 46
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:     251.0000000000
+     Min number of walkers/process:           65.00000
+     Max number of walkers/process:          715.00000
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:           10
+Reading back in FCIMCStats datafile...
+Number of comment lines found in file:            3
+Number of data points found in file:          500
+Number of useable data points:          499
+Relaxation time for projected energy estimated to be      160 update cycles.
+Relaxation time for shift estimated to be      128 update cycles.
+Number of blocks assumed for calculation of error in projected energy denominator:      10
+Number of blocks assumed for calculation of error in projected energy numerator:      10
+Number of blocks assumed for calculation of error in shift:      11
+ProjE_denominator:        576.4584375000 +/-        4.1857197     Relative error:       0.7261095375E-02
+ProjE_numerator:          -27.6107797896 +/-       0.24046615     Relative error:       0.8709139952E-02
+ Current reference energy                             -74.919013153811
+ Projected correlation energy                          -0.047897260225
+ Estimated error in Projected correlation energy        0.000469682207
+ Shift correlation energy                              -0.043686913431
+ Estimated error in shift correlation energy            0.003490218774
+
+ Projected and shift energy estimates agree to within two sigma of largest error: EDiff =      0.00421035
+
+ Total projected energy         -74.96691041 +/-    0.469682E-03
+ Total shift energy             -74.96270007 +/-    0.349022E-02
+
+
+ Final energy estimate for state 1:     -74.967345103512    
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      41.5
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datclean_global_det_da  25.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   15.0MB
+ UMat              IntInit            IntCleanup          411.3KB
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar  293.0KB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar  293.0KB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc      228.4KB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc      228.4KB
+ AB_PCHB_spinorb_sashared_alloc       shared_dealloc      114.2KB
+ TMAT2D            SetupTMAT          DestroyTMat           2.5KB
+ Parts             WriteToPopsfileParOPopsfile              1.1KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                5000      0.74
+ NECICUBE                                     1      0.05
+ StatsCommsTime                             500      0.03
+ CommsTime                                 5000      0.02
+ AnnihilTime                               5000      0.01
+ AnnMainTime                               5000      0.01
+ SortTime                                  5000      0.01
+ SyncTime                                  5004      0.01
+ SysInit                                      1      0.00
+ POPS-write                                   1      0.00
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   0.89
+
+ Global wall clock time          0.92
+ ================================================================
+ Calculation ended 28/07/2023 at 15:27:03
+ ================================================================

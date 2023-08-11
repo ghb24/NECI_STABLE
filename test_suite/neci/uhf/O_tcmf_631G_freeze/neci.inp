@@ -1,0 +1,39 @@
+title
+
+    system read
+        electrons 4
+        spin-restrict 2
+        nobrillouintheorem
+        nonuniformrandexcits pchb delocalised
+        nonhermitian all
+        uhf zero-delimited
+    endsys
+
+    calc
+        time 30
+        # since this is a test, need it to be reproducible:
+        seed 32411120
+        load-balance-blocks off
+        methods
+            method vertex fcimc
+        endmethods
+        totalwalkers 1.e3
+        nmcyc 15000
+        definedet 1 2 4 6
+
+        startsinglepart 10
+
+
+        tau-values \
+            start user-defined 0.005 \
+            max 0.05
+
+        tau-search \
+            algorithm conventional
+
+        shiftdamp 0.1
+        stepsshift 10
+
+        MEMORYFACSPAWN 50
+    endcalc
+end

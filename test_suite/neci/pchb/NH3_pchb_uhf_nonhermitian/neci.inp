@@ -4,8 +4,7 @@ title
         electrons 10
         spin-restrict 0
         nobrillouintheorem
-        uhf
-        # molpromimic
+        uhf spin-minor-index
         nonhermitian 2-body
         nonuniformrandexcits pchb \
             manual unif:unif unif-unif:fast-fast
