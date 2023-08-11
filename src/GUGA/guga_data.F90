@@ -268,7 +268,7 @@ module guga_data
     type :: DistinctDoubleExcitationVals_t
         type(DistinctDoubleExcitation_t) :: &
              jijk = DistinctDoubleExcitation_t(1, [excit_type%single_overlap_L_to_R, excit_type%single_overlap_L_to_R], '1a'), &
-             ijkj = DistinctDoubleExcitation_t(2, [excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L], '1b')
+             ijkj = DistinctDoubleExcitation_t(2, [excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L], '1b'), &
              jkik = DistinctDoubleExcitation_t(3, [excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L], '1c')
     end type
 
