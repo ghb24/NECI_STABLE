@@ -119,8 +119,9 @@ module guga_data
                 ! e_{ji, jj}
                 ! Table 4.3 and Figure 4.4 (0f)
             non_overlap = ExcitationType_t(5), &
-                ! ... non overlap
-                ! Table 4.3 and Figure 4.4 (3c0 or 3d0)
+                ! non overlap
+                ! e_{ij,kl} or e_{ji,lk}  ...
+                ! Table 4.3 and Figure 4.4 (3c0 or 3d0 or 3f0)
             single_overlap_lowering = ExcitationType_t(6), &
                 ! single overlap 2 lowering
                 ! _L(i)   ^LL_(j)  ^L(k)
@@ -133,12 +134,12 @@ module guga_data
                 ! Table 4.3 and Figure 4.4 (0b)
             single_overlap_L_to_R = ExcitationType_t(8), &
                 ! single overlap lowering into raising
-                ! _L(i) ^LR_(j) ^R
+                ! _L(i) ^LR_(j) ^R(k)
                 ! e_{ji,jk}
                 ! Table 4.3 and Figure 4.4 (1a)
             single_overlap_R_to_L = ExcitationType_t(9), &
                 ! single overlap raising into lowering
-                ! _R(i) ^RL_(j) ^L
+                ! _R(i) ^RL_(j) ^L(k)
                 ! e_{ij,kj}
                 ! Table 4.3 and Figure 4.4 (1b)
             double_lowering = ExcitationType_t(10), &
@@ -257,6 +258,21 @@ module guga_data
                                               ExcitationTypeNames_t('Fullstart to Fullstop Mixed')]
 
     type(ExcitationTypeValues_t), parameter :: excit_type = ExcitationTypeValues_t()
+
+    type, extends(EnumBase_t) :: DistinctDoubleExcitation_t
+        type(ExcitationType_t) :: sub_type(2)
+        character(3) :: label
+            ! The label in Table 4.3 of [DobrautzThesis2019]
+    end type
+
+    type :: DistinctDoubleExcitationVals_t
+        type(DistinctDoubleExcitation_t) :: &
+             jijk = DistinctDoubleExcitation_t(1, [excit_type%single_overlap_L_to_R, excit_type%single_overlap_L_to_R], '1a'), &
+             ijkj = DistinctDoubleExcitation_t(2, [excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L], '1b')
+             jkik = DistinctDoubleExcitation_t(3, [excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L], '1c')
+    end type
+
+
 
     type :: ExcitationInformation_t
 
