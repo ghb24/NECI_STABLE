@@ -602,5 +602,4 @@ contains
             call this%write_to_unit(file_id)
         close(file_id)
     end subroutine
-
 end module unit_test_helper_excitgen
