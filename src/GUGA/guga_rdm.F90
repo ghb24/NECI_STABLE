@@ -33,7 +33,7 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double
     use guga_matrixElements, only: calc_guga_matrix_element, calcDiagExchangeGUGA_nI
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, rdm_ind_bitmask, excit_names, &
+                         excit_type, gen_type, rdm_ind_bitmask, &
                          RdmContribList_t, ExcitationType_t
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &

@@ -11,7 +11,7 @@ module guga_bitRepOps
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
-                         excit_names, ExcitationType_t
+                         ExcitationType_t
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64, stdout
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -3160,7 +3160,7 @@ contains
         case( excit_type%fullstart_stop_alike%val)
         case( excit_type%fullstart_stop_mixed%val)
         case default
-            call stop_all(this_routine, "incorrect typ: "//excit_names(typ%val)%str)
+            call stop_all(this_routine, "incorrect typ: "//typ%str)
         end select
 #endif
 
@@ -3203,7 +3203,7 @@ contains
         case( excit_type%fullstart_stop_alike%val)
         case( excit_type%fullstart_stop_mixed%val)
         case default
-            call stop_all(this_routine, "incorrect typ: "//excit_names(typ%val)%str)
+            call stop_all(this_routine, "incorrect typ: "//typ%str)
         end select
 #endif
 
@@ -3242,7 +3242,7 @@ contains
         case( excit_type%fullstart_stop_alike%val)
         case( excit_type%fullstart_stop_mixed%val)
         case default
-            call stop_all(this_routine, "incorrect typ: "//excit_names(typ%val)%str)
+            call stop_all(this_routine, "incorrect typ: "//typ%str)
         end select
 #endif
 
@@ -3398,7 +3398,7 @@ contains
         case( excit_type%fullstart_stop_alike%val)
         case( excit_type%fullstart_stop_mixed%val)
         case default
-            print *, "incorrect typ: ", excit_names(typ%val)
+            print *, "incorrect typ: ", typ%str
             call stop_all(this_routine, "see above")
         end select
 #endif

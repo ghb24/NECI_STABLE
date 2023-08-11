@@ -26,7 +26,7 @@ module guga_excitations
                          getDoubleMatrixElement, getMixedFullStop, &
                          WeightData_t, orbitalIndex, &
                          tag_excitations, tag_tmp_excits, &
-                         excit_type, ExcitationType_t, gen_type, excit_names
+                         excit_type, ExcitationType_t, gen_type
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                               setDeltaB, count_open_orbs_ij, &
@@ -16608,7 +16608,7 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
 
         print *, "Excitation Information: "
-        print *, "Typ: ", excitInfo%typ, trim(excit_names(excitInfo%typ%val)%str)
+        print *, "Typ: ", excitInfo%typ, trim(excitInfo%typ%str)
         print *, "i,j,k,l:"
         print *, excitInfo%i, excitInfo%j,excitInfo%k,excitInfo%l
         print *, "fullStart,secondStart,firstEnd,fullEnd:"

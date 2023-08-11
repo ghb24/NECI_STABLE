@@ -9,6 +9,7 @@ module guga_data
     use MemoryManager, only: TagIntType
     use bit_rep_data, only: BitRep_t, GugaBits
     use util_mod, only: EnumBase_t
+    use error_handling_neci, only: stop_all
 
     implicit none
 
@@ -19,7 +20,7 @@ module guga_data
               funa_2_0_overr2, getdoublecontribution, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, init_guga_data_procptrs, &
-              excit_type, gen_type, excit_names, &
+              excit_type, gen_type, &
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
               RdmContribList_t, n_excit_index_bits
@@ -103,52 +104,52 @@ module guga_data
 
     type :: ExcitationTypeValues_t
         type(ExcitationType_t) :: &
-            invalid = ExcitationType_t(0), &
+            invalid = ExcitationType_t(0, 'invalid'), &
                 ! indicate invalid excitation
-            weight = ExcitationType_t(1), &
+            weight = ExcitationType_t(1, 'Weight'), &
                 ! pure weight identifier
-            single = ExcitationType_t(2), &
+            single = ExcitationType_t(2, 'Single'), &
                 ! all kind of single excitations which dont need much care
-            raising = ExcitationType_t(3), &
+            raising = ExcitationType_t(3, 'Weight + Raising'), &
                 ! weight raising
                 ! W_R(i)  ^R(j)
                 ! e_{ii, ij}
                 ! Table 4.3 and Figure 4.4 (0c)
-            lowering = ExcitationType_t(4), &
+            lowering = ExcitationType_t(4, 'Weight + Lowering'), &
                 ! weight lowering
                 ! _L(i)  W^L(j)
                 ! e_{ji, jj}
                 ! Table 4.3 and Figure 4.4 (0f)
-            non_overlap = ExcitationType_t(5), &
+            non_overlap = ExcitationType_t(5, 'Non Overlap'), &
                 ! non overlap
                 ! e_{ij,kl} or e_{ji,lk}  ...
                 ! Table 4.3 and Figure 4.4 (3c0 or 3d0 or 3f0)
-            single_overlap_lowering = ExcitationType_t(6), &
+            single_overlap_lowering = ExcitationType_t(6, 'Single Overlap Lowering'), &
                 ! single overlap 2 lowering
                 ! _L(i)   ^LL_(j)  ^L(k)
                 ! e_{ji,kj}
                 ! Table 4.3 and Figure 4.4 (0e)
-            single_overlap_raising = ExcitationType_t(7), &
+            single_overlap_raising = ExcitationType_t(7, 'Single Overlap Raising'), &
                 ! single overlap 2 raising
                 ! _R(i)   ^RR_(j)  ^R(k)
                 ! e_{ij,jk}
                 ! Table 4.3 and Figure 4.4 (0b)
-            single_overlap_L_to_R = ExcitationType_t(8), &
+            single_overlap_L_to_R = ExcitationType_t(8, 'Single Overlap L to R'), &
                 ! single overlap lowering into raising
                 ! _L(i) ^LR_(j) ^R(k)
                 ! e_{ji,jk}
                 ! Table 4.3 and Figure 4.4 (1a)
-            single_overlap_R_to_L = ExcitationType_t(9), &
+            single_overlap_R_to_L = ExcitationType_t(9, 'Single Overlap R to L'), &
                 ! single overlap raising into lowering
                 ! _R(i) ^RL_(j) ^L(k)
                 ! e_{ij,kj}
                 ! Table 4.3 and Figure 4.4 (1b)
-            double_lowering = ExcitationType_t(10), &
+            double_lowering = ExcitationType_t(10, 'Double Lowering'), &
                 ! normal double two lowering
                 ! _L(i) -> LL_(j) -> ^LL(a) -> ^L(b)
                 ! e_{ki,lj} / e_{li,kj}
                 ! Table 4.3 and Figure 4.4 (3b)
-            double_raising = ExcitationType_t(11), &
+            double_raising = ExcitationType_t(11, 'Double Raising'), &
                 ! normal double two raising
                 ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l)
                 ! e_{jk,il}
@@ -156,103 +157,79 @@ module guga_data
                 ! _R(i) -> _RR(j) -> RR^(k) -> ^R(l)
                 ! e_{jl,ik}
                 ! Table 4.3 and Figure 4.4 (3a)
-            double_L_to_R_to_L = ExcitationType_t(12), &
+            double_L_to_R_to_L = ExcitationType_t(12, 'Double L to R to L'), &
                 ! lowering into raising into lowering
                 ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
                 ! e_{jk,li}
                 ! Table 4.3 and Figure 4.4 (3d1)
-            double_R_to_L_to_R = ExcitationType_t(13), &
+            double_R_to_L_to_R = ExcitationType_t(13, 'Double R to L to R'), &
                 ! raising into lowering into raising
                 ! _R(i) -> _LR(a) - > ^LR(j) -> ^R(b)
                 ! Table 4.3 and Figure 4.4 (3c1)
-            double_L_to_R = ExcitationType_t(14), &
+            double_L_to_R = ExcitationType_t(14, 'Double L to R'), &
                 ! lowering into raising double
                 ! _L(j) -> _RL(a) -> RL^(b) -> ^R(j)
                 ! Table 4.3 and Figure 4.4 (3f1)
-            double_R_to_L = ExcitationType_t(15), &
+            double_R_to_L = ExcitationType_t(15, 'Double R to L'), &
                 ! raising into lowering double
                 ! _R(j) -> _LR(a) -> LR^(b) -> ^L(j)
                 ! Table 4.3 and Figure 4.4 (3e1)
-            fullstop_lowering = ExcitationType_t(16), &
+            fullstop_lowering = ExcitationType_t(16, 'Fullstop Lowering'), &
                 ! full stop 2 lowering
                 ! _L(i) -> _LL(j) -> ^LL^(a)
                 ! e_{ki,kj}
                 ! Table 4.3 and Figure 4.4 (1d)
-            fullstop_raising = ExcitationType_t(17), &
+            fullstop_raising = ExcitationType_t(17, 'Fullstop Raising'), &
                 ! full stop 2 raising
                 ! _R(i) -> _RR(j) -> ^RR^(a)
                 ! e_{ik,jk}
                 ! Table 4.3 and Figure 4.4 (1c)
-            fullstop_L_to_R = ExcitationType_t(18), & !
+            fullstop_L_to_R = ExcitationType_t(18, 'Fullstop L to R'), &
                 ! full stop lowering into raising
                 ! e_{jk,ki}
                 ! _L(i) -> _RL(a) -> ^RL^(j)
                 ! Table 4.3 and Figure 4.4 (1e)
-            fullstop_R_to_L = ExcitationType_t(19), &
+            fullstop_R_to_L = ExcitationType_t(19, 'Fullstop R to L'), &
                 ! full stop raising into lowering
                 ! e_{kj,ik}
                 ! _R(i) -> _LR(a) -> ^LR^(j)
                 ! Table 4.3 and Figure 4.4 (1f)
-            fullstart_lowering = ExcitationType_t(20), &
+            fullstart_lowering = ExcitationType_t(20, 'Fullstart Lowering'), &
                 ! full start 2 lowering
                 ! e_{ji,ki}
                 ! _LL_(i) -> ^LL(a) -> ^L(b)
                 ! Table 4.3 and Figure 4.4 (1h)
-            fullstart_raising = ExcitationType_t(21), &
+            fullstart_raising = ExcitationType_t(21, 'Fullstart Raising'), &
                 ! full start 2 raising
                 ! e_{ij,ik}
                 ! _RR_(i) -> ^RR(a) -> ^R(b)
                 ! Table 4.3 and Figure 4.4 (1g)
-            fullstart_L_to_R = ExcitationType_t(22), &
+            fullstart_L_to_R = ExcitationType_t(22, 'Fullstart L to R'), &
                 ! full start lowering into raising
                 ! _RL_(i) -> ^LR(b) -> ^R(j)
                 ! e_{ik,ji}
                 ! Table 4.3 and Figure 4.4 (1j)
-            fullstart_R_to_L = ExcitationType_t(23), &
+            fullstart_R_to_L = ExcitationType_t(23, 'Fullstart R to L'), &
                 ! full start raising into lowering
                 ! _RL_(i) -> ^RL(j) -> ^L(b)
                 ! e_{ij,ki}
                 ! Table 4.3 and Figure 4.4 (1i)
-            fullstart_stop_alike = ExcitationType_t(24), &
+            fullstart_stop_alike = ExcitationType_t(24, 'Fullstart to Fullstop Alike'), &
                 ! full start into full stop alike
                 ! _RR_(a) -> ^RR^(i)
                 ! or _LL_(i) > ^LL^(a)
                 ! e_{ij,ij}
                 ! Table 4.3 and Figure 4.4 (2a,2b)
-            fullstart_stop_mixed = ExcitationType_t(25)
+            fullstart_stop_mixed = ExcitationType_t(25, 'Fullstart to Fullstop Mixed')
                 ! full start into full stop mixed
                 ! _RL_(i) -> _RL_(j)
                 ! e_{ij,ji}
                 ! Table 4.3 and Figure 4.4 (2c)
     end type
 
-    type(ExcitationTypeNames_t), parameter :: excit_names(0:25) = [ &
-                                              ExcitationTypeNames_t('invalid'), &
-                                              ExcitationTypeNames_t('Weight'), &
-                                              ExcitationTypeNames_t('Single'), &
-                                              ExcitationTypeNames_t('Weight + Raising'), &
-                                              ExcitationTypeNames_t('Weight + Lowering'), &
-                                              ExcitationTypeNames_t('Non Overlap'), &
-                                              ExcitationTypeNames_t('Single Overlap Lowering'), &
-                                              ExcitationTypeNames_t('Single Overlap Raising'), &
-                                              ExcitationTypeNames_t('Single Overlap L to R'), &
-                                              ExcitationTypeNames_t('Single Overlap R to L'), &
-                                              ExcitationTypeNames_t('Double Lowering'), &
-                                              ExcitationTypeNames_t('Double Raising'), &
-                                              ExcitationTypeNames_t('Double L to R to L'), &
-                                              ExcitationTypeNames_t('Double R to L to R'), &
-                                              ExcitationTypeNames_t('Double L to R'), &
-                                              ExcitationTypeNames_t('Double R to L'), &
-                                              ExcitationTypeNames_t('Fullstop Lowering'), &
-                                              ExcitationTypeNames_t('Fullstop Raising'), &
-                                              ExcitationTypeNames_t('Fullstop L to R'), &
-                                              ExcitationTypeNames_t('Fullstop R to L'), &
-                                              ExcitationTypeNames_t('Fullstart Lowering'), &
-                                              ExcitationTypeNames_t('Fullstart Raising'), &
-                                              ExcitationTypeNames_t('Fullstart L to R'), &
-                                              ExcitationTypeNames_t('Fullstart R to L'), &
-                                              ExcitationTypeNames_t('Fullstart to Fullstop Alike'), &
-                                              ExcitationTypeNames_t('Fullstart to Fullstop Mixed')]
+    interface ExcitationType_t
+        module procedure construct_ExcitationType_t
+    end interface
 
     type(ExcitationTypeValues_t), parameter :: excit_type = ExcitationTypeValues_t()
 
@@ -1357,5 +1334,68 @@ contains
         class(DistinctDoubleExcitation_t), intent(in) :: this, other
         logical :: equal
         equal = this%repr /= other%repr
+    end function
+
+    elemental function construct_ExcitationType_t(n) result(res)
+        integer, intent(in) :: n
+        type(ExcitationType_t) :: res
+        routine_name("construct_ExcitationType_t")
+
+        select case(n)
+        case(excit_type%invalid%val)
+            res = excit_type%invalid
+        case(excit_type%weight%val)
+            res = excit_type%weight
+        case(excit_type%single%val)
+            res = excit_type%single
+        case(excit_type%raising%val)
+            res = excit_type%raising
+        case(excit_type%lowering%val)
+            res = excit_type%lowering
+        case(excit_type%non_overlap%val)
+            res = excit_type%non_overlap
+        case(excit_type%single_overlap_lowering%val)
+            res = excit_type%single_overlap_lowering
+        case(excit_type%single_overlap_raising%val)
+            res = excit_type%single_overlap_raising
+        case(excit_type%single_overlap_L_to_R%val)
+            res = excit_type%single_overlap_L_to_R
+        case(excit_type%single_overlap_R_to_L%val)
+            res = excit_type%single_overlap_R_to_L
+        case(excit_type%double_lowering%val)
+            res = excit_type%double_lowering
+        case(excit_type%double_raising%val)
+            res = excit_type%double_raising
+        case(excit_type%double_L_to_R_to_L%val)
+            res = excit_type%double_L_to_R_to_L
+        case(excit_type%double_R_to_L_to_R%val)
+            res = excit_type%double_R_to_L_to_R
+        case(excit_type%double_L_to_R%val)
+            res = excit_type%double_L_to_R
+        case(excit_type%double_R_to_L%val)
+            res = excit_type%double_R_to_L
+        case(excit_type%fullstop_lowering%val)
+            res = excit_type%fullstop_lowering
+        case(excit_type%fullstop_raising%val)
+            res = excit_type%fullstop_raising
+        case(excit_type%fullstop_L_to_R%val)
+            res = excit_type%fullstop_L_to_R
+        case(excit_type%fullstop_R_to_L%val)
+            res = excit_type%fullstop_R_to_L
+        case(excit_type%fullstart_lowering%val)
+            res = excit_type%fullstart_lowering
+        case(excit_type%fullstart_raising%val)
+            res = excit_type%fullstart_raising
+        case(excit_type%fullstart_L_to_R%val)
+            res = excit_type%fullstart_L_to_R
+        case(excit_type%fullstart_R_to_L%val)
+            res = excit_type%fullstart_R_to_L
+        case(excit_type%fullstart_stop_alike%val)
+            res = excit_type%fullstart_stop_alike
+        case(excit_type%fullstart_stop_mixed%val)
+            res = excit_type%fullstart_stop_mixed
+        case default
+            call stop_all(this_routine, 'Invalid integer for excit type.')
+        end select
     end function
 end module
