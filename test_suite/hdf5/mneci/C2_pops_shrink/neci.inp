@@ -1,6 +1,7 @@
 title
 
 system read
+    ignore-fcidump-header
     electrons 8
     nonuniformrandexcits pchb \
         manual unif:unif full-full:fast-fast

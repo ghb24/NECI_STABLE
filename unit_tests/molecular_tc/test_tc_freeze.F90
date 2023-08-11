@@ -73,7 +73,7 @@ contains
         call test_freeze([3, 3, 4, 1, 1, 4], exc_0)
         call test_freeze([1, 3, 3, 4, 1, 4], exc_0)
 
-        write(stdout, *) "Checking single excitaion matrix elements"
+        write(stdout, *) "Checking single excitation matrix elements"
 
         ! Test the single excitation matrix elements
         exc_1 = Excite_1_t(5, 21)
@@ -93,7 +93,7 @@ contains
         call test_freeze([1, 2, 11, 1, 2, 3], exc_1)
         call test_freeze([11, 2, 2, 1, 1, 3], exc_1)
 
-        write(stdout, *) "Checking double excitaion matrix elements"
+        write(stdout, *) "Checking double excitation matrix elements"
 
         ! Test the double excitation matrix elements
         exc_2 = Excite_2_t(5, 21, 7, 23)

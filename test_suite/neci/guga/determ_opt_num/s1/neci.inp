@@ -1,6 +1,7 @@
 title
 
 system read
+ignore-fcidump-header
 electrons 4
 guga 2
 nonuniformrandexcits mol_guga_weighted
