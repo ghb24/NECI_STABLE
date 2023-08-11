@@ -281,7 +281,7 @@ module guga_data
             jijk = DistinctDoubleExcitation_t(1, [excit_type%single_overlap_L_to_R, excit_type%single_overlap_L_to_R], '1a'), &
             ijkj = DistinctDoubleExcitation_t(2, [excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L], '1b'), &
 
-            ikjk = DistinctDoubleExcitation_t(3, [excit_type%fullstop_raising, excit_type%fullstop_raising], '1c'), i&
+            ikjk = DistinctDoubleExcitation_t(3, [excit_type%fullstop_raising, excit_type%fullstop_raising], '1c'), &
             kikj = DistinctDoubleExcitation_t(4, [excit_type%fullstop_lowering, excit_type%fullstop_lowering], '1d'), &
 
             jikk = DistinctDoubleExcitation_t(5, [excit_type%non_overlap, excit_type%fullstop_L_to_R], '1e'), &
@@ -302,7 +302,6 @@ module guga_data
             jilk = DistinctDoubleExcitation_t(17, [excit_type%non_overlap, excit_type%double_L_to_R_to_L], '3d'), &
             ijlk = DistinctDoubleExcitation_t(18, [excit_type%non_overlap, excit_type%double_R_to_L], '3e'), &
             jikl = DistinctDoubleExcitation_t(19, [excit_type%non_overlap, excit_type%double_L_to_R], '3f')
-                ! _L(i) _RL(j)  RL^(k) ^R(l)
     end type
 
 
