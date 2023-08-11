@@ -98,6 +98,7 @@ module guga_data
     ! this may also be used/needed for the excitation generation
 
     type, extends(EnumBase_t) :: ExcitationType_t
+        character(30) :: str
     end type
 
     type :: ExcitationTypeValues_t
@@ -225,14 +226,9 @@ module guga_data
                 ! Table 4.3 and Figure 4.4 (2c)
     end type
 
-    type :: ExcitationTypeNames_t
-        character(30) :: str
-
-    end type ExcitationTypeNames_t
-
     type(ExcitationTypeNames_t), parameter :: excit_names(0:25) = [ &
-                                              ExcitationTypeNames_t('Weight'), &
                                               ExcitationTypeNames_t('invalid'), &
+                                              ExcitationTypeNames_t('Weight'), &
                                               ExcitationTypeNames_t('Single'), &
                                               ExcitationTypeNames_t('Weight + Raising'), &
                                               ExcitationTypeNames_t('Weight + Lowering'), &
@@ -260,15 +256,13 @@ module guga_data
 
     type(ExcitationTypeValues_t), parameter :: excit_type = ExcitationTypeValues_t()
 
-    type, extends(EnumBase_t) :: DistinctDoubleExcitation_t
-        type(ExcitationType_t) :: sub_type(2)
-        character(3) :: label
-            !! The label in Table 4.3 of [DobrautzThesis2019]
-    end type
-
-    type :: DistinctDoubleExcitationVals_t
+    type :: DistinctDoubleExcitation_t
+        !! This represents a distinct double excitation (compare Table 4.3 of [DobrautzThesis2019])
+        !! A distinct double excitation consists of the two double excitations
+        !! \( e_{ij,kl} \)  which are connected by exchange \( e_{il,kj} \).
+        !!
         !! Because of \( e_{ij,kl} = e_{kl,ij} \) we can order such that \(i \leq k \).
-        !! The matrix element requires \( e_{ij,kl} \) and the exchanged \( e_{il,kj} \).
+        !! The matrix element requires \( e_{ij,kl} \) and \( e_{il,kj} \).
         !! For the notation of distinct double excitation we will order such that \( j \leq l \).
         !! In the following we assume \( i < j < k < l \).
         !!
@@ -276,32 +270,59 @@ module guga_data
         !! The distinct type ``iijk`` consists of \( e_{ii,jk} \) and \( e_{ik,ji} \).
         !! The first is a non-overlap double excitation with a single Weight on `i`
         !! and a single raising excitation from `k` to `j`;
-        !! the latter is a `fullstop_L_to_R` i.e. \(\underline{RL}(i)   R\overline{L}(j)  \overline{R}(k)\)
+        !! the latter is a `fullstart_L_to_R` i.e. \(\underline{RL}(i)   R\overline{L}(j)  \overline{R}(k)\)
+        type(ExcitationType_t) :: repr
+            !! The two subtypes usually do not differ.
+            !! If the two subtypes differ, then it is always a pairing with `non_overlap`.
+            !! For this reason we can choose one representative.
+            !!
+            !! For example:
+            !!    * `kikj` and `kjki` are both `fullstop_lowering`.
+            !!    * `ijkl` is `non_overlap`, the corresponding exchanged excitation
+            !!      `ilkj` is `double_R_to_L_to_R`.
+            !!
+            !! @note
+            !!   Older code does not clearly distinguish between `DistinctDoubleExcitation_t`
+            !!   and `ExcitationType_t`, so the `repr` is particularly useful here.
+            !! @endnote
+        type(ExcitationType_t) :: other
+            !! The other Excitation that is not the representative
+        character(3) :: label
+            !! The label in Table 4.3 of [DobrautzThesis2019]
+    contains
+        private
+        procedure :: eq_DistinctDoubleExcitation_t
+        procedure :: neq_DistinctDoubleExcitation_t
+        generic, public :: operator(==) => eq_DistinctDoubleExcitation_t
+        generic, public :: operator(/=) => neq_DistinctDoubleExcitation_t
+    end type
+
+    type :: DistinctDoubleExcitationVals_t
         type(DistinctDoubleExcitation_t) :: &
-            jijk = DistinctDoubleExcitation_t(1, [excit_type%single_overlap_L_to_R, excit_type%single_overlap_L_to_R], '1a'), &
-            ijkj = DistinctDoubleExcitation_t(2, [excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L], '1b'), &
+            jijk = DistinctDoubleExcitation_t(excit_type%single_overlap_L_to_R, excit_type%single_overlap_L_to_R, '1a'), &
+            ijkj = DistinctDoubleExcitation_t(excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L, '1b'), &
 
-            ikjk = DistinctDoubleExcitation_t(3, [excit_type%fullstop_raising, excit_type%fullstop_raising], '1c'), &
-            kikj = DistinctDoubleExcitation_t(4, [excit_type%fullstop_lowering, excit_type%fullstop_lowering], '1d'), &
+            ikjk = DistinctDoubleExcitation_t(excit_type%fullstop_raising, excit_type%fullstop_raising, '1c'), &
+            kikj = DistinctDoubleExcitation_t(excit_type%fullstop_lowering, excit_type%fullstop_lowering, '1d'), &
 
-            jikk = DistinctDoubleExcitation_t(5, [excit_type%non_overlap, excit_type%fullstop_L_to_R], '1e'), &
-            ijkk = DistinctDoubleExcitation_t(6, [excit_type%non_overlap, excit_type%fullstop_R_to_L], '1f'), &
-            ijik = DistinctDoubleExcitation_t(7, [excit_type%fullstart_raising, excit_type%fullstart_raising], '1g'), &
-            jiki = DistinctDoubleExcitation_t(8, [excit_type%fullstart_lowering, excit_type%fullstart_lowering], '1h'), &
-            iikj = DistinctDoubleExcitation_t(9, [excit_type%non_overlap, excit_type%fullstart_R_to_L], '1i'), &
-            iijk = DistinctDoubleExcitation_t(10, [excit_type%non_overlap, excit_type%fullstart_L_to_R], '1j'), &
+            jikk = DistinctDoubleExcitation_t(excit_type%fullstop_L_to_R, excit_type%non_overlap, '1e'), &
+            ijkk = DistinctDoubleExcitation_t(excit_type%fullstop_R_to_L, excit_type%non_overlap, '1f'), &
+            ijik = DistinctDoubleExcitation_t(excit_type%fullstart_raising, excit_type%fullstart_raising, '1g'), &
+            jiki = DistinctDoubleExcitation_t(excit_type%fullstart_lowering, excit_type%fullstart_lowering, '1h'), &
+            iikj = DistinctDoubleExcitation_t(excit_type%fullstart_R_to_L, excit_type%non_overlap, '1i'), &
+            iijk = DistinctDoubleExcitation_t(excit_type%fullstart_L_to_R, excit_type%non_overlap, '1j'), &
 
-            ijij = DistinctDoubleExcitation_t(11, [excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike], '2a'), &
-            jiji = DistinctDoubleExcitation_t(12, [excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike], '2b'), &
-            iijj = DistinctDoubleExcitation_t(13, [excit_type%non_overlap, excit_type%fullstart_stop_mixed], '2c'), &
+            ijij = DistinctDoubleExcitation_t(excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2a'), &
+            jiji = DistinctDoubleExcitation_t(excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2b'), &
+            iijj = DistinctDoubleExcitation_t(excit_type%fullstart_stop_mixed, excit_type%non_overlap, '2c'), &
 
-            ikjl = DistinctDoubleExcitation_t(14, [excit_type%double_raising, excit_type%double_raising], '3a'), &
-            kijl = DistinctDoubleExcitation_t(15, [excit_type%double_lowering, excit_type%double_lowering], '3b'), &
+            ikjl = DistinctDoubleExcitation_t(excit_type%double_raising, excit_type%double_raising, '3a'), &
+            kijl = DistinctDoubleExcitation_t(excit_type%double_lowering, excit_type%double_lowering, '3b'), &
 
-            ijkl = DistinctDoubleExcitation_t(16, [excit_type%non_overlap, excit_type%double_R_to_L_to_R], '3c'), &
-            jilk = DistinctDoubleExcitation_t(17, [excit_type%non_overlap, excit_type%double_L_to_R_to_L], '3d'), &
-            ijlk = DistinctDoubleExcitation_t(18, [excit_type%non_overlap, excit_type%double_R_to_L], '3e'), &
-            jikl = DistinctDoubleExcitation_t(19, [excit_type%non_overlap, excit_type%double_L_to_R], '3f')
+            ijkl = DistinctDoubleExcitation_t(excit_type%double_R_to_L_to_R, excit_type%non_overlap, '3c'), &
+            jilk = DistinctDoubleExcitation_t(excit_type%double_L_to_R_to_L, excit_type%non_overlap, '3d'), &
+            ijlk = DistinctDoubleExcitation_t(excit_type%double_R_to_L, excit_type%non_overlap, '3e'), &
+            jikl = DistinctDoubleExcitation_t(excit_type%double_L_to_R, excit_type%non_overlap, '3f')
     end type
 
 
@@ -1326,4 +1347,15 @@ contains
 
     ! =========== end of generic necessary functions ========================
 
+    elemental function eq_DistinctDoubleExcitation_t(this, other) result(equal)
+        class(DistinctDoubleExcitation_t), intent(in) :: this, other
+        logical :: equal
+        equal = this%repr == other%repr
+    end function
+
+    elemental function neq_DistinctDoubleExcitation_t(this, other) result(equal)
+        class(DistinctDoubleExcitation_t), intent(in) :: this, other
+        logical :: equal
+        equal = this%repr /= other%repr
+    end function
 end module
