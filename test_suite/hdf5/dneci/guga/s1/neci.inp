@@ -2,6 +2,7 @@ Title
 
 System read
     electrons  14
+    ignore-fcidump-header
     nonuniformrandexcits mol_guga_weighted
     nobrillouintheorem
     guga 2
