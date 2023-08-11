@@ -1,5 +1,4 @@
 module SystemData
-
     use constants, only: n_int, int64, dp, NEL_UNINITIALIZED
     use MemoryManager, only: TagIntType
 
@@ -40,6 +39,8 @@ module SystemData
     !At the reading in, the integrals will be converted to reals,
     !but kpoint symmetry can still be used.
     logical :: tReadFreeFormat, tReltvy
+
+    logical :: tIgnoreFCIDUMPHeader = .false.
 
     logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
     logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in
@@ -358,7 +359,7 @@ module SystemData
 ! also use an additional flag to indicate that 3-body excitations are possible
     logical :: t_3_body_excits = .false.
 
-! make a general Flag to indicat a non-hermitian Hamiltonian
+! make a general Flag to indicate a non-hermitian Hamiltonian
     logical :: t_non_hermitian_2_body = .false.
     logical :: t_non_hermitian_1_body = .false.
 
@@ -465,5 +466,11 @@ contains
         type(BasisFN) :: res
         res = BasisFN(Symmetry(int(mdk(1), int64)), mdk(2:4), mdk(5), 0, 0)
     end function
+
+    pure logical function non_hermitian()
+        !! logical that cannot be modified directly by the user, but rather is
+        !! used whenever querying any kind of nonhermiticity
+        non_hermitian = t_non_hermitian_1_body .or. t_non_hermitian_2_body
+    end
 
 end module SystemData

@@ -12,6 +12,7 @@ title
     endsys
 
     calc
+        time 30
         # since this is a test, need it to be reproducible:
         load-balance-blocks off
         methods

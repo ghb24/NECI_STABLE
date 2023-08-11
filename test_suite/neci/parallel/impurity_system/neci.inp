@@ -1,6 +1,8 @@
 title
 
 system read
+    ignore-fcidump-header
+    order-by-1elec-energy
     electrons 9
     spin-restrict 1
     nobrillouintheorem
@@ -10,6 +12,7 @@ system read
 endsys
 
 calc
+    time 30
     methods
         method vertex fcimc
     endmethods

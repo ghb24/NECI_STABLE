@@ -1,12 +1,14 @@
 title
 
 system read
+ignore-fcidump-header
 electrons 4
 guga 2
 nonuniformrandexcits mol_guga_weighted
 endsys
 
 calc
+    time 30
 methods
 method vertex fcimc
 endmethods

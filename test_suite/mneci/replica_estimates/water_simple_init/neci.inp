@@ -1,6 +1,6 @@
 title
 
-system read noorder
+system read
     molpromimic
     symignoreenergies
     freeformat
@@ -14,6 +14,7 @@ system read noorder
 endsys
 
 calc
+    time 30
     methods
         method vertex fcimc
     endmethods

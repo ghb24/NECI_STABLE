@@ -1,7 +1,6 @@
 #include "macros.h"
 
 module core_space_util
-    use mpi
     use constants
     use shared_rhash, only: shared_rhash_t
     use shared_memory_mpi
@@ -50,7 +49,7 @@ module core_space_util
         ! This stores the entire core space from all processes, on each process.
         integer(n_int), pointer, dimension(:, :) :: core_space => null()
         integer(n_int), pointer, dimension(:, :) :: core_space_direct => null()
-        integer(MPIArg) :: core_space_win
+        type(MPI_Win) :: core_space_win
 
         type(shared_rhash_t) :: core_ht
 

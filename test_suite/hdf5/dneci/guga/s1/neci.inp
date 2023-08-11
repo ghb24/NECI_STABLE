@@ -2,6 +2,7 @@ Title
 
 System read
     electrons  14
+    ignore-fcidump-header
     nonuniformrandexcits mol_guga_weighted
     nobrillouintheorem
     guga 2
@@ -9,6 +10,7 @@ System read
 endsys
 
 calc
+    time 30
     definedet    1    2    3    6   11   12   13   14   17   18   19   25   26   27
 
     methods
@@ -32,7 +34,6 @@ calc
         max 0.02
     memoryfacspawn 10.0
     memoryfacpart 5.0
-    time 2800
     startsinglepart 100
     readpops
     semi-stochastic

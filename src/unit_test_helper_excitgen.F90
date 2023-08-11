@@ -8,7 +8,7 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen, nSpatOrbs, tGUGA, tUHF, tMolpro
+                          tReadInt, t_pcpp_excitgen, nSpatOrbs, tGUGA, tUHF, tMolpro, user_input_m_s
     use sort_mod
     use gasci, only: GASSpec_t
     use System, only: SysInit, SetSysDefaults, SysCleanup
@@ -29,6 +29,7 @@ module unit_test_helper_excitgen
     use util_mod, only: stop_all, operator(.div.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
     use DetCalc, only: DetCalcInit
+    use ReadInput_neci, only: evaluate_depending_keywords
     better_implicit_none
     private
     public :: test_excitation_generator, generate_uniform_integrals, FciDumpWriter_t, &
@@ -272,6 +273,7 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine init_excitgen_test(ref_det, fcidump_writer, setdefaults)
+        use SystemData, only: lms
         ! mimic the initialization of an FCIQMC calculation to the point where we can generate
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
@@ -282,7 +284,7 @@ contains
             !! IMO this should be done using test fixtures and not in this function,
             !! but much of the existing tests rely on it being here
         logical :: setdefaults_
-        integer :: nBasisMax(5, 3), lms
+        integer :: nBasisMax(5, 3)
         integer(int64) :: umatsize
         real(dp) :: ecore
         character(*), parameter :: this_routine = 'init_excitgen_test'
@@ -322,6 +324,9 @@ contains
         call fcidump_writer%write()
 
         get_umat_el => get_umat_el_normal
+
+        user_input_m_s = sum(merge(1, -1, mod(ref_det, 2) == 0))
+        call evaluate_depending_keywords()
 
         call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
 
@@ -481,6 +486,7 @@ contains
         ! write the canonical FCIDUMP header (norb here is num spatial orbitals)
         write(iunit, *) "&FCI NORB=", n_spat_orb, ",NELEC=", n_el, "MS2=", total_ms%val, ","
         write(iunit, "(A)", advance="no") "ORBSYM="
+
         do i = 1, n_spat_orb
             write(iunit, "(A)", advance="no") "1,"
         end do

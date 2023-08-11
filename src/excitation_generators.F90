@@ -128,12 +128,12 @@ contains
             ic = 1
             call singles_generator%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                                 ex, tParity, pGen, hel, store, part_type)
-            pgen = pgen * pSingles
+            if (nJ(1) /= 0) pgen = pgen * pSingles
         else
             ic = 2
             call doubles_generator%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                                 ex, tParity, pGen, hel, store, part_type)
-            pgen = pgen * pDoubles
+            if (nJ(1) /= 0) pgen = pgen * pDoubles
         end if
     end subroutine
 

@@ -1,12 +1,14 @@
 title
 
 system read
+    ignore-fcidump-header
     electrons 4
     spin-restrict 0
     system-replicas 2
 endsys
 
 calc
+    time 30
     methods
         method vertex exact-spectrum
     endmethods

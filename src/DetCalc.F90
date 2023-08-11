@@ -2,9 +2,8 @@
 MODULE DetCalc
     use constants, only: dp,n_int
     use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
-         t_non_hermitian_2_body
-
-    use sort_mod, only: sort
+         non_hermitian
+    use sort_mod
 
     use bit_reps, only: writebitdet
 
@@ -518,7 +517,7 @@ CONTAINS
                 CALL LogMemAlloc('V2', NDET * NEVAL, 8, this_routine, V2Tag, ierr)
                 V2 = 0.0_dp
 !C..Lanczos iterative diagonalising routine
-                if (t_non_hermitian_2_body) then
+                if (non_hermitian()) then
                     call stop_all(this_routine, &
                                   "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians")
                 end if
@@ -543,7 +542,7 @@ CONTAINS
                     CALL LogMemAlloc('WORK', 4 * NDET, 8 * HElement_t_size, this_routine, WorkTag, ierr)
                     allocate(WORK2(3 * NDET), stat=ierr)
                     CALL LogMemAlloc('WORK2', 3 * NDET, 8, this_routine, WORK2Tag, ierr)
-                    if (t_non_hermitian_2_body) then
+                    if (non_hermitian()) then
                         call stop_all(this_routine, &
                                       "HDIAG_nec is not setup for non-hermitian Hamiltonians")
                     end if
@@ -589,7 +588,7 @@ CONTAINS
                 end if
             end do
             IF (davidsonCalc%super%hfindex == 0) call stop_all("DoDetCalc", "Fermi determinant is not found in RAS space!")
-            if (t_non_hermitian_2_body) then
+            if (non_hermitian()) then
                 call stop_all(this_routine, &
                               "perform_davidson not adapted for non-hermitian Hamiltonians!")
             end if

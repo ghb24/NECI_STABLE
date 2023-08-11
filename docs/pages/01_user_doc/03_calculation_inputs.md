@@ -39,6 +39,14 @@ considered. The block starts with the `system` keyword and ends with the
         Read in the integrals from a FCIDUMP file, used for ab-initio
         calculations.
 
+    -   **order**<br>
+        Orders the orbitals (by default, does no reordering).
+        @warning
+        Please note, for best results you may wish to rather use
+        `order-by-1elec-energy` below, also in the system block as the
+        behaviour is better understood.
+        @endwarning
+
     -   **FCIDUMP-name**<br>
         Specify the name of the FCIDUMP file. Defaults to FCIDUMP.
 
@@ -63,6 +71,13 @@ considered. The block starts with the `system` keyword and ends with the
 -   **spin-restrict [\(m\)]**<br>
     Sets the total \(S_z\) quantum number to \(\frac{m}{2}\). The
     argument \(m\) is optional and defaults to 0.
+
+-   **ignore-fcidump-header**<br>
+    Tells NECI to ignore the contents of the header of the FCIDUMP input file
+    (e.g. particle number or symmetry labels). This is useful
+    if, for example, you wish to calculate an ionisation potential and
+    need to e.g. run NECI with \( n-1 \) electrons where the FCIDUMP has
+    `NELEC=`\( n \) (otherwise, NECI will crash due to the inconsistency).
 
 -   **hphf \(s\)**<br>
     Uses a basis of (anti-)symmetric combinations of Slater determinants
@@ -164,6 +179,9 @@ considered. The block starts with the `system` keyword and ends with the
     Stoquastize the Hamiltonian. This means that the off-diagonal elements of the
     original Hamiltonian become negative without changing the magnitudes,
     i.e. \(H^{stoq}_{ij} = H_{ij}\delta_{ij} - |H_{ij}|(1 - \delta_{ij})\).
+
+-   **nosymmetry**<br>
+    Assume no symmetry in the system.
 
 #### Excitation generation options
 
@@ -967,6 +985,11 @@ and is stopped after 10000 iterations.
     with the first spatial orbital doubly occupied and 2 open-shell
     orbitals (positively spin coupled, hence odd numbers).
 
+-   **order-by-1elec-energy**<br>
+    Orders the orbitals based on the 1-electron energies. Not that this
+    take precedence if both this keyword and an order keyword in the header
+    was given. Recommended when running model Hamiltonian calculations.
+
 -   **readPops**<br>
     Read in the wave function from a file and use the read-in wave
     function for initialisation. In addition to the wave function, also
@@ -1284,6 +1307,26 @@ and is stopped after 10000 iterations.
         Use all determinants to form the trial space. A fully
         deterministic projection is therefore performed with this
         option.
+
+    -   **read-trial**<br>
+        Reads the trial space from a file `TRIALSPACE` instead of generating a
+        new one.
+
+    -   **left-trial-evec**
+        When diagonalising the matrix formed from the top determinants, take
+        the left eigenvector as your trial wave function instead of the right.
+        This keyword is intended to be used for non-Hermitian systems.
+        @note
+        The mathematically correct approach is to run a separate calculation with
+        the `adjoint-calculation` and without this keyword (so taking the right
+        eigenvector), and outputting the top determinants. Then feed this input
+        into a calculation without the `adjoint-calculation` keyword, but with
+        the `left-trial-evec` keyword. However, this is tedious and inefficient,
+        and simply using `left-trial-evec` without the previous calculation is
+        a good approximation (the only difference is the choice of the top
+        determinants). Reading and writing trial spaces can be done using the
+        keywords `read-trial` and `write-trial` respectively.
+        @endnote
 
 #### Memory options
 
@@ -1716,6 +1759,10 @@ keyword.
     CI coefficients up to triples (i.e. setting \textit{excitation} = 3) are available.
     The semi-stochastic approach is recommended, in order to reach a lower stochastic error
     for equal time averaging of the CI coefficients.
+
+
+-   **write-trial**<br>
+    Writes the trial space out in a file called `TRIALSPACE`.
 
 
 

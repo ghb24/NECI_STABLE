@@ -1,6 +1,7 @@
 Title
 
 System read
+    ignore-fcidump-header
     electrons  12
     nobrillouintheorem
     FCIDUMP-name N4.FciDmp
@@ -18,6 +19,7 @@ System read
 endsys
 
 calc
+    time 30
     seed 7
     load-balance-interval 1000
 

@@ -11,6 +11,7 @@ system hubbard k-space
 endsys
 
 calc
+    time 30
     methods
     method vertex fcimc
     endmethods

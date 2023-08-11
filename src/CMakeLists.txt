@@ -233,7 +233,6 @@ set( SRC_FILES
     lib/timing.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.F90
-    lib/matrix_util.F90
     lib/display_matrices.F90
     lib/binomial_lookup.F90
     )
@@ -429,6 +428,7 @@ set( FYPP_SRC_FILES
     lib/parallel_hdf5_utils.fpp
     lib/util_mod.fpp
     lib/basic_float_math.fpp
+    lib/matrix_util.fpp
     sets_mod.fpp
     shared_ragged_array.fpp
     SD_spin_purification.fpp

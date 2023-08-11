@@ -1,12 +1,14 @@
 Title
 
 System read
+    ignore-fcidump-header
     electrons  5
     nonuniformrandexcits mol_guga_weighted
     guga 1
 endsys
 
 calc
+    time 30
 
     methods
         method vertex fcimc
@@ -37,7 +39,6 @@ calc
     pops-core 1000
     allrealcoeff
     realspawncutoff off
-    time 2700
 endcalc
 
 logging

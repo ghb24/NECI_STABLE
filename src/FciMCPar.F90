@@ -1175,7 +1175,7 @@ contains
     end subroutine FciMCPar
 
     subroutine PerformFCIMCycPar(iter_data, err)
-        use mpi
+        use mpi_f08, only: MPI_WTime
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot

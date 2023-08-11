@@ -1,6 +1,7 @@
 title
 
 system hubbard
+    order-by-1elec-energy
     cell 6 1 1
     b -1
     u 1
@@ -11,6 +12,7 @@ system hubbard
 endsys
 
 calc
+    time 30
     methods
         method vertex ftlm
     endmethods

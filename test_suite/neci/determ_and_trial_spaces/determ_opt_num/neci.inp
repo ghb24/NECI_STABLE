@@ -5,6 +5,7 @@ electrons 4
 endsys
 
 calc
+    time 30
 methods
 method vertex fcimc
 endmethods

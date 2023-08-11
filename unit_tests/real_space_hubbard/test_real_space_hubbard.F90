@@ -55,7 +55,7 @@ program test_real_space_hubbard
         run_excit_gen_tester
 
     use matrix_util, only: norm, calc_eigenvalues, matrix_exponential, &
-                           print_matrix, eig, linspace, norm_cmplx
+                           print_matrix, eig, linspace, norm
 
     use dsfmt_interface, only: dsfmt_init
 
@@ -644,10 +644,10 @@ contains
         degen_vec_1 = vec_1 + cmplx(0.0_dp, vec_2, dp)
         degen_vec_2 = vec_1 - cmplx(0.0_dp, vec_2, dp)
 
-        print *, "norms: ", norm_cmplx(degen_vec_1), norm_cmplx(degen_vec_2)
+        print *, "norms: ", norm(degen_vec_1), norm(degen_vec_2)
 
-        degen_vec_1 = degen_vec_1 / norm_cmplx(degen_vec_1)
-        degen_vec_2 = degen_vec_2 / norm_cmplx(degen_vec_2)
+        degen_vec_1 = degen_vec_1 / norm(degen_vec_1)
+        degen_vec_2 = degen_vec_2 / norm(degen_vec_2)
 
         print *, "<1|2>: ", dot_product(degen_vec_1, degen_vec_2)
         print *, "<2|1>: ", dot_product(degen_vec_2, degen_vec_1)
@@ -661,7 +661,7 @@ contains
 
             ! psi = c(i) * degen_vec_1 + sqrt(1 - c(i)**2) * degen_vec_2
             psi = c(i) * degen_vec_1 + (1 - c(i)) * degen_vec_2
-            psi = psi / norm_cmplx(psi)
+            psi = psi / norm(psi)
 
             max_weight(i) = maxval(abs(psi),1)
 
@@ -900,10 +900,10 @@ contains
 
             if (t_degen) then
                 degen_vec_1 = e_vec(:,1) + cmplx(0.0_dp, e_vec(:,2),dp)
-                degen_vec_1 = degen_vec_1 / norm_cmplx(degen_vec_1)
+                degen_vec_1 = degen_vec_1 / norm(degen_vec_1)
                 degen_vec_2 = e_vec(:,1) - cmplx(0.0_dp, e_vec(:,2),dp)
-                degen_vec_2 = degen_vec_2 / norm_cmplx(degen_vec_2)
-                ! print *, "norm degen: ", norm_cmplx(degen_vec_1)
+                degen_vec_2 = degen_vec_2 / norm(degen_vec_2)
+                ! print *, "norm degen: ", norm(degen_vec_1)
                 !degen_weight_hop(i) = maxval(abs(degen_vec_1),1)
                 call optimize_degenerate_states(e_vec, e_values, degen_weight_hop(i))
                 ! print *, "is the first: deg. eigenvector good?", &

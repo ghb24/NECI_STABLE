@@ -1,6 +1,6 @@
 title
 
-system read noorder
+system read
     symignoreenergies
     freeformat
     electrons 8
@@ -13,6 +13,7 @@ system read noorder
 endsys
 
 calc
+    time 30
     methods
     method vertex fcimc
     endmethods

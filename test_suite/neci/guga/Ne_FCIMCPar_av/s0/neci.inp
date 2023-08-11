@@ -1,12 +1,14 @@
 title
 
 system read
+order-by-1elec-energy
 nonuniformrandexcits mol_guga_weighted
 electrons 10
 guga 0
 endsys
 
 calc
+    time 30
 methods
 method vertex fcimc
 endmethods

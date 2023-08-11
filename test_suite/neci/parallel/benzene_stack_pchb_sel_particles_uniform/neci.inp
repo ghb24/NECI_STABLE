@@ -10,6 +10,7 @@ System read
 endsys
 
 calc
+    time 30
     definedet 1-6   13-18   25-30   37-42    49-54
 
     seed 7

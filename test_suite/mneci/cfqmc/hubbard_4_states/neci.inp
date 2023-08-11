@@ -1,4 +1,5 @@
 system hubbard
+    order-by-1elec-energy
     system-replicas 8
     cell 12 1 1
     b -1
@@ -12,6 +13,7 @@ system hubbard
 endsys
 
 calc
+    time 30
     lanczos-max-subspace-size 30
     lanczos-energy-precision 6
     lanczos-ritz-overlap-precision 3

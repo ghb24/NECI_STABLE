@@ -1,12 +1,13 @@
 title
 
-system read noorder
+system read
     electrons   10
     nobrillouintheorem
     molecular-transcorr 3-body
 endsys
 
 calc
+    time 30
     methods
         method vertex fcimc
     endmethods

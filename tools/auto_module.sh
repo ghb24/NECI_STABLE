@@ -7,14 +7,14 @@
 
 source /usr/share/Modules/3.2.10/init/sh
 export MODULEPATH="${MODULEPATH}:/usr/local/fkf/modules"
+export MODULEPATH="${MODULEPATH}:/usr/local/server/IntelOneApi2023/modulefiles"
 module purge
 
 echo "Loading modules for: $@"
 
-if [ "ifort-debug" == "$@" ] || [ "ifort" == "$@" ]; then
-    export HDF5_ROOT=/opt/hdf-1.12.2_ifort19_mpi
-    export FI_PROVIDER=sockets
-    module load ifort/19.1.1 mpi.intel/2019.7
+if [ "ifort21-debug" == "$@" ] || [ "ifort21" == "$@" ]; then
+    export HDF5_ROOT=/opt/hdf-1.12.2_ifort21_mpi
+    module load compiler/2023.0.0 mpi/2021.8.0
 elif [ "ifort18-debug" == "$@" ] || [ "ifort18" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.12.2_ifort18_mpi
     source /usr/local/server/IntelStudio_2018/parallel_studio_xe_2018.4.057/psxevars.sh intel64
