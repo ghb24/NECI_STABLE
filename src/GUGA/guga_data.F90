@@ -14,17 +14,16 @@ module guga_data
     implicit none
 
     private
-    public :: ExcitationInformation_t, ExcitationType_t, get_ExcitationType_t, &
-            WeightData_t, projE_replica, &
-            getSingleMatrixElement, getDoubleMatrixElement, getMixedFullStop, &
-            orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
-            funa_2_0_overr2, getdoublecontribution, tag_excitations, &
-            tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
-            tGUGACore, init_guga_data_procptrs, &
-            excit_type, gen_type, &
-            rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-            n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
-            RdmContribList_t, n_excit_index_bits
+    public :: ExcitationInformation_t, ExcitationType_t, WeightData_t, projE_replica, &
+              getSingleMatrixElement, getDoubleMatrixElement, getMixedFullStop, &
+              orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
+              funa_2_0_overr2, getdoublecontribution, tag_excitations, &
+              tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
+              tGUGACore, init_guga_data_procptrs, &
+              excit_type, gen_type, &
+              rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
+              n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
+              RdmContribList_t, n_excit_index_bits
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations
@@ -228,8 +227,7 @@ module guga_data
                 ! Table 4.3 and Figure 4.4 (2c)
     end type
 
-    ! Can't name as type because of stupid ifort
-    interface get_ExcitationType_t
+    interface ExcitationType_t
         module procedure construct_ExcitationType_t
     end interface
 

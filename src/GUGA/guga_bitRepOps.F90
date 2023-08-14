@@ -11,7 +11,7 @@ module guga_bitRepOps
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
-                         ExcitationType_t, get_ExcitationType_t
+                         ExcitationType_t
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64, stdout
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -3022,7 +3022,7 @@ contains
         integer(int_rdm), intent(in) :: rdm_ind
         type(ExcitationType_t) :: excit_typ
 
-        excit_typ = get_ExcitationType_t(int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits)))
+        excit_typ = ExcitationType_t(int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits)))
 
     end function extract_excit_type_rdm
 
@@ -3256,7 +3256,7 @@ contains
         integer(int64), intent(in) :: excit_info_int
         type(ExcitationType_t) :: typ
 
-        typ = get_ExcitationType_t(int(ibits(excit_info_int, 0, n_excit_type_bits)))
+        typ = ExcitationType_t(int(ibits(excit_info_int, 0, n_excit_type_bits)))
 
     end function extract_excit_info_type
 
