@@ -8,11 +8,13 @@ module guga_gas_pchb_mod
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
-    use guga_data, only: ExcitationInformation_t, gen_type, excit_type, ExcitationType_t
+    use guga_data, only: ExcitationInformation_t, gen_type, excit_type, ExcitationType_t, &
+        DistinctDoubleType_t, distinct_doubles, DistinctDouble_t
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, binary_search_first_ge, &
-                        get_free_unit, stop_all, operator(.isclose.), operator(.div.)
+                        get_free_unit, stop_all, operator(.isclose.), operator(.div.), &
+                        swap
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_truncate_spawns
     use tau_main, only: max_tau, tau_search_method, possible_tau_search_methods
     use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
@@ -986,9 +988,10 @@ contains
         end if
     end function
 
-    elemental function get_info(i, j, a, b) result(info)
-        integer, intent(in) :: i, j, a, b
+    function get_info(i, j, a, b) result(info)
+        integer, value, intent(in) :: i, j, a, b
         integer(int64) :: info
+        info = -1_int64
         if (i == j) then
             if (a == b) then
                 ! here we only have a contribution if
@@ -1064,7 +1067,7 @@ contains
                         ! _R(a) -> _RR(b) -> RR^(i) -> ^R(j)
                         ! it would fit! so:
                         info = encode_excit_info( &
-                               typ=excit_type%double_raising, &
+                               typ=get_type(i, j, a, b), &
                                a=b, i=j, b=a, j=i)
                         ! else if (b == i) then
                         ! b == i also NOT allowed here,
@@ -1078,14 +1081,15 @@ contains
                         ! However for E_{aj}E_{bj} this is
                         ! _R{a} -> _LR(i) -> ^LR(b) -> ^R(j)
                         info = encode_excit_info( &
-                               typ=excit_type%double_R_to_L_to_R, &
+                               typ=get_type(i, j, a, b), &
+                               ! typ=excit_type%double_R_to_L_to_R, &
                                a=a, i=j, b=b, j=i)
                     else if (b == j) then
                         ! here we also have to switch
                         ! indices to E_{aj}E_{bi} to get:
                         ! _R(i) -> _LR(a) -> ^LR^(j)
                         info = encode_excit_info( &
-                               typ=excit_type%fullstop_R_to_L, &
+                               typ=get_type(i, j, a, b), &
                                a=a, i=j, b=b, j=i)
 
                     else if (b > j) then
@@ -1093,7 +1097,7 @@ contains
                         ! E_{aj}E_{bi} to get:
                         ! _R(a) > _LR(i) -> LR^(j) -> ^L(b)
                         info = encode_excit_info( &
-                               typ=excit_type%double_R_to_L, &
+                               typ=get_type(i, j, a, b), &
                                a=a, i=j, b=b, j=i)
                     end if
                 else if (a == i) then
@@ -1103,19 +1107,19 @@ contains
                         ! E_{aj}E_{bi}:
                         ! _RL_(i) -> ^LR(b) -> ^R(j)
                         info = encode_excit_info( &
-                               typ=excit_type%fullstart_L_to_R, &
+                               typ=get_type(i, j, a, b), &
                                a=a, i=j, b=b, j=i)
                     else if (b == j) then
                         ! switch again: E_{aj}E_{bi}
                         ! _RL_(i) -> _RL_(j)
                         info = encode_excit_info( &
-                               typ=excit_type%fullstart_stop_mixed, &
+                               typ=get_type(i, j, a, b), &
                                a=a, i=j, b=b, j=i)
                     else if (b > j) then
                         ! switch again: E_{aj}E_{bi}
                         ! _RL_(i) -> ^RL(j) -> ^L(b)
                         info = encode_excit_info( &
-                               typ=excit_type%fullstart_R_to_L, &
+                               typ=get_type(i, j, a, b), &
                                a=a, i=j, b=b, j=i)
                     end if
                 else if (i < a .and. a < j) then
@@ -1124,20 +1128,20 @@ contains
                         ! switch: E_{aj}E_{bi}:
                         ! _L(j) -> _RL(a) -> ^LR(b) -> ^R(j)
                         info = encode_excit_info( &
-                               typ=excit_type%double_L_to_R, &
+                               typ=get_type(i, j, a, b), &
                                a=a, i=j, b=b, j=i)
 
                     else if (b == j) then
                         ! switch: E_{aj}E_{bi}
                         ! _L(i) -> _RL(a) -> ^RL^(j)
                         info = encode_excit_info( &
-                               typ=excit_type%fullstop_L_to_R, &
+                               typ=get_type(i, j, a, b), &
                                a=a, i=j, b=b, j=i)
                     else if (b > j) then
                         ! switch: E_{aj}E_{bi}
                         ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
                         info = encode_excit_info( &
-                               typ=excit_type%double_L_to_R_to_L, &
+                               typ=get_type(i, j, a, b), &
                                a=a, i=j, b=b, j=i)
                     end if
                     ! else if (a == j) then
@@ -1153,75 +1157,113 @@ contains
                 end if
             end if
         end if
+
+
+        associate(distinct_double => get_distinct_type(i, j, a, b))
+        associate(new_idx => distinct_double%get_repr_index())
+        ! associate(new_idx => distinct_double%get_repr_index())
+        ! associate(i => new_idx(2), j => new_idx(4), a => new_idx(1), new_idx(3))
+        ! info = encode_excit_info( &
+        !        new_idx%repr, &
+        !        a=a, i=i, b=b, j=j)
+        ! end associate
+        end associate
+        end associate
     end function
 
+    function get_distinct_type(i_, j_, a_, b_) result(res)
+        integer, intent(in) :: i_, j_, a_, b_
+        type(DistinctDouble_t) :: res
+        routine_name("get_distinct_type")
 
-    elemental function get_type(i, j, a, b) result(typ)
-        integer, intent(in) :: i, j, a, b
-        type(ExcitationType_t) :: typ
+        integer :: i, j, k, l
+        type(DistinctDoubleType_t) :: typ
+
+        i = a_; j = i_; k = b_; l = j_
+        if (i > k) call swap(i, k)
+        if (j > l) call swap(j, l)
+
+        associate(dd => distinct_doubles)
+        typ = dd%invalid
         if (i == j) then
-            if (a == b) then
-                ! here we only have a contribution if
-                ! a != i
-                if (a < i) then
-                    typ = excit_type%fullstart_stop_alike
-                else if (a > i) then
-                    ! _LL_(i) > ^LL^(a)
-                    typ = excit_type%fullstart_stop_alike
-                end if
-            else if (a /= b) then
-                if (a < i) then
-                    if (b < i) then
-                        typ = excit_type%fullstop_raising
-                    else if (b > i) then
-                        typ = excit_type%single_overlap_R_to_L
-                    end if
-                else if (a > i) then
-                    ! since b > a ensured only:
-                    ! _LL_(i) -> ^LL(a) -> ^L(b)
-                    typ = excit_type%fullstart_lowering
+            if (i /= k .and. i /= l) then
+                if (k == l) then
+                    typ = dd%iijj
+                else if (k < l) then
+                    typ = dd%iijk
+                else if (k > l) then
+                    typ = dd%iikj
                 end if
             end if
-        else if (i /= j) then
-            if (a == b) then
-                if (a < i) then
-                    typ = excit_type%fullstart_raising
-                else if (a > i .and. a < j) then
-                    typ = excit_type%single_overlap_L_to_R
-                else if (a > j) then
-                    typ = excit_type%fullstop_lowering
+        else if (i < j) then
+            if (i == k) then
+                if (j == l) then
+                    typ = dd%ijij
+                else
+                    ASSERT(j < l)
+                    typ = dd%ijik
                 end if
-            else if (a /= b) then
-                if (a < i) then
-                    if (b < i) then
-                        typ = excit_type%double_raising
-                    else if (i < b .and. b < j) then
-                        typ = excit_type%double_R_to_L_to_R
-                    else if (b == j) then
-                        typ = excit_type%fullstop_R_to_L
-                    else if (b > j) then
-                        typ = excit_type%double_R_to_L
+            else if (i < k) then
+                if (j < k) then
+                    if (j == l) then
+                        typ = dd%ijkj
+                    else if (k == l) then
+                        typ = dd%ijkk
+                    else if (k < l) then
+                        typ = dd%ijkl
+                    else if (k > l) then
+                        typ = dd%ijlk
                     end if
-                else if (a == i) then
-                    if (b < j) then
-                        typ = excit_type%fullstart_L_to_R
-                    else if (b == j) then
-                        typ = excit_type%fullstart_stop_mixed
-                    else if (b > j) then
-                        typ = excit_type%fullstart_R_to_L
+                else
+                    if (j /= k) then
+                        if (j == l) then
+                            typ = dd%ikjk
+                        else
+                            ! 5 8 8 9
+                            typ = dd%ikjl
+                        end if
                     end if
-                else if (i < a .and. a < j) then
-                    if (b < j) then
-                        typ = excit_type%double_L_to_R
-                    else if (b == j) then
-                        typ = excit_type%fullstop_L_to_R
-                    else if (b > j) then
-                        typ = excit_type%double_L_to_R_to_L
+                end if
+            end if
+        else
+            ASSERT (i > j)
+            if (i == k) then
+                if (j == l) then
+                    typ = dd%jiji
+                else if (k < l) then
+                    typ = dd%jijk
+                else if (k > l) then
+                    typ = dd%kikj
+                end if
+            else if (i < k) then
+                if (j == l) then
+                    typ = dd%jiki
+                else if (k == l) then
+                    typ = dd%jikk
+                else if (k < l) then
+                    typ = dd%jikl
+                else if (k > l) then
+                    if (i < l) then
+                        typ = dd%jilk
+                    else if (i > l) then
+                        typ = dd%kilj
                     end if
-                else if (a > j) then
-                    typ = excit_type%double_lowering
                 end if
             end if
         end if
+        end associate
+
+        res = DistinctDouble_t([i, j, k, l], typ)
+
+    end function
+
+
+
+    function get_type(i, j, a, b) result(typ)
+        integer, intent(in) :: i, j, a, b
+        type(ExcitationType_t) :: typ
+        associate(x => get_distinct_type(i, j, a, b))
+            typ = x%typ%repr
+        end associate
     end function
 end module guga_gas_pchb_mod
