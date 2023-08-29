@@ -5,7 +5,7 @@
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
     use SystemData, only: tUHF, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
-                         tROHF
+                          tROHF, tZeroDelimitedFCIDUMP
     use util_mod, only: operator(.implies.), stop_all
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s, t_k_space_hubbard, t_trans_corr_2body
@@ -219,7 +219,7 @@ contains
         ! algorithm below, since even if these requirements are not satisfied,
         ! we still want tstorespinorbs = .true.
 
-        tStoreSpinOrbs = (tMolpro .and. tUHF) .or. (tUHF .and. (.not. tROHF))
+        tStoreSpinOrbs = tZeroDelimitedFCIDUMP .or. (tUHF .and. (.not. tROHF))
     end subroutine
 
     subroutine checkinput()

@@ -5,8 +5,7 @@ system read
     spin-restrict -1
     sym 0 0 0 0
     stoquastize
-    uhf
-    molpromimic
+    uhf zero-delimited
     nonhermitian 2-body
 endsys
 

@@ -68,9 +68,25 @@ considered. The block starts with the `system` keyword and ends with the
 -   **\textcolor{red}{electrons \(n\), nel \(n\)}**<br>
  Sets the number of electrons to \(n\)
 
+-   **UHF [zero-delimited|spin-minor-index]**
+    Indicates that the given FCIDUMP is in UHF format. Takes one mandatory
+    argument. If given `zero-delimited` then uses the format used by Molpro,
+    where different spin sectors are delimited by a line of zeros. If given
+    `spin-minor-index`, then uses the format where each index in the FCIDUMP is
+    assumed to correspond to a spin-orbital as opposed to the usual spatial,
+    orbital, with alternating alpha, beta. E.g. 1 corresponds to alpha in spatial
+    orbital 1, 2 to beta in spatial orbital 1, 3 to alpha in spatial orbital 2, etc.
+
 -   **spin-restrict [\(m\)]**<br>
     Sets the total \(S_z\) quantum number to \(\frac{m}{2}\). The
     argument \(m\) is optional and defaults to 0.
+
+-   **ignore-fcidump-header**<br>
+    Tells NECI to ignore the contents of the header of the FCIDUMP input file
+    (e.g. particle number or symmetry labels). This is useful
+    if, for example, you wish to calculate an ionisation potential and
+    need to e.g. run NECI with \( n-1 \) electrons where the FCIDUMP has
+    `NELEC=`\( n \) (otherwise, NECI will crash due to the inconsistency).
 
 -   **hphf \(s\)**<br>
     Uses a basis of (anti-)symmetric combinations of Slater determinants
@@ -172,6 +188,9 @@ considered. The block starts with the `system` keyword and ends with the
     Stoquastize the Hamiltonian. This means that the off-diagonal elements of the
     original Hamiltonian become negative without changing the magnitudes,
     i.e. \(H^{stoq}_{ij} = H_{ij}\delta_{ij} - |H_{ij}|(1 - \delta_{ij})\).
+
+-   **nosymmetry**<br>
+    Assume no symmetry in the system.
 
 #### Excitation generation options
 
@@ -1754,7 +1773,8 @@ keyword.
 -   **write-trial**<br>
     Writes the trial space out in a file called `TRIALSPACE`.
 
-
+-   **printorboccs**<br>
+    Writes out the normalised orbital occupations to a file called `ORBOCCUPATIONS`.
 
 #### Semi-stochastic output options
 

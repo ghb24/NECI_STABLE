@@ -1,13 +1,14 @@
 title
 
 system read
+    ignore-fcidump-header
     order-by-1elec-energy
     electrons 9
     spin-restrict 1
     nobrillouintheorem
     impurity-excitgen
     spinorbs
-    uhf
+    uhf spin-minor-index
 endsys
 
 calc
