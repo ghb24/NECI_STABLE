@@ -9,12 +9,11 @@ module guga_gas_pchb_mod
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type, ExcitationType_t, &
-        DistinctDoubleType_t, distinct_doubles, DistinctDouble_t
+        DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, ijab_Index_t
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, binary_search_first_ge, &
-                        get_free_unit, stop_all, operator(.isclose.), operator(.div.), &
-                        swap
+                        get_free_unit, stop_all, operator(.isclose.), operator(.div.)
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_truncate_spawns
     use tau_main, only: max_tau, tau_search_method, possible_tau_search_methods
     use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
@@ -243,7 +242,7 @@ contains
                 do a = 1, nSpatOrbs
                     do b = a, nSpatOrbs
                         ab = fuseIndex(a, b)
-                        call this%set_info_entry(ij, ab, get_info(i, j, a, b))
+                        call this%set_info_entry(ij, ab, get_info(ijab_Index_t([i, j, a, b])))
                     end do
                 end do
             end do
@@ -988,282 +987,29 @@ contains
         end if
     end function
 
-    function get_info(i, j, a, b) result(info)
-        integer, value, intent(in) :: i, j, a, b
+    function get_info(idx) result(info)
+        type(ijab_Index_t), intent(in) :: idx
         integer(int64) :: info
+        type(DistinctDouble_t) :: distinct_double
+
         info = -1_int64
-        if (i == j) then
-            if (a == b) then
-                ! here we only have a contribution if
-                ! a != i
-                if (a < i) then
-                    ! _RR_(a) -> ^RR^(i)
-                    info = encode_excit_info( &
-                           get_type(i, j, a, b), &
-                           a=a, i=i, b=b, j=j)
-                else if (a > i) then
-                    ! _LL_(i) > ^LL^(a)
-                    info = encode_excit_info( &
-                           get_type(i, j, a, b), &
-                           a=a, i=i, b=b, j=j)
-                end if
-            else if (a /= b) then
-                ! here we have to determine where (a) and
-                ! (b) are relative to (i=j) and a == i or
-                ! b == i are NOT allowed!
-                if (a < i) then
-                    if (b < i) then
-                        ! _R(a) -> _RR(b) -> ^RR^(i)
-                        info = encode_excit_info( &
-                               get_type(i, j, a, b), &
-                               a=a, i=i, b=b, j=j)
-                    else if (b > i) then
-                        ! _R(a) -> ^RL_(i) -> ^L(b)
-                        info = encode_excit_info( &
-                               get_type(i, j, a, b), &
-                               a=a, i=i, b=b, j=j)
-                    end if
-                else if (a > i) then
-                    ! since b > a ensured only:
-                    ! _LL_(i) -> ^LL(a) -> ^L(b)
-                    info = encode_excit_info( &
-                           get_type(i, j, a, b), &
-                           a=a, i=i, b=b, j=j)
-                end if
-            end if
-        else if (i /= j) then
-            if (a == b) then
-                ! a == i or a == j NOT allowed!
-                if (a < i) then
-                    ! _RR_(a) -> ^RR(i) -> ^R(j)
-                    info = encode_excit_info( &
-                           get_type(i, j, a, b), &
-                           a=a, i=i, b=b, j=j)
-                else if (a > i .and. a < j) then
-                    ! _L(i) -> ^LR_(a) -> ^R(j)
-                    info = encode_excit_info( &
-                           get_type(i, j, a, b), &
-                           a=a, i=i, b=b, j=j)
-                else if (a > j) then
-                    ! _L(i) -> _LL(j) -> ^LL^(a)
-                    info = encode_excit_info( &
-                           get_type(i, j, a, b), &
-                           a=a, i=i, b=b, j=j)
-                end if
-            else if (a /= b) then
-                ! this is the most general case. a lot of IFs
-                if (a < i) then
-                    if (b < i) then
-                        ! in E_{ai}E_{bi} form this would be
-                        ! _R(a) -> RR_(b) -> ^RR(i) -> ^R(j)
-                        ! which would have the opposite
-                        ! sign conventions for the x1
-                        ! elements as in the Shavitt 81
-                        ! paper.
-                        ! (technically it would not matter
-                        !  here since both are flipped,
-                        !  but lets stay consistent!)
-                        ! for E_{bj}E_{ai}
-                        ! _R(a) -> _RR(b) -> RR^(i) -> ^R(j)
-                        ! it would fit! so:
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=b, i=j, b=a, j=i)
-                        ! else if (b == i) then
-                        ! b == i also NOT allowed here,
-                        ! since this would correspond to
-                        ! a single!
-                    else if (i < b .and. b < j) then
-                        ! for E_{ai}E_{bj} this would
-                        ! correspond to a non-overlap:
-                        ! _R(a) -> ^R(i) + _R(b) > ^R(j)
-                        ! which are not directly sampled
-                        ! However for E_{aj}E_{bj} this is
-                        ! _R{a} -> _LR(i) -> ^LR(b) -> ^R(j)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               ! typ=excit_type%double_R_to_L_to_R, &
-                               a=a, i=j, b=b, j=i)
-                    else if (b == j) then
-                        ! here we also have to switch
-                        ! indices to E_{aj}E_{bi} to get:
-                        ! _R(i) -> _LR(a) -> ^LR^(j)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=a, i=j, b=b, j=i)
 
-                    else if (b > j) then
-                        ! here we have to switch to
-                        ! E_{aj}E_{bi} to get:
-                        ! _R(a) > _LR(i) -> LR^(j) -> ^L(b)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=a, i=j, b=b, j=i)
-                    end if
-                else if (a == i) then
-                    ! b > i is ensured here since b > a in here!
-                    if (b < j) then
-                        ! here we have to switch again:
-                        ! E_{aj}E_{bi}:
-                        ! _RL_(i) -> ^LR(b) -> ^R(j)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=a, i=j, b=b, j=i)
-                    else if (b == j) then
-                        ! switch again: E_{aj}E_{bi}
-                        ! _RL_(i) -> _RL_(j)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=a, i=j, b=b, j=i)
-                    else if (b > j) then
-                        ! switch again: E_{aj}E_{bi}
-                        ! _RL_(i) -> ^RL(j) -> ^L(b)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=a, i=j, b=b, j=i)
-                    end if
-                else if (i < a .and. a < j) then
-                    ! b > a still ensured!
-                    if (b < j) then
-                        ! switch: E_{aj}E_{bi}:
-                        ! _L(j) -> _RL(a) -> ^LR(b) -> ^R(j)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=a, i=j, b=b, j=i)
+        distinct_double = DistinctDouble_t(idx)
+        if (distinct_double%typ /= distinct_doubles%invalid) then
+            block
+                integer :: i, j, a, b
+                type(ijab_Index_t) :: new_idx
 
-                    else if (b == j) then
-                        ! switch: E_{aj}E_{bi}
-                        ! _L(i) -> _RL(a) -> ^RL^(j)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=a, i=j, b=b, j=i)
-                    else if (b > j) then
-                        ! switch: E_{aj}E_{bi}
-                        ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
-                        info = encode_excit_info( &
-                               typ=get_type(i, j, a, b), &
-                               a=a, i=j, b=b, j=i)
-                    end if
-                    ! else if (a == j) then
-                    ! a == j also NOT allowed here!
-                else if (a > j) then
-                    ! E_{ai}E_{bj} would lead to:
-                    ! _L(i) -> LL_(j) -> ^LL(a) -> ^L(b)
-                    ! which has the correct sign convention
-                    ! as in the Shavitt 81 paper
-                    info = encode_excit_info( &
-                           get_type(i, j, a, b), &
-                           a=a, i=i, b=b, j=j)
-                end if
-            end if
+                associate(tmp => distinct_double%get_repr_index())
+                    new_idx = tmp%convert()
+                end associate
+
+                call new_idx%extract(i, j, a, b)
+                info = encode_excit_info( &
+                       distinct_double%typ%repr, &
+                       a=a, i=i, b=b, j=j)
+            end block
         end if
-
-
-        associate(distinct_double => get_distinct_type(i, j, a, b))
-        associate(new_idx => distinct_double%get_repr_index())
-        ! associate(new_idx => distinct_double%get_repr_index())
-        ! associate(i => new_idx(2), j => new_idx(4), a => new_idx(1), new_idx(3))
-        ! info = encode_excit_info( &
-        !        new_idx%repr, &
-        !        a=a, i=i, b=b, j=j)
-        ! end associate
-        end associate
-        end associate
     end function
 
-    function get_distinct_type(i_, j_, a_, b_) result(res)
-        integer, intent(in) :: i_, j_, a_, b_
-        type(DistinctDouble_t) :: res
-        routine_name("get_distinct_type")
-
-        integer :: i, j, k, l
-        type(DistinctDoubleType_t) :: typ
-
-        i = a_; j = i_; k = b_; l = j_
-        if (i > k) call swap(i, k)
-        if (j > l) call swap(j, l)
-
-        associate(dd => distinct_doubles)
-        typ = dd%invalid
-        if (i == j) then
-            if (i /= k .and. i /= l) then
-                if (k == l) then
-                    typ = dd%iijj
-                else if (k < l) then
-                    typ = dd%iijk
-                else if (k > l) then
-                    typ = dd%iikj
-                end if
-            end if
-        else if (i < j) then
-            if (i == k) then
-                if (j == l) then
-                    typ = dd%ijij
-                else
-                    ASSERT(j < l)
-                    typ = dd%ijik
-                end if
-            else if (i < k) then
-                if (j < k) then
-                    if (j == l) then
-                        typ = dd%ijkj
-                    else if (k == l) then
-                        typ = dd%ijkk
-                    else if (k < l) then
-                        typ = dd%ijkl
-                    else if (k > l) then
-                        typ = dd%ijlk
-                    end if
-                else
-                    if (j /= k) then
-                        if (j == l) then
-                            typ = dd%ikjk
-                        else
-                            ! 5 8 8 9
-                            typ = dd%ikjl
-                        end if
-                    end if
-                end if
-            end if
-        else
-            ASSERT (i > j)
-            if (i == k) then
-                if (j == l) then
-                    typ = dd%jiji
-                else if (k < l) then
-                    typ = dd%jijk
-                else if (k > l) then
-                    typ = dd%kikj
-                end if
-            else if (i < k) then
-                if (j == l) then
-                    typ = dd%jiki
-                else if (k == l) then
-                    typ = dd%jikk
-                else if (k < l) then
-                    typ = dd%jikl
-                else if (k > l) then
-                    if (i < l) then
-                        typ = dd%jilk
-                    else if (i > l) then
-                        typ = dd%kilj
-                    end if
-                end if
-            end if
-        end if
-        end associate
-
-        res = DistinctDouble_t([i, j, k, l], typ)
-
-    end function
-
-
-
-    function get_type(i, j, a, b) result(typ)
-        integer, intent(in) :: i, j, a, b
-        type(ExcitationType_t) :: typ
-        associate(x => get_distinct_type(i, j, a, b))
-            typ = x%typ%repr
-        end associate
-    end function
 end module guga_gas_pchb_mod

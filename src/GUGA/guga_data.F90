@@ -8,7 +8,7 @@ module guga_data
     use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_
     use MemoryManager, only: TagIntType
     use bit_rep_data, only: BitRep_t, GugaBits
-    use util_mod, only: EnumBase_t
+    use util_mod, only: EnumBase_t, swap
     use error_handling_neci, only: stop_all
 
     implicit none
@@ -25,6 +25,8 @@ module guga_data
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
               RdmContribList_t, n_excit_index_bits, &
               DistinctDoubleType_t, distinct_doubles, DistinctDouble_t
+
+    public :: ijkl_Index_t, ijab_Index_t
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations
@@ -265,7 +267,7 @@ module guga_data
             !! @endnote
         type(ExcitationType_t) :: other
             !! The other Excitation that is not the representative
-        character(3) :: label
+        character(2) :: label
             !! The label in Table 4.3 of [DobrautzThesis2019]
         integer :: idx_for_repr(4) = [1, 2, 3, 4]
     contains
@@ -284,37 +286,68 @@ module guga_data
             ikjk = DistinctDoubleType_t(excit_type%fullstop_raising, excit_type%fullstop_raising, '1c'), &
             kikj = DistinctDoubleType_t(excit_type%fullstop_lowering, excit_type%fullstop_lowering, '1d'), &
 
-            jikk = DistinctDoubleType_t(excit_type%fullstop_L_to_R, excit_type%non_overlap, '1e'), &
-            ijkk = DistinctDoubleType_t(excit_type%fullstop_R_to_L, excit_type%non_overlap, '1f'), &
+            jikk = DistinctDoubleType_t(excit_type%fullstop_L_to_R, excit_type%non_overlap, '1e', [1, 4, 3, 2]), &
+            ijkk = DistinctDoubleType_t(excit_type%fullstop_R_to_L, excit_type%non_overlap, '1f', [1, 4, 3, 2]), &
             ijik = DistinctDoubleType_t(excit_type%fullstart_raising, excit_type%fullstart_raising, '1g'), &
             jiki = DistinctDoubleType_t(excit_type%fullstart_lowering, excit_type%fullstart_lowering, '1h'), &
-            iikj = DistinctDoubleType_t(excit_type%fullstart_R_to_L, excit_type%non_overlap, '1i'), &
-            iijk = DistinctDoubleType_t(excit_type%fullstart_L_to_R, excit_type%non_overlap, '1j'), &
+            iikj = DistinctDoubleType_t(excit_type%fullstart_R_to_L, excit_type%non_overlap, '1i', [1, 4, 3, 2]), &
+            iijk = DistinctDoubleType_t(excit_type%fullstart_L_to_R, excit_type%non_overlap, '1j', [1, 4, 3, 2]), &
 
             ijij = DistinctDoubleType_t(excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2a'), &
             jiji = DistinctDoubleType_t(excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2b'), &
-            iijj = DistinctDoubleType_t(excit_type%fullstart_stop_mixed, excit_type%non_overlap, '2c'), &
+            iijj = DistinctDoubleType_t(excit_type%fullstart_stop_mixed, excit_type%non_overlap, '2c', [1, 4, 3, 2]), &
 
-            ikjl = DistinctDoubleType_t(excit_type%double_raising, excit_type%double_raising, '3a'), &
+            ikjl = DistinctDoubleType_t(excit_type%double_raising, excit_type%double_raising, '3a', [3, 4, 1, 2]), &
             kilj = DistinctDoubleType_t(excit_type%double_lowering, excit_type%double_lowering, '3b'), &
 
             ijkl = DistinctDoubleType_t(excit_type%double_R_to_L_to_R, excit_type%non_overlap, '3c', [1, 4, 3, 2]), &
-            jilk = DistinctDoubleType_t(excit_type%double_L_to_R_to_L, excit_type%non_overlap, '3d'), &
-            ijlk = DistinctDoubleType_t(excit_type%double_R_to_L, excit_type%non_overlap, '3e'), &
-            jikl = DistinctDoubleType_t(excit_type%double_L_to_R, excit_type%non_overlap, '3f'), &
+            jilk = DistinctDoubleType_t(excit_type%double_L_to_R_to_L, excit_type%non_overlap, '3d', [1, 4, 3, 2]), &
+            ijlk = DistinctDoubleType_t(excit_type%double_R_to_L, excit_type%non_overlap, '3e', [1, 4, 3, 2]), &
+            jikl = DistinctDoubleType_t(excit_type%double_L_to_R, excit_type%non_overlap, '3f', [1, 4, 3, 2]), &
             invalid = DistinctDoubleType_t(excit_type%invalid, excit_type%invalid, '')
     end type
 
     type(DistinctDoubleTypeVals_t), parameter :: distinct_doubles = DistinctDoubleTypeVals_t()
 
+    interface DistinctDoubleType_t
+        module procedure construct_DistinctDoubleType_t_ijkl, construct_DistinctDoubleType_t_ijab
+    end interface
+
+    type :: ijkl_Index_t
+        !! An index in the format of the Shavit papers \( e_{ijkl} \)
+        !!
+        !! This means j and l are the particles, i and j the holes.
+        integer :: val(4)
+    contains
+        procedure :: extract => extract_ijkl_Index_t
+        procedure :: convert => convert_ijkl_Index_t
+        procedure :: normalize => normalize_ijkl_Index_t
+        procedure :: is_normalized => is_normalized_ijkl_Index_t
+    end type
+
+    type :: ijab_Index_t
+        !! An index in the format of the rest of `NECI`
+        !!
+        !! This means i, j are the particles, a and b the holes
+        integer :: val(4)
+    contains
+        procedure :: extract => extract_ijab_Index_t
+        procedure :: convert => convert_ijab_Index_t
+        procedure :: normalize => normalize_ijab_Index_t
+        procedure :: is_normalized => is_normalized_ijab_Index_t
+    end type
+
     type :: DistinctDouble_t
-        integer :: idx(4)
+        type(ijkl_Index_t) :: idx
         type(DistinctDoubleType_t) :: typ
     contains
         private
-        procedure :: get_repr_index
+        procedure, public :: get_repr_index
     end type
 
+    interface DistinctDouble_t
+        module procedure construct_DistinctDouble_t_ijkl, construct_DistinctDouble_t_ijab
+    end interface
 
 
     type :: ExcitationInformation_t
@@ -1412,10 +1445,186 @@ contains
         end select
     end function
 
-    pure function get_repr_index(this) result(ijab_idx)
+    elemental function get_repr_index(this) result(res)
         class(DistinctDouble_t), intent(in) :: this
-        integer :: ijab_idx(4)
-        ! TODO make nicer
-        ijab_idx = this%idx(this%typ%idx_for_repr)
+        type(ijkl_Index_t) :: res
+        res = ijkl_Index_t(this%idx%val(this%typ%idx_for_repr))
     end function
+
+
+    elemental function construct_DistinctDoubleType_t_ijkl(idx) result(res)
+        type(ijkl_Index_t), intent(in) :: idx
+        type(DistinctDoubleType_t) :: res
+        routine_name("construct_DistinctDoubleType_t_ijkl")
+
+        integer :: i, j, k, l
+
+        ASSERT(idx%is_normalized())
+        call idx%extract(i, j, k, l)
+
+        associate(dd => distinct_doubles)
+            res = dd%invalid
+            if (i == j) then
+                if (i /= k .and. i /= l) then
+                    if (k == l) then
+                        res = dd%iijj
+                    else if (k < l) then
+                        res = dd%iijk
+                    else if (k > l) then
+                        res = dd%iikj
+                    end if
+                end if
+            else if (i < j) then
+                if (i == k) then
+                    if (j == l) then
+                        res = dd%ijij
+                    else
+                        ASSERT(j < l)
+                        res = dd%ijik
+                    end if
+                else if (i < k) then
+                    if (j < k) then
+                        if (j == l) then
+                            res = dd%ijkj
+                        else if (k == l) then
+                            res = dd%ijkk
+                        else if (k < l) then
+                            res = dd%ijkl
+                        else if (k > l) then
+                            res = dd%ijlk
+                        end if
+                    else
+                        if (j /= k) then
+                            if (j == l) then
+                                res = dd%ikjk
+                            else
+                                res = dd%ikjl
+                            end if
+                        end if
+                    end if
+                end if
+            else
+                ASSERT (i > j)
+                if (i == k) then
+                    if (j == l) then
+                        res = dd%jiji
+                    else if (k < l) then
+                        res = dd%jijk
+                    else if (k > l) then
+                        res = dd%kikj
+                    end if
+                else if (i < k) then
+                    if (j == l) then
+                        res = dd%jiki
+                    else if (k == l) then
+                        res = dd%jikk
+                    else if (k < l) then
+                        res = dd%jikl
+                    else if (k > l) then
+                        if (i < l) then
+                            res = dd%jilk
+                        else if (i > l) then
+                            res = dd%kilj
+                        end if
+                    end if
+                end if
+            end if
+        end associate
+    end function
+
+    elemental function construct_DistinctDoubleType_t_ijab(idx) result(res)
+        type(ijab_Index_t), intent(in) :: idx
+        type(DistinctDoubleType_t) :: res
+        res = DistinctDoubleType_t(idx%convert())
+    end function
+
+
+    elemental function construct_DistinctDouble_t_ijkl(idx) result(res)
+        type(ijkl_Index_t), intent(in) :: idx
+        type(DistinctDouble_t) :: res
+        res = DistinctDouble_t(idx, DistinctDoubleType_t(idx))
+    end function
+
+    elemental function construct_DistinctDouble_t_ijab(idx) result(res)
+        type(ijab_Index_t), intent(in) :: idx
+        type(DistinctDouble_t) :: res
+        res = DistinctDouble_t(idx%convert())
+    end function
+
+    elemental function normalize_ijab_Index_t(this) result(res)
+        class(ijab_Index_t), intent(in) :: this
+        type(ijab_Index_t) :: res
+        if (this%val(1) <= this%val(2)) then
+            res%val(1:2) = this%val(1:2)
+        else
+            res%val(1:2) = this%val(2:1:-1)
+        end if
+        if (this%val(3) <= this%val(4)) then
+            res%val(3:4) = this%val(3:4)
+        else
+            res%val(3:4) = this%val(4:3:-1)
+        end if
+    end function
+
+    elemental function normalize_ijkl_Index_t(this) result(res)
+        class(ijkl_Index_t), intent(in) :: this
+        type(ijkl_Index_t) :: res
+        if (this%val(1) <= this%val(3)) then
+            res%val(1) = this%val(1)
+            res%val(3) = this%val(3)
+        else
+            res%val(1) = this%val(3)
+            res%val(3) = this%val(1)
+        end if
+        if (this%val(2) <= this%val(4)) then
+            res%val(2) = this%val(2)
+            res%val(4) = this%val(4)
+        else
+            res%val(2) = this%val(4)
+            res%val(4) = this%val(2)
+        end if
+    end function
+
+    elemental function convert_ijkl_Index_t(this) result(res)
+        class(ijkl_Index_t), intent(in) :: this
+        type(ijab_Index_t) :: res
+        res = ijab_Index_t([this%val(2), this%val(4), this%val(1), this%val(3)])
+    end function
+
+    elemental function convert_ijab_Index_t(this) result(res)
+        class(ijab_Index_t), intent(in) :: this
+        type(ijkl_Index_t) :: res
+        res = ijkl_Index_t([this%val(3), this%val(1), this%val(4), this%val(2)])
+    end function
+
+    elemental subroutine extract_ijab_Index_t(this, i, j, a, b)
+        class(ijab_Index_t), intent(in) :: this
+        integer, intent(out) :: i, j, a, b
+        i = this%val(1)
+        j = this%val(2)
+        a = this%val(3)
+        b = this%val(4)
+    end subroutine
+
+    elemental subroutine extract_ijkl_Index_t(this, i, j, k, l)
+        class(ijkl_Index_t), intent(in) :: this
+        integer, intent(out) :: i, j, k, l
+        i = this%val(1)
+        j = this%val(2)
+        k = this%val(3)
+        l = this%val(4)
+    end subroutine
+
+    elemental function is_normalized_ijab_Index_t(this) result(res)
+        class(ijab_Index_t), intent(in) :: this
+        logical :: res
+        res = this%val(1) <= this%val(2) .and. this%val(3) <= this%val(4)
+    end function
+
+    elemental function is_normalized_ijkl_Index_t(this) result(res)
+        class(ijkl_Index_t), intent(in) :: this
+        logical :: res
+        res = this%val(1) <= this%val(3) .and. this%val(2) <= this%val(4)
+    end function
+
 end module
