@@ -6,21 +6,13 @@ module sym_general_mod
                           Symmetry, tKpntSym, tReltvy, t_new_real_space_hubbard, &
                           t_tJ_model, t_heisenberg_model, nbasis, t_k_space_hubbard, &
                           t_trans_corr_hop
-
     use SymExcitDataMod
-
     use Symdata, only: nSymLabels
-
     use sym_mod, only: SYMPROD, RandExcitSymLabelProd, symeq
-
     use constants
-
     use DetBitOps, only: Encodebitdet, count_open_orbs
-
     use bit_rep_data, only: niftot, nifd
-
     use excit_mod, only: IsValidDet
-
     use calcrho_mod, only: igetexcitlevel
 
     implicit none

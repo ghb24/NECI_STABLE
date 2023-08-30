@@ -1,6 +1,7 @@
 title
 
   system read
+    ignore-fcidump-header
     electrons                          9
     system-replicas                    4
     guga                               1

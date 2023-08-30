@@ -1,6 +1,7 @@
 title
 
 system read
+    ignore-fcidump-header
     electrons 4
     nonuniformrandexcits guga-pchb
     system-replicas 5

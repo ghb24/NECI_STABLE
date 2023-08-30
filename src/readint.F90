@@ -2,22 +2,17 @@ module read_fci
     use constants, only: dp, int64, stdout, sizeof_int, nel_uninitialized
     use util_mod, only: stop_all, get_free_unit, near_zero
     use mpi_f08, only: MPI_Win
-
     use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, &
         tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
         tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps, &
         BasisFN, Symmetry, NullBasisFn, iMaxLz, tReadFreeFormat, &
         UMatEps, t_non_hermitian_1_body, tRIIntegrals, SYMMAX, irrepOrbOffset, &
-        t_complex_ints
-
+        t_complex_ints, tZeroDelimitedFCIDUMP, tIgnoreFCIDUMPHeader
     use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-
     use UMatCache, only: GetCacheIndexStates, GTID, &
         UMatInd, UMatConj, UMAT2D, TUMAT2D, CacheFCIDUMP, &
         FillUpCache, GTID, nStates, GetUMatSize
-
     use OneEInts, only: TMatind, TMat2D, CalcTMatSize
-
     use Parallel_neci, only: MPIBCast, iProcIndex, MPIBcast, MPIArg
     use shared_memory_mpi, only: shared_sync_mpi, MPIBCast_inter_byte
     implicit none
@@ -42,7 +37,6 @@ contains
         logical :: uhf, trel, tDetectSym
         character(*), parameter :: this_routine = 'INITFROMFCID'
         real(dp), allocatable :: FOCK(:)
-
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
@@ -59,7 +53,7 @@ contains
         FROZEN = -1
         allocate(FOCK(1000), source=0.0_dp)
         ! [W.D. 15.5.2017:]
-        ! with the new relativistic calculations, withoug a ms value in the
+        ! with the new relativistic calculations, without a ms value in the
         ! FCIDUMP, we have to set some more defaults..
         MS2 = 0
         IF (iProcIndex == 0) THEN
@@ -184,16 +178,16 @@ contains
             if( NEL == NEL_UNINITIALIZED ) then
                 write(stdout,*) "No number of electrons given, using NEL in FCIDUMP"
                 NEL = NELEC
-            else
-                write(stdout, *)                                                 &
-                    &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
-                write(stdout, *) ' NUMBER OF ELECTRONS : ', NEL
+            else if (.not. tIgnoreFCIDUMPHeader) then
+                call stop_all(this_routine, 'NEL in FCIDUMP differs from input file. &
+                        &Use ignore-fcidump-header keyword if you wish to continue anyway.')
             endif
         end if
-!         NEL=NELEC
-        IF (LMS /= MS2) THEN
-            write(stdout, *)                                                  &
-     &      '*** WARNING: LMS in FCIDUMP differs from input file ***'
+        IF (abs(LMS) /= abs(MS2)) THEN
+            if (.not. tIgnoreFCIDUMPHeader) then
+                call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. &
+                        &Use ignore-fcidump-header keyword if you wish to continue anyway.')
+            end if
             LMS = MS2
             write(stdout, *) ' BASIS MS : ', LMS
         end if
@@ -352,7 +346,11 @@ contains
 
         ! Count the number of orbs per irrep
         if (any(ORBSYM(1:NORB) == 0)) then
-            write(stdout, *) "WARNING: Invalid ORBSYM in FCIDUMP, are you sure you know what you are doing?"
+            if (.not. lNoSymmetry .and. .not. tIgnoreFCIDUMPHeader) then
+                call stop_all(t_r, "WARNING: Invalid ORBSYM in FCIDUMP. Use the NOSYMMETRY &
+                    &keyword if you wish to ignore this and continue without symmetry, or &
+                    &the ignore-fcidump-header keyword to continue without this warning.")
+            end if
         else
             orbsPerIrrep = 0
             do i = 1, NORB
@@ -664,7 +662,7 @@ contains
 
         ISPINS = 2
         IF (UHF .and. (.not. tROHF)) ISPINS = 1
-        if (tMolpro .and. tUHF) ISPINS = 1
+        if (tZeroDelimitedFCIDUMP) ISPINS = 1
         if (tReltvy) ISPINS = 1
 
         IF (tROHF .and. (.not. tMolpro)) THEN
@@ -678,7 +676,7 @@ contains
             write (stdout, '("Two-electron integrals with a magnitude over ", &
                       &g16.7," are screened")') UMatEps
 
-            if (tMolpro .and. tUHF) then
+            if (tZeroDelimitedFCIDUMP) then
                 !In molpro, UHF FCIDUMPs are written out as:
                 !1: aaaa
                 !2: bbbb
@@ -789,7 +787,7 @@ contains
                 IF (L /= 0) THEN
                     L = GTID(L)
                 end if
-            else if (tMolpro .and. tUHF) then
+            else if (tZeroDelimitedFCIDUMP) then
                 if (i /= 0) then
                     !Need to transfer the orbital index into spin orbital notation
                     if ((iSpinType == 1) .or. (iSpinType == 4)) then
@@ -815,7 +813,7 @@ contains
             end if
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
             IF (I == 0) THEN
-                if (tMolpro .and. tUHF .and. (iSpinType /= 6)) then
+                if (tZeroDelimitedFCIDUMP .and. (iSpinType /= 6)) then
                     if (abs(real(z, dp)) > 1.0e-8_dp) then
                         call stop_all(t_r, "This is not a delimiter in the FCIDUMP reading")
                     end if
@@ -845,8 +843,8 @@ contains
                         write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
                         call stop_all("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
                     end if
+                    TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
                     if (.not. t_non_hermitian_1_body) then
-                        TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
 #ifdef CMPLX_
                         TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
 #else
@@ -901,8 +899,8 @@ contains
 199         CONTINUE
 
             close(iunit)
-            if (tMolpro .and. tUHF .and. (iSpinType /= 6)) then
-                call stop_all(t_r, "Error in reading UHF FCIDUMP from molpro")
+            if (tZeroDelimitedFCIDUMP .and. (iSpinType /= 6)) then
+                call stop_all(t_r, "Error in reading zero-delimited UHF FCIDUMP.")
             end if
         end if
 
@@ -987,13 +985,13 @@ contains
         else if (K == 0) THEN
 !.. 1-e integrals
 !.. These are stored as spinorbitals (with elements between different spins being 0
+            TMAT2D(2 * I - 1, 2 * J - 1) = Z
+            TMAT2D(2 * I, 2 * J) = Z
             if (.not. t_non_hermitian_1_body) then
-                TMAT2D(2 * I - 1, 2 * J - 1) = Z
-                TMAT2D(2 * I, 2 * J) = Z
+                TMAT2D(2 * J - 1, 2 * I - 1) = Z
+                TMAT2D(2 * J, 2 * I) = Z
             end if
 
-            TMAT2D(2 * J - 1, 2 * I - 1) = Z
-            TMAT2D(2 * J, 2 * I) = Z
         ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)

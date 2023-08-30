@@ -52,7 +52,8 @@ contains
         ! TODO make this also accept an options object and parallelise over that
         ! (make this subroutine public)
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use SystemData, only: t_non_hermitian_1_body, t_non_hermitian_2_body, tUHF, tMolpro
+        use SystemData, only: t_non_hermitian_1_body, t_non_hermitian_2_body, &
+                              tUHF, tZeroDelimitedFCIDUMP
         use System, only: SetSysDefaults
         use Calc, only: SetCalcDefaults
         logical, intent(in) :: UHF, hermitian
@@ -69,11 +70,7 @@ contains
         t_non_hermitian_1_body = .not. hermitian
         t_non_hermitian_2_body = .not. hermitian
         tUHF = UHF
-        ! tMolpro indicates that we use the Molpro-style FCIDUMP formatting, i.e.
-        ! the `molpromimic` input keyword. It is not strictly necessary in general,
-        ! but here our UHF FCIDUMPs are in this format, so we set tMolpro to true
-        ! whenever UHF is true
-        tMolpro = UHF
+        tZeroDelimitedFCIDUMP = UHF
 
         pParallel = 0.05_dp
         pSingles = 0.2_dp
@@ -121,7 +118,7 @@ contains
                         use_lookup=.false. &
                 ) &
             ]
-        else ! RHF FCIDUMP
+        else
             settings = [&
                 GAS_PCHB_options_t(&
                         GAS_PCHB_SinglesOptions_t(&

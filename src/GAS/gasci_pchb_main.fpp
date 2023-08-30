@@ -144,7 +144,7 @@ contains
         end associate
 
         if (.not. (tUHF .implies. this%doubles%spin_orb_resolved)) then
-            call stop_all(this_routine, "Spin resolved excitation generation requires spin resolved hole generation.")
+            call stop_all(this_routine, "Spin-resolved excitation generation requires spin-resolved hole generation.")
         end if
     end subroutine
 

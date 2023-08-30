@@ -21,6 +21,7 @@ module SystemData
     logical :: tSmallBasisForThreeBody = .true.     ! using  3-body transcorr. matels for ueg and ultracold atoms
     logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
     logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
+    logical :: tZeroDelimitedFCIDUMP = .false.
     logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
     logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
     logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
@@ -39,6 +40,8 @@ module SystemData
     !At the reading in, the integrals will be converted to reals,
     !but kpoint symmetry can still be used.
     logical :: tReadFreeFormat, tReltvy
+
+    logical :: tIgnoreFCIDUMPHeader = .false.
 
     logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
     logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in

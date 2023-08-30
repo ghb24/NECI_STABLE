@@ -457,11 +457,14 @@ contains
                 end if
                 TSPN = .true.
 
-                ! ==================== GUGA Implementation ====================
-                ! activate total spin preserving graphical unitary group approach and
-                ! default total spin operator eigenvalue to 0, or else give as integer
-                ! CONVENTION: give S in units of h/2, so S directly relates to the
-                ! number of unpaired electrons
+            case ("IGNORE-FCIDUMP-HEADER")
+                tIgnoreFCIDUMPHeader = .true.
+
+            ! ==================== GUGA Implementation ====================
+            ! activate total spin preserving graphical unitary group approach and
+            ! default total spin operator eigenvalue to 0, or else give as integer
+            ! CONVENTION: give S in units of h/2, so S directly relates to the
+            ! number of unpaired electrons
             case ("GUGA")
                 if (tokens%remaining_items() > 0) then
                     STOT = to_int(tokens%next())
@@ -570,6 +573,19 @@ contains
             ! but do not want to include singles in the energy calculations
             ! (e.g. by nobrillouintheorem)
                 tUHF = .true.
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
+                    select case (w)
+                    case ("ZERO-DELIMITED")
+                        tZeroDelimitedFCIDUMP = .true.
+                    case ("SPIN-MINOR-INDEX")
+                        tZeroDelimitedFCIDUMP = .false.
+                    case default
+                        call stop_all(this_routine, "UHF "//trim(w)//" not valid.")
+                    end select
+                else
+                    call stop_all(this_routine, "Please specify a UHF format.")
+                end if
             case ("RS")
                 FUEGRS = to_realdp(tokens%next())
             case ("EXCHANGE-CUTOFF")
@@ -1853,6 +1869,8 @@ contains
                 ! Use the impurity model excitation generator (star geometry)
                 t_impurity_excitgen = .true.
             case ("MOLPROMIMIC")
+                write (stdout, "(A)") "WARNING: using the molpromimic keyword is strongly &
+                                            & discouraged. Consider order-by-1elec-energy instead."
                 !Mimic the run-time behaviour of molpros NECI implementation
                 tMolpro = .true.
                 tMolproMimic = .true.
@@ -2496,7 +2514,7 @@ contains
                 end if
 !      write(stdout,*) THFNOORDER, " THFNOORDER"
 
-                if (.not. tMolpro) then
+                if (.not. (tMolpro .or. tZeroDelimitedFCIDUMP)) then
                     !If we are calling from molpro, we write the basis later (after reordering)
                     CALL writebasis(stdout, G1, nBasis, ARR, BRR)
                 end if
