@@ -1,0 +1,419 @@
+ Number of processors:            4
+ Processor            1 /           4  as head node.
+ Processor            2 /           4  moving to local output.
+ Processor            3 /           4  moving to local output.
+ Processor            4 /           4  moving to local output.
+ outfile=NodeFile2           
+ outfile=NodeFile3           
+ outfile=NodeFile4           
+ Sum:           10
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Aug  8 2023 at 17:12:29
+ Compiled using configuration:
+     cmake-GNU--FASTDEBUG
+ VCS BASE repository version:
+     04063e2c7eae6b6bf842da7abb7947f6d833216e
+ Working directory: 
+     /home/weser/code/neci/test_suite/neci/gasci/N2_pchb_0exc_no_recoupling
+ Running on: alamdlogin1
+ Started running on 08/08/2023 at 17:32:32
+ ================================================================
+
+ Processing arguments neci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+Title
+
+System read
+    electrons  6
+    nobrillouintheorem
+    freeformat
+    spin-restrict 0
+    nonuniformrandexcits GAS-CI PCHB \
+        manual unif:unif full-full:fast-fast
+    GAS-SPEC LOCAL 3
+        2 2 2
+        2 2 2
+        2 2 2
+        1 2 3 1 2 3 no-recoupling
+endsys
+
+calc
+    time 30
+    seed 7
+    load-balance-interval 1000
+
+    definedet 1-2 5-6 9-10
+
+    totalwalkers 1000
+    semi-stochastic
+    pops-core 10000
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    diagshift .00
+    shiftdamp .02
+    nmcyc 100
+    stepsshift 10
+    proje-changeref 1.20
+    truncinitiator
+    addtoinitiator  3
+    allrealcoeff
+    jump-shift
+    tau-values  \
+        start user-defined 0.01 \
+        max 0.02
+    tau-search \
+        algorithm conventional \
+        stop-condition var-shift \
+        maxwalkerbloom 1
+    memoryfacspawn 10.00
+    memoryfacpart 5.00
+    startsinglepart 10
+
+endcalc
+
+logging
+    highlypopwrite 50
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+         2         2
+         3         3
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     6
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :     0
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    12
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ Label, Sym, SymConjLabel, SymConj, SymProd
+           1           0           1           0           0
+           2           1           2           1           0
+           3           2           3           2           0
+           4           3           4           3           0
+           5           4           5           4           0
+           6           5           6           5           0
+           7           6           7           6           0
+           8           7           8           7           0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -0.563310000       -0.563310000
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -0.563310000       -0.563310000
+      3      3      0      0      0     -1 ( 0, 0, 1) 1   0       -0.758820000       -0.758820000
+      4      4      0      0      0      1 ( 0, 0, 1) 1   0       -0.758820000       -0.758820000
+      5      5      0      0      0     -1 ( 0, 0, 2) 2   0       -0.758820000       -0.758820000
+      6      6      0      0      0      1 ( 0, 0, 2) 2   0       -0.758820000       -0.758820000
+      7      7      0      0      0     -1 ( 0, 0, 4) 4   0       -0.126920000       -0.126920000
+      8      8      0      0      0      1 ( 0, 0, 4) 4   0       -0.126920000       -0.126920000
+      9      9      0      0      0     -1 ( 0, 0, 5) 5   0       -0.382580000       -0.382580000
+     10     10      0      0      0      1 ( 0, 0, 5) 5   0       -0.382580000       -0.382580000
+     11     11      0      0      0     -1 ( 0, 0, 6) 6   0       -0.382580000       -0.382580000
+     12     12      0      0      0      1 ( 0, 0, 6) 6   0       -0.382580000       -0.382580000
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                   231
+Memory required for integral storage:     0.1762390137E-02 Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                    45
+ ECORE=  -95.449898305000005     
+ Setting normal get_umat_el_normal routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    2,    5,    6,    9,   10)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -98.859318305000016     
+ Setting normal get_umat_el_normal routine
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          21  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ SpinOrbSymLabel: 
+           1           0
+           2           0
+           3           1
+           4           1
+           5           2
+           6           2
+           7           4
+           8           4
+           9           5
+          10           5
+          11           6
+          12           6
+ SymInvLabel: 
+           0           0
+           1           1
+           2           2
+           3           3
+           4           4
+           5           5
+           6           6
+           7           7
+ Not storing the H matrix.
+ <D0|H|D0>=  -108.00116121328200     
+ <D0|T|D0>=  -21.966953174200000     
+ <D0|U|D0>=  -86.034208039082003     
+ FDet has     3 alpha electrons, and     3 beta electrons.
+                3  alpha-alpha occupied electron pairs
+                3  beta-beta occupied electron pairs
+                9  alpha-beta occupied electron pairs
+                3 alpha-alpha (vacant) hole pairs
+                3 beta-beta (vacant) hole pairs
+                9 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    5,    6,    9,   10) E =   -108.001161213
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:      -108.0011612133
+Highest energy determinant is (approximately):     -103.400730804064    
+Corresponding to a correlation energy of:      4.60043040921799    
+This means tau should be no more than about         0.217370965550588
+ Highest energy determinant is:            7           8           9          10          11          12
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+     27 double excitations, and       0 single excitations found from reference. This will be used to calculate pDoubles.
+ Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:           27
+GAS PCHB withUNIF:UNIF FULL-FULL:FAST-FASTis used
+ GAS precomputed singles activated
+ GAS singles is using the supergroup lookup
+ GAS PCHB (RHF) doubles is creating and managing the supergroup lookup
+ GAS PCHB doubles is using the supergroup lookup
+ Allocating PCHB excitation generator objects
+ Excitation generator requires   2.9571354389190674E-005 GB of memory
+ The number of supergroups is           1
+ Generating samplers for PCHB excitation generator
+ Depending on the number of supergroups this can take up to 10min.
+ PC particles is using the supergroup lookup
+ Finished excitation generator initialization
+
+PCHB GAS implementation
+The following GAS specification was used: 
+Local constraints
+n_i: number of spatial orbitals per i-th GAS space
+n_min_i: minimum of particle number per i-th GAS space
+n_max_i: maximum of particle number per i-th GAS space
+       n_i    n_min_i    n_max_i
+--------------------------------
+         2          2          2
+         2          2          2
+         2          2          2
+--------------------------------
+The distribution of spatial orbitals to GAS spaces is given by:
+1 2 3 1 2 3 
+Double excitations with exchange are forbidden.
+
+Memory allocated for a maximum particle number per node of:         655360
+ Determinant related persistent storage requires:      25.000000 Mb / processor
+Spawning vectors allowing for a total of         2500 particles to be spawned in any one iteration per core.
+ Memory requirement    3.8146972656250000E-002 MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             175
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        0
+Initial reference is: (    1,    2,    5,    6,    9,   10)
+Initial number of particles set to         10 and shift will be held at     0.000 until particle number gets to            1000
+ Initial memory (without excitgens + temp arrays) consists of :      15.114441 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ >>> Initial tau from source: user defined is    1.0000000000000000E-002 .
+ >>> Tau-search activated. Using conventional algorithm. Stop if variable shift reached.
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+ Total core population   10.000000000000000     
+Total size of deterministic space:        1
+ WARNING: Total size of deterministic space is greater than 50% of the initiator space.
+          Reducing the size of the deterministic space is encouraged.
+Size of deterministic space on this processor:        1
+Generating the Hamiltonian in the deterministic space...
+Time to create auxiliary arrays:    0.000
+Time to sort auxiliary arrays:    0.000
+Arrays for Hamiltonian successfully allocated...
+Time to create the Hamiltonian:    0.000
+total_time:    0.000
+Using the deterministic ground state as initial walker configuration.
+Performing Davidson calculation...
+ Space sizes and max Davidson iterations:            1          50
+ allocating array to hold subspace vectors (0 mb).
+ allocating array to hold multiplied krylov vectors (0 mb).
+ allocating temporary vector (0 mb).
+
+ calculating the initial residual vector... Iteration    Residual norm            Energy       Time
+
+ Final calculated correlation energy:    -0.0010000000
+Davidson calculation complete.
+Deterministic total energy: -108.0021612133
+Total time (seconds) taken for Davidson calculation:    0.000
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.012
+
+ Setting ref           1
+(    1,    2,    5,    6,    9,   10)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    5,    6,    9,   10)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -108.001161213282    
+ Regenerating the stored diagonal HElements for all walkers.
+Recalculating diagonal elements of the core Hamiltonian.
+ HF:            1           2           5           6           9          10
+ HF_true:            1           2           3           4           5           6
+ Ref:            1           2           5           6           9          10
+ ProjEDet:            1           2           5           6           9          10
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+           0    0.000000        0.000000        0.000000        10.00000        0.000000        0.000000        0.000000        0.000000        0.000000        0.000000        10.00000        0.000000        0.000000               1           0   0.0000    
+          10    0.000000        4.087420        1.253003        14.08742        0.000000       0.2927254        4.380146      -0.4432708E-01    0.000000      -0.4432708E-01    10.00000        4.076048       0.3032714E-01           5           0  0.55666E-04
+          20    0.000000       0.1204039        1.128535        14.20782        0.000000       0.4534308        1.523835      -0.5664536E-01    0.000000      -0.6896364E-01    10.00000        4.195218       0.6718254E-02           5           0  0.44496E-04
+          30    0.000000        4.034510        1.110787        18.24233        0.000000       0.4960771        4.530588      -0.6602326E-01    0.000000      -0.8425932E-01    10.95000        7.278244       0.2419278E-01           7           0  0.51606E-04
+          40    0.000000       0.9598367        1.218487        19.20217        1.900000       0.8134807        4.650600      -0.7967111E-01    0.000000      -0.1174177        10.95000        8.257289       0.1985477E-01           7           0  0.54926E-04
+          50    0.000000       -1.029568       0.9972132        18.17260        1.900000       0.6694656        4.433014      -0.8729871E-01    0.000000      -0.1160224        10.95000        7.223804       0.1991026E-01           6           0  0.57901E-04
+          60    0.000000        6.913735        1.080570        25.08634        0.000000       0.2948485        10.05858      -0.9598847E-01    0.000000      -0.1374017        10.95000        14.11245       0.4606423E-01           9           0  0.58079E-04
+          70    0.000000        3.030609        1.242417        28.11695        1.900000       0.6325323        5.615011      -0.1125870        0.000000      -0.2082902        10.95000        15.20770       0.1853816E-01          10           0  0.64372E-04
+          80    0.000000        1.034442        1.122816        29.15139        3.800000       0.8287579        7.885548      -0.1268785        0.000000      -0.2235714        10.95000        15.20960       0.2311457E-01          10           0  0.64776E-04
+          90    0.000000        8.159730        1.180671        37.31112        0.000000        1.566402        9.726132      -0.1401389        0.000000      -0.2431153        10.95000        18.33119       0.2517106E-01          16           1  0.68390E-04
+         100    0.000000       -2.640267        1.036458        34.67085        5.700000        1.431716        8.383376      -0.1483207        0.000000      -0.2200410        10.95000        18.43050       0.2158725E-01          15           0  0.69148E-04
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    6.9342739880084991E-003
+ Time lost due to load imbalance:    2.6537068188190460E-003
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+*********************************
+Writing a 64-bit POPSFILE...
+Writing a total of 15 determinants.
+*********************************
+
+ WRITINGPOPSFILE                                                                                                                                                                                                                                                        F
+ 
+Current reference: 
+(    1,    2,    5,    6,    9,   10)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-2    5-6   9-10
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+ Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   <D|H|D>  Proc
+110011001100    0    0    10.95000      0.78355  Y  -1.08001161E+02       0
+111111000000    2    0   -7.093744      0.50761  Y  -1.09047258E+02       3
+110110001001    2    4   -2.929485      0.20962  N  -1.08013230E+02       0
+111100000011    4    0    1.950000      0.13954  N  -1.08001161E+02       1
+100100011011    4    4   -1.304028      0.09331  N  -1.05729405E+02       0
+110000001111    2    0   -1.293088      0.09253  N  -1.06882350E+02       0
+000011111100    2    0   -1.128260      0.08073  N  -1.04534571E+02       3
+000110111001    4    4    1.017295      0.07279  N  -1.04546641E+02       3
+110101001010    2    4   -1.003744      0.07182  N  -1.08027858E+02       2
+111001000110    2    4    1.001208      0.07164  N  -1.08013230E+02       0
+100010011101    2    4   -1.000000      0.07156  N  -1.05779418E+02       0
+101011010100    2    4   -1.000000      0.07156  N  -1.06869387E+02       1
+010001101110    2    4   -1.000000      0.07156  N  -1.05779418E+02       1
+011101100010    4    4    1.000000      0.07156  N  -1.06869387E+02       2
+010010101101    2    4    1.000000      0.07156  N  -1.05729405E+02       3
+ 
+ Warning: attempting to log deallocation but never logged allocation.
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process       4.0000000000
+ Min number of determinants/process                  2
+ Max number of determinants/process                  6
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:       8.6677129771
+     Min number of walkers/process:            2.00374
+     Max number of walkers/process:           18.47781
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Calculation has not entered variable shift phase. Error analysis therefore not performed.
+Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias.
+ Current reference energy                            -108.001161213282
+ Projected correlation energy                          -0.148320744676
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy        -108.14948196
+
+
+ Final energy estimate for state 1:     -108.14948195796    
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      40.2
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datclean_global_det_da  25.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   15.0MB
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar   58.6KB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar   58.6KB
+ PCHB_RHF_Probs    shared_alloc       shared_dealloc       10.3KB
+ PCHB_RHF_Bias     shared_alloc       shared_dealloc       10.3KB
+ PCHB_RHF_Alias    shared_alloc       shared_dealloc        5.2KB
+ SymPairProds      GenSymStatePairs   EndSym                3.0KB
+ UMat              IntInit            IntCleanup            1.8KB
+ LoadBalanceMappinginit_load_balance  clean_load_balance    1.6KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ NECICUBE                                     1      0.03
+ SemiStochInitTime                            1      0.01
+ WalkerTime                                 100      0.00
+ SysInit                                      1      0.00
+ POPS-write                                   1      0.00
+ GAS_PCHB_init_time                           1      0.00
+ StatsCommsTime                              10      0.00
+ SemiStochCommsTime                         100      0.00
+                                              1      0.00
+ CommsTime                                  100      0.00
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   0.05
+
+ Global wall clock time          0.08
+ ================================================================
+ Calculation ended 08/08/2023 at 17:32:32
+ ================================================================
