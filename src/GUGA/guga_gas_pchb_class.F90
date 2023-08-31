@@ -666,123 +666,60 @@ contains
         orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_end
 
-    function get_weight(exc) result(integral)
+    function get_weight(exc) result(weight)
         type(DistinctDouble_t), intent(in) :: exc
-        real(dp) :: integral
+        real(dp) :: weight
         routine_name("get_weight")
         type(DistinctDoubleTypeVals_t), parameter :: dd = distinct_doubles
             !! Just a shorter name for an often used variable
 
-        integer :: i, j, a, b
-        integer :: i_, j_, k_, l_
-        logical :: flag_
+        integer :: i, j, k, l
         HElement_t(dp) :: cpt1, cpt2, cpt3, cpt4
 
-        flag_ = t_exchange_pchb
-        associate(ijab_idx => exc%idx%convert())
-            call ijab_idx%extract(i, j, a, b)
-            call exc%idx%extract(i_, j_, k_, l_)
-        end associate
+        call exc%idx%extract(i, j, k, l)
 
         select case (exc%typ%val)
         case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val)
-            integral = abs(g(i_, j_, k_, l_) + g(i_, l_, k_, j_)) / 2.0_dp
+            weight = abs(g(i, j, k, l) + g(i, l, k, j)) / 2.0_dp
         case(dd%ijij%val, dd%jiji%val)
-            integral = abs(g(i_, j_, k_, l_)) / 2.0_dp
+            weight = abs(g(i, j, k, l)) / 2.0_dp
         case(dd%jikk%val, dd%ijkk%val)
-            integral = abs(g(k_, j_, i_, k_) + g(i_, k_, k_, j_)) / 2.0_dp
+            weight = abs(g(i, k, k, j))
         case(dd%iikj%val, dd%iijk%val, dd%iijj%val)
-            integral = abs(g(i_, l_, k_, i_) + g(k_, i_, i_, l_)) / 2.0_dp
+            weight = abs(g(i, l, k, i))
+        case(dd%kilj%val, dd%ikjl%val)
+            cpt1 = 2 * g(i, j, k, l)
+            cpt2 = 2 * g(i, l, k, j)
 
-        case(dd%ikjl%val)
-            cpt1 = (get_umat_el(b, a, j, i) + get_umat_el(a, b, i, j))
-            cpt2 = (get_umat_el(a, b, j, i) + get_umat_el(b, a, i, j))
             cpt3 = abs(cpt1 + cpt2) / 2.0_dp
             cpt4 = abs(cpt1 - cpt2) / 2.0_dp
 
-            cpt1 = abs(cpt1)
-            cpt2 = abs(cpt2)
-
-            if (flag_) then
-                integral = abs(cpt4)
+            if (t_exchange_pchb) then
+                weight = abs(cpt4)
             else
-                integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
+                weight = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
-        case(dd%kilj%val)
-            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
-            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
-            cpt3 = abs(cpt1 + cpt2) / 2.0_dp
-            cpt4 = abs(cpt1 - cpt2) / 2.0_dp
-
-            cpt1 = abs(cpt1)
-            cpt2 = abs(cpt2)
-
-            if (flag_) then
-                integral = abs(cpt4)
-            else
-                integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
-            end if
-        case(dd%ijkl%val)
-            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
-            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
+        case(dd%ijkl%val, dd%jilk%val, dd%ijlk%val, dd%jikl%val)
+            cpt1 = 2 * g(i, j, k, l)
+            cpt2 = 2 * g(i, l, k, j)
 
             cpt3 = abs(cpt2 - cpt1)
-            ! cpt4 = abs(cpt1 + cpt2)
             cpt4 = abs(cpt2 - 2.0_dp * cpt1) / 2.0_dp
 
-            if (flag_) then
-                integral = abs(cpt2)
+            if (t_exchange_pchb) then
+                weight = abs(cpt2)
             else
-                integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
-            end if
-        case(dd%jilk%val)
-            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
-            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
-
-            cpt3 = abs(cpt2 - cpt1)
-            ! cpt4 = abs(cpt1 + cpt2)
-            cpt4 = abs(cpt2 - 2.0_dp * cpt1) / 2.0_dp
-
-            if (flag_) then
-                integral = abs(cpt2)
-            else
-                integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
-            end if
-        case(dd%ijlk%val)
-            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
-            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
-
-            cpt3 = abs(cpt2 - cpt1)
-            ! cpt4 = abs(cpt1 + cpt2)
-            cpt4 = abs(cpt2 - 2.0_dp * cpt1) / 2.0_dp
-
-            if (flag_) then
-                integral = abs(cpt2)
-            else
-                integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
-            end if
-        case(dd%jikl%val)
-            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
-            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
-
-            cpt3 = abs(cpt2 - cpt1)
-            ! cpt4 = abs(cpt1 + cpt2)
-            cpt4 = abs(cpt2 - 2.0_dp * cpt1) / 2.0_dp
-
-            if (flag_) then
-                integral = abs(cpt2)
-            else
-                integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
+                weight = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
         case(dd%invalid%val)
-            integral = 0._dp
+            weight = 0._dp
         case default
             call stop_all(this_routine, 'forgotten case')
         end select
 
     contains
 
-        real(dp) elemental function g(i, j, k, l)
+        HElement_t(dp) elemental function g(i, j, k, l)
             integer, intent(in) :: i, j, k, l
             g = get_umat_el(i, k, j, l)
         end function
