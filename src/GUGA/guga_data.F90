@@ -24,7 +24,7 @@ module guga_data
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
               RdmContribList_t, n_excit_index_bits, &
-              DistinctDoubleType_t, distinct_doubles, DistinctDouble_t
+              DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t
 
     public :: ijkl_Index_t, ijab_Index_t
 

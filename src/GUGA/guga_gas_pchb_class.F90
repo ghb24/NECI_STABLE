@@ -9,7 +9,7 @@ module guga_gas_pchb_mod
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type, ExcitationType_t, &
-        DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, ijab_Index_t
+        DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, binary_search_first_ge, &
@@ -666,46 +666,35 @@ contains
         orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_end
 
-    pure function get_weight(exc) result(integral)
+    function get_weight(exc) result(integral)
         type(DistinctDouble_t), intent(in) :: exc
         real(dp) :: integral
+        routine_name("get_weight")
+        type(DistinctDoubleTypeVals_t), parameter :: dd = distinct_doubles
+            !! Just a shorter name for an often used variable
 
         integer :: i, j, a, b
+        integer :: i_, j_, k_, l_
         logical :: flag_
         HElement_t(dp) :: cpt1, cpt2, cpt3, cpt4
 
         flag_ = t_exchange_pchb
         associate(ijab_idx => exc%idx%convert())
             call ijab_idx%extract(i, j, a, b)
+            call exc%idx%extract(i_, j_, k_, l_)
         end associate
+
         select case (exc%typ%val)
-        case(distinct_doubles%jijk%val)
-            integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i)) / 2.0_dp
-        case(distinct_doubles%ijkj%val)
-            integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
-        case(distinct_doubles%ikjk%val)
-            integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
-        case(distinct_doubles%kikj%val)
-            integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i)) / 2.0_dp
-        case(distinct_doubles%jikk%val)
-            integral = abs(get_umat_el(b, a, i, b) + get_umat_el(a, b, b, i)) / 2.0_dp
-        case(distinct_doubles%ijkk%val)
-            integral = abs(get_umat_el(j, a, i, b) + get_umat_el(a, b, j, i)) / 2.0_dp
-        case(distinct_doubles%ijik%val)
-            integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i)) / 2.0_dp
-        case(distinct_doubles%jiki%val)
-            integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
-        case(distinct_doubles%iikj%val)
-            integral = abs(get_umat_el(a, b, j, a) + get_umat_el(b, a, a, j)) / 2.0_dp
-        case(distinct_doubles%iijk%val)
-            integral = abs(get_umat_el(a, b, j, a) + get_umat_el(b, a, a, j)) / 2.0_dp
-        case(distinct_doubles%ijij%val)
-            integral = abs(get_umat_el(a, a, i, i)) / 2.0_dp
-        case(distinct_doubles%jiji%val)
-            integral = abs(get_umat_el(a, a, i, i)) / 2.0_dp
-        case(distinct_doubles%iijj%val)
-            integral = abs(get_umat_el(a, j, j, a) + get_umat_el(j, a, a, j)) / 2.0_dp
-        case(distinct_doubles%ikjl%val)
+        case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val)
+            integral = abs(g(i_, j_, k_, l_) + g(i_, l_, k_, j_)) / 2.0_dp
+        case(dd%ijij%val, dd%jiji%val)
+            integral = abs(g(i_, j_, k_, l_)) / 2.0_dp
+        case(dd%jikk%val, dd%ijkk%val)
+            integral = abs(g(k_, j_, i_, k_) + g(i_, k_, k_, j_)) / 2.0_dp
+        case(dd%iikj%val, dd%iijk%val, dd%iijj%val)
+            integral = abs(g(i_, l_, k_, i_) + g(k_, i_, i_, l_)) / 2.0_dp
+
+        case(dd%ikjl%val)
             cpt1 = (get_umat_el(b, a, j, i) + get_umat_el(a, b, i, j))
             cpt2 = (get_umat_el(a, b, j, i) + get_umat_el(b, a, i, j))
             cpt3 = abs(cpt1 + cpt2) / 2.0_dp
@@ -719,7 +708,7 @@ contains
             else
                 integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
-        case(distinct_doubles%kilj%val)
+        case(dd%kilj%val)
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
             cpt3 = abs(cpt1 + cpt2) / 2.0_dp
@@ -733,7 +722,7 @@ contains
             else
                 integral = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
-        case(distinct_doubles%ijkl%val)
+        case(dd%ijkl%val)
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
 
@@ -746,7 +735,7 @@ contains
             else
                 integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
-        case(distinct_doubles%jilk%val)
+        case(dd%jilk%val)
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
 
@@ -759,7 +748,7 @@ contains
             else
                 integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
-        case(distinct_doubles%ijlk%val)
+        case(dd%ijlk%val)
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
 
@@ -772,7 +761,7 @@ contains
             else
                 integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
-        case(distinct_doubles%jikl%val)
+        case(dd%jikl%val)
             cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
             cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
 
@@ -785,12 +774,21 @@ contains
             else
                 integral = maxval(abs([cpt1, cpt2 / 2.0_dp, cpt3, cpt4]))
             end if
-        case(distinct_doubles%invalid%val)
+        case(dd%invalid%val)
             integral = 0._dp
+        case default
+            call stop_all(this_routine, 'forgotten case')
         end select
+
+    contains
+
+        real(dp) elemental function g(i, j, k, l)
+            integer, intent(in) :: i, j, k, l
+            g = get_umat_el(i, k, j, l)
+        end function
     end function
 
-    function get_info(idx) result(info)
+    elemental function get_info(idx) result(info)
         type(ijab_Index_t), intent(in) :: idx
         integer(int64) :: info
         type(DistinctDouble_t) :: distinct_double
