@@ -676,7 +676,7 @@ contains
         integer :: i, j, k, l
         HElement_t(dp) :: cpt1, cpt2, cpt3, cpt4
 
-        call exc%idx%extract(i, j, k, l)
+        call exc%idx%extract_ijkl(i, j, k, l)
 
         select case (exc%typ%val)
         case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val)
@@ -742,7 +742,7 @@ contains
                     new_idx = tmp%convert()
                 end associate
 
-                call new_idx%extract(i, j, a, b)
+                call new_idx%extract_ijab(i, j, a, b)
                 info = encode_excit_info( &
                        distinct_double%typ%repr, &
                        a=a, i=i, b=b, j=j)

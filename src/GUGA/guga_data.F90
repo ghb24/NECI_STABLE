@@ -319,19 +319,19 @@ module guga_data
         !! This means j and l are the particles, i and j the holes.
         integer :: val(4)
     contains
-        procedure :: extract => extract_ijkl_Index_t
+        procedure :: extract_ijkl => extract_ijkl_Index_t
         procedure :: convert => convert_ijkl_Index_t
         procedure :: normalize => normalize_ijkl_Index_t
         procedure :: is_normalized => is_normalized_ijkl_Index_t
     end type
 
     type :: ijab_Index_t
-        !! An index in the format of the rest of `NECI`
+        !! An index in the format of the rest of `NECI` \(e_{aibj} \)
         !!
         !! This means i, j are the particles, a and b the holes
         integer :: val(4)
     contains
-        procedure :: extract => extract_ijab_Index_t
+        procedure :: extract_ijab => extract_ijab_Index_t
         procedure :: convert => convert_ijab_Index_t
         procedure :: normalize => normalize_ijab_Index_t
         procedure :: is_normalized => is_normalized_ijab_Index_t
@@ -1448,7 +1448,7 @@ contains
         integer :: i, j, k, l
 
         ASSERT(idx%is_normalized())
-        call idx%extract(i, j, k, l)
+        call idx%extract_ijkl(i, j, k, l)
 
         associate(dd => distinct_doubles)
             res = dd%invalid
