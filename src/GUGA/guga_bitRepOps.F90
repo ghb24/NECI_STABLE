@@ -2101,10 +2101,14 @@ contains
             if (tRDMonfly) then
                 rdm_ind = extract_rdm_ind(ilut)
                 write(nunit, "(A,i8)", advance='no') ") ", getDeltaB(ilut)
-                write(nunit, "(A,3i8,A)", advance='no') " | ( ", &
-                    extract_excit_lvl_rdm(rdm_ind), &
-                    extract_excit_type_rdm(rdm_ind), &
-                    int(iand(rdm_ind, rdm_ind_bitmask)), ' ) '
+                block
+                    type(ExcitationType_t) :: tmp
+                    tmp = extract_excit_type_rdm(rdm_ind)
+                    write(nunit, "(A,3i8,A)", advance='no') " | ( ", &
+                        extract_excit_lvl_rdm(rdm_ind), &
+                        tmp%val, &
+                        int(iand(rdm_ind, rdm_ind_bitmask)), ' ) '
+                end block
                 write(nunit, "(f16.7)", advance='no') &
                     extract_stochastic_rdm_x0(GugaBits, ilut)
                 if (flag_) then
