@@ -255,7 +255,7 @@ module guga_data
 
 
     type, extends(EnumBase_t) :: DistinctDoubleType_t
-        !! This represents a distinct double excitation (compare Table 4.3 of [DobrautzThesis2019])
+        !! This represents a distinct double excitation (compare Table 4.3 of [@DobrautzThesis2019])
         !! A distinct double excitation consists of the two double excitations
         !! \( e_{ij,kl} \)  which are connected by exchange \( e_{il,kj} \).
         !!
@@ -277,7 +277,8 @@ module guga_data
             !! For example:
             !!    * `kikj` and `kjki` are both `fullstop_lowering`.
             !!    * `ijkl` is `non_overlap`, the corresponding exchanged excitation
-            !!      `ilkj` is `double_R_to_L_to_R`.
+            !!      `ilkj` is `double_R_to_L_to_R`, hence we choose `double_R_to_L_to_R`
+            !!      as representation.
             !!
             !! @note
             !!   Older code does not clearly distinguish between `DistinctDoubleExcitation_t`
@@ -286,7 +287,7 @@ module guga_data
         type(ExcitationType_t) :: other
             !! The other Excitation that is not the representative
         character(2) :: label
-            !! The label in Table 4.3 of [DobrautzThesis2019]
+            !! The label in Table 4.3 of [@DobrautzThesis2019]
         integer :: idx_for_repr(4) = [1, 2, 3, 4]
     contains
         private
@@ -333,7 +334,7 @@ module guga_data
     end interface
 
     type :: ijkl_Index_t
-        !! An index in the format of the Shavit papers \( e_{ijkl} \)
+        !! An index in the format of the Shavit papers [@Hinze1981] \( e_{ijkl} \)
         !!
         !! This means j and l are the particles, i and j the holes.
         integer :: val(4)
@@ -1398,6 +1399,12 @@ contains
     end function
 
     elemental function get_repr_index(this) result(res)
+        !! Return the index for the representation.
+        !!
+        !! If we have for example the `DistinctDoubleType_t` `jilk`,
+        !! then the index of the representation shall refer
+        !! to the `double_L_to_R_to_L` excitation and be `jkli`
+        !! instead of the `non_overlap` part which would be `jilk`.
         class(DistinctDouble_t), intent(in) :: this
         type(ijkl_Index_t) :: res
         res = ijkl_Index_t(this%idx%val(this%typ%idx_for_repr))

@@ -719,9 +719,14 @@ contains
 
     contains
 
-        HElement_t(dp) elemental function g(i, j, k, l)
+        elemental function g(i, j, k, l) result(res)
+            !! The two-electron integral in chemist's notation
+            !!
+            !! Convention in the purple book[@purple_book] or **the**
+            !! Shavit paper.[@Hinze1981]
             integer, intent(in) :: i, j, k, l
-            g = get_umat_el(i, k, j, l)
+            HElement_t(dp) :: res
+            res = get_umat_el(i, k, j, l)
         end function
     end function
 
@@ -749,5 +754,4 @@ contains
             end block
         end if
     end function
-
-end module guga_gas_pchb_mod
+end module
