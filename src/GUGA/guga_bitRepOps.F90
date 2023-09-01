@@ -11,7 +11,7 @@ module guga_bitRepOps
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
-                         ExcitationType_t
+                         ExcitationType_t, non_trivial_double_excit_type_arr
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64, stdout
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -23,6 +23,8 @@ module guga_bitRepOps
                         near_zero, stop_all, operator(.isclose.), EnumBase_t
 
     use sort_mod, only: sort
+
+    use sets_mod, only: operator(.notin.)
 
     use LoggingData, only: tRDMonfly
 
@@ -3144,28 +3146,9 @@ contains
         integer(int64) :: excit_info_int
 
 #ifdef DEBUG_
-        select case(typ%val)
-        case( excit_type%single_overlap_L_to_R%val)
-        case( excit_type%single_overlap_R_to_L%val )
-        case( excit_type%double_lowering%val)
-        case( excit_type%double_raising%val )
-        case( excit_type%double_L_to_R_to_L%val)
-        case( excit_type%double_R_to_L_to_R%val )
-        case( excit_type%double_L_to_R%val )
-        case( excit_type%double_R_to_L%val )
-        case( excit_type%fullstop_lowering%val )
-        case( excit_type%fullstop_raising%val )
-        case( excit_type%fullstop_L_to_R%val )
-        case( excit_type%fullstop_R_to_L%val )
-        case( excit_type%fullstart_lowering%val)
-        case( excit_type%fullstart_raising%val)
-        case( excit_type%fullstart_L_to_R%val)
-        case( excit_type%fullstart_R_to_L%val)
-        case( excit_type%fullstart_stop_alike%val)
-        case( excit_type%fullstart_stop_mixed%val)
-        case default
+        if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
             call stop_all(this_routine, "incorrect typ: "//typ%str)
-        end select
+        end if
 #endif
 
         ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
@@ -3187,28 +3170,9 @@ contains
         integer(int64) :: excit_info_int
 
 #ifdef DEBUG_
-        select case(typ%val)
-        case( excit_type%single_overlap_L_to_R%val)
-        case( excit_type%single_overlap_R_to_L%val )
-        case( excit_type%double_lowering%val )
-        case( excit_type%double_raising%val )
-        case( excit_type%double_L_to_R_to_L%val)
-        case( excit_type%double_R_to_L_to_R%val )
-        case( excit_type%double_L_to_R%val )
-        case( excit_type%double_R_to_L%val )
-        case( excit_type%fullstop_lowering%val )
-        case( excit_type%fullstop_raising%val )
-        case( excit_type%fullstop_L_to_R%val )
-        case( excit_type%fullstop_R_to_L%val )
-        case( excit_type%fullstart_lowering%val)
-        case( excit_type%fullstart_raising%val)
-        case( excit_type%fullstart_L_to_R%val)
-        case( excit_type%fullstart_R_to_L%val)
-        case( excit_type%fullstart_stop_alike%val)
-        case( excit_type%fullstart_stop_mixed%val)
-        case default
+        if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
             call stop_all(this_routine, "incorrect typ: "//typ%str)
-        end select
+        end if
 #endif
 
         ASSERT(a > 0 .and. a <= nSpatOrbs)
@@ -3226,28 +3190,9 @@ contains
         type(ExcitationType_t), intent(in) :: typ
 
 #ifdef DEBUG_
-        select case(typ%val)
-        case( excit_type%single_overlap_L_to_R%val)
-        case( excit_type%single_overlap_R_to_L%val )
-        case( excit_type%double_lowering%val )
-        case( excit_type%double_raising%val )
-        case( excit_type%double_L_to_R_to_L%val)
-        case( excit_type%double_R_to_L_to_R%val )
-        case( excit_type%double_L_to_R%val )
-        case( excit_type%double_R_to_L%val )
-        case( excit_type%fullstop_lowering%val )
-        case( excit_type%fullstop_raising%val )
-        case( excit_type%fullstop_L_to_R%val )
-        case( excit_type%fullstop_R_to_L%val )
-        case( excit_type%fullstart_lowering%val)
-        case( excit_type%fullstart_raising%val)
-        case( excit_type%fullstart_L_to_R%val)
-        case( excit_type%fullstart_R_to_L%val)
-        case( excit_type%fullstart_stop_alike%val)
-        case( excit_type%fullstart_stop_mixed%val)
-        case default
+        if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
             call stop_all(this_routine, "incorrect typ: "//typ%str)
-        end select
+        end if
 #endif
 
         ! the convention is to store the excit-type 'first' at the LSB
@@ -3382,29 +3327,9 @@ contains
         real(dp) :: order, order1
 
 #ifdef DEBUG_
-        select case(typ%val)
-        case( excit_type%single_overlap_L_to_R%val)
-        case( excit_type%single_overlap_R_to_L%val )
-        case( excit_type%double_lowering%val )
-        case( excit_type%double_raising%val )
-        case( excit_type%double_L_to_R_to_L%val)
-        case( excit_type%double_R_to_L_to_R%val )
-        case( excit_type%double_L_to_R%val )
-        case( excit_type%double_R_to_L%val )
-        case( excit_type%fullstop_lowering%val )
-        case( excit_type%fullstop_raising%val )
-        case( excit_type%fullstop_L_to_R%val )
-        case( excit_type%fullstop_R_to_L%val )
-        case( excit_type%fullstart_lowering%val)
-        case( excit_type%fullstart_raising%val)
-        case( excit_type%fullstart_L_to_R%val)
-        case( excit_type%fullstart_R_to_L%val)
-        case( excit_type%fullstart_stop_alike%val)
-        case( excit_type%fullstart_stop_mixed%val)
-        case default
-            print *, "incorrect typ: ", typ%str
-            call stop_all(this_routine, "see above")
-        end select
+        if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
+            call stop_all(this_routine, "incorrect typ: "//typ%str)
+        end if
 #endif
 
         ASSERT(a > 0 .and. a <= nSpatOrbs)

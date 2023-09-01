@@ -25,6 +25,7 @@ module guga_data
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
               RdmContribList_t, n_excit_index_bits, &
               DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, &
+              excit_type_arr, valid_excit_type_arr, non_trivial_double_excit_type_arr, &
               ijkl_Index_t, ijab_Index_t
 
     ! define types for the probabilistic weights functions used in the
@@ -234,6 +235,24 @@ module guga_data
     end interface
 
     type(ExcitationTypeValues_t), parameter :: excit_type = ExcitationTypeValues_t()
+    type(ExcitationType_t), parameter :: &
+        excit_type_arr(0:25) = &
+            [excit_type%invalid, excit_type%weight, excit_type%single, &
+            excit_type%raising, excit_type%lowering, excit_type%non_overlap, &
+            excit_type%single_overlap_lowering, excit_type%single_overlap_raising, &
+            excit_type%single_overlap_L_to_R, excit_type%single_overlap_R_to_L, &
+            excit_type%double_lowering, excit_type%double_raising, &
+            excit_type%double_L_to_R_to_L, excit_type%double_R_to_L_to_R, &
+            excit_type%double_L_to_R, excit_type%double_R_to_L, &
+            excit_type%fullstop_lowering, excit_type%fullstop_raising, &
+            excit_type%fullstop_L_to_R, excit_type%fullstop_R_to_L, &
+            excit_type%fullstart_lowering, excit_type%fullstart_raising, &
+            excit_type%fullstart_L_to_R, excit_type%fullstart_R_to_L, &
+            excit_type%fullstart_stop_alike, excit_type%fullstart_stop_mixed], &
+        valid_excit_type_arr(1:25) = excit_type_arr(1:25), &
+        non_trivial_double_excit_type_arr(8:25) = excit_type_arr(8:25)
+
+
 
     type, extends(EnumBase_t) :: DistinctDoubleType_t
         !! This represents a distinct double excitation (compare Table 4.3 of [DobrautzThesis2019])
@@ -279,34 +298,35 @@ module guga_data
 
     type :: DistinctDoubleTypeVals_t
         type(DistinctDoubleType_t) :: &
+            invalid = DistinctDoubleType_t(0, excit_type%invalid, excit_type%invalid, ''), &
             jijk = DistinctDoubleType_t(1, excit_type%single_overlap_L_to_R, excit_type%single_overlap_L_to_R, '1a'), &
             ijkj = DistinctDoubleType_t(2, excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L, '1b'), &
 
             ikjk = DistinctDoubleType_t(3, excit_type%fullstop_raising, excit_type%fullstop_raising, '1c'), &
             kikj = DistinctDoubleType_t(4, excit_type%fullstop_lowering, excit_type%fullstop_lowering, '1d'), &
 
-            jikk = DistinctDoubleType_t(6, excit_type%fullstop_L_to_R, excit_type%non_overlap, '1e', [1, 4, 3, 2]), &
-            ijkk = DistinctDoubleType_t(7, excit_type%fullstop_R_to_L, excit_type%non_overlap, '1f', [1, 4, 3, 2]), &
-            ijik = DistinctDoubleType_t(8, excit_type%fullstart_raising, excit_type%fullstart_raising, '1g'), &
-            jiki = DistinctDoubleType_t(9, excit_type%fullstart_lowering, excit_type%fullstart_lowering, '1h'), &
-            iikj = DistinctDoubleType_t(10, excit_type%fullstart_R_to_L, excit_type%non_overlap, '1i', [1, 4, 3, 2]), &
-            iijk = DistinctDoubleType_t(11, excit_type%fullstart_L_to_R, excit_type%non_overlap, '1j', [1, 4, 3, 2]), &
+            jikk = DistinctDoubleType_t(5, excit_type%fullstop_L_to_R, excit_type%non_overlap, '1e', [1, 4, 3, 2]), &
+            ijkk = DistinctDoubleType_t(6, excit_type%fullstop_R_to_L, excit_type%non_overlap, '1f', [1, 4, 3, 2]), &
+            ijik = DistinctDoubleType_t(7, excit_type%fullstart_raising, excit_type%fullstart_raising, '1g'), &
+            jiki = DistinctDoubleType_t(8, excit_type%fullstart_lowering, excit_type%fullstart_lowering, '1h'), &
+            iikj = DistinctDoubleType_t(9, excit_type%fullstart_R_to_L, excit_type%non_overlap, '1i', [1, 4, 3, 2]), &
+            iijk = DistinctDoubleType_t(10, excit_type%fullstart_L_to_R, excit_type%non_overlap, '1j', [1, 4, 3, 2]), &
 
-            ijij = DistinctDoubleType_t(12, excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2a'), &
-            jiji = DistinctDoubleType_t(13, excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2b'), &
-            iijj = DistinctDoubleType_t(14, excit_type%fullstart_stop_mixed, excit_type%non_overlap, '2c', [1, 4, 3, 2]), &
+            ijij = DistinctDoubleType_t(11, excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2a'), &
+            jiji = DistinctDoubleType_t(12, excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2b'), &
+            iijj = DistinctDoubleType_t(13, excit_type%fullstart_stop_mixed, excit_type%non_overlap, '2c', [1, 4, 3, 2]), &
 
-            ikjl = DistinctDoubleType_t(15, excit_type%double_raising, excit_type%double_raising, '3a', [3, 4, 1, 2]), &
-            kilj = DistinctDoubleType_t(16, excit_type%double_lowering, excit_type%double_lowering, '3b'), &
+            ikjl = DistinctDoubleType_t(14, excit_type%double_raising, excit_type%double_raising, '3a', [3, 4, 1, 2]), &
+            kilj = DistinctDoubleType_t(15, excit_type%double_lowering, excit_type%double_lowering, '3b'), &
 
-            ijkl = DistinctDoubleType_t(17, excit_type%double_R_to_L_to_R, excit_type%non_overlap, '3c', [1, 4, 3, 2]), &
-            jilk = DistinctDoubleType_t(18, excit_type%double_L_to_R_to_L, excit_type%non_overlap, '3d', [1, 4, 3, 2]), &
-            ijlk = DistinctDoubleType_t(19, excit_type%double_R_to_L, excit_type%non_overlap, '3e', [1, 4, 3, 2]), &
-            jikl = DistinctDoubleType_t(20, excit_type%double_L_to_R, excit_type%non_overlap, '3f', [1, 4, 3, 2]), &
-            invalid = DistinctDoubleType_t(21, excit_type%invalid, excit_type%invalid, '')
+            ijkl = DistinctDoubleType_t(16, excit_type%double_R_to_L_to_R, excit_type%non_overlap, '3c', [1, 4, 3, 2]), &
+            jilk = DistinctDoubleType_t(17, excit_type%double_L_to_R_to_L, excit_type%non_overlap, '3d', [1, 4, 3, 2]), &
+            ijlk = DistinctDoubleType_t(18, excit_type%double_R_to_L, excit_type%non_overlap, '3e', [1, 4, 3, 2]), &
+            jikl = DistinctDoubleType_t(19, excit_type%double_L_to_R, excit_type%non_overlap, '3f', [1, 4, 3, 2])
     end type
 
     type(DistinctDoubleTypeVals_t), parameter :: distinct_doubles = DistinctDoubleTypeVals_t()
+
 
     interface DistinctDoubleType_t
         module procedure construct_DistinctDoubleType_t_ijkl, construct_DistinctDoubleType_t_ijab
@@ -1373,63 +1393,8 @@ contains
         integer, intent(in) :: n
         type(ExcitationType_t) :: res
         routine_name("construct_ExcitationType_t")
-
-        select case(n)
-        case(excit_type%invalid%val)
-            res = excit_type%invalid
-        case(excit_type%weight%val)
-            res = excit_type%weight
-        case(excit_type%single%val)
-            res = excit_type%single
-        case(excit_type%raising%val)
-            res = excit_type%raising
-        case(excit_type%lowering%val)
-            res = excit_type%lowering
-        case(excit_type%non_overlap%val)
-            res = excit_type%non_overlap
-        case(excit_type%single_overlap_lowering%val)
-            res = excit_type%single_overlap_lowering
-        case(excit_type%single_overlap_raising%val)
-            res = excit_type%single_overlap_raising
-        case(excit_type%single_overlap_L_to_R%val)
-            res = excit_type%single_overlap_L_to_R
-        case(excit_type%single_overlap_R_to_L%val)
-            res = excit_type%single_overlap_R_to_L
-        case(excit_type%double_lowering%val)
-            res = excit_type%double_lowering
-        case(excit_type%double_raising%val)
-            res = excit_type%double_raising
-        case(excit_type%double_L_to_R_to_L%val)
-            res = excit_type%double_L_to_R_to_L
-        case(excit_type%double_R_to_L_to_R%val)
-            res = excit_type%double_R_to_L_to_R
-        case(excit_type%double_L_to_R%val)
-            res = excit_type%double_L_to_R
-        case(excit_type%double_R_to_L%val)
-            res = excit_type%double_R_to_L
-        case(excit_type%fullstop_lowering%val)
-            res = excit_type%fullstop_lowering
-        case(excit_type%fullstop_raising%val)
-            res = excit_type%fullstop_raising
-        case(excit_type%fullstop_L_to_R%val)
-            res = excit_type%fullstop_L_to_R
-        case(excit_type%fullstop_R_to_L%val)
-            res = excit_type%fullstop_R_to_L
-        case(excit_type%fullstart_lowering%val)
-            res = excit_type%fullstart_lowering
-        case(excit_type%fullstart_raising%val)
-            res = excit_type%fullstart_raising
-        case(excit_type%fullstart_L_to_R%val)
-            res = excit_type%fullstart_L_to_R
-        case(excit_type%fullstart_R_to_L%val)
-            res = excit_type%fullstart_R_to_L
-        case(excit_type%fullstart_stop_alike%val)
-            res = excit_type%fullstart_stop_alike
-        case(excit_type%fullstart_stop_mixed%val)
-            res = excit_type%fullstart_stop_mixed
-        case default
-            call stop_all(this_routine, 'Invalid integer for excit type.')
-        end select
+        res = excit_type_arr(n)
+        ASSERT(res%val == n)
     end function
 
     elemental function get_repr_index(this) result(res)
