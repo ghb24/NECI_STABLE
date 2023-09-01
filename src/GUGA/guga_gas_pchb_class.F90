@@ -666,7 +666,7 @@ contains
         orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_end
 
-    function get_weight(exc) result(weight)
+    elemental function get_weight(exc) result(weight)
         type(DistinctDouble_t), intent(in) :: exc
         real(dp) :: weight
         routine_name("get_weight")
