@@ -24,9 +24,8 @@ module guga_data
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
               RdmContribList_t, n_excit_index_bits, &
-              DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t
-
-    public :: ijkl_Index_t, ijab_Index_t
+              DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, &
+              ijkl_Index_t, ijab_Index_t
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations
@@ -1540,6 +1539,7 @@ contains
     end function
 
     elemental function normalize_ijab_Index_t(this) result(res)
+        !! Normalize such that `i <= j` and `a <= b`
         class(ijab_Index_t), intent(in) :: this
         type(ijab_Index_t) :: res
         if (this%val(1) <= this%val(2)) then
@@ -1555,6 +1555,7 @@ contains
     end function
 
     elemental function normalize_ijkl_Index_t(this) result(res)
+        !! Normalize such that `i <= k` and `j <= l`
         class(ijkl_Index_t), intent(in) :: this
         type(ijkl_Index_t) :: res
         if (this%val(1) <= this%val(3)) then
@@ -1574,18 +1575,21 @@ contains
     end function
 
     elemental function convert_ijkl_Index_t(this) result(res)
+        !! Convert to the ijab_Index_t
         class(ijkl_Index_t), intent(in) :: this
         type(ijab_Index_t) :: res
         res = ijab_Index_t([this%val(2), this%val(4), this%val(1), this%val(3)])
     end function
 
     elemental function convert_ijab_Index_t(this) result(res)
+        !! Convert to the ijkl_Index_t
         class(ijab_Index_t), intent(in) :: this
         type(ijkl_Index_t) :: res
         res = ijkl_Index_t([this%val(3), this%val(1), this%val(4), this%val(2)])
     end function
 
     elemental subroutine extract_ijab_Index_t(this, i, j, a, b)
+        !! Extract the values as integers
         class(ijab_Index_t), intent(in) :: this
         integer, intent(out) :: i, j, a, b
         i = this%val(1)
@@ -1595,6 +1599,7 @@ contains
     end subroutine
 
     elemental subroutine extract_ijkl_Index_t(this, i, j, k, l)
+        !! Extract the values as integers
         class(ijkl_Index_t), intent(in) :: this
         integer, intent(out) :: i, j, k, l
         i = this%val(1)
@@ -1604,12 +1609,14 @@ contains
     end subroutine
 
     elemental function is_normalized_ijab_Index_t(this) result(res)
+        !! Check if index is normalized
         class(ijab_Index_t), intent(in) :: this
         logical :: res
         res = this%val(1) <= this%val(2) .and. this%val(3) <= this%val(4)
     end function
 
     elemental function is_normalized_ijkl_Index_t(this) result(res)
+        !! Check if index is normalized
         class(ijkl_Index_t), intent(in) :: this
         logical :: res
         res = this%val(1) <= this%val(3) .and. this%val(2) <= this%val(4)
