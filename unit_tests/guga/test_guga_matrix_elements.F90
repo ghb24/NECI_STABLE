@@ -22,13 +22,15 @@ contains
 
 
     subroutine test_input_stepvector()
-        ! call init_guga_plugin('FCIDUMP', t_testmode_=.true., nel_=5, nbasis_=12, &
-        !                       nSpatOrbs_=6)
-        ! write(*, *) get_coupling_coefficients([u, s0, s0, s2, d, u], [s0, s0, s0, s2, s2, u])
 
         call init_guga_plugin('FCIDUMP', t_testmode_=.true., nel_=2, nbasis_=8, &
                               nSpatOrbs_=4)
-        write(*, *) get_coupling_coefficients([s2, u, u, d, u, u, s0, d, s0], [u, s0, d, u, d, u, u, d, u])
+
+        block
+            type(StepVector_t), parameter :: step_v(9) = [s2, u, u, d, u, u, s0, d, s0]
+            call assert_true(all(step_v%val == [3, 1, 1, 2, 1, 1, 0, 2, 0]))
+        end block
+
         write(*, *) get_coupling_coefficients([s0, u, s0, u], [u, s0, u, s0])
     end subroutine
 
