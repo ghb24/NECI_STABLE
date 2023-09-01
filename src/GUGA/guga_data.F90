@@ -289,6 +289,15 @@ module guga_data
         character(2) :: label
             !! The label in Table 4.3 of [@DobrautzThesis2019]
         integer :: idx_for_repr(4) = [1, 2, 3, 4]
+            !! Store the permutation for outputting the representation index
+            !!
+            !! If we have for example the `DistinctDoubleType_t` `jilk`,
+            !! then the index of the representation shall refer
+            !! to the `double_L_to_R_to_L` excitation and be `jkli`
+            !! instead of the `non_overlap` part which would be `jilk`.
+            !! The swap is only relevant for distinct doubles with
+            !! a non-overlap excitation. Hence we default-initialize
+            !! to the identity permutation.
     contains
         private
         ! procedure :: eq_DistinctDoubleExcitation_t => eq_DistinctDoubleType_t
