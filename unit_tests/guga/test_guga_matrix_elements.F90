@@ -28,7 +28,7 @@ contains
 
         call init_guga_plugin('FCIDUMP', t_testmode_=.true., nel_=2, nbasis_=8, &
                               nSpatOrbs_=4)
-        ! write(*, *) get_coupling_coefficients([s2, u, u, d, u, u, s0, d, s0], [u, s0, d, u, d, u, u, d, u])
+        write(*, *) get_coupling_coefficients([s2, u, u, d, u, u, s0, d, s0], [u, s0, d, u, d, u, u, d, u])
         write(*, *) get_coupling_coefficients([s0, u, s0, u], [u, s0, u, s0])
     end subroutine
 
