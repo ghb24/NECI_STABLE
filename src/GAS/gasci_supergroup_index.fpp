@@ -683,13 +683,11 @@ contains
         @:pure_ASSERT(idx /= -1)
     end function
 
-    !>  @brief
-    !>  Calculate the supergroup index for a determinant nI
-    !>
-    !>  @param[in] nI The determinant for which the supergroup index should be calculated.
     pure function get_supergroup_idx_csf(self, csf_i) result(idx)
+        !!  Calculate the supergroup index for a CSF `csf_i`
         class(SuperGroupIndexer_t), intent(in) :: self
         type(CSF_Info_t), intent(in) :: csf_i
+            !! The CSF for which the supergroup index should be calculated.
         integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx_det'
 
