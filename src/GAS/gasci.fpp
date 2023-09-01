@@ -289,7 +289,7 @@ contains
     end function
 
 
-    !>  Query wether a determinant or CSF is contained in the GAS space.
+    !>  Query wether a determinant is contained in the GAS space.
     pure function contains_conf_nI(this, nI) result(res)
         !> Specification of GAS spaces.
         class(GASSpec_t), intent(in) :: this
@@ -299,11 +299,7 @@ contains
         res = this%contains_supergroup(this%count_per_GAS(nI))
     end function
 
-    !>  Query wether a determinant or CSF is contained in the GAS space.
-    !>
-    !>  It is **assumed** that the configuration is contained in the
-    !>  Full CI space and obeys e.g. the Pauli principle.
-    !>  The return value is not defined, if that is not the case!
+    !>  Query wether a CSF is contained in the GAS space.
     pure function contains_conf_csf(this, csf_i) result(res)
         !> Specification of GAS spaces.
         class(GASSpec_t), intent(in) :: this
