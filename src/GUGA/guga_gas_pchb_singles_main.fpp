@@ -33,7 +33,9 @@ module guga_gas_pchb_singles_main
 
     type :: GAS_PCHB_SinglesAlgorithm_vals_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: &
-            UNIF_UNIF = GAS_PCHB_SinglesAlgorithm_t(1, 'UNIF-UNIF')
+            UNIF_UNIF = GAS_PCHB_SinglesAlgorithm_t(1, 'UNIF:UNIF')
+    contains
+        procedure, nopass :: from_str => alg_from_str
     end type
 
     type, extends(EnumBase_t) :: GAS_PCHB_SinglesWeighting_t
@@ -44,6 +46,8 @@ module guga_gas_pchb_singles_main
     type :: GAS_PCHB_SinglesWeighting_vals_t
         type(GAS_PCHB_SinglesWeighting_t) :: &
             UNIFORM = GAS_PCHB_SinglesWeighting_t(1, 'UNIFORM')
+    contains
+        procedure, nopass :: from_str => weight_from_str
     end type
 
     type :: GAS_PCHB_SinglesOptions_t
@@ -311,5 +315,31 @@ contains
             pgen = 1.0_dp / real(nOcc * nUnocc, dp)
         end if
     end function calc_pgen_uniform_singles
+
+    elemental function alg_from_str(str) result(res)
+        character(*), intent(in) :: str
+        type(GAS_PCHB_SinglesAlgorithm_t) :: res
+        routine_name("alg_from_str")
+
+        select case(to_upper(str))
+        case(option_vals%algorithm%UNIF_UNIF%str)
+            res = option_vals%algorithm%UNIF_UNIF
+        case default
+            call stop_all(this_routine, 'Invalid input')
+        end select
+    end function
+
+    elemental function weight_from_str(str) result(res)
+        character(*), intent(in) :: str
+        type(GAS_PCHB_SinglesWeighting_t) :: res
+        routine_name("alg_from_str")
+
+        select case(to_upper(str))
+        case(option_vals%weighting%UNIFORM%str)
+            res = option_vals%weighting%UNIFORM
+        case default
+            call stop_all(this_routine, 'Invalid input')
+        end select
+    end function
 
 end module

@@ -10,10 +10,11 @@ module guga_pchb_class
     use gasci, only: LocalGASSpec_t
     use guga_gas_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t
 
+
     better_implicit_none
 
     private
-    public :: PCHB_t
+    public :: PCHB_t, options
 
     type, extends(GUGABase_t) :: PCHB_t
         private
@@ -31,6 +32,8 @@ module guga_pchb_class
         procedure, public :: calc_orbital_pgen_contr_start
         procedure, public :: calc_orbital_pgen_contr_end
     end type PCHB_t
+
+    type(GAS_PCHB_options_t) :: options
 
 contains
 

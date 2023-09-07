@@ -42,7 +42,11 @@ MODULE System
 
     use guga_data, only: tGUGACore
 
-    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
+    use guga_pchb_class, only: GUGA_PCHB_FCI_options => options
+
+    use guga_gas_pchb_main, only: GUGA_PCHB_FCI_options_vals => options_vals
+
+    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, split
 
     use tau_main, only: tau, assign_value_to_tau
 
@@ -1704,61 +1708,74 @@ contains
                             call stop_all(t_r, "Wrong input to PCHB.")
                         end select
 
-                case ("GAS-CI")
-                    w = to_upper(tokens%next())
-                    select case (w)
-                    case ('ON-THE-FLY-HEAT-BATH')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
-                    case ('DISCONNECTED')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                    case ('DISCARDING')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                    case ('PCHB')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
-                        if (allocated(GAS_PCHB_user_input)) deallocate(GAS_PCHB_user_input)
-                        allocate(GAS_PCHB_user_input)
-                        if (tokens%remaining_items() == 0) then
-                            call stop_all(t_r, "No item specified. Please specify one of {LOCALISED, DELOCALISED, MANUAL}.")
-                        end if
-                        select case (to_upper(tokens%next()))
-                        case ("LOCALISED")
-                            GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%LOCALISED
-                        case ("DELOCALISED")
-                            GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%DELOCALISED
-                        case ("MANUAL")
-                            GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%MANUAL
-                            allocate(GAS_PCHB_user_input%options)
-                            GAS_PCHB_user_input%options%use_lookup = .true.
-                            GAS_PCHB_user_input%options%singles = GAS_PCHB_user_input_vals%options%singles%from_str(tokens%next())
-                            GAS_PCHB_user_input%options%doubles = GAS_PCHB_user_input_vals%options%doubles%from_str(tokens%next())
-                            if (tokens%remaining_items() == 1) then
-                                select case (to_upper(tokens%next()))
-                                case("SPIN-ORB-RESOLVED")
-                                    GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .true.
-                                case("NO-SPIN-ORB-RESOLVED")
-                                    GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .false.
-                                case default
-                                    call stop_all(t_r, "Should not be here.")
-                                end select
-                            else if (tokens%remaining_items() > 1) then
-                                call stop_all(t_r, "Should not be here.")
+                    case ("GAS-CI")
+                        w = to_upper(tokens%next())
+                        select case (w)
+                        case ('ON-THE-FLY-HEAT-BATH')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
+                        case ('DISCONNECTED')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                        case ('DISCARDING')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                        case ('PCHB')
+                            user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+                            if (allocated(GAS_PCHB_user_input)) deallocate(GAS_PCHB_user_input)
+                            allocate(GAS_PCHB_user_input)
+                            if (tokens%remaining_items() == 0) then
+                                call stop_all(t_r, "No item specified. Please specify one of {LOCALISED, DELOCALISED, MANUAL}.")
                             end if
+                            select case (to_upper(tokens%next()))
+                            case ("LOCALISED")
+                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%LOCALISED
+                            case ("DELOCALISED")
+                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%DELOCALISED
+                            case ("MANUAL")
+                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%MANUAL
+                                allocate(GAS_PCHB_user_input%options)
+                                GAS_PCHB_user_input%options%use_lookup = .true.
+                                GAS_PCHB_user_input%options%singles = GAS_PCHB_user_input_vals%options%singles%from_str(tokens%next())
+                                GAS_PCHB_user_input%options%doubles = GAS_PCHB_user_input_vals%options%doubles%from_str(tokens%next())
+                                if (tokens%remaining_items() == 1) then
+                                    select case (to_upper(tokens%next()))
+                                    case("SPIN-ORB-RESOLVED")
+                                        GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .true.
+                                    case("NO-SPIN-ORB-RESOLVED")
+                                        GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .false.
+                                    case default
+                                        call stop_all(t_r, "Should not be here.")
+                                    end select
+                                else if (tokens%remaining_items() > 1) then
+                                    call stop_all(t_r, "Should not be here.")
+                                end if
+                            case default
+                                write(stderr, *) "Please specify one of {LOCALISED, DELOCALISED, MANUAL}."
+                                write(stderr, *) "With localised and delocalised the fastest PCHB sampler is chosen automatically."
+                                write(stderr, *) "Specify delocalised for Hartree-Fock like orbitals and"
+                                write(stderr, *) "localised for localised orbitals."
+                                write(stderr, *) "With manual one can select the PCHB sampler themselves."
+                                call stop_all(t_r, "Wrong input to GAS-CI PCHB.")
+                            end select
                         case default
-                            write(stderr, *) "Please specify one of {LOCALISED, DELOCALISED, MANUAL}."
-                            write(stderr, *) "With localised and delocalised the fastest PCHB sampler is chosen automatically."
-                            write(stderr, *) "Specify delocalised for Hartree-Fock like orbitals and"
-                            write(stderr, *) "localised for localised orbitals."
-                            write(stderr, *) "With manual one can select the PCHB sampler themselves."
-                            call stop_all(t_r, "Wrong input to GAS-CI PCHB.")
+                            call Stop_All(t_r, trim(w)//" not a valid keyword")
                         end select
-                    case default
-                        call Stop_All(t_r, trim(w)//" not a valid keyword")
-                    end select
 
 
                     case ("GUGA-PCHB")
                         ! use an explicit guga-pchb keyword and flag
                         t_guga_pchb = .true.
+                        if (to_upper(tokens%next()) /= "DRAWING") then
+                            call stop_all(this_routine, "Speciy Drawing")
+                        end if
+                        GUGA_PCHB_FCI_options%singles%algorithm = GUGA_PCHB_FCI_options_vals%singles%algorithm%from_str(tokens%next())
+                        associate(splitted => split(tokens%next(), ':'))
+                            GUGA_PCHB_FCI_options%doubles%particle_selection = GUGA_PCHB_FCI_options_vals%doubles%particle_selection%from_str(splitted(1)%str)
+                            GUGA_PCHB_FCI_options%doubles%hole_selection = GUGA_PCHB_FCI_options_vals%doubles%hole_selection%from_str(splitted(2)%str)
+                        end associate
+                        if (to_upper(tokens%next()) /= "WEIGHTING") then
+                            call stop_all(this_routine, "Speciy WEIGHTING")
+                        end if
+                        GUGA_PCHB_FCI_options%singles%weighting = GUGA_PCHB_FCI_options_vals%singles%weighting%from_str(tokens%next())
+                        GUGA_PCHB_FCI_options%doubles%weighting = GUGA_PCHB_FCI_options_vals%doubles%weighting%from_str(tokens%next())
 
                     case ("UEG")
                         ! Use the new UEG excitation generator.

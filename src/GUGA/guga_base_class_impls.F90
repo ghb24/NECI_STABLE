@@ -1,8 +1,7 @@
 #include "macros.h"
 submodule (guga_base_class) guga_base_class_impls
     use SystemData, only: t_guga_pchb
-    use guga_pchb_class, only: PCHB_t
-    use guga_gas_pchb_main, only: GAS_PCHB_ExcGenerator_t
+    use guga_pchb_class, only: PCHB_t, options
 
     better_implicit_none
 contains
@@ -12,7 +11,7 @@ contains
             allocate(PCHB_t :: guga_exc_generator)
             select type(guga_exc_generator)
             type is (PCHB_t)
-                call guga_exc_generator%init()
+                call guga_exc_generator%init(options)
             end select
         end if
     end subroutine

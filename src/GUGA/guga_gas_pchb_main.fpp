@@ -56,7 +56,7 @@ module guga_gas_pchb_main
 
 
     private
-    public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t
+    public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, options_vals
 
     type :: GAS_PCHB_options_t
         type(GAS_PCHB_SinglesOptions_t) :: singles
@@ -72,6 +72,8 @@ module guga_gas_pchb_main
         type(PCHB_DoublesOptions_vals_t) :: &
             doubles = PCHB_DoublesOptions_vals_t()
     end type
+
+    type(GAS_PCHB_options_vals_t), parameter :: options_vals = GAS_PCHB_options_vals_t()
 
 contains
 

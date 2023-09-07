@@ -1,5 +1,5 @@
 #include "macros.h"
-module guga_gas_pchb_doubles_fast_fast
+module guga_gas_pchb_doubles_select_holes
 
     use aliasSampling, only: AliasSampler_2D_t
     use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm, bits_n_int
@@ -13,10 +13,12 @@ module guga_gas_pchb_doubles_fast_fast
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, binary_search_first_ge, &
-                        get_free_unit, stop_all, operator(.isclose.), operator(.div.)
+                        get_free_unit, stop_all, operator(.isclose.), operator(.div.), &
+                        EnumBase_t
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_truncate_spawns
     use tau_main, only: max_tau, tau_search_method, possible_tau_search_methods
     use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
+    use fortran_strings, only: to_upper
     use sym_general_mod, only: ClassCountInd
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
                                sym_label_list_spat, SpinOrbSymLabel
@@ -49,7 +51,43 @@ module guga_gas_pchb_doubles_fast_fast
     better_implicit_none
 
     private
-    public :: GAS_PCHB_FastFast_t
+    public :: GAS_PCHB_FastFast_t, PCHB_HoleAlgorithm_t, PCHB_HoleAlgorithm_vals_t, &
+        WeightingChoice_t, WeightingChoice_vals_t
+
+    abstract interface
+        real(dp) pure function get_weight_t(exc)
+            import :: DistinctDouble_t, dp
+            type(DistinctDouble_t), intent(in) :: exc
+        end function
+    end interface
+
+    type, extends(EnumBase_t) :: WeightingChoice_t
+        character(20) :: str
+    end type
+
+    type :: WeightingChoice_vals_t
+        type(WeightingChoice_t) :: &
+            INITIAL_WERNER = WeightingChoice_t(1, 'INITIAL-WERNER')
+    contains
+        procedure, nopass :: from_str => WeightingChoice_from_str
+    end type
+
+    type(WeightingChoice_vals_t), parameter :: weight_choice_vals = WeightingChoice_vals_t()
+
+    type, extends(EnumBase_t) :: PCHB_HoleAlgorithm_t
+        private
+        character(9) :: str
+    end type
+
+    type :: PCHB_HoleAlgorithm_vals_t
+        type(PCHB_HoleAlgorithm_t) :: &
+            FAST_FAST = PCHB_HoleAlgorithm_t(1, 'FAST-FAST')
+    contains
+        procedure, nopass :: from_str => HoleAlgorithm_from_str
+    end type
+
+    type(PCHB_HoleAlgorithm_vals_t), parameter :: algorithm_vals = PCHB_HoleAlgorithm_vals_t()
+
 
     type, extends(DoublesGUGABase_t) :: GAS_PCHB_FastFast_t
         private
@@ -69,6 +107,7 @@ module guga_gas_pchb_doubles_fast_fast
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
         class(GASSpec_t), allocatable :: GAS_spec
+        procedure(get_weight_t), pointer, nopass :: get_weight => null()
 
     contains
         private
@@ -131,10 +170,11 @@ contains
         call this%all_info_table%sync()
     end subroutine
 
-    subroutine init_GugaAliasSampler_t(this, GAS_spec, particle_selection, use_lookup, create_lookup)
+    subroutine init_GugaAliasSampler_t(this, GAS_spec, particle_selection, weighting_selection, use_lookup, create_lookup)
         class(GAS_PCHB_FastFast_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         type(PCHB_ParticleSelection_t), intent(in) :: particle_selection
+        type(WeightingChoice_t), intent(in) :: weighting_selection
         logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = "init_GugaAliasSampler_t"
 
@@ -180,6 +220,7 @@ contains
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
 
+
         ! initialize the mapping ab -> (a, b)
         abMax = fuseIndex(nSpatOrbs, nSpatOrbs)
         allocate(this%tgtOrbs(2, 0:abMax), source=0)
@@ -191,6 +232,7 @@ contains
             end do
         end do
 
+        call set_get_weight_pointer(weighting_selection, this%get_weight)
         call this%setup_pchb_sampler_conditional(particle_selection)
 
         write(stdout, *) "Finished excitation generator initialization"
@@ -254,7 +296,7 @@ contains
                             ab = fuseIndex(a, b)
                             if (this%GAS_spec%is_allowed(Excite_2_t(2 * i, 2 * a, 2 * j, 2 * b), supergroups(:, i_sg)) &
                                     .and. symmetry_allowed(i, j, a, b)) then
-                                w(ab) = get_weight(DistinctDouble_t(ijab_Index_t([i, j, a, b])))
+                                w(ab) = this%get_weight(DistinctDouble_t(ijab_Index_t([i, j, a, b])))
                             end if
                         end do
                     end do
@@ -471,7 +513,7 @@ contains
         orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_end
 
-    elemental function get_weight(exc) result(weight)
+    pure function initial_werner_get_weight(exc) result(weight)
         type(DistinctDouble_t), intent(in) :: exc
         real(dp) :: weight
         routine_name("get_weight")
@@ -559,4 +601,44 @@ contains
             end block
         end if
     end function
+
+
+    subroutine set_get_weight_pointer(weight_choice, ptr)
+        type(WeightingChoice_t), intent(in) :: weight_choice
+        procedure(get_weight_t), pointer, intent(out) :: ptr
+        routine_name("set_get_weight_pointer")
+
+        if (weight_choice == weight_choice_vals%INITIAL_WERNER) then
+            ptr => initial_werner_get_weight
+        else
+            call stop_all(this_routine, "Invalid choice")
+        end if
+    end subroutine
+
+    pure function WeightingChoice_from_str(str) result(res)
+        character(*), intent(in) :: str
+        type(WeightingChoice_t) :: res
+        routine_name("WeightingChoice_from_str")
+
+        select case(to_upper(str))
+        case(weight_choice_vals%INITIAL_WERNER%str)
+            res = weight_choice_vals%INITIAL_WERNER
+        case default
+            call stop_all(this_routine, "Invalid choice")
+        end select
+    end function
+
+    pure function HoleAlgorithm_from_str(str) result(res)
+        character(*), intent(in) :: str
+        type(PCHB_HoleAlgorithm_t) :: res
+        routine_name("WeightingChoice_from_str")
+
+        select case(to_upper(str))
+        case(algorithm_vals%FAST_FAST%str)
+            res = algorithm_vals%FAST_FAST
+        case default
+            call stop_all(this_routine, "Invalid choice")
+        end select
+    end function
+
 end module

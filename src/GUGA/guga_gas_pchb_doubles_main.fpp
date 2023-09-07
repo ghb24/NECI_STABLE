@@ -5,12 +5,13 @@ module guga_gas_pchb_doubles_main
     use constants, only: stdout
     use SystemData, only: tUHF
     use util_mod, only: EnumBase_t, stop_all
-    use fortran_strings, only: to_upper
-    use fortran_strings, only: split
+    use fortran_strings, only: to_upper, split
     use gasci, only: GASSpec_t
 
     use guga_base_class, only: DoublesGUGABase_t
-    use guga_gas_pchb_doubles_fast_fast, only: GAS_PCHB_FastFast_t
+    use guga_gas_pchb_doubles_select_holes, only: GAS_PCHB_FastFast_t, &
+        PCHB_HoleAlgorithm_t, PCHB_HoleAlgorithm_vals_t, &
+        WeightingChoice_t, WeightingChoice_vals_t
     use guga_gas_pchb_doubles_select_particles, only: &
         PCHB_ParticleSelection_t, &
         PCHB_ParticleSelection_vals_t
@@ -21,28 +22,25 @@ module guga_gas_pchb_doubles_main
 
     public :: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, allocate_and_init
 
-    type, extends(EnumBase_t) :: PCHB_HoleSelection_t
-        character(9) :: str
-    end type
-
-    type :: PCHB_HoleSelection_vals_t
-        type(PCHB_HoleSelection_t) :: &
-            FAST_FAST = PCHB_HoleSelection_t(1, 'FAST-FAST')
-    end type
-
     type :: PCHB_DoublesOptions_t
         type(PCHB_ParticleSelection_t) :: particle_selection
-        type(PCHB_HoleSelection_t) :: hole_selection
+        type(PCHB_HoleAlgorithm_t)  :: hole_selection
+        type(WeightingChoice_t)  :: weighting
     contains
         procedure :: is_valid
     end type
 
     type :: PCHB_DoublesOptions_vals_t
-        type(PCHB_ParticleSelection_vals_t) :: particle_selection = PCHB_ParticleSelection_vals_t()
-        type(PCHB_HoleSelection_vals_t) :: hole_selection = PCHB_HoleSelection_vals_t()
+        type(PCHB_ParticleSelection_vals_t) :: &
+            particle_selection = PCHB_ParticleSelection_vals_t()
+        type(PCHB_HoleAlgorithm_vals_t) :: &
+            hole_selection = PCHB_HoleAlgorithm_vals_t()
+        type(WeightingChoice_vals_t) :: &
+            weighting = WeightingChoice_vals_t()
     end type
 
-    type(PCHB_DoublesOptions_vals_t), parameter :: doubles_options_vals = PCHB_DoublesOptions_vals_t()
+    type(PCHB_DoublesOptions_vals_t), parameter :: &
+        doubles_options_vals = PCHB_DoublesOptions_vals_t()
 
 contains
 
@@ -61,7 +59,7 @@ contains
         select type(generator)
         type is(GAS_PCHB_FastFast_t)
             call generator%init(&
-                GAS_spec, options%particle_selection, use_lookup, use_lookup)
+                GAS_spec, options%particle_selection, options%weighting, use_lookup, use_lookup)
         class default
             call stop_all(this_routine, "Error. Should never be here.")
         end select
