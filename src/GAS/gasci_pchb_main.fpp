@@ -113,8 +113,8 @@ contains
         !! Initialize the PCHB excitation generator.
         !!
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
-            !!  The GAS specifications for the excitation generator.
         class(GASSpec_t), intent(in) :: GAS_spec
+            !!  The GAS specifications for the excitation generator.
         type(GAS_PCHB_options_t), intent(in) :: options
         routine_name("gasci_pchb_main::GAS_PCHB_init")
 

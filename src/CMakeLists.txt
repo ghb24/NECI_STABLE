@@ -197,7 +197,7 @@ set( SRC_FILES
     GUGA/guga_pchb_class.F90
     GUGA/guga_crude_approx.F90
     GUGA/guga_rdm.F90
-    GUGA/guga_gas_pchb_class.F90
+    GUGA/guga_gas_pchb_doubles_fast_fast.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
@@ -417,6 +417,10 @@ set( FYPP_SRC_FILES
     GAS/gasci_pchb_doubles_spinorb_fastweighted.fpp
     GAS/gasci_supergroup_index.fpp
     GAS/gasci_util.fpp
+    GUGA/guga_gas_pchb_main.fpp
+    GUGA/guga_gas_pchb_singles_main.fpp
+    GUGA/guga_gas_pchb_doubles_main.fpp
+    GUGA/guga_gas_pchb_doubles_select_particles.fpp
     CDF_sampling.fpp
     orb_idx.fpp
     excitation_types.fpp

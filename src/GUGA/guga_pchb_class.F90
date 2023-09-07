@@ -6,19 +6,19 @@ module guga_pchb_class
     use SystemData, only: nel, nSpatOrbs
     use guga_data, only: ExcitationInformation_t
     use guga_bitrepops, only: CSF_Info_t
-    use guga_base_class, only: GUGABaseClass_t
-    use guga_gas_pchb_mod, only: GAS_PCHB_t
+    use guga_base_class, only: GUGABase_t
     use gasci, only: LocalGASSpec_t
+    use guga_gas_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t
 
     better_implicit_none
 
     private
     public :: PCHB_t
 
-    type, extends(GUGABaseClass_t) :: PCHB_t
+    type, extends(GUGABase_t) :: PCHB_t
         private
 
-        type(GAS_PCHB_t) :: GAS_sampler
+        type(GAS_PCHB_ExcGenerator_t) :: GAS_sampler
     contains
         private
         procedure, public :: init
@@ -30,16 +30,14 @@ module guga_pchb_class
         procedure, public :: calc_orbital_pgen_contr
         procedure, public :: calc_orbital_pgen_contr_start
         procedure, public :: calc_orbital_pgen_contr_end
-
-        procedure, public :: get_valid_orbs
     end type PCHB_t
 
 contains
 
-    subroutine init(this)
+    subroutine init(this, options)
         class(PCHB_t), intent(inout) :: this
-        call this%GAS_sampler%init(CAS_spec(nEl, nSpatOrbs), &
-                                   use_lookup=.false., create_lookup=.false.)
+        type(GAS_PCHB_options_t), intent(in) :: options
+        call this%GAS_sampler%init(CAS_spec(nEl, nSpatOrbs), options)
 
     contains
 
@@ -112,13 +110,5 @@ contains
         real(dp) :: pgen
         pgen = this%GAS_sampler%calc_pgen(nI, ilutI, csf_i, excitInfo)
     end function
-
-    function get_valid_orbs(this, csf_i, src_orb) result(valid_orbs)
-        class(PCHB_t), intent(in) :: this
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: src_orb
-        integer, allocatable :: valid_orbs(:)
-        valid_orbs = this%GAS_sampler%get_valid_orbs(csf_i, src_orb)
-    end function get_valid_orbs
 
 end module guga_pchb_class

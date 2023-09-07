@@ -2,6 +2,7 @@
 submodule (guga_base_class) guga_base_class_impls
     use SystemData, only: t_guga_pchb
     use guga_pchb_class, only: PCHB_t
+    use guga_gas_pchb_main, only: GAS_PCHB_ExcGenerator_t
 
     better_implicit_none
 contains
