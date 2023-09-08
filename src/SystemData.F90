@@ -280,9 +280,6 @@ module SystemData
 ! this might decrease the efficiency of the guga implmenetation
     logical :: t_guga_noreorder = .false.
 
-! Are we restricting excitations
-    logical :: tGAS = .false.
-
 ! twisted boundary implementation for the hubbard model:
 ! use keyword twisted-bc [real, real] in System Block of input
 ! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for

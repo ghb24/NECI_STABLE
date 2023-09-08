@@ -10,7 +10,7 @@ module tau_search_conventional
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, &
                           t_trans_corr, tHub, t_trans_corr_hop, &
                           t_exclude_3_body_excits, t_ueg_3_body, &
-                          t_fci_pchb_excitgen, tGAS, nBasis, nEl, tUHF
+                          t_fci_pchb_excitgen, nBasis, nEl, tUHF
 
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, pExcit2, pExcit4, &
@@ -39,7 +39,7 @@ module tau_search_conventional
 
     use lattice_mod, only: get_helement_lattice
 
-    use gasci, only: possible_GAS_exc_gen, GAS_exc_gen
+    use gasci, only: possible_GAS_exc_gen, GAS_exc_gen, tGAS
 
     use pchb_excitgen, only: FCI_PCHB_options_vals, FCI_PCHB_user_input, decide_on_PCHB_options, FCI_PCHB_options_t
 

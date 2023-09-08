@@ -7,7 +7,7 @@
 
 module gasci
     use constants, only: n_int, dp
-    use SystemData, only: nBasis
+    use SystemData, only: nBasis, tGUGA
     use util_mod, only: cumsum, stop_all, operator(.div.)
     use excitation_types, only: Excite_1_t, Excite_2_t
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
@@ -26,8 +26,10 @@ module gasci
     private
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
-        user_input_GAS_exc_gen, get_name, &
-        LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
+        get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS
+
+! Are we restricting excitations
+    logical :: tGAS = .false.
 
     type, extends(EnumBase_t) :: GAS_exc_gen_t
     end type
@@ -42,8 +44,7 @@ module gasci
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
 
-    type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
-    type(GAS_exc_gen_t), allocatable :: user_input_GAS_exc_gen
+    type(GAS_exc_gen_t), allocatable :: GAS_exc_gen
 
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
     ! datastructure to outside code after the constructor has been called.
@@ -1229,6 +1230,16 @@ contains
         class(FlexibleGASSpec_t), intent(in) :: this
         integer :: res
         res = this%N
+    end function
+
+    pure logical function tSD_GAS()
+        !! Doing GAS in Slater Determinant (SD) space
+        tSD_GAS = tGAS .and. .not. tGUGA
+    end function
+
+    pure logical function tGUGA_GAS()
+        !! Doing GAS in GUGA space
+        tGUGA_GAS = tGAS .and. tGUGA
     end function
 
 end module gasci

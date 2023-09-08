@@ -180,7 +180,6 @@ contains
                                    AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
         use orb_idx_mod, only: SpinOrbIdx_t
-        use SystemData, only: tGAS
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle

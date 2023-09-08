@@ -26,7 +26,7 @@ module guga_base_class
             GAS_PCHB = GUGA_ExcGenerator_t(2)
     end type
 
-    type(GUGA_ExcGenerator_t) :: GUGA_selected_exc_generator
+    type(GUGA_ExcGenerator_t), allocatable :: GUGA_selected_exc_generator
     type(GUGA_ExcGenerator_vals_t), parameter :: GUGA_exc_generator_vals = GUGA_ExcGenerator_vals_t()
 
     public :: init_guga_class, finalize_guga_class

@@ -49,7 +49,7 @@ MODULE System
     use tau_main, only: tau, assign_value_to_tau
 
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
-         user_input_GAS_exc_gen, CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t
+         CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t, tGAS
     use gasci_util, only: t_output_GAS_sizes
     use gasci_pchb_main, only: GAS_PCHB_user_input, GAS_PCHB_user_input_vals
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
@@ -1708,13 +1708,13 @@ contains
                         w = to_upper(tokens%next())
                         select case (w)
                         case ('ON-THE-FLY-HEAT-BATH')
-                            user_input_GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
+                            GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
                         case ('DISCONNECTED')
-                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                            GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
                         case ('DISCARDING')
-                            user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                            GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
                         case ('PCHB')
-                            user_input_GAS_exc_gen = possible_GAS_exc_gen%PCHB
+                            GAS_exc_gen = possible_GAS_exc_gen%PCHB
                             if (allocated(GAS_PCHB_user_input)) deallocate(GAS_PCHB_user_input)
                             allocate(GAS_PCHB_user_input)
                             if (tokens%remaining_items() == 0) then
