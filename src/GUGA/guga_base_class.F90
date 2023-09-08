@@ -8,17 +8,32 @@ module guga_base_class
     use guga_bitRepOps, only: CSF_Info_t
     use guga_excitations, only: get_excit_level_from_excitInfo
     use error_handling_neci, only: stop_all
+    use util_mod, only: EnumBase_t
 
     better_implicit_none
-
     private
-    public :: GUGABase_t, AbInitGUGABase_t, SinglesGUGABase_t, DoublesGUGABase_t
+    public :: GUGABase_t, AbInitGUGABase_t, SinglesGUGABase_t, DoublesGUGABase_t, &
+        GUGA_ExcGenerator_t, GUGA_ExcGenerator_vals_t, GUGA_exc_generator_vals, &
+        GUGA_selected_exc_generator
+
+
+    type, extends(EnumBase_t) :: GUGA_ExcGenerator_t
+    end type
+
+    type :: GUGA_ExcGenerator_vals_t
+        type(GUGA_ExcGenerator_t) :: &
+            FCI_PCHB = GUGA_ExcGenerator_t(1), &
+            GAS_PCHB = GUGA_ExcGenerator_t(2)
+    end type
+
+    type(GUGA_ExcGenerator_t) :: GUGA_selected_exc_generator
+    type(GUGA_ExcGenerator_vals_t), parameter :: GUGA_exc_generator_vals = GUGA_ExcGenerator_vals_t()
 
     public :: init_guga_class, finalize_guga_class
     public :: class_pick_singles, class_pick_doubles
     public :: class_calc_orb_pgen_contr, class_calc_orb_pgen_contr_str, class_calc_orb_pgen_contr_end
     public :: class_calc_pgen
-    public :: guga_exc_generator
+    public :: GUGA_exc_generator
 
     type, abstract :: Finalizable_t
     contains
@@ -76,7 +91,7 @@ module guga_base_class
         end subroutine
     end interface
 
-    class(GUGABase_t), allocatable :: guga_exc_generator
+    class(GUGABase_t), allocatable :: GUGA_exc_generator
 
     abstract interface
         subroutine PickOrbitals_t(this, ilut, nI, csf_i, excitInfo, pgen)
@@ -193,8 +208,8 @@ module guga_base_class
 contains
 
     subroutine finalize_guga_class()
-        call guga_exc_generator%finalize()
-        deallocate(guga_exc_generator)
+        call GUGA_exc_generator%finalize()
+        deallocate(GUGA_exc_generator)
     end subroutine
 
     subroutine class_pick_singles(ilut, nI, csf_i, excitInfo, pgen)
@@ -203,7 +218,7 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call guga_exc_generator%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call GUGA_exc_generator%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
     end subroutine
 
     subroutine class_pick_doubles(ilut, nI, csf_i, excitInfo, pgen)
@@ -212,14 +227,14 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call guga_exc_generator%pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call GUGA_exc_generator%pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
     end subroutine
 
     subroutine class_calc_orb_pgen_contr(csf_i, occ_orbs, cpt_a, cpt_b)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
-        call guga_exc_generator%calc_orbital_pgen_contr(csf_i, occ_orbs, cpt_a, cpt_b)
+        call GUGA_exc_generator%calc_orbital_pgen_contr(csf_i, occ_orbs, cpt_a, cpt_b)
     end subroutine class_calc_orb_pgen_contr
 
 
@@ -228,14 +243,14 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
-        call guga_exc_generator%calc_orbital_pgen_contr_start(csf_i, occ_orbs, a, orb_pgen)
+        call GUGA_exc_generator%calc_orbital_pgen_contr_start(csf_i, occ_orbs, a, orb_pgen)
     end subroutine
 
     subroutine class_calc_orb_pgen_contr_end(csf_i, occ_orbs, a, orb_pgen)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
-        call guga_exc_generator%calc_orbital_pgen_contr_end(csf_i, occ_orbs, a, orb_pgen)
+        call GUGA_exc_generator%calc_orbital_pgen_contr_end(csf_i, occ_orbs, a, orb_pgen)
     end subroutine class_calc_orb_pgen_contr_end
 
     function class_calc_pgen(nI, ilutI, csf_i, excitInfo) result(pgen)
@@ -244,7 +259,7 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
-        pgen = guga_exc_generator%calc_pgen(nI, ilutI, csf_i, excitInfo)
+        pgen = GUGA_exc_generator%calc_pgen(nI, ilutI, csf_i, excitInfo)
     end function
 
     subroutine AbInitGUGABase_t_pickOrbitals_single(this, ilut, nI, csf_i, excitInfo, pgen)

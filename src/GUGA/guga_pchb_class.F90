@@ -8,15 +8,17 @@ module guga_pchb_class
     use guga_bitrepops, only: CSF_Info_t
     use guga_base_class, only: GUGABase_t
     use gasci, only: LocalGASSpec_t
+    use input_parser_mod, only: TokenIterator_t
     use guga_gas_pchb_main, only: &
         GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
-        GAS_PCHB_options_vals_t
+        GAS_PCHB_options_vals_t, GAS_options_from_tokens => from_tokens
 
 
     better_implicit_none
 
     private
-    public :: PCHB_t, options, FCI_PCHB_options_t, FCI_PCHB_options_vals_t, options_vals
+    public :: PCHB_t, options, FCI_PCHB_options_t, FCI_PCHB_options_vals_t, options_vals, &
+        from_tokens
 
     type, extends(GUGABase_t) :: PCHB_t
         private
@@ -133,6 +135,18 @@ contains
         type(FCI_PCHB_options_t), intent(in) :: FCI_options
         type(GAS_PCHB_options_t) :: GAS_options
         GAS_options = GAS_PCHB_options_t(FCI_options%singles, FCI_options%doubles)
+    end function
+
+    elemental function translate_to_FCI(GAS_options) result(FCI_options)
+        type(GAS_PCHB_options_t), intent(in) :: GAS_options
+        type(FCI_PCHB_options_t) :: FCI_options
+        FCI_options = FCI_PCHB_options_t(GAS_options%singles, GAS_options%doubles)
+    end function
+
+    function from_tokens(tokens) result(res)
+        type(TokenIterator_t), intent(inout) :: tokens
+        type(FCI_PCHB_options_t) :: res
+        res = translate_to_FCI(GAS_options_from_tokens(tokens))
     end function
 
 end module guga_pchb_class

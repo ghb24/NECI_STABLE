@@ -42,7 +42,7 @@ MODULE System
 
     use guga_data, only: tGUGACore
 
-    use guga_pchb_class, only: GUGA_PCHB_FCI_options => options, GUGA_PCHB_FCI_options_vals => options_vals
+    use guga_base_class, only: GUGA_selected_exc_generator, GUGA_exc_generator_vals
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, split
 
@@ -1759,21 +1759,22 @@ contains
 
 
                     case ("GUGA-PCHB")
-                        ! use an explicit guga-pchb keyword and flag
+                    ! use an explicit guga-pchb keyword and flag
+                    block
+                        use guga_pchb_class, only: options, from_tokens
                         t_guga_pchb = .true.
-                        if (to_upper(tokens%next()) /= "DRAWING") then
-                            call stop_all(this_routine, "Speciy Drawing")
-                        end if
-                        GUGA_PCHB_FCI_options%singles%algorithm = GUGA_PCHB_FCI_options_vals%singles%algorithm%from_str(tokens%next())
-                        associate(splitted => split(tokens%next(), ':'))
-                            GUGA_PCHB_FCI_options%doubles%particle_selection = GUGA_PCHB_FCI_options_vals%doubles%particle_selection%from_str(splitted(1)%str)
-                            GUGA_PCHB_FCI_options%doubles%hole_selection = GUGA_PCHB_FCI_options_vals%doubles%hole_selection%from_str(splitted(2)%str)
-                        end associate
-                        if (to_upper(tokens%next()) /= "WEIGHTING") then
-                            call stop_all(this_routine, "Speciy WEIGHTING")
-                        end if
-                        GUGA_PCHB_FCI_options%singles%weighting = GUGA_PCHB_FCI_options_vals%singles%weighting%from_str(tokens%next())
-                        GUGA_PCHB_FCI_options%doubles%weighting = GUGA_PCHB_FCI_options_vals%doubles%weighting%from_str(tokens%next())
+                        GUGA_selected_exc_generator = GUGA_exc_generator_vals%FCI_PCHB
+                        options = from_tokens(tokens)
+                    end block
+
+                    case ("GUGA-GAS-PCHB")
+                    ! use an explicit guga-pchb keyword and flag
+                    block
+                        use guga_gas_pchb_main, only: options, from_tokens
+                        t_guga_pchb = .true.
+                        GUGA_selected_exc_generator = GUGA_exc_generator_vals%GAS_PCHB
+                        options = from_tokens(tokens)
+                    end block
 
                     case ("UEG")
                         ! Use the new UEG excitation generator.

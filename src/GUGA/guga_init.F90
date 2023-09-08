@@ -61,7 +61,7 @@ module guga_init
                                class_pick_doubles, &
                                class_calc_orb_pgen_contr, &
                                class_calc_orb_pgen_contr_str, &
-                               class_calc_orb_pgen_contr_end, guga_exc_generator, init_guga_class
+                               class_calc_orb_pgen_contr_end, GUGA_exc_generator, init_guga_class
 
     better_implicit_none
 
@@ -95,7 +95,7 @@ contains
             calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def  ! CalcOrbitalPgenContr_t    nur für doubles
             calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def  ! CalcOrbitalPgenContr_t        nur für doubles
 
-        else if (allocated(guga_exc_generator)) then
+        else if (allocated(GUGA_exc_generator)) then
 
             pickOrbitals_single => class_pick_singles
             pickOrbitals_double => class_pick_doubles

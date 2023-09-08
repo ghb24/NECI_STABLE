@@ -33,6 +33,8 @@ module guga_gas_pchb_main
     use constants, only: stdout
     use util_mod, only: stop_all, EnumBase_t, operator(.implies.)
     use SystemData, only: nBasis
+    use fortran_strings, only: split, to_upper
+    use input_parser_mod, only: TokenIterator_t
 
     use gasci, only: GASSpec_t
 
@@ -57,7 +59,7 @@ module guga_gas_pchb_main
 
     private
     public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, options_vals, &
-        GAS_PCHB_options_vals_t
+        GAS_PCHB_options_vals_t, from_tokens, options
 
     type :: GAS_PCHB_options_t
         type(GAS_PCHB_SinglesOptions_t) :: singles
@@ -75,6 +77,7 @@ module guga_gas_pchb_main
     end type
 
     type(GAS_PCHB_options_vals_t), parameter :: options_vals = GAS_PCHB_options_vals_t()
+    type(GAS_PCHB_options_t) :: options
 
 contains
 
@@ -112,5 +115,25 @@ contains
             call stop_all(this_routine, 'doubles options are not valid')
         end if
     end subroutine
+
+    function from_tokens(tokens) result(res)
+        type(TokenIterator_t), intent(inout) :: tokens
+        type(GAS_PCHB_options_t) :: res
+        routine_name("from_tokens")
+
+        if (to_upper(tokens%next()) /= "DRAWING") then
+            call stop_all(this_routine, "Speciy Drawing")
+        end if
+        res%singles%algorithm = options_vals%singles%algorithm%from_str(tokens%next())
+        associate(splitted => split(tokens%next(), ':'))
+            res%doubles%particle_selection = options_vals%doubles%particle_selection%from_str(splitted(1)%str)
+            res%doubles%hole_selection = options_vals%doubles%hole_selection%from_str(splitted(2)%str)
+        end associate
+        if (to_upper(tokens%next()) /= "WEIGHTING") then
+            call stop_all(this_routine, "Speciy WEIGHTING")
+        end if
+        res%singles%weighting = options_vals%singles%weighting%from_str(tokens%next())
+        res%doubles%weighting = options_vals%doubles%weighting%from_str(tokens%next())
+    end function
 
 end module

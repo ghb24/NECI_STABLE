@@ -74,6 +74,7 @@ module input_parser_mod
         private
         procedure, public :: size => size_TokenIterator_t
         procedure, public :: remaining_items
+        procedure, public :: get_rest
         procedure, public :: next
         procedure, public :: glimpse
         procedure, public :: reset
@@ -375,6 +376,17 @@ contains
             this%i_curr_token = 1
         end if
     end subroutine
+
+    function get_rest(this) result(res)
+        class(TokenIterator_t), intent(inout) :: this
+        type(Token_t) :: res(this%remaining_items())
+        integer :: i, n
+        n = this%remaining_items()
+        do i = 1, n
+            res(i)%str = this%next()
+        end do
+    end function
+
 
     pure function get_range(str_range) result(res)
         !! Parse a string into a range of integers.
