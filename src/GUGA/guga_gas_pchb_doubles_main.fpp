@@ -44,10 +44,10 @@ module guga_gas_pchb_doubles_main
 
 contains
 
-    subroutine allocate_and_init(GAS_spec, options, use_lookup, generator)
+    subroutine allocate_and_init(GAS_spec, options, use_lookup, create_lookup, generator)
         class(GASSpec_t), intent(in) :: GAS_spec
         type(PCHB_DoublesOptions_t), intent(in) :: options
-        logical, intent(in) :: use_lookup
+        logical, intent(in) :: use_lookup, create_lookup
             !! Use the supergroup lookup
         class(DoublesGUGABase_t), allocatable, intent(inout) :: generator
         routine_name("gasci_pchb_doubles_main::allocate_and_init")
@@ -59,7 +59,7 @@ contains
         select type(generator)
         type is(GAS_PCHB_FastFast_t)
             call generator%init(&
-                GAS_spec, options%particle_selection, options%weighting, use_lookup, use_lookup)
+                GAS_spec, options%particle_selection, options%weighting, use_lookup, create_lookup)
         class default
             call stop_all(this_routine, "Error. Should never be here.")
         end select

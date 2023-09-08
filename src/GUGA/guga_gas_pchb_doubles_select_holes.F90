@@ -331,15 +331,13 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = "pickOrbitals"
 
         integer :: src(2), a, b, orbs(2), ij, ab, i_sg
         real(dp) :: pgen_elec, pgen_orbs
 
         unused_var(ilut)
         if (this%use_lookup) then
-            ! TODO implement
-            call stop_all(this_routine, 'has to be implemented')
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -423,13 +421,11 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
-        character(*), parameter :: this_routine = "calc_orbital_pgen_contr"
 
         integer :: ij, i_sg
 
         if (this%use_lookup) then
-            ! TODO implement
-            call stop_all(this_routine, 'has to be implemented')
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
         else
             i_sg = this%indexer%idx_csf(csf_i)
         end if
@@ -462,8 +458,7 @@ contains
         integer :: i, j, ij, ab, i_sg
 
         if (this%use_lookup) then
-            ! TODO implement
-            call stop_all(this_routine, 'has to be implemented')
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
         else
             i_sg = this%indexer%idx_csf(csf_i)
         end if
@@ -480,7 +475,7 @@ contains
         orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_start
 
-    pure subroutine calc_orbital_pgen_contr_end(this, csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contr_end(this, csf_i, occ_orbs, orb_a, orb_pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
@@ -490,8 +485,7 @@ contains
         integer :: i, j, ij, ab, i_sg
 
         if (this%use_lookup) then
-            ! TODO implement
-            call stop_all(this_routine, 'has to be implemented')
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
         else
             i_sg = this%indexer%idx_csf(csf_i)
         end if
@@ -609,7 +603,7 @@ contains
         if (weight_choice == weight_choice_vals%INITIAL_WERNER) then
             ptr => initial_werner_get_weight
         else
-            call stop_all(this_routine, "Invalid choice")
+            call stop_all(this_routine, "Invalid weight choice: "//weight_choice%str)
         end if
     end subroutine
 

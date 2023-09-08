@@ -39,7 +39,7 @@ module tau_search_conventional
 
     use lattice_mod, only: get_helement_lattice
 
-    use gasci, only: possible_GAS_exc_gen, GAS_exc_gen, tGAS
+    use gasci, only: possible_GAS_exc_gen, GAS_exc_gen, tSD_GAS
 
     use pchb_excitgen, only: FCI_PCHB_options_vals, FCI_PCHB_user_input, decide_on_PCHB_options, FCI_PCHB_options_t
 
@@ -95,9 +95,9 @@ contains
                 FCI_PCHB_options = decide_on_PCHB_options(FCI_PCHB_user_input, nBasis, nEl, tUHF)
                 consider_par_bias = FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF
             end block
-        else if (tGAS) then
-            if (GAS_exc_gen /= possible_GAS_exc_gen%PCHB) then
-                consider_par_bias = .true.
+        else if (tSD_GAS()) then
+            if (allocated(GAS_exc_gen)) then
+                consider_par_bias = GAS_exc_gen /= possible_GAS_exc_gen%PCHB
             else
                 block
                     use gasci_pchb_main, only: GAS_PCHB_user_input, decide_on_PCHB_options, GAS_PCHB_options_vals, GAS_PCHB_options_t

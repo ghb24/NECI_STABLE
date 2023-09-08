@@ -62,7 +62,7 @@ module guga_gas_pchb_main
     type :: GAS_PCHB_options_t
         type(GAS_PCHB_SinglesOptions_t) :: singles
         type(PCHB_DoublesOptions_t) :: doubles
-        logical :: use_lookup = .false.
+        logical :: use_lookup
     contains
         procedure :: assert_validity
     end type
@@ -93,7 +93,7 @@ contains
         call options%assert_validity()
 
         call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, .false., this%singles_generator)
-        call doubles_allocate_and_init(GAS_spec, options%doubles, options%use_lookup, this%doubles_generator)
+        call doubles_allocate_and_init(GAS_spec, options%doubles, options%use_lookup, options%use_lookup, this%doubles_generator)
     end subroutine
 
     subroutine finalize(this)
@@ -114,8 +114,9 @@ contains
         end if
     end subroutine
 
-    function from_tokens(tokens) result(res)
+    function from_tokens(tokens, use_lookup) result(res)
         type(TokenIterator_t), intent(inout) :: tokens
+        logical, intent(in) :: use_lookup
         type(GAS_PCHB_options_t) :: res
         routine_name("from_tokens")
 
@@ -132,6 +133,9 @@ contains
         end if
         res%singles%weighting = options_vals%singles%weighting%from_str(tokens%next())
         res%doubles%weighting = options_vals%doubles%weighting%from_str(tokens%next())
+
+        ! To make sure we did not forget a component
+        res = GAS_PCHB_options_t(res%singles, res%doubles, use_lookup)
     end function
 
 end module

@@ -134,19 +134,21 @@ contains
     elemental function translate_to_GAS(FCI_options) result(GAS_options)
         type(FCI_PCHB_options_t), intent(in) :: FCI_options
         type(GAS_PCHB_options_t) :: GAS_options
-        GAS_options = GAS_PCHB_options_t(FCI_options%singles, FCI_options%doubles)
+        GAS_options = GAS_PCHB_options_t(FCI_options%singles, FCI_options%doubles, FCI_options%use_lookup)
     end function
 
     elemental function translate_to_FCI(GAS_options) result(FCI_options)
         type(GAS_PCHB_options_t), intent(in) :: GAS_options
         type(FCI_PCHB_options_t) :: FCI_options
-        FCI_options = FCI_PCHB_options_t(GAS_options%singles, GAS_options%doubles)
+        FCI_options = FCI_PCHB_options_t(GAS_options%singles, GAS_options%doubles, GAS_options%use_lookup)
     end function
 
-    function from_tokens(tokens) result(res)
+    function from_tokens(tokens, use_lookup) result(res)
         type(TokenIterator_t), intent(inout) :: tokens
+        logical, intent(in) :: use_lookup
+            !! Do a lookup of supergroups
         type(FCI_PCHB_options_t) :: res
-        res = translate_to_FCI(GAS_options_from_tokens(tokens))
+        res = translate_to_FCI(GAS_options_from_tokens(tokens, use_lookup))
     end function
 
 end module guga_pchb_class

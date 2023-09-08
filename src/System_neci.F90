@@ -1761,7 +1761,7 @@ contains
                     block
                         use guga_pchb_class, only: options, from_tokens
                         GUGA_selected_exc_generator = GUGA_exc_generator_vals%FCI_PCHB
-                        options = from_tokens(tokens)
+                        options = from_tokens(tokens, use_lookup=.true.)
                     end block
 
                     case ("GUGA-GAS-PCHB")
@@ -1769,7 +1769,7 @@ contains
                     block
                         use guga_gas_pchb_main, only: options, from_tokens
                         GUGA_selected_exc_generator = GUGA_exc_generator_vals%GAS_PCHB
-                        options = from_tokens(tokens)
+                        options = from_tokens(tokens, use_lookup=.true.)
                     end block
 
                     case ("UEG")

@@ -256,15 +256,13 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: src_orb
         integer, allocatable :: valid_orbs(:)
-        character(*), parameter :: this_routine = 'get_valid_orbs'
 
         integer(n_int) :: &
             ilut_doubly_occupied(0:this%L_spat_bits), ilut_valid(0:this%L_spat_bits)
         integer :: i_sg
 
         if (this%use_lookup) then
-            ! TODO implement
-            call stop_all(this_routine, 'has to be implemented')
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
         else
             i_sg = this%indexer%idx_csf(csf_i)
         end if

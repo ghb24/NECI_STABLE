@@ -81,7 +81,9 @@ module gasci_supergroup_index
         procedure, public :: idx_supergroup => get_supergroup_idx
         procedure, public :: idx_nI => get_supergroup_idx_det
         procedure, public :: idx_csf => get_supergroup_idx_csf
-        procedure, public :: lookup_supergroup_idx
+        generic, public :: lookup_supergroup_idx => lookup_supergroup_idx_Ni, lookup_supergroup_idx_CSF
+        procedure :: lookup_supergroup_idx_Ni
+        procedure :: lookup_supergroup_idx_CSF
         procedure, public :: n_supergroups => get_n_supergroups
         procedure, public :: get_supergroups => indexer_get_supergroups
     end type
@@ -700,8 +702,7 @@ contains
         @:pure_ASSERT(idx /= -1)
     end function
 
-
-    function lookup_supergroup_idx(this, idet, nI) result(idx)
+    pure function lookup_supergroup_idx_nI(this, idet, nI) result(idx)
         !!  Use a precomputed supergroup index from global_det_data.
         !!
         !!  This function heavily relies on correctly initialized global data
@@ -720,6 +721,28 @@ contains
             idx = global_lookup(idet)
             ! Assert that looked up and computed index agree.
             @:pure_ASSERT(idx == this%idx_nI(nI))
+        else
+            idx = 1
+        end if
+    end function
+
+    pure function lookup_supergroup_idx_CSF(this, csf_i) result(idx)
+        !!  Use a precomputed supergroup index from global_det_data.
+        !!
+        !!  This function heavily relies on correctly initialized global data
+        !!  outside the control of this class.
+        !!  Carefully make sure, that global_det_data is correctly initialized.
+        use global_det_data, only: global_lookup => get_supergroup_idx
+        class(SuperGroupIndexer_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+            !! The CSF
+        integer :: idx
+        debug_function_name('lookup_supergroup_idx')
+
+        if (this%GAS_spec%is_connected()) then
+            idx = global_lookup(csf_i%idx_curr_dets)
+            ! Assert that looked up and computed index agree.
+            @:pure_ASSERT(idx == this%idx_csf(csf_i))
         else
             idx = 1
         end if
