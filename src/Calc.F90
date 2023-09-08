@@ -1574,7 +1574,7 @@ contains
                 ! semi-stochastic on later.
                 if(tokens%remaining_items() > 0) then
                     if(tokens%remaining_items() > 0) &
-                        semistoch_shift_iter = to_int(tokens%next())
+                        semistoch_shift_iter = nint(to_realdp(tokens%next()))
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
                 end if

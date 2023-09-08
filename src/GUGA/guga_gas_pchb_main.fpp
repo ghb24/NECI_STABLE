@@ -49,17 +49,15 @@ module guga_gas_pchb_main
         doubles_allocate_and_init => allocate_and_init
 
     better_implicit_none
+    private
+    public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, options_vals, &
+        GAS_PCHB_options_vals_t, from_tokens, options
 
     type, extends(AbInitGUGABase_t) :: GAS_PCHB_ExcGenerator_t
     contains
         procedure :: init
         procedure :: finalize
     end type
-
-
-    private
-    public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, options_vals, &
-        GAS_PCHB_options_vals_t, from_tokens, options
 
     type :: GAS_PCHB_options_t
         type(GAS_PCHB_SinglesOptions_t) :: singles

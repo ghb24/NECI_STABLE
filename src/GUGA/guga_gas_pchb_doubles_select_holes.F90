@@ -622,7 +622,7 @@ contains
         case(weight_choice_vals%INITIAL_WERNER%str)
             res = weight_choice_vals%INITIAL_WERNER
         case default
-            call stop_all(this_routine, "Invalid choice")
+            call stop_all(this_routine, 'Invalid input: '//str)
         end select
     end function
 
@@ -635,7 +635,7 @@ contains
         case(algorithm_vals%FAST_FAST%str)
             res = algorithm_vals%FAST_FAST
         case default
-            call stop_all(this_routine, "Invalid choice")
+            call stop_all(this_routine, 'Invalid input: '//str)
         end select
     end function
 

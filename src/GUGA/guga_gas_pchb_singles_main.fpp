@@ -325,7 +325,7 @@ contains
         case(option_vals%algorithm%UNIF_UNIF%str)
             res = option_vals%algorithm%UNIF_UNIF
         case default
-            call stop_all(this_routine, 'Invalid input')
+            call stop_all(this_routine, 'Invalid input: '//str)
         end select
     end function
 
@@ -338,7 +338,7 @@ contains
         case(option_vals%weighting%UNIFORM%str)
             res = option_vals%weighting%UNIFORM
         case default
-            call stop_all(this_routine, 'Invalid input')
+            call stop_all(this_routine, 'Invalid input: '//str)
         end select
     end function
 
