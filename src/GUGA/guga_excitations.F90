@@ -11,7 +11,7 @@ module guga_excitations
                           tGen_guga_weighted, nBasisMax, treal, &
                           t_approx_exchange, t_approx_exchange_noninits, &
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
-                          t_guga_pchb, thub
+                          thub
 
     use constants, only: dp, n_int, bits_n_int, Root2, &
                          EPS, bni_, bn2_, stdout, int_rdm
@@ -133,7 +133,7 @@ module guga_excitations
               calcdoubler2l_stochastic, calcallexcitations, &
               pick_elec_pair_uniform_guga, get_guga_integral_contrib, &
               calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
-              get_guga_integral_contrib_spat, calc_orbital_pgen_contrib_start_def, &
+              calc_orbital_pgen_contrib_start_def, &
               calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga, &
               csf_to_sds_ilut, csf_vector_to_sds, checkCompatibility_single
 
@@ -15737,52 +15737,6 @@ contains
         end if
 
     end subroutine gen_a_orb_cum_list_guga_mol
-
-    pure function get_guga_integral_contrib_spat(occ_orbs, orb_a, orb_b) result(cpt)
-        integer, intent(in) :: occ_orbs(2), orb_a, orb_b
-        real(dp) :: cpt
-
-        integer :: ind(2)
-
-        ind = occ_orbs
-        ! for now, since i dont know how to correctly do it, and for testing
-        ! purposes just add a uniformly factor to all of the orbitals.
-
-        ! do a input dependent switch to compare influence on the pgens..
-        if (tGen_guga_weighted) then
-
-            if (orb_b < 0) then
-
-                cpt = sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
-                    + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a))))
-            else
-
-                cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) &
-                                 + abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
-
-            end if
-
-        else
-
-            if (orb_b < 0) then
-
-                cpt = 1.0_dp
-
-            else
-
-                if (t_guga_pchb) then
-                    cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
-                          abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
-
-                else
-                    cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
-                          abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
-                  end if
-            end if
-        end if
-
-
-    end function get_guga_integral_contrib_spat
 
     pure function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
         ! routine which gets the correct FCIDUMP integral contribution for

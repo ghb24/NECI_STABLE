@@ -22,7 +22,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, t_trans_corr_hop, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_fci_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
+                          t_fci_pchb_excitgen, tGAS, t_spin_dependent_transcorr, &
                           basisfn, t_mixed_excits, t_hole_focus_excits
 
 

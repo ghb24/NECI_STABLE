@@ -4,7 +4,7 @@ module guga_gas_pchb_doubles_select_holes
     use aliasSampling, only: AliasSampler_2D_t
     use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm, bits_n_int
     use bit_rep_data, only: IlutBits, GugaBits
-    use SystemData, only: nel, G1, t_guga_pchb_weighted_singles, &
+    use SystemData, only: nel, G1, &
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
@@ -26,7 +26,7 @@ module guga_gas_pchb_doubles_select_holes
     use UMatCache, only: gtID
     use guga_excitations, only: assign_excitinfo_values_single, &
                                 pick_elec_pair_uniform_guga, &
-                                excitationIdentifier_double, get_guga_integral_contrib_spat, &
+                                excitationIdentifier_double, &
                                 calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
                                 checkCompatibility_single
     use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &

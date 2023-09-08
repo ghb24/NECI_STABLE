@@ -240,8 +240,6 @@ contains
         t_exclude_3_body_excits = .false.
         t_pcpp_excitgen = .false.
         t_fci_pchb_excitgen = .false.
-        ! use weighted singles for the pchb excitgen?
-        t_guga_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
         t_adjoint_replicas = .false.
         ! GAS options
@@ -1762,7 +1760,6 @@ contains
                     ! use an explicit guga-pchb keyword and flag
                     block
                         use guga_pchb_class, only: options, from_tokens
-                        t_guga_pchb = .true.
                         GUGA_selected_exc_generator = GUGA_exc_generator_vals%FCI_PCHB
                         options = from_tokens(tokens)
                     end block
@@ -1771,7 +1768,6 @@ contains
                     ! use an explicit guga-pchb keyword and flag
                     block
                         use guga_gas_pchb_main, only: options, from_tokens
-                        t_guga_pchb = .true.
                         GUGA_selected_exc_generator = GUGA_exc_generator_vals%GAS_PCHB
                         options = from_tokens(tokens)
                     end block
@@ -1794,9 +1790,6 @@ contains
                     &singles on-fly-heat-bath` instead."
                 write(stdout, *) "For GUGA please use `GUGA-PCHB-WEIGHTED-SINGLES`."
                 call stop_all(this_routine, trim(w)//" is deprecated.")
-
-            case ("GUGA-PCHB-WEIGHTED-SINGLES")
-                t_guga_pchb_weighted_singles = .true.
 
             ! enable intermediately some pchb+guga testing
             case("ANALYZE-PCHB")
