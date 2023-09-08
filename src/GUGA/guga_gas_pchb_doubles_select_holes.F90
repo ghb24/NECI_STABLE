@@ -345,7 +345,6 @@ contains
         end if
 
         call this%particle_selector%draw(nI, ilut, csf_i, src, pgen_elec)
-        ASSERT(src(1) < src(2))
 
         ! use the sampler for this electron pair -> order of src electrons
         ! does not matter
@@ -372,8 +371,7 @@ contains
         ! split the index ab (using a table containing mapping ab -> (a,b))
         orbs = this%tgtOrbs(:, ab)
 
-        a = orbs(1)
-        b = orbs(2)
+        a = orbs(1); b = orbs(2)
 
         ! check if the picked orbs are a valid choice - if they are the same, match one
         ! occupied orbital or are zero (maybe because there are no allowed picks for
