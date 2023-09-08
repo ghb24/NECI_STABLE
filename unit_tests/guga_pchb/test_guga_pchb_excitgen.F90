@@ -44,7 +44,8 @@ module test_guga_pchb_mod
                     options_vals%doubles%particle_selection%UNIF_UNIF, &
                     options_vals%doubles%hole_selection%FAST_FAST, &
                     options_vals%doubles%weighting%INITIAL_WERNER &
-                ) &
+                ), &
+                use_lookup=.false. &
             )
 
     type(PCHB_t) :: exc_generator
