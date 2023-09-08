@@ -42,9 +42,7 @@ MODULE System
 
     use guga_data, only: tGUGACore
 
-    use guga_pchb_class, only: GUGA_PCHB_FCI_options => options
-
-    use guga_gas_pchb_main, only: GUGA_PCHB_FCI_options_vals => options_vals
+    use guga_pchb_class, only: GUGA_PCHB_FCI_options => options, GUGA_PCHB_FCI_options_vals => options_vals
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, split
 

@@ -8,13 +8,15 @@ module guga_pchb_class
     use guga_bitrepops, only: CSF_Info_t
     use guga_base_class, only: GUGABase_t
     use gasci, only: LocalGASSpec_t
-    use guga_gas_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t
+    use guga_gas_pchb_main, only: &
+        GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
+        GAS_PCHB_options_vals_t
 
 
     better_implicit_none
 
     private
-    public :: PCHB_t, options
+    public :: PCHB_t, options, FCI_PCHB_options_t, FCI_PCHB_options_vals_t, options_vals
 
     type, extends(GUGABase_t) :: PCHB_t
         private
@@ -33,14 +35,27 @@ module guga_pchb_class
         procedure, public :: calc_orbital_pgen_contr_end
     end type PCHB_t
 
-    type(GAS_PCHB_options_t) :: options
+    ! NOTE be careful to not violate the Liskov substitution principle.
+    ! At the moment `FCI_PCHB_options_t` **is** a `GAS_PCHB_options_t`
+    ! and can be used interchangeably.
+    ! If this is changed in the future, the inheritance has to be stopped.
+    type, extends(GAS_PCHB_options_t) :: FCI_PCHB_options_t
+    end type
+
+    type, extends(GAS_PCHB_options_vals_t) :: FCI_PCHB_options_vals_t
+    end type
+
+
+    type(FCI_PCHB_options_t) :: options
+    type(FCI_PCHB_options_vals_t), parameter :: options_vals = FCI_PCHB_options_vals_t()
 
 contains
 
     subroutine init(this, options)
         class(PCHB_t), intent(inout) :: this
-        type(GAS_PCHB_options_t), intent(in) :: options
-        call this%GAS_sampler%init(CAS_spec(nEl, nSpatOrbs), options)
+        type(FCI_PCHB_options_t), intent(in) :: options
+        call this%GAS_sampler%init(CAS_spec(nEl, nSpatOrbs), &
+            translate_to_GAS(options))
 
     contains
 
@@ -112,6 +127,12 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         pgen = this%GAS_sampler%calc_pgen(nI, ilutI, csf_i, excitInfo)
+    end function
+
+    elemental function translate_to_GAS(FCI_options) result(GAS_options)
+        type(FCI_PCHB_options_t), intent(in) :: FCI_options
+        type(GAS_PCHB_options_t) :: GAS_options
+        GAS_options = GAS_PCHB_options_t(FCI_options%singles, FCI_options%doubles)
     end function
 
 end module guga_pchb_class

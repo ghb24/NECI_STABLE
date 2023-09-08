@@ -56,7 +56,8 @@ module guga_gas_pchb_main
 
 
     private
-    public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, options_vals
+    public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, options_vals, &
+        GAS_PCHB_options_vals_t
 
     type :: GAS_PCHB_options_t
         type(GAS_PCHB_SinglesOptions_t) :: singles
