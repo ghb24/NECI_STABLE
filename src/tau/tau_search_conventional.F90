@@ -96,8 +96,8 @@ contains
                 consider_par_bias = FCI_PCHB_options%doubles%particle_selection == FCI_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF
             end block
         else if (tSD_GAS()) then
-            if (allocated(GAS_exc_gen)) then
-                consider_par_bias = GAS_exc_gen /= possible_GAS_exc_gen%PCHB
+            if (GAS_exc_gen /= possible_GAS_exc_gen%PCHB ) then
+                consider_par_bias = .true.
             else
                 block
                     use gasci_pchb_main, only: GAS_PCHB_user_input, decide_on_PCHB_options, GAS_PCHB_options_vals, GAS_PCHB_options_t
