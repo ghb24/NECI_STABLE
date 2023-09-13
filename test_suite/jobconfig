@@ -75,7 +75,7 @@ nprocs = 4
 min_nprocs = 4
 max_nprocs = 4
 
-[neci/guga/*/*/*/]
+[neci/guga/*/*/]
 program = neci
 nprocs = 4
 min_nprocs = 4
