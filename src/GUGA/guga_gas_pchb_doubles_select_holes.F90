@@ -88,19 +88,15 @@ module guga_gas_pchb_doubles_select_holes
 
     type(PCHB_HoleAlgorithm_vals_t), parameter :: algorithm_vals = PCHB_HoleAlgorithm_vals_t()
 
-
-    type, extends(DoublesGUGABase_t) :: GAS_PCHB_FastFast_t
+    type, extends(DoublesGUGABase_t), abstract :: GAS_PCHB_Doubles_t
         private
+
         !> Use a lookup for the supergroup index in global_det_data
         logical, public :: use_lookup = .false.
         !> Create **and** manage! the supergroup index lookup in global_det_data.
         logical, public :: create_lookup = .false.
 
         class(ParticleSelector_t), allocatable :: particle_selector
-
-        !> The shape is (fused_number_of_double_excitations, n_supergroup)
-        type(AliasSampler_2D_t) :: alias_sampler
-        integer, allocatable :: tgtOrbs(:, :)
 
         type(shared_array_int64_t) :: all_info_table
         type(shared_array_int64_t), allocatable :: info_tables(:)
@@ -114,6 +110,40 @@ module guga_gas_pchb_doubles_select_holes
         procedure, public :: init => init_GugaAliasSampler_t
         procedure, public :: finalize => finalize_GugaAliasSampler_t
 
+
+        procedure :: new_info_table
+        procedure :: set_info_entry
+        procedure :: get_info_entry
+
+        procedure(calculate_pchb_sampler_t), deferred :: setup_pchb_sampler_conditional
+        procedure(additional_finalize_t), deferred :: finalize_pchb_sampler
+    end type
+
+    abstract interface
+        subroutine calculate_pchb_sampler_t(this, ij_weights)
+            import :: GAS_PCHB_Doubles_t, dp
+            class(GAS_PCHB_Doubles_t), intent(inout) :: this
+            real(dp), allocatable, intent(out) :: ij_weights(:, :, :)
+        end subroutine
+
+        subroutine additional_finalize_t(this)
+            import :: GAS_PCHB_Doubles_t
+            implicit none
+            class(GAS_PCHB_Doubles_t), intent(inout) :: this
+        end subroutine
+    end interface
+
+
+
+    type, extends(GAS_PCHB_Doubles_t) :: GAS_PCHB_FastFast_t
+        private
+
+        !> The shape is (fused_number_of_double_excitations, n_supergroup)
+        type(AliasSampler_2D_t) :: alias_sampler
+        integer, allocatable :: tgtOrbs(:, :)
+
+    contains
+        private
         procedure, public :: pickOrbitals
         procedure, public :: calc_pgen
 
@@ -121,18 +151,14 @@ module guga_gas_pchb_doubles_select_holes
         procedure, public :: calc_orbital_pgen_contr_start
         procedure, public :: calc_orbital_pgen_contr_end
 
-        procedure :: new_info_table
-        procedure :: set_info_entry
-        procedure :: get_info_entry
-
         procedure :: setup_pchb_sampler_conditional
-
-    end type GAS_PCHB_FastFast_t
+        procedure :: finalize_pchb_sampler
+    end type
 
 contains
 
     subroutine new_info_table(this, nEntries, entrySize)
-        class(GAS_PCHB_FastFast_t) :: this
+        class(GAS_PCHB_Doubles_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
@@ -151,7 +177,7 @@ contains
 
     function get_info_entry(this, iEntry, tgt) result(info)
         debug_function_name("get_info_entry")
-        class(GAS_PCHB_FastFast_t) :: this
+        class(GAS_PCHB_Doubles_t) :: this
         integer, intent(in) :: iEntry, tgt
         integer(int64) :: info
 
@@ -160,7 +186,7 @@ contains
     end function
 
     subroutine set_info_entry(this, ij, ab, info)
-        class(GAS_PCHB_FastFast_t) :: this
+        class(GAS_PCHB_Doubles_t) :: this
         integer, intent(in) :: ij, ab
         integer(int64), intent(in) :: info
 
@@ -171,15 +197,14 @@ contains
     end subroutine
 
     subroutine init_GugaAliasSampler_t(this, GAS_spec, particle_selection, weighting_selection, use_lookup, create_lookup)
-        class(GAS_PCHB_FastFast_t), intent(inout) :: this
+        class(GAS_PCHB_Doubles_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         type(PCHB_ParticleSelection_t), intent(in) :: particle_selection
         type(WeightingChoice_t), intent(in) :: weighting_selection
         logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = "init_GugaAliasSampler_t"
 
-        integer :: a, b
-        integer(int64) :: abMax, ab
+        real(dp), allocatable :: ij_weights(:, :, :)
 
         ! also set some more strict defaults for the PCHB implo:
         root_print "Setting reasonable defaults for GUGA-PCHB:"
@@ -220,9 +245,35 @@ contains
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
 
+        call set_get_weight_pointer(weighting_selection, this%get_weight)
+
+        call this%setup_pchb_sampler_conditional(ij_weights)
+        call particle_allocate_and_init(particle_selection, this%particle_selector)
+        write(stdout, *) "Finished excitation generator initialization"
+    end subroutine
+
+    subroutine finalize_GugaAliasSampler_t(this)
+        class(GAS_PCHB_Doubles_t), intent(inout) :: this
+        call this%all_info_table%shared_dealloc()
+        deallocate(this%info_tables)
+        call this%finalize_pchb_sampler()
+    end subroutine
+
+
+    subroutine setup_pchb_sampler_conditional(this, ij_weights)
+        class(GAS_PCHB_FastFast_t), intent(inout) :: this
+        real(dp), allocatable, intent(out) :: ij_weights(:, :, :)
+        integer :: i, j, ij, a, b, ab, i_sg
+        integer(int64) :: ijMax, abMax, memCost
+        integer, allocatable :: supergroups(:, :)
+        real(dp), allocatable :: w(:)
+
+        ! possible supergroups
+        supergroups = this%indexer%get_supergroups()
 
         ! initialize the mapping ab -> (a, b)
         abMax = fuseIndex(nSpatOrbs, nSpatOrbs)
+        ijMax = abMax
         allocate(this%tgtOrbs(2, 0:abMax), source=0)
         do a = 1, nSpatOrbs
             do b = 1, a
@@ -232,25 +283,6 @@ contains
             end do
         end do
 
-        call set_get_weight_pointer(weighting_selection, this%get_weight)
-        call this%setup_pchb_sampler_conditional(particle_selection)
-
-        write(stdout, *) "Finished excitation generator initialization"
-    end subroutine init_GugaAliasSampler_t
-
-    subroutine setup_pchb_sampler_conditional(this, particle_selection)
-        class(GAS_PCHB_FastFast_t), intent(inout) :: this
-        type(PCHB_ParticleSelection_t), intent(in) :: particle_selection
-        integer :: i, j, ij, a, b, ab, i_sg
-        integer(int64) :: ijMax, abMax, memCost
-        integer, allocatable :: supergroups(:, :)
-        real(dp), allocatable :: w(:), ij_weights(:, :, :)
-
-        ! possible supergroups
-        supergroups = this%indexer%get_supergroups()
-
-        ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
-        abMax = ijMax
 
         calculate_memory_demand: block
             integer(int64) :: number_of_fused_indices, bytes_per_sampler, n_supergroup
@@ -309,8 +341,6 @@ contains
                 end do
             end do
         end do
-
-        call particle_allocate_and_init(particle_selection, this%particle_selector)
     contains
         logical function symmetry_allowed(i, j, a, b)
             integer, intent(in) :: i, j, a, b
@@ -322,12 +352,12 @@ contains
         end function
     end subroutine setup_pchb_sampler_conditional
 
-    subroutine finalize_GugaAliasSampler_t(this)
+    subroutine finalize_pchb_sampler(this)
         class(GAS_PCHB_FastFast_t), intent(inout) :: this
         call this%alias_sampler%finalize()
-        call this%all_info_table%shared_dealloc()
-        deallocate(this%tgtOrbs, this%info_tables)
+        deallocate(this%tgtOrbs)
     end subroutine
+
 
     subroutine pickOrbitals(this, ilut, nI, csf_i, excitInfo, pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
@@ -389,8 +419,6 @@ contains
             return
         end if
 
-        ! setup a getInfo functionality in the sampler!
-        ! TODO: include supergroup into bitmask
         call extract_excit_info(this%get_info_entry(ij, ab), excitInfo)
         excitInfo%i_sg_start = i_sg
 
