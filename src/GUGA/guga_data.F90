@@ -345,7 +345,7 @@ module guga_data
     type :: ijkl_Index_t
         !! An index in the format of the Shavit papers [@Hinze1981] \( e_{ijkl} \)
         !!
-        !! This means j and l are the particles, i and j the holes.
+        !! This means j and l are the particles, i and k the holes.
         integer :: val(4)
     contains
         procedure :: extract_ijkl => extract_ijkl_Index_t
