@@ -110,7 +110,7 @@ module guga_gas_pchb_doubles_select_particles
     ! type, extends(ParticleSelector_t), abstract :: PC_Particles_t
     !     private
     !     type(AliasSampler_1D_t) :: I_sampler
-    !         !! The shape is (n_supergroup *) -> number_of_spat_orbs * 2
+    !         !! The shape is (n_supergroup) -> number_of_spat_orbs * 2
     !     type(AliasSampler_2D_t) :: J_sampler
     !         !! The shape is (number_of_spat_orbs * 2, n_supergroup) -> number_of_spat_orbs * 2
     !

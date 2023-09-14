@@ -164,7 +164,7 @@ contains
         integer, intent(in) :: ij, ab
         integer(int64), intent(in) :: info
 
-        if (iProcIndex_intra == 0) then
+        if (iProcIndex_intra == root) then
             this%info_tables(ij)%ptr(ab) = info
         end if
         call this%all_info_table%sync()
@@ -244,7 +244,7 @@ contains
         integer :: i, j, ij, a, b, ab, i_sg
         integer(int64) :: ijMax, abMax, memCost
         integer, allocatable :: supergroups(:, :)
-        real(dp), allocatable :: w(:)
+        real(dp), allocatable :: w(:), ij_weights(:, :, :)
 
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
@@ -267,10 +267,14 @@ contains
         call this%alias_sampler%shared_alloc([int(ijMax), size(supergroups, 2)], int(abMax), 'PCHB')
         call this%new_info_table(int(ijMax, int64), int(abMax, int64))
 
-        ! the encode_excit_info function encodes as: E_{ai}E_{bj)
-        ! but for some index combinations we have to change the input so
-        ! actually E_{aj}E_{bi} is encoded! convention to use only
-        ! certain type of excit-types
+
+        if (iProcIndex_intra == root) then
+            allocate(w(abMax), source=0._dp)
+            allocate(ij_weights(nSpatOrbs, nSpatOrbs, size(supergroups, 2)), source=0._dp)
+        else
+            allocate(w(0))
+            allocate(ij_weights(0, 0, 0))
+        end if
 
         ! The info for double excitations is independent of the super group
         do i = 1, nSpatOrbs
@@ -285,7 +289,6 @@ contains
             end do
         end do
 
-        allocate(w(abMax), source=0.0_dp)
         do i_sg = 1, size(supergroups, 2)
             do i = 1, nSpatOrbs
                 do j = i, nSpatOrbs
@@ -294,9 +297,11 @@ contains
                     do a = 1, nSpatOrbs
                         do b = a, nSpatOrbs
                             ab = fuseIndex(a, b)
-                            if (this%GAS_spec%is_allowed(Excite_2_t(2 * i, 2 * a, 2 * j, 2 * b), supergroups(:, i_sg)) &
-                                    .and. symmetry_allowed(i, j, a, b)) then
-                                w(ab) = this%get_weight(DistinctDouble_t(ijab_Index_t([i, j, a, b])))
+                            if (iProcIndex_intra == root) then
+                                if (this%GAS_spec%is_allowed(Excite_2_t(2 * i, 2 * a, 2 * j, 2 * b), supergroups(:, i_sg)) &
+                                        .and. symmetry_allowed(i, j, a, b)) then
+                                    w(ab) = this%get_weight(DistinctDouble_t(ijab_Index_t([i, j, a, b])))
+                                end if
                             end if
                         end do
                     end do
@@ -595,7 +600,7 @@ contains
     end function
 
 
-    subroutine set_get_weight_pointer(weight_choice, ptr)
+    pure subroutine set_get_weight_pointer(weight_choice, ptr)
         type(WeightingChoice_t), intent(in) :: weight_choice
         procedure(get_weight_t), pointer, intent(out) :: ptr
         routine_name("set_get_weight_pointer")
