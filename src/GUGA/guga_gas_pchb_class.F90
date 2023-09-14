@@ -464,6 +464,7 @@ contains
     end subroutine pickOrbitals_single
 
     function get_valid_orbs(this, csf_i, src_orb) result(valid_orbs)
+        !! Return the GAS allowed holes for the particle `src_orb`
         class(GAS_PCHB_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: src_orb
