@@ -397,7 +397,6 @@ contains
         pGen = pgen_elec * pgen_orbs
     end subroutine pickOrbitals
 
-
     function calc_pgen(this, nI, ilutI, csf_i, excitInfo) result(pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
