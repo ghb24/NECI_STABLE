@@ -330,10 +330,11 @@ contains
                         do b = a, nSpatOrbs
                             ab = fuseIndex(a, b)
                             if (iProcIndex_intra == root) then
-                                if (this%GAS_spec%is_allowed(Excite_2_t(2 * i, 2 * a, 2 * j, 2 * b), supergroups(:, i_sg)) &
-                                        .and. symmetry_allowed(i, j, a, b)) then
-                                    w(ab) = this%get_weight(DistinctDouble_t(ijab_Index_t([i, j, a, b])))
+                                associate(exc => DistinctDouble_t(ijab_Index_t([i, j, a, b])))
+                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. symmetry_allowed(exc)) then
+                                    w(ab) = this%get_weight(exc)
                                 end if
+                                end associate
                             end if
                         end do
                     end do
@@ -341,15 +342,6 @@ contains
                 end do
             end do
         end do
-    contains
-        logical function symmetry_allowed(i, j, a, b)
-            integer, intent(in) :: i, j, a, b
-            ! shoud i point group symmetry restrctions here?
-            ! this would avoid unnecessary if statements..
-            symmetry_allowed = &
-                RandExcitSymLabelProd(SpinOrbSymLabel(2 * i), SpinOrbSymLabel(2 * j)) &
-                == RandExcitSymLabelProd(SpinOrbSymLabel(2 * a), SpinOrbSymLabel(2 * b))
-        end function
     end subroutine setup_pchb_sampler_conditional
 
     subroutine finalize_pchb_sampler(this)
@@ -357,7 +349,6 @@ contains
         call this%alias_sampler%finalize()
         deallocate(this%tgtOrbs)
     end subroutine
-
 
     subroutine pickOrbitals(this, ilut, nI, csf_i, excitInfo, pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
@@ -663,6 +654,15 @@ contains
         case default
             call stop_all(this_routine, 'Invalid input: '//str)
         end select
+    end function
+
+    logical elemental function symmetry_allowed(exc)
+        type(DistinctDouble_t), intent(in) :: exc
+        integer :: i, j, a, b
+        call exc%idx%extract_ijkl(a, i, b, j)
+        symmetry_allowed = &
+            RandExcitSymLabelProd(SpinOrbSymLabel(2 * i), SpinOrbSymLabel(2 * j)) &
+            == RandExcitSymLabelProd(SpinOrbSymLabel(2 * a), SpinOrbSymLabel(2 * b))
     end function
 
 end module

@@ -20,6 +20,7 @@ module gasci
     use bit_reps, only: decode_bit_det
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
     use guga_bitRepOps, only: CSF_Info_t
+    use guga_data, only: DistinctDouble_t, ijab_Index_t
 
     better_implicit_none
     private
@@ -99,7 +100,8 @@ module gasci
         generic :: count_per_GAS => count_per_GAS_nI, count_per_GAS_csf
         procedure, private :: is_allowed_single
         procedure, private :: is_allowed_double
-        generic :: is_allowed => is_allowed_single, is_allowed_double
+        procedure, private :: is_allowed_distinct_double
+        generic :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
     end type
 
     abstract interface
@@ -453,6 +455,16 @@ contains
                 end block
             end if
         end if
+    end function
+
+    logical pure function is_allowed_distinct_double(this, exc, supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(DistinctDouble_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        integer :: i, j, a, b
+        call exc%idx%extract_ijkl(a, i, b, j)
+        is_allowed_distinct_double = this%is_allowed(Excite_2_t(2 * i, 2 * a, 2 * j, 2 * b), supergroup)
     end function
 
     !>  Return the possible holes where a particle can be created under GAS constraints.
