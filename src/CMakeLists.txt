@@ -197,7 +197,8 @@ set( SRC_FILES
     GUGA/guga_pchb_class.F90
     GUGA/guga_crude_approx.F90
     GUGA/guga_rdm.F90
-    GUGA/guga_gas_pchb_doubles_select_holes.F90
+    GUGA/guga_gas_pchb_doubles_select_holes_base.F90
+    GUGA/guga_gas_pchb_doubles_select_holes_fast_fast.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
