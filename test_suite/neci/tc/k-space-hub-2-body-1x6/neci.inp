@@ -1,6 +1,7 @@
 title
 
 system hubbard k-space
+    order-by-1elec-energy
     2-body-transcorr 0.05
     lattice chain 6 1
     b -1
@@ -10,6 +11,7 @@ system hubbard k-space
 endsys
 
 calc
+    time 30
 
     methods
         method vertex fcimc
@@ -40,7 +42,6 @@ calc
     stepsshift 1
     memoryfacpart  50.00
     memoryfacspawn  100.00
-    time 2700
 endcalc
 
 logging

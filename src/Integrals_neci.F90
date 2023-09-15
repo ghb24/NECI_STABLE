@@ -442,7 +442,7 @@ contains
         Use UMatCache, only: SetupUMatCache
         use SystemData, only: nBasisMax, Alpha, BHub, BRR, nmsh, nEl
         use SystemData, only: G1, iSpinSkip, nBasis, nMax, nMaxZ
-        use SystemData, only: Omega, tAlpha, TBIN, tCPMD, tDFread, THFORDER
+        use SystemData, only: Omega, tAlpha, TBIN, tCPMD, tDFread, tHFOrder
         use SystemData, only: thub, tpbc, treadint, ttilt, TUEG, tPickVirtUniform
         use SystemData, only: uhub, arr, alat, treal, tReltvy
         use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -503,7 +503,7 @@ contains
             LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
             CALL GENSymStatePairs(nBasis / 2, .false.)
             CALL SetupTMAT(nBasis, 2, TMATINT)
-            CALL CPMDINIT2INDINT(nBasis, I, G1, NEL, ECORE, THFORDER, ARR, BRR, iCacheFlag)
+            CALL CPMDINIT2INDINT(nBasis, I, G1, NEL, ECORE, tHFOrder, ARR, BRR, iCacheFlag)
         else if(tVASP) THEN
             call shared_allocate_mpi(umat_win, umat,(/1_int64/))
             !allocate(UMat(1), stat=ierr)
@@ -762,7 +762,7 @@ contains
         HElement_t(dp), pointer :: UMAT2(:)
         INTEGER(TagIntType) tagUMat2
         INTEGER nOcc
-        integer(MPIArg) :: umat2_win
+        type(MPI_Win) :: umat2_win
         integer(int64) :: UMATInt
         integer nHG
 
@@ -835,7 +835,7 @@ contains
 !!C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !!C.. to UMAT2
             LogDealloc(tagUMat)
-            call shared_deallocate_mpi(int(umat_win, MPIArg), umat)
+            call shared_deallocate_mpi(umat_win, umat)
             !Deallocate(UMat)
             umat_win = umat2_win
             UMat => UMat2
@@ -882,7 +882,7 @@ contains
         ! Cleanup UMAT array
         if(associated(UMAT)) then
             LogDealloc(tagUMat)
-            call shared_deallocate_mpi(int(umat_win, MPIArg), UMAT)
+            call shared_deallocate_mpi(umat_win, UMAT)
         end if
 
         if(allocated(frozen_orb_list)) then
@@ -2031,4 +2031,3 @@ SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
     if(iProcIndex == Root) close(iunit)
     RETURN
 END SUBROUTINE CALCTMATUEG
-

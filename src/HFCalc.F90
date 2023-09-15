@@ -33,7 +33,7 @@ contains
         character(25), parameter :: this_routine = 'HFDoCalc'
         HElement_t(dp), ALLOCATABLE :: HFBASIS(:), HFE(:)
         HElement_t(dp), pointer :: UMat2(:)
-        INTEGER(MPIArg):: umat2_win
+        type(MPI_Win):: umat2_win
         integer i
         integer nOrbUsed
         integer TMatInt
@@ -44,7 +44,7 @@ contains
 !C.. to load in the coeffs of the HF eigenfunctions in terms of the
 !C.. primitive basis.
 !C.. We load the coeffs from a file HFBASIS
-        IF (THFBASIS .OR. THFCALC .OR. (THFORDER .AND. .NOT. TCPMD)) THEN
+        IF (THFBASIS .OR. THFCALC .OR. (tHFOrder .AND. .NOT. TCPMD)) THEN
             ! NOTE: while HFBasis and HFE are declared to be  arrays,
             ! many of the following routines assume them to be real arrays.
             ! These need to be changed for use with complex code.
@@ -55,7 +55,7 @@ contains
             allocate(HFE(nBasis))
             call LogMemAlloc('HFE', nBasis, HElement_t_size * 8, this_routine, tagHFE)
             HFE = (0.0_dp)
-            IF (THFORDER .AND. .NOT. THFBASIS) THEN
+            IF (tHFOrder .AND. .NOT. THFBASIS) THEN
 !C.. If we're not using HF, but just calculating the HF order
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
 !C.. re-order the orbitals and give us some energy)

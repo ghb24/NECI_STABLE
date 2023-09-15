@@ -5,7 +5,7 @@
 module shared_array
     use constants, only: int32, int64, dp, MPIArg
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
-    use mpi, only: MPI_Barrier, MPI_Win_Sync
+    use mpi_f08, only: MPI_Barrier, MPI_Win_Sync, MPI_Win
     use MPI_wrapper, only: mpi_comm_intra
     use MemoryManager, only: LogMemALloc, LogMemDealloc, TagIntType
     better_implicit_none
@@ -18,7 +18,7 @@ module shared_array
         ! WARNING: DO NOT MANUALLY RE-ASSIGN ptr, THIS WILL MOST LIKELY BREAK STUFF
         ${data_type}$, pointer :: ptr(:) => null()
         ! and an MPI window
-        integer(MPIArg) :: win
+        type(MPI_Win) :: win
         ! Tag for the NECI memory manager
         integer(TagIntType) :: tag = 0
     contains

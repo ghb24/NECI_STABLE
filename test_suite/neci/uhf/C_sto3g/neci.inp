@@ -2,12 +2,11 @@ title
 
     system read
         electrons 4
-        # at the moment, only the uniform excitgen works with uhf
-        uhf
-        molpromimic
+        uhf zero-delimited
     endsys
 
     calc
+        time 30
         # since this is a test, need it to be reproducible:
         load-balance-blocks off
         seed 9

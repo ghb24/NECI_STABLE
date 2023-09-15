@@ -1,12 +1,14 @@
 Title
 
 System read
+    order-by-1elec-energy
     electrons  6
     nonuniformrandexcits mol_guga_weighted
     guga 0
 endsys
 
 calc
+    time 30
 
     methods
         method vertex fcimc
@@ -29,7 +31,6 @@ calc
     allrealcoeff
     realspawncutoff off
 
-    time 2700
     nmcyc 3000
 
     seed 1
@@ -40,4 +41,3 @@ logging
     popsfile -1
 endlog
 end
-

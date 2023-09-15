@@ -8,7 +8,8 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen, tUHF, tMolpro
+                          tReadInt, t_pcpp_excitgen, nSpatOrbs, tGUGA, tUHF, tMolpro, &
+                          user_input_m_s, tZeroDelimitedFCIDUMP
     use sort_mod
     use gasci, only: GASSpec_t
     use System, only: SysInit, SetSysDefaults, SysCleanup
@@ -28,12 +29,14 @@ module unit_test_helper_excitgen
     use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
     use util_mod, only: stop_all, operator(.div.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
+    use DetCalc, only: DetCalcInit
+    use ReadInput_neci, only: evaluate_depending_keywords
     better_implicit_none
     private
     public :: test_excitation_generator, generate_uniform_integrals, FciDumpWriter_t, &
         init_excitgen_test, generate_random_integrals, set_ref, free_ref, calc_pgen, &
         finalize_excitgen_test, InputWriter_t, Writer_t, delete_file, &
-        RandomFcidumpWriter_t
+        RandomFcidumpWriter_t, init_guga_testsuite, finalize_guga_testuite
     abstract interface
         function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
             use constants
@@ -271,6 +274,7 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine init_excitgen_test(ref_det, fcidump_writer, setdefaults)
+        use SystemData, only: lms
         ! mimic the initialization of an FCIQMC calculation to the point where we can generate
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
@@ -281,7 +285,7 @@ contains
             !! IMO this should be done using test fixtures and not in this function,
             !! but much of the existing tests rely on it being here
         logical :: setdefaults_
-        integer :: nBasisMax(5, 3), lms
+        integer :: nBasisMax(5, 3)
         integer(int64) :: umatsize
         real(dp) :: ecore
         character(*), parameter :: this_routine = 'init_excitgen_test'
@@ -302,11 +306,7 @@ contains
 
         fcidump_name = "FCIDUMP"
         UMatEps = 1.0e-8
-        if (tUHF .and. tMolpro) then
-            tStoreSpinOrbs = .true.
-        else
-            tStoreSpinOrbs = .false.
-        end if
+        tStoreSpinOrbs = tZeroDelimitedFCIDUMP
         tTransGTID = .false.
         tReadFreeFormat = .true.
 
@@ -321,6 +321,9 @@ contains
         call fcidump_writer%write()
 
         get_umat_el => get_umat_el_normal
+
+        user_input_m_s = sum(merge(1, -1, mod(ref_det, 2) == 0))
+        call evaluate_depending_keywords()
 
         call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
 
@@ -364,6 +367,70 @@ contains
         call CalcCleanup()
         call SysCleanup()
     end subroutine finalize_excitgen_test
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine init_guga_testsuite
+        integer(int64) :: umatsize
+        integer :: nBasisMax(5, 3), lms, stot
+        real(dp) :: ecore
+
+        umatsize = 0
+        nel = 4
+        nbasis = 8
+        nSpatOrbs = 4
+        stot = 0
+        lms = 0
+        tGUGA = .true.
+
+        call init_bit_rep()
+
+        fcidump_name = "FCIDUMP"
+        UMatEps = 1.0e-8
+        tStoreSpinOrbs = .false.
+        tTransGTID = .false.
+        tReadFreeFormat = .true.
+
+
+        call dSFMT_init(8)
+
+        call SetCalcDefaults()
+        call SetSysDefaults()
+        tReadInt = .true.
+
+        call generate_uniform_integrals()
+
+        get_umat_el => get_umat_el_normal
+
+        call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
+
+        call GetUMatSize(nBasis, umatsize)
+
+        allocate (TMat2d(nBasis, nBasis))
+
+        call shared_allocate_mpi(umat_win, umat, (/umatsize/))
+
+        call readfciint(UMat, umat_win, nBasis, ecore)
+        call SysInit()
+        ! required: set up the spin info
+
+        call DetInit()
+        call DetCalcInit()
+        ! call SpinOrbSymSetup()
+
+        call DetPreFreezeInit()
+
+        call CalcInit()
+    end subroutine init_guga_testsuite
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine finalize_guga_testuite()
+        deallocate(TMat2D)
+        call shared_deallocate_mpi(umat_win, UMat)
+        call CalcCleanup()
+        call SysCleanup()
+    end subroutine
 
     !------------------------------------------------------------------------------------------!
 
@@ -416,6 +483,7 @@ contains
         ! write the canonical FCIDUMP header (norb here is num spatial orbitals)
         write(iunit, *) "&FCI NORB=", n_spat_orb, ",NELEC=", n_el, "MS2=", total_ms%val, ","
         write(iunit, "(A)", advance="no") "ORBSYM="
+
         do i = 1, n_spat_orb
             write(iunit, "(A)", advance="no") "1,"
         end do
@@ -599,5 +667,4 @@ contains
             call this%write_to_unit(file_id)
         close(file_id)
     end subroutine
-
 end module unit_test_helper_excitgen

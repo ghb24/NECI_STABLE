@@ -24,7 +24,7 @@ module real_space_hubbard
                           tNoBrillouin, tUseBrillouin, &
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
                           pholefocus, t_twisted_bc, twisted_bc, lnosymmetry, &
-                          t_anti_periodic, t_bipartite_order
+                          t_anti_periodic, t_bipartite_order, BasisFn, Symmetry
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                            get_helement_lattice, get_helement_lattice_ex_mat, &
@@ -196,10 +196,9 @@ contains
 
         end if
 
-        ! i guess i have to setup G1 also.. argh.. i hate this!
         allocate(G1(nbasis))
-        G1(1:nbasis - 1:2)%ms = -1
-        G1(2:nbasis:2)%ms = 1
+        G1(1::2) = BasisFn(Symmetry(0), [0, 0, 0], -1, 0, 0)
+        G1(2::2) = BasisFn(Symmetry(0), [0, 0, 0], 1, 0, 0)
 
         ! Ecore should default to 0, but be sure anyway!
         ecore = 0.0_dp

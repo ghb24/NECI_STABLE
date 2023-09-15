@@ -2,9 +2,8 @@
 MODULE DetCalc
     use constants, only: dp,n_int
     use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
-         t_non_hermitian_2_body
-
-    use sort_mod, only: sort
+         non_hermitian
+    use sort_mod
 
     use bit_reps, only: writebitdet
 
@@ -64,9 +63,10 @@ CONTAINS
 
         Use global_utilities
         Use IntegralsData, only: NFROZEN
-        use SystemData, only: lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
-        use SystemData, only: Alat, arr, brr, boa, box, coa, ecore, g1, Beta
-        use SystemData, only: tParity, tSpn, Symmetry, STot, NullBasisFn, tUHF, tMolpro
+        use SystemData, only: lms, lms2, nBasis, nBasisMax, nEl, SymRestrict, &
+                              Alat, arr, brr, boa, box, coa, ecore, g1, Beta, &
+                              tParity, tSpn, Symmetry, STot, NullBasisFn, tUHF, &
+                              tMolpro, tZeroDelimitedFCIDUMP
         use sym_mod
         use LoggingData, only: tLogDets
         use HElem
@@ -146,7 +146,7 @@ CONTAINS
                 IF (TSPN) THEN
                     write(stdout, *) "Using spin restriction:", LMS
                 end if
-                if (tUHF .and. tMolpro) then
+                if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS_BLK(NEL, nBasis, BRR, NBASISMAX, NMRKS, .TRUE.,             &
          &                NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, -LMS2, TPARITY,        &
@@ -165,7 +165,7 @@ CONTAINS
                 IF (TSPN) THEN
                     write(stdout, *) "Using spin restriction:", LMS
                 end if
-                if (tUHF .and. tMolpro) then
+                if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS(NEL, nBasis, BRR, NBASISMAX, NMRKS, .TRUE., G1, TSPN, -LMS, TPARITY, SymRestrict, II, IFDET)
                 else
@@ -212,7 +212,7 @@ CONTAINS
                 NBLOCKSTARTS(2) = II + 1
                 IFDET = 1
             else if (TBLOCK) THEN
-                if (tUHF .and. tMolpro) then
+                if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS_BLK(NEL, nBasis, BRR, NBASISMAX, NMRKS, .FALSE., NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, -LMS2, TPARITY, &
          &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
@@ -221,7 +221,7 @@ CONTAINS
          &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
                 end if
             ELSE
-                if (tUHF .and. tMolpro) then
+                if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS(NEL, nBasis, BRR, NBASISMAX, NMRKS, .FALSE., G1, TSPN, -LMS, TPARITY, SymRestrict, II, IFDET)
                 else
@@ -518,7 +518,7 @@ CONTAINS
                 CALL LogMemAlloc('V2', NDET * NEVAL, 8, this_routine, V2Tag, ierr)
                 V2 = 0.0_dp
 !C..Lanczos iterative diagonalising routine
-                if (t_non_hermitian_2_body) then
+                if (non_hermitian()) then
                     call stop_all(this_routine, &
                                   "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians")
                 end if
@@ -543,7 +543,7 @@ CONTAINS
                     CALL LogMemAlloc('WORK', 4 * NDET, 8 * HElement_t_size, this_routine, WorkTag, ierr)
                     allocate(WORK2(3 * NDET), stat=ierr)
                     CALL LogMemAlloc('WORK2', 3 * NDET, 8, this_routine, WORK2Tag, ierr)
-                    if (t_non_hermitian_2_body) then
+                    if (non_hermitian()) then
                         call stop_all(this_routine, &
                                       "HDIAG_nec is not setup for non-hermitian Hamiltonians")
                     end if
@@ -589,7 +589,7 @@ CONTAINS
                 end if
             end do
             IF (davidsonCalc%super%hfindex == 0) call stop_all("DoDetCalc", "Fermi determinant is not found in RAS space!")
-            if (t_non_hermitian_2_body) then
+            if (non_hermitian()) then
                 call stop_all(this_routine, &
                               "perform_davidson not adapted for non-hermitian Hamiltonians!")
             end if

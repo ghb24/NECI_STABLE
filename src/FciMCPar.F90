@@ -1175,7 +1175,7 @@ contains
     end subroutine FciMCPar
 
     subroutine PerformFCIMCycPar(iter_data, err)
-        use mpi
+        use mpi_f08, only: MPI_WTime
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
@@ -1498,7 +1498,7 @@ contains
             ! the csf_irmation out here, so it can be used in the
             ! new way to calculate the reference energy and then the flag
             ! does not have to be checked each time we loop over the walkers..
-            if (tGUGA) call fill_csf_i(CurrentDets(0:nifd, j), current_csf_i)
+            if (tGUGA) call fill_csf_i(CurrentDets(0:nifd, j), current_csf_i, idx_curr_dets=j)
 
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.

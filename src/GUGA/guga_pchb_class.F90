@@ -1,0 +1,124 @@
+#include "macros.h"
+module guga_pchb_class
+
+    use constants, only: n_int, dp
+    use bit_rep_data, only: GugaBits
+    use SystemData, only: nel, nSpatOrbs
+    use guga_data, only: ExcitationInformation_t
+    use guga_bitrepops, only: CSF_Info_t
+    use guga_base_class, only: GUGABaseClass_t
+    use guga_gas_pchb_mod, only: GAS_PCHB_t
+    use gasci, only: LocalGASSpec_t
+
+    better_implicit_none
+
+    private
+    public :: PCHB_t
+
+    type, extends(GUGABaseClass_t) :: PCHB_t
+        private
+
+        type(GAS_PCHB_t) :: GAS_sampler
+    contains
+        private
+        procedure, public :: init
+        procedure, public :: finalize
+
+        procedure, public :: pickorbitals_single
+        procedure, public :: pickorbitals_double
+        procedure, public :: calc_pgen
+        procedure, public :: calc_orbital_pgen_contr
+        procedure, public :: calc_orbital_pgen_contr_start
+        procedure, public :: calc_orbital_pgen_contr_end
+
+        procedure, public :: get_valid_orbs
+    end type PCHB_t
+
+contains
+
+    subroutine init(this)
+        class(PCHB_t), intent(inout) :: this
+        call this%GAS_sampler%init(CAS_spec(nEl, nSpatOrbs), &
+                                   use_lookup=.false., create_lookup=.false.)
+
+    contains
+
+        type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
+            integer, intent(in) :: n_el, n_spat_orbs
+            integer :: i
+            ! It does not matter if we use local or cumulative GAS
+            ! constraints
+            CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
+        end function
+    end subroutine
+
+    subroutine finalize(this)
+        class(PCHB_t), intent(inout) :: this
+        call this%GAS_sampler%finalize()
+    end subroutine
+
+
+    subroutine pickorbitals_single(this, ilut, nI, csf_i, excitInfo, pgen)
+        class(PCHB_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        call this%GAS_sampler%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+    end subroutine
+
+    subroutine pickorbitals_double(this, ilut, nI, csf_i, excitInfo, pgen)
+        class(PCHB_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        call this%GAS_sampler%pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+    end subroutine
+
+    subroutine calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)
+        class(PCHB_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: occ_orbs(2), orb_a
+        real(dp), intent(out) :: orb_pgen
+        call this%GAS_sampler%calc_orbital_pgen_contr_start(csf_i, occ_orbs, orb_a, orb_pgen)
+    end subroutine
+
+    subroutine calc_orbital_pgen_contr_end(this, csf_i, occ_orbs, orb_a, orb_pgen)
+        class(PCHB_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: occ_orbs(2), orb_a
+        real(dp), intent(out) :: orb_pgen
+        call this%GAS_sampler%calc_orbital_pgen_contr_end(csf_i, occ_orbs, orb_a, orb_pgen)
+    end subroutine
+
+    subroutine calc_orbital_pgen_contr(this, csf_i, occ_orbs, above_cpt, below_cpt)
+        class(PCHB_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: occ_orbs(2)
+        real(dp), intent(out) :: above_cpt, below_cpt
+        call this%GAS_sampler%calc_orbital_pgen_contr(csf_i, occ_orbs, above_cpt, below_cpt)
+    end subroutine
+
+
+    function calc_pgen(this, nI, ilutI, csf_i, excitInfo) result(pgen)
+        class(PCHB_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp) :: pgen
+        pgen = this%GAS_sampler%calc_pgen(nI, ilutI, csf_i, excitInfo)
+    end function
+
+    function get_valid_orbs(this, csf_i, src_orb) result(valid_orbs)
+        class(PCHB_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: src_orb
+        integer, allocatable :: valid_orbs(:)
+        valid_orbs = this%GAS_sampler%get_valid_orbs(csf_i, src_orb)
+    end function get_valid_orbs
+
+end module guga_pchb_class

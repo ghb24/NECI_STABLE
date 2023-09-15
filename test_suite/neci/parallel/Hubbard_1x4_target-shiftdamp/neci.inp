@@ -1,6 +1,7 @@
 title
 
 system hubbard real-space
+    order-by-1elec-energy
     lattice chain 4 1
     b -1
     u  8
@@ -8,9 +9,10 @@ system hubbard real-space
 endsys
 
 calc
+    time 30
 
     methods
-    method vertex fcimc
+        method vertex fcimc
     endmethods
 
     seed 1

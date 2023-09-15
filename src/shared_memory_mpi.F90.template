@@ -61,7 +61,7 @@ sizeb=8
 ===================
 
 module shared_memory_mpi
-    use mpi
+    use mpi_f08
     use Parallel_neci
     use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
     use constants
@@ -74,7 +74,7 @@ contains
       subroutine shared_allocate_mpi (win_shm, p_shm, dims, ierr)
       use HElem
 
-      integer(MPIArg):: win_shm
+      type(MPI_Win), intent(inout) :: win_shm
       integer, intent(out), optional :: ierr
 
       %(type1)s, dimension(%(dim)s), pointer :: p_shm
@@ -83,7 +83,7 @@ contains
       integer(MPIArg):: disp_unit
       integer(MPIArg) :: ierr_, jerr, errorclass, length
       integer(kind=mpi_address_kind):: wsize
-      character(255) :: string
+      character(len=MPI_MAX_ERROR_STRING) :: string
       TYPE(C_PTR):: cptr_shm
       character(*), parameter :: this_routine = 'shared_allocate_mpi'
 
@@ -146,11 +146,11 @@ contains
     end subroutine
 
     subroutine shared_deallocate_mpi(win_shm, p_shm, ierr)
-      integer(MPIArg):: win_shm
+      type(MPI_Win):: win_shm
       %(type1)s, dimension(%(dim)s), pointer :: p_shm
       integer, intent(out), optional :: ierr
       integer(MPIArg) :: ierr_, jerr, errorclass, length
-      character(len=255) :: string
+      character(len=MPI_MAX_ERROR_STRING) :: string
       character(*), parameter :: this_routine = 'shared_deallocate_mpi'
 #ifdef SHARED_MEM_
       nullify(p_shm)
@@ -189,10 +189,10 @@ implicit none
 contains
 #ifdef SHARED_MEM_
     subroutine shared_sync_mpi(win_shm, ierr)
-      integer(MPIArg):: win_shm
+      type(MPI_Win) :: win_shm
       integer, intent(out), optional :: ierr
       integer(MPIArg) :: ierr_, jerr, errorclass, length
-      character(len=255) :: string
+      character(len=MPI_MAX_ERROR_STRING) :: string
       character(*), parameter :: this_routine = 'shared_sync_mpi'
 
       call mpi_win_sync(win_shm, ierr_)

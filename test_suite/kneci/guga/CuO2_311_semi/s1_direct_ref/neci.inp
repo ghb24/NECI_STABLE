@@ -1,6 +1,7 @@
 title
 
 system read
+    ignore-fcidump-header
     freeformat
     electrons 10
     nonuniformrandexcits mol_guga_weighted
@@ -8,6 +9,7 @@ system read
 endsys
 
 calc
+    time 30
     methods
         method vertex fcimc
     endmethods
@@ -38,7 +40,6 @@ calc
 
     memoryfacspawn 25.0
     memoryfacpart 5.0
-    time 1200.0
     nmcyc 4000
     load-balance-interval 1000
 endcalc

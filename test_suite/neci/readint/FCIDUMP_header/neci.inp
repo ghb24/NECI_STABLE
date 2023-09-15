@@ -1,4 +1,4 @@
-# This tests if NECI can read an FCIDUMP with FOCK=... in the header 
+# This tests if NECI can read an FCIDUMP with FOCK=... in the header
 title
 
 system read
@@ -9,6 +9,7 @@ system read
 endsys
 
 calc
+    time 30
     methods
         method vertex fcimc
     endmethods

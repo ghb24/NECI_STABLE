@@ -116,7 +116,7 @@ contains
         tCycleOrbs = .false.
         TSTARBIN = .false.
         TREADINT = .false.
-        THFORDER = .false.
+        tHFOrder = .false.
         TDFREAD = .false.
         tRIIntegrals = .false.
         TPBC = .false.
@@ -215,7 +215,7 @@ contains
         DiagMaxMinFac = -1
         OneElMaxMinFac = 1
         tDiagonalizehij = .false.
-        tHFNoOrder = .false.
+        tHFNoOrder = .true.
         tSymIgnoreEnergies = .false.
         tPickVirtUniform = .false.
         tStoquastize = .false.
@@ -309,9 +309,14 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                ! for some absolutely asinine reason, NECI has both tHFOrder and
+                ! tHFNoOrder flags which do different things.
+                tHFOrder = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            &Note the default behaviour is to not &
+                                            &order orbitals.")
+                tHFNoOrder = .true.
             end select
         case ("BINREAD")            ! Instead, specify Binary within the system block.
             TREADINT = .true.
@@ -319,18 +324,24 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            &Note the default behaviour is to not &
+                                            &order orbitals.")
+                tHFNoOrder = .true.
             end select
         case ("READ", "GENERIC")
             TREADINT = .true.
             w = to_upper(incompletely_parsed_tokens%next(if_exhausted=''))
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             case ("NOORDER")
-                THFNOORDER = .true.
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
+                                            &Note the default behaviour is to not &
+                                            &order orbitals.")
+                tHFNoOrder = .true.
             end select
 
         case ("HUBBARD")
@@ -409,7 +420,7 @@ contains
             w = to_upper(incompletely_parsed_tokens%next())
             select case (w)
             case ("ORDER")
-                THFORDER = .true.
+                tHFOrder = .true.
             end select
         case ("BOX")
             tOneElecDiag = .true.   !One electron integrals diagonal
@@ -439,11 +450,14 @@ contains
                 end if
                 TSPN = .true.
 
-                ! ==================== GUGA Implementation ====================
-                ! activate total spin preserving graphical unitary group approach and
-                ! default total spin operator eigenvalue to 0, or else give as integer
-                ! CONVENTION: give S in units of h/2, so S directly relates to the
-                ! number of unpaired electrons
+            case ("IGNORE-FCIDUMP-HEADER")
+                tIgnoreFCIDUMPHeader = .true.
+
+            ! ==================== GUGA Implementation ====================
+            ! activate total spin preserving graphical unitary group approach and
+            ! default total spin operator eigenvalue to 0, or else give as integer
+            ! CONVENTION: give S in units of h/2, so S directly relates to the
+            ! number of unpaired electrons
             case ("GUGA")
                 if (tokens%remaining_items() > 0) then
                     STOT = to_int(tokens%next())
@@ -525,6 +539,11 @@ contains
                 tBrillouinsDefault = .false.
                 pParallel = 0.0_dp
 
+            case ("ORDER-BY-1ELEC-ENERGY")
+            ! do the old default behaviour
+                tHFNoOrder = .false.
+                tHFOrder = .false.
+
             case ("SYM")
                 TPARITY = .true.
                 do I = 1, 4
@@ -547,6 +566,19 @@ contains
             ! but do not want to include singles in the energy calculations
             ! (e.g. by nobrillouintheorem)
                 tUHF = .true.
+                if (tokens%remaining_items() > 0) then
+                    w = to_upper(tokens%next())
+                    select case (w)
+                    case ("ZERO-DELIMITED")
+                        tZeroDelimitedFCIDUMP = .true.
+                    case ("SPIN-MINOR-INDEX")
+                        tZeroDelimitedFCIDUMP = .false.
+                    case default
+                        call stop_all(this_routine, "UHF "//trim(w)//" not valid.")
+                    end select
+                else
+                    call stop_all(this_routine, "Please specify a UHF format.")
+                end if
             case ("RS")
                 FUEGRS = to_realdp(tokens%next())
             case ("EXCHANGE-CUTOFF")
@@ -1810,6 +1842,8 @@ contains
                 ! Use the impurity model excitation generator (star geometry)
                 t_impurity_excitgen = .true.
             case ("MOLPROMIMIC")
+                write (stdout, "(A)") "WARNING: using the molpromimic keyword is strongly &
+                                            & discouraged. Consider order-by-1elec-energy instead."
                 !Mimic the run-time behaviour of molpros NECI implementation
                 tMolpro = .true.
                 tMolproMimic = .true.
@@ -2145,7 +2179,7 @@ contains
                 write(stdout, "(A)", advance='no') '  SYMMETRIES : '
                 CALL WRITEALLSYM(5, SymRestrict, .true.)
             end if
-            IF (THFORDER) write(stdout, '(A)') "  Ordering according to 1-electron energies.  "
+            IF (tHFOrder) write(stdout, '(A)') "  Ordering according to 1-electron energies.  "
         else if (tVASP) THEN
             write(stdout, '(A)') '  *** GENERIC SYSTEM USING HF ORBITALS PRODUCED BY VASP ***  '
             CALL VASPSystemInit(LEN)
@@ -2437,7 +2471,7 @@ contains
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
-                IF (.NOT. THFNOORDER) THEN
+                IF (.not. tHFNoOrder) THEN
                     CALL ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
                 ELSE
                     !.. copy the default ordered energies.
@@ -2445,7 +2479,7 @@ contains
                 end if
 !      write(stdout,*) THFNOORDER, " THFNOORDER"
 
-                if (.not. tMolpro) then
+                if (.not. (tMolpro .or. tZeroDelimitedFCIDUMP)) then
                     !If we are calling from molpro, we write the basis later (after reordering)
                     CALL writebasis(stdout, G1, nBasis, ARR, BRR)
                 end if
@@ -3188,7 +3222,7 @@ contains
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
-        IF (.NOT. THFNOORDER) THEN
+        IF (.not. tHFNoOrder) THEN
             CALL ORDERBASIS(NBASIS, ARR, BRR, ORBORDER, NBASISMAX, G1)
         ELSE
 !.. copy the default ordered energies.
@@ -3610,4 +3644,3 @@ contains
     end subroutine
 
 END MODULE System
-

@@ -1,5 +1,4 @@
 module SystemData
-
     use constants, only: n_int, int64, dp, NEL_UNINITIALIZED
     use MemoryManager, only: TagIntType
 
@@ -22,6 +21,7 @@ module SystemData
     logical :: tSmallBasisForThreeBody = .true.     ! using  3-body transcorr. matels for ueg and ultracold atoms
     logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
     logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
+    logical :: tZeroDelimitedFCIDUMP = .false.
     logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
     logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
     logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
@@ -40,6 +40,8 @@ module SystemData
     !At the reading in, the integrals will be converted to reals,
     !but kpoint symmetry can still be used.
     logical :: tReadFreeFormat, tReltvy
+
+    logical :: tIgnoreFCIDUMPHeader = .false.
 
     logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
     logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in
@@ -175,7 +177,7 @@ module SystemData
 ! Empty basis function is used in many places.
 ! This is useful so if BasisFn changes, we don't have to go
 ! through the code and change the explicit null statements.
-    type(BasisFn) :: NullBasisFn = BasisFn(Symmetry(0), (/0, 0, 0/), 0, 0, 0)
+    type(BasisFn), parameter :: NullBasisFn = BasisFn(Symmetry(0), [0, 0, 0], 0, 0, 0)
 
     integer, PARAMETER :: BasisFNSize = SymmetrySize + 5
     integer, PARAMETER :: BasisFNSizeB = BasisFNSize * 8
@@ -358,7 +360,7 @@ module SystemData
 ! also use an additional flag to indicate that 3-body excitations are possible
     logical :: t_3_body_excits = .false.
 
-! make a general Flag to indicat a non-hermitian Hamiltonian
+! make a general Flag to indicate a non-hermitian Hamiltonian
     logical :: t_non_hermitian_2_body = .false.
     logical :: t_non_hermitian_1_body = .false.
 
@@ -465,5 +467,11 @@ contains
         type(BasisFN) :: res
         res = BasisFN(Symmetry(int(mdk(1), int64)), mdk(2:4), mdk(5), 0, 0)
     end function
+
+    pure logical function non_hermitian()
+        !! logical that cannot be modified directly by the user, but rather is
+        !! used whenever querying any kind of nonhermiticity
+        non_hermitian = t_non_hermitian_1_body .or. t_non_hermitian_2_body
+    end
 
 end module SystemData

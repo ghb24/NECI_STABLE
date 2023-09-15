@@ -2,6 +2,7 @@ module IntegralsData
 
     use constants, only: dp, MPIArg
     use MemoryManager, only: TagIntType
+    use mpi_f08, only: MPI_Win
 
     IMPLICIT NONE
     save
@@ -34,7 +35,7 @@ module IntegralsData
 ! conjugations and storage implementations (eg with UMAT2D/UMatCache/etc) to be
 ! used as appropriate.
     HElement_t(dp), pointer :: UMAT(:)
-    INTEGER(MPIArg) :: umat_win
+    type(MPI_Win) :: umat_win
     INTEGER(TagIntType) :: tagUMat = 0
     COMPLEX(dp), pointer :: FCK(:) => null()
     INTEGER(TagIntType) :: tagFCK = 0

@@ -6,13 +6,14 @@ title
         spin-restrict -2
         nobrillouintheorem
         nonuniformrandexcits 4ind-weighted
-        nonhermitian
-        uhf
-        molpromimic
+        nonhermitian 2-body
+        uhf zero-delimited
     endsys
 
     calc
+        time 30
         # since this is a test, need it to be reproducible:
+        seed 32411105
         load-balance-blocks off
         methods
             method vertex fcimc

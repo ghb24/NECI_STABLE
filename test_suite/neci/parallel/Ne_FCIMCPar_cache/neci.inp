@@ -1,12 +1,14 @@
 title
 
 system read
+order-by-1elec-energy
 electrons 10
 nonuniformrandexcits
 umatepsilon 1.d-6
 endsys
 
 calc
+    time 30
 methods
 method vertex fcimc
 endmethods

@@ -1,4 +1,5 @@
 system hubbard
+    order-by-1elec-energy
     system-replicas 8
     cell 12 1 1
     b -1
@@ -12,6 +13,7 @@ system hubbard
 endsys
 
 calc
+    time 30
     tau-values \
         start user-defined 0.01
     totalwalkers 18000

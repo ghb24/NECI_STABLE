@@ -4,14 +4,14 @@ title
         electrons 8
         spin-restrict -2
         nobrillouintheorem
-        uhf
-        molpromimic
+        uhf zero-delimited
         nonhermitian 2-body
         nonuniformrandexcits pchb \
             manual unif:unif unif-unif:fast-fast
     endsys
 
     calc
+        time 30
         # since this is a test, need it to be reproducible:
         load-balance-blocks off
         seed 9
