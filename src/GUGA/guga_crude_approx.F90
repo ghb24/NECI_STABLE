@@ -31,7 +31,7 @@ module guga_crude_approx_mod
 
     use guga_excitations, only: global_excitInfo, checkcompatibility
 
-    use guga_data, only: ExcitationInformation_t, excit_type, gen_type
+    use guga_data, only: ExcitationInformation_t, excit_type, gen_type, ExcitationType_t
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, &
                               encode_matrix_element, convert_ilut_toNECI, &
@@ -568,12 +568,12 @@ contains
         ! in the double excitations?
         exc = ilut
 
-        select case (excitInfo%typ)
+        select case (excitInfo%typ%val)
 
             ! maybe i can combine some of them together
             ! i think i can.. but i have to think about that more clearly!
-        case (excit_type%single_overlap_L_to_R, &
-              excit_type%single_overlap_R_to_L)
+        case (excit_type%single_overlap_L_to_R%val, &
+              excit_type%single_overlap_R_to_L%val)
             ! single overlap excitation
 
         end select
@@ -668,10 +668,10 @@ contains
             ASSERT(csf_i%stepvector(orb_1) /= 3)
             ASSERT(csf_i%stepvector(orb_2) /= 3)
 
-            select case (excitInfo%typ)
-            case (excit_type%single_overlap_L_to_R, &
-                  excit_type%fullstop_lowering, &
-                  excit_type%fullstart_raising)
+            select case (excitInfo%typ%val)
+            case (excit_type%single_overlap_L_to_R%val, &
+                  excit_type%fullstop_lowering%val, &
+                  excit_type%fullstart_raising%val)
                 ! here i know the orbital indices are identical
 
                 ASSERT(orb_1 == orb_2)
@@ -731,9 +731,9 @@ contains
                     end if
                 end select
 
-            case (excit_type%single_overlap_R_to_L, &
-                  excit_type%fullstop_raising, &
-                  excit_type%fullstart_lowering)
+            case (excit_type%single_overlap_R_to_L%val, &
+                  excit_type%fullstop_raising%val, &
+                  excit_type%fullstart_lowering%val)
 
                 ! here i know the electron indices are the same
                 ASSERT(elec_1 == elec_2)
@@ -789,10 +789,10 @@ contains
 
                 ! do the same as above, just for two hole indices!
 
-            case (excit_type%fullstop_L_to_R, &
-                  excit_type%fullstop_R_to_L, &
-                  excit_type%fullStart_L_to_R, &
-                  excit_type%fullstart_R_to_L)
+            case (excit_type%fullstop_L_to_R%val, &
+                  excit_type%fullstop_R_to_L%val, &
+                  excit_type%fullStart_L_to_R%val, &
+                  excit_type%fullstart_R_to_L%val)
 
                 ! here i know one electron and hole index are the same
                 ASSERT(elec_1 /= elec_2)
@@ -863,7 +863,7 @@ contains
                     end if
                 end if
 
-            case (excit_type%fullstart_stop_mixed)
+            case (excit_type%fullstart_stop_mixed%val)
                 ! full start full stop mixed
                 ASSERT(elec_1 /= elec_2)
                 ASSERT(orb_1 /= orb_2)
@@ -887,7 +887,7 @@ contains
                     orbs(2) = 2 * elec_1 - 1
                 end if
 
-            case (excit_type%fullstart_stop_alike)
+            case (excit_type%fullstart_stop_alike%val)
                 ! full-start full-stop alike
                 ASSERT(elec_1 == elec_2)
                 ASSERT(orb_1 == orb_2)
@@ -983,8 +983,8 @@ contains
 
         excitation = ilut
 
-        select case (excitInfo%typ)
-        case (excit_type%fullstart_stop_mixed)
+        select case (excitInfo%typ%val)
+        case (excit_type%fullstart_stop_mixed%val)
             ! fully exchange is easy, just switch involved step-vectors
             if (csf_i%stepvector(excitInfo%fullstart) == 1) then
                 if (csf_i%stepvector(excitInfo%fullEnd) == 1) then
@@ -1017,7 +1017,7 @@ contains
 
             end if
 
-        case (excit_type%fullstop_R_to_L)
+        case (excit_type%fullstop_R_to_L%val)
             ! full stop raising into lowering
             ! the start and semi-start step-values have to be
             ! different than the full-stop, where a switch is enforced.
@@ -1057,7 +1057,7 @@ contains
 
             end if
 
-        case (excit_type%fullstop_L_to_R)
+        case (excit_type%fullstop_L_to_R%val)
             ! full-stop lowering into raising
 
             if (csf_i%stepvector(excitInfo%fullEnd) == 1) then
@@ -1096,7 +1096,7 @@ contains
 
             end if
 
-        case (excit_type%fullStart_L_to_R)
+        case (excit_type%fullStart_L_to_R%val)
             ! full-start lowering into raising
 
             if (csf_i%stepvector(excitInfo%fullStart) == 1) then
@@ -1135,7 +1135,7 @@ contains
 
             end if
 
-        case (excit_type%fullstart_R_to_L)
+        case (excit_type%fullstart_R_to_L%val)
             ! full-start raising into lowering
 
             if (csf_i%stepvector(excitInfo%fullStart) == 1) then

@@ -11,7 +11,7 @@ module guga_bitRepOps
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
-                         excit_names
+                         ExcitationType_t, non_trivial_double_excit_type_arr
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64, stdout
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -20,9 +20,11 @@ module guga_bitRepOps
                             flag_deltaB_double, flag_deltaB_sign, niftot, &
                             nIfGUGA, nIfd, BitRep_t, GugaBits
     use util_mod, only: binary_search_ilut, binary_search_custom, operator(.div.), &
-                        near_zero, stop_all, operator(.isclose.)
+                        near_zero, stop_all, operator(.isclose.), EnumBase_t
 
     use sort_mod, only: sort
+
+    use sets_mod, only: operator(.notin.)
 
     use LoggingData, only: tRDMonfly
 
@@ -58,7 +60,9 @@ module guga_bitRepOps
             extract_excit_lvl_rdm, extract_excit_type_rdm, &
             encode_excit_info, encode_excit_info_type, extract_excit_info_type, &
             encode_excit_info_indices, extract_excit_info_indices, &
-            extract_excit_info, isProperCSF_flexible, find_guga_excit_lvl
+            extract_excit_info, isProperCSF_flexible, find_guga_excit_lvl, &
+            StepVector_t, StepVectorVals_t, stepvector_vals
+
 
     ! interfaces
     interface isProperCSF_ilut
@@ -107,6 +111,23 @@ module guga_bitRepOps
         module procedure encode_excit_info_indices_scalar
     end interface encode_excit_info_indices
 
+    type, extends(EnumBase_t) :: StepVector_t
+    end type
+
+    type :: StepVectorVals_t
+        type(StepVector_t) :: &
+            s0 = StepVector_t(0), &
+            u = StepVector_t(1), &
+            d = StepVector_t(2), &
+            s2 = StepVector_t(3)
+    end type
+
+    type(StepVectorVals_t), parameter :: stepvector_vals = StepVectorVals_t()
+
+    interface convert_guga_to_ni
+        module procedure convert_guga_to_ni_int, convert_guga_to_ni_stepv
+    end interface
+
     type :: CSF_Info_t
         integer, allocatable :: stepvector(:)
         integer, allocatable :: Occ_int(:), B_int(:)
@@ -115,6 +136,10 @@ module guga_bitRepOps
         real(dp), allocatable :: cum_list(:)
             !! also use a fake cum-list of the non-doubly occupied orbital to increase
             !! preformance in the picking of orbitals (a)
+
+        integer :: idx_curr_dets = -1
+            !! The index in the current dets array.
+            !! Needed for faster lookup of stuff.
     contains
         private
         procedure :: eq_CSF_Info_t
@@ -1569,7 +1594,8 @@ contains
                 result(excitInfo)
         ! version of the excitation information filler for the exact
         ! matrix element calculation between 2 given CSFs
-        integer, intent(in) :: typ, gen1, gen2, currentGen, firstGen, lastGen, &
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: gen1, gen2, currentGen, firstGen, lastGen, &
                                i, j, k, l, fullStart, secondStart, firstEnd, &
                                fullEnd, weight, excitLvl
         integer, intent(in), optional :: overlap
@@ -1614,7 +1640,7 @@ contains
     pure function assign_excitInfo_values_single_ex(gen, i, j, fullStart, fullEnd, typ) &
         result(excitInfo)
         integer, intent(in) :: gen, i, j, fullStart, fullEnd
-        integer, intent(in), optional :: typ
+        type(ExcitationType_t), intent(in), optional :: typ
         type(ExcitationInformation_t) :: excitInfo
 
         ! set default values for single excitations: which cause errors if
@@ -2077,10 +2103,14 @@ contains
             if (tRDMonfly) then
                 rdm_ind = extract_rdm_ind(ilut)
                 write(nunit, "(A,i8)", advance='no') ") ", getDeltaB(ilut)
-                write(nunit, "(A,3i8,A)", advance='no') " | ( ", &
-                    extract_excit_lvl_rdm(rdm_ind), &
-                    extract_excit_type_rdm(rdm_ind), &
-                    int(iand(rdm_ind, rdm_ind_bitmask)), ' ) '
+                block
+                    type(ExcitationType_t) :: tmp
+                    tmp = extract_excit_type_rdm(rdm_ind)
+                    write(nunit, "(A,3i8,A)", advance='no') " | ( ", &
+                        extract_excit_lvl_rdm(rdm_ind), &
+                        tmp%val, &
+                        int(iand(rdm_ind, rdm_ind_bitmask)), ' ) '
+                end block
                 write(nunit, "(f16.7)", advance='no') &
                     extract_stochastic_rdm_x0(GugaBits, ilut)
                 if (flag_) then
@@ -2212,52 +2242,20 @@ contains
     end subroutine update_matrix_element_cmplx
 #endif
 
-    function count_beta_orbs_ij(csf_i, i, j) result(nOpen)
+    integer elemental function count_beta_orbs_ij(csf_i, i, j)
         ! function to count the number of 1s in a CSF det between spatial
         ! orbitals i and j
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
-        integer :: nOpen
-        character(*), parameter :: this_routine = "count_beta_orbs_ij"
-
-        integer :: k
-
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
-
-        nOpen = 0
-
-        ! quick and dirty fix to deal with the excitation range mask probs:
-        ! do i always call that for the current det the excitation is
-        ! calculated for?  i think so..
-        do k = i, j
-            if (csf_i%stepvector(k) == 1) then
-                nOpen = nOpen + 1
-            end if
-        end do
+        count_beta_orbs_ij = count(csf_i%stepvector(i : j) == 1)
     end function count_beta_orbs_ij
 
-    function count_alpha_orbs_ij(csf_i, i, j) result(nOpen)
+    integer elemental function count_alpha_orbs_ij(csf_i, i, j)
         ! function to count the number of 2s in a CSF det between spatial
         ! orbitals i and j
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
-        integer :: nOpen
-        character(*), parameter :: this_routine = "count_alpha_orbs_ij"
-
-        integer :: k
-
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
-
-        nOpen = 0
-
-        ! quick fix for now to see if thats the problem: loop and check!
-        do k = i, j
-            if (csf_i%stepvector(k) == 2) then
-                nOpen = nOpen + 1
-            end if
-        end do
+        count_alpha_orbs_ij = count(csf_i%stepvector(i : j) == 2)
     end function count_alpha_orbs_ij
 
     integer elemental function count_open_orbs_ij(csf_i, i, j)
@@ -2681,6 +2679,7 @@ contains
         end do
 
     end function calcB_vector_int
+
     pure subroutine EncodeBitDet_guga(nI, ilut)
         ! special function to encode bit dets for the use in the guga
         ! excitation generation
@@ -2716,11 +2715,10 @@ contains
 
     end function getSpatialOccupation
 
-    pure function convert_guga_to_ni(csf, siz) result(nI)
+    pure function convert_guga_to_ni_int(csf) result(nI)
         ! function to make it easier for me to input a csf in my used notation
         ! to a nI NECI array..
-        integer, intent(in) :: siz
-        integer, intent(in) :: csf(siz)
+        integer, intent(in) :: csf(:)
         integer :: nI(nel)
 
         integer :: i, cnt_orbs, cnt_ind
@@ -2728,41 +2726,34 @@ contains
         cnt_orbs = 0
         cnt_ind = 0
 
-        do i = 1, siz
-
+        do i = 1, size(csf)
             select case (csf(i))
-
             case (0)
                 ! nothing to do actually except update the
-
             case (1)
-                ! beta orbital
                 cnt_ind = cnt_ind + 1
-
                 nI(cnt_ind) = cnt_orbs + 1
-
             case (2)
-                ! alpha orbs
-
                 cnt_ind = cnt_ind + 1
-
                 nI(cnt_ind) = cnt_orbs + 2
-
             case (3)
                 ! doubly occupied
                 cnt_ind = cnt_ind + 1
                 nI(cnt_ind) = cnt_orbs + 1
                 cnt_ind = cnt_ind + 1
                 nI(cnt_ind) = cnt_orbs + 2
-
             end select
 
             ! update orbitals for every csf entry
             cnt_orbs = cnt_orbs + 2
-
         end do
+    end function
 
-    end function convert_guga_to_ni
+    pure function convert_guga_to_ni_stepv(csf) result(nI)
+        type(StepVector_t), intent(in) :: csf(:)
+        integer :: nI(nel)
+        nI = convert_guga_to_ni(csf%val)
+    end function
 
     pure subroutine calc_csf_i(ilut, step_vector, b_vector, occ_vector)
         ! routine to calculate the csf information for specific outputted
@@ -2798,11 +2789,12 @@ contains
         end do
     end subroutine calc_csf_i
 
-    pure function construct_CSF_Info_t(ilut) result(csf_i)
+    pure function construct_CSF_Info_t(ilut, idx_curr_dets) result(csf_i)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in), optional :: idx_curr_dets
         type(CSF_Info_t) :: csf_i
         call new_CSF_Info_t(nSpatOrbs, csf_i)
-        call fill_csf_i(ilut, csf_i)
+        call fill_csf_i(ilut, csf_i, idx_curr_dets)
     end function
 
     elemental subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
@@ -2834,7 +2826,7 @@ contains
         res = .not. (csf_i == csf_j)
     end function
 
-    pure subroutine fill_csf_i(ilut, csf_i)
+    pure subroutine fill_csf_i(ilut, csf_i, idx_curr_dets)
         ! routine which sets up all the additional csf information, like
         ! stepvector, b vector, occupation etc. in various formats in one
         ! place
@@ -2842,10 +2834,11 @@ contains
         ! the seperate ones..
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(inout) :: csf_i
+        integer, intent(in), optional :: idx_curr_dets
         debug_function_name("fill_csf_i")
 
-        integer :: i, step, b_int
-        real(dp) :: b_real, cum_sum
+        integer :: i, step, b
+        real(dp) :: cum_sum
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(allocated(csf_i%stepvector))
@@ -2854,75 +2847,35 @@ contains
         ASSERT(allocated(csf_i%B_int))
         ASSERT(allocated(csf_i%Occ_int))
 
-        csf_i%stepvector = 0
-        csf_i%B_real = 0.0_dp
-        csf_i%Occ_real = 0.0_dp
-        csf_i%B_int = 0
-        csf_i%Occ_int = 0
-
-        b_real = 0.0_dp
-        b_int = 0
 
 
-        ! TODO(@Oskar): Use these functions instead
-        ! currentB_ilut = calcB_vector_ilut(ilut)
-        ! currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        ! currentOcc_int = calcOcc_vector_int(ilut)
-        ! current_stepvector = calcStepVector(ilut)
-        ! currentB_int = calcB_vector_int(ilut)
-
-        ! also create a fake cum-list of the non-doubly occupied orbitals
-        csf_i%cum_list = 0.0_dp
+        b = 0
         cum_sum = 0.0_dp
-
         do i = 1, nSpatOrbs
-
             step = getStepvalue(ilut, i)
-
             csf_i%stepvector(i) = step
-
             select case (step)
-
             case (0)
-
-                csf_i%Occ_real(i) = 0.0_dp
                 csf_i%Occ_int(i) = 0
-
                 cum_sum = cum_sum + 1.0_dp
-
             case (1)
-
-                csf_i%Occ_real(i) = 1.0_dp
                 csf_i%Occ_int(i) = 1
-
-                b_real = b_real + 1.0_dp
-                b_int = b_int + 1
-
+                b = b + 1
                 cum_sum = cum_sum + 1.0_dp
-
             case (2)
-
-                csf_i%Occ_real(i) = 1.0_dp
                 csf_i%Occ_int(i) = 1
-
-                b_real = b_real - 1.0_dp
-                b_int = b_int - 1
-
+                b = b - 1
                 cum_sum = cum_sum + 1.0_dp
-
             case (3)
-
-                csf_i%Occ_real(i) = 2.0_dp
                 csf_i%Occ_int(i) = 2
-
             end select
 
-            csf_i%B_real(i) = b_real
-            csf_i%B_int(i) = b_int
-
+            csf_i%B_int(i) = b
             csf_i%cum_list(i) = cum_sum
         end do
-
+        csf_i%occ_real = real(csf_i%occ_int, dp)
+        csf_i%b_real = real(csf_i%b_int, dp)
+        if (present(idx_curr_dets)) csf_i%idx_curr_dets = idx_curr_dets
     end subroutine fill_csf_i
 
     pure function is_compatible(ilut, csf_i) result(res)
@@ -3027,7 +2980,8 @@ contains
         ! indices for the 1-RDM
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(out) :: i, a
-        integer, intent(out), optional :: excit_lvl, excit_typ
+        integer, intent(out), optional :: excit_lvl
+        type(ExcitationType_t), intent(out), optional :: excit_typ
 
         integer(int_rdm) :: rdm_ind_
 
@@ -3054,7 +3008,8 @@ contains
         ! the inverse function of the routine above, to give the combined
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
-        integer, intent(in), optional :: excit_lvl, excit_typ
+        integer, intent(in), optional :: excit_lvl
+        type(ExcitationType_t), intent(in), optional :: excit_typ
         integer(int_rdm) :: rdm_ind
 
         rdm_ind = nSpatOrbs * (i - 1) + a
@@ -3071,9 +3026,9 @@ contains
 
     pure function extract_excit_type_rdm(rdm_ind) result(excit_typ)
         integer(int_rdm), intent(in) :: rdm_ind
-        integer :: excit_typ
+        type(ExcitationType_t) :: excit_typ
 
-        excit_typ = int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits))
+        excit_typ = ExcitationType_t(int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits)))
 
     end function extract_excit_type_rdm
 
@@ -3087,9 +3042,9 @@ contains
 
     pure subroutine encode_excit_typ_rdm(rdm_ind, excit_typ)
         integer(int_rdm), intent(inout) :: rdm_ind
-        integer, intent(in) :: excit_typ
+        type(ExcitationType_t), intent(in) :: excit_typ
 
-        call mvbits(int(excit_typ, int_rdm), 0, n_excit_type_bits, &
+        call mvbits(int(excit_typ%val, int_rdm), 0, n_excit_type_bits, &
                     rdm_ind, pos_excit_type_bits)
 
     end subroutine encode_excit_typ_rdm
@@ -3110,7 +3065,8 @@ contains
         ! since I only ever have spatial orbitals in the GUGA-RDM make
         ! the definition of the RDM-index combination differently
         integer, intent(in) :: i, j, k, l
-        integer, intent(in), optional :: excit_lvl, excit_typ
+        integer, intent(in), optional :: excit_lvl
+        type(ExcitationType_t), intent(in), optional :: excit_typ
         integer(int_rdm) :: ijkl
 
         integer(int_rdm) :: ij, kl
@@ -3138,7 +3094,8 @@ contains
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: i, j, k, l
         integer(int_rdm), intent(out), optional :: ij_out, kl_out
-        integer, intent(out), optional :: excit_lvl, excit_typ
+        integer, intent(out), optional :: excit_lvl
+        type(ExcitationType_t), intent(out), optional :: excit_typ
 
         integer(int_rdm) :: ij, kl
 
@@ -3179,38 +3136,19 @@ contains
         ilutG(GugaBits%ind_rdm_ind) = rdm_ind
 
     end subroutine encode_rdm_ind
-    function encode_excit_info_vec(typ, inds) result(excit_info_int)
+    pure function encode_excit_info_vec(typ, inds) result(excit_info_int)
         ! function to encode the minimal information of an excit-info
         ! object into a single 64bit integer. used in the PCHB excitation
         ! generation.
         debug_function_name("encode_excit_info_vec")
-        integer, intent(in) :: typ, inds(4)
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: inds(4)
         integer(int64) :: excit_info_int
 
 #ifdef DEBUG_
-        select case(typ)
-        case( excit_type%single_overlap_L_to_R)
-        case( excit_type%single_overlap_R_to_L )
-        case( excit_type%double_lowering )
-        case( excit_type%double_raising )
-        case( excit_type%double_L_to_R_to_L)
-        case( excit_type%double_R_to_L_to_R )
-        case( excit_type%double_L_to_R )
-        case( excit_type%double_R_to_L )
-        case( excit_type%fullstop_lowering )
-        case( excit_type%fullstop_raising )
-        case( excit_type%fullstop_L_to_R )
-        case( excit_type%fullstop_R_to_L )
-        case( excit_type%fullstart_lowering)
-        case( excit_type%fullstart_raising)
-        case( excit_type%fullstart_L_to_R)
-        case( excit_type%fullstart_R_to_L)
-        case( excit_type%fullstart_stop_alike)
-        case( excit_type%fullstart_stop_mixed)
-        case default
-            print *, "incorrect typ: ", excit_names(typ)
-            call stop_all(this_routine, "see above")
-        end select
+        if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
+            call stop_all(this_routine, "incorrect typ: "//typ%str)
+        end if
 #endif
 
         ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
@@ -3222,38 +3160,19 @@ contains
 
     end function encode_excit_info_vec
 
-    function encode_excit_info_scalar(typ, a, i, b, j) result(excit_info_int)
+    pure function encode_excit_info_scalar(typ, a, i, b, j) result(excit_info_int)
         ! function to encode the minimal information of an excit-info
         ! object into a single 64bit integer. used in the PCHB excitation
         ! generation.
         debug_function_name("encode_excit_info_scalar")
-        integer, intent(in) :: typ, a, i, b, j
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: a, i, b, j
         integer(int64) :: excit_info_int
 
 #ifdef DEBUG_
-        select case(typ)
-        case( excit_type%single_overlap_L_to_R)
-        case( excit_type%single_overlap_R_to_L )
-        case( excit_type%double_lowering )
-        case( excit_type%double_raising )
-        case( excit_type%double_L_to_R_to_L)
-        case( excit_type%double_R_to_L_to_R )
-        case( excit_type%double_L_to_R )
-        case( excit_type%double_R_to_L )
-        case( excit_type%fullstop_lowering )
-        case( excit_type%fullstop_raising )
-        case( excit_type%fullstop_L_to_R )
-        case( excit_type%fullstop_R_to_L )
-        case( excit_type%fullstart_lowering)
-        case( excit_type%fullstart_raising)
-        case( excit_type%fullstart_L_to_R)
-        case( excit_type%fullstart_R_to_L)
-        case( excit_type%fullstart_stop_alike)
-        case( excit_type%fullstart_stop_mixed)
-        case default
-            print *, "incorrect typ: ", excit_names(typ)
-            call stop_all(this_routine, "see above")
-        end select
+        if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
+            call stop_all(this_routine, "incorrect typ: "//typ%str)
+        end if
 #endif
 
         ASSERT(a > 0 .and. a <= nSpatOrbs)
@@ -3265,52 +3184,32 @@ contains
 
     end function encode_excit_info_scalar
 
-    subroutine encode_excit_info_type(excit_info_int, typ)
+    pure subroutine encode_excit_info_type(excit_info_int, typ)
         debug_function_name("encode_excit_info_type")
         integer(int64), intent(inout) :: excit_info_int
-        integer, intent(in) :: typ
+        type(ExcitationType_t), intent(in) :: typ
 
 #ifdef DEBUG_
-        select case(typ)
-        case( excit_type%single_overlap_L_to_R)
-        case( excit_type%single_overlap_R_to_L )
-        case( excit_type%double_lowering )
-        case( excit_type%double_raising )
-        case( excit_type%double_L_to_R_to_L)
-        case( excit_type%double_R_to_L_to_R )
-        case( excit_type%double_L_to_R )
-        case( excit_type%double_R_to_L )
-        case( excit_type%fullstop_lowering )
-        case( excit_type%fullstop_raising )
-        case( excit_type%fullstop_L_to_R )
-        case( excit_type%fullstop_R_to_L )
-        case( excit_type%fullstart_lowering)
-        case( excit_type%fullstart_raising)
-        case( excit_type%fullstart_L_to_R)
-        case( excit_type%fullstart_R_to_L)
-        case( excit_type%fullstart_stop_alike)
-        case( excit_type%fullstart_stop_mixed)
-        case default
-            print *, "incorrect typ: ", excit_names(typ)
-            call stop_all(this_routine, "see above")
-        end select
+        if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
+            call stop_all(this_routine, "incorrect typ: "//typ%str)
+        end if
 #endif
 
         ! the convention is to store the excit-type 'first' at the LSB
         ! so this should be fine:
-        call mvbits(int(typ, int64), 0, n_excit_type_bits, excit_info_int, 0)
+        call mvbits(int(typ%val, int64), 0, n_excit_type_bits, excit_info_int, 0)
 
     end subroutine encode_excit_info_type
 
     pure function extract_excit_info_type(excit_info_int) result(typ)
         integer(int64), intent(in) :: excit_info_int
-        integer :: typ
+        type(ExcitationType_t) :: typ
 
-        typ = int(ibits(excit_info_int, 0, n_excit_type_bits))
+        typ = ExcitationType_t(int(ibits(excit_info_int, 0, n_excit_type_bits)))
 
     end function extract_excit_info_type
 
-    subroutine encode_excit_info_indices_vec(excit_info_int, inds)
+    pure subroutine encode_excit_info_indices_vec(excit_info_int, inds)
         debug_function_name("encode_excit_info_indices_vec")
         integer(int64), intent(inout) :: excit_info_int
         integer, intent(in) :: inds(4)
@@ -3379,7 +3278,8 @@ contains
 
     subroutine extract_excit_info_scalar(excit_info_int, typ, a, i, b, j)
         integer(int64), intent(in) :: excit_info_int
-        integer, intent(out) :: typ, a, i, b, j
+        type(ExcitationType_t), intent(out) :: typ
+        integer, intent(out) :: a, i, b, j
 
         typ = extract_excit_info_type(excit_info_int)
 
@@ -3389,7 +3289,8 @@ contains
 
     subroutine extract_excit_info_vector(excit_info_int, typ, inds)
         integer(int64), intent(in) :: excit_info_int
-        integer, intent(out) :: typ, inds(4)
+        type(ExcitationType_t), intent(out) :: typ
+        integer, intent(out) :: inds(4)
 
         typ = extract_excit_info_type(excit_info_int)
 
@@ -3401,7 +3302,8 @@ contains
         integer(int64), intent(in) :: excit_info_int
         type(ExcitationInformation_t), intent(out) :: excitInfo
 
-        integer :: typ, a, i, b, j
+        type(ExcitationType_t) :: typ
+        integer :: a, i, b, j
 
         ! this function needs to do additional processing of the
         ! minimal info stored in excit_info_int
@@ -3416,7 +3318,8 @@ contains
 
     function calc_remaining_excit_info(typ, a, i, b, j) result(excitInfo)
         debug_function_name("calc_remaining_excit_info")
-        integer, intent(in) :: typ, a, i, b, j
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: a, i, b, j
         type(ExcitationInformation_t) :: excitInfo
 
         integer :: gen1, gen2, currentGen, firstGen, lastGen, fullstart, &
@@ -3424,29 +3327,9 @@ contains
         real(dp) :: order, order1
 
 #ifdef DEBUG_
-        select case(typ)
-        case( excit_type%single_overlap_L_to_R)
-        case( excit_type%single_overlap_R_to_L )
-        case( excit_type%double_lowering )
-        case( excit_type%double_raising )
-        case( excit_type%double_L_to_R_to_L)
-        case( excit_type%double_R_to_L_to_R )
-        case( excit_type%double_L_to_R )
-        case( excit_type%double_R_to_L )
-        case( excit_type%fullstop_lowering )
-        case( excit_type%fullstop_raising )
-        case( excit_type%fullstop_L_to_R )
-        case( excit_type%fullstop_R_to_L )
-        case( excit_type%fullstart_lowering)
-        case( excit_type%fullstart_raising)
-        case( excit_type%fullstart_L_to_R)
-        case( excit_type%fullstart_R_to_L)
-        case( excit_type%fullstart_stop_alike)
-        case( excit_type%fullstart_stop_mixed)
-        case default
-            print *, "incorrect typ: ", excit_names(typ)
-            call stop_all(this_routine, "see above")
-        end select
+        if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
+            call stop_all(this_routine, "incorrect typ: "//typ%str)
+        end if
 #endif
 
         ASSERT(a > 0 .and. a <= nSpatOrbs)
@@ -3469,9 +3352,9 @@ contains
         order = 1.0_dp
         order1 = 1.0_dp
 
-        select case (typ)
+        select case (typ%val)
 
-        case ( excit_type%single_overlap_L_to_R )
+        case ( excit_type%single_overlap_L_to_R%val )
 
             ASSERT(a == b)
             ASSERT(i < j)
@@ -3490,7 +3373,7 @@ contains
 
 
 
-        case ( excit_type%single_overlap_R_to_L )
+        case ( excit_type%single_overlap_R_to_L%val )
 
             ASSERT(i == j)
             ASSERT(a < b)
@@ -3507,7 +3390,7 @@ contains
             fullEnd     = b
             overlap     = 1
 
-        case ( excit_type%double_lowering )
+        case ( excit_type%double_lowering%val )
 
             ASSERT(i < j)
             ASSERT(j < a)
@@ -3525,7 +3408,7 @@ contains
             overlap     = firstEnd - secondStart + 1
 
 
-        case ( excit_type%double_raising )
+        case ( excit_type%double_raising%val )
 
             ! in this assignment i switch to E_{bj}E_{ai} assignement to
             ! ensure 'correct' sign convention of the x1 coupling coeffs!
@@ -3545,7 +3428,7 @@ contains
 
             overlap     = firstEnd - secondStart + 1
 
-        case ( excit_type%double_L_to_R_to_L )
+        case ( excit_type%double_L_to_R_to_L%val )
             ! here we switch to E_{aj}E_{bi}
 
             ASSERT( j < a )
@@ -3565,7 +3448,7 @@ contains
             overlap     = firstEnd - secondStart + 1
 
 
-        case ( excit_type%double_R_to_L_to_R )
+        case ( excit_type%double_R_to_L_to_R%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( a < j )
@@ -3584,7 +3467,7 @@ contains
 
             overlap = firstEnd - secondStart + 1
 
-        case ( excit_type%double_L_to_R )
+        case ( excit_type%double_L_to_R%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( j < a )
@@ -3604,7 +3487,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%double_R_to_L )
+        case ( excit_type%double_R_to_L%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( a < j )
@@ -3624,7 +3507,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstop_lowering )
+        case ( excit_type%fullstop_lowering%val )
 
             ASSERT( i < j )
             ASSERT( j < a )
@@ -3643,7 +3526,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstop_raising )
+        case ( excit_type%fullstop_raising%val )
 
             ASSERT(a < b )
             ASSERT(b < i )
@@ -3662,7 +3545,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstop_R_to_L )
+        case ( excit_type%fullstop_R_to_L%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT(a < j )
@@ -3682,7 +3565,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstop_L_to_R )
+        case ( excit_type%fullstop_L_to_R%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( j < a )
@@ -3702,7 +3585,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_lowering )
+        case ( excit_type%fullstart_lowering%val )
 
             ASSERT( i == j)
             ASSERT( j < a )
@@ -3721,7 +3604,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_raising )
+        case ( excit_type%fullstart_raising%val )
 
             ASSERT( a == b )
             ASSERT( b < i )
@@ -3740,7 +3623,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_L_to_R )
+        case ( excit_type%fullstart_L_to_R%val )
 
             ! switch to E_{aj} E_{bi}
             ASSERT( a == j )
@@ -3760,7 +3643,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_R_to_L )
+        case ( excit_type%fullstart_R_to_L%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT( a == j )
@@ -3780,7 +3663,7 @@ contains
             overlap = firstEnd - secondStart + 1
 
 
-        case ( excit_type%fullstart_stop_alike )
+        case ( excit_type%fullstart_stop_alike%val )
 
             ! here i need if statement..
 
@@ -3805,7 +3688,7 @@ contains
 
             overlap = firstEnd - secondStart + 1
 
-        case ( excit_type%fullstart_stop_mixed )
+        case ( excit_type%fullstart_stop_mixed%val )
 
             ! switch to E_{aj}E_{bi}
             ASSERT(a == j)
@@ -3832,7 +3715,7 @@ contains
 
     end function calc_remaining_excit_info
 
-    function encode_excit_info_obj(excitInfo) result(excit_info_int)
+    pure function encode_excit_info_obj(excitInfo) result(excit_info_int)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(int64) :: excit_info_int
 

@@ -20,6 +20,7 @@ module gasci
     use bit_rep_data, only: nIfTot
     use bit_reps, only: decode_bit_det
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
+    use guga_bitRepOps, only: CSF_Info_t
 
     better_implicit_none
     private
@@ -75,7 +76,10 @@ module gasci
         procedure(write_to_t), deferred :: write_to
         procedure(get_possible_spaces_t), deferred :: get_possible_spaces
         procedure :: get_possible_holes
-        procedure :: contains_conf
+        procedure, private :: contains_conf_nI
+        procedure, private :: contains_conf_csf
+        generic :: contains_conf => contains_conf_nI
+        generic :: contains_conf => contains_conf_csf
         procedure :: contains_ilut
         procedure :: is_connected => get_is_connected
         procedure :: nGAS => get_nGAS
@@ -90,10 +94,12 @@ module gasci
 
         procedure :: get_iGAS
         procedure :: get_orb_idx
-        procedure :: count_per_GAS
-        generic :: is_allowed => is_allowed_single, is_allowed_double
+        procedure, private :: count_per_GAS_nI
+        procedure, private :: count_per_GAS_csf
+        generic :: count_per_GAS => count_per_GAS_nI, count_per_GAS_csf
         procedure, private :: is_allowed_single
         procedure, private :: is_allowed_double
+        generic :: is_allowed => is_allowed_single, is_allowed_double
     end type
 
     abstract interface
@@ -283,14 +289,23 @@ contains
     end function
 
 
-    !>  Query wether a determinant or CSF is contained in the GAS space.
-    pure function contains_conf(this, nI) result(res)
+    !>  Query wether a determinant is contained in the GAS space.
+    pure function contains_conf_nI(this, nI) result(res)
         !> Specification of GAS spaces.
         class(GASSpec_t), intent(in) :: this
         !> An index of occupied spin orbitals.
         integer, intent(in) :: nI(:)
         logical :: res
         res = this%contains_supergroup(this%count_per_GAS(nI))
+    end function
+
+    !>  Query wether a CSF is contained in the GAS space.
+    pure function contains_conf_csf(this, csf_i) result(res)
+        !> Specification of GAS spaces.
+        class(GASSpec_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        logical :: res
+        res = this%contains_supergroup(this%count_per_GAS(csf_i))
     end function
 
     logical elemental function recoupling(this)
@@ -316,7 +331,7 @@ contains
     end function
 
     !> Count the particles per GAS space. i.e. return the supergroup.
-    pure function count_per_GAS(this, occupied) result(supergroup)
+    pure function count_per_GAS_nI(this, occupied) result(supergroup)
         class(GASSpec_t), intent(in) :: this
         integer, intent(in) :: occupied(:)
 
@@ -328,6 +343,22 @@ contains
         do iel = 1, size(occupied)
             iGAS = this%get_iGAS(occupied(iel))
             supergroup(iGAS) = supergroup(iGAS) + 1
+        end do
+    end function
+
+    !> Count the particles per GAS space. i.e. return the supergroup.
+    pure function count_per_GAS_csf(this, csf_i) result(supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+
+        integer :: supergroup(this%nGAS())
+
+        integer :: i_orb, iGAS
+
+        supergroup = 0
+        do i_orb = 1, size(csf_i%occ_int)
+            iGAS = this%get_iGAS(i_orb * 2)
+            supergroup(iGAS) = supergroup(iGAS) + csf_i%occ_int(i_orb)
         end do
     end function
 
@@ -610,6 +641,7 @@ contains
                 res(N(i)) = res(N(i)) + 1
             end do
         end function
+
     end function
 
     !>  Query wether a supergroup is contained in the GAS space.

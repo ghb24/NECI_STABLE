@@ -1,124 +1,43 @@
 #include "macros.h"
-program test_guga_pchb_excitgen
 
-    use constants, only: dp, int64, n_int
-    use SystemData, only: tstorespinorbs, tReadInt, UMatEps, tReadFreeFormat, &
-        tGUGA, t_guga_pchb_weighted_singles, t_guga_pchb, nSpatOrbs, &
-        nel, nbasis
-    use FciMCData, only: tFillingStochRDMOnFly
-    use dSFMT_interface, only: dSFMT_init
+module test_guga_pchb_mod
+    use constants, only: dp, n_int
+    use SystemData, only: nEl
+    use FciMCData, only: pSingles
     use procedure_pointers, only: get_umat_el
-    use read_fci, only: initfromfcid, GetUMatSize, readfciint, fcidump_name, &
-        tumat2d, TMat2d
-    use UMatCache, only: tTransGTID, tdeferred_umat2d
-    use Parallel_neci, only: MPIInit, MPIEnd
-    use Calc, only: CalcInit, SetCalcDefaults
-    use System, only: SetSysDefaults, SysInit
-    use shared_memory_mpi, only: shared_allocate_mpi
+    use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
+    use IntegralsData, only: umat_win, umat
+    use Integrals_neci, only: get_umat_el_normal
+    USE OneEInts, only: TMAT2D
     use DetCalc, only: DetCalcInit
-    use unit_test_helper_excitgen, only: generate_uniform_integrals
-    use IntegralsData, only: Umat, umat_win
-    use Integrals_Neci, only: get_umat_el_normal
-    use LoggingData, only: tExplicitAllRDM, tRDMonfly
-    use bit_reps, only:  init_bit_rep
+    use Determinants, only: DetInit, DetPreFreezeInit
+    use unit_test_helper_excitgen, only: generate_uniform_integrals, init_guga_testsuite, finalize_guga_testuite, &
+            generate_random_integrals, FciDumpWriter_t
+    use orb_idx_mod, only: sum, calc_spin_raw
+    use LoggingData, only: tExplicitAllRDM, tRDMonFly
+    use bit_reps, only: init_bit_rep
     use bit_rep_data, only: GugaBits
     use guga_init, only: init_guga
-    use guga_bitRepOps, only: CSF_Info_t, encodebitdet_guga
+    use guga_bitRepOps, only: CSF_Info_t, EncodeBitDet_guga
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type
-    use guga_pchb_class, only: GugaAliasSampler_t, &
-        calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, &
-        pick_orbitals_pure_uniform_singles
-    use Determinants, only: DetInit, DetPreFreezeInit
+    use guga_pchb_class, only: PCHB_t
 
-    use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
-        get_failed_count, run_test_case, assert_equals, assert_true
+    use fruit, only: assert_true, assert_equals
     use fruit_extensions, only: my_run_test_case
+    better_implicit_none
+    private
 
-    implicit none
+    public :: guga_pchb_test_driver
 
-    integer :: failed_count
-
-    call init_fruit()
-    call guga_pchb_test_driver()
-    call fruit_summary()
-    call fruit_finalize()
-
-    call get_failed_count(failed_count)
-    if (failed_count /= 0) stop -1
-
+    type(PCHB_t) :: exc_generator
 contains
-
-    subroutine init_guga_testsuite
-
-        integer(int64) :: umatsize
-        integer :: nBasisMax(5, 3), lms, stot
-        real(dp) :: ecore
-
-        umatsize = 0
-        nel = 4
-        nbasis = 8
-        nSpatOrbs = 4
-        stot = 0
-        lms = 0
-        tGUGA = .true.
-
-        tRDMonfly = .true.
-        tFillingStochRDMOnFly = .true.
-        call init_bit_rep()
-
-        t_guga_pchb_weighted_singles = .false.
-        t_guga_pchb = .true.
-        tdeferred_umat2d = .true.
-        tumat2d = .false.
-
-        ! set this to false before the init to setup all the ilut variables
-        tExplicitAllRDM = .false.
-
-        call init_guga()
-
-        fcidump_name = "FCIDUMP"
-        UMatEps = 1.0e-8
-        tStoreSpinOrbs = .false.
-        tTransGTID = .false.
-        tReadFreeFormat = .true.
-
-        call MPIInit(.false.)
-
-        call dSFMT_init(8)
-
-        call SetCalcDefaults()
-        call SetSysDefaults()
-        tReadInt = .true.
-
-        call generate_uniform_integrals()
-
-        get_umat_el => get_umat_el_normal
-
-        call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
-
-        call GetUMatSize(nBasis, umatsize)
-
-        allocate (TMat2d(nBasis, nBasis))
-
-        call shared_allocate_mpi(umat_win, umat, (/umatsize/))
-
-        call readfciint(UMat, umat_win, nBasis, ecore)
-        call SysInit()
-        ! required: set up the spin info
-
-        call DetInit()
-        call DetCalcInit()
-        ! call SpinOrbSymSetup()
-
-        call DetPreFreezeInit()
-
-        call CalcInit()
-    end subroutine init_guga_testsuite
 
     subroutine guga_pchb_test_driver()
 
         call init_guga_testsuite()
+        call finalize_guga_testuite()
 
+        call init_guga_testsuite()
         call my_run_test_case(pick_uniform_spatial_hole_test, &
                               "pick_uniform_spatial_hole_test", "pick_uniform_spatial_hole")
         call my_run_test_case(pick_orbitals_pure_uniform_singles_test, &
@@ -132,67 +51,67 @@ contains
         call my_run_test_case(guga_pchb_sampler_test, &
                               "guga_pchb_sampler_test", "guga_pchb_sampler type")
 
+        call finalize_guga_testuite()
     end subroutine guga_pchb_test_driver
 
     subroutine guga_pchb_sampler_test
-
     end subroutine guga_pchb_sampler_test
 
     subroutine calc_orb_pgen_uniform_singles_test
 
-        integer :: ex(2, 2), nI(4)
-        integer(n_int) :: ilut(0:GugaBits%len_tot)
+        integer :: nI(4)
+        integer(n_int) :: ilutI(0:GugaBits%len_tot)
         real(dp) :: pgen
         type(ExcitationInformation_t) :: excitInfo
         type(CSF_Info_t) :: csf_info
 
-        nI = [1, 2, 3, 4]
-        call EncodeBitDet_guga(nI, ilut)
-        csf_info = CSF_Info_t(ilut)
+        pSingles = 1._dp
 
-        ex(:, 2) = 0
-        ex(1, 1) = 1
-        ex(2, 1) = 2
+        nI = [1, 2, 3, 4]
+        call exc_generator%init()
+        call EncodeBitDet_guga(nI, ilutI)
+        csf_info = CSF_Info_t(ilutI)
 
         excitInfo%j = 1
         excitInfo%i = 1
-        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
+        pgen = exc_generator%calc_pgen(nI, ilutI, csf_info, excitInfo)
         call assert_equals(0.0_dp, pgen)
 
         excitInfo%i = 2
-        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
+        pgen = exc_generator%calc_pgen(nI, ilutI, csf_info, excitInfo)
         call assert_equals(0.0_dp, pgen)
 
         excitInfo%i = 3
-        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
+        pgen = exc_generator%calc_pgen(nI, ilutI, csf_info, excitInfo)
         call assert_equals(1.0_dp / 4.0_dp, pgen)
 
         excitInfo%i = 4
-        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
+        pgen = exc_generator%calc_pgen(nI, ilutI, csf_info, excitInfo)
         call assert_equals(1.0_dp / 4.0_dp, pgen)
 
         nI = [1, 2, 3, 8]
-        call EncodeBitDet_guga(nI, ilut)
-        csf_info = CSF_Info_t(ilut)
+        call EncodeBitDet_guga(nI, ilutI)
+        csf_info = CSF_Info_t(ilutI)
 
         excitInfo%i = 4
-        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
+        pgen = exc_generator%calc_pgen(nI, ilutI, csf_info, excitInfo)
         call assert_equals(1.0_dp / 9.0_dp, pgen)
 
         excitInfo%j = 2
         excitInfo%i = 4
-        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
+        pgen = exc_generator%calc_pgen(nI, ilutI, csf_info, excitInfo)
         call assert_equals(1.0_dp / 6.0_dp, pgen)
 
         nI = [1, 4, 5, 8]
-        call EncodeBitDet_guga(nI, ilut)
-        csf_info = CSF_Info_t(ilut)
+        call EncodeBitDet_guga(nI, ilutI)
+        csf_info = CSF_Info_t(ilutI)
 
         excitInfo%j = 4
         excitInfo%i = 2
-        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
+        pgen = exc_generator%calc_pgen(nI, ilutI, csf_info, excitInfo)
         call assert_equals(1.0_dp / 12.0_dp, pgen)
 
+        call exc_generator%finalize()
     end subroutine calc_orb_pgen_uniform_singles_test
 
     subroutine pick_orbitals_pure_uniform_singles_test
@@ -202,13 +121,15 @@ contains
         real(dp) :: pgen
         type(CSF_Info_t) :: csf_info
 
+        call exc_generator%init()
+
         nI = [1, 2, 3, 4]
         call EncodeBitDet_guga(nI, ilut)
         csf_info = CSF_Info_t(ilut)
 
         call pick_orbitals_pure_uniform_singles(ilut, nI, csf_info, excitInfo, pgen)
 
-        call assert_equals(excitInfo%typ, excit_type%single)
+        call assert_true(excitInfo%typ == excit_type%single)
         call assert_equals(gen_type%L, excitInfo%gen1)
         call assert_true(excitInfo%j == 1 .or. excitInfo%j == 2)
         call assert_true(excitInfo%i == 3 .or. excitInfo%i == 4)
@@ -220,63 +141,105 @@ contains
 
         call pick_orbitals_pure_uniform_singles(ilut, nI, csf_info, excitInfo, pgen)
 
-        call assert_equals(excitInfo%typ, excit_type%single)
+        call assert_true(excitInfo%typ == excit_type%single)
         call assert_true(any(excitInfo%j == [1, 2, 3, 4]))
         call assert_true(any(excitInfo%i == [1, 2, 3, 4]))
         call assert_true(excitInfo%i /= excitInfo%j)
         call assert_equals(1.0_dp / 12.0_dp, pgen)
 
+        call exc_generator%finalize()
+
+    contains
+
+        subroutine pick_orbitals_pure_uniform_singles(ilut, nI, csf_i, excitInfo, pgen)
+            integer(n_int), dimension(0:gugabits%len_tot), intent(in) :: ilut
+            integer, dimension(nel), intent(in) :: ni
+            type(csf_info_t), intent(in) :: csf_i
+            type(excitationinformation_t), intent(out) :: excitinfo
+            real(dp), intent(out) :: pgen
+            call exc_generator%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        end subroutine
+
     end subroutine pick_orbitals_pure_uniform_singles_test
 
     subroutine pick_uniform_spatial_hole_test
 
-        integer :: nI(4), elec, s_orb
-        real(dp) :: pgen
+        integer :: nI(4)
         integer(n_int) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t) :: csf_info
+        integer, allocatable :: valid_orbs(:)
+
+        call exc_generator%init()
 
         nI = [1, 2, 3, 4]
-
         call EncodeBitDet_guga(nI, ilut)
         csf_info = CSF_Info_t(ilut)
 
-        elec = 1
-        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp)
-        call assert_true(s_orb == 3 .or. s_orb == 4)
-        call assert_equals(0.5_dp, pgen)
+        valid_orbs = get_valid_orbs(csf_info, 1)
+        call assert_true(size(valid_orbs) == 2)
+        call assert_true(all(valid_orbs == [3, 4]))
 
-        elec = 2
-        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp)
-        call assert_true(s_orb == 3 .or. s_orb == 4)
-        call assert_equals(0.5_dp, pgen)
+        valid_orbs = get_valid_orbs(csf_info, 2)
+        call assert_true(size(valid_orbs) == 2)
+        call assert_true(all(valid_orbs == [3, 4]))
+
 
         nI = [1, 2, 3, 8]
         call EncodeBitDet_guga(nI, ilut)
         csf_info = CSF_Info_t(ilut)
 
-        elec = 1
-        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp)
-        call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
-        call assert_equals(1.0_dp / 3.0_dp, pgen)
+        valid_orbs = get_valid_orbs(csf_info, 1)
+        call assert_true(size(valid_orbs) == 3)
+        call assert_true(all(valid_orbs == [2, 3, 4]))
 
-        elec = 2
-        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp)
-        call assert_true(s_orb == 3 .or. s_orb == 4)
-        call assert_equals(1.0_dp / 2.0_dp, pgen)
+        valid_orbs = get_valid_orbs(csf_info, 2)
+        call assert_true(size(valid_orbs) == 2)
+        call assert_true(all(valid_orbs == [3, 4]))
+
 
         nI = [1, 4, 5, 8]
         call EncodeBitDet_guga(nI, ilut)
         csf_info = CSF_Info_t(ilut)
 
-        elec = 1
-        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp)
-        call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
-        call assert_equals(1.0_dp / 3.0_dp, pgen)
+        valid_orbs = get_valid_orbs(csf_info, 1)
+        call assert_true(size(valid_orbs) == 3)
+        call assert_true(all(valid_orbs == [2, 3, 4]))
+
+        call exc_generator%finalize()
+    contains
+
+        function get_valid_orbs(csf_I, elec) result(valid_orbs)
+            type(csf_info_t), intent(in) :: csf_i
+            integer, intent(in) :: elec
+            integer, allocatable :: valid_orbs(:)
+            valid_orbs = exc_generator%get_valid_orbs(csf_I, elec)
+        end function
     end subroutine pick_uniform_spatial_hole_test
+
+end module
+
+
+program test_guga_pchb_excitgen
+
+    use util_mod, only: stop_all
+    use test_guga_pchb_mod, only: guga_pchb_test_driver
+    use Parallel_neci, only: MPIInit, MPIEnd
+
+    use fruit, only: init_fruit, fruit_summary, fruit_finalize, get_failed_count
+
+    implicit none
+
+    integer :: failed_count
+
+    call MPIInit(.false.)
+    call init_fruit()
+    call guga_pchb_test_driver()
+    call fruit_summary()
+    call fruit_finalize()
+
+    call get_failed_count(failed_count)
+    if (failed_count /= 0) call stop_all('test_guga_pchb_excitgen', 'Tests failed')
+
+    call MPIEnd(.false.)
 
 end program test_guga_pchb_excitgen

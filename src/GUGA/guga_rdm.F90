@@ -33,8 +33,8 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double
     use guga_matrixElements, only: calc_guga_matrix_element, calcDiagExchangeGUGA_nI
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, rdm_ind_bitmask, excit_names, &
-                         RdmContribList_t
+                         excit_type, gen_type, rdm_ind_bitmask, &
+                         RdmContribList_t, ExcitationType_t
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -270,10 +270,9 @@ contains
         real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
             !! Molcas RDM arrays to be populated.
 
-        integer :: n_one_rdm, n_two_rdm, iproc, ielem
+        integer :: n_one_rdm, n_two_rdm, ielem
         integer :: pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
         integer(int_rdm) :: pqrs
-        integer :: ierr
         real(dp) :: rdm_sign(rdm%sign_length), rdm_sign_
         real(dp), allocatable :: dmat_loc(:), psmat_loc(:), pamat_loc(:)
 
@@ -384,7 +383,8 @@ contains
         integer(int_rdm), intent(out), allocatable :: rdm_ind_out(:)
         real(dp), intent(out), allocatable :: rdm_mat(:)
         debug_function_name("create_all_rdm_contribs")
-        integer :: ex_lvl, ex_typ, i, j, k, l
+        integer :: ex_lvl, i, j, k, l
+        type(ExcitationType_t) :: ex_typ
 
         ex_lvl = extract_excit_lvl_rdm(rdm_ind)
         ex_typ = extract_excit_type_rdm(rdm_ind)
@@ -401,17 +401,17 @@ contains
 
         else if (ex_lvl == 2) then
 
-            select case (ex_typ)
+            select case (ex_typ%val)
 
                 ! we only take stuff from stochastic double excitations here..
                 ! so this excludes some excitation types.. assert this below!
-            case (excit_type%single_overlap_R_to_L, &
-                  excit_type%single_overlap_L_to_R, &
-                  excit_type%fullstop_lowering, &
-                  excit_type%fullstop_raising, &
-                  excit_type%fullstart_raising, &
-                  excit_type%fullstart_lowering, &
-                  excit_type%fullstart_stop_alike)
+            case (excit_type%single_overlap_R_to_L%val, &
+                  excit_type%single_overlap_L_to_R%val, &
+                  excit_type%fullstop_lowering%val, &
+                  excit_type%fullstop_raising%val, &
+                  excit_type%fullstart_raising%val, &
+                  excit_type%fullstart_lowering%val, &
+                  excit_type%fullstart_stop_alike%val)
 
                 ! here we also only have the ij <-> kl conjugation which
                 ! can (and should for now) be handled outside of this function!
@@ -424,18 +424,18 @@ contains
                 ! the conjugated elements of those are actually dealt with
                 ! in the single excitations (here they would actually be 0
                 ! since we enforce a spin-flip in the overlap range!
-            case (excit_type%fullstop_L_to_R, &
-                  excit_type%fullstop_R_to_L, &
-                  excit_type%fullstart_L_to_R, &
-                  excit_type%fullstart_R_to_L, &
-                  excit_type%fullstart_stop_mixed)
+            case (excit_type%fullstop_L_to_R%val, &
+                  excit_type%fullstop_R_to_L%val, &
+                  excit_type%fullstart_L_to_R%val, &
+                  excit_type%fullstart_R_to_L%val, &
+                  excit_type%fullstart_stop_mixed%val)
 
                 allocate(rdm_ind_out(1), source=rdm_ind)
                 ASSERT(near_zero(x0))
                 allocate(rdm_mat(1), source=x1)
 
-            case (excit_type%double_lowering, &
-                  excit_type%double_raising)
+            case (excit_type%double_lowering%val, &
+                  excit_type%double_raising%val)
 
                 ! here we need to do something
                 call extract_2_rdm_ind(rdm_ind, i, j, k, l)
@@ -451,10 +451,10 @@ contains
 
                 rdm_mat(2) = x0 + generator_sign(i, l, k, j) * x1
 
-            case (excit_type%double_L_to_R_to_L, &
-                  excit_type%double_R_to_L_to_R, &
-                  excit_type%double_L_to_R, &
-                  excit_type%double_R_to_L)
+            case (excit_type%double_L_to_R_to_L%val, &
+                  excit_type%double_R_to_L_to_R%val, &
+                  excit_type%double_L_to_R%val, &
+                  excit_type%double_R_to_L%val)
 
                 ! these cases contain a non-overlap excitaion if no spin-flip
                 ! in the overlap range happened (i hope for now that a
@@ -498,7 +498,8 @@ contains
         real(dp), intent(in) :: x0, x1
         real(dp) :: comb
         debug_function_name("combine_x0_x1")
-        integer :: ex_lvl, ex_typ, i, j, k, l
+        integer :: ex_lvl, i, j, k, l
+        type(ExcitationType_t) :: ex_typ
 
         ex_lvl = extract_excit_lvl_rdm(rdm_ind)
         ex_typ = extract_excit_type_rdm(rdm_ind)
@@ -511,42 +512,42 @@ contains
             comb = x0
         else if (ex_lvl == 2) then
 
-            select case (ex_typ)
+            select case (ex_typ%val)
 
                 ! group together everything where x1 is 0
-            case (excit_type%single_overlap_L_to_R, &
-                  excit_type%single_overlap_R_to_L, &
-                  excit_type%fullstop_lowering, &
-                  excit_type%fullstop_raising, &
-                  excit_type%fullstart_raising, &
-                  excit_type%fullstart_lowering, &
-                  excit_type%fullstart_stop_alike)
+            case (excit_type%single_overlap_L_to_R%val, &
+                  excit_type%single_overlap_R_to_L%val, &
+                  excit_type%fullstop_lowering%val, &
+                  excit_type%fullstop_raising%val, &
+                  excit_type%fullstart_raising%val, &
+                  excit_type%fullstart_lowering%val, &
+                  excit_type%fullstart_stop_alike%val)
 
                 ASSERT(near_zero(x1))
                 comb = x0
 
                 ! group everything together where x0 is 0:
-            case (excit_type%fullstop_L_to_R, &
-                  excit_type%fullstop_R_to_L, &
-                  excit_type%fullstart_L_to_R, &
-                  excit_type%fullstart_R_to_L, &
-                  excit_type%fullstart_stop_mixed)
+            case (excit_type%fullstop_L_to_R%val, &
+                  excit_type%fullstop_R_to_L%val, &
+                  excit_type%fullstart_L_to_R%val, &
+                  excit_type%fullstart_R_to_L%val, &
+                  excit_type%fullstart_stop_mixed%val)
 
                 ASSERT(near_zero(x0))
                 comb = x1
 
-            case (excit_type%double_lowering, &
-                  excit_type%double_raising)
+            case (excit_type%double_lowering%val, &
+                  excit_type%double_raising%val)
                 ! in these two cases i need to determine the sign influence
                 ! from the generator ordering
 
                 call extract_2_rdm_ind(rdm_ind, i, j, k, l)
                 comb = x0 + generator_sign(i, j, k, l) * x1
 
-            case (excit_type%double_L_to_R_to_L, &
-                  excit_type%double_R_to_L_to_R, &
-                  excit_type%double_L_to_R, &
-                  excit_type%double_R_to_L)
+            case (excit_type%double_L_to_R_to_L%val, &
+                  excit_type%double_R_to_L_to_R%val, &
+                  excit_type%double_L_to_R%val, &
+                  excit_type%double_R_to_L%val)
                 ! i think for these cases i really need nothing..
                 comb = x0 + x1
 
@@ -701,7 +702,8 @@ contains
         HElement_t(dp) :: mat_ele
         integer(int_rdm), allocatable :: rdm_ind(:)
         real(dp), allocatable :: rdm_mat(:)
-        integer :: i, j, k, l, n, ex_lvl, ex_typ
+        integer :: i, j, k, l, n, ex_lvl
+        type(ExcitationType_t) :: ex_typ
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
         integer(int_rdm) :: pure_ind
@@ -1864,33 +1866,33 @@ contains
         ! and also the the full-starts are maybe correct already..
         ! so it was just the full-start into full-stop mixed!
         if (.not. compFlag) then
-            allocate(excits(0, 0), stat=ierr)
+            allocate(excits(0, 0))
             return
         end if
 
-        select case (excitInfo%typ)
+        select case (excitInfo%typ%val)
 
-        case (excit_type%raising, &
-              excit_type%lowering, &
-              excit_type%single_overlap_lowering, &
-              excit_type%single_overlap_raising)
+        case (excit_type%raising%val, &
+              excit_type%lowering%val, &
+              excit_type%single_overlap_lowering%val, &
+              excit_type%single_overlap_raising%val)
 
             ! in the case of mimicking stochasitic
             ! excitation generation, we should abort here for
             ! these type of excitations!
-            allocate(excits(0, 0), stat=ierr)
+            allocate(excits(0, 0))
             n_excits = 0
             return
 
         end select
 
-        select case (excitInfo%typ)
-        case (excit_type%single)
+        select case (excitInfo%typ%val)
+        case (excit_type%single%val)
             ! shouldnt be here.. onyl single excits and full weight gens
-            allocate(excits(0, 0), stat=ierr)
+            allocate(excits(0, 0))
             return
 
-        case (excit_type%raising) ! weight + raising gen.
+        case (excit_type%raising%val) ! weight + raising gen.
             ! can be treated almost like a single excitation
             ! essentially the same, except if d(w) == 3 in the excitaton regime
 
@@ -1899,19 +1901,19 @@ contains
 
             exlevel = 1
 
-        case (excit_type%lowering) ! weight + lowering gen
+        case (excit_type%lowering%val) ! weight + lowering gen
             call calcDoubleExcitation_withWeight(ilut, csf_i, excitInfo, excits, &
                                                  n_excits, posSwitches, negSwitches)
 
             exlevel = 1
 
-        case (excit_type%non_overlap) ! non overlap
+        case (excit_type%non_overlap%val) ! non overlap
             call calcNonOverlapDouble(ilut, csf_i, excitInfo, excits, n_excits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%single_overlap_lowering) ! single overlap two lowering
+        case (excit_type%single_overlap_lowering%val) ! single overlap two lowering
             ! how can i efficiently adress that?
             ! can i write that efficiently in one function or do i need more?
             ! probably need more... i already determined
@@ -1920,61 +1922,61 @@ contains
 
             exlevel = 1
 
-        case (excit_type%single_overlap_raising) ! single overlap raising
+        case (excit_type%single_overlap_raising%val) ! single overlap raising
             call calcSingleOverlapRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                           posSwitches, negSwitches)
 
             exlevel = 1
 
-        case (excit_type%single_overlap_L_to_R) ! single overlap lowering into raising
+        case (excit_type%single_overlap_L_to_R%val) ! single overlap lowering into raising
             call calcSingleOverlapMixed(ilut, csf_i, excitInfo, excits, n_excits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%single_overlap_R_to_L) ! single overlap raising into lowering
+        case (excit_type%single_overlap_R_to_L%val) ! single overlap raising into lowering
             call calcSingleOverlapMixed(ilut, csf_i, excitInfo, excits, n_excits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_lowering) ! normal double overlap two lowering
+        case (excit_type%double_lowering%val) ! normal double overlap two lowering
             call calcDoubleLowering(ilut, csf_i, excitInfo, excits, n_excits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_raising) ! normal double overlap two raising
+        case (excit_type%double_raising%val) ! normal double overlap two raising
             call calcDoubleRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_L_to_R_to_L) ! lowering into raising into lowering
+        case (excit_type%double_L_to_R_to_L%val) ! lowering into raising into lowering
             call calcDoubleRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
+        case (excit_type%double_R_to_L_to_R%val) ! raising into lowering into raising
             call calcDoubleLowering(ilut, csf_i, excitInfo, excits, n_excits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_L_to_R) ! lowering into raising double
+        case (excit_type%double_L_to_R%val) ! lowering into raising double
             call calcDoubleL2R(ilut, csf_i, excitInfo, excits, n_excits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_R_to_L) ! raising into lowering double
+        case (excit_type%double_R_to_L%val) ! raising into lowering double
             call calcDoubleR2L(ilut, csf_i, excitInfo, excits, n_excits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%fullstop_lowering) ! full stop 2 lowering
+        case (excit_type%fullstop_lowering%val) ! full stop 2 lowering
             ! can i write a function for both alike generator combinations
             ! i think i can
             call calcFullstopLowering(ilut, csf_i, excitInfo, excits, n_excits, &
@@ -1982,13 +1984,13 @@ contains
 
             exlevel = 2
 
-        case (excit_type%fullstop_raising) ! full stop 2 raising
+        case (excit_type%fullstop_raising%val) ! full stop 2 raising
             call calcFullstopRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                      posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%fullstop_L_to_R) ! full stop lowering into raising
+        case (excit_type%fullstop_L_to_R%val) ! full stop lowering into raising
             call calcFullStopL2R(ilut, csf_i, excitInfo, excits, n_excits, &
                                  posSwitches, negSwitches, t_no_singles_opt=.true.)
 
@@ -2007,46 +2009,46 @@ contains
             ! to mimick stochastic exctiations generation
             exlevel = 2
 
-        case (excit_type%fullstop_R_to_L) ! full stop raising into lowering
+        case (excit_type%fullstop_R_to_L%val) ! full stop raising into lowering
             call calcFullStopR2L(ilut, csf_i, excitInfo, excits, n_excits, &
                                  posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
-        case (excit_type%fullstart_lowering) ! full start 2 lowering
+        case (excit_type%fullstart_lowering%val) ! full start 2 lowering
             call calcFullStartLowering(ilut, csf_i, excitInfo, excits, n_excits, &
                                        posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%fullstart_raising) ! full start 2 raising
+        case (excit_type%fullstart_raising%val) ! full start 2 raising
             call calcFulLStartRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%fullstart_L_to_R) ! full start lowering into raising
+        case (excit_type%fullstart_L_to_R%val) ! full start lowering into raising
             call calcFullStartL2R(ilut, csf_i, excitInfo, excits, n_excits, &
                                   posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
-        case (excit_type%fullstart_R_to_L) ! full start raising into lowering
+        case (excit_type%fullstart_R_to_L%val) ! full start raising into lowering
             call calcFullStartR2L(ilut, csf_i, excitInfo, excits, n_excits, &
                                   posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
-        case (excit_type%fullstart_stop_alike) ! full start into full stop alike
+        case (excit_type%fullstart_stop_alike%val) ! full start into full stop alike
             call calcFullStartFullStopAlike(ilut, csf_i, excitInfo, excits)
             n_excits = 1
 
             exlevel = 2
 
-        case (excit_type%fullstart_stop_mixed) ! full start into full stop mixed
+        case (excit_type%fullstart_stop_mixed%val) ! full start into full stop mixed
             call calcFullStartFullStopMixed(ilut, csf_i, excitInfo, excits, n_excits, &
                                             posSwitches, negSwitches)
 

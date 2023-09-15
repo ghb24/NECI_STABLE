@@ -8,20 +8,25 @@ module guga_data
     use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_
     use MemoryManager, only: TagIntType
     use bit_rep_data, only: BitRep_t, GugaBits
+    use util_mod, only: EnumBase_t, swap
+    use error_handling_neci, only: stop_all
 
     implicit none
 
     private
-    public :: ExcitationInformation_t, WeightData_t, projE_replica, &
+    public :: ExcitationInformation_t, ExcitationType_t, WeightData_t, projE_replica, &
               getSingleMatrixElement, getDoubleMatrixElement, getMixedFullStop, &
               orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
               funa_2_0_overr2, getdoublecontribution, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, init_guga_data_procptrs, &
-              excit_type, gen_type, excit_names, &
+              excit_type, gen_type, &
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
-              RdmContribList_t, n_excit_index_bits
+              RdmContribList_t, n_excit_index_bits, &
+              DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, &
+              excit_type_arr, valid_excit_type_arr, non_trivial_double_excit_type_arr, &
+              ijkl_Index_t, ijab_Index_t
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations
@@ -95,76 +100,288 @@ module guga_data
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them
     ! this may also be used/needed for the excitation generation
-    type :: ExcitationTypeValues_t
-        ! save type of excitation encoded as integer: all different possibs:
-        integer :: &
-            invalid = 0, & ! 0 ... indicate invalid excitation
-            weight = 1, & ! 0 ... pure weight identifier
-            single = 2, & ! 1 ... all kind of single excitations which dont need much care
-            raising = 3, & ! 2 ... weight raising
-            lowering = 4, & ! 3 ... weight lowering
-            non_overlap = 5, & ! 4 ... non overlap
-            single_overlap_lowering = 6, & ! 5 ... single overlap 2 lowering
-            single_overlap_raising = 7, & ! 6 ... single overlap 2 raising
-            single_overlap_L_to_R = 8, & ! 7 ... single overlap lowering into raising
-            single_overlap_R_to_L = 9, & ! 8 ... single overlap raising into lowering
-            double_lowering = 10, & ! 9 ... normal double two lowering
-            double_raising = 11, & ! 10 .. normal double two raising
-            double_L_to_R_to_L = 12, & ! 11 .. lowering into raising into lowering
-            double_R_to_L_to_R = 13, & ! 12 .. raising into lowering into raising
-            double_L_to_R = 14, & ! 13 .. lowering into raising double
-            double_R_to_L = 15, & ! 14 .. raising into lowering double
-            fullstop_lowering = 16, & ! 15 .. full stop 2 lowering
-            fullstop_raising = 17, & ! 16 .. full stop 2 raising
-            fullstop_L_to_R = 18, & ! 17 .. full stop lowering into raising
-            fullstop_R_to_L = 19, & ! 18 .. full stop raising into lowering
-            fullstart_lowering = 20, & ! 19 .. full start 2 lowering
-            fullstart_raising = 21, & ! 20 .. full start 2 raising
-            fullstart_L_to_R = 22, & ! 21 .. full start lowering into raising
-            fullstart_R_to_L = 23, & ! 22 .. full start raising into lowering
-            fullstart_stop_alike = 24, & ! 23 .. full start into full stop alike
-            fullstart_stop_mixed = 25    ! 24 .. full start into full stop mixed
 
-    end type ExcitationTypeValues_t
-
-    type :: ExcitationTypeNames_t
+    type, extends(EnumBase_t) :: ExcitationType_t
         character(30) :: str
+    end type
 
-    end type ExcitationTypeNames_t
+    type :: ExcitationTypeValues_t
+        type(ExcitationType_t) :: &
+            invalid = ExcitationType_t(0, 'invalid'), &
+                ! indicate invalid excitation
+            weight = ExcitationType_t(1, 'Weight'), &
+                ! pure weight identifier
+            single = ExcitationType_t(2, 'Single'), &
+                ! all kind of single excitations which dont need much care
+            raising = ExcitationType_t(3, 'Weight + Raising'), &
+                ! weight raising
+                ! W_R(i)  ^R(j)
+                ! e_{ii, ij}
+                ! Table 4.3 and Figure 4.4 (0c)
+            lowering = ExcitationType_t(4, 'Weight + Lowering'), &
+                ! weight lowering
+                ! _L(i)  W^L(j)
+                ! e_{ji, jj}
+                ! Table 4.3 and Figure 4.4 (0f)
+            non_overlap = ExcitationType_t(5, 'Non Overlap'), &
+                ! non overlap
+                ! e_{ij,kl} or e_{ji,lk}  ...
+                ! Table 4.3 and Figure 4.4 (3c0 or 3d0 or 3f0)
+            single_overlap_lowering = ExcitationType_t(6, 'Single Overlap Lowering'), &
+                ! single overlap 2 lowering
+                ! _L(i)   ^LL_(j)  ^L(k)
+                ! e_{ji,kj}
+                ! Table 4.3 and Figure 4.4 (0e)
+            single_overlap_raising = ExcitationType_t(7, 'Single Overlap Raising'), &
+                ! single overlap 2 raising
+                ! _R(i)   ^RR_(j)  ^R(k)
+                ! e_{ij,jk}
+                ! Table 4.3 and Figure 4.4 (0b)
+            single_overlap_L_to_R = ExcitationType_t(8, 'Single Overlap L to R'), &
+                ! single overlap lowering into raising
+                ! _L(i) ^LR_(j) ^R(k)
+                ! e_{ji,jk}
+                ! Table 4.3 and Figure 4.4 (1a)
+            single_overlap_R_to_L = ExcitationType_t(9, 'Single Overlap R to L'), &
+                ! single overlap raising into lowering
+                ! _R(i) ^RL_(j) ^L(k)
+                ! e_{ij,kj}
+                ! Table 4.3 and Figure 4.4 (1b)
+            double_lowering = ExcitationType_t(10, 'Double Lowering'), &
+                ! normal double two lowering
+                ! _L(i) -> LL_(j) -> ^LL(a) -> ^L(b)
+                ! e_{ki,lj} / e_{li,kj}
+                ! Table 4.3 and Figure 4.4 (3b)
+            double_raising = ExcitationType_t(11, 'Double Raising'), &
+                ! normal double two raising
+                ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l)
+                ! e_{jk,il}
+                ! or
+                ! _R(i) -> _RR(j) -> RR^(k) -> ^R(l)
+                ! e_{jl,ik}
+                ! Table 4.3 and Figure 4.4 (3a)
+            double_L_to_R_to_L = ExcitationType_t(12, 'Double L to R to L'), &
+                ! lowering into raising into lowering
+                ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
+                ! e_{jk,li}
+                ! Table 4.3 and Figure 4.4 (3d1)
+            double_R_to_L_to_R = ExcitationType_t(13, 'Double R to L to R'), &
+                ! raising into lowering into raising
+                ! _R(i) -> _LR(a) - > ^LR(j) -> ^R(b)
+                ! Table 4.3 and Figure 4.4 (3c1)
+            double_L_to_R = ExcitationType_t(14, 'Double L to R'), &
+                ! lowering into raising double
+                ! _L(j) -> _RL(a) -> RL^(b) -> ^R(j)
+                ! Table 4.3 and Figure 4.4 (3f1)
+            double_R_to_L = ExcitationType_t(15, 'Double R to L'), &
+                ! raising into lowering double
+                ! _R(j) -> _LR(a) -> LR^(b) -> ^L(j)
+                ! Table 4.3 and Figure 4.4 (3e1)
+            fullstop_lowering = ExcitationType_t(16, 'Fullstop Lowering'), &
+                ! full stop 2 lowering
+                ! _L(i) -> _LL(j) -> ^LL^(a)
+                ! e_{ki,kj}
+                ! Table 4.3 and Figure 4.4 (1d)
+            fullstop_raising = ExcitationType_t(17, 'Fullstop Raising'), &
+                ! full stop 2 raising
+                ! _R(i) -> _RR(j) -> ^RR^(a)
+                ! e_{ik,jk}
+                ! Table 4.3 and Figure 4.4 (1c)
+            fullstop_L_to_R = ExcitationType_t(18, 'Fullstop L to R'), &
+                ! full stop lowering into raising
+                ! e_{jk,ki}
+                ! _L(i) -> _RL(a) -> ^RL^(j)
+                ! Table 4.3 and Figure 4.4 (1e)
+            fullstop_R_to_L = ExcitationType_t(19, 'Fullstop R to L'), &
+                ! full stop raising into lowering
+                ! e_{kj,ik}
+                ! _R(i) -> _LR(a) -> ^LR^(j)
+                ! Table 4.3 and Figure 4.4 (1f)
+            fullstart_lowering = ExcitationType_t(20, 'Fullstart Lowering'), &
+                ! full start 2 lowering
+                ! e_{ji,ki}
+                ! _LL_(i) -> ^LL(a) -> ^L(b)
+                ! Table 4.3 and Figure 4.4 (1h)
+            fullstart_raising = ExcitationType_t(21, 'Fullstart Raising'), &
+                ! full start 2 raising
+                ! e_{ij,ik}
+                ! _RR_(i) -> ^RR(a) -> ^R(b)
+                ! Table 4.3 and Figure 4.4 (1g)
+            fullstart_L_to_R = ExcitationType_t(22, 'Fullstart L to R'), &
+                ! full start lowering into raising
+                ! _RL_(i) -> ^LR(b) -> ^R(j)
+                ! e_{ik,ji}
+                ! Table 4.3 and Figure 4.4 (1j)
+            fullstart_R_to_L = ExcitationType_t(23, 'Fullstart R to L'), &
+                ! full start raising into lowering
+                ! _RL_(i) -> ^RL(j) -> ^L(b)
+                ! e_{ij,ki}
+                ! Table 4.3 and Figure 4.4 (1i)
+            fullstart_stop_alike = ExcitationType_t(24, 'Fullstart to Fullstop Alike'), &
+                ! full start into full stop alike
+                ! _RR_(a) -> ^RR^(i)
+                ! or _LL_(i) > ^LL^(a)
+                ! e_{ij,ij}
+                ! Table 4.3 and Figure 4.4 (2a,2b)
+            fullstart_stop_mixed = ExcitationType_t(25, 'Fullstart to Fullstop Mixed')
+                ! full start into full stop mixed
+                ! _RL_(i) -> _RL_(j)
+                ! e_{ij,ji}
+                ! Table 4.3 and Figure 4.4 (2c)
+    end type
 
-    type(ExcitationTypeNames_t), parameter :: excit_names(0:25) = [ &
-                                              ExcitationTypeNames_t('Weight'), &
-                                              ExcitationTypeNames_t('invalid'), &
-                                              ExcitationTypeNames_t('Single'), &
-                                              ExcitationTypeNames_t('Weight + Raising'), &
-                                              ExcitationTypeNames_t('Weight + Lowering'), &
-                                              ExcitationTypeNames_t('Non Overlap'), &
-                                              ExcitationTypeNames_t('Single Overlap Lowering'), &
-                                              ExcitationTypeNames_t('Single Overlap Raising'), &
-                                              ExcitationTypeNames_t('Single Overlap L to R'), &
-                                              ExcitationTypeNames_t('Single Overlap R to L'), &
-                                              ExcitationTypeNames_t('Double Lowering'), &
-                                              ExcitationTypeNames_t('Double Raising'), &
-                                              ExcitationTypeNames_t('Double L to R to L'), &
-                                              ExcitationTypeNames_t('Double R to L to R'), &
-                                              ExcitationTypeNames_t('Double L to R'), &
-                                              ExcitationTypeNames_t('Double R to L'), &
-                                              ExcitationTypeNames_t('Fullstop Lowering'), &
-                                              ExcitationTypeNames_t('Fullstop Raising'), &
-                                              ExcitationTypeNames_t('Fullstop L to R'), &
-                                              ExcitationTypeNames_t('Fullstop R to L'), &
-                                              ExcitationTypeNames_t('Fullstart Lowering'), &
-                                              ExcitationTypeNames_t('Fullstart Raising'), &
-                                              ExcitationTypeNames_t('Fullstart L to R'), &
-                                              ExcitationTypeNames_t('Fullstart R to L'), &
-                                              ExcitationTypeNames_t('Fullstart to Fullstop Alike'), &
-                                              ExcitationTypeNames_t('Fullstart to Fullstop Mixed')]
+    interface ExcitationType_t
+        module procedure construct_ExcitationType_t
+    end interface
 
     type(ExcitationTypeValues_t), parameter :: excit_type = ExcitationTypeValues_t()
+    type(ExcitationType_t), parameter :: &
+        excit_type_arr(0:25) = &
+            [excit_type%invalid, excit_type%weight, excit_type%single, &
+            excit_type%raising, excit_type%lowering, excit_type%non_overlap, &
+            excit_type%single_overlap_lowering, excit_type%single_overlap_raising, &
+            excit_type%single_overlap_L_to_R, excit_type%single_overlap_R_to_L, &
+            excit_type%double_lowering, excit_type%double_raising, &
+            excit_type%double_L_to_R_to_L, excit_type%double_R_to_L_to_R, &
+            excit_type%double_L_to_R, excit_type%double_R_to_L, &
+            excit_type%fullstop_lowering, excit_type%fullstop_raising, &
+            excit_type%fullstop_L_to_R, excit_type%fullstop_R_to_L, &
+            excit_type%fullstart_lowering, excit_type%fullstart_raising, &
+            excit_type%fullstart_L_to_R, excit_type%fullstart_R_to_L, &
+            excit_type%fullstart_stop_alike, excit_type%fullstart_stop_mixed], &
+        valid_excit_type_arr(1:25) = excit_type_arr(1:25), &
+        non_trivial_double_excit_type_arr(8:25) = excit_type_arr(8:25)
+
+
+
+    type, extends(EnumBase_t) :: DistinctDoubleType_t
+        !! This represents a distinct double excitation (compare Table 4.3 of [@DobrautzThesis2019])
+        !! A distinct double excitation consists of the two double excitations
+        !! \( e_{ij,kl} \)  which are connected by exchange \( e_{il,kj} \).
+        !!
+        !! Because of \( e_{ij,kl} = e_{kl,ij} \) we can order such that \(i \leq k \).
+        !! The matrix element requires \( e_{ij,kl} \) and \( e_{il,kj} \).
+        !! For the notation of distinct double excitation we will order such that \( j \leq l \).
+        !! In the following we assume \( i < j < k < l \).
+        !!
+        !! Example:
+        !! The distinct type ``iijk`` consists of \( e_{ii,jk} \) and \( e_{ik,ji} \).
+        !! The first is a non-overlap double excitation with a single Weight on `i`
+        !! and a single raising excitation from `k` to `j`;
+        !! the latter is a `fullstart_L_to_R` i.e. \(\underline{RL}(i)   R\overline{L}(j)  \overline{R}(k)\)
+        type(ExcitationType_t) :: repr
+            !! The two subtypes usually do not differ.
+            !! If the two subtypes differ, then it is always a pairing with `non_overlap`.
+            !! For this reason we can choose one representative.
+            !!
+            !! For example:
+            !!    * `kikj` and `kjki` are both `fullstop_lowering`.
+            !!    * `ijkl` is `non_overlap`, the corresponding exchanged excitation
+            !!      `ilkj` is `double_R_to_L_to_R`, hence we choose `double_R_to_L_to_R`
+            !!      as representation.
+            !!
+            !! @note
+            !!   Older code does not clearly distinguish between `DistinctDoubleExcitation_t`
+            !!   and `ExcitationType_t`, so the `repr` is particularly useful here.
+            !! @endnote
+        type(ExcitationType_t) :: other
+            !! The other Excitation that is not the representative
+        character(2) :: label
+            !! The label in Table 4.3 of [@DobrautzThesis2019]
+        integer :: idx_for_repr(4) = [1, 2, 3, 4]
+            !! Store the permutation for outputting the representation index
+            !!
+            !! If we have for example the `DistinctDoubleType_t` `jilk`,
+            !! then the index of the representation shall refer
+            !! to the `double_L_to_R_to_L` excitation and be `jkli`
+            !! instead of the `non_overlap` part which would be `jilk`.
+            !! The swap is only relevant for distinct doubles with
+            !! a non-overlap excitation. Hence we default-initialize
+            !! to the identity permutation.
+    contains
+        private
+        ! procedure :: eq_DistinctDoubleExcitation_t => eq_DistinctDoubleType_t
+        ! procedure :: neq_DistinctDoubleExcitation_t => neq_DistinctDoubleType_t
+        ! generic, public :: operator(==) => eq_DistinctDoubleExcitation_t
+        ! generic, public :: operator(/=) => neq_DistinctDoubleExcitation_t
+    end type
+
+    type :: DistinctDoubleTypeVals_t
+        type(DistinctDoubleType_t) :: &
+            invalid = DistinctDoubleType_t(0, excit_type%invalid, excit_type%invalid, ''), &
+            jijk = DistinctDoubleType_t(1, excit_type%single_overlap_L_to_R, excit_type%single_overlap_L_to_R, '1a'), &
+            ijkj = DistinctDoubleType_t(2, excit_type%single_overlap_R_to_L, excit_type%single_overlap_R_to_L, '1b'), &
+
+            ikjk = DistinctDoubleType_t(3, excit_type%fullstop_raising, excit_type%fullstop_raising, '1c'), &
+            kikj = DistinctDoubleType_t(4, excit_type%fullstop_lowering, excit_type%fullstop_lowering, '1d'), &
+
+            jikk = DistinctDoubleType_t(5, excit_type%fullstop_L_to_R, excit_type%non_overlap, '1e', [1, 4, 3, 2]), &
+            ijkk = DistinctDoubleType_t(6, excit_type%fullstop_R_to_L, excit_type%non_overlap, '1f', [1, 4, 3, 2]), &
+            ijik = DistinctDoubleType_t(7, excit_type%fullstart_raising, excit_type%fullstart_raising, '1g'), &
+            jiki = DistinctDoubleType_t(8, excit_type%fullstart_lowering, excit_type%fullstart_lowering, '1h'), &
+            iikj = DistinctDoubleType_t(9, excit_type%fullstart_R_to_L, excit_type%non_overlap, '1i', [1, 4, 3, 2]), &
+            iijk = DistinctDoubleType_t(10, excit_type%fullstart_L_to_R, excit_type%non_overlap, '1j', [1, 4, 3, 2]), &
+
+            ijij = DistinctDoubleType_t(11, excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2a'), &
+            jiji = DistinctDoubleType_t(12, excit_type%fullstart_stop_alike, excit_type%fullstart_stop_alike, '2b'), &
+            iijj = DistinctDoubleType_t(13, excit_type%fullstart_stop_mixed, excit_type%non_overlap, '2c', [1, 4, 3, 2]), &
+
+            ikjl = DistinctDoubleType_t(14, excit_type%double_raising, excit_type%double_raising, '3a', [3, 4, 1, 2]), &
+            kilj = DistinctDoubleType_t(15, excit_type%double_lowering, excit_type%double_lowering, '3b'), &
+
+            ijkl = DistinctDoubleType_t(16, excit_type%double_R_to_L_to_R, excit_type%non_overlap, '3c', [1, 4, 3, 2]), &
+            jilk = DistinctDoubleType_t(17, excit_type%double_L_to_R_to_L, excit_type%non_overlap, '3d', [1, 4, 3, 2]), &
+            ijlk = DistinctDoubleType_t(18, excit_type%double_R_to_L, excit_type%non_overlap, '3e', [1, 4, 3, 2]), &
+            jikl = DistinctDoubleType_t(19, excit_type%double_L_to_R, excit_type%non_overlap, '3f', [1, 4, 3, 2])
+    end type
+
+    type(DistinctDoubleTypeVals_t), parameter :: distinct_doubles = DistinctDoubleTypeVals_t()
+
+
+    interface DistinctDoubleType_t
+        module procedure construct_DistinctDoubleType_t_ijkl, construct_DistinctDoubleType_t_ijab
+    end interface
+
+    type :: ijkl_Index_t
+        !! An index in the format of the Shavit papers [@Hinze1981] \( e_{ijkl} \)
+        !!
+        !! This means j and l are the particles, i and k the holes.
+        integer :: val(4)
+    contains
+        procedure :: extract_ijkl => extract_ijkl_Index_t
+        procedure :: convert => convert_ijkl_Index_t
+        procedure :: normalize => normalize_ijkl_Index_t
+        procedure :: is_normalized => is_normalized_ijkl_Index_t
+    end type
+
+    type :: ijab_Index_t
+        !! An index in the format of the rest of `NECI` \(e_{aibj} \)
+        !!
+        !! This means i, j are the particles, a and b the holes
+        integer :: val(4)
+    contains
+        procedure :: extract_ijab => extract_ijab_Index_t
+        procedure :: convert => convert_ijab_Index_t
+        procedure :: normalize => normalize_ijab_Index_t
+        procedure :: is_normalized => is_normalized_ijab_Index_t
+    end type
+
+    type :: DistinctDouble_t
+        type(ijkl_Index_t) :: idx
+        type(DistinctDoubleType_t) :: typ
+    contains
+        private
+        procedure, public :: get_repr_index
+    end type
+
+    interface DistinctDouble_t
+        module procedure construct_DistinctDouble_t_ijkl, construct_DistinctDouble_t_ijab
+    end interface
+
 
     type :: ExcitationInformation_t
 
-        integer :: typ = excit_type%invalid
+        type(ExcitationType_t) :: typ = excit_type%invalid
         ! need the involved indices of the excitation: list of integers
         ! for now the convention is, that they are given in an ordered form
         ! and is not related to the involved generators E_{ij} (E_{kl})
@@ -1181,5 +1398,209 @@ contains
     end function funOverB
 
     ! =========== end of generic necessary functions ========================
+
+    elemental function construct_ExcitationType_t(n) result(res)
+        integer, intent(in) :: n
+        type(ExcitationType_t) :: res
+        routine_name("construct_ExcitationType_t")
+        res = excit_type_arr(n)
+        ASSERT(res%val == n)
+    end function
+
+    elemental function get_repr_index(this) result(res)
+        !! Return the index for the representation.
+        !!
+        !! If we have for example the `DistinctDoubleType_t` `jilk`,
+        !! then the index of the representation shall refer
+        !! to the `double_L_to_R_to_L` excitation and be `jkli`
+        !! instead of the `non_overlap` part which would be `jilk`.
+        class(DistinctDouble_t), intent(in) :: this
+        type(ijkl_Index_t) :: res
+        res = ijkl_Index_t(this%idx%val(this%typ%idx_for_repr))
+    end function
+
+
+    elemental function construct_DistinctDoubleType_t_ijkl(idx) result(res)
+        type(ijkl_Index_t), intent(in) :: idx
+        type(DistinctDoubleType_t) :: res
+        routine_name("construct_DistinctDoubleType_t_ijkl")
+
+        integer :: i, j, k, l
+
+        ASSERT(idx%is_normalized())
+        call idx%extract_ijkl(i, j, k, l)
+
+        associate(dd => distinct_doubles)
+            res = dd%invalid
+            if (i == j) then
+                if (i /= k .and. i /= l) then
+                    if (k == l) then
+                        res = dd%iijj
+                    else if (k < l) then
+                        res = dd%iijk
+                    else if (k > l) then
+                        res = dd%iikj
+                    end if
+                end if
+            else if (i < j) then
+                if (i == k) then
+                    if (j == l) then
+                        res = dd%ijij
+                    else
+                        ASSERT(j < l)
+                        res = dd%ijik
+                    end if
+                else if (i < k) then
+                    if (j < k) then
+                        if (j == l) then
+                            res = dd%ijkj
+                        else if (k == l) then
+                            res = dd%ijkk
+                        else if (k < l) then
+                            res = dd%ijkl
+                        else if (k > l) then
+                            res = dd%ijlk
+                        end if
+                    else
+                        if (j /= k) then
+                            if (j == l) then
+                                res = dd%ikjk
+                            else
+                                res = dd%ikjl
+                            end if
+                        end if
+                    end if
+                end if
+            else
+                ASSERT (i > j)
+                if (i == k) then
+                    if (j == l) then
+                        res = dd%jiji
+                    else if (k < l) then
+                        res = dd%jijk
+                    else if (k > l) then
+                        res = dd%kikj
+                    end if
+                else if (i < k) then
+                    if (j == l) then
+                        res = dd%jiki
+                    else if (k == l) then
+                        res = dd%jikk
+                    else if (k < l) then
+                        res = dd%jikl
+                    else if (k > l) then
+                        if (i < l) then
+                            res = dd%jilk
+                        else if (i > l) then
+                            res = dd%kilj
+                        end if
+                    end if
+                end if
+            end if
+        end associate
+    end function
+
+    elemental function construct_DistinctDoubleType_t_ijab(idx) result(res)
+        type(ijab_Index_t), intent(in) :: idx
+        type(DistinctDoubleType_t) :: res
+        res = DistinctDoubleType_t(idx%convert())
+    end function
+
+
+    elemental function construct_DistinctDouble_t_ijkl(idx) result(res)
+        type(ijkl_Index_t), intent(in) :: idx
+        type(DistinctDouble_t) :: res
+        res = DistinctDouble_t(idx, DistinctDoubleType_t(idx))
+    end function
+
+    elemental function construct_DistinctDouble_t_ijab(idx) result(res)
+        type(ijab_Index_t), intent(in) :: idx
+        type(DistinctDouble_t) :: res
+        res = DistinctDouble_t(idx%convert())
+    end function
+
+    elemental function normalize_ijab_Index_t(this) result(res)
+        !! Normalize such that `i <= j` and `a <= b`
+        class(ijab_Index_t), intent(in) :: this
+        type(ijab_Index_t) :: res
+        if (this%val(1) <= this%val(2)) then
+            res%val(1:2) = this%val(1:2)
+        else
+            res%val(1:2) = this%val(2:1:-1)
+        end if
+        if (this%val(3) <= this%val(4)) then
+            res%val(3:4) = this%val(3:4)
+        else
+            res%val(3:4) = this%val(4:3:-1)
+        end if
+    end function
+
+    elemental function normalize_ijkl_Index_t(this) result(res)
+        !! Normalize such that `i <= k` and `j <= l`
+        class(ijkl_Index_t), intent(in) :: this
+        type(ijkl_Index_t) :: res
+        if (this%val(1) <= this%val(3)) then
+            res%val(1) = this%val(1)
+            res%val(3) = this%val(3)
+        else
+            res%val(1) = this%val(3)
+            res%val(3) = this%val(1)
+        end if
+        if (this%val(2) <= this%val(4)) then
+            res%val(2) = this%val(2)
+            res%val(4) = this%val(4)
+        else
+            res%val(2) = this%val(4)
+            res%val(4) = this%val(2)
+        end if
+    end function
+
+    elemental function convert_ijkl_Index_t(this) result(res)
+        !! Convert to the ijab_Index_t
+        class(ijkl_Index_t), intent(in) :: this
+        type(ijab_Index_t) :: res
+        res = ijab_Index_t([this%val(2), this%val(4), this%val(1), this%val(3)])
+    end function
+
+    elemental function convert_ijab_Index_t(this) result(res)
+        !! Convert to the ijkl_Index_t
+        class(ijab_Index_t), intent(in) :: this
+        type(ijkl_Index_t) :: res
+        res = ijkl_Index_t([this%val(3), this%val(1), this%val(4), this%val(2)])
+    end function
+
+    elemental subroutine extract_ijab_Index_t(this, i, j, a, b)
+        !! Extract the values as integers
+        class(ijab_Index_t), intent(in) :: this
+        integer, intent(out) :: i, j, a, b
+        i = this%val(1)
+        j = this%val(2)
+        a = this%val(3)
+        b = this%val(4)
+    end subroutine
+
+    elemental subroutine extract_ijkl_Index_t(this, i, j, k, l)
+        !! Extract the values as integers
+        class(ijkl_Index_t), intent(in) :: this
+        integer, intent(out) :: i, j, k, l
+        i = this%val(1)
+        j = this%val(2)
+        k = this%val(3)
+        l = this%val(4)
+    end subroutine
+
+    elemental function is_normalized_ijab_Index_t(this) result(res)
+        !! Check if index is normalized
+        class(ijab_Index_t), intent(in) :: this
+        logical :: res
+        res = this%val(1) <= this%val(2) .and. this%val(3) <= this%val(4)
+    end function
+
+    elemental function is_normalized_ijkl_Index_t(this) result(res)
+        !! Check if index is normalized
+        class(ijkl_Index_t), intent(in) :: this
+        logical :: res
+        res = this%val(1) <= this%val(3) .and. this%val(2) <= this%val(4)
+    end function
 
 end module

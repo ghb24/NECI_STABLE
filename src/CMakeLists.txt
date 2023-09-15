@@ -192,10 +192,12 @@ set( SRC_FILES
     GUGA/guga_procedure_pointers.F90
     GUGA/guga_types.F90
     GUGA/guga_plugin.F90
+    GUGA/guga_base_class.F90
+    GUGA/guga_base_class_impls.F90
     GUGA/guga_pchb_class.F90
     GUGA/guga_crude_approx.F90
     GUGA/guga_rdm.F90
-    GUGA/guga_pchb_excitgen.F90
+    GUGA/guga_gas_pchb_class.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
@@ -375,6 +377,7 @@ set( RELAX_WARNINGS_SRCS
     vasp_neci_interface_stub.F90
     double_occ.F90
     analyse_wf_symmetry.F90
+    GUGA/guga_rdm.F90
     unit_test_helpers.F90
     real_time_data.F90
     cepa_shifts.F90
@@ -392,6 +395,7 @@ set( RELAX_WARNINGS_SRCS
     tau/tau_main_impls.F90
     lib/error_handling_neci_impls.F90
     Determinants_impls.F90
+    GUGA/guga_base_class_impls.F90
 )
 
 set( FYPP_SRC_FILES
