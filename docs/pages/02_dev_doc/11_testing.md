@@ -85,7 +85,7 @@ $ git add neci/parallel/new_test
 ```
 
 If the test is added to a new subdirectory then you may need to add it
-to ./jobconfig. If you added it to an already-exisiting directory, such
+to ./jobconfig. If you added it to an already-existing directory, such
 as neci/parallel, then it should be automatically found by testcode
 using the globbing in jobconfig.
 
