@@ -140,7 +140,7 @@ $ ~/testcode2/bin/testcode.py -c neci/parallel/new_test
 Unit tests should test discrete, small, elements of functionality.
 Ideally these should be the smallest elements such that functionality is
 then composed from “units” that have all been tested. By considering
-each of the elements explicitly, it is possible to writ tests for
+each of the elements explicitly, it is possible to write tests for
 edge-case behaviour, where it is difficult to ensure that this behaviour
 will be tested in a full integration test case.
 
@@ -155,11 +155,11 @@ unit tests.
 
 2.  The library FRUIT is provided to assist in writing unit tests.
     Within a given test (i.e. testing a given function, or unit), there
-    should be a *suite* of tests to cover all possbile cases. FRUIT
+    should be a *suite* of tests to cover all possible cases. FRUIT
     provides helper functionality to keep track of which element of a
     suite is currently running (using the `TEST()` macros), check values
     (using `call assert_equals`, `call assert_true` and so forth), keep
-    track of where errors occurred and report them in an easily readible
+    track of where errors occurred and report them in an easily readable
     form. The module can be imported with `use fruit`. See existing
     tests for examples.
 
@@ -189,7 +189,7 @@ ctest [-R <regex>]
 ```
 
 which is a built in part of the CMake toolkit. By default this will
-execute all avaialable tests and print a report on successes and
+execute all available tests and print a report on successes and
 failures. The optional `-R` flag specifies a regular expression, and
 only tests matching this will be executed. There are a number of further
 options available.
