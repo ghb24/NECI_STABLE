@@ -1984,8 +1984,15 @@ contains
                                             &block, in order to calculate replica estimates.)")
             end if
 
-            if (tSemiStochastic) allocate (tDetermSpawnedTo( &
+            if (.not. (tSemiStochastic .or. (semistoch_shift_iter > 0))) then
+                call stop_all(this_routine, &
+                    "replica-estimates need semi-stochastic option!")
+            end if
+
+            if (tSemiStochastic) then
+                allocate (tDetermSpawnedTo( &
                                            cs_replicas(core_run)%determ_sizes(iProcIndex)))
+            end if
 
             call open_replica_est_file()
         end if
