@@ -67,7 +67,10 @@ module guga_gas_pchb_doubles_select_holes
 
     type :: WeightingChoice_vals_t
         type(WeightingChoice_t) :: &
-            INITIAL_WERNER = WeightingChoice_t(1, 'INITIAL-WERNER')
+            INITIAL_WERNER = WeightingChoice_t(1, 'INITIAL-WERNER'), &
+            UNIFORM = WeightingChoice_t(2, 'UNIFORM'), &
+            ABS_INTEGRAL = WeightingChoice_t(3, 'ABS-INTEGRAL'), &
+            N4_TETRAHEDRON = WeightingChoice_t(4, 'N4-TETRAHEDRON')
     contains
         procedure, nopass :: from_str => WeightingChoice_from_str
     end type
@@ -310,19 +313,85 @@ contains
         case default
             call stop_all(this_routine, 'forgotten case')
         end select
-
-    contains
-
-        elemental function g(i, j, k, l) result(res)
-            !! The two-electron integral in chemist's notation
-            !!
-            !! Convention in the purple book[@purple_book] or **the**
-            !! Shavit paper.[@Hinze1981]
-            integer, intent(in) :: i, j, k, l
-            HElement_t(dp) :: res
-            res = get_umat_el(i, k, j, l)
-        end function
     end function
+
+    elemental function g(i, j, k, l) result(res)
+        !! The two-electron integral in chemist's notation
+        !!
+        !! Convention in the purple book[@purple_book] or **the**
+        !! Shavit paper.[@Hinze1981]
+        integer, intent(in) :: i, j, k, l
+        HElement_t(dp) :: res
+        res = get_umat_el(i, k, j, l)
+    end function
+
+    pure function uniform_get_weight(exc) result(weight)
+        type(DistinctDouble_t), intent(in) :: exc
+        real(dp) :: weight
+        routine_name("uniform_get_weight")
+        type(DistinctDoubleTypeVals_t), parameter :: dd = distinct_doubles
+            !! Just a shorter name for an often used variable
+        select case (exc%typ%val)
+        case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val, &
+                dd%ijij%val, dd%jiji%val, dd%jikk%val, dd%ijkk%val, &
+                dd%iikj%val, dd%iijk%val, dd%iijj%val, dd%kilj%val, dd%ikjl%val, &
+                dd%ijkl%val, dd%jilk%val, dd%ijlk%val, dd%jikl%val)
+            weight = 1._dp
+        case(dd%invalid%val)
+            weight = 0._dp
+        case default
+            call stop_all(this_routine, 'forgotten case')
+        end select
+    end function
+
+    pure function abs_integral_get_weight(exc) result(weight)
+        type(DistinctDouble_t), intent(in) :: exc
+        real(dp) :: weight
+        routine_name("abs_integral_get_weight")
+        type(DistinctDoubleTypeVals_t), parameter :: dd = distinct_doubles
+            !! Just a shorter name for an often used variable
+        integer :: i, j, k, l
+
+        call exc%idx%extract_ijkl(i, j, k, l)
+        select case (exc%typ%val)
+        case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val, &
+                dd%ijij%val, dd%jiji%val, dd%jikk%val, dd%ijkk%val, &
+                dd%iikj%val, dd%iijk%val, dd%iijj%val, dd%kilj%val, dd%ikjl%val, &
+                dd%ijkl%val, dd%jilk%val, dd%ijlk%val, dd%jikl%val)
+            weight = abs(g(i, j, k, l)) + abs(g(i, l, k, j))
+        case(dd%invalid%val)
+            weight = 0._dp
+        case default
+            call stop_all(this_routine, 'forgotten case')
+        end select
+    end function
+
+    pure function N4_tetrahedron_get_weight(exc) result(weight)
+        type(DistinctDouble_t), intent(in) :: exc
+        real(dp) :: weight
+        routine_name("N4_tetrahedron_get_weight")
+        type(DistinctDoubleTypeVals_t), parameter :: dd = distinct_doubles
+            !! Just a shorter name for an often used variable
+        integer :: i, j, k, l
+
+        if (nSpatOrbs /= 12) then
+            call stop_all(this_routine, "N4 tetrahedron required")
+        end if
+
+        call exc%idx%extract_ijkl(i, j, k, l)
+        select case (exc%typ%val)
+        case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val, &
+                dd%ijij%val, dd%jiji%val, dd%jikk%val, dd%ijkk%val, &
+                dd%iikj%val, dd%iijk%val, dd%iijj%val, dd%kilj%val, dd%ikjl%val, &
+                dd%ijkl%val, dd%jilk%val, dd%ijlk%val, dd%jikl%val)
+            weight = merge(3, 1, mod(i - 1, 3) == mod(j - 1, 3)) * merge(3, 1, mod(k - 1, 3) == mod(l - 1, 3))
+        case(dd%invalid%val)
+            weight = 0._dp
+        case default
+            call stop_all(this_routine, 'forgotten case')
+        end select
+    end function
+
 
     elemental function get_info(idx) result(info)
         type(ijab_Index_t), intent(in) :: idx
@@ -357,6 +426,12 @@ contains
 
         if (weight_choice == weight_choice_vals%INITIAL_WERNER) then
             ptr => initial_werner_get_weight
+        else if (weight_choice == weight_choice_vals%UNIFORM) then
+            ptr => uniform_get_weight
+        else if (weight_choice == weight_choice_vals%ABS_INTEGRAL) then
+            ptr => abs_integral_get_weight
+        else if (weight_choice == weight_choice_vals%N4_TETRAHEDRON) then
+            ptr => N4_tetrahedron_get_weight
         else
             call stop_all(this_routine, "Invalid weight choice: "//weight_choice%str)
         end if
@@ -370,6 +445,12 @@ contains
         select case(to_upper(str))
         case(weight_choice_vals%INITIAL_WERNER%str)
             res = weight_choice_vals%INITIAL_WERNER
+        case(weight_choice_vals%UNIFORM%str)
+            res = weight_choice_vals%UNIFORM
+        case(weight_choice_vals%ABS_INTEGRAL%str)
+            res = weight_choice_vals%ABS_INTEGRAL
+        case(weight_choice_vals%N4_TETRAHEDRON%str)
+            res = weight_choice_vals%N4_TETRAHEDRON
         case default
             call stop_all(this_routine, 'Invalid input: '//str)
         end select
