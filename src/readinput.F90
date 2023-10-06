@@ -234,7 +234,8 @@ contains
                               tGUGA, tgen_guga_weighted, &
                               tGen_4ind_lin_exact, tGen_4ind_2, tGAS, &
                               tComplexOrbs_RealInts, tLatticeGens, &
-                              t_heisenberg_model, t_new_real_space_hubbard
+                              t_heisenberg_model, t_new_real_space_hubbard, &
+                              PartialNodeGamma, tFixedNode
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -687,10 +688,6 @@ contains
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
         end if
 
-!        if (tTargetShiftdamp .and. tFixedN0) then
-!            call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
-!        end if
-
         if (tTargetShiftdamp .and. tWalkContGrow) then
             call stop_all(t_r, "TARGET-SHIFTDAMP and WALKCONTGROW not compatible.")
         end if
@@ -717,6 +714,12 @@ contains
 
         if (tExLevelAFCriterion .and. .not. tTruncateHubbard) then
             call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
+        end if
+        
+        if ((PartialNodeGamma < 0.0_dp) .or. (PartialNodeGamma > 1.0_dp) &
+            .or. (.not. tFixedNode)) then
+            call stop_all(t_r, "PartialNodeGamma has to be between 0 and 1 &
+            & and FIXED-NODE has to be on as well.")
         end if
 
         block

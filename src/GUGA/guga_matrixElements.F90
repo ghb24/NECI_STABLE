@@ -161,9 +161,10 @@ contains
         ! different types of excitations
         ! essentially i can just mimick the stochastic excitation creation
         ! routines but with a fixed chosen excitation
-        select case (excitInfo%typ)
 
-        case (excit_type%single)
+        select case (excitInfo%typ%val)
+
+        case (excit_type%single%val)
             ! pure single excitation
 
             ! but here i have to calculate all the double excitation
@@ -171,21 +172,21 @@ contains
             call calc_single_excitation_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                            t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%single_overlap_L_to_R)
+        case (excit_type%single_overlap_L_to_R%val)
             ! single overlap lowering into raising
 
             ! maybe i have to check special conditions on the overlap site.
             call calc_single_overlap_mixed_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                               t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%single_overlap_R_to_L)
+        case (excit_type%single_overlap_R_to_L%val)
             ! single overlap raising into lowering
 
             ! maybe i have to check special conditions on the overlap site.
             call calc_single_overlap_mixed_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                               t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%double_lowering)
+        case (excit_type%double_lowering%val)
             ! normal double lowering
 
             ! question is can i combine more functions here since i know
@@ -195,7 +196,7 @@ contains
             call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%double_raising)
+        case (excit_type%double_raising%val)
             ! normal double raising
 
             ! here i have to deal with the order parameter for switched
@@ -203,7 +204,7 @@ contains
             call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%double_L_to_R_to_L)
+        case (excit_type%double_L_to_R_to_L%val)
             ! lowering into raising into lowering
 
             ! can i combine these 4 similar excitations in one routine?
@@ -211,7 +212,7 @@ contains
             call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%double_R_to_L_to_R)
+        case (excit_type%double_R_to_L_to_R%val)
             ! raising into lowering into raising
 
             ! here i have to consider the non-overlap contribution if no
@@ -219,14 +220,14 @@ contains
             call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%double_L_to_R)
+        case (excit_type%double_L_to_R%val)
             ! lowering into raising double
 
             ! consider non-overlap if no spin-coupling changes!
             call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%double_R_to_L)
+        case (excit_type%double_R_to_L%val)
             ! raising into lowering double
 
             ! here i also have to consider the non-overlap contribution if no
@@ -234,7 +235,7 @@ contains
             call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstop_lowering)
+        case (excit_type%fullstop_lowering%val)
             ! full-stop 2 lowering
 
             ! here only x0 matrix element in overlap range!
@@ -242,14 +243,14 @@ contains
             call calc_fullstop_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstop_raising)
+        case (excit_type%fullstop_raising%val)
             ! full-stop 2 raising
 
             ! here only x0 matrix elment in overlap range!
             call calc_fullstop_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstop_L_to_R)
+        case (excit_type%fullstop_L_to_R%val)
             ! full-stop lowering into raising
 
             ! here i have to consider all the singly occupied orbital
@@ -259,7 +260,7 @@ contains
             call calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstop_R_to_L)
+        case (excit_type%fullstop_R_to_L%val)
             ! full-stop raising into lowering
 
 
@@ -268,14 +269,14 @@ contains
             call calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstart_lowering)
+        case (excit_type%fullstart_lowering%val)
             ! full-start 2 lowering
 
             ! here only x0 matrix element in overlap range!
             call calc_fullstart_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstart_raising)
+        case (excit_type%fullstart_raising%val)
             ! full-start 2 raising
 
             ! here only the x0-matrix in the overlap range (this implies no
@@ -283,7 +284,7 @@ contains
             call calc_fullstart_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullStart_L_to_R)
+        case (excit_type%fullStart_L_to_R%val)
             ! full-start lowering into raising
 
             ! here i have to consider all the other singly occupied orbital
@@ -291,7 +292,7 @@ contains
             call calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstart_R_to_L)
+        case (excit_type%fullstart_R_to_L%val)
             ! full-start raising into lowering
 
             ! here i have to consider all the other singly occupied orbital
@@ -299,14 +300,14 @@ contains
             call calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstart_stop_alike)
+        case (excit_type%fullstart_stop_alike%val)
             ! full-start into full-stop alike
 
             ! here no spin-coupling changes are allowed!
             call calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
                                                   mat_ele, t_hamil, rdm_ind, rdm_mat)
 
-        case (excit_type%fullstart_stop_mixed)
+        case (excit_type%fullstart_stop_mixed%val)
             ! full-start into full-stop mixed
 
             ! here i have to consider all the singly occupied orbitals
@@ -877,16 +878,16 @@ contains
             ! routine with a if statement at the end here..
 
             if (present(rdm_mat)) then
-                select case (typ)
-                case (excit_type%double_lowering, &
-                      excit_type%double_raising)
+                select case (typ%val)
+                case (excit_type%double_lowering%val, &
+                      excit_type%double_raising%val)
 
                     ! in both the orbital picker and also excitation identifier
                     ! the order quantities are setup to be 1.0..
                     ! i hope I did everything right there.. then this would
                     ! mean here
-                    ASSERT(order.isclose.1.0_dp)
-                    ASSERT(order1.isclose.1.0_dp)
+                    ASSERT(order .isclose. 1.0_dp)
+                    ASSERT(order1 .isclose. 1.0_dp)
                     ! and now I have to fill in the correct combinations of
                     ! signs here..
                     ! to check that everything is correctly set to the default
@@ -907,10 +908,10 @@ contains
                     rdm_mat(1) = temp_x0 + temp_x1
                     rdm_mat(2) = temp_x0 - temp_x1
 
-                case (excit_type%double_L_to_R_to_L, &
-                      excit_type%double_R_to_L_to_R, &
-                      excit_type%double_L_to_R, &
-                      excit_type%double_R_to_L)
+                case (excit_type%double_L_to_R_to_L%val, &
+                      excit_type%double_R_to_L_to_R%val, &
+                      excit_type%double_L_to_R%val, &
+                      excit_type%double_R_to_L%val)
 
                     if (excitInfo%spin_change) then
                         ! if we have a spin-change the non-overlap contribution
@@ -925,8 +926,8 @@ contains
                 end select
             end if
 
-            select case (typ)
-            case (excit_type%double_lowering)
+            select case (typ%val)
+            case (excit_type%double_lowering%val)
                 ! double lowering
                 ! wait a minute.. i have to do that at the end apparently..
                 ! since i need to know the x0 and x1 matrix element contributions
@@ -940,7 +941,7 @@ contains
                                       get_umat_el(ende2, ende1, start1, start2) - &
                                       get_umat_el(ende1, ende2, start2, start1))) / 2.0_dp
 
-            case (excit_type%double_raising)
+            case (excit_type%double_raising%val)
                 ! double raising
                 mat_ele = (temp_x0 * (get_umat_el(start1, start2, ende1, ende2) + &
                                       get_umat_el(start2, start1, ende2, ende1) + &
@@ -952,7 +953,7 @@ contains
                                       get_umat_el(start1, start2, ende2, ende1) - &
                                       get_umat_el(start2, start1, ende1, ende2))) / 2.0_dp
 
-            case (excit_type%double_L_to_R_to_L)
+            case (excit_type%double_L_to_R_to_L%val)
                 ! L -> R -> L
                 if (excitInfo%spin_change) then
                     ! if a spin-change happenend -> no non-overlap!
@@ -967,7 +968,7 @@ contains
 
                 end if
 
-            case (excit_type%double_R_to_L_to_R)
+            case (excit_type%double_R_to_L_to_R%val)
                 ! R -> L -> R
                 if (excitInfo%spin_change) then
                     mat_ele = temp_x1 * (get_umat_el(start1, ende1, ende2, start2) + &
@@ -981,7 +982,7 @@ contains
 
                 end if
 
-            case (excit_type%double_L_to_R)
+            case (excit_type%double_L_to_R%val)
                 ! L -> R
                 if (excitInfo%spin_change) then
                     mat_ele = temp_x1 * (get_umat_el(ende1, start2, start1, ende2) + &
@@ -994,7 +995,7 @@ contains
                                                      get_umat_el(start2, ende1, ende2, start1))) / 2.0_dp
                 end if
 
-            case (excit_type%double_R_to_L)
+            case (excit_type%double_R_to_L%val)
                 ! R -> L
                 if (excitInfo%spin_change) then
                     mat_ele = temp_x1 * (get_umat_el(start1, ende2, ende1, start2) + &

@@ -1740,7 +1740,6 @@ contains
 
         ! Set up a property list to ensure file handling across all nodes.
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
-!         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
         call h5pset_fapl_mpio_f(plist_id, CommGlobal%MPI_VAL, mpiInfoNull%MPI_VAL, err)
 
         ! Open the popsfile

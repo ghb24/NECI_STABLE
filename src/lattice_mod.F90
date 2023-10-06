@@ -231,7 +231,6 @@ module lattice_mod
 
         ! i just want to test if i can easily setup a lattice name
         ! no.. not yet supported in gcc4.8.. but in newer versions probably
-!         character(*), allocatable :: lattice_name
     contains
         private
 
@@ -1912,16 +1911,11 @@ contains
                 ! columns and rows:
                 x = mod(i - 1, 4 * this%length(1)) + 1
                 y0 = (i - 1) / (4 * this%length(1)) + 1
-                if (mod(i, 2) == 0 .and. mod(y0, 2) == 1) then
-                    y = 2*y0-1
-                else if (mod(i, 2) == 0 .and. mod(y0, 2) == 0) then
-                    y = 2*y0
-                else if (mod(i, 2) == 1 .and. mod(y0, 2) == 1) then
-                    y = 2*y0
-                else if (mod(i, 2) == 1 .and. mod(y0, 2) == 0) then
-                    y = 2*y0-1
+                if (mod(i + y0, 2) == 1) then
+                    y = 2 * y0 - 1
+                else
+                    y = 2 * y0
                 end if
-
                 if (is_odd(y0)) then
                     if (is_odd(i)) then
                         ! every odd number in a odd column has a right neighbor

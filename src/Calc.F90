@@ -1607,7 +1607,7 @@ contains
 
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
-                ! If there is ane extra item, it should specify that we turn
+                ! If there is an extra item, it should specify that we turn
                 ! semi-stochastic on later.
                 if(tokens%remaining_items() > 0) then
                     if(tokens%remaining_items() > 0) &

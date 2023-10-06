@@ -367,8 +367,6 @@ module fcimc_initialisation
 
     use impurity_models, only: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
 
-    use guga_pchb_excitgen, only: init_guga_pchb_excitgen, finalize_pchb_excitgen_guga
-
     use symexcit3, only: gen_all_excits_default => gen_all_excits
 
     use local_spin, only: init_local_spin_measure
@@ -1809,9 +1807,6 @@ contains
             tFillingExplicRDMonFly = .false.
             !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
 
-            ! initialize excitation generator
-            if (t_guga_pchb) call init_guga_pchb_excitgen()
-
             ! If we have a popsfile, read the walkers in now.
             if (tReadPops .and. .not. tPopsAlreadyRead) then
                 call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
@@ -2015,8 +2010,15 @@ contains
                                             &block, in order to calculate replica estimates.)")
             end if
 
-            if (tSemiStochastic) allocate (tDetermSpawnedTo( &
+            if (.not. (tSemiStochastic .or. (semistoch_shift_iter > 0))) then
+                call stop_all(this_routine, &
+                    "replica-estimates need semi-stochastic option!")
+            end if
+
+            if (tSemiStochastic) then
+                allocate (tDetermSpawnedTo( &
                                            cs_replicas(core_run)%determ_sizes(iProcIndex)))
+            end if
 
             call open_replica_est_file()
         end if
@@ -2472,11 +2474,6 @@ contains
         ! Cleanup adi caches
         call clean_adi()
 
-
-        ! Cleanup excitation generator
-        if (t_guga_pchb) then
-            call finalize_pchb_excitgen_guga()
-        end if
 
         if (t_pcpp_excitgen) call finalize_pcpp_excitgen()
 

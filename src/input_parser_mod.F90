@@ -133,7 +133,6 @@ contains
         !! Close the file.
         class(FileReader_t), intent(inout) :: this
         logical, intent(in), optional :: delete
-        !deallocate(this%file_name)
         if (present(delete)) then
             if (delete) then
                 close(this%file_id, status='delete')

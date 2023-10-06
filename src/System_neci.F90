@@ -971,11 +971,6 @@ contains
                 if (tokens%remaining_items() > 0) then
                     PartialNodeGamma = to_realdp(tokens%next())
                 end if
-                if ((PartialNodeGamma < 0.0_dp) .or. (PartialNodeGamma > 1.0_dp) &
-                    .or. (.not. tFixedNode)) then
-                    call stop_all(t_r, "PartialNodeGamma has to be between 0 and 1 &
-                        & and FIXED-NODE has to be on as well.")
-                end if
 
             case ("TWISTED-BC")
                 t_twisted_bc = .true.

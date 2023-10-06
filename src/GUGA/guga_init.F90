@@ -57,11 +57,11 @@ module guga_init
 
     use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i, csf_ref
 
-    use guga_pchb_excitgen, only: pick_orbitals_pure_uniform_singles, &
-                                  pick_orbitals_double_pchb, &
-                                  calc_orbital_pgen_contr_pchb, &
-                                  calc_orbital_pgen_contr_start_pchb, &
-                                  calc_orbital_pgen_contr_end_pchb
+    use guga_base_class, only: class_pick_singles, &
+                               class_pick_doubles, &
+                               class_calc_orb_pgen_contr, &
+                               class_calc_orb_pgen_contr_str, &
+                               class_calc_orb_pgen_contr_end, guga_exc_generator, init_guga_class
 
     better_implicit_none
 
@@ -95,19 +95,14 @@ contains
             calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def  ! CalcOrbitalPgenContr_t    nur für doubles
             calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def  ! CalcOrbitalPgenContr_t        nur für doubles
 
-        else if (t_guga_pchb) then
+        else if (allocated(guga_exc_generator)) then
 
-            if (t_guga_pchb_weighted_singles) then
-                pickOrbitals_single => pickOrbs_sym_uniform_mol_single
-            else
-                pickOrbitals_single => pick_orbitals_pure_uniform_singles
-            end if
-
-            pickOrbitals_double => pick_orbitals_double_pchb
+            pickOrbitals_single => class_pick_singles
+            pickOrbitals_double => class_pick_doubles
             ! rest has to be determined what needs a change..
-            calc_orbital_pgen_contr => calc_orbital_pgen_contr_pchb
-            calc_orbital_pgen_contrib_start => calc_orbital_pgen_contr_start_pchb
-            calc_orbital_pgen_contrib_end => calc_orbital_pgen_contr_end_pchb
+            calc_orbital_pgen_contr => class_calc_orb_pgen_contr
+            calc_orbital_pgen_contrib_start => class_calc_orb_pgen_contr_str
+            calc_orbital_pgen_contrib_end => class_calc_orb_pgen_contr_end
 
         else if (t_heisenberg_model) then
             pickOrbitals_double => pick_orbitals_guga_heisenberg
@@ -169,19 +164,6 @@ contains
         ! element calculation
         call init_guga_data_procPtrs()
 
-        ! initialize and point the excitation generator functions to the
-        ! correct ones
-        call init_guga_orbital_pickers()
-
-        ! also have to set tRealCoeffs true to use it in excitation creation
-        ! dont actually need realCoeffs anymore since i changed the accessing
-        ! of the ilut lists used for excitation creation
-        ! but probably have to set a few other things so it works with
-        ! reals
-        tUseRealCoeffs = .true.
-
-        tUseFlags = .true.
-
         ! define global variable of spatial orbitals
         ! do that in a more general setup routine! where nBasis is defined
         ! eg
@@ -200,6 +182,21 @@ contains
         if (allocated(csf_ref)) deallocate(csf_ref)
         allocate(csf_ref(inum_runs))
         call new_CSF_Info_t(nSpatOrbs, csf_ref)
+
+        call init_guga_class()
+
+        ! initialize and point the excitation generator functions to the
+        ! correct ones
+        call init_guga_orbital_pickers()
+
+        ! also have to set tRealCoeffs true to use it in excitation creation
+        ! dont actually need realCoeffs anymore since i changed the accessing
+        ! of the ilut lists used for excitation creation
+        ! but probably have to set a few other things so it works with
+        ! reals
+        tUseRealCoeffs = .true.
+
+        tUseFlags = .true.
 
         ! for now (time/iteration comparison) reasons, decide which
         ! reference energy calculation method we use

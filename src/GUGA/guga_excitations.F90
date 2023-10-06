@@ -26,7 +26,7 @@ module guga_excitations
                          getDoubleMatrixElement, getMixedFullStop, &
                          WeightData_t, orbitalIndex, &
                          tag_excitations, tag_tmp_excits, &
-                         excit_type, gen_type, excit_names
+                         excit_type, ExcitationType_t, gen_type
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                               setDeltaB, count_open_orbs_ij, &
@@ -367,7 +367,8 @@ contains
         type(WeightObj_t) :: weights
         real(dp) ::  branch_pgen, temp_pgen, above_cpt, below_cpt, rdm_mat, p_orig
         HElement_t(dp) :: integral
-        integer :: iOrb, i, j, k, l, typ
+        integer :: iOrb, i, j, k, l
+        type(ExcitationType_t) :: typ
 
         ASSERT(.not. isZero(ilut, excitInfo%fullStart))
         ASSERT(.not. isThree(ilut, excitInfo%fullStart))
@@ -7041,12 +7042,12 @@ contains
         ! maybe I should adapt this here also for other type of lattice
         ! models with restricted 2-body interaction..
         if (t_mixed_hubbard) then
-            select case (excitInfo%typ)
-            case (excit_type%single, &
-                  excit_type%raising, &
-                  excit_type%lowering, &
-                  excit_type%single_overlap_lowering, &
-                  excit_type%single_overlap_raising)
+            select case (excitInfo%typ%val)
+            case (excit_type%single%val, &
+                  excit_type%raising%val, &
+                  excit_type%lowering%val, &
+                  excit_type%single_overlap_lowering%val, &
+                  excit_type%single_overlap_raising%val)
 
                 allocate(excitations(0, 0), stat=ierr)
                 return
@@ -7060,13 +7061,13 @@ contains
             end if
         end if
 
-        select case (excitInfo%typ)
-        case (excit_type%single)
+        select case (excitInfo%typ%val)
+        case (excit_type%single%val)
             ! shouldnt be here.. onyl single excits and full weight gens
             allocate(excitations(0, 0), stat=ierr)
             return
 
-        case (excit_type%raising) ! weight + lowering gen.
+        case (excit_type%raising%val) ! weight + lowering gen.
             ! can be treated almost like a single excitation
             ! essentially the same, except if d(w) == 3 in the excitaton regime
             call calcDoubleExcitation_withWeight(ilut, csf_i, excitInfo, excitations, &
@@ -7074,19 +7075,19 @@ contains
 
             exlevel = 1
 
-        case (excit_type%lowering) ! weight + raising gen
+        case (excit_type%lowering%val) ! weight + raising gen
             call calcDoubleExcitation_withWeight(ilut, csf_i, excitInfo, excitations, &
                                                  nExcits, posSwitches, negSwitches)
 
             exlevel = 1
 
-        case (excit_type%non_overlap) ! non overlap
+        case (excit_type%non_overlap%val) ! non overlap
             call calcNonOverlapDouble(ilut, csf_i, excitInfo, excitations, nExcits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%single_overlap_lowering) ! single overlap two lowering
+        case (excit_type%single_overlap_lowering%val) ! single overlap two lowering
             ! how can i efficiently adress that?
             ! can i write that efficiently in one function or do i need more?
             ! probably need more... i already determined
@@ -7095,61 +7096,61 @@ contains
 
             exlevel = 1
 
-        case (excit_type%single_overlap_raising) ! single overlap raising
+        case (excit_type%single_overlap_raising%val) ! single overlap raising
             call calcSingleOverlapRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                           posSwitches, negSwitches)
 
             exlevel = 1
 
-        case (excit_type%single_overlap_L_to_R) ! single overlap lowering into raising
+        case (excit_type%single_overlap_L_to_R%val) ! single overlap lowering into raising
             call calcSingleOverlapMixed(ilut, csf_i, excitInfo, excitations, nExcits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%single_overlap_R_to_L) ! single overlap raising into lowering
+        case (excit_type%single_overlap_R_to_L%val) ! single overlap raising into lowering
             call calcSingleOverlapMixed(ilut, csf_i, excitInfo, excitations, nExcits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_lowering) ! normal double overlap two lowering
+        case (excit_type%double_lowering%val) ! normal double overlap two lowering
             call calcDoubleLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_raising) ! normal double overlap two raising
+        case (excit_type%double_raising%val) ! normal double overlap two raising
             call calcDoubleRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_L_to_R_to_L) ! lowering into raising into lowering
+        case (excit_type%double_L_to_R_to_L%val) ! lowering into raising into lowering
             call calcDoubleRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
+        case (excit_type%double_R_to_L_to_R%val) ! raising into lowering into raising
             call calcDoubleLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_L_to_R) ! lowering into raising double
+        case (excit_type%double_L_to_R%val) ! lowering into raising double
             call calcDoubleL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%double_R_to_L) ! raising into lowering double
+        case (excit_type%double_R_to_L%val) ! raising into lowering double
             call calcDoubleR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%fullstop_lowering) ! full stop 2 lowering
+        case (excit_type%fullstop_lowering%val) ! full stop 2 lowering
             ! can i write a function for both alike generator combinations
             ! i think i can
             call calcFullstopLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
@@ -7157,13 +7158,13 @@ contains
 
             exlevel = 2
 
-        case (excit_type%fullstop_raising) ! full stop 2 raising
+        case (excit_type%fullstop_raising%val) ! full stop 2 raising
             call calcFullstopRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                      posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%fullstop_L_to_R) ! full stop lowering into raising
+        case (excit_type%fullstop_L_to_R%val) ! full stop lowering into raising
             call calcFullStopL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                                  posSwitches, negSwitches)
 
@@ -7172,46 +7173,46 @@ contains
             ! todo! how to fix that? is that so important? its only max. 1
             exlevel = 2
 
-        case (excit_type%fullstop_R_to_L) ! full stop raising into lowering
+        case (excit_type%fullstop_R_to_L%val) ! full stop raising into lowering
             call calcFullStopR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                                  posSwitches, negSwitches)
 
             ! same as for 16
             exlevel = 2
 
-        case (excit_type%fullstart_lowering) ! full start 2 lowering
+        case (excit_type%fullstart_lowering%val) ! full start 2 lowering
             call calcFullStartLowering(ilut, csf_i, excitInfo, excitations, nExcits, &
                                        posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%fullstart_raising) ! full start 2 raising
+        case (excit_type%fullstart_raising%val) ! full start 2 raising
             call calcFulLStartRaising(ilut, csf_i, excitInfo, excitations, nExcits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (excit_type%fullStart_L_to_R) ! full start lowering into raising
+        case (excit_type%fullStart_L_to_R%val) ! full start lowering into raising
             call calcFullStartL2R(ilut, csf_i, excitInfo, excitations, nExcits, &
                                   posSwitches, negSwitches)
 
             ! same as for 16
             exlevel = 2
 
-        case (excit_type%fullstart_R_to_L) ! full start raising into lowering
+        case (excit_type%fullstart_R_to_L%val) ! full start raising into lowering
             call calcFullStartR2L(ilut, csf_i, excitInfo, excitations, nExcits, &
                                   posSwitches, negSwitches)
 
             ! same as for 16
             exlevel = 2
 
-        case (excit_type%fullstart_stop_alike) ! full start into full stop alike
+        case (excit_type%fullstart_stop_alike%val) ! full start into full stop alike
             call calcFullStartFullStopAlike(ilut, csf_i, excitInfo, excitations)
             nExcits = 1
 
             exlevel = 2
 
-        case (excit_type%fullstart_stop_mixed) ! full start into full stop mixed
+        case (excit_type%fullstart_stop_mixed%val) ! full start into full stop mixed
             call calcFullStartFullStopMixed(ilut, csf_i, excitInfo, excitations, nExcits, &
                                             posSwitches, negSwitches)
 
@@ -11722,9 +11723,9 @@ contains
         en = excitInfo%fullEnd
         flag = .true.
 
-        select case (excitInfo%typ)
+        select case (excitInfo%typ%val)
             ! weight + raising generator:
-        case (excit_type%raising)
+        case (excit_type%raising%val)
             if (csf_i%stepvector(we) == 0 .or. csf_i%stepvector(st) == &
                 3 .or. csf_i%stepvector(en) == 0 .or. &
                 (we == en .and. csf_i%stepvector(en) /= 3)) then
@@ -11744,7 +11745,7 @@ contains
             end if
 
             ! weight + lowering generator:
-        case (excit_type%lowering)
+        case (excit_type%lowering%val)
 
             if (csf_i%stepvector(we) == 0 &
                 .or. csf_i%stepvector(en) == 3 &
@@ -11766,7 +11767,7 @@ contains
             end if
 
             ! no overlap:
-        case (excit_type%non_overlap)
+        case (excit_type%non_overlap%val)
 
             i = excitInfo%i
             j = excitInfo%j
@@ -11806,7 +11807,7 @@ contains
             end if
 
             ! single overlap lowering
-        case (excit_type%single_overlap_lowering)
+        case (excit_type%single_overlap_lowering%val)
 
             if (csf_i%stepvector(fe) == 0 .or. csf_i%stepvector(en) == &
                 3 .or. csf_i%stepvector(st) == 0) then
@@ -11835,7 +11836,7 @@ contains
             ! additional constraints i believe
 
             ! single overlap raising
-        case (excit_type%single_overlap_raising)
+        case (excit_type%single_overlap_raising%val)
 
             if (csf_i%stepvector(fe) == 0 .or. csf_i%stepvector(st) == &
                 3 .or. csf_i%stepvector(en) == 0) then
@@ -11857,7 +11858,7 @@ contains
             end if
 
             ! single overlap lowering into raising
-        case (excit_type%single_overlap_L_to_R)
+        case (excit_type%single_overlap_L_to_R%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(fe) /= &
                 0 .or. csf_i%stepvector(en) == 0) then
@@ -11877,7 +11878,7 @@ contains
             end if
 
             ! single overlap raising into lowering
-        case (excit_type%single_overlap_R_to_L)
+        case (excit_type%single_overlap_R_to_L%val)
 
             if (csf_i%stepvector(fe) /= 3 .or. csf_i%stepvector(st) == &
                 3 .or. csf_i%stepvector(en) == 3) then
@@ -11897,7 +11898,7 @@ contains
             end if
 
             ! normal double two lowering
-        case (excit_type%double_lowering)
+        case (excit_type%double_lowering%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(fe) == &
                 3 .or. csf_i%stepvector(en) == 3 .or. &
@@ -11921,7 +11922,7 @@ contains
             end if
 
             ! normal double two raising
-        case (excit_type%double_raising)
+        case (excit_type%double_raising%val)
 
             if (csf_i%stepvector(en) == 0 .or. csf_i%stepvector(ss) == &
                 3 .or. csf_i%stepvector(st) == 3 .or. &
@@ -11945,7 +11946,7 @@ contains
             end if
 
             ! lowering into raising into lowering
-        case (excit_type%double_L_to_R_to_L)
+        case (excit_type%double_L_to_R_to_L%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(ss) == &
                 3 .or. csf_i%stepvector(en) == 3 .or. &
@@ -11969,7 +11970,7 @@ contains
             end if
 
             ! raising into lowering into raising
-        case (excit_type%double_R_to_L_to_R)
+        case (excit_type%double_R_to_L_to_R%val)
 
             if (csf_i%stepvector(en) == 0 .or. csf_i%stepvector(fe) == &
                 3 .or. csf_i%stepvector(st) == 3 .or. &
@@ -11993,7 +11994,7 @@ contains
             end if
 
             ! lowering into raising double
-        case (excit_type%double_L_to_R)
+        case (excit_type%double_L_to_R%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(ss) == 3 &
                 .or. csf_i%stepvector(en) == 0 .or. &
@@ -12017,7 +12018,7 @@ contains
             end if
 
             ! raising into lowering double
-        case (excit_type%double_R_to_L)
+        case (excit_type%double_R_to_L%val)
 
             if (csf_i%stepvector(ss) == 0 .or. csf_i%stepvector(st) == 3 &
                 .or. csf_i%stepvector(en) == 3 .or. &
@@ -12041,7 +12042,7 @@ contains
             end if
 
             ! full stop two lowering
-        case (excit_type%fullstop_lowering)
+        case (excit_type%fullstop_lowering%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(en) /= 0 &
                 .or. csf_i%stepvector(ss) == 0) then
@@ -12062,7 +12063,7 @@ contains
             end if
 
             ! full stop two raising
-        case (excit_type%fullstop_raising)
+        case (excit_type%fullstop_raising%val)
 
             if (csf_i%stepvector(st) == 3 .or. csf_i%stepvector(en) /= 3 .or. &
                 csf_i%stepvector(ss) == 3) then
@@ -12083,7 +12084,7 @@ contains
             end if
 
             ! full stop lowering into raising
-        case (excit_type%fullstop_L_to_R)
+        case (excit_type%fullstop_L_to_R%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(ss) == 3 &
                 .or. csf_i%stepvector(en) == 0) then
@@ -12123,7 +12124,7 @@ contains
             end if
 
             ! full stop raising into lowering
-        case (excit_type%fullstop_R_to_L)
+        case (excit_type%fullstop_R_to_L%val)
 
             if (csf_i%stepvector(ss) == 0 .or. csf_i%stepvector(st) == 3 &
                 .or. csf_i%stepvector(en) == 0) then
@@ -12155,7 +12156,7 @@ contains
             end if
 
             ! full start two lowering
-        case (excit_type%fullstart_lowering)
+        case (excit_type%fullstart_lowering%val)
 
             if (csf_i%stepvector(st) /= 3 .or. csf_i%stepvector(fe) == 3 &
                 .or. csf_i%stepvector(en) == 3) then
@@ -12187,7 +12188,7 @@ contains
             end if
 
             ! full start two raising
-        case (excit_type%fullstart_raising)
+        case (excit_type%fullstart_raising%val)
 
             if (csf_i%stepvector(st) /= 0 .or. csf_i%stepvector(fe) == 0 &
                 .or. csf_i%stepvector(en) == 0) then
@@ -12211,7 +12212,7 @@ contains
             end if
 
             ! full start lowering into raising
-        case (excit_type%fullStart_L_to_R)
+        case (excit_type%fullStart_L_to_R%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(fe) == 3 &
                 .or. csf_i%stepvector(en) == 0) then
@@ -12249,7 +12250,7 @@ contains
             end if
 
             ! full start raising into lowering
-        case (excit_type%fullstart_R_to_L)
+        case (excit_type%fullstart_R_to_L%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(en) == 3 &
                 .or. csf_i%stepvector(fe) == 0) then
@@ -12282,7 +12283,7 @@ contains
             end if
 
             ! full start into full stop alike
-        case (excit_type%fullstart_stop_alike)
+        case (excit_type%fullstart_stop_alike%val)
             i = excitInfo%i
             j = excitInfo%j
 
@@ -12303,7 +12304,7 @@ contains
             if (near_zero(zw)) flag = .false.
 
             ! full start into full stop mixed
-        case (excit_type%fullstart_stop_mixed)
+        case (excit_type%fullstart_stop_mixed%val)
 
             if (csf_i%stepvector(st) == 0 .or. csf_i%stepvector(en) == 0 &
                 .or. csf_i%stepvector(st) == 3 .or. &
@@ -12346,18 +12347,15 @@ contains
     function get_excit_level_from_excitInfo(excitInfo) result(ic)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer :: ic
-
         character(*), parameter :: this_routine = "get_excit_level_from_excitInfo"
-
-        call stop_all(this_routine, "TODO")
-        unused_var(excitInfo)
-        ic = 0
-
+        ASSERT(excitInfo%i /= -1 .and. excitInfo%j /= -1)
+        ASSERT(excitInfo%k /= -1 .eqv. excitInfo%l /= -1)
+        ic = merge(1, 2, excitInfo%k == -1)
     end function get_excit_level_from_excitInfo
 
-    function calc_pgen_mol_guga_single(ilutI, nI, csf_i, ilutJ, nJ, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in) :: nI(nel), nJ(nel)
+    function calc_pgen_mol_guga_single(nI, ilutI, csf_i, excitInfo) result(pgen)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
@@ -12368,17 +12366,17 @@ contains
         ! i need the orbital picking part of pgen:
         p_orbs = calc_pgen_mol_guga_single_orbs(ilutI, nI, csf_i, excitInfo)
 
-        p_guga = calc_pgen_mol_guga_single_guga(ilutI, nI, ilutJ, nJ, excitInfo)
+        p_guga = calc_pgen_mol_guga_single_guga(nI, ilutI, excitInfo)
 
         pgen = p_orbs * p_guga
 
     end function calc_pgen_mol_guga_single
 
-    function calc_pgen_mol_guga_single_guga(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
+    function calc_pgen_mol_guga_single_guga(nI, ilutI, excitInfo) result(pgen)
         ! this function calculates the guga branching part of the
         ! generation probability!
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_mol_guga_single_guga"
@@ -12386,10 +12384,8 @@ contains
         call stop_all(this_routine, "TODO")
 
         ! todo
-        unused_var(ilutI)
         unused_var(nI)
-        unused_var(ilutJ)
-        unused_var(nJ)
+        unused_var(ilutI)
         unused_var(excitInfo)
 
         pgen = 0.0_dp
@@ -15742,7 +15738,7 @@ contains
 
     end subroutine gen_a_orb_cum_list_guga_mol
 
-    function get_guga_integral_contrib_spat(occ_orbs, orb_a, orb_b) result(cpt)
+    pure function get_guga_integral_contrib_spat(occ_orbs, orb_a, orb_b) result(cpt)
         integer, intent(in) :: occ_orbs(2), orb_a, orb_b
         real(dp) :: cpt
 
@@ -15788,7 +15784,7 @@ contains
 
     end function get_guga_integral_contrib_spat
 
-    function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
+    pure function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
         ! routine which gets the correct FCIDUMP integral contribution for
         ! orbital a, where electrons i and j are already picked!
         ! have to still figure out how to do that correctly..
@@ -16520,7 +16516,8 @@ contains
     function assign_excitInfo_values_double(typ, gen1, gen2, currentGen, firstGen, &
                                             lastGen, i, j, k, l, fullStart, secondStart, firstEnd, fullEnd, &
                                             weight, excitLvl, order, order1, overlap) result(excitInfo)
-        integer, intent(in) :: typ, gen1, gen2, currentGen, firstGen, lastGen, &
+        type(ExcitationType_t), intent(in) :: typ
+        integer, intent(in) :: gen1, gen2, currentGen, firstGen, lastGen, &
                                i, j, k, l, fullStart, secondStart, firstEnd, &
                                fullEnd, weight, excitLvl
         integer, intent(in), optional :: overlap
@@ -16559,7 +16556,7 @@ contains
     function assign_excitInfo_values_single(gen, i, j, fullStart, fullEnd, typ) &
         result(excitInfo)
         integer, intent(in) :: gen, i, j, fullStart, fullEnd
-        integer, intent(in), optional :: typ
+        type(ExcitationType_t), intent(in), optional :: typ
         type(ExcitationInformation_t) :: excitInfo
 
         ! set default values for single excitations: which cause errors if
@@ -16611,7 +16608,7 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
 
         print *, "Excitation Information: "
-        print *, "Typ: ", excitInfo%typ, trim(excit_names(excitInfo%typ)%str)
+        print *, "Typ: ", excitInfo%typ, trim(excitInfo%typ%str)
         print *, "i,j,k,l:"
         print *, excitInfo%i, excitInfo%j,excitInfo%k,excitInfo%l
         print *, "fullStart,secondStart,firstEnd,fullEnd:"

@@ -1322,8 +1322,8 @@ contains
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
         integer, intent(out) :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
-        integer(int64) , intent(out) :: iPopAllTotWalkers
-        real(dp) , intent(out) :: PopDiagSft(inum_runs), PopModDiagSft(inum_runs), read_tau, read_psingles, read_ptriples
+        integer(int64), intent(out) :: iPopAllTotWalkers
+        real(dp), intent(out) :: PopDiagSft(inum_runs), PopModDiagSft(inum_runs), read_tau, read_psingles, read_ptriples
         real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign)
         real(dp) :: PopSumNoatHF(2056), PopMultiSft(2056)
         real(dp) :: PopMultiSumENum(2056), PopMultiSumNoatHF(2056)
