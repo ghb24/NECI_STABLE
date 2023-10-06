@@ -564,6 +564,7 @@ contains
         real(dp) :: prob
 
         ASSERT(is_set(contain))
+        ASSERT(tgt .in. contain)
         ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
         ASSERT(isclose(renorm, sum(this%get_prob(contain)), atol=1e-10_dp))
             !! This loosened threshhold might be a good idea if the renormalization
