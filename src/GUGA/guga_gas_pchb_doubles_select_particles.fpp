@@ -14,6 +14,7 @@ module guga_gas_pchb_doubles_select_particles
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use MPI_wrapper, only: iProcIndex_intra
+    use dSFMT_interface, only: genrand_real2_dSFMT
 
     use guga_bitrepops, only: CSF_Info_t
     use guga_excitations, only: pick_elec_pair_uniform_guga
@@ -142,13 +143,13 @@ module guga_gas_pchb_doubles_select_particles
         procedure, public :: draw => draw_PC_FullyWeightedParticles_t
         procedure, public :: get_pgen => get_pgen_PC_FullyWeightedParticles_t
     end type
-    !
-    ! type, extends(PC_Particles_t) :: PC_WeightedParticles_t
-    ! contains
-    !     private
-    !     procedure, public :: draw => draw_PC_WeightedParticles_t
-    !     procedure, public :: get_pgen => get_pgen_PC_WeightedParticles_t
-    ! end type
+
+    type, extends(PC_Particles_t) :: PC_WeightedParticles_t
+    contains
+        private
+        procedure, public :: draw => draw_PC_WeightedParticles_t
+        procedure, public :: get_pgen => get_pgen_PC_WeightedParticles_t
+    end type
     !
     ! type, extends(PC_Particles_t) :: PC_FastWeightedParticles_t
     ! contains
@@ -203,6 +204,12 @@ contains
             allocate(PC_FullyWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FullyWeightedParticles_t)
+                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
+            end select
+        else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_FULL) then
+            allocate(PC_WeightedParticles_t :: particle_selector)
+            select type(particle_selector)
+            type is(PC_WeightedParticles_t)
                 call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else
@@ -334,11 +341,11 @@ contains
                 do I = 1, nBI
                     if (iProcIndex_intra == rank_with_info) then
                         J_weight(1::2) = weights(:, gtID(I), i_sg)
-                        J_weight(2::2) = j_weight(1::2)
+                        J_weight(2::2) = J_weight(1::2)
                         J_weight(I) = 0._dp
-                        call this%j_sampler%setup_entry(I, i_sg, rank_with_info, J_weight)
+                        call this%J_sampler%setup_entry(I, i_sg, rank_with_info, J_weight)
                     else
-                        call this%j_sampler%setup_entry(I, i_sg, rank_with_info, dummy)
+                        call this%J_sampler%setup_entry(I, i_sg, rank_with_info, dummy)
                     end if
                 end do
 
@@ -392,9 +399,10 @@ contains
         call this%I_sampler%constrained_sample(&
             i_sg, nI, ilutI, renorm_first, elecs(1), spin_srcs(1), p_first(1))
         @:ASSERT(nI(elecs(1)) == spin_srcs(1))
+        srcs(1) = gtID(spin_srcs(1))
+
 
         renorm_second(1) = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
-
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%J_sampler%constrained_sample(&
             spin_srcs(1), i_sg, nI, ilutI, renorm_second(1), elecs(2), spin_srcs(2), p_second(1))
@@ -402,6 +410,13 @@ contains
             elecs(:) = 0; spin_srcs(:) = 0; p = 1._dp
             return
         end if
+        srcs(2) = gtID(spin_srcs(2))
+
+        if (srcs(1) == srcs(2)) then
+            p = 2._dp * p_first(1) * p_second(1)
+            return
+        end if
+        ! From now on we assume srcs(1) /= srcs(2)!
 
         ! We could have picked them the other way round.
         ! Account for that.
@@ -412,15 +427,25 @@ contains
         p_second(2) = this%J_sampler%constrained_getProb(&
             spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
 
-        p = sum(p_first * p_second)
+        if (csf_i%stepvector(srcs(1)) == 3) then
+            p_first(1) = 2 * p_first(1)
+            p_second(2) = 2 * p_second(2)
+        end if
+        if (csf_i%stepvector(srcs(2)) == 3) then
+            p_first(2) = 2 * p_first(2)
+            p_second(1) = 2 * p_second(1)
+        end if
+
 
         if (spin_srcs(1) > spin_srcs(2)) then
             call swap(spin_srcs(1), spin_srcs(2))
+            call swap(srcs(1), srcs(2))
             call swap(elecs(1), elecs(2))
         end if
-        srcs = gtID(spin_srcs)
 
-        @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
+        p = sum(p_first * p_second)
+
+        ! @:aSSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
     end subroutine
 
     pure function get_pgen_PC_FullyWeightedParticles_t(this, nI, csf_i, i_sg, i, j) result(p)
@@ -482,5 +507,139 @@ contains
             spin_J, i_sg, nI, renorm_second(2), spin_I)
 
         p = sum(p_first * p_second)
+        ! @:aSSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
+    end function
+
+
+    ! subroutine draw_PC_WeightedParticles_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
+    !     class(PC_WeightedParticles_t), intent(in) :: this
+    !     integer, intent(in) :: nI(nEl)
+    !         !! The determinant in nI-format and the supergroup index
+    !     integer(n_int), intent(in) :: ilutI(0 : nIfD)
+    !         !! The determinant in bitmask format
+    !     type(CSF_Info_t), intent(in) :: csf_i
+    !     integer, intent(in) :: i_sg
+    !         !! The supergroup index
+    !     integer, intent(out) :: srcs(2)
+    !         !! The chosen particles \(I, J\) and their index in `nI`.
+    !         !! It is guaranteed that `scrs(1) <= srcs(2)`.
+    !     real(dp), intent(out) :: p
+    !         !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
+    !         !! This is the probability of drawing two particles from
+    !         !! a given determinant \(D_i\) regardless of order.
+    !     character(*), parameter :: this_routine = 'draw'
+    !
+    !     integer :: spin_srcs(2), elecs(2)
+    !     real(dp) :: p_first(2), p_second(2)
+    !     real(dp) :: renorm_second(2)
+    !
+    !     spin_srcs(1) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
+    !     srcs(1) = gtID(spin_srcs(1))
+    !     p_first(1) = merge(2._dp / nEl, 1._dp / nEl, csf_i%stepvector(srcs(1)) == 3)
+    !
+    !     renorm_second(1) = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
+    !     ! Note that p(I | I) is automatically zero and cannot be drawn
+    !     call this%J_sampler%constrained_sample(&
+    !         spin_srcs(1), i_sg, nI, ilutI, renorm_second(1), elecs(2), spin_srcs(2), p_second(1))
+    !     if (spin_srcs(2) == 0) then
+    !         elecs(:) = 0; spin_srcs(:) = 0; p = 1._dp
+    !         return
+    !     end if
+    !     srcs(2) = gtID(spin_srcs(2))
+    !     if (srcs(1) == srcs(2)) then
+    !         p = p_first(1) * p_second(1)
+    !         return
+    !     end if
+    !     ! From now on we assume srcs(1) /= srcs(2)!
+    !
+    !
+    !     ! We could have picked them the other way round.
+    !     ! Account for that.
+    !     p_first(2) = merge(2._dp / nEl, 1._dp / nEl, csf_i%stepvector(srcs(2)) == 3)
+    !
+    !     renorm_second(2) = sum(this%J_sampler%get_prob(spin_srcs(2), i_sg, nI))
+    !     p_second(2) = this%J_sampler%constrained_getProb(&
+    !         spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
+    !
+    !
+    !     p_second(1) = merge(p_second(1), 2._dp * p_second(1), csf_i%stepvector(srcs(2)) == 3)
+    !     p_second(2) = merge(p_second(2), 2._dp * p_second(2), csf_i%stepvector(srcs(1)) == 3)
+    !
+    !     if (spin_srcs(1) > spin_srcs(2)) then
+    !         call swap(spin_srcs(1), spin_srcs(2))
+    !         call swap(srcs(1), srcs(2))
+    !     end if
+    !
+    !     ! p = sum(p_first * p_second)
+    !     @:aSSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
+    ! end subroutine
+
+    subroutine draw_PC_WeightedParticles_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
+        class(PC_WeightedParticles_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+            !! The determinant in nI-format and the supergroup index
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+            !! The determinant in bitmask format
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: i_sg
+            !! The supergroup index
+        integer, intent(out) :: srcs(2)
+            !! The chosen particles \(I, J\) and their index in `nI`.
+            !! It is guaranteed that `scrs(1) <= srcs(2)`.
+        real(dp), intent(out) :: p
+            !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
+            !! This is the probability of drawing two particles from
+            !! a given determinant \(D_i\) regardless of order.
+        routine_name("draw_PC_WeightedParticles_t")
+
+        integer :: spin_srcs(2)
+
+        spin_srcs(1) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
+        srcs(1) = gtID(spin_srcs(1))
+
+        spin_srcs(2) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
+        do while (spin_srcs(1) == spin_srcs(2))
+            spin_srcs(2) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
+        end do
+        srcs(2) = gtID(spin_srcs(2))
+        if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
+        p = this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2))
+
+        @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, p, this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), csf_i%stepvector)
+    end subroutine
+
+
+    pure function get_pgen_PC_WeightedParticles_t(this, nI, csf_i, i_sg, i, j) result(p)
+        !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
+        !!
+        !! This is the probability of drawing two particles from
+        !! a given determinant \(D_i\) regardless of order.
+        !!
+        !! Note that the unordered probability is given by the ordered
+        !! probability as:
+        !! $$ p(\{I, J\}) \Big |_{D_i} = p((I, J)) \Big |_{D_i}
+        !!              + p((J, I)) \Big |_{D_i} \quad.$$
+        !! In addition we have
+        !! $$ p((I, J)) \Big |_{D_i} \neq p((J, I)) \Big |_{D_i} $$
+        !! so we have to actually calculate the probability of drawing
+        !! two given particles in different order.
+        class(PC_WeightedParticles_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_I
+        integer, intent(in) :: nI(nEl), i_sg
+            !! The determinant in nI-format and the supergroup index
+        integer, intent(in) :: i, j
+            !! The particles in spatial format
+        real(dp) :: p
+        routine_name("get_pgen_PC_FullyWeightedParticles_t")
+
+        real(dp) :: p_first(2), p_second(2)
+
+        @:pure_ASSERT(csf_I%stepvector(i) /= 0 .and. csf_I%stepvector(j) /= 0)
+
+        if (i /= j) then
+            p = csf_I%occ_real(i) * csf_I%occ_real(j) * 2._dp / (nEl * (nEl - 1))
+        else
+            p = 2._dp / (nEl * (nEl - 1))
+        end if
     end function
 end module
