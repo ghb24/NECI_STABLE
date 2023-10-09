@@ -470,12 +470,13 @@ contains
         call this%J_sampler%constrained_sample(&
             spin_srcs(1), i_sg, nI, ilutI, renorm_second(1), elecs(2), spin_srcs(2), p_second(1))
         if (spin_srcs(2) == 0) then
-            elecs(:) = 0; spin_srcs(:) = 0; p = 1._dp
+            elecs(:) = 0; spin_srcs(:) = 0; p = 1._dp; srcs(:) = 0
             return
         end if
         srcs(2) = gtID(spin_srcs(2))
 
         if (srcs(1) == srcs(2)) then
+            @:ASSERT(csf_i%stepvector(srcs(1)) == 3)
             p = 2._dp * p_first(1) * p_second(1)
             return
         end if
@@ -508,7 +509,7 @@ contains
 
         p = sum(p_first * p_second)
 
-        ! @:aSSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
+        @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
     end subroutine
 
     pure function get_pgen_PC_FullyWeightedParticles_t(this, nI, csf_i, i_sg, i, j) result(p)
@@ -534,86 +535,62 @@ contains
         real(dp) :: p
         routine_name("get_pgen_PC_FullyWeightedParticles_t")
 
-        integer :: spin_I, spin_J
-        real(dp) :: renorm_first, p_first(2), renorm_second(2), p_second(2)
-
         @:pure_ASSERT(csf_I%stepvector(i) /= 0 .and. csf_I%stepvector(j) /= 0)
 
-        if (csf_I%stepvector(i) == 1) then
-            spin_I = 2 * i - 1
-        else if (csf_I%stepvector(i) == 3) then
-            spin_I = 2 * i - 1
-        else
-            spin_I = 2 * i
-        end if
-        if (csf_I%stepvector(j) == 1) then
-            spin_J = 2 * j - 1
-        else if (csf_I%stepvector(j) == 3) then
-            spin_J = 2 * j
-        else
-            spin_J = 2 * j
-        end if
+        associate(i_u => 2 * i - 1, i_d => 2 * i, &
+                  j_u => 2 * j - 1, j_d => 2 * j)
 
-        ! The renormalization for the first electron is the same,
-        ! regardless of order.
-        renorm_first = sum(this%I_sampler%get_prob(i_sg, nI))
+            if (i == j) then
+                if (csf_i%occ_int(i) /= 2) then
+                    p = 0_dp
+                    return
+                else
+                    p = &
+                        p_first(i_u) * p_second(i_u, j_u) &
+                        + p_first(i_u) * p_second(i_u, j_d) &
+                        + p_first(i_d) * p_second(i_d, j_u) &
+                        + p_first(i_d) * p_second(i_d, j_d)
+                end if
+            else
+                p = &
+                        p_first(i_u) * p_second(i_u, j_u) &
+                        + p_first(i_u) * p_second(i_u, j_d) &
+                        + p_first(i_d) * p_second(i_d, j_u) &
+                        + p_first(i_d) * p_second(i_d, j_d) &
+                        + p_first(j_u) * p_second(j_u, i_u) &
+                        + p_first(j_u) * p_second(j_u, i_d) &
+                        + p_first(j_d) * p_second(j_d, i_u) &
+                        + p_first(j_d) * p_second(j_d, i_d)
+            end if
+        end associate
 
-        p_first(1) = this%I_sampler%constrained_getProb(i_sg, nI, renorm_first, spin_I)
-        p_first(2) = this%I_sampler%constrained_getProb(i_sg, nI, renorm_first, spin_J)
+        contains
 
-        renorm_second(1) = sum(this%J_sampler%get_prob(spin_I, i_sg, nI))
-        p_second(1) = this%J_sampler%constrained_getProb(&
-            spin_I, i_sg, nI, renorm_second(1), spin_J)
+            real(dp) pure function p_first(I)
+                integer, intent(in) :: I
+                    !! Spin orbital index, i.e. u-d-index
+                ! TODO replace with Ilut lookup
+                if (I .in. nI) then
+                    p_first = this%i_sampler%constrained_getProb(&
+                        i_sg, nI, sum(this%I_sampler%get_prob(i_sg, nI)), I)
+                else
+                    p_first = 0._dp
+                end if
+            end function
 
-        renorm_second(2) = sum(this%J_sampler%get_prob(spin_J, i_sg, nI))
-        p_second(2) = this%J_sampler%constrained_getProb(&
-            spin_J, i_sg, nI, renorm_second(2), spin_I)
-
-        p = sum(p_first * p_second)
-        ! @:aSSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
+            real(dp) pure function p_second(I, J)
+                integer, intent(in) :: I, J
+                    !! Spin orbital index, i.e. u-d-index
+                ! TODO replace with Ilut lookup
+                if ((I .in. nI) .and. (J .in. nI)) then
+                    p_second = this%j_sampler%constrained_getProb(&
+                                I, i_sg, nI, sum(this%j_sampler%get_prob(I, i_sg, nI)), J)
+                else
+                    p_second = 0._dp
+                end if
+            end function
     end function
 
-
-    ! subroutine draw_PC_WeightedParticles_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
-    !     class(PC_WeightedParticles_t), intent(in) :: this
-    !     integer, intent(in) :: nI(nEl)
-    !         !! The determinant in nI-format and the supergroup index
-    !     integer(n_int), intent(in) :: ilutI(0 : nIfD)
-    !         !! The determinant in bitmask format
-    !     type(CSF_Info_t), intent(in) :: csf_i
-    !     integer, intent(in) :: i_sg
-    !         !! The supergroup index
-    !     integer, intent(out) :: srcs(2)
-    !         !! The chosen particles \(I, J\) and their index in `nI`.
-    !         !! It is guaranteed that `scrs(1) <= srcs(2)`.
-    !     real(dp), intent(out) :: p
-    !         !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
-    !         !! This is the probability of drawing two particles from
-    !         !! a given determinant \(D_i\) regardless of order.
-    !     routine_name("draw_PC_WeightedParticles_t")
-    !
-    !     integer :: spin_srcs(2)
-    !     real(dp) :: p_first(2), p_second(2)
-    !
-    !     spin_srcs(1) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
-    !     srcs(1) = gtID(spin_srcs(1))
-    !     p_first(1) = csf_i%occ_real(srcs(1)) / nEl
-    !
-    !     spin_srcs(2) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
-    !     do while (spin_srcs(1) == spin_srcs(2))
-    !         spin_srcs(2) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
-    !     end do
-    !     srcs(2) = gtID(spin_srcs(2))
-    !
-    !     p_second(1) = csf_i%occ_real(srcs(2)) / (nEl - 1)
-    !     p_first(2) = csf_i%occ_real(srcs(2)) / nEl
-    !     p_second(2) = csf_i%occ_real(srcs(1)) / (nEl - 1)
-    !
-    !
-    !     if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
-    !     p = this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2))
-    !
-    ! end subroutine
 
 
     subroutine draw_PC_WeightedParticles_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
@@ -632,6 +609,7 @@ contains
             !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
             !! This is the probability of drawing two particles from
             !! a given determinant \(D_i\) regardless of order.
+        routine_name("draw_PC_WeightedParticles_t")
 
         integer :: spin_srcs(2), dummy
         real(dp) :: p_first(2), p_second(2), renorm_second(2)
@@ -645,7 +623,7 @@ contains
         call this%J_sampler%constrained_sample(&
             spin_srcs(1), i_sg, nI, ilutI, renorm_second(1), dummy, spin_srcs(2), p_second(1))
         if (spin_srcs(2) == 0) then
-            srcs(:) = 0; spin_srcs(:) = 0; p = 1._dp
+            srcs(:) = 0; spin_srcs(:) = 0; p = 1._dp; srcs(:) = 0
             return
         end if
         srcs(2) = gtID(spin_srcs(2))
@@ -662,7 +640,9 @@ contains
         if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
         p = sum(p_first * p_second)
 
-        ! @:aSSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, p, this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), csf_i%stepvector)
+        p = this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2))
+
+        @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, p, this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), csf_i%stepvector)
     end subroutine
 
 
@@ -689,15 +669,59 @@ contains
         real(dp) :: p
         routine_name("get_pgen_PC_FullyWeightedParticles_t")
 
-        @:unused_var(this, nI, i_sg)
-
         @:pure_ASSERT(csf_I%stepvector(i) /= 0 .and. csf_I%stepvector(j) /= 0)
 
-        if (i /= j) then
-            p = csf_I%occ_real(i) * csf_I%occ_real(j) * 2._dp / (nEl * (nEl - 1))
-        else
-            p = 2._dp / (nEl * (nEl - 1))
-        end if
+        associate(i_u => 2 * i - 1, i_d => 2 * i, &
+                  j_u => 2 * j - 1, j_d => 2 * j)
+
+            if (i == j) then
+                if (csf_i%occ_int(i) /= 2) then
+                    p = 0_dp
+                    return
+                else
+                    p = &
+                        p_first(i_u) * p_second(i_u, j_u) &
+                        + p_first(i_u) * p_second(i_u, j_d) &
+                        + p_first(i_d) * p_second(i_d, j_u) &
+                        + p_first(i_d) * p_second(i_d, j_d)
+                end if
+            else
+                p = &
+                        p_first(i_u) * p_second(i_u, j_u) &
+                        + p_first(i_u) * p_second(i_u, j_d) &
+                        + p_first(i_d) * p_second(i_d, j_u) &
+                        + p_first(i_d) * p_second(i_d, j_d) &
+                        + p_first(j_u) * p_second(j_u, i_u) &
+                        + p_first(j_u) * p_second(j_u, i_d) &
+                        + p_first(j_d) * p_second(j_d, i_u) &
+                        + p_first(j_d) * p_second(j_d, i_d)
+            end if
+        end associate
+
+        contains
+
+            real(dp) pure function p_first(I)
+                integer, intent(in) :: I
+                    !! Spin orbital index, i.e. u-d-index
+                ! TODO replace with Ilut lookup
+                if (I .in. nI) then
+                    p_first = 1._dp / nEl
+                else
+                    p_first = 0._dp
+                end if
+            end function
+
+            real(dp) pure function p_second(I, J)
+                integer, intent(in) :: I, J
+                    !! Spin orbital index, i.e. u-d-index
+                ! TODO replace with Ilut lookup
+                if ((I .in. nI) .and. (J .in. nI)) then
+                    p_second = this%j_sampler%constrained_getProb(&
+                                I, i_sg, nI, sum(this%j_sampler%get_prob(I, i_sg, nI)), J)
+                else
+                    p_second = 0._dp
+                end if
+            end function
     end function
 
 
@@ -1006,6 +1030,8 @@ contains
                     + this%i_sampler%get_prob(i_sg, j_d) &
                         * this%j_sampler%get_prob(j_d, i_sg, i_d)
 
+                @:ASSERT(this%j_sampler%get_prob(i_u, i_sg, j_u) .isclose. this%j_sampler%get_prob(i_u, i_sg, j_d))
+
                 if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
             end if
         end associate
@@ -1052,34 +1078,18 @@ contains
                     return
                 else
                     p = &
-                        this%i_sampler%get_prob(i_sg, i_u) &
-                            * this%j_sampler%get_prob(i_u, i_sg, j_u) &
-                        + this%i_sampler%get_prob(i_sg, i_u) &
-                            * this%j_sampler%get_prob(i_u, i_sg, j_d) &
-                        + this%i_sampler%get_prob(i_sg, i_d) &
-                            * this%j_sampler%get_prob(i_d, i_sg, j_u) &
-                        + this%i_sampler%get_prob(i_sg, i_d) &
-                            * this%j_sampler%get_prob(i_d, i_sg, j_d)
+                        2 * this%i_sampler%get_prob(i_sg, i_u) &
+                            * this%j_sampler%get_prob(i_u, i_sg, j_d)
                 end if
             else
 
                 p = &
-                    this%i_sampler%get_prob(i_sg, i_u) &
+                    4 * this%i_sampler%get_prob(i_sg, i_u) &
                         * this%j_sampler%get_prob(i_u, i_sg, j_u) &
-                    + this%i_sampler%get_prob(i_sg, i_u) &
-                        * this%j_sampler%get_prob(i_u, i_sg, j_d) &
-                    + this%i_sampler%get_prob(i_sg, i_d) &
-                        * this%j_sampler%get_prob(i_d, i_sg, j_u) &
-                    + this%i_sampler%get_prob(i_sg, i_d) &
-                        * this%j_sampler%get_prob(i_d, i_sg, j_d) &
-                    + this%i_sampler%get_prob(i_sg, j_u) &
-                        * this%j_sampler%get_prob(j_u, i_sg, i_u) &
-                    + this%i_sampler%get_prob(i_sg, j_u) &
-                        * this%j_sampler%get_prob(j_u, i_sg, i_d) &
-                    + this%i_sampler%get_prob(i_sg, j_d) &
-                        * this%j_sampler%get_prob(j_d, i_sg, i_u) &
-                    + this%i_sampler%get_prob(i_sg, j_d) &
-                        * this%j_sampler%get_prob(j_d, i_sg, i_d)
+                    + 4 * this%i_sampler%get_prob(i_sg, j_u) &
+                        * this%j_sampler%get_prob(j_u, i_sg, i_u)
+
+                @:pure_ASSERT(this%j_sampler%get_prob(i_u, i_sg, j_u) .isclose. this%j_sampler%get_prob(i_u, i_sg, j_d))
             end if
         end associate
     end function
