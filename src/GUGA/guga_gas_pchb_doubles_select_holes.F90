@@ -593,6 +593,11 @@ contains
         end if
 
         call this%particle_selector%draw(nI, ilut, csf_i, i_sg, src, pgen_elec)
+        if (src(1) == 0) then
+            excitInfo%valid = .false.
+            pgen = 0.0_dp
+            return
+        end if
 
         ! use the sampler for this electron pair -> order of src electrons
         ! does not matter
