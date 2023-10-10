@@ -55,7 +55,7 @@ module guga_gas_pchb_doubles_select_holes
         WeightingChoice_t, WeightingChoice_vals_t
 
     abstract interface
-        real(dp) pure function get_weight_t(exc)
+        real(dp) function get_weight_t(exc)
             import :: DistinctDouble_t, dp
             type(DistinctDouble_t), intent(in) :: exc
         end function
@@ -70,7 +70,10 @@ module guga_gas_pchb_doubles_select_holes
             INITIAL_WERNER = WeightingChoice_t(1, 'INITIAL-WERNER'), &
             UNIFORM = WeightingChoice_t(2, 'UNIFORM'), &
             ABS_INTEGRAL = WeightingChoice_t(3, 'ABS-INTEGRAL'), &
-            N4_TETRAHEDRON = WeightingChoice_t(4, 'N4-TETRAHEDRON')
+            N4_TETRAHEDRON = WeightingChoice_t(4, 'N4-TETRAHEDRON'), &
+            RANDOM = WeightingChoice_t(5, 'RANDOM'), &
+            TWEAKED_WERNER = WeightingChoice_t(6, 'TWEAKED-WERNER'), &
+            NEW_WERNER = WeightingChoice_t(7, 'NEW-WERNER')
     contains
         procedure, nopass :: from_str => WeightingChoice_from_str
     end type
@@ -315,6 +318,55 @@ contains
         end select
     end function
 
+    pure function new_werner_get_weight(exc) result(weight)
+        type(DistinctDouble_t), intent(in) :: exc
+        real(dp) :: weight
+        routine_name("get_weight")
+        type(DistinctDoubleTypeVals_t), parameter :: dd = distinct_doubles
+            !! Just a shorter name for an often used variable
+
+        integer :: i, j, k, l
+
+        call exc%idx%extract_ijkl(i, j, k, l)
+
+        select case (exc%typ%val)
+        case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val)
+            weight = abs(g(i, j, k, l)) + abs(g(i, l, k, j))
+        case(dd%ijij%val, dd%jiji%val)
+            weight = abs(g(i, j, k, l)) + 1e-1_dp
+        case(dd%jikk%val, dd%ijkk%val)
+            weight = abs(g(i, k, k, j))
+        case(dd%iikj%val, dd%iijk%val, dd%iijj%val)
+            weight = abs(g(i, l, k, i))
+        case(dd%kilj%val, dd%ikjl%val, dd%ijkl%val, dd%jilk%val, dd%ijlk%val, dd%jikl%val)
+            weight = 2 * (abs(g(i, j, k, l)) + abs(g(i, l, k, j)))
+        case(dd%invalid%val)
+            weight = 0._dp
+        case default
+            call stop_all(this_routine, 'forgotten case')
+        end select
+    end function
+
+    pure function tweaked_werner_get_weight(exc) result(weight)
+        type(DistinctDouble_t), intent(in) :: exc
+        real(dp) :: weight
+        routine_name("get_weight")
+        type(DistinctDoubleTypeVals_t), parameter :: dd = distinct_doubles
+            !! Just a shorter name for an often used variable
+
+        select case (exc%typ%val)
+        case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val, &
+                dd%ijij%val, dd%jiji%val, dd%jikk%val, dd%ijkk%val, &
+                dd%iikj%val, dd%iijk%val, dd%iijj%val, dd%kilj%val, dd%ikjl%val, &
+                dd%ijkl%val, dd%jilk%val, dd%ijlk%val, dd%jikl%val)
+            weight = initial_werner_get_weight(exc) + 1e-4_dp
+        case(dd%invalid%val)
+            weight = 0._dp
+        case default
+            call stop_all(this_routine, 'forgotten case')
+        end select
+    end function
+
     elemental function g(i, j, k, l) result(res)
         !! The two-electron integral in chemist's notation
         !!
@@ -325,7 +377,7 @@ contains
         res = get_umat_el(i, k, j, l)
     end function
 
-    pure function uniform_get_weight(exc) result(weight)
+    function uniform_get_weight(exc) result(weight)
         type(DistinctDouble_t), intent(in) :: exc
         real(dp) :: weight
         routine_name("uniform_get_weight")
@@ -344,7 +396,33 @@ contains
         end select
     end function
 
-    pure function abs_integral_get_weight(exc) result(weight)
+    function random_get_weight(exc) result(weight)
+        type(DistinctDouble_t), intent(in) :: exc
+        real(dp) :: weight
+        routine_name("uniform_get_weight")
+        type(DistinctDoubleTypeVals_t), parameter :: dd = distinct_doubles
+            !! Just a shorter name for an often used variable
+        select case (exc%typ%val)
+        case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val, &
+                dd%ijij%val, dd%jiji%val, dd%jikk%val, dd%ijkk%val, &
+                dd%iikj%val, dd%iijk%val, dd%iijj%val, dd%kilj%val, dd%ikjl%val, &
+                dd%ijkl%val, dd%jilk%val, dd%ijlk%val, dd%jikl%val)
+            weight = 1._dp + get_r() * 100
+        case(dd%invalid%val)
+            weight = 0._dp
+        case default
+            call stop_all(this_routine, 'forgotten case')
+        end select
+
+    contains
+        ! We cannot use the own random number generator of NECI,
+        ! it is not yet initialized
+        real(dp) function get_r()
+            call random_number(get_r)
+        end function
+    end function
+
+    function abs_integral_get_weight(exc) result(weight)
         type(DistinctDouble_t), intent(in) :: exc
         real(dp) :: weight
         routine_name("abs_integral_get_weight")
@@ -366,7 +444,7 @@ contains
         end select
     end function
 
-    pure function N4_tetrahedron_get_weight(exc) result(weight)
+    function N4_tetrahedron_get_weight(exc) result(weight)
         type(DistinctDouble_t), intent(in) :: exc
         real(dp) :: weight
         routine_name("N4_tetrahedron_get_weight")
@@ -419,19 +497,25 @@ contains
     end function
 
 
-    pure subroutine set_get_weight_pointer(weight_choice, ptr)
+    subroutine set_get_weight_pointer(weight_choice, ptr)
         type(WeightingChoice_t), intent(in) :: weight_choice
         procedure(get_weight_t), pointer, intent(out) :: ptr
         routine_name("set_get_weight_pointer")
 
         if (weight_choice == weight_choice_vals%INITIAL_WERNER) then
             ptr => initial_werner_get_weight
+        else if (weight_choice == weight_choice_vals%TWEAKED_WERNER) then
+            ptr => tweaked_werner_get_weight
+        else if (weight_choice == weight_choice_vals%NEW_WERNER) then
+            ptr => new_werner_get_weight
         else if (weight_choice == weight_choice_vals%UNIFORM) then
             ptr => uniform_get_weight
         else if (weight_choice == weight_choice_vals%ABS_INTEGRAL) then
             ptr => abs_integral_get_weight
         else if (weight_choice == weight_choice_vals%N4_TETRAHEDRON) then
             ptr => N4_tetrahedron_get_weight
+        else if (weight_choice == weight_choice_vals%RANDOM) then
+            ptr => random_get_weight
         else
             call stop_all(this_routine, "Invalid weight choice: "//weight_choice%str)
         end if
@@ -445,12 +529,18 @@ contains
         select case(to_upper(str))
         case(weight_choice_vals%INITIAL_WERNER%str)
             res = weight_choice_vals%INITIAL_WERNER
+        case(weight_choice_vals%TWEAKED_WERNER%str)
+            res = weight_choice_vals%TWEAKED_WERNER
+        case(weight_choice_vals%NEW_WERNER%str)
+            res = weight_choice_vals%NEW_WERNER
         case(weight_choice_vals%UNIFORM%str)
             res = weight_choice_vals%UNIFORM
         case(weight_choice_vals%ABS_INTEGRAL%str)
             res = weight_choice_vals%ABS_INTEGRAL
         case(weight_choice_vals%N4_TETRAHEDRON%str)
             res = weight_choice_vals%N4_TETRAHEDRON
+        case(weight_choice_vals%RANDOM%str)
+            res = weight_choice_vals%RANDOM
         case default
             call stop_all(this_routine, 'Invalid input: '//str)
         end select
@@ -553,6 +643,7 @@ contains
                                 associate(exc => DistinctDouble_t(ijab_Index_t([i, j, a, b])))
                                 if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. symmetry_allowed(exc)) then
                                     w(ab) = this%get_weight(exc)
+                                    write(*, *) w(ab), i, j, a, b
                                 end if
                                 end associate
                             end if
@@ -584,6 +675,7 @@ contains
 
         integer :: src(2), a, b, orbs(2), ij, ab, i_sg
         real(dp) :: pgen_elec, pgen_orbs
+        routine_name("pickOrbitals")
 
         unused_var(ilut)
         if (this%use_lookup) then
@@ -593,6 +685,7 @@ contains
         end if
 
         call this%particle_selector%draw(nI, ilut, csf_i, i_sg, src, pgen_elec)
+        ASSERT(src(1) <= src(2))
         if (src(1) == 0) then
             excitInfo%valid = .false.
             pgen = 0.0_dp

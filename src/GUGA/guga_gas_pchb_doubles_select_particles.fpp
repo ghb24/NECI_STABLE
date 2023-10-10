@@ -9,7 +9,7 @@ module guga_gas_pchb_doubles_select_particles
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
     use SystemData, only: nEl, ElecPairs, nSpatOrbs
     use sets_mod, only: operator(.in.)
-    use util_mod, only: stop_all, EnumBase_t, swap, operator(.isclose.)
+    use util_mod, only: stop_all, EnumBase_t, swap, operator(.isclose.), near_zero
     use UMatCache, only: gtID
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -307,8 +307,7 @@ contains
         srcs = gtID(srcs)
         associate(i => srcs(1), j => srcs(2))
             if (i /= j) then
-                if (csf_i%stepvector(i) == 3) p = 2.0_dp * p
-                if (csf_i%stepvector(j) == 3) p = 2.0_dp * p
+                p = csf_i%occ_real(i) * csf_i%occ_real(j) * p
             end if
         end associate
     end subroutine
@@ -335,10 +334,10 @@ contains
             !! The particles.
         real(dp) :: p
         @:unused_var(this, nI, csf_i, i, j, i_sg)
-        p = 1.0_dp / real(ElecPairs, dp)
         if (i /= j) then
-            if (csf_i%stepvector(i) == 3) p = 2.0_dp * p
-            if (csf_i%stepvector(j) == 3) p = 2.0_dp * p
+            p = csf_i%occ_real(i) * csf_i%occ_real(j) / real(ElecPairs, dp)
+        else
+            p = 1.0_dp / real(ElecPairs, dp)
         end if
     end function
 
@@ -612,37 +611,24 @@ contains
         routine_name("draw_PC_WeightedParticles_t")
 
         integer :: spin_srcs(2), dummy
-        real(dp) :: p_first(2), p_second(2), renorm_second(2)
+        real(dp) :: r_dummy, renorm
+
 
         spin_srcs(1) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
         srcs(1) = gtID(spin_srcs(1))
-        p_first(1) = csf_i%occ_real(srcs(1)) / nEl
 
-        renorm_second(1) = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
+        renorm = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%J_sampler%constrained_sample(&
-            spin_srcs(1), i_sg, nI, ilutI, renorm_second(1), dummy, spin_srcs(2), p_second(1))
+            spin_srcs(1), i_sg, nI, ilutI, renorm, dummy, spin_srcs(2), r_dummy)
         if (spin_srcs(2) == 0) then
             srcs(:) = 0; spin_srcs(:) = 0; p = 1._dp; srcs(:) = 0
             return
         end if
         srcs(2) = gtID(spin_srcs(2))
 
-        p_second(1) = csf_i%occ_real(srcs(2)) * p_second(1)
-
-        p_first(2) = csf_i%occ_real(srcs(2)) / nEl
-
-        renorm_second(2) = sum(this%J_sampler%get_prob(spin_srcs(2), i_sg, nI))
-        p_second(2) = this%J_sampler%constrained_getProb(&
-            spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
-        p_second(2) = csf_i%occ_real(srcs(1)) * p_second(2)
-
         if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
-        p = sum(p_first * p_second)
-
         p = this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2))
-
-        @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, p, this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), csf_i%stepvector)
     end subroutine
 
 
@@ -679,11 +665,13 @@ contains
                     p = 0_dp
                     return
                 else
-                    p = &
-                        p_first(i_u) * p_second(i_u, j_u) &
-                        + p_first(i_u) * p_second(i_u, j_d) &
-                        + p_first(i_d) * p_second(i_d, j_u) &
-                        + p_first(i_d) * p_second(i_d, j_d)
+                    p = 2 * p_first(i_u) * p_second(i_u, i_d)
+
+                    @:pure_ASSERT(near_zero(p_second(i_u, i_u)) &
+                            .and. near_zero(p_second(i_d, i_d)))
+
+                    @:pure_ASSERT(p_first(i_u) * p_second(i_u, i_d) &
+                            .isclose. p_first(i_d) * p_second(i_d, i_u))
                 end if
             else
                 p = &
@@ -703,7 +691,6 @@ contains
             real(dp) pure function p_first(I)
                 integer, intent(in) :: I
                     !! Spin orbital index, i.e. u-d-index
-                ! TODO replace with Ilut lookup
                 if (I .in. nI) then
                     p_first = 1._dp / nEl
                 else
@@ -714,7 +701,6 @@ contains
             real(dp) pure function p_second(I, J)
                 integer, intent(in) :: I, J
                     !! Spin orbital index, i.e. u-d-index
-                ! TODO replace with Ilut lookup
                 if ((I .in. nI) .and. (J .in. nI)) then
                     p_second = this%j_sampler%constrained_getProb(&
                                 I, i_sg, nI, sum(this%j_sampler%get_prob(I, i_sg, nI)), J)
@@ -891,10 +877,8 @@ contains
         call this%i_sampler%sample(i_sg, srcs(1), p_first(1))
         call this%j_sampler%sample(srcs(1), i_sg, srcs(2), p_second(1))
 
-        if (any(csf_i%occ_int(srcs) == 0)) then
-            srcs = 0
-            return
-        else if (srcs(1) == srcs(2) .and. csf_i%occ_int(srcs(1)) /= 2) then
+        if (any(csf_i%occ_int(srcs) == 0) &
+                .or. (srcs(1) == srcs(2) .and. csf_i%occ_int(srcs(1)) /= 2)) then
             srcs = 0
             return
         end if
@@ -935,26 +919,19 @@ contains
             !! The particles in spatial format
         real(dp) :: p
 
-        real(dp) :: p_first(2), p_second(2)
-
         @:unused_var(nI)
 
-        if (any(csf_i%occ_int([i, j]) == 0)) then
-            p = 0._dp
-            return
-        else if (i == j .and. csf_i%occ_int(i) /= 2) then
+        if (any(csf_i%occ_int([i, j]) == 0) &
+                .or. (i == j .and. csf_i%occ_int(i) /= 2)) then
             p = 0._dp
             return
         end if
 
-        p_first(1) = this%i_sampler%get_prob(i_sg, i)
-        p_second(1) = this%j_sampler%get_prob(i, i_sg, j)
         if (i == j ) then
-            p = p_first(1) * p_second(1)
+            p = this%i_sampler%get_prob(i_sg, i) * this%j_sampler%get_prob(i, i_sg, i)
         else
-            p_first(2) = this%i_sampler%get_prob(i_sg, j)
-            p_second(2) = this%j_sampler%get_prob(j, i_sg, i)
-            p = sum(p_first * p_second)
+            p =   this%i_sampler%get_prob(i_sg, i) * this%j_sampler%get_prob(i, i_sg, j) &
+                + this%i_sampler%get_prob(i_sg, j) * this%j_sampler%get_prob(j, i_sg, i)
         end if
     end function
 
@@ -1013,22 +990,22 @@ contains
             else
 
                 p = &
-                    this%i_sampler%get_prob(i_sg, i_u) &
-                        * this%j_sampler%get_prob(i_u, i_sg, j_u) &
+                      this%i_sampler%get_prob(i_sg, i_u) &
+                          * this%j_sampler%get_prob(i_u, i_sg, j_u) &
                     + this%i_sampler%get_prob(i_sg, i_u) &
-                        * this%j_sampler%get_prob(i_u, i_sg, j_d) &
+                          * this%j_sampler%get_prob(i_u, i_sg, j_d) &
                     + this%i_sampler%get_prob(i_sg, i_d) &
-                        * this%j_sampler%get_prob(i_d, i_sg, j_u) &
+                          * this%j_sampler%get_prob(i_d, i_sg, j_u) &
                     + this%i_sampler%get_prob(i_sg, i_d) &
-                        * this%j_sampler%get_prob(i_d, i_sg, j_d) &
+                          * this%j_sampler%get_prob(i_d, i_sg, j_d) &
                     + this%i_sampler%get_prob(i_sg, j_u) &
-                        * this%j_sampler%get_prob(j_u, i_sg, i_u) &
+                          * this%j_sampler%get_prob(j_u, i_sg, i_u) &
                     + this%i_sampler%get_prob(i_sg, j_u) &
-                        * this%j_sampler%get_prob(j_u, i_sg, i_d) &
+                          * this%j_sampler%get_prob(j_u, i_sg, i_d) &
                     + this%i_sampler%get_prob(i_sg, j_d) &
-                        * this%j_sampler%get_prob(j_d, i_sg, i_u) &
+                          * this%j_sampler%get_prob(j_d, i_sg, i_u) &
                     + this%i_sampler%get_prob(i_sg, j_d) &
-                        * this%j_sampler%get_prob(j_d, i_sg, i_d)
+                          * this%j_sampler%get_prob(j_d, i_sg, i_d)
 
                 @:ASSERT(this%j_sampler%get_prob(i_u, i_sg, j_u) .isclose. this%j_sampler%get_prob(i_u, i_sg, j_d))
 
