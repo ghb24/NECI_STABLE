@@ -643,7 +643,6 @@ contains
                                 associate(exc => DistinctDouble_t(ijab_Index_t([i, j, a, b])))
                                 if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. symmetry_allowed(exc)) then
                                     w(ab) = this%get_weight(exc)
-                                    write(*, *) w(ab), i, j, a, b
                                 end if
                                 end associate
                             end if

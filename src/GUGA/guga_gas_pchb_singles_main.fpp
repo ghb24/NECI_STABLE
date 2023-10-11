@@ -3,7 +3,9 @@
 module guga_gas_pchb_singles_main
     use util_mod, only: EnumBase_t, stop_all, operator(.implies.), &
         operator(.div.), operator(.isclose.)
-    use SystemData, only: nEl, nSpatOrbs
+    use sets_mod, only: operator(.notin.)
+    use SystemData, only: nEl, nSpatOrbs, nBasis
+    use MPI_wrapper, only: root
     use excitation_generators, only: SingleExcitationGenerator_t
     use constants, only: n_int, dp, maxExcit, bits_n_int, stdout
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -16,6 +18,9 @@ module guga_gas_pchb_singles_main
     use fortran_strings, only: to_upper
     use bit_rep_data, only: NIfTot, nIfD, GugaBits
     use bit_reps, only: decode_bit_det
+    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
+    use UMatCache, only: gtID, get_umat_el
+    use OneEInts, only: GetTMatEl
 
     use guga_base_class, only: SinglesGUGABase_t
     use guga_bitrepops, only: CSF_Info_t
@@ -33,7 +38,8 @@ module guga_gas_pchb_singles_main
 
     type :: GAS_PCHB_SinglesAlgorithm_vals_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: &
-            UNIF_UNIF = GAS_PCHB_SinglesAlgorithm_t(1, 'UNIF:UNIF')
+            UNIF_UNIF = GAS_PCHB_SinglesAlgorithm_t(1, 'UNIF:UNIF'), &
+            FULL_FULL = GAS_PCHB_SinglesAlgorithm_t(2, 'FULL:FULL')
     contains
         procedure, nopass :: from_str => alg_from_str
     end type
@@ -45,7 +51,8 @@ module guga_gas_pchb_singles_main
 
     type :: GAS_PCHB_SinglesWeighting_vals_t
         type(GAS_PCHB_SinglesWeighting_t) :: &
-            UNIFORM = GAS_PCHB_SinglesWeighting_t(1, 'UNIFORM')
+            UNIFORM = GAS_PCHB_SinglesWeighting_t(1, 'UNIFORM'), &
+            ABS_INTEGRAL = GAS_PCHB_SinglesWeighting_t(2, 'ABS-INTEGRAL')
     contains
         procedure, nopass :: from_str => weight_from_str
     end type
@@ -68,6 +75,15 @@ module guga_gas_pchb_singles_main
         option_vals = GAS_PCHB_SinglesOptions_vals_t()
 
 
+    abstract interface
+        real(dp) function get_weight_t(i, a)
+            import :: dp
+            integer, intent(in) :: i, a
+                !! Spatial orbital index
+        end function
+    end interface
+
+
     !> The precomputed GAS uniform excitation generator
     type, extends(SinglesGUGABase_t) :: GAS_UniformExcGenerator_t
         private
@@ -87,7 +103,7 @@ module guga_gas_pchb_singles_main
             !! store information about spatial orbitals as bitmask
     contains
         private
-        procedure, public :: init
+        procedure, public :: init => init_GAS_UniformExcGenerator_t
         procedure, public :: finalize => GAS_singles_uniform_finalize
 
         procedure :: get_valid_orbs
@@ -96,18 +112,76 @@ module guga_gas_pchb_singles_main
         procedure, public :: pickOrbitals => pickOrbitals_single
     end type
 
+    !> The precomputed GAS uniform excitation generator
+    type, extends(SinglesGUGABase_t) :: GAS_Weighted_t
+        private
+        class(GASSpec_t), allocatable :: GAS_spec
+        ! This is only a pointer because components cannot be targets
+        ! otherwise. :-(
+        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        logical, public :: use_lookup = .false.
+            !! Use a lookup for the supergroup index in global_det_data.
+        logical, public :: create_lookup = .false.
+            !! Create **and** manage! the supergroup index lookup in global_det_data.
+
+
+        type(AliasSampler_1D_t) :: I_sampler
+            !! The shape is (n_supergroup) -> 2 * nSpatOrbs
+            !!
+            !! @note
+            !! To make doubly occupied orbitals more probable we have doubly the
+            !! amount of spatial orbitals and treat it as if there were spin-orbitals.
+            !! @endnote
+        type(AliasSampler_2D_t) :: A_sampler
+            !! The shape is (nSpatOrbs, n_supergroup) -> 2 * nSpatOrbs
+            !!
+            !! @note
+            !! To make empty orbitals more probable than singly occpied ones,
+            !! we have doubly the
+            !! amount of spatial orbitals and treat it as if there were spin-orbitals.
+            !! @endnote
+
+        procedure(get_weight_t), pointer, nopass :: get_weight => null()
+
+        integer(n_int), private :: last_possible_occupied
+            !! The last element of the ilut array has some elements
+            !! which are not used, if the number of spinorbitals is not a multiple of
+            !! bitsize_n_int.
+            !! To correctly zero them this bitmask is 1 wherever a determinant
+            !! could be occupied in the last element, and 0 otherwise.
+    contains
+        private
+        procedure, public :: init => init_GAS_Weighted_t
+        procedure, public :: finalize => finalize_GAS_Weighted_t
+
+        procedure :: get_unoccupied
+
+        procedure, public :: calc_pgen => calc_pgen_GAS_Weighted_t
+        procedure, public :: pickOrbitals => pickOrbitals_GAS_Weighted_t
+    end type
+
 contains
 
     elemental logical function is_valid(this)
         class(GAS_PCHB_SinglesOptions_t), intent(in) :: this
-
-        if (this%algorithm == option_vals%algorithm%UNIF_UNIF &
-                .neqv. this%weighting == option_vals%weighting%UNIFORM) then
-            is_valid = .false.
-        else
-            is_valid = .true.
-        end if
+        is_valid = (this%algorithm == option_vals%algorithm%UNIF_UNIF &
+                            .implies. this%weighting == option_vals%weighting%UNIFORM)
     end function
+
+
+    subroutine set_get_weight_pointer(weight_choice, ptr)
+        type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weight_choice
+        procedure(get_weight_t), pointer, intent(out) :: ptr
+        routine_name("set_get_weight_pointer")
+
+        if (weight_choice == option_vals%weighting%UNIFORM) then
+            ptr => get_weight_uniform
+        else if (weight_choice == option_vals%weighting%ABS_INTEGRAL) then
+            ptr => get_weight_abs_integral
+        else
+            call stop_all(this_routine, "Invalid weight choice: "//weight_choice%str)
+        end if
+    end subroutine
 
 
     subroutine allocate_and_init(GAS_spec, options, use_lookup, create_lookup, generator)
@@ -123,23 +197,33 @@ contains
             call generator%finalize()
             deallocate(generator)
         end if
+
         if (options%algorithm == option_vals%algorithm%UNIF_UNIF) then
             allocate(GAS_UniformExcGenerator_t :: generator)
+            select type(generator)
+            type is(GAS_UniformExcGenerator_t)
+                call generator%init(GAS_spec, use_lookup, create_lookup)
+            end select
+        else if (options%algorithm == option_vals%algorithm%FULL_FULL) then
+            allocate(GAS_Weighted_t :: generator)
+            select type(generator)
+            type is(GAS_Weighted_t)
+                call generator%init(options%weighting, GAS_spec, use_lookup, create_lookup)
+            end select
+        else
+            call stop_all(this_routine, "unsupported singles option.")
         end if
-        select type(generator)
-        type is(GAS_UniformExcGenerator_t)
-            call generator%init(GAS_spec, use_lookup, create_lookup)
-        end select
     end subroutine
 
 
 
-    subroutine init(this, GAS_spec, use_lookup, create_lookup)
+    subroutine init_GAS_UniformExcGenerator_t(this, GAS_spec, use_lookup, create_lookup)
         class(GAS_UniformExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: supergroups(:, :)
-        character(*), parameter :: this_routine = 'GAS_singles_uniform_init'
+        routine_name('init_GAS_UniformExcGenerator_t')
+
 
         integer :: i_sg, src, tgt
 
@@ -192,16 +276,18 @@ contains
             set_orb(ilut, orb)
         end subroutine
 
-        logical pure function symmetry_allowed(exc)
-            use SymExcitDataMod, only: SpinOrbSymLabel
-            type(Excite_1_t), intent(in) :: exc
-            symmetry_allowed = SpinOrbSymLabel(exc%val(1, 1)) == SpinOrbSymLabel(exc%val(2, 1))
-        end function
     end subroutine
+
+    logical pure function symmetry_allowed(exc)
+        use SymExcitDataMod, only: SpinOrbSymLabel
+        type(Excite_1_t), intent(in) :: exc
+        symmetry_allowed = SpinOrbSymLabel(exc%val(1, 1)) == SpinOrbSymLabel(exc%val(2, 1))
+    end function
 
     subroutine GAS_singles_uniform_finalize(this)
         class(GAS_UniformExcGenerator_t), intent(inout) :: this
-        deallocate(this%allowed_holes)
+        deallocate(this%allowed_holes, this%indexer, this%GAS_spec)
+        if (this%create_lookup) nullify(lookup_supergroup_indexer)
     end subroutine
 
 
@@ -314,6 +400,7 @@ contains
         end if
     end function calc_pgen_uniform_singles
 
+
     elemental function alg_from_str(str) result(res)
         character(*), intent(in) :: str
         type(GAS_PCHB_SinglesAlgorithm_t) :: res
@@ -322,6 +409,8 @@ contains
         select case(to_upper(str))
         case(option_vals%algorithm%UNIF_UNIF%str)
             res = option_vals%algorithm%UNIF_UNIF
+        case(option_vals%algorithm%FULL_FULL%str)
+            res = option_vals%algorithm%FULL_FULL
         case default
             call stop_all(this_routine, 'Invalid input: '//str)
         end select
@@ -335,9 +424,286 @@ contains
         select case(to_upper(str))
         case(option_vals%weighting%UNIFORM%str)
             res = option_vals%weighting%UNIFORM
+        case(option_vals%weighting%ABS_INTEGRAL%str)
+            res = option_vals%weighting%ABS_INTEGRAL
         case default
             call stop_all(this_routine, 'Invalid input: '//str)
         end select
+    end function
+
+
+    subroutine init_GAS_Weighted_t(this, weighting, GAS_spec, use_lookup, create_lookup)
+        class(GAS_Weighted_t), intent(inout) :: this
+        type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weighting
+        class(GASSpec_t), intent(in) :: GAS_spec
+        logical, intent(in) :: use_lookup, create_lookup
+        integer, allocatable :: supergroups(:, :)
+        routine_name("init_GAS_Weighted_t")
+
+        integer :: i_sg, src, tgt, nBi
+        real(dp), allocatable :: I_weights(:), A_weights(:)
+
+        this%GAS_spec = GAS_spec
+        nBi = this%GAS_spec%n_spin_orbs()
+        @:ASSERT(nBi == 2 * nSpatOrbs)
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        this%create_lookup = create_lookup
+        if (create_lookup) then
+            if (associated(lookup_supergroup_indexer)) then
+                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
+            else
+                write(stdout, *) 'GAS singles is creating and managing the supergroup lookup'
+                lookup_supergroup_indexer => this%indexer
+            end if
+        end if
+        this%use_lookup = use_lookup
+        if (use_lookup) write(stdout, *) 'GAS singles is using the supergroup lookup'
+        ! possible supergroups
+        supergroups = this%indexer%get_supergroups()
+
+
+        this%last_possible_occupied = 0_n_int
+        block
+            integer :: i
+            do i = 0, ilut_off(nBasis)
+                this%last_possible_occupied = ibset(this%last_possible_occupied, i)
+            end do
+        end block
+
+        call set_get_weight_pointer(weighting, this%get_weight)
+
+        call this%I_sampler%shared_alloc(size(supergroups, 2), nBi, 'PCHB')
+        call this%A_sampler%shared_alloc([nSpatOrbs, size(supergroups, 2)], nBi, 'PCHB')
+
+        allocate(I_weights(nBi), A_weights(nBi), source=0._dp)
+        do i_sg = 1, size(supergroups, 2)
+            I_weights(:) = 0._dp
+            do src = 1, nSpatOrbs
+                A_weights(:) = 0._dp
+                do tgt = 1, nSpatOrbs
+                block
+                    type(Excite_1_t) :: exc
+                    exc = Excite_1_t(2 * src, 2 * tgt)
+                    if (src /= tgt &
+                            .and. this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                            .and. symmetry_allowed(exc)) then
+                        A_weights(2 * tgt) = abs(this%get_weight(src, tgt))
+                        A_weights(2 * tgt - 1) = A_weights(2 * tgt)
+                    end if
+                end block
+                end do
+                I_weights(2 * src) = sum(A_weights)
+                I_weights(2 * src - 1) = I_weights(2 * src)
+                call this%A_sampler%setup_entry(src, i_sg, root, A_weights)
+            end do
+            call this%I_sampler%setup_entry(i_sg, root, I_weights)
+        end do
+
+    end subroutine
+
+    subroutine finalize_GAS_Weighted_t(this)
+        class(GAS_Weighted_t), intent(inout) :: this
+        call this%I_sampler%finalize()
+        call this%A_sampler%finalize()
+        nullify(this%get_weight)
+        deallocate(this%indexer, this%GAS_spec)
+        if (this%create_lookup) nullify(lookup_supergroup_indexer)
+    end subroutine
+
+
+    subroutine pickOrbitals_GAS_Weighted_t(this, ilut, nI, csf_i, excitInfo, pgen)
+        class(GAS_Weighted_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        routine_name("pickOrbitals_GAS_Weighted_t")
+
+        integer :: i_sg, src, tgt
+        real(dp) :: p_src, p_tgt
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
+
+        select_particle: block
+            real(dp) :: renorm_src
+            integer :: spin_src, elec
+            renorm_src = sum(this%I_sampler%get_prob(i_sg, nI))
+            call this%I_sampler%constrained_sample(i_sg, nI, ilut(0 : nIfD), renorm_src, elec, spin_src, p_src)
+            if (spin_src == 0) then
+                call make_invalid()
+                return
+            end if
+            @:ASSERT(nI(elec) == spin_src)
+            src = gtId(spin_src)
+            p_src = csf_I%occ_int(src) * p_src
+        end block select_particle
+
+        select_hole: block
+            real(dp) :: renorm_tgt
+            integer :: spin_tgt, dummy, unoccupied(nBasis - nEl)
+            integer(n_int) :: ilut_unoccupied(0 : nIfD)
+            call this%get_unoccupied(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
+            if (do_direct_calculation(renorm_tgt)) then
+                renorm_tgt = sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
+            end if
+
+            call this%A_sampler%constrained_sample(&
+                 src, i_sg, unoccupied, ilut_unoccupied, renorm_tgt, dummy, spin_tgt, p_tgt)
+            if (tgt == 0) then
+                call make_invalid()
+                return
+            end if
+            tgt = gtId(spin_tgt)
+            p_tgt = csf_I%occ_int(tgt) * p_tgt
+        end block select_hole
+        pgen = p_src * p_tgt
+
+        if (tgt < src) then
+            excitInfo = assign_excitinfo_values_single( &
+                        gen_type%R, tgt, src, tgt, src)
+        else
+            excitInfo = assign_excitinfo_values_single( &
+                        gen_type%L, tgt, src, src, tgt)
+        end if
+        excitInfo%valid = checkCompatibility_single(csf_i, excitInfo)
+        if (excitInfo%valid) then
+            @:ASSERT(pgen .isclose. this%calc_pgen(nI, ilut, csf_i, excitInfo))
+        else
+            pgen = 0._dp
+        end if
+
+        contains
+
+            subroutine make_invalid()
+                pgen = 0.0_dp
+                tgt = 0
+                excitInfo%valid = .false.
+            end subroutine
+    end subroutine
+
+
+    function calc_pgen_GAS_Weighted_t(this, nI, ilutI, csf_i, excitInfo) result(pgen)
+        class(GAS_Weighted_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp) :: pgen
+        routine_name("calc_pgen_GAS_Weighted_t")
+
+        real(dp) :: p_src, p_tgt
+        integer :: i_sg
+
+        @:ASSERT(1 <= excitInfo%i .and. excitInfo%i <= nSpatOrbs)
+        @:ASSERT(1 <= excitInfo%j .and. excitInfo%j <= nSpatOrbs)
+
+        if (excitInfo%i == excitInfo%j &
+               .or. csf_i%stepvector(excitInfo%i) == 3 &
+               .or. csf_i%stepvector(excitInfo%j) == 0) then
+            pgen = 0.0_dp
+            return
+        end if
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_csf(csf_i)
+        end if
+
+        select_particle: block
+            real(dp) :: renorm_src
+            integer :: spin_src
+            spin_src = 2 * excitInfo%j - 1 + ((csf_I%stepvector(excitInfo%j) + 1) .div. 3)
+            renorm_src = sum(this%I_sampler%get_prob(i_sg, nI))
+            p_src = csf_I%occ_int(excitInfo%j) &
+                    * this%I_sampler%constrained_getProb(i_sg, nI, renorm_src, spin_src)
+        end block select_particle
+
+        select_hole: block
+            real(dp) :: renorm_tgt
+            integer :: spin_tgt, unoccupied(nBasis - nEl)
+            integer(n_int) :: ilut_unoccupied(0 : nIfD)
+            spin_tgt = 2 * excitInfo%i - ((csf_I%stepvector(excitInfo%i) + 1) .div. 3)
+
+            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(excitInfo%j, i_sg, nI))
+            if (do_direct_calculation(renorm_tgt)) then
+                renorm_tgt = sum(this%A_sampler%get_prob(excitInfo%j, i_sg, unoccupied))
+            end if
+
+
+            p_tgt = csf_I%occ_int(excitInfo%i) &
+                    * this%A_sampler%constrained_getProb(excitInfo%j, i_sg, unoccupied, renorm_tgt, spin_tgt)
+        end block select_hole
+        pgen = p_src * p_tgt
+
+    end function
+
+
+    pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
+        !! Return a bitmask and enumeration of the unoccupied spin orbitals.
+        class(GAS_Weighted_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+        integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
+        integer, intent(out) :: unoccupied(nBasis - nEl)
+        ilut_unoccupied = not(ilutI)
+        ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
+        call decode_bit_det(unoccupied, ilut_unoccupied)
+    end subroutine
+
+
+    pure function get_weight_uniform(i, a) result(weight)
+        integer, intent(in) :: i, a
+            !! Spatial orbital index
+        real(dp) :: weight
+        routine_name("get_weight_uniform")
+        @:pure_ASSERT(all(1 <= [i, a] .and. [i, a] <= nSpatOrbs))
+        weight = merge(1._dp, 0._dp, i /= a)
+    end function
+
+
+    pure function get_weight_abs_integral(i, a) result(weight)
+        integer, intent(in) :: i, a
+            !! Spatial orbital index
+        real(dp) :: weight
+        routine_name("get_weight_uniform")
+
+        real(dp) :: two_el_term
+        integer :: r
+        @:pure_ASSERT(all(1 <= [i, a] .and. [i, a] <= nSpatOrbs))
+
+        two_el_term = 0._dp
+        do R = 1, nSpatOrbs
+            two_el_term = two_el_term + abs(g(i, a, r, r)) + abs(g(i, r, r, a))
+        end do
+        weight = abs(h(i, a)) + two_el_term
+    end function
+
+
+    HElement_t(dp) elemental function h(i, a)
+        !! Return the 1el integral \( h_{I, A) \)
+        !!
+        !! I and A are **spatial** indices.
+        !! Follows the definition of the purple book.
+        integer, intent(in) :: i, a
+        h = GetTMATEl(gtID(i), gtID(a))
+    end function
+
+
+    HElement_t(dp) elemental function g(i, a, j, b)
+        integer, intent(in) :: i, a, j, b
+        !! Return the 2el integral \( g_{I, A, J, B} \)
+
+        !! i, a, j, and b are **spatial ** indices.
+        !! Order follows the definition of the purple book (chemist's notation).
+        !! \( g_{I, A, J, B} = < I J | 1 / r | A B > \)
+        g = get_umat_el(i, j, a, b)
     end function
 
 end module
