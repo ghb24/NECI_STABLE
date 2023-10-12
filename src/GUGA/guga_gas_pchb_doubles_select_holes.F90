@@ -676,7 +676,6 @@ contains
         real(dp) :: pgen_elec, pgen_orbs
         routine_name("pickOrbitals")
 
-        unused_var(ilut)
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(csf_I)
         else
@@ -735,6 +734,7 @@ contains
         excitInfo%i_sg_start = i_sg
 
         pGen = pgen_elec * pgen_orbs
+        ASSERT(pgen .isclose. this%calc_pgen(nI, ilut, csf_i, excitInfo))
     end subroutine pickOrbitals
 
     function calc_pgen(this, nI, ilutI, csf_i, excitInfo) result(pgen)
@@ -747,7 +747,7 @@ contains
 
         integer :: ij, ab
         real(dp) :: p_elec
-        unused_var(nI); unused_var(ilutI); unused_var(csf_i)
+        unused_var(ilutI)
 
         ! i, j, k and l entries have the info about the electrons and
         ! holes of the excitation: E_{ij}E_{kl} is the convention ...
@@ -755,7 +755,7 @@ contains
         ab = fuseIndex(excitInfo%i, excitInfo%k)
 
         p_elec = this%particle_selector%get_pgen(nI, csf_i, excitInfo%i_sg_start, excitInfo%j, excitInfo%l)
-        pgen = pDoubles * p_elec * this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ab)
+        pgen = p_elec * this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ab)
     end function calc_pgen
 
     ! I need the pgen-recalculation routines for exchange type excitations
@@ -784,6 +784,10 @@ contains
 
         ! and both I and J are electron and hole indices here
         above_cpt = this%alias_sampler%get_prob(ij, i_sg, ij) / 2.0_dp
+
+        ! TODO(@Werner): I think this here is the right one!
+        above_cpt = this%alias_sampler%get_prob(ij, i_sg, ij)
+
         ! but since they will get added in later routines i actually have
         ! do divide by 2 here..
 
