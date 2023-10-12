@@ -7,7 +7,7 @@ System read
     freeformat
     nonuniformrandexcits guga-pchb \
         drawing full:full full-full:fast-fast \
-        weighting rhf-expression initial-werner
+        weighting abs-integral initial-werner
     guga 0
     ignore-fcidump-header
 endsys

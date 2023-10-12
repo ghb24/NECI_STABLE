@@ -300,8 +300,6 @@ contains
         routine_name("draw_UniformParticles_t")
         @:unused_var(this, ilutI, csf_i, i_sg)
         call pick_elec_pair_uniform_guga(nI, srcs, sym_prod, sum_ml, p)
-        ! make a different picker, which does not bias towards doubly
-        ! occupied orbitals here too!
 
         @:ASSERT(srcs(1) < srcs(2))
         srcs = gtID(srcs)
@@ -455,21 +453,19 @@ contains
 
         real(dp) :: renorm_first, p_first(2)
         real(dp) :: renorm_second(2), p_second(2)
-        integer :: spin_srcs(2), elecs(2)
+        integer :: spin_srcs(2), dummy
 
         renorm_first = sum(this%I_sampler%get_prob(i_sg, nI))
         call this%I_sampler%constrained_sample(&
-            i_sg, nI, ilutI, renorm_first, elecs(1), spin_srcs(1), p_first(1))
-        @:ASSERT(nI(elecs(1)) == spin_srcs(1))
+            i_sg, nI, ilutI, renorm_first, dummy, spin_srcs(1), p_first(1))
         srcs(1) = gtID(spin_srcs(1))
-
 
         renorm_second(1) = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%J_sampler%constrained_sample(&
-            spin_srcs(1), i_sg, nI, ilutI, renorm_second(1), elecs(2), spin_srcs(2), p_second(1))
+            spin_srcs(1), i_sg, nI, ilutI, renorm_second(1), dummy, spin_srcs(2), p_second(1))
         if (spin_srcs(2) == 0) then
-            elecs(:) = 0; spin_srcs(:) = 0; p = 1._dp; srcs(:) = 0
+            p = 1._dp; srcs(:) = 0
             return
         end if
         srcs(2) = gtID(spin_srcs(2))
@@ -490,23 +486,11 @@ contains
         p_second(2) = this%J_sampler%constrained_getProb(&
             spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
 
-        if (csf_i%stepvector(srcs(1)) == 3) then
-            p_first(1) = 2 * p_first(1)
-            p_second(2) = 2 * p_second(2)
-        end if
-        if (csf_i%stepvector(srcs(2)) == 3) then
-            p_first(2) = 2 * p_first(2)
-            p_second(1) = 2 * p_second(1)
-        end if
+        p = sum(csf_i%occ_int(srcs) * p_first(:) * csf_i%occ_int(srcs(2:1:-1)) * p_second(:))
 
-
-        if (spin_srcs(1) > spin_srcs(2)) then
-            call swap(spin_srcs(1), spin_srcs(2))
+        if (srcs(1) > srcs(2)) then
             call swap(srcs(1), srcs(2))
-            call swap(elecs(1), elecs(2))
         end if
-
-        p = sum(p_first * p_second)
 
         @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
     end subroutine
@@ -732,9 +716,8 @@ contains
         srcs(1) = int(genrand_real2_dSFMT() * nSpatOrbs) + 1
         srcs(2) = int(genrand_real2_dSFMT() * nSpatOrbs) + 1
 
-        if (any(csf_i%occ_int(srcs) == 0)) then
-            srcs = 0
-        else if (srcs(1) == srcs(2) .and. csf_i%occ_int(srcs(1)) /= 2) then
+        if (any(csf_i%occ_int(srcs) == 0) &
+            .or. (srcs(1) == srcs(2) .and. csf_i%occ_int(srcs(1)) /= 2)) then
             srcs = 0
         end if
 
