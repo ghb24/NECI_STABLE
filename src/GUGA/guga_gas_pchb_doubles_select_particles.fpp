@@ -3,7 +3,7 @@
 #:include "../algorithms.fpph"
 
 module guga_gas_pchb_doubles_select_particles
-    use constants, only: dp, n_int, stdout, stderr
+    use constants, only: dp, n_int, stdout
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
@@ -608,7 +608,6 @@ contains
             !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
             !! This is the probability of drawing two particles from
             !! a given determinant \(D_i\) regardless of order.
-        routine_name("draw_PC_WeightedParticles_t")
 
         integer :: spin_srcs(2), dummy
         real(dp) :: r_dummy, renorm
@@ -653,7 +652,7 @@ contains
         integer, intent(in) :: i, j
             !! The particles in spatial format
         real(dp) :: p
-        routine_name("get_pgen_PC_FullyWeightedParticles_t")
+        routine_name("get_pgen_PC_WeightedParticles_t")
 
         @:pure_ASSERT(csf_I%stepvector(i) /= 0 .and. csf_I%stepvector(j) /= 0)
 

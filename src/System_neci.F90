@@ -1795,12 +1795,6 @@ contains
             case("ANALYZE-PCHB")
                 t_analyze_pchb = .true.
 
-            case("OLD-GUGA-PCHB")
-                ! original, rather unoptimized guga-pchb implementation
-                ! still testing planned for final verdict on best guga-pchb
-                ! implementation!
-                t_old_pchb = .true.
-
             case("EXCHANGE-GUGA-PCHB")
                 ! additional guga-pchb implementation for exchange type
                 ! contributions. testing for final 'best' guga-pchb

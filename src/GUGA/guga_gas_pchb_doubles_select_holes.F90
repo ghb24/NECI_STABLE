@@ -2,49 +2,31 @@
 module guga_gas_pchb_doubles_select_holes
 
     use aliasSampling, only: AliasSampler_2D_t
-    use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm, bits_n_int
-    use bit_rep_data, only: IlutBits, GugaBits
-    use SystemData, only: nel, G1, &
-                          nBasis, nSpatOrbs, ElecPairs, &
-                          t_analyze_pchb, t_old_pchb, t_exchange_pchb
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
-    use guga_data, only: ExcitationInformation_t, gen_type, excit_type, ExcitationType_t, &
-        DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t
-    use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
-    use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: near_zero, fuseIndex, binary_search_first_ge, &
-                        get_free_unit, stop_all, operator(.isclose.), operator(.div.), &
-                        EnumBase_t
-    use CalcData, only: t_matele_cutoff, matele_cutoff, t_truncate_spawns
-    use tau_main, only: max_tau, tau_search_method, possible_tau_search_methods
+    use constants, only: n_int, dp, int64, stdout, int_rdm, bits_n_int
+    use bit_rep_data, only: GugaBits
+    use SystemData, only: nel, nSpatOrbs, t_exchange_pchb
+    use guga_data, only: ExcitationInformation_t, &
+        distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t
+    use guga_bitrepops, only: CSF_Info_t
+    use util_mod, only: &
+        near_zero, fuseIndex, stop_all, operator(.isclose.), EnumBase_t
+    use CalcData, only: t_truncate_spawns
+    use tau_main, only: tau_search_method, possible_tau_search_methods
     use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
     use fortran_strings, only: to_upper
-    use sym_general_mod, only: ClassCountInd
-    use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
-                               sym_label_list_spat, SpinOrbSymLabel
-    use excitation_types, only: Excite_1_t, Excite_2_t
+    use SymExcitDataMod, only: SpinOrbSymLabel
     use UMatCache, only: gtID
-    use guga_excitations, only: assign_excitinfo_values_single, &
-                                pick_elec_pair_uniform_guga, &
-                                excitationIdentifier_double, &
-                                calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
-                                checkCompatibility_single
-    use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &
-                              contract_2_rdm_ind
+    use guga_bitrepops, only: encode_excit_info, extract_excit_info
     use guga_base_class, only: DoublesGUGABase_t
-    use bit_reps, only: decode_bit_det
-    use shared_array, only: shared_array_int64_t, shared_array_real_t
-    use MPI_wrapper, only: iProcIndex_intra, iprocindex, root
+    use shared_array, only: shared_array_int64_t
+    use MPI_wrapper, only: iProcIndex_intra, iProcIndex, root
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use procedure_pointers, only: get_umat_el
 
     use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use sets_mod, only: is_sorted, is_set
 
     use guga_gas_pchb_doubles_select_particles, only: ParticleSelector_t, &
-        UniformParticles_t, PCHB_particle_selection_vals, &
         PCHB_ParticleSelection_t, particle_allocate_and_init => allocate_and_init
 
 

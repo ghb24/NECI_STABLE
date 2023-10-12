@@ -3,20 +3,15 @@
 module guga_gas_pchb_singles_main
     use util_mod, only: EnumBase_t, stop_all, operator(.implies.), &
         operator(.div.), operator(.isclose.)
-    use sets_mod, only: operator(.notin.)
     use SystemData, only: nEl, nSpatOrbs, nBasis
     use MPI_wrapper, only: root
-    use excitation_generators, only: SingleExcitationGenerator_t
-    use constants, only: n_int, dp, maxExcit, bits_n_int, stdout
+    use constants, only: n_int, dp, bits_n_int, stdout
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use SymExcitDataMod, only: ScratchSize
     use gasci, only: GASSpec_t
-    use get_excit, only: make_single
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
-    use excitation_types, only: Excite_1_t, spin_allowed
-    use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
+    use excitation_types, only: Excite_1_t
     use fortran_strings, only: to_upper
-    use bit_rep_data, only: NIfTot, nIfD, GugaBits
+    use bit_rep_data, only: nIfD, GugaBits
     use bit_reps, only: decode_bit_det
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
     use UMatCache, only: gtID, get_umat_el
