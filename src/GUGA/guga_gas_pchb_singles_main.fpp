@@ -48,7 +48,7 @@ module guga_gas_pchb_singles_main
         type(GAS_PCHB_SinglesWeighting_t) :: &
             UNIFORM = GAS_PCHB_SinglesWeighting_t(1, 'UNIFORM'), &
             ABS_INTEGRAL = GAS_PCHB_SinglesWeighting_t(2, 'ABS-INTEGRAL'), &
-            RHF_EXPR = GAS_PCHB_SinglesWeighting_t(2, 'RHF-EXPRESSION')
+            RHF_EXPR = GAS_PCHB_SinglesWeighting_t(3, 'RHF-EXPRESSION')
     contains
         procedure, nopass :: from_str => weight_from_str
     end type
@@ -555,7 +555,7 @@ contains
 
             call this%A_sampler%constrained_sample(&
                  src, i_sg, unoccupied, ilut_unoccupied, renorm_tgt, dummy, spin_tgt, p_tgt)
-            if (tgt == 0) then
+            if (spin_tgt == 0) then
                 call make_invalid()
                 return
             end if
