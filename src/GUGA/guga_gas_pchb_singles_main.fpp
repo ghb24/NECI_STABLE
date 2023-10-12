@@ -52,7 +52,8 @@ module guga_gas_pchb_singles_main
     type :: GAS_PCHB_SinglesWeighting_vals_t
         type(GAS_PCHB_SinglesWeighting_t) :: &
             UNIFORM = GAS_PCHB_SinglesWeighting_t(1, 'UNIFORM'), &
-            ABS_INTEGRAL = GAS_PCHB_SinglesWeighting_t(2, 'ABS-INTEGRAL')
+            ABS_INTEGRAL = GAS_PCHB_SinglesWeighting_t(2, 'ABS-INTEGRAL'), &
+            RHF_EXPR = GAS_PCHB_SinglesWeighting_t(2, 'RHF-EXPRESSION')
     contains
         procedure, nopass :: from_str => weight_from_str
     end type
@@ -178,6 +179,8 @@ contains
             ptr => get_weight_uniform
         else if (weight_choice == option_vals%weighting%ABS_INTEGRAL) then
             ptr => get_weight_abs_integral
+        else if (weight_choice == option_vals%weighting%RHF_EXPR) then
+            ptr => get_weight_RHF_expr
         else
             call stop_all(this_routine, "Invalid weight choice: "//weight_choice%str)
         end if
@@ -426,6 +429,8 @@ contains
             res = option_vals%weighting%UNIFORM
         case(option_vals%weighting%ABS_INTEGRAL%str)
             res = option_vals%weighting%ABS_INTEGRAL
+        case(option_vals%weighting%RHF_EXPR%str)
+            res = option_vals%weighting%RHF_EXPR
         case default
             call stop_all(this_routine, 'Invalid input: '//str)
         end select
@@ -681,6 +686,23 @@ contains
         two_el_term = 0._dp
         do R = 1, nSpatOrbs
             two_el_term = two_el_term + abs(g(i, a, r, r)) + abs(g(i, r, r, a))
+        end do
+        weight = abs(h(i, a)) + two_el_term
+    end function
+
+    pure function get_weight_RHF_expr(i, a) result(weight)
+        integer, intent(in) :: i, a
+            !! Spatial orbital index
+        real(dp) :: weight
+        routine_name("get_weight_uniform")
+
+        real(dp) :: two_el_term
+        integer :: r
+        @:pure_ASSERT(all(1 <= [i, a] .and. [i, a] <= nSpatOrbs))
+
+        two_el_term = 0._dp
+        do R = 1, nSpatOrbs
+            two_el_term = two_el_term + abs(2 * g(i, a, r, r) - g(i, r, r, a))
         end do
         weight = abs(h(i, a)) + two_el_term
     end function
