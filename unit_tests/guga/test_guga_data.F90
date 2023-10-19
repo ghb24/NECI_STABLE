@@ -7,9 +7,14 @@ module test_guga_data_mod
 
     use SystemData, only: nSpatOrbs, ij_pairs
     use indexing_mod, only: fuse_symm_idx
+    use guga_bitrepops, only: CSF_Info_t, StepVector_t, stepvector_vals
+    use guga_excitations, only: gen_all_distinct_doubles
     implicit none
     private
     public :: test_driver
+
+    type(StepVector_t), parameter :: s0 = stepvector_vals%s0, u = stepvector_vals%u, &
+        d = stepvector_vals%d, s2 = stepvector_vals%s2
 
 contains
 
@@ -18,6 +23,8 @@ contains
         call run_test_case(test_distinct_double_type, "test_distinct_double_type")
         call run_test_case(test_distinct_double, "test_distinct_double_type")
         call run_test_case(test_fuse, "test_fuse")
+
+        call run_test_case(test_gen_all_excits, "test_gen_all_excits")
     end subroutine
 
     subroutine test_indices()
@@ -210,6 +217,98 @@ contains
         end do
 
     end subroutine
+
+    subroutine test_gen_all_excits()
+        type(CSF_Info_t) :: csf_i
+        integer(int64), allocatable :: idx_excitations(:)
+        type(DistinctDouble_t), allocatable :: excitations(:)
+        integer, allocatable :: expected(:, :)
+
+        integer :: i
+
+        nSpatOrbs = 4
+
+        csf_i = CSF_Info_t([s0, s2, u, d])
+        idx_excitations = gen_all_distinct_doubles(csf_i)
+        excitations = fused_to_DistinctDouble(idx_excitations(:))
+
+        expected = reshape( [ &
+                   [1, 2, 1, 2], &
+                   [1, 2, 3, 2], &
+                   [1, 2, 4, 2], &
+                   [1, 2, 3, 2], &
+                   [3, 2, 4, 2], &
+                   [1, 2, 4, 2], &
+                   [3, 2, 4, 2], &
+                   [1, 2, 1, 3], &
+                   [1, 2, 3, 3], &
+                   [1, 2, 4, 3], &
+                   [2, 2, 3, 3], &
+                   [2, 2, 4, 3], &
+                   [1, 2, 3, 3], &
+                   [2, 2, 3, 3], &
+                   [1, 2, 4, 3], &
+                   [2, 2, 4, 3], &
+                   [1, 2, 1, 4], &
+                   [1, 2, 3, 4], &
+                   [1, 2, 4, 4], &
+                   [2, 2, 3, 4], &
+                   [2, 2, 4, 4], &
+                   [1, 2, 3, 4], &
+                   [2, 2, 3, 4], &
+                   [3, 2, 4, 4], &
+                   [1, 2, 4, 4], &
+                   [2, 2, 4, 4], &
+                   [3, 2, 4, 4], &
+                   [1, 2, 1, 3], &
+                   [1, 2, 3, 3], &
+                   [1, 2, 4, 3], &
+                   [2, 2, 3, 3], &
+                   [2, 2, 4, 3], &
+                   [1, 2, 3, 3], &
+                   [2, 2, 3, 3], &
+                   [1, 2, 4, 3], &
+                   [2, 2, 4, 3], &
+                   [1, 3, 1, 4], &
+                   [1, 3, 2, 4], &
+                   [1, 3, 4, 4], &
+                   [1, 3, 2, 4], &
+                   [2, 3, 4, 4], &
+                   [3, 3, 4, 4], &
+                   [1, 3, 4, 4], &
+                   [2, 3, 4, 4], &
+                   [3, 3, 4, 4], &
+                   [1, 2, 1, 4], &
+                   [1, 2, 3, 4], &
+                   [1, 2, 4, 4], &
+                   [2, 2, 3, 4], &
+                   [2, 2, 4, 4], &
+                   [1, 2, 3, 4], &
+                   [2, 2, 3, 4], &
+                   [3, 2, 4, 4], &
+                   [1, 2, 4, 4], &
+                   [2, 2, 4, 4], &
+                   [3, 2, 4, 4], &
+                   [1, 3, 1, 4], &
+                   [1, 3, 2, 4], &
+                   [1, 3, 4, 4], &
+                   [1, 3, 2, 4], &
+                   [2, 3, 4, 4], &
+                   [3, 3, 4, 4], &
+                   [1, 3, 4, 4], &
+                   [2, 3, 4, 4], &
+                   [3, 3, 4, 4]], &
+                [4, 65] &
+        )
+
+        call assert_equals(size(excitations), size(expected, 2))
+
+        do i = 1, size(excitations)
+            call assert_equals(excitations(i)%idx%val, expected(:, i), 4)
+        end do
+    end subroutine
+
+
 
 end module
 

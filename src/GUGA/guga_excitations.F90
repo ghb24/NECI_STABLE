@@ -13,7 +13,7 @@ module guga_excitations
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
                           thub
 
-    use constants, only: dp, n_int, bits_n_int, Root2, &
+    use constants, only: dp, n_int, bits_n_int, Root2, int64, &
                          EPS, bni_, bn2_, stdout, int_rdm
 
     use bit_reps, only: decode_bit_det
@@ -26,7 +26,9 @@ module guga_excitations
                          getDoubleMatrixElement, getMixedFullStop, &
                          WeightData_t, orbitalIndex, &
                          tag_excitations, tag_tmp_excits, &
-                         excit_type, ExcitationType_t, gen_type
+                         excit_type, ExcitationType_t, gen_type, &
+                         DistinctDouble_t, ijab_Index_t, ijkl_Index_t, &
+                         distinct_doubles
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                               setDeltaB, count_open_orbs_ij, &
@@ -90,6 +92,8 @@ module guga_excitations
         calc_mixed_end_contr_integral, calc_mixed_contr_pgen, calc_mixed_start_contr_pgen, &
         calc_mixed_end_contr_pgen
 
+    use growing_buffers, only: buffer_int64_1D_t
+
     better_implicit_none
 
     private
@@ -135,7 +139,8 @@ module guga_excitations
               calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
               calc_orbital_pgen_contrib_start_def, &
               calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga, &
-              csf_to_sds_ilut, csf_vector_to_sds, checkCompatibility_single
+              csf_to_sds_ilut, csf_vector_to_sds, checkCompatibility_single, &
+              gen_all_distinct_doubles
 
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and
@@ -16640,5 +16645,42 @@ contains
             end if
         end if
     end function checkCompatibility_single
+
+
+    function gen_all_distinct_doubles(csf_i) result(res)
+        !! This function returns all possible excitations for the orbital picker
+        !!
+        !! This means it considers only occupation, not spin recoupling.
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer(int64), allocatable :: res(:)
+
+        type(buffer_int64_1D_t) :: buffer
+        type(DistinctDouble_t) :: exc
+        type(ijkl_Index_t) :: idx
+
+        integer :: i, j, a, b
+
+        call buffer%init()
+
+        do i = 1, nSpatOrbs
+            if (csf_i%occ_int(i) == 0) cycle
+            do j = 1, nSpatOrbs
+                if (csf_i%occ_int(j) == 0) cycle
+                if (i == j .and. csf_i%occ_int(i) /= 2) cycle
+                do a = 1, nSpatOrbs
+                    do b = 1, nSpatOrbs
+                        if (a == b .and. csf_i%stepvector(b) /= 0) cycle
+                        idx = ijkl_Index_t([a, i, b, j])
+                        idx = idx%normalize()
+                        exc = DistinctDouble_t(idx)
+                        if (exc%typ == distinct_doubles%invalid) cycle
+                        call buffer%push_back(exc%fuse())
+                    end do
+                end do
+            end do
+        end do
+
+        call buffer%dump_reset(res)
+    end function
 
 end module guga_excitations

@@ -149,7 +149,7 @@ module guga_bitRepOps
     end type
 
     interface CSF_Info_t
-        module procedure construct_CSF_Info_t
+        module procedure construct_CSF_Info_t, construct_CSF_Info_t_StepVector_t
     end interface
 
     type(CSF_Info_t) :: current_csf_i
@@ -2795,6 +2795,43 @@ contains
         type(CSF_Info_t) :: csf_i
         call new_CSF_Info_t(nSpatOrbs, csf_i)
         call fill_csf_i(ilut, csf_i, idx_curr_dets)
+    end function
+
+
+    pure function construct_CSF_Info_t_StepVector_t(csf) result(res)
+        type(StepVector_t), intent(in) :: csf(:)
+        type(CSF_Info_t) :: res
+
+        integer :: b, i
+        real(dp) :: cum_sum
+
+        call new_CSF_Info_t(size(csf), res)
+
+        res%stepvector = csf%val
+        b = 0
+        cum_sum = 0
+        do i = 1, size(csf)
+            select case (res%stepvector(i))
+            case (0)
+                res%Occ_int(i) = 0
+                cum_sum = cum_sum + 1.0_dp
+            case (1)
+                res%Occ_int(i) = 1
+                b = b + 1
+                cum_sum = cum_sum + 1.0_dp
+            case (2)
+                res%Occ_int(i) = 1
+                b = b - 1
+                cum_sum = cum_sum + 1.0_dp
+            case (3)
+                res%Occ_int(i) = 2
+            end select
+
+            res%B_int(i) = b
+            res%cum_list(i) = cum_sum
+        end do
+        res%occ_real = real(res%occ_int, dp)
+        res%b_real = real(res%b_int, dp)
     end function
 
     elemental subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
