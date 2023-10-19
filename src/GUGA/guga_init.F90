@@ -7,7 +7,7 @@ module guga_init
                           nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
-                          tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
+                          tGen_nosym_guga, nSpatOrbs, ij_pairs, t_consider_diff_bias, &
                           treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
                           t_tJ_model
@@ -42,7 +42,7 @@ module guga_init
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
 
-    use constants, only: dp, int_rdm, n_int, stdout, inum_runs
+    use constants, only: dp, int_rdm, n_int, stdout, inum_runs, int64
 
     use MPI_wrapper, only: iProcIndex
 
@@ -54,6 +54,8 @@ module guga_init
     use back_spawn, only: setup_virtual_mask
 
     use util_mod, only: operator(.div.), stop_all
+
+    use indexing_mod, only: fuse_symm_idx
 
     use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i, csf_ref
 
@@ -170,6 +172,7 @@ contains
         ! i have to all this routine again from a point after freezing
         ! where the new number of NBasis is determined already..
         nSpatOrbs = nBasis .div. 2
+        ij_pairs = fuse_symm_idx(int(nSpatOrbs, int64), int(nSpatOrbs, int64))
 
         ! but also have to set up the global orbitalIndex list
         orbitalIndex = [(i, i = 1, nSpatOrbs)]
