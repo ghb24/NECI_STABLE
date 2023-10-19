@@ -5,10 +5,11 @@
 module guga_data
     use SystemData, only: nBasis, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
                           tNoBrillouin, tExactSizeSpace, tUHF, tGUGA, nSpatOrbs
-    use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_
+    use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_, int64
     use MemoryManager, only: TagIntType
     use bit_rep_data, only: BitRep_t, GugaBits
     use util_mod, only: EnumBase_t, swap
+    use indexing_mod, only: fuse_symm_idx
     use error_handling_neci, only: stop_all
 
     implicit none
@@ -352,6 +353,7 @@ module guga_data
         procedure :: convert => convert_ijkl_Index_t
         procedure :: normalize => normalize_ijkl_Index_t
         procedure :: is_normalized => is_normalized_ijkl_Index_t
+        procedure :: fuse => fuse_ijkl_Index_t
     end type
 
     type :: ijab_Index_t
@@ -1601,6 +1603,14 @@ contains
         class(ijkl_Index_t), intent(in) :: this
         logical :: res
         res = this%val(1) <= this%val(3) .and. this%val(2) <= this%val(4)
+    end function
+
+    elemental function fuse_ijkl_Index_t(this) result(res)
+        class(ijkl_Index_t), intent(in) :: this
+        integer(int64) :: res
+        ! res =          (fuse_symm_idx(this%val(1), this%val(3)), &
+        !                 fuse_symm_idx(this%val(2), this%val(4)))
+        call stop_all('asdf', 'asdf')
     end function
 
 end module

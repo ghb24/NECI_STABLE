@@ -3,7 +3,9 @@ module test_util_mod
     use fruit, only: run_test_case, assert_equals, assert_true
     use util_mod, only: stop_all
     use constants, only: int64, dp
-    use util_mod, only: choose_i64, fuseIndex, inv_fuse_index
+    use util_mod, only: choose_i64
+    use indexing_mod, only: fuse_symm_idx, inv_fuse_symm_idx, &
+        fuse_idx, inv_fuse_idx
     better_implicit_none
     private
     public :: test_driver
@@ -37,16 +39,36 @@ contains
 
 
     subroutine test_fuse()
+        integer, parameter :: n_rows = 100, n_cols = n_rows
 
-        integer :: i, j, ij, out_i, out_j
+        idx: block
+            integer :: i, j, ij, out_i, out_j
 
-        do i = 1, 1000
-            do j = i, 1000
-                ij = fuseIndex(i, j)
-                call inv_fuse_index(ij, out_i, out_j)
-                call assert_true(i == out_i .and. j == out_j)
+            do i = 1, n_rows
+                do j = 1, n_cols
+                    ij = fuse_idx(i, j, n_rows)
+                    call inv_fuse_idx(ij, n_rows, out_i, out_j)
+                    call assert_true(i == out_i .and. j == out_j)
+                end do
             end do
-        end do
+        end block idx
+
+
+        symm_idx: block
+            integer :: i, j, ij, out_i, out_j
+
+            do i = 1, n_rows
+                do j = 1, n_cols
+                    ij = fuse_symm_idx(i, j)
+                    call inv_fuse_symm_idx(ij, out_i, out_j)
+                    if (i <= j) then
+                        call assert_true(i == out_i .and. j == out_j)
+                    else
+                        call assert_true(j == out_i .and. i == out_j)
+                    end if
+                end do
+            end do
+        end block symm_idx
     end subroutine
 
 
@@ -74,4 +96,3 @@ program test_prog_util_mod
 
     call MPIEnd(.false.)
 end program test_prog_util_mod
-

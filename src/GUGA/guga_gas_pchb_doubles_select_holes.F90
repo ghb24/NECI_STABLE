@@ -8,8 +8,8 @@ module guga_gas_pchb_doubles_select_holes
     use guga_data, only: ExcitationInformation_t, &
         distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t
     use guga_bitrepops, only: CSF_Info_t
-    use util_mod, only: &
-        near_zero, fuseIndex, stop_all, operator(.isclose.), EnumBase_t
+    use util_mod, only: near_zero, stop_all, operator(.isclose.), EnumBase_t
+    use indexing_mod, only: fuse_symm_idx
     use CalcData, only: t_truncate_spawns
     use tau_main, only: tau_search_method, possible_tau_search_methods
     use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
@@ -564,12 +564,12 @@ contains
         supergroups = this%indexer%get_supergroups()
 
         ! initialize the mapping ab -> (a, b)
-        abMax = fuseIndex(nSpatOrbs, nSpatOrbs)
+        abMax = fuse_symm_idx(nSpatOrbs, nSpatOrbs)
         ijMax = abMax
         allocate(this%tgtOrbs(2, 0:abMax), source=0)
         do a = 1, nSpatOrbs
             do b = 1, a
-                ab = fuseIndex(a, b)
+                ab = fuse_symm_idx(a, b)
                 this%tgtOrbs(1, ab) = b
                 this%tgtOrbs(2, ab) = a
             end do
@@ -603,10 +603,10 @@ contains
         ! The info for double excitations is independent of the super group
         do i = 1, nSpatOrbs
             do j = i, nSpatOrbs
-                ij = fuseIndex(i, j)
+                ij = fuse_symm_idx(i, j)
                 do a = 1, nSpatOrbs
                     do b = a, nSpatOrbs
-                        ab = fuseIndex(a, b)
+                        ab = fuse_symm_idx(a, b)
                         call this%set_info_entry(ij, ab, get_info(ijab_Index_t([i, j, a, b])))
                     end do
                 end do
@@ -617,10 +617,10 @@ contains
             do i = 1, nSpatOrbs
                 do j = i, nSpatOrbs
                     w = 0.0_dp
-                    ij = fuseIndex(i, j)
+                    ij = fuse_symm_idx(i, j)
                     do a = 1, nSpatOrbs
                         do b = a, nSpatOrbs
-                            ab = fuseIndex(a, b)
+                            ab = fuse_symm_idx(a, b)
                             if (iProcIndex_intra == rank_with_info) then
                                 associate(exc => DistinctDouble_t(ijab_Index_t([i, j, a, b])))
                                 if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. symmetry_allowed(exc)) then
@@ -674,7 +674,7 @@ contains
 
         ! use the sampler for this electron pair -> order of src electrons
         ! does not matter
-        ij = fuseIndex(src(1), src(2))
+        ij = fuse_symm_idx(src(1), src(2))
 
         ! get a pair of orbitals using the precomputed weights
         call this%alias_sampler%sample(ij, i_sg, ab, pgen_orbs)
@@ -733,8 +733,8 @@ contains
 
         ! i, j, k and l entries have the info about the electrons and
         ! holes of the excitation: E_{ij}E_{kl} is the convention ...
-        ij = fuseIndex(excitInfo%j, excitInfo%l)
-        ab = fuseIndex(excitInfo%i, excitInfo%k)
+        ij = fuse_symm_idx(excitInfo%j, excitInfo%l)
+        ab = fuse_symm_idx(excitInfo%i, excitInfo%k)
 
         p_elec = this%particle_selector%get_pgen(nI, csf_i, excitInfo%i_sg_start, excitInfo%j, excitInfo%l)
         pgen = p_elec * this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ab)
@@ -762,13 +762,13 @@ contains
         ! i think i have to consider both the above and below contribution..
         ! but i am not so sure how.. in this PCHB case..
         ! maybe in PCHB those 2 are just the same.. i am confused
-        ij = fuseIndex(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
+        ij = fuse_symm_idx(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
 
         ! and both I and J are electron and hole indices here
         above_cpt = this%alias_sampler%get_prob(ij, i_sg, ij) / 2.0_dp
 
         ! TODO(@Werner): I think this here is the right one!
-        above_cpt = this%alias_sampler%get_prob(ij, i_sg, ij)
+        ! above_cpt = this%alias_sampler%get_prob(ij, i_sg, ij)
 
         ! but since they will get added in later routines i actually have
         ! do divide by 2 here..
@@ -799,8 +799,8 @@ contains
         ASSERT(i < orb_a)
 
         ! here i is both electron and hole index!
-        ij = fuseIndex(i, j)
-        ab = fuseIndex(i, orb_a)
+        ij = fuse_symm_idx(i, j)
+        ab = fuse_symm_idx(i, orb_a)
 
         orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_start
@@ -829,8 +829,8 @@ contains
         ASSERT(orb_a < j)
 
         ! j here is both elec and hole ind!
-        ij = fuseIndex(i, j)
-        ab = fuseIndex(orb_a, j)
+        ij = fuse_symm_idx(i, j)
+        ab = fuse_symm_idx(orb_a, j)
 
         orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_end

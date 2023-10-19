@@ -13,6 +13,7 @@ contains
         call run_test_case(test_indices, "test_indices")
         call run_test_case(test_distinct_double_type, "test_distinct_double_type")
         call run_test_case(test_distinct_double, "test_distinct_double_type")
+        ! call run_test_case(test_fuse, "test_fuse")
     end subroutine
 
     subroutine test_indices()

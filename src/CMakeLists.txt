@@ -431,6 +431,7 @@ set( FYPP_SRC_FILES
     hist.fpp
     lib/parallel_hdf5_utils.fpp
     lib/util_mod.fpp
+    lib/indexing_mod.fpp
     lib/basic_float_math.fpp
     lib/matrix_util.fpp
     sets_mod.fpp
