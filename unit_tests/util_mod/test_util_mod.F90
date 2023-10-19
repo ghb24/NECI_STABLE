@@ -1,9 +1,9 @@
 #include "macros.h"
 module test_util_mod
-    use fruit, only: run_test_case, assert_equals
+    use fruit, only: run_test_case, assert_equals, assert_true
     use util_mod, only: stop_all
-    use constants, only: int64
-    use util_mod, only: choose_i64
+    use constants, only: int64, dp
+    use util_mod, only: choose_i64, fuseIndex, inv_fuse_index
     better_implicit_none
     private
     public :: test_driver
@@ -13,6 +13,8 @@ contains
     subroutine test_driver()
 
         call run_test_case(test_binomial, "test_binomial")
+
+        call run_test_case(test_fuse, "test_fuse")
 
     end subroutine
 
@@ -32,6 +34,21 @@ contains
         call assert_equals(-1, choose_i64(100, 50, signal_overflow=.true.))
 
     end subroutine
+
+
+    subroutine test_fuse()
+
+        integer :: i, j, ij, out_i, out_j
+
+        do i = 1, 1000
+            do j = i, 1000
+                ij = fuseIndex(i, j)
+                call inv_fuse_index(ij, out_i, out_j)
+                call assert_true(i == out_i .and. j == out_j)
+            end do
+        end do
+    end subroutine
+
 
 end module
 

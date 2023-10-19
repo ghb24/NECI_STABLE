@@ -57,7 +57,7 @@ module util_mod
     public :: arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.), &
         find_next_comb, binary_search_ilut, binary_search_custom, binary_search_first_ge, &
         cumsum, pairswap, swap, lex_leq, lex_geq, &
-        get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
+        get_permutations, custom_findloc, addToIntArray, fuseIndex, inv_fuse_index, linearIndex, &
         getSpinIndex, binary_search_int, binary_search_real, clamp
     public :: warning_neci
 
@@ -144,6 +144,10 @@ module util_mod
         module procedure fuseIndex_int32
         module procedure fuseIndex_int64
     end interface fuseIndex
+
+    interface inv_fuse_index
+        module procedure inv_fuse_index_int32, inv_fuse_index_int64
+    end interface
 
     interface swap
         module procedure swap_int64
@@ -437,12 +441,48 @@ contains
         integer(int64), intent(in) :: x, y
         integer(int64) :: xy
 
-        if(x < y) then
+        if (x <= y) then
             xy = x + y * (y - 1) / 2
         else
             xy = y + x * (x - 1) / 2
         endif
     end function fuseIndex_int64
+
+
+    elemental subroutine inv_fuse_index_int64(xy, x, y)
+        !! Invert the fuseIndex routine
+        !!
+        !! Returns index pair x <= y for the fused index xy.
+        !! This assumes that the underlying matrix is symmetric,
+        !! i.e. (x, y) and (y, x) map to the same xy.
+        integer(int64), intent(in) :: xy
+            !! The fused index
+        integer(int64), intent(out) :: x, y
+            !! The index pair x <= y
+
+        y = ceiling(-0.5_dp + sqrt(0.25_dp + real(2_int64 * xy, kind=dp)), kind=int64)
+        x = xy - fuseindex(1_int64, y) + 1_int64
+    end subroutine
+
+
+    elemental subroutine inv_fuse_index_int32(xy, x, y)
+        !! Invert the fuseIndex routine
+        !!
+        !! Returns index pair x <= y for the fused index xy.
+        !! This assumes that the underlying matrix is symmetric,
+        !! i.e. (x, y) and (y, x) map to the same xy.
+        integer, intent(in) :: xy
+            !! The fused index
+        integer, intent(out) :: x, y
+            !! The index pair x <= y
+
+        integer(int64) :: tmp_x, tmp_y
+
+        call inv_fuse_index(int(xy, int64), tmp_x, tmp_y)
+        x = int(tmp_x)
+        y = int(tmp_y)
+    end subroutine
+
 
 !------------------------------------------------------------------------------------------!
 
