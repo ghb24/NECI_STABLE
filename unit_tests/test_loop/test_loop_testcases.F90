@@ -2,7 +2,7 @@
 
 module test_loop_testcases
     use test_loop_helpers, only: test_loop_factory
-    use unit_test_helper_excitgen, only: FciDumpWriter_t, InputWriter_t
+    use unit_test_helper_fcidumps, only: InputWriter_t, HeFciDumpWriter_t
     implicit none
     private
     public :: test_loop_4ind_wghtd_2, test_loop_pchb, test_loop_guga
@@ -18,11 +18,6 @@ module test_loop_testcases
         procedure(ptr_to_unit_writer_t), nopass, pointer :: ptr_write_to_unit => null()
     contains
         procedure :: write_to_unit
-    end type
-
-    type, extends(FciDumpWriter_t) :: HeFciDumpWriter_t
-    contains
-        procedure :: write_to_unit => HeFciDumpWriter_t_write_to_unit
     end type
 
 contains
@@ -100,27 +95,6 @@ contains
     end subroutine create_input
 
 
-    !> FCIDUMP file for 1s and 2s orbital of He-atom.
-    subroutine write_He_fcidump(unit_id)
-        integer, intent(in) :: unit_id
-        write(unit_id, '(A)') ' &FCI NORB=2,NELEC=2,MS2=0,'
-        write(unit_id, '(A)') '  ORBSYM=1,1,'
-        write(unit_id, '(A)') '  ISYM=0'
-        write(unit_id, '(A)') ' &END'
-        write(unit_id, '(A)') '     1.0232804328        1    1    1    1'
-        write(unit_id, '(A)') '   -0.32447343993        2    1    1    1'
-        write(unit_id, '(A)') '    0.24653188123        2    1    2    1'
-        write(unit_id, '(A)') '    0.89791396824        2    2    1    1'
-        write(unit_id, '(A)') '   -0.30190988085        2    2    2    1'
-        write(unit_id, '(A)') '    0.84005597186        2    2    2    2'
-        write(unit_id, '(A)') '    -1.9424691161        1    1    0    0'
-        write(unit_id, '(A)') '    0.32447343993        2    1    0    0'
-        write(unit_id, '(A)') '    0.52336359664E-02    2    2    0    0'
-        write(unit_id, '(A)') '   -0.91919000000        1    0    0    0'
-        write(unit_id, '(A)') '     1.5545000000        2    0    0    0'
-        write(unit_id, '(A)') '     0.0000000000        0    0    0    0'
-    end subroutine
-
     subroutine test_loop_pchb()
         call test_loop_factory(&
                 RunTimePointerInputWriter_t(ptr_write_to_unit=create_input_pchb, filepath='NECI_input'), &
@@ -165,13 +139,6 @@ contains
         class(RunTimePointerInputWriter_t), intent(in) :: this
         integer, intent(in) :: iunit
         call this%ptr_write_to_unit(iunit)
-    end subroutine
-
-    subroutine HeFciDumpWriter_t_write_to_unit(this, iunit)
-        class(HeFciDumpWriter_t), intent(in) :: this
-        integer, intent(in) :: iunit
-        unused_var(this)
-        call write_He_fcidump(iunit)
     end subroutine
 end module test_loop_testcases
 

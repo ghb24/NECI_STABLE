@@ -289,11 +289,11 @@ contains
     end subroutine
 
 
-    subroutine pickOrbitals_single(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbitals_single(this, nI, ilut, csf_i, excitInfo, pgen)
         debug_function_name("pickOrbitals_single")
         class(GAS_UniformExcGenerator_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -511,10 +511,10 @@ contains
     end subroutine
 
 
-    subroutine pickOrbitals_GAS_Weighted_t(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbitals_GAS_Weighted_t(this, nI, ilut, csf_i, excitInfo, pgen)
         class(GAS_Weighted_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen

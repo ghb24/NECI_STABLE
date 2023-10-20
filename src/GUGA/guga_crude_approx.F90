@@ -47,7 +47,7 @@ module guga_crude_approx_mod
 
 contains
 
-    subroutine create_crude_guga_single(ilut, nI, csf_i, exc, pgen, excitInfo_in)
+    subroutine create_crude_guga_single(nI, ilut, csf_i, exc, pgen, excitInfo_in)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -341,7 +341,7 @@ contains
         if (present(excitInfo_in)) then
             excitInfo = excitInfo_in
         else
-            call pickOrbitals_double(ilut, nI, csf_i, excitInfo, orb_pgen)
+            call pickOrbitals_double(nI, ilut, csf_i, excitInfo, orb_pgen)
 
             if (.not. excitInfo%valid) then
                 ! if no valid indices were picked, return 0 excitation and return

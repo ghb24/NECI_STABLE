@@ -107,7 +107,7 @@ contains
         use SystemData, only: tHPHF, nel
         use guga_matrixElements, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
-        use guga_bitrepops, only: new_CSF_Info_t, fill_csf_i
+        use guga_bitrepops, only: new_CSF_Info_t, fill_csf_i, calc_step_vector
         use bit_rep_data, only: nifd
         integer(n_int), intent(in) :: ilut_list(0:, :)
         HElement_t(dp), intent(inout), allocatable :: local_hamil(:, :)
@@ -139,11 +139,11 @@ contains
         call new_CSF_Info_t(nSpatOrbs, csf_j)
         do i = 1, ndets
             call decode_bit_det(nI, ilut_list(:, i))
-            if (tGUGA) call fill_csf_i(ilut_list(0:nifd, i), csf_i)
+            if (tGUGA) call fill_csf_i(calc_step_vector(ilut_list(0:nifd, i)), csf_i)
 
             do j = i, ndets
                 call decode_bit_det(nJ, ilut_list(:, j))
-                if (tGUGA) call fill_csf_i(ilut_list(:, j), csf_j)
+                if (tGUGA) call fill_csf_i(calc_step_vector(ilut_list(:, j)), csf_j)
                 if (i == j) then
                     if (tHPHF) then
                         local_hamil(i, i) = hphf_diag_helement(nI, ilut_list(:, i))

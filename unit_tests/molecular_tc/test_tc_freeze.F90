@@ -3,8 +3,8 @@ program test_tc_freeze
     use Parallel_neci, only: MPIInit, MPIEnd, iProcIndex_intra
     use fruit, only: init_fruit, fruit_summary, fruit_finalize, &
                      get_failed_count, run_test_case, assert_true
-    use unit_test_helper_excitgen, only: generate_random_integrals, &
-        RandomFciDumpWriter_t, init_excitgen_test
+    use unit_test_helper_excitgen, only: init_excitgen_test
+    use unit_test_helper_fcidumps, only: RandomFcidumpWriter_t
     use util_mod, only: operator(.isclose.), operator(.div.), stop_all, &
         get_free_unit
     use sltcnd_mod, only: initSltCndPtr, dyn_sltcnd_excit

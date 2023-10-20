@@ -4,9 +4,8 @@ module test_sltcnd_mod
     use sets_mod, only: operator(.complement.)
 
     use bit_reps, only: decode_bit_det
-    use unit_test_helper_excitgen, only: &
-        init_excitgen_test, finalize_excitgen_test, &
-        generate_random_integrals, RandomFcidumpWriter_t
+    use unit_test_helper_excitgen, only: init_excitgen_test, finalize_excitgen_test
+    use unit_test_helper_fcidumps, only: RandomFcidumpWriter_t
     use symexcit3, only: gen_excits
     use excitation_types, only: Excitation_t, Excite_0_t, Excite_1_t, &
         Excite_2_t, Excite_3_t, get_excitation, excite

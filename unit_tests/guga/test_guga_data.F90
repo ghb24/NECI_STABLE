@@ -220,7 +220,6 @@ contains
 
     subroutine test_gen_all_excits()
         type(CSF_Info_t) :: csf_i
-        integer(int64), allocatable :: idx_excitations(:)
         type(DistinctDouble_t), allocatable :: excitations(:)
         integer, allocatable :: expected(:, :)
 
@@ -229,8 +228,7 @@ contains
         nSpatOrbs = 4
 
         csf_i = CSF_Info_t([s0, s2, u, d])
-        idx_excitations = gen_all_distinct_doubles(csf_i)
-        excitations = fused_to_DistinctDouble(idx_excitations(:))
+        excitations = gen_all_distinct_doubles(csf_i)
 
         expected = reshape( [ &
                    [1, 2, 1, 2], &

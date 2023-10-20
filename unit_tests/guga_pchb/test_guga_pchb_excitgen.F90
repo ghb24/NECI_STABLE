@@ -11,8 +11,8 @@ module test_guga_pchb_mod
     USE OneEInts, only: TMAT2D
     use DetCalc, only: DetCalcInit
     use Determinants, only: DetInit, DetPreFreezeInit
-    use unit_test_helper_excitgen, only: generate_uniform_integrals, init_guga_testsuite, finalize_guga_testuite, &
-            generate_random_integrals, FciDumpWriter_t
+    use unit_test_helper_excitgen, only: init_guga_testsuite, finalize_guga_testuite, &
+            FciDumpWriter_t
     use orb_idx_mod, only: sum, calc_spin_raw
     use LoggingData, only: tExplicitAllRDM, tRDMonFly
     use bit_reps, only: init_bit_rep
@@ -174,7 +174,7 @@ contains
             type(csf_info_t), intent(in) :: csf_i
             type(excitationinformation_t), intent(out) :: excitinfo
             real(dp), intent(out) :: pgen
-            call exc_generator%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+            call exc_generator%pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
         end subroutine
 
     end subroutine pick_orbitals_pure_uniform_singles_test

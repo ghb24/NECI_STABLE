@@ -11,8 +11,8 @@ module test_gasci_on_the_fly_heat_bath
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: &
-        init_excitgen_test, finalize_excitgen_test, &
-        FciDumpWriter_t, RandomFcidumpWriter_t
+        init_excitgen_test, finalize_excitgen_test
+    use unit_test_helper_fcidumps, only: RandomFcidumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private

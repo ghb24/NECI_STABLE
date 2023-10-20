@@ -911,14 +911,14 @@ contains
 
     end function calc_pgen_tJ_model
 
-    subroutine pick_orbitals_guga_tJ(ilut, nI, csf_i, excitInfo, orb_pgen)
+    subroutine pick_orbitals_guga_tJ(nI, ilut, csf_i, excitInfo, orb_pgen)
         ! orbital picking routine for the GUGA t-J model.
         ! the most effective way would be to pick a hole first, instead
         ! of an random electron, so the chance of a succesful hop
         ! increases.. but I might be too lazy for now to do that
         ! actually.
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
@@ -1013,11 +1013,11 @@ contains
 
     end subroutine gen_guga_tJ_cum_list
 
-    subroutine pick_orbitals_guga_heisenberg(ilut, nI, csf_i, excitInfo, orb_pgen)
+    subroutine pick_orbitals_guga_heisenberg(nI, ilut, csf_i, excitInfo, orb_pgen)
         ! i "just" need to implement a custom orbital picker for the
         ! spin-free Heisenberg exchange
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen

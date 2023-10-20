@@ -26,7 +26,8 @@ module gasci
     private
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
-        get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS
+        get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
+        CAS_spec
 
 ! Are we restricting excitations
     logical :: tGAS = .false.
@@ -1251,6 +1252,15 @@ contains
     pure logical function tGUGA_GAS()
         !! Doing GAS in GUGA space
         tGUGA_GAS = tGAS .and. tGUGA
+    end function
+
+
+    type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
+        integer, intent(in) :: n_el, n_spat_orbs
+        integer :: i
+        ! It does not matter if we use local or cumulative GAS
+        ! constraints
+        CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
     end function
 
 end module gasci

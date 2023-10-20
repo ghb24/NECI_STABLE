@@ -1,20 +1,24 @@
 #include "macros.h"
+
 module guga_base_class
+    !! This contains the base classes for the **orbital picking**.
     use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm
     use bit_rep_data, only: IlutBits, GugaBits
     use SystemData, only: nel
     use FciMCData, only: pSingles, pDoubles
-    use guga_data, only: ExcitationInformation_t, gen_type, excit_type
+    use guga_data, only: ExcitationInformation_t, gen_type, excit_type, DistinctDouble_t, &
+        ijkl_Index_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_excitations, only: get_excit_level_from_excitInfo
+    use sets_mod, only: is_sorted
     use error_handling_neci, only: stop_all
-    use util_mod, only: EnumBase_t
+    use util_mod, only: EnumBase_t, operator(.isclose.), binary_search_int
 
     better_implicit_none
     private
     public :: GUGABase_t, AbInitGUGABase_t, SinglesGUGABase_t, DoublesGUGABase_t, &
         GUGA_ExcGenerator_t, GUGA_ExcGenerator_vals_t, GUGA_exc_generator_vals, &
-        GUGA_selected_exc_generator
+        GUGA_selected_exc_generator, test_pgen, Entry_t
 
 
     type, extends(EnumBase_t) :: GUGA_ExcGenerator_t
@@ -68,6 +72,8 @@ module guga_base_class
         procedure(DoublesCalcOrbitalPgenContr_t), deferred :: calc_orbital_pgen_contr_start
         procedure(DoublesCalcOrbitalPgenContr_t), deferred :: calc_orbital_pgen_contr_end
         procedure(Doublescalc_orbital_pgen_contr_t), deferred :: calc_orbital_pgen_contr
+
+        procedure(Doubles_gen_all_distinct_doubles), deferred :: gen_all_distinct
     end type
 
     type, abstract, extends(GUGABase_t) :: AbInitGUGABase_t
@@ -94,7 +100,7 @@ module guga_base_class
     class(GUGABase_t), allocatable :: GUGA_exc_generator
 
     abstract interface
-        subroutine PickOrbitals_t(this, ilut, nI, csf_i, excitInfo, pgen)
+        subroutine PickOrbitals_t(this, nI, ilut, csf_i, excitInfo, pgen)
             import :: GUGABase_t, dp, n_int, GugaBits, CSF_Info_t, ExcitationInformation_t, nel
             implicit none
             class(GUGABase_t), intent(in) :: this
@@ -105,7 +111,7 @@ module guga_base_class
             real(dp), intent(out) :: pgen
         end subroutine PickOrbitals_t
 
-        subroutine SinglesPickOrbitals_t(this, ilut, nI, csf_i, excitInfo, pgen)
+        subroutine SinglesPickOrbitals_t(this, nI, ilut, csf_i, excitInfo, pgen)
             import :: SinglesGUGABase_t, dp, n_int, GugaBits, CSF_Info_t, ExcitationInformation_t, nel
             implicit none
             class(SinglesGUGABase_t), intent(in) :: this
@@ -116,7 +122,7 @@ module guga_base_class
             real(dp), intent(out) :: pgen
         end subroutine
 
-        subroutine DoublesPickOrbitals_t(this, ilut, nI, csf_i, excitInfo, pgen)
+        subroutine DoublesPickOrbitals_t(this, nI, ilut, csf_i, excitInfo, pgen)
             import :: DoublesGUGABase_t, dp, n_int, GugaBits, CSF_Info_t, ExcitationInformation_t, nel
             implicit none
             class(DoublesGUGABase_t), intent(in) :: this
@@ -164,6 +170,17 @@ module guga_base_class
             real(dp), intent(out) :: above_cpt, below_cpt
         end subroutine
 
+        pure function Doubles_gen_all_distinct_doubles(this, csf_i) result(res)
+            !! This function returns all possible excitations for the orbital picker
+            !!
+            !! This means it considers only occupation, not spin recoupling.
+            import :: DoublesGUGABase_t, CSF_Info_t, DistinctDouble_t
+            implicit none
+            class(DoublesGUGABase_t), intent(in) :: this
+            type(CSF_Info_t), intent(in) :: csf_i
+            type(DistinctDouble_t), allocatable :: res(:)
+        end function
+
 
         function CalcPgen_t(this, nI, ilutI, csf_i, excitInfo) result(pgen)
             import :: GUGABase_t, dp, CSF_Info_t, n_int, GUGABits, ExcitationInformation_t, nEl
@@ -205,6 +222,12 @@ module guga_base_class
         end subroutine
     end interface
 
+    type :: Entry_t
+        integer(int64) :: key
+        type(DistinctDouble_t) :: exc
+        integer(int64) :: accum = 0_int64
+    end type
+
 contains
 
     subroutine finalize_guga_class()
@@ -212,22 +235,22 @@ contains
         deallocate(GUGA_exc_generator)
     end subroutine
 
-    subroutine class_pick_singles(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine class_pick_singles(nI, ilut, csf_i, excitInfo, pgen)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call GUGA_exc_generator%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call GUGA_exc_generator%pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
-    subroutine class_pick_doubles(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine class_pick_doubles(nI, ilut, csf_i, excitInfo, pgen)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call GUGA_exc_generator%pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call GUGA_exc_generator%pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
     subroutine class_calc_orb_pgen_contr(csf_i, occ_orbs, cpt_a, cpt_b)
@@ -262,24 +285,24 @@ contains
         pgen = GUGA_exc_generator%calc_pgen(nI, ilutI, csf_i, excitInfo)
     end function
 
-    subroutine AbInitGUGABase_t_pickOrbitals_single(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine AbInitGUGABase_t_pickOrbitals_single(this, nI, ilut, csf_i, excitInfo, pgen)
         class(AbInitGUGABase_t), intent(in) :: this
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call this%singles_generator%pickOrbitals(ilut, nI, csf_i, excitInfo, pgen)
+        call this%singles_generator%pickOrbitals(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
-    subroutine AbInitGUGABase_t_pickOrbitals_double(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine AbInitGUGABase_t_pickOrbitals_double(this, nI, ilut, csf_i, excitInfo, pgen)
         class(AbInitGUGABase_t), intent(in) :: this
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call this%doubles_generator%pickOrbitals(ilut, nI, csf_i, excitInfo, pgen)
+        call this%doubles_generator%pickOrbitals(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
     subroutine AbInitGUGABase_t_calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)
@@ -330,4 +353,43 @@ contains
             call stop_all(this_routine, 'Should not be here')
         end select
     end function
+
+
+    subroutine test_pgen(doubles_generator, csf_i, n_iter, entries)
+        class(DoublesGUGABase_t), intent(in) :: doubles_generator
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: n_iter
+        type(Entry_t), intent(out), allocatable :: entries(:)
+        routine_name("test_pgen")
+
+        integer :: i, nI(nEl)
+        integer(n_int) :: ilut(0:GugaBits%len_tot)
+
+        nI = csf_i%to_nI()
+        ilut = csf_i%to_ilut()
+
+        block
+            type(DistinctDouble_t), allocatable :: excitations(:)
+            excitations = doubles_generator%gen_all_distinct(csf_i)
+            entries = [(Entry_t(excitations(i)%fuse(), excitations(i)), i = 1, size(excitations))]
+            ASSERT(is_sorted(entries%key))
+        end block
+
+        do i = 1, n_iter
+        block
+            type(ExcitationInformation_t) :: excit_info
+            type(ijkl_Index_t) :: idx
+            integer(int64) :: pos
+            real(dp) :: pgen
+            call doubles_generator%pickOrbitals(nI, ilut, csf_i, excit_info, pgen)
+            if (.not. (pgen .isclose. doubles_generator%calc_pgen(nI, ilut, csf_i, excit_info))) then
+                call stop_all(this_routine, 'p_gen does not match')
+            end if
+
+            idx = ijkl_Index_t([excit_info%i, excit_info%j, excit_info%k, excit_info%l])
+            pos = binary_search_int(entries%key, idx%fuse())
+            entries(pos)%accum = entries(pos)%accum + 1
+        end block
+        end do
+    end subroutine
 end module

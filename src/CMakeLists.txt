@@ -175,6 +175,7 @@ set( SRC_FILES
     UMatCache.F90
     tc_precomputed_excitgen.F90
     unit_test_helper_excitgen.F90
+    unit_test_helper_fcidumps.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90

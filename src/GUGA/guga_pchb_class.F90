@@ -7,7 +7,7 @@ module guga_pchb_class
     use guga_data, only: ExcitationInformation_t
     use guga_bitrepops, only: CSF_Info_t
     use guga_base_class, only: GUGABase_t
-    use gasci, only: LocalGASSpec_t
+    use gasci, only: CAS_spec
     use input_parser_mod, only: TokenIterator_t
     use guga_gas_pchb_main, only: &
         GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
@@ -58,16 +58,6 @@ contains
         type(FCI_PCHB_options_t), intent(in) :: options
         call this%GAS_sampler%init(CAS_spec(nEl, nSpatOrbs), &
             translate_to_GAS(options))
-
-    contains
-
-        type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
-            integer, intent(in) :: n_el, n_spat_orbs
-            integer :: i
-            ! It does not matter if we use local or cumulative GAS
-            ! constraints
-            CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
-        end function
     end subroutine
 
     subroutine finalize(this)
@@ -76,24 +66,24 @@ contains
     end subroutine
 
 
-    subroutine pickorbitals_single(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickorbitals_single(this, nI, ilut, csf_i, excitInfo, pgen)
         class(PCHB_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call this%GAS_sampler%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call this%GAS_sampler%pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
-    subroutine pickorbitals_double(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickorbitals_double(this, nI, ilut, csf_i, excitInfo, pgen)
         class(PCHB_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call this%GAS_sampler%pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call this%GAS_sampler%pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
     subroutine calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)

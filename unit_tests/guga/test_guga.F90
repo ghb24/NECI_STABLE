@@ -23,7 +23,7 @@ program test_guga
         extract_2_rdm_ind, extract_1_rdm_ind, contract_2_rdm_ind, &
         encode_excit_info_indices, extract_excit_info_indices, &
         encode_excit_info_type, extract_excit_info_type, &
-        extract_excit_info, encode_excit_info, convert_guga_to_ni, &
+        extract_excit_info, encode_excit_info, convert_stepvector_to_nI, &
         identify_excitation, write_det_guga, findlastswitch, findfirstswitch, &
         count_beta_orbs_ij, count_alpha_orbs_ij, getspatialoccupation, &
         convert_ilut_toguga, extract_excit_lvl_rdm, extract_excit_type_rdm, &
@@ -2096,8 +2096,8 @@ contains
         allocate (nJ(nel))
         nJ = [1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18]
 
-        print *, convert_guga_to_ni([3, 3, 3, 3, 3, 3, 3])
-        print *, convert_guga_to_ni([3, 1, 1, 3, 3, 3, 3, 2, 2])
+        print *, convert_stepvector_to_nI([3, 3, 3, 3, 3, 3, 3])
+        print *, convert_stepvector_to_nI([3, 1, 1, 3, 3, 3, 3, 2, 2])
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
@@ -2109,7 +2109,7 @@ contains
         ! nI: 3331212123
         nI = [1, 2, 3, 4, 5, 6, 7, 10, 11, 14, 15, 18, 19, 20]
         ! nJ: 311212121322
-        nJ = convert_guga_to_ni([3, 1, 1, 2, 1, 2, 1, 2, 1, 3, 2, 2])
+        nJ = convert_stepvector_to_nI([3, 1, 1, 2, 1, 2, 1, 2, 1, 3, 2, 2])
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
@@ -6448,7 +6448,7 @@ contains
         print *, "testing pickOrbitals_double(ilut, excitLvl):"
         print *, ""
         ! 3300
-        call pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
 
         if (excitInfo%valid) then
             ! what can i test here?
@@ -6460,7 +6460,7 @@ contains
             call assert_equals(-1, excitInfo%gen2)
         end if
 
-        call pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
 
         if (excitInfo%valid) then
             ! what can i test here?
@@ -6477,7 +6477,7 @@ contains
         csf_i = CSF_Info_t(ilut)
 
         ! 0033
-        call pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
 
         if (excitInfo%valid) then
             ! what can i test here?
@@ -6489,7 +6489,7 @@ contains
             call assert_equals(1, excitInfo%gen2)
         end if
 
-        call pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
 
         if (excitInfo%valid) then
             ! what can i test here?
@@ -6505,7 +6505,7 @@ contains
         call EncodeBitDet_guga(nI, ilut)
         csf_i = CSF_Info_t(ilut)
 
-        call pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
 
         if (excitInfo%valid) then
             call assert_true(pgen > EPS)
@@ -6872,7 +6872,7 @@ contains
         print *, ""
 
         ! 3300
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
@@ -6882,7 +6882,7 @@ contains
             call assert_true(excitInfo%gen1 == -1)
         end if
 
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
@@ -6891,7 +6891,7 @@ contains
             call assert_true(excitInfo%gen1 == -1)
         end if
 
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
@@ -6906,7 +6906,7 @@ contains
 
         csf_i = CSF_Info_t(ilut)
 
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
@@ -6916,7 +6916,7 @@ contains
             call assert_true(excitInfo%gen1 == 1)
         end if
 
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
@@ -6925,7 +6925,7 @@ contains
             call assert_true(excitInfo%gen1 == 1)
         end if
 
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
@@ -6941,13 +6941,13 @@ contains
         csf_i = CSF_Info_t(ilut)
 
         ! 1212
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
         end if
 
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)

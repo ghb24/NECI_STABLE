@@ -119,7 +119,7 @@ module FciMCParMod
 
     use guga_main, only: generate_excitation_guga
     use guga_excitations, only: global_excitInfo
-    use guga_bitrepops, only: fill_csf_i, current_csf_i
+    use guga_bitrepops, only: fill_csf_i, current_csf_i, calc_step_vector
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &
@@ -1498,7 +1498,7 @@ contains
             ! the csf_irmation out here, so it can be used in the
             ! new way to calculate the reference energy and then the flag
             ! does not have to be checked each time we loop over the walkers..
-            if (tGUGA) call fill_csf_i(CurrentDets(0:nifd, j), current_csf_i, idx_curr_dets=j)
+            if (tGUGA) call fill_csf_i(calc_step_vector(CurrentDets(0:nifd, j)), current_csf_i, idx_curr_dets=j)
 
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.

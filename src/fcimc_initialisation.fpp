@@ -311,7 +311,7 @@ module fcimc_initialisation
 
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
-                              calc_csf_i, CSF_Info_t, csf_ref, fill_csf_i
+                              calc_csf_i, CSF_Info_t, csf_ref, fill_csf_i, calc_step_vector
 
     use guga_main, only: generate_excitation_guga
     use guga_excitations, only: actHamiltonian
@@ -602,7 +602,7 @@ contains
 
         if (tGUGA) then
             do run = 1, inum_runs
-                call fill_csf_i(ilutRef(:, run), csf_ref(run))
+                call fill_csf_i(calc_step_vector(ilutRef(:, run)), csf_ref(run))
             end do
         end if
 

@@ -28,7 +28,7 @@ module guga_excitations
                          tag_excitations, tag_tmp_excits, &
                          excit_type, ExcitationType_t, gen_type, &
                          DistinctDouble_t, ijab_Index_t, ijkl_Index_t, &
-                         distinct_doubles
+                         distinct_doubles, fused_to_DistinctDouble
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                               setDeltaB, count_open_orbs_ij, &
@@ -12369,7 +12369,7 @@ contains
         ! but only for the molecular for now!
 
         ! i need the orbital picking part of pgen:
-        p_orbs = calc_pgen_mol_guga_single_orbs(ilutI, nI, csf_i, excitInfo)
+        p_orbs = calc_pgen_mol_guga_single_orbs(nI, ilutI, csf_i, excitInfo)
 
         p_guga = calc_pgen_mol_guga_single_guga(nI, ilutI, excitInfo)
 
@@ -12397,9 +12397,9 @@ contains
 
     end function calc_pgen_mol_guga_single_guga
 
-    function calc_pgen_mol_guga_single_orbs(ilut, nI, csf_i, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilut(0:niftot)
+    function calc_pgen_mol_guga_single_orbs(nI, ilut, csf_i, excitInfo) result(pgen)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
@@ -12476,14 +12476,14 @@ contains
 
     end subroutine get_orbs_from_excit_info
 
-    subroutine pickOrbs_sym_uniform_mol_single(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_single(nI, ilut, csf_i, excitInfo, pgen)
         ! new implementation to pick single orbitals, more similar to the
         ! other neci implementations
         ! with this new looping over other orbitals it will probably also
         ! be easier to include the neccesarry switch conditions!
         ! this also applies for double excitations!! -> think about that !
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -12724,9 +12724,9 @@ contains
 
     end subroutine gen_cum_list_real_hub_3
 
-    subroutine pickOrbs_real_hubbard_double(ilut, nI, csf_i, excitInfo, pgen)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+    subroutine pickOrbs_real_hubbard_double(nI, ilut, csf_i, excitInfo, pgen)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -12738,12 +12738,12 @@ contains
                       "should not be at double excitations in the real-space hubbard model!")
     end subroutine pickOrbs_real_hubbard_double
 
-    subroutine pickOrbs_real_hubbard_single(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_real_hubbard_single(nI, ilut, csf_i, excitInfo, pgen)
         ! write a specialized orbital picker for the real-space hubbard
         ! implementation, since we do not need all the symmetry stuff and
         ! we have to take the correct TMAT values for the ml-spin values
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -13244,11 +13244,11 @@ contains
 
     end subroutine gen_cum_list_guga_single_3
 
-    subroutine pickOrbs_sym_uniform_ueg_double(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_double(nI, ilut, csf_i, excitInfo, pgen)
         ! specific orbital picker for hubbard and UEG type models with
         ! full k-point symmetry
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -13316,11 +13316,11 @@ contains
 
     end subroutine pickOrbs_sym_uniform_ueg_double
 
-    subroutine pickOrbs_sym_uniform_ueg_single(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_single(nI, ilut, csf_i, excitInfo, pgen)
         ! dummy function to abort calculation if single excitation in
         ! hubbard/ueg models gets called incorrectly
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -14201,11 +14201,11 @@ contains
 
     end subroutine gen_ab_cum_list_3
 
-    subroutine pickOrbs_sym_uniform_mol_double(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_double(nI, ilut, csf_i, excitInfo, pgen)
         ! new orbital picking routine, which is closer to simons already
         ! implemented one for the determinant version
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -16647,12 +16647,12 @@ contains
     end function checkCompatibility_single
 
 
-    function gen_all_distinct_doubles(csf_i) result(res)
+    pure function gen_all_distinct_doubles(csf_i) result(res)
         !! This function returns all possible excitations for the orbital picker
         !!
         !! This means it considers only occupation, not spin recoupling.
         type(CSF_Info_t), intent(in) :: csf_i
-        integer(int64), allocatable :: res(:)
+        type(DistinctDouble_t), allocatable :: res(:)
 
         type(buffer_int64_1D_t) :: buffer
         type(DistinctDouble_t) :: exc
@@ -16680,7 +16680,8 @@ contains
             end do
         end do
 
-        call buffer%dump_reset(res)
+        res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+
     end function
 
 end module guga_excitations

@@ -48,7 +48,7 @@ module util_mod
     public :: choose_i128
 #endif
 
-    public :: error_function, error_function_c, stop_all
+    public :: error_function, error_function_c, stop_all, delete_file
     public :: arr_2d_ptr, ptr_abuse_1d, ptr_abuse_2d, ptr_abuse_scalar
     public :: neci_etime, get_free_unit, int_fmt,&
         strlen_wrap, record_length, open_new_file, &
@@ -1329,6 +1329,14 @@ contains
     #:endfor
     #:endfor
 
+
+    subroutine delete_file(path)
+        character(*), intent(in) :: path
+        integer :: file_id
+
+        open (newunit=file_id, file=path, status='old')
+        close (file_id, status='delete')
+    end subroutine
 end module
 
 !Hacks for compiler specific system calls.

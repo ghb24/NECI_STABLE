@@ -43,7 +43,7 @@ module guga_rdm
     use guga_bitRepOps, only: isProperCSF_ilut, isDouble, CSF_Info_t, fill_csf_i
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
-    use guga_bitRepOps, only: calc_csf_i, add_guga_lists, EncodeBitDet_guga
+    use guga_bitRepOps, only: calc_csf_i, add_guga_lists, EncodeBitDet_guga, calc_step_vector
     use guga_bitRepOps, only: findFirstSwitch, findLastSwitch
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind, &
                               extract_1_rdm_ind, extract_2_rdm_ind, &
@@ -1350,8 +1350,8 @@ contains
         ! this would simplify things!
 
         ! for simplicity it is best to have these quantities:
-        call calc_csf_i(ilutI, step_i, b_i, occ_i)
-        call calc_csf_i(ilutJ, step_j, b_j, occ_j)
+        call calc_csf_i(calc_step_vector(ilutI), step_i, b_i, occ_i)
+        call calc_csf_i(calc_step_vector(ilutJ), step_j, b_j, occ_j)
 
         delta_b = b_i - b_j
 

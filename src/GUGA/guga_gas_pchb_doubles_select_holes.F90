@@ -6,7 +6,8 @@ module guga_gas_pchb_doubles_select_holes
     use bit_rep_data, only: GugaBits
     use SystemData, only: nel, nSpatOrbs, t_exchange_pchb
     use guga_data, only: ExcitationInformation_t, &
-        distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t
+        distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t, &
+        ijkl_Index_t, fused_to_DistinctDouble
     use guga_bitrepops, only: CSF_Info_t
     use util_mod, only: near_zero, stop_all, operator(.isclose.), EnumBase_t
     use indexing_mod, only: fuse_symm_idx
@@ -22,6 +23,8 @@ module guga_gas_pchb_doubles_select_holes
     use MPI_wrapper, only: iProcIndex_intra, iProcIndex, root
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use procedure_pointers, only: get_umat_el
+
+    use growing_buffers, only: buffer_int64_1D_t
 
     use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -139,6 +142,8 @@ module guga_gas_pchb_doubles_select_holes
         procedure, public :: calc_orbital_pgen_contr
         procedure, public :: calc_orbital_pgen_contr_start
         procedure, public :: calc_orbital_pgen_contr_end
+
+        procedure, public :: gen_all_distinct
 
         procedure :: setup_pchb_sampler_conditional
         procedure :: finalize_pchb_sampler
@@ -646,10 +651,10 @@ contains
         deallocate(this%tgtOrbs)
     end subroutine
 
-    subroutine pickOrbitals(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbitals(this, nI, ilut, csf_i, excitInfo, pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -834,4 +839,46 @@ contains
 
         orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_end
+
+
+    pure function gen_all_distinct(this, csf_i) result(res)
+        !! This function returns all possible excitations for the orbital picker
+        !!
+        !! This means it considers only occupation, not spin recoupling.
+        class(GAS_PCHB_FastFast_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(DistinctDouble_t), allocatable :: res(:)
+
+        type(buffer_int64_1D_t) :: buffer
+        type(DistinctDouble_t) :: exc
+        type(ijkl_Index_t) :: idx
+
+        integer :: i, j, a, b
+
+        call buffer%init()
+
+        do i = 1, nSpatOrbs
+            if (csf_i%occ_int(i) == 0) cycle
+            do j = 1, nSpatOrbs
+                if (csf_i%occ_int(j) == 0) cycle
+                if (i == j .and. csf_i%occ_int(i) /= 2) cycle
+                do a = 1, nSpatOrbs
+                    do b = 1, nSpatOrbs
+                        if (a == b .and. csf_i%stepvector(b) /= 0) cycle
+                        idx = ijkl_Index_t([a, i, b, j])
+                        idx = idx%normalize()
+                        exc = DistinctDouble_t(idx)
+                        if (exc%typ == distinct_doubles%invalid &
+                            .or. .not. this%GAS_spec%is_allowed(exc, this%GAS_spec%count_per_GAS(csf_i))) then
+                            cycle
+                        end if
+                        call buffer%push_back(exc%fuse())
+                    end do
+                end do
+            end do
+        end do
+
+        res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+
+    end function
 end module
