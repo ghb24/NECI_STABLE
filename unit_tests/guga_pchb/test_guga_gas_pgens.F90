@@ -52,8 +52,8 @@ contains
         type(BenzeneDimerFciDumpWriter_t) :: fcidump_writer
         type(CSF_Info_t) :: csfs(2)
         type(PCHB_DoublesOptions_t) :: options(2)
-        integer, parameter :: n_el = 12, ref_csf(n_el) = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18], &
-            n_iter = 10**9
+        integer, parameter :: n_el = 12, ref_csf(n_el) = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18]
+        integer(int64) :: n_iter = 5_int64 * 10_int64**9_int64
         integer :: i, j
 
         fcidump_writer = BenzeneDimerFciDumpWriter_t(filepath='FCIDUMP')
@@ -88,7 +88,7 @@ contains
         contains
             logical elemental function is_problematic(analyzed_entry)
                 type(AnalyzedEntries_t), intent(in) :: analyzed_entry
-                is_problematic = analyzed_entry%p_gen > 1e-6_dp .and. abs(analyzed_entry%quality - 1._dp) > 0.1
+                is_problematic = analyzed_entry%p_gen > 1e-6_dp .and. abs(analyzed_entry%quality - 1._dp) > 0.03
             end function
 
             logical pure function quality_comp(p1, p2)
@@ -97,7 +97,7 @@ contains
             end function
 
             subroutine my_test_pgen(n_iter, csf_i, chosen_options)
-                integer, intent(in) :: n_iter
+                integer(int64), intent(in) :: n_iter
                 type(CSF_Info_t), intent(in) :: csf_i
                 type(PCHB_DoublesOptions_t), intent(in) :: chosen_options
 

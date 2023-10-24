@@ -377,11 +377,12 @@ contains
     subroutine test_pgen(doubles_generator, csf_i, n_iter, entries)
         class(DoublesGUGABase_t), intent(in) :: doubles_generator
         type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: n_iter
+        integer(int64), intent(in) :: n_iter
         type(Entry_t), intent(out), allocatable :: entries(:)
         routine_name("test_pgen")
 
-        integer :: i, nI(nEl), L
+        integer :: nI(nEl)
+        integer(int64) :: i, L
         integer(n_int) :: ilut(0 : niftot)
 
         nI = csf_i%to_nI()
@@ -398,9 +399,9 @@ contains
             entries(i)%p_gen = doubles_generator%calc_pgen(nI, ilut, csf_i, entries(i)%exc%get_repr_excit_info(1))
         end do
 
-        L = n_iter .div. 100
+        L = n_iter .div. 100_int64
         write(stdout, '(A)') 'Running pgen tester'
-        do i = 1, n_iter
+        do i = 1_int64, n_iter
         block
             type(ExcitationInformation_t) :: excit_info
             type(DistinctDouble_t) :: exc
@@ -439,7 +440,7 @@ contains
 
     function analyze_entries(entries, n_iter, compare_entry) result(res)
         type(Entry_t), intent(in) :: entries(:)
-        integer, intent(in) :: n_iter
+        integer(int64), intent(in) :: n_iter
         procedure(compare_entry_t), optional :: compare_entry
         type(AnalyzedEntries_t) :: res(size(entries))
 
