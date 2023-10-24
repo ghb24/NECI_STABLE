@@ -711,7 +711,7 @@ contains
         !! I and A are **spatial** indices.
         !! Follows the definition of the purple book.
         integer, intent(in) :: i, a
-        h = GetTMATEl(gtID(i), gtID(a))
+        h = GetTMATEl(2 * i, 2 * a)
     end function
 
 
