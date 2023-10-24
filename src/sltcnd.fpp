@@ -461,8 +461,8 @@ contains
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
         class(Excitation_t), allocatable :: exc
         if (.not. (IC /= 0 .implies. (present(ex) .and. present(tParity)))) then
-            call stop_all(this_routine, "ex and tParity must be provided to &
-                          &sltcnd_excit for all IC /= 0")
+            call stop_all(this_routine, &
+                "ex and tParity must be provided to sltcnd_excit for all IC /= 0")
         end if
         call create_excitation(exc, ic, ex)
         hel = dyn_sltcnd_excit(nI, exc, tParity)

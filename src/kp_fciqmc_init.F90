@@ -108,8 +108,8 @@ contains
             case ("NUM-KRYLOV-VECS")
                 nvecs_temp = to_int(tokens%next())
                 if (kp%nvecs /= 0) then
-                    if (kp%nvecs /= nvecs_temp) call stop_all(t_r, 'The number of values specified for the number of iterations &
-                        &between Krylov vectors is not consistent with the number of Krylov vectors requested.')
+                    if (kp%nvecs /= nvecs_temp) call stop_all(t_r, 'The number of values specified for the number of iterations ' &
+                        // 'between Krylov vectors is not consistent with the number of Krylov vectors requested.')
                 else
                     kp%nvecs = nvecs_temp
                     allocate(kp%niters(kp%nvecs))
@@ -118,8 +118,8 @@ contains
             case ("NREPORTS")
                 nreports_temp = to_int(tokens%next())
                 if (kp%nreports /= 0) then
-                    if (kp%nreports /= nreports_temp) call stop_all(t_r, 'The number of values specified for the number of &
-                        &iterations between reports is not consistent with the number of reports requested.')
+                    if (kp%nreports /= nreports_temp) call stop_all(t_r, 'The number of values specified for the number of ' &
+                        // 'iterations between reports is not consistent with the number of reports requested.')
                 else
                     kp%nreports = nreports_temp
                     allocate(kp%niters(kp%nreports))
@@ -132,8 +132,8 @@ contains
             case ("NUM-ITERS-BETWEEN-VECS-VARY")
                 vary_niters = .true.
                 if (kp%nvecs /= 0) then
-                    if (kp%nvecs /= tokens%size()) call stop_all(t_r, 'The number of values specified for the number of iterations &
-                        &between Krylov vectors is not consistent with the number of Krylov vectors requested.')
+                    if (kp%nvecs /= tokens%size()) call stop_all(t_r, 'The number of values specified for the number of iterations ' &
+                        // 'between Krylov vectors is not consistent with the number of Krylov vectors requested.')
                 end if
                 kp%nvecs = tokens%size()
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
@@ -144,8 +144,8 @@ contains
             case ("NUM-ITERS-BETWEEN-REPORTS-VARY")
                 vary_niters = .true.
                 if (kp%nreports /= 0) then
-                    if (kp%nreports /= tokens%size()) call stop_all(t_r, 'The number of values specified for the number of &
-                        &iterations between reports is not consistent with the number of reports requested.')
+                    if (kp%nreports /= tokens%size()) call stop_all(t_r, 'The number of values specified for the number of ' &
+                        // 'iterations between reports is not consistent with the number of reports requested.')
                 end if
                 kp%nreports = tokens%size()
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nreports))
@@ -172,8 +172,8 @@ contains
             case ("OCCUPY-DETERM-INIT")
                 tOccDetermInit = .true.
             case ("INIT-CONFIG-SEEDS")
-                if (kp%nconfigs == 0) call stop_all(t_r, 'Please use the num-init-configs option to enter the number of &
-                                                          &initial configurations before using the init-vec-seeds option.')
+                if (kp%nconfigs == 0) call stop_all(t_r, 'Please use the num-init-configs option to enter the number of ' &
+                                                          // 'initial configurations before using the init-vec-seeds option.')
                 tUseInitConfigSeeds = .true.
                 allocate(init_config_seeds(kp%nconfigs))
                 do i = 1, kp%nconfigs
@@ -355,21 +355,27 @@ contains
         character(len=*), parameter :: t_r = "init_kp_fciqmc"
 
         ! Checks.
-        if (.not. tUseRealCoeffs) call stop_all(t_r, 'kp-fciqmc can only be run using &
-            &real coefficients).')
-        if (tExactHamil .and. nProcessors /= 1) call stop_all(t_r, 'The exact-hamil &
-            &option can only be used when running with one processor.')
-        if (theisenberg .and. tAllSymSectors) call stop_all(t_r, 'The option to use all &
-            &symmetry sectors at once has not been implemented with the Heisenberg model.')
-        if (n_int == 4) call stop_all(t_r, 'Use of RealCoefficients does not work with 32 bit &
-             &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
+        if (.not. tUseRealCoeffs) then
+            call stop_all(t_r, 'kp-fciqmc can only be run using real coefficients).')
+        end if
+        if (tExactHamil .and. nProcessors /= 1) then
+            call stop_all(t_r, 'The exact-hamil option can only be used when running with one processor.')
+        end if
+        if (theisenberg .and. tAllSymSectors) then
+            call stop_all(t_r, 'The option to use all ' &
+                // 'symmetry sectors at once has not been implemented with the Heisenberg model.')
+        end if
+        if (n_int == 4) then
+            call stop_all(t_r, 'Use of RealCoefficients does not work with 32 bit ' &
+             // 'integers due to the use of the transfer operation from dp reals to 64 bit integers.')
+        end if
         if (tExcitedStateKP) then
             if (tPairedReplicas .and. inum_runs /= 2 * kp%nvecs) then
-                call stop_all(t_r, 'When using the ExcitedStateKP option with paired replicas, the &
-                                   &number of replicas must be twice the number of states to be calculated.')
+                call stop_all(t_r, 'When using the ExcitedStateKP option with paired replicas, the ' &
+                                   // 'number of replicas must be twice the number of states to be calculated.')
             else if ((.not. tPairedReplicas) .and. inum_runs /= kp%nvecs) then
-                call stop_all(t_r, 'When using the ExcitedStateKP option without paired replicas, the &
-                                   &number of replicas must be equal to the number of states to be calculated.')
+                call stop_all(t_r, 'When using the ExcitedStateKP option without paired replicas, the ' &
+                                   // 'number of replicas must be equal to the number of states to be calculated.')
             end if
         end if
 
@@ -441,8 +447,8 @@ contains
             ! Allocate the krylov_vecs array.
             ! The number of MB of memory required to allocate krylov_vecs.
             krylov_vecs_mem = krylov_vecs_length * (NIfTotKP + 1) * size_n_int / 1000000
-            write(stdout, '(a73,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold all Krylov vectors. &
-                                           &Memory required (MB):", krylov_vecs_mem
+            write(stdout, '(a73,'//int_fmt(krylov_vecs_mem, 1)//')') &
+                "About to allocate array to hold all Krylov vectors. Memory required (MB):", krylov_vecs_mem
             write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
             allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
             if (ierr /= 0) then
@@ -457,8 +463,8 @@ contains
             ! Allocate the krylov_helems array.
             ! The number of MB of memory required to allocate krylov_helems.
             krylov_vecs_mem = krylov_vecs_length * size_n_int / 1000000
-            write(stdout, '(a103,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold diagonal Hamiltonian &
-                                           &elements for Krylov vectors. Memory required (MB):", krylov_vecs_mem
+            write(stdout, '(a103,'//int_fmt(krylov_vecs_mem, 1)//')') &
+                "About to allocate array to hold diagonal Hamiltonian elements for Krylov vectors. Memory required (MB):", krylov_vecs_mem
             write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
             allocate(krylov_helems(krylov_vecs_length), stat=ierr)
             if (ierr /= 0) then
@@ -474,8 +480,8 @@ contains
             ! The number of MB of memory required to allocate krylov_vecs_ht.
             ! Each node requires 16 bytes.
             krylov_ht_mem = nhashes_kp * 16 / 1000000
-            write(stdout, '(a78,'//int_fmt(krylov_ht_mem, 1)//')') "About to allocate hash table to the Krylov vector array. &
-                                           &Memory required (MB):", krylov_ht_mem
+            write(stdout, '(a78,'//int_fmt(krylov_ht_mem, 1)//')') &
+                "About to allocate hash table to the Krylov vector array. Memory required (MB):", krylov_ht_mem
             write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
             allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
             if (ierr /= 0) then
@@ -483,8 +489,8 @@ contains
                 call stop_all(t_r, "Error allocating krylov_vecs_ht array.")
             else
                 write(stdout, '(1x,a5)') "Done."
-                write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
-                                  &increase as further nodes are added."
+                write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will " &
+                                  // "increase as further nodes are added."
             end if
 
             call init_hash_table(krylov_vecs_ht)
@@ -512,8 +518,8 @@ contains
         ! Each node requires 16 bytes.
         nhashes_spawn = int(0.8 * MaxSpawned)
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
-        write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
-                                       &Memory required (MB):", spawn_ht_mem
+        write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') &
+            "About to allocate hash table to the spawning array. Memory required (MB):", spawn_ht_mem
         write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
@@ -521,16 +527,16 @@ contains
             call stop_all(t_r, "Error allocating spawn_ht array.")
         else
             write(stdout, '(1x,a5)') "Done."
-            write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
-                              &increase as further nodes are added."
+            write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will " &
+                              // "increase as further nodes are added."
         end if
 
         call init_hash_table(spawn_ht)
 
         ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.
         matrix_mem = (2 * kp%nrepeats + 16) * (kp%nvecs**2) * 8 / 1000000
-        write(stdout, '(a66,'//int_fmt(matrix_mem, 1)//')') "About to allocate various subspace matrices. &
-                                       &Memory required (MB):", matrix_mem
+        write(stdout, '(a66,'//int_fmt(matrix_mem, 1)//')') "About to allocate various subspace matrices. " &
+                                       // "Memory required (MB):", matrix_mem
         write(stdout, '(a13)', advance='no') "Allocating..."
         call neci_flush(stdout)
 
@@ -867,8 +873,8 @@ contains
         ! Memory required in MB.
         mem_reqd = int(TotWalkers / 1000000_int64) * (NIfTotKP + 1) * size_n_int
 
-        write(stdout, '(a73,'//int_fmt(mem_reqd, 1)//')') "About to allocate array to hold the perturbed &
-                                           &ground state. Memory required (MB):", mem_reqd
+        write(stdout, '(a73,'//int_fmt(mem_reqd, 1)//')') "About to allocate array to hold the perturbed " &
+                                           // "ground state. Memory required (MB):", mem_reqd
         write(stdout, '(a13)', advance='no') "Allocating..."
         call neci_flush(stdout)
         allocate(perturbed_ground(0:NIfTot, TotWalkers), stat=ierr)

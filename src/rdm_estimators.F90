@@ -430,9 +430,9 @@ contains
                     est%energy_num(irdm) / est%norm(irdm)
 
                 if (tEN2) then
-                    write (stdout, '(1x,"EN2 corrections are below. Note that these may have a much &
-                                  &larger error bar than the",/," variational energy above. Please do a &
-                                  &blocking analysis rather than just using the energies below.")')
+                    write (stdout, '(1x,"EN2 corrections are below. Note that these may have a much ' &
+                                  // 'larger error bar than the",/," variational energy above. Please do a ' &
+                                  // 'blocking analysis rather than just using the energies below.")')
                     write(stdout, '(1x,"EN2 energy correction:",1x,es17.10)') est%energy_pert(irdm) / est%norm(irdm)
                     write(stdout, '(1x,"*TOTAL ENERGY* including the EN2 correction:",1x,es17.10,/)') &
                         (est%energy_num(irdm) + est%energy_pert(irdm)) / est%norm(irdm)
@@ -448,7 +448,7 @@ contains
             do irdm = est%nrdms_standard + 1, est%nrdms
                 associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
                     write(stdout, '(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(state_labels(2, irdm))//'," -> ",&
-                              &'//int_fmt(state_labels(1, irdm))//',1x,"(",i1,")",)') &
+                               '//int_fmt(state_labels(1, irdm))//',1x,"(",i1,")",)') &
                               state_labels(2, irdm), state_labels(1, irdm), repeat_label(irdm)
                 end associate
 

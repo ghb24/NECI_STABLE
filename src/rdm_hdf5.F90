@@ -54,8 +54,8 @@ contains
                 filename = 'fciqmc.rdms.' // str(iroot) // '.h5'
                 write(stdout, *) "============== Writing HDF5 RDMs =============="
                 write(stdout, *) "File name: ", trim(filename)
-                write(stdout, *) "Regular RDMs saved in /archive/rdms/AA00/ where &
-                                     &A denotes the number of fermion operators."
+                write(stdout, *) "Regular RDMs saved in /archive/rdms/AA00/ where " &
+                                     // "A denotes the number of fermion operators."
             end if
             call MPIBCast(filename)
 

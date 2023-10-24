@@ -664,7 +664,7 @@ contains
                 end if
             else
                 write (stderr, '("** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                    & //"Timestep errors possible: ")', advance='no')
+                     //"Timestep errors possible: ")', advance='no')
                 do i = 1, inum_runs
                     write(stderr, '(1X,f13.7)', advance='no') fac(i)
                 end do

@@ -244,8 +244,8 @@ contains
             IF (iProcIndex == Root) THEN
                 IF (abs(iWeightPopRead) > 1.0e-12_dp) THEN
                     write (stdout, "(A,I15,A,es17.10,A)") "Although ", EndPopsList, &
-                        " configurations will be read in, only determinants &
-                        &with a weight of over ", iWeightPopRead, " will be stored."
+                        " configurations will be read in, only determinants " &
+                        // "with a weight of over ", iWeightPopRead, " will be stored."
                 else
                     write (stdout, "(A,I15,A)") "Reading in a total of ", EndPopsList, " configurations from POPSFILE."
                 ENDIF
@@ -296,15 +296,15 @@ contains
                         write (stdout, *) '*******************************************'
                         write (stdout, *) 'Currently using: ', nProcessors, ' processors'
                         write (stdout, *)
-                        write (stdout, *) 'Using pre-split popsfiles (SPLIT-POPS, &
-                                   &POPSFILEBIN-*).'
-                        write (stdout, *) 'Ensure that the number of processors and &
-                                   &number of POPSFILEs match.'
+                        write (stdout, *) 'Using pre-split popsfiles (SPLIT-POPS, ' &
+                                   // 'POPSFILEBIN-*).'
+                        write (stdout, *) 'Ensure that the number of processors and ' &
+                                   // 'number of POPSFILEs match.'
                         write (stdout, *) '*******************************************'
                     end if
 
-                    call stop_All(this_routine, "Not all walkers accounted for &
-                                                &when reading in")
+                    call stop_All(this_routine, "Not all walkers accounted for " &
+                                                // "when reading in")
                 endif
             endif
 
@@ -406,8 +406,8 @@ contains
 
         allocate (BatchRead(0:NifTot, 1:MaxWalkersPart))
 
-        write (stdout, *) 'Reading a maximum of ', MaxWalkersPart, ' particles to &
-                   &each node from split POPSFILES'
+        write (stdout, *) 'Reading a maximum of ', MaxWalkersPart, ' particles to ' &
+                   // 'each node from split POPSFILES'
 
         ! Initialise the relevant counters
         CurrWalkers = 0
@@ -445,8 +445,8 @@ contains
                 ! And a test that this split popsfile is somewhat valid...
                 proc = DetermineDetNode(PopNel, det_tmp, 0)
                 if (proc /= iProcIndex) &
-                    call stop_all(this_routine, "Determinant in the &
-                                   &wrong Split POPSFILE")
+                    call stop_all(this_routine, "Determinant in the " &
+                                   // "wrong Split POPSFILE")
 
             enddo
 
@@ -642,8 +642,8 @@ contains
             call MPIBCast(tReadAllPops)
         end do r_loop
 
-        write (stdout, "(a,i8)") "Number of batches required to distribute all &
-                          &determinants in POPSFILE: ", nBatches
+        write (stdout, "(a,i8)") "Number of batches required to distribute all " &
+                          // "determinants in POPSFILE: ", nBatches
         write (stdout, *) "Number of configurations read in to this process: ", &
             CurrWalkers
 
@@ -1088,8 +1088,8 @@ contains
 #endif
         if (tPopHPHF .neqv. tHPHF) call stop_all(this_routine, "Popsfile HPHF and input HPHF not same")
         if (tPopLz .neqv. tFixLz) call stop_all(this_routine, "Popsfile Lz and input Lz not same")
-        if (iPopNEl + perturb_ncreate - perturb_nann /= NEl) call stop_all(this_routine, "The number of electrons &
-            &in the POPSFILE is not consistent with the number you have asked to run with.")
+        if (iPopNEl + perturb_ncreate - perturb_nann /= NEl) call stop_all(this_routine, "The number of electrons " &
+            // "in the POPSFILE is not consistent with the number you have asked to run with.")
         if (PopNIfD /= NIfD) call stop_all(this_routine, "Popsfile NIfD and calculated NIfD not same")
         if (inum_runs == 1) then
             !We allow these two values to be different if we're reading in a popsfile fine inum_runs=1 and we want to
@@ -1416,8 +1416,8 @@ contains
             ! What is the maximum number of nodes currently supported. We might
             ! need to update this...
             if (PopNNodes > max_nodes) &
-                call stop_all(this_routine, "Too many processors in POPSFILE. Update &
-                                   &max_nodes")
+                call stop_all(this_routine, "Too many processors in POPSFILE. Update " &
+                                   // "max_nodes")
 
             call MPIBCast(PopWalkersOnNodes(1:PopNNodes))
             read_walkers_on_nodes(0:PopNNodes - 1) = &
@@ -1711,8 +1711,8 @@ contains
         ! We only want to be using space/speed saving devices if we are doing
         ! them to the best of our ability.
         if (tSplitPops .and. .not. tBinPops) then
-            call stop_all(this_routine, "Split pops files only works with &
-                                         &binary pops files")
+            call stop_all(this_routine, "Split pops files only works with " &
+                                         // "binary pops files")
         end if
 
         ! set the module variables for global det data i/o
@@ -1744,7 +1744,7 @@ contains
             if (tBinPops .and. abs(binarypops_min_weight) > 1.0e-12_dp) then
                 write (num_tmp, '(f12.3)') binarypops_min_weight
                 write (stdout, '("Only outputting determinants holding >= ",a,&
-                           &" walkers")') trim(adjustl(num_tmp))
+                           " walkers")') trim(adjustl(num_tmp))
             end if
             write (stdout, '("*********************************")')
             write (stdout, *)
@@ -2234,8 +2234,8 @@ contains
         write (stdout, *) "THIS IS THE POPSFILE ROUTINE WE'RE USING"
 
         if (lenof_sign /= 1) &
-            call Stop_All(this_routine, "Popsfile V.2 does not work with &
-                                        &complex walkers")
+            call Stop_All(this_routine, "Popsfile V.2 does not work with " &
+                                        // "complex walkers")
 
         PreviousCycles = 0    !Zero previous cycles
         SumENum = 0.0_dp
@@ -2274,7 +2274,7 @@ contains
                 INQUIRE (FILE=popsfile, EXIST=exists)
                 IF (.not. exists) THEN
                     CALL Stop_All(this_routine, "POPSFILEHEAD(.x) found, but no POPSFILEBIN(.x) " &
-                    & //"for particle information - this is also needed")
+                     //"for particle information - this is also needed")
                 ELSE
                     call get_unique_filename('POPSFILEHEAD', tIncrementPops, .false., iPopsFileNoRead, popsfile)
                     open (iunit, FILE=popsfile, Status='old')
@@ -2300,7 +2300,7 @@ contains
             READ (iunit, '(A12,L5,A8,L5,A8,L5,A12,L5)') junk, tPop64BitDets, junk2, tPopHPHF, junk3, tPopLz, junk4, tPopInitiator
         ELSE
             write (stdout, '(A)') "Reading in from deprecated POPSFILE - assuming that parameters " &
-            & //"are the same as when POPSFILE was written"
+             //"are the same as when POPSFILE was written"
         ENDIF
         READ (iunit, *) tmp_dp
         AllTotWalkers = int(tmp_dp, int64)
@@ -2437,7 +2437,7 @@ contains
 
 !Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
         write (stdout, "(A,I12,A)") " Spawning vectors allowing for a total of ", MaxSpawned, &
-         &" particles to be spawned in any one iteration."
+         " particles to be spawned in any one iteration."
         ALLOCATE (SpawnVec(0:NIfTot, MaxSpawned), stat=ierr)
         CALL LogMemAlloc('SpawnVec', MaxSpawned * (NIfTot + 1), size_n_int, this_routine, SpawnVecTag, ierr)
         SpawnVec(:, :) = 0

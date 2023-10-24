@@ -163,8 +163,7 @@ contains
         end if
 
         if (.not. t_truncate_spawns) then
-            root_print "'truncate-spawns' not activated! consider turning it &
-                &on if too many blooms happen!"
+            root_print "'truncate-spawns' not activated! consider turning it on if too many blooms happen!"
         end if
 
         ASSERT(GAS_spec%recoupling())

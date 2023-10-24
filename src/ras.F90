@@ -55,8 +55,8 @@ contains
         if (ras%size_1 + ras%size_2 + ras%size_3 /= tot_norbs .or. &
             ras%min_1 > ras%size_1 * 2 .or. ras%max_3 > ras%size_3 * 2) &
             call stop_all("generate_ras", "RAS parameters are not possible.")
-        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS-core only implmented for &
-                                            & closed shell molecules.")
+        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS-core only implmented for " &
+                                            // " closed shell molecules.")
 
         ! First we need to find the different classes. A class is defined by the number
         ! of electrons in RAS1 and RAS3. Thus, we need to find all possible allowed
@@ -550,8 +550,8 @@ contains
             end do
         end do
 
-        if (counter /= space_size) call stop_all("generate_entire_ras_space", "Wrong number of &
-                                                 &states found in generating loop.")
+        if (counter /= space_size) call stop_all("generate_entire_ras_space", "Wrong number of " &
+                                                 // "states found in generating loop.")
 
         deallocate(string_list)
         deallocate(min_indices)

@@ -26,9 +26,9 @@ FUNCTION Rho2OrderND2(NI, NJ, NEL, NBASISMAX, G1, NBASIS, IC2)
 !.. the 1 at the ends ensures K.NE. I or J, as this would make
 !.. <I|U'|K> or <K|U'|J> zero (U' has a zero diag)
     CALL GENEXCIT(NI, 2, NBASIS, NEL, LSTI, ICI, NLISTI, 1, G1, .TRUE.,     &
-&         NBASISMAX, .FALSE.)
+          NBASISMAX, .FALSE.)
     CALL GENEXCIT(NJ, 2, NBASIS, NEL, LSTJ, ICJ, NLISTJ, 1, G1, .TRUE.,     &
-&         NBASISMAX, .FALSE.)
+          NBASISMAX, .FALSE.)
     I = 1
     J = 1
     if (tGUGA) then

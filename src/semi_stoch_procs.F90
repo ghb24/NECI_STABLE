@@ -1170,12 +1170,12 @@ contains
             ! Test that SpawnedParts is going to be big enough
             if (rep%determ_sizes(iProcIndex) > MaxSpawned) then
 #ifdef DEBUG_
-                write(stderr, *) 'Spawned parts array will not be big enough for &
-                    &Semi-Stochastic initialisation'
+                write(stderr, *) 'Spawned parts array will not be big enough for ' &
+                    // 'Semi-Stochastic initialisation'
                 write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #else
-                write(stderr, *) 'Spawned parts array will not be big enough for &
-                    &Semi-Stochastic initialisation on task ', iProcIndex
+                write(stderr, *) 'Spawned parts array will not be big enough for ' &
+                    // 'Semi-Stochastic initialisation on task ', iProcIndex
                 write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #endif
                 call stop_all(this_routine, "Insufficient memory assigned")
@@ -1243,12 +1243,12 @@ contains
                     ! spawned parts array...
                     if (i_non_core > MaxSpawned) then
 #ifdef DEBUG_
-                        write(stderr, *) 'Spawned parts array too small for &
-                            &semi-stochastic initialisation'
+                        write(stderr, *) 'Spawned parts array too small for ' &
+                            // 'semi-stochastic initialisation'
                         write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #else
-                        write(stderr, *) 'Spawned parts array too small for &
-                            &semi-stochastic initialisation on task ', iProcIndex
+                        write(stderr, *) 'Spawned parts array too small for ' &
+                            // 'semi-stochastic initialisation on task ', iProcIndex
                         write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #endif
                         call stop_all(this_routine, 'Insufficient memory assigned')
@@ -2136,9 +2136,10 @@ contains
             end if
         end do
 
-        if (ncore /= rep%determ_sizes(iProcIndex)) call stop_all(t_r, "The number of &
-            &core determinants counted is less than was previously counted.")
-
+        if (ncore /= rep%determ_sizes(iProcIndex)) then
+            call stop_all(t_r, &
+                "The number of core determinants counted is less than was previously counted.")
+        end if
     end subroutine copy_core_dets_to_spawnedparts
 
     subroutine return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
@@ -2206,10 +2207,10 @@ contains
 
         if (.not. (abs(denom) > 0.0_dp)) then
             call warning_neci("return_mp1_amp_and_mp2_energy", &
-            "One of the determinants under consideration for the MP1 wave function is degenerate &
-            &with the Hartree-Fock determinant. Degenerate perturbation theory has not been &
-            &considered, but the amplitude of this determinant will be returned as huge(0.0_dp) &
-            &so that it should be included in the space.")
+            "One of the determinants under consideration for the MP1 wave function is degenerate " &
+            // "with the Hartree-Fock determinant. Degenerate perturbation theory has not been " &
+            // "considered, but the amplitude of this determinant will be returned as huge(0.0_dp) " &
+            // "so that it should be included in the space.")
             amp = huge(0.0_dp)
         else
             amp = hel / denom

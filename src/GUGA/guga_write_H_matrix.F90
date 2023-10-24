@@ -67,10 +67,10 @@ contains
 
         subroutine write_header(unit_id)
             integer, intent(in) :: unit_id
-            write(unit_id, '(A)') '# This file contains the CSF strings &
-                &and the FCI-matrix H = < i | H | j >.'
-            write(unit_id, '(A)') '# The H-matrix is sorted according to &
-                &the order of the CSF strings.'
+            write(unit_id, '(A)') '# This file contains the CSF strings ' &
+                // 'and the FCI-matrix H = < i | H | j >.'
+            write(unit_id, '(A)') '# The H-matrix is sorted according to ' &
+                // 'the order of the CSF strings.'
         end subroutine
 
         subroutine write_CSF_repr(ilutG, unit_id)

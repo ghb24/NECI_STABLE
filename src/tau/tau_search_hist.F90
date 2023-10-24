@@ -207,17 +207,17 @@ contains
         integer :: ierr
 
         if (.not. input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING ) then
-            write(stdout, '(A)') 'init_hist_tau_search called but &
-                &HISTOGRAMMING was not given as tau-search method'
+            write(stdout, '(A)') 'init_hist_tau_search called but ' &
+                // 'HISTOGRAMMING was not given as tau-search method'
             call stop_all(this_routine, 'Inconsistent input')
         end if
 
         ! if no truncating spawns is chosen warn here againg that that might
         ! cause problems!
         if (.not. t_truncate_spawns) then
-            write(stdout, '("WARNING: NO spawn truncation chosen with keyword: &
-                &truncate-spawns [float] in input. this might cause &
-                &bloom problems with histogramming tau-search! BE CAUTIOUS!")')
+            write(stdout, '("WARNING: NO spawn truncation chosen with keyword: " &
+                // "truncate-spawns [float] in input. this might cause " &
+                // "bloom problems with histogramming tau-search! BE CAUTIOUS!")')
         end if
 
         if (tHub) then

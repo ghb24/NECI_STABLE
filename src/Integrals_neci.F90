@@ -192,8 +192,8 @@ contains
             case ("CALCREALPROD")
                 TCALCREALPROD = .TRUE.
                 IF(.NOT. TUSEBRILLOUIN) THEN
-                    call stop_all(this_routine, trim(w)//" will not work unless "           &
-           &        //"USEBRILLOUINTHEOREM set")
+                    call stop_all(this_routine, &
+                        trim(w)//" will not work unless USEBRILLOUINTHEOREM set")
                 end if
             case ("CALCRHOPROD")
                 TCALCRHOPROD = .TRUE.
@@ -220,9 +220,9 @@ contains
                     case ("ORBITAL")
                         HFCDELTA = to_realdp(tokens%next())
                     case default
-                        call stop_all(this_routine, trim(w)//" not valid THRESHOLD"         &
-           &         //"OPTION.  Specify ENERGY or ORBITAL convergence"     &
-           &           //" threshold.")
+                        call stop_all(this_routine, &
+                            trim(w)//" not valid THRESHOLD OPTION. " &
+                            // "Specify ENERGY or ORBITAL convergence threshold.")
                     end select
                 end do
             case ("RHF")
@@ -240,8 +240,8 @@ contains
                     case ("SINGLES")
                         IHFMETHOD = 1
                     case default
-                        call stop_all(this_routine, trim(w)//" not valid DESCENT"         &
-         &              //" option")
+                        call stop_all(this_routine, &
+                            trim(w)//" not valid DESCENT option")
                     end select
                 case ("STANDARD")
                     IHFMETHOD = 0
@@ -268,11 +268,11 @@ contains
                 NFROZEN = to_int(tokens%next())
                 NTFROZEN = to_int(tokens%next())
                 if(mod(NFROZEN, 2) /= 0 .or.                             &
-         &       (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
+                 (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
                     call stop_all(this_routine, "NFROZEN and (+ve) NTFROZEN must be multiples of 2")
                 end if
                 if(                                                      &
-         &       (NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0)) then
+                 (NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0)) then
                     call stop_all(this_routine, "-ve NTFROZEN must be same parity as NEL")
                 end if
 
@@ -336,7 +336,7 @@ contains
 ! multiple of 2
                         ORBORDER(I, 1) = INT(ORBORDER2(I) + 0.000001_dp)
                         ORBORDER(I, 2) = INT((ORBORDER2(I) - ORBORDER(I, 1) +      &
-           &                           0.000001_dp) * 1000) * 2
+                                       0.000001_dp) * 1000) * 2
                     end if
                 end do
             case ("UMATCACHE")
@@ -774,16 +774,16 @@ contains
             write(stdout, *) "NTFROZEN<0.  Leaving ", -NTFROZEN, " unfrozen virtuals."
             NTFROZEN = NTFROZEN + nBasis - NEL
         end if
-        IF((NFROZEN + NFROZENIN) > NEL) CALL Stop_All("IntFreeze", "Overlap between low energy frozen orbitals &
-                                  & and inner frozen occupied orbitals - to many frozen occupied orbitals &
-                                  & for the number of electrons.")
-        IF((NTFROZEN + NTFROZENIN) > (NBASIS - NEL)) CALL Stop_All("IntFreeze", "Overlap between high energy frozen orbitals &
-                                  & and inner frozen virtual orbitals - to many frozen virtual orbitals &
-                                  & for the number of unnoccupied orbitals.")
+        IF((NFROZEN + NFROZENIN) > NEL) CALL Stop_All("IntFreeze", "Overlap between low energy frozen orbitals " &
+                                  // " and inner frozen occupied orbitals - to many frozen occupied orbitals " &
+                                  // " for the number of electrons.")
+        IF((NTFROZEN + NTFROZENIN) > (NBASIS - NEL)) CALL Stop_All("IntFreeze", "Overlap between high energy frozen orbitals " &
+                                  // " and inner frozen virtual orbitals - to many frozen virtual orbitals " &
+                                  // " for the number of unnoccupied orbitals.")
         IF(((NFROZENIN > 0) .or. (NTFROZENIN > 0)) .and. (.not. TwoCycleSymGens)) THEN
-            CALL Stop_All("IntFreeze", "TwoCycleSymGens is not true. &
-            & The code is only set up to deal with freezing from the inside for molecular &
-            & systems with only 8 symmetry irreps.")
+            CALL Stop_All("IntFreeze", "TwoCycleSymGens is not true. " &
+            // " The code is only set up to deal with freezing from the inside for molecular " &
+            // " systems with only 8 symmetry irreps.")
         end if
         IF(NFROZEN > 0 .OR. NTFROZEN > 0 .OR. NFROZENIN > 0 .OR. NTFROZENIN > 0) THEN
             write(stdout, '(A)') '======== FREEZING ORBITALS =========='
@@ -900,7 +900,7 @@ contains
 
 !This routine takes the frozen orbitals and modifies ECORE, UMAT, BRR etc accordingly.
     SUBROUTINE IntFREEZEBASIS(NHG, NBASIS, UMAT, UMAT2, ECORE,           &
-   &         G1, NBASISMAX, ISS, BRR, NFROZEN, NTFROZEN, NFROZENIN, NTFROZENIN, NEL)
+            G1, NBASISMAX, ISS, BRR, NFROZEN, NTFROZEN, NFROZENIN, NTFROZENIN, NEL)
         use SystemData, only: Symmetry, BasisFN, arr, tagarr
         use OneEInts, only: GetPropIntEl, GetTMATEl, TMATSYM2, TMAT2D2, PropCore, &
                             OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
@@ -946,7 +946,7 @@ contains
 !!C.. Just check to see if we're not in the middle of a degenerate set with the same sym
         IF(NFROZEN > 0) THEN
             IF(ABS(ARR(NFROZEN, 1) - ARR(NFROZEN + 1, 1)) < 1.0e-6_dp .AND.       &
-     &        G1(BRR(NFROZEN))%SYM%s == G1(BRR(NFROZEN + 1))%SYM%s) THEN
+             G1(BRR(NFROZEN))%SYM%s == G1(BRR(NFROZEN + 1))%SYM%s) THEN
                 call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
             ELSE IF(ABS(ARR(NFROZEN, 1) - ARR(NFROZEN + 1, 1)) < 1.0e-6_dp) THEN
                 write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
@@ -955,8 +955,8 @@ contains
         end if
         IF(NTFROZEN > 0) THEN
             IF(ABS(ARR(NHG - NTFROZEN, 1) - ARR(NHG - NTFROZEN + 1, 1)) < 1.0e-6_dp  &
-     &         .AND. G1(BRR(NHG - NTFROZEN))%SYM%s                         &
-     &               == G1(BRR(NHG - NTFROZEN + 1))%SYM%s) THEN
+               .AND. G1(BRR(NHG - NTFROZEN))%SYM%s                         &
+                     == G1(BRR(NHG - NTFROZEN + 1))%SYM%s) THEN
                 call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
             ELSE IF(ABS(ARR(NHG - NTFROZEN, 1) - ARR(NHG - NTFROZEN + 1, 1)) < 1.0e-6_dp) THEN
                 write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
@@ -965,7 +965,7 @@ contains
         end if
         IF(NFROZENIN > 0) THEN
             IF(ABS(ARR(NEL - NFROZENIN, 1) - ARR(NEL - NFROZENIN + 1, 1)) < 1.0e-6_dp .AND.       &
-     &        G1(BRR(NEL - NFROZENIN))%SYM%s == G1(BRR(NEL - NFROZENIN + 1))%SYM%s) THEN
+              G1(BRR(NEL - NFROZENIN))%SYM%s == G1(BRR(NEL - NFROZENIN + 1))%SYM%s) THEN
                 call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
             ELSE IF(ABS(ARR(NEL - NFROZENIN, 1) - ARR(NEL - NFROZENIN + 1, 1)) < 1.0e-6_dp) THEN
                 write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
@@ -974,8 +974,8 @@ contains
         end if
         IF(NTFROZENIN > 0) THEN
             IF(ABS(ARR(NEL + NTFROZENIN, 1) - ARR(NEL + NTFROZENIN + 1, 1)) < 1.0e-6_dp  &
-     &         .AND. G1(BRR(NEL + NTFROZENIN))%SYM%s                         &
-     &               == G1(BRR(NEL + NTFROZENIN + 1))%SYM%s) THEN
+               .AND. G1(BRR(NEL + NTFROZENIN))%SYM%s                         &
+                     == G1(BRR(NEL + NTFROZENIN + 1))%SYM%s) THEN
                 call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
             ELSE IF(ABS(ARR(NEL + NTFROZENIN, 1) - ARR(NEL + NTFROZENIN + 1, 1)) < 1.0e-6_dp) THEN
                 write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
@@ -1099,7 +1099,7 @@ contains
 !C.. If we have spin-independent integrals, or
 !C.. if the spins are the same
                 IF(G1(AB)%MS == G1(BB)%MS)                               &
-      &            ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
+                   ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
             end do
 
 !The sum over b runs over all frozen orbitals > a, so the inner frozen orbitals too.
@@ -1112,7 +1112,7 @@ contains
 !C.. If we have spin-independent integrals, or
 !C.. if the spins are the same
                 IF(G1(AB)%MS == G1(BB)%MS)                               &
-      &            ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
+                   ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
             end do
         end do
 
@@ -1130,7 +1130,7 @@ contains
 !C.. If we have spin-independent integrals, or
 !C.. if the spins are the same
                 IF(G1(AB)%MS == G1(BB)%MS)                               &
-      &            ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
+                   ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
             end do
         end do
 
@@ -1250,7 +1250,7 @@ contains
                             IF(G1(IB)%MS == G1(JB)%MS) THEN
                                 IF(tCPMDSymTMat) THEN
                                     TMATSYM2(NEWTMATInd(IPB, JPB)) =                  &
-          &                         GetNEWTMATEl(IPB, JPB) + get_umat_el(IDA, IDI, IDA, IDJ)
+                                    GetNEWTMATEl(IPB, JPB) + get_umat_el(IDA, IDI, IDA, IDJ)
                                 ELSE
 !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 02")
                                     if(tOneElecDiag) then
@@ -1271,12 +1271,12 @@ contains
                             IF(G1(IB)%MS == G1(AB)%MS .AND. G1(AB)%MS == G1(JB)%MS) THEN
                                 IF(tCPMDSymTMat) THEN
                                     TMATSYM2(NEWTMATInd(IPB, JPB)) = GetNEWTMATEl(IPB, JPB) &
-          &                          - get_umat_el(IDA, IDI, IDJ, IDA)
+                                     - get_umat_el(IDA, IDI, IDJ, IDA)
                                 ELSE
                                     if(tOneElecDiag) then
                                         if(IPB == JPB) then
                                             TMAT2D2(IPB, 1) = GetNEWTMATEl(IPB, JPB)              &
-         &                                   - get_umat_el(IDA, IDI, IDJ, IDA)
+                                             - get_umat_el(IDA, IDI, IDJ, IDA)
                                         else
                                             if(abs(get_umat_el(IDA, IDI, IDJ, IDA)) > 1.0e-8_dp) then
                                                 call stop_all("", "Error here in freezing for UEG")
@@ -1285,7 +1285,7 @@ contains
                                     else
                                         !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 03")
                                         TMAT2D2(IPB, JPB) = GetNEWTMATEl(IPB, JPB)              &
-          &                              - get_umat_el(IDA, IDI, IDJ, IDA)
+                                         - get_umat_el(IDA, IDI, IDJ, IDA)
                                     end if
                                 end if
                             end if
@@ -1300,7 +1300,7 @@ contains
                             IF(G1(IB)%MS == G1(JB)%MS) THEN
                                 IF(tCPMDSymTMat) THEN
                                     TMATSYM2(NEWTMATInd(IPB, JPB)) =                  &
-          &                         GetNEWTMATEl(IPB, JPB) + get_umat_el(IDA, IDI, IDA, IDJ)
+                                    GetNEWTMATEl(IPB, JPB) + get_umat_el(IDA, IDI, IDA, IDJ)
                                 ELSE
                                     if(tOneElecDiag) then
                                         if(IPB == JPB) then
@@ -1321,12 +1321,12 @@ contains
                             IF(G1(IB)%MS == G1(AB)%MS .AND. G1(AB)%MS == G1(JB)%MS) THEN
                                 IF(tCPMDSymTMat) THEN
                                     TMATSYM2(NEWTMATInd(IPB, JPB)) = GetNEWTMATEl(IPB, JPB) &
-          &                          - get_umat_el(IDA, IDI, IDJ, IDA)
+                                     - get_umat_el(IDA, IDI, IDJ, IDA)
                                 ELSE
                                     if(tOneElecDiag) then
                                         if(IPB == JPB) then
                                             TMAT2D2(IPB, 1) = GetNEWTMATEl(IPB, JPB)              &
-          &                                  - get_umat_el(IDA, IDI, IDJ, IDA)
+                                             - get_umat_el(IDA, IDI, IDJ, IDA)
                                         else
                                             if(abs(get_umat_el(IDA, IDI, IDJ, IDA)) > 1.0e-8_dp) then
                                                 call stop_all("", "Error here in freezing for UEG")
@@ -1335,7 +1335,7 @@ contains
                                     else
 !                                 IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 05")
                                         TMAT2D2(IPB, JPB) = GetNEWTMATEl(IPB, JPB)              &
-          &                              - get_umat_el(IDA, IDI, IDJ, IDA)
+                                         - get_umat_el(IDA, IDI, IDJ, IDA)
                                     end if
                                 end if
                             end if
@@ -1530,7 +1530,7 @@ contains
                                                                 IDL = GTID(LB)
                                                                 IDLP = GTID(LPB)
                                                                 UMAT2(UMat2Ind(IDIP, IDJP, IDKP, IDLP)) = &
-                                                             &                                             UMAT(UMatInd(IDI, IDJ, IDK, IDL))
+                                                                                                           UMAT(UMatInd(IDI, IDJ, IDK, IDL))
                                                             ENDIF
                                                         ENDIF
                                                     ENDDO
@@ -1565,8 +1565,8 @@ contains
 !This is slightly dodgey... I have commented out the above routine that finds the symmetry of the frozen orbitals.
 !There is already a test to check we are not freezing in the middle of degenracies, so the symmetry should always come
 !out as 0 anyway, unless we are breaking up a set of symmetry irreps somehow ... I think.
-            write(stdout, *) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
-                       &if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
+            write(stdout, *) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect " &
+                       // "if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
             KSym%Sym%S = 0
             CALL SetupFREEZEALLSYM(KSym)
         else if(NFROZEN > 0) THEN
@@ -1683,13 +1683,13 @@ contains
         !     executed first.
         if(tFixLz) then
             if(tStoreSpinOrbs) then
-                write(stdout, '(" Setting GetUmatEl to use fixed lz with &
-                            &tStoreSpinOrbs set")')
+                write(stdout, '(" Setting GetUmatEl to use fixed lz with ' &
+                            // 'tStoreSpinOrbs set")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_fixlz_storespinorbs
             else
-                write(stdout, '(" Setting GetUmatEl to use fixed lz without &
-                            &tStoreSpinOrbs set")')
+                write(stdout, '(" Setting GetUmatEl to use fixed lz without ' &
+                            // 'tStoreSpinOrbs set")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_fixlz_notspinorbs
             end if
@@ -2021,7 +2021,7 @@ SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
     DO I = 1, nbasis
         K_REAL = G1(I)%K + K_OFFSET
         TMAT2D(I, 1) = ((ALAT(1)**2) * ((K_REAL(1)**2) / (ALAT(1)**2) +        &
-    &        (K_REAL(2)**2) / (ALAT(2)**2) + (K_REAL(3)**2) / (ALAT(3)**2)))
+             (K_REAL(2)**2) / (ALAT(2)**2) + (K_REAL(3)**2) / (ALAT(3)**2)))
         TMAT2D(I, 1) = TMAT2D(I, 1) * (CST)
 !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
 !   we *1/2 as we attribute only half the interaction to this cell.

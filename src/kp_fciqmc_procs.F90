@@ -63,8 +63,8 @@ contains
                 TotWalkersKP = TotWalkersKP + 1
                 det_ind = TotWalkersKP
                 if (TotWalkersKP > krylov_vecs_length) then
-                    call stop_all(t_r, "There are no slots left in the krylov_vecs array for the next determinant. &
-                                       &You can increase the size of this array using the memory-factor option in &
+                    call stop_all(t_r, "There are no slots left in the krylov_vecs array for the next determinant. " &
+                                       // "You can increase the size of this array using the memory-factor option in &
                                        &the kp-fciqmc block of the input file.")
                 end if
 
