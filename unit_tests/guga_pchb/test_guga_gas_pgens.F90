@@ -53,7 +53,7 @@ contains
         type(CSF_Info_t) :: csfs(2)
         type(PCHB_DoublesOptions_t) :: options(2)
         integer, parameter :: n_el = 12, ref_csf(n_el) = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18], &
-            n_iter = 10**7
+            n_iter = 10**9
         integer :: i, j
 
         fcidump_writer = BenzeneDimerFciDumpWriter_t(filepath='FCIDUMP')
@@ -127,18 +127,18 @@ contains
                 call orbital_picker%finalize()
             end subroutine
 
+            pure function get_filename(csf_i, options) result(res)
+                type(CSF_Info_t), intent(in) :: csf_i
+                type(PCHB_DoublesOptions_t), intent(in) :: options
+                character(:), allocatable :: res
+
+                res = to_lower(replace(options%to_str(), ' ', '_')) &
+                        // '_' // &
+                        join(csf_i%to_tokens(), '-') &
+                        // '.dat'
+            end function
+
     end subroutine
-
-    pure function get_filename(csf_i, options) result(res)
-        type(CSF_Info_t), intent(in) :: csf_i
-        type(PCHB_DoublesOptions_t), intent(in) :: options
-        character(:), allocatable :: res
-
-        res = to_lower(replace(options%to_str(), ' ', '_')) &
-                // '_' // &
-                join(csf_i%to_tokens(), '-') &
-                // '.dat'
-    end function
 
 end module
 
