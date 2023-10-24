@@ -394,6 +394,7 @@ module guga_data
         type(DistinctDoubleType_t) :: typ
     contains
         private
+        procedure, public :: get_repr_excit_info
         procedure, public :: get_repr_index
         procedure, public :: fuse => fuse_DistinctDouble_t
     end type
@@ -1441,6 +1442,26 @@ contains
         class(DistinctDouble_t), intent(in) :: this
         type(ijkl_Index_t) :: res
         res = ijkl_Index_t(this%idx%val(this%typ%idx_for_repr))
+    end function
+
+    elemental function get_repr_excit_info(this, i_sg_start) result(res)
+        !! Return the index for the representation.
+        !!
+        !! If we have for example the `DistinctDoubleType_t` `jilk`,
+        !! then the index of the representation shall refer
+        !! to the `double_L_to_R_to_L` excitation and be `jkli`
+        !! instead of the `non_overlap` part which would be `jilk`.
+        class(DistinctDouble_t), intent(in) :: this
+        integer, intent(in) :: i_sg_start
+        type(ExcitationInformation_t) :: res
+
+        type(ijkl_Index_t) :: idx
+        integer :: i, j, k, l
+
+        idx = this%get_repr_index()
+        call idx%extract_ijkl(i, j, k, l)
+
+        res = ExcitationInformation_t(this%typ%repr, i, j, k, l, i_sg_start=i_sg_start)
     end function
 
 

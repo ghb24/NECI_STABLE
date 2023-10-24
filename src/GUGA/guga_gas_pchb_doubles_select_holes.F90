@@ -8,6 +8,8 @@ module guga_gas_pchb_doubles_select_holes
     use guga_data, only: ExcitationInformation_t, &
         distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t, &
         ijkl_Index_t, fused_to_DistinctDouble
+    use sort_mod, only: sort
+    use sets_mod, only: is_sorted, set
     use guga_bitrepops, only: CSF_Info_t
     use util_mod, only: near_zero, stop_all, operator(.isclose.), EnumBase_t
     use indexing_mod, only: fuse_symm_idx
@@ -48,6 +50,8 @@ module guga_gas_pchb_doubles_select_holes
 
     type, extends(EnumBase_t) :: WeightingChoice_t
         character(20) :: str
+    contains
+        procedure :: to_str => to_str_WeightingChoice_t
     end type
 
     type :: WeightingChoice_vals_t
@@ -68,6 +72,8 @@ module guga_gas_pchb_doubles_select_holes
     type, extends(EnumBase_t) :: PCHB_HoleAlgorithm_t
         private
         character(9) :: str
+    contains
+        procedure :: to_str => HoleAlgorithm_to_str
     end type
 
     type :: PCHB_HoleAlgorithm_vals_t
@@ -249,8 +255,13 @@ contains
     subroutine finalize_GugaAliasSampler_t(this)
         class(GAS_PCHB_Doubles_t), intent(inout) :: this
         call this%all_info_table%shared_dealloc()
-        deallocate(this%info_tables)
+        if (allocated(this%info_tables)) deallocate(this%info_tables)
         call this%finalize_pchb_sampler()
+
+        if (allocated(this%particle_selector)) then
+            call this%particle_selector%finalize()
+            deallocate(this%particle_selector)
+        end if
     end subroutine
 
     pure function initial_werner_get_weight(exc) result(weight)
@@ -648,7 +659,7 @@ contains
     subroutine finalize_pchb_sampler(this)
         class(GAS_PCHB_FastFast_t), intent(inout) :: this
         call this%alias_sampler%finalize()
-        deallocate(this%tgtOrbs)
+        if (allocated(this%tgtOrbs)) deallocate(this%tgtOrbs)
     end subroutine
 
     subroutine pickOrbitals(this, nI, ilut, csf_i, excitInfo, pgen)
@@ -864,7 +875,8 @@ contains
                 if (i == j .and. csf_i%occ_int(i) /= 2) cycle
                 do a = 1, nSpatOrbs
                     do b = 1, nSpatOrbs
-                        if (a == b .and. csf_i%stepvector(b) /= 0) cycle
+                        if (any(csf_i%stepvector([a, b]) == 3)) cycle
+                        if (a == b .and. csf_i%stepvector(a) /= 0) cycle
                         idx = ijkl_Index_t([a, i, b, j])
                         idx = idx%normalize()
                         exc = DistinctDouble_t(idx)
@@ -877,8 +889,18 @@ contains
                 end do
             end do
         end do
+        res = fused_to_DistinctDouble(set(buffer%buf(:buffer%size())))
+    end function
 
-        res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+    pure function HoleAlgorithm_to_str(this) result(res)
+        class(PCHB_HoleAlgorithm_t), intent(in) :: this
+        character(9) :: res
+        res = this%str
+    end function
 
+    pure function to_str_WeightingChoice_t(this) result(res)
+        class(WeightingChoice_t), intent(in) :: this
+        character(:), allocatable :: res
+        res = trim(this%str)
     end function
 end module

@@ -28,6 +28,7 @@ module guga_gas_pchb_doubles_main
         type(WeightingChoice_t)  :: weighting
     contains
         procedure :: is_valid
+        procedure :: to_str
     end type
 
     type :: PCHB_DoublesOptions_vals_t
@@ -69,6 +70,12 @@ contains
         class(PCHB_DoublesOptions_t), intent(in) :: this
         @:unused_var(this)
         is_valid = .true.
+    end function
+
+    pure function to_str(this) result(res)
+        class(PCHB_DoublesOptions_t), intent(in) :: this
+        character(:), allocatable :: res
+        res = this%particle_selection%to_str()//':'//this%hole_selection%to_str()//' '//this%weighting%to_str()
     end function
 
 end module

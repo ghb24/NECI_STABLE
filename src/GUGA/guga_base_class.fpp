@@ -1,24 +1,26 @@
 #include "macros.h"
+#:include "../macros.fpph"
+#:include "../algorithms.fpph"
 
 module guga_base_class
     !! This contains the base classes for the **orbital picking**.
     use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm
-    use bit_rep_data, only: IlutBits, GugaBits
+    use bit_rep_data, only: IlutBits, GugaBits, nIftot
     use SystemData, only: nel
     use FciMCData, only: pSingles, pDoubles
     use guga_data, only: ExcitationInformation_t, gen_type, excit_type, DistinctDouble_t, &
-        ijkl_Index_t
+        ijkl_Index_t, distinct_doubles
     use guga_bitRepOps, only: CSF_Info_t
     use guga_excitations, only: get_excit_level_from_excitInfo
     use sets_mod, only: is_sorted
     use error_handling_neci, only: stop_all
-    use util_mod, only: EnumBase_t, operator(.isclose.), binary_search_int
+    use util_mod, only: EnumBase_t, operator(.isclose.), binary_search_int, near_zero, operator(.div.)
 
     better_implicit_none
     private
     public :: GUGABase_t, AbInitGUGABase_t, SinglesGUGABase_t, DoublesGUGABase_t, &
         GUGA_ExcGenerator_t, GUGA_ExcGenerator_vals_t, GUGA_exc_generator_vals, &
-        GUGA_selected_exc_generator, test_pgen, Entry_t
+        GUGA_selected_exc_generator, test_pgen, Entry_t, analyze_entries, AnalyzedEntries_t, output
 
 
     type, extends(EnumBase_t) :: GUGA_ExcGenerator_t
@@ -226,7 +228,24 @@ module guga_base_class
         integer(int64) :: key
         type(DistinctDouble_t) :: exc
         integer(int64) :: accum = 0_int64
+        real(dp) :: p_gen = -1._dp
+        type(ExcitationInformation_t) :: exc_info = ExcitationInformation_t()
     end type
+
+    type :: AnalyzedEntries_t
+        integer(int64) :: key
+        type(DistinctDouble_t) :: exc
+        real(dp) :: p_gen
+        real(dp) :: quality
+        integer(int64) :: accum
+    end type
+
+    abstract interface
+        logical pure function compare_entry_t(p1, p2)
+            import :: AnalyzedEntries_t
+            type(AnalyzedEntries_t), intent(in) :: p1, p2
+        end function
+    end interface
 
 contains
 
@@ -362,8 +381,8 @@ contains
         type(Entry_t), intent(out), allocatable :: entries(:)
         routine_name("test_pgen")
 
-        integer :: i, nI(nEl)
-        integer(n_int) :: ilut(0:GugaBits%len_tot)
+        integer :: i, nI(nEl), L
+        integer(n_int) :: ilut(0 : niftot)
 
         nI = csf_i%to_nI()
         ilut = csf_i%to_ilut()
@@ -375,21 +394,96 @@ contains
             ASSERT(is_sorted(entries%key))
         end block
 
+        do i = 1, size(entries)
+            entries(i)%p_gen = doubles_generator%calc_pgen(nI, ilut, csf_i, entries(i)%exc%get_repr_excit_info(1))
+        end do
+
+        L = n_iter .div. 100
+        write(stdout, '(A)') 'Running pgen tester'
         do i = 1, n_iter
         block
             type(ExcitationInformation_t) :: excit_info
-            type(ijkl_Index_t) :: idx
+            type(DistinctDouble_t) :: exc
             integer(int64) :: pos
             real(dp) :: pgen
+            if (mod(i, L) == 0_int64) then
+                write(stdout, '(A)', advance='no') '#'
+                flush(stdout)
+            end if
+
             call doubles_generator%pickOrbitals(nI, ilut, csf_i, excit_info, pgen)
+            if (.not. excit_info%valid) cycle
+
             if (.not. (pgen .isclose. doubles_generator%calc_pgen(nI, ilut, csf_i, excit_info))) then
                 call stop_all(this_routine, 'p_gen does not match')
             end if
 
-            idx = ijkl_Index_t([excit_info%i, excit_info%j, excit_info%k, excit_info%l])
-            pos = binary_search_int(entries%key, idx%fuse())
-            entries(pos)%accum = entries(pos)%accum + 1
+            associate(idx => ijkl_Index_t([excit_info%i, excit_info%j, excit_info%k, excit_info%l]))
+                exc = DistinctDouble_t(idx%normalize())
+                if (.not. (pgen .isclose. doubles_generator%calc_pgen(nI, ilut, csf_i, exc%get_repr_excit_info(1)))) then
+                    call stop_all(this_routine, 'p_gen does not match')
+            end if
+            end associate
+
+            if (exc%typ /= distinct_doubles%invalid) then
+                pos = binary_search_int(entries%key, exc%fuse())
+                entries(pos)%accum = entries(pos)%accum + 1
+                entries(pos)%exc_info = excit_info
+                entries(pos)%p_gen = pgen
+            end if
         end block
         end do
+        write(stdout, *)
     end subroutine
+
+
+    function analyze_entries(entries, n_iter, compare_entry) result(res)
+        type(Entry_t), intent(in) :: entries(:)
+        integer, intent(in) :: n_iter
+        procedure(compare_entry_t), optional :: compare_entry
+        type(AnalyzedEntries_t) :: res(size(entries))
+
+        integer :: i
+
+        associate(total_hits => sum(entries%accum))
+
+            do i = 1, size(entries)
+                if (near_zero(entries(i)%p_gen)) then
+                    res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc, &
+                                    entries(i)%p_gen, 1._dp, &
+                                    entries(i)%accum)
+                else
+                    res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc, &
+                                    entries(i)%p_gen, (entries(i)%accum / entries(i)%p_gen) / n_iter, &
+                                    entries(i)%accum)
+                end if
+            end do
+
+        end associate
+
+        if (present(compare_entry)) then
+            @:sort(AnalyzedEntries_t, res, rank=1, along=1, comp=compare_entry)
+        end if
+
+    end function
+
+    subroutine output(file_id, analyzed_entries)
+        integer, intent(in) :: file_id
+        type(AnalyzedEntries_t), intent(in) :: analyzed_entries(:)
+
+        integer :: i
+
+        write(file_id, *) "=================================="
+        write(file_id, *) "Problematic contribution List: "
+        write(file_id, *) "=================================="
+        write(file_id, '("|", A10, "|", A24, "|", A15, "|", A15, "|", A15, "|")') "Key", "Excitation", "Quality", "pgen", "n_accum"
+        ! write(file_id, '("--------------------------------------------------------------------------")')
+        write(file_id, '(A)') repeat('-', 10 + 24 + 15 + 15 + 15 + 6)
+        do i = 1, size(analyzed_entries)
+            write(file_id, '("|", I10, "|"I5, I5, " -> ", I5, I5, "|", F15.5, "|", E15.5, "|", I15"|")') &
+                analyzed_entries(i)%key, analyzed_entries(i)%exc%idx%convert(), analyzed_entries(i)%quality, &
+                analyzed_entries(i)%p_gen, analyzed_entries(i)%accum
+        end do
+    end subroutine
+
 end module

@@ -32,6 +32,8 @@ module guga_bitRepOps
 
     use DetBitOps, only: EncodeBitDet
 
+    use fortran_strings, only: Token_t, join
+
     implicit none
 
     private
@@ -150,6 +152,8 @@ module guga_bitRepOps
         generic, public :: operator(/=) => neq_CSF_Info_t
         procedure, public :: to_nI => to_nI_CSF_Info_t
         procedure, public :: to_ilut => to_ilut_CSF_Info_t
+        procedure, public :: to_tokens => to_Token_t_CSF_Info_t
+        procedure, public :: to_str => to_str_CSF_Info_t
     end type
 
     interface CSF_Info_t
@@ -2769,6 +2773,38 @@ contains
         class(CSF_Info_t), intent(in) :: this
         integer(n_int) :: ilut(0:niftot)
         call EncodeBitDet(convert_stepvector_to_nI(this%stepvector), ilut)
+    end function
+
+    elemental function to_token(step_value) result(token)
+        use fortran_strings, only: Token_t, join
+        integer, intent(in) :: step_value
+        routine_name("to_token")
+        type(Token_t) :: token
+
+        select case(step_value)
+        case(0)
+            token = Token_t('0')
+        case(1)
+            token = Token_t('u')
+        case(2)
+            token = Token_t('d')
+        case(3)
+            token = Token_t('2')
+        case default
+            call stop_all(this_routine, "invalid case")
+        end select
+    end function
+
+    pure function to_Token_t_CSF_Info_t(this) result(res)
+        class(CSF_Info_t), intent(in) :: this
+        type(Token_t) :: res(size(this%stepvector))
+        res = to_token(this%stepvector(:))
+    end function
+
+    pure function to_str_CSF_Info_t(this) result(res)
+        class(CSF_Info_t), intent(in) :: this
+        character(:), allocatable :: res
+        res = '[' // join(this%to_tokens(), ', ') // ']'
     end function
 
     pure function calc_step_vector(ilut) result(step_vector)

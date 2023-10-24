@@ -8,13 +8,14 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen, nSpatOrbs, tGUGA, tUHF, tMolpro, &
+                          tReadInt, t_pcpp_excitgen, nSpatOrbs, ij_pairs, tGUGA, tUHF, tMolpro, &
                           user_input_m_s, tZeroDelimitedFCIDUMP
     use sort_mod
     use gasci, only: GASSpec_t
     use System, only: SysInit, SetSysDefaults, SysCleanup
     use Parallel_neci, only: MPIInit, MPIEnd, mpi_comm_rank, mpi_comm_world
     use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
+    use indexing_mod, only: fuse_symm_idx
     use OneEInts, only: Tmat2D
     use bit_rep_data, only: NIfTot, nifd, extract_sign, IlutBits
     use bit_reps, only: encode_sign, decode_bit_det, init_bit_rep
@@ -290,6 +291,9 @@ contains
         call evaluate_depending_keywords()
 
         call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
+
+        nSpatOrbs = nBasis .div. 2
+        ij_pairs = fuse_symm_idx(int(nSpatOrbs, int64), int(nSpatOrbs, int64))
 
         call GetUMatSize(nBasis, umatsize)
 

@@ -672,7 +672,7 @@ contains
         integer, intent(in) :: i, a
             !! Spatial orbital index
         real(dp) :: weight
-        routine_name("get_weight_uniform")
+        routine_name("get_weight_abs_integral")
 
         real(dp) :: two_el_term
         integer :: r
@@ -680,6 +680,8 @@ contains
 
         two_el_term = 0._dp
         do R = 1, nSpatOrbs
+            ! Triangle inequality makes it non-zero, whenever integrals are non-zero:
+            ! |a| + |b|  >=  | a + b |
             two_el_term = two_el_term + abs(g(i, a, r, r)) + abs(g(i, r, r, a))
         end do
         weight = abs(h(i, a)) + two_el_term
