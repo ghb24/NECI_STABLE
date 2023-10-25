@@ -294,9 +294,10 @@ contains
     contains
         logical elemental function singles_comp(p1, p2)
             type(singles_t), intent(in) :: p1, p2
-            associate(idx_1 => [p1%i, p1%a], idx_2 => [p2%i, p2%a])
-                singles_comp = lex_leq(idx_1, idx_2)
-            end associate
+            integer :: idx_1(2), idx_2(2)
+            idx_1 = [p1%i, p1%a]
+            idx_2 = [p2%i, p2%a]
+            singles_comp = lex_leq(idx_1, idx_2)
         end function
     end subroutine sorting_singles_t
 
@@ -306,10 +307,10 @@ contains
     contains
         logical elemental function doubles_comp(p1, p2)
             type(doubles_t), intent(in) :: p1, p2
-            associate(idx_1 => [p1%j, p1%i, p1%b, p1%a], &
-                      idx_2 => [p2%j, p2%i, p2%b, p2%a])
-                doubles_comp = lex_leq(idx_1, idx_2)
-            end associate
+            integer :: idx_1(4), idx_2(4)
+            idx_1 = [p1%j, p1%i, p1%b, p1%a]
+            idx_2 = [p2%j, p2%i, p2%b, p2%a]
+            doubles_comp = lex_leq(idx_1, idx_2)
         end function
     end subroutine sorting_doubles_t
 
@@ -319,10 +320,10 @@ contains
     contains
         logical elemental function triples_comp(p1, p2)
             type(triples_t), intent(in) :: p1, p2
-            associate(idx_1 => [p1%k, p1%j, p1%i, p1%a, p1%b, p1%c], &
-                      idx_2 => [p2%k, p2%j, p2%i, p2%a, p2%b, p2%c])
-                triples_comp = lex_leq(idx_1, idx_2)
-            end associate
+            integer :: idx_1(6), idx_2(6)
+            idx_1 = [p1%k, p1%j, p1%i, p1%a, p1%b, p1%c]
+            idx_2 = [p2%k, p2%j, p2%i, p2%a, p2%b, p2%c]
+            triples_comp = lex_leq(idx_1, idx_2)
         end function
     end subroutine sorting_triples_t
 

@@ -267,12 +267,10 @@ contains
             case ("FREEZE")
                 NFROZEN = to_int(tokens%next())
                 NTFROZEN = to_int(tokens%next())
-                if(mod(NFROZEN, 2) /= 0 .or.                             &
-                 (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
+                if (mod(NFROZEN, 2) /= 0 (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
                     call stop_all(this_routine, "NFROZEN and (+ve) NTFROZEN must be multiples of 2")
                 end if
-                if(                                                      &
-                 (NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0)) then
+                if (NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0) then
                     call stop_all(this_routine, "-ve NTFROZEN must be same parity as NEL")
                 end if
 
@@ -335,8 +333,8 @@ contains
 ! but say 5.002 would be meaningless as the integral part must be a
 ! multiple of 2
                         ORBORDER(I, 1) = INT(ORBORDER2(I) + 0.000001_dp)
-                        ORBORDER(I, 2) = INT((ORBORDER2(I) - ORBORDER(I, 1) +      &
-                                       0.000001_dp) * 1000) * 2
+                        ORBORDER(I, 2) = &
+                            INT((ORBORDER2(I) - ORBORDER(I, 1) + 0.000001_dp) * 1000) * 2
                     end if
                 end do
             case ("UMATCACHE")
@@ -597,7 +595,7 @@ contains
                         !!C.. Real space hubbard
                         !!C.. we pre-compute the 2-e integrals
                         if((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) &
-                           .or. t_tJ_model .or. t_heisenberg_model) then
+                               .or. t_tJ_model .or. t_heisenberg_model) then
                             write(stdout, *) "Not precomputing HUBBARD 2-e integrals"
                             UMatInt = 1_int64
                             call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
@@ -2020,8 +2018,8 @@ SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
 
     DO I = 1, nbasis
         K_REAL = G1(I)%K + K_OFFSET
-        TMAT2D(I, 1) = ((ALAT(1)**2) * ((K_REAL(1)**2) / (ALAT(1)**2) +        &
-             (K_REAL(2)**2) / (ALAT(2)**2) + (K_REAL(3)**2) / (ALAT(3)**2)))
+        TMAT2D(I, 1) = ((ALAT(1)**2) * ((K_REAL(1)**2) / (ALAT(1)**2) &
+            + (K_REAL(2)**2) / (ALAT(2)**2) + (K_REAL(3)**2) / (ALAT(3)**2)))
         TMAT2D(I, 1) = TMAT2D(I, 1) * (CST)
 !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
 !   we *1/2 as we attribute only half the interaction to this cell.
