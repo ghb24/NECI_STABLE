@@ -705,7 +705,7 @@ contains
                         t12FoldSym = .true.
                         tNoSinglesPossible = .true.
                     case default
-                        call stop_all(this_routine, 
+                        call stop_all(this_routine, &
                              'Invalid MOLECULAR-TRANSCORR argument supplied. Include "UEG" or "3-BODY" in input file.')
                     end select
                 else
