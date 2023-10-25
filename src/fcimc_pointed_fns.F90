@@ -663,8 +663,9 @@ contains
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else
-                write (stderr, '("** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                     //"Timestep errors possible: ")', advance='no')
+                write (stderr, '(A)', advance='no') &
+                    "** WARNING ** Death probability > 1: Creating Antiparticles.  Timestep errors possible: "
+
                 do i = 1, inum_runs
                     write(stderr, '(1X,f13.7)', advance='no') fac(i)
                 end do

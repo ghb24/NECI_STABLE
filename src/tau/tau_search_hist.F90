@@ -215,9 +215,9 @@ contains
         ! if no truncating spawns is chosen warn here againg that that might
         ! cause problems!
         if (.not. t_truncate_spawns) then
-            write(stdout, '("WARNING: NO spawn truncation chosen with keyword: " &
+            write(stdout, '(A)') "WARNING: NO spawn truncation chosen with keyword: " &
                 // "truncate-spawns [float] in input. this might cause " &
-                // "bloom problems with histogramming tau-search! BE CAUTIOUS!")')
+                // "bloom problems with histogramming tau-search! BE CAUTIOUS!"
         end if
 
         if (tHub) then

@@ -447,9 +447,10 @@ contains
             end do
             do irdm = est%nrdms_standard + 1, est%nrdms
                 associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
-                    write(stdout, '(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(state_labels(2, irdm))//'," -> ",&
-                               '//int_fmt(state_labels(1, irdm))//',1x,"(",i1,")",)') &
-                              state_labels(2, irdm), state_labels(1, irdm), repeat_label(irdm)
+                    write(stdout, &
+                        '(1x,"2-RDM ESTIMATES FOR TRANSITION", 1x, ' // int_fmt(state_labels(2, irdm)) // '," -> ",  ' &
+                            // int_fmt(state_labels(1, irdm)) // ',1x,"(",i1,")",)') &
+                        state_labels(2, irdm), state_labels(1, irdm), repeat_label(irdm)
                 end associate
 
                 write(stdout, '(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)

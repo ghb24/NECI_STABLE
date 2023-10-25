@@ -114,8 +114,8 @@ contains
                 write(initiatorstats_unit,'()', advance = 'yes')
             end if
             IF(tLogComplexPops) THEN
-                write(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
-                        //"6.RealTotParts      7.ImTotParts'
+                write(complexstats_unit,"(A)") &
+                    '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      6.RealTotParts      7.ImTotParts'
             end if
             if (tLogEXLEVELStats) then
                 write(EXLEVELStats_unit, '(a)', advance='no') '# 1.Step'
@@ -312,9 +312,8 @@ contains
         if (iProcIndex == root) then
 
 #ifdef CMPLX_
-            write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3," &
-                                  // "G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&" &
-                                  // "g16.7)",advance='no') &
+            write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,g16.7)", &
+                    advance='no') &
                 Iter + PreviousCycles, &                !1.
                 DiagSft + E_ref_tmp, &                  !2.
                 AllTotParts(1) - AllTotPartsLastOutput(1), &   !3.

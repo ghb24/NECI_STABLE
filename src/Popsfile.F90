@@ -1743,8 +1743,8 @@ contains
             ! If we are only outputting determinants with a certain weight
             if (tBinPops .and. abs(binarypops_min_weight) > 1.0e-12_dp) then
                 write (num_tmp, '(f12.3)') binarypops_min_weight
-                write (stdout, '("Only outputting determinants holding >= ",a,&
-                           " walkers")') trim(adjustl(num_tmp))
+                write (stdout, '("Only outputting determinants holding >= ", A, " walkers")') &
+                    trim(adjustl(num_tmp))
             end if
             write (stdout, '("*********************************")')
             write (stdout, *)

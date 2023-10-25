@@ -267,7 +267,7 @@ contains
             case ("FREEZE")
                 NFROZEN = to_int(tokens%next())
                 NTFROZEN = to_int(tokens%next())
-                if (mod(NFROZEN, 2) /= 0 (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
+                if (mod(NFROZEN, 2) /= 0 .or. (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
                     call stop_all(this_routine, "NFROZEN and (+ve) NTFROZEN must be multiples of 2")
                 end if
                 if (NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0) then

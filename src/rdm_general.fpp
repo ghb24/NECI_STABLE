@@ -419,8 +419,8 @@ contains
             end if
 
             if (any(tSinglePartPhase)) then
-                write (stdout, '("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of " &
-                          // "the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging.")')
+                write (stdout, '(A)') "WARNING - Asking to read in the RDMs, but not varying shift from the beginning of " &
+                    // "the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging."
                 ! Clear these objects, before the main simulation, since we
                 ! haven't started averaging RDMs yet.
                 call clear_one_rdms(one_rdms)

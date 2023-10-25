@@ -1550,8 +1550,8 @@ contains
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
                 ! This option is now deprecated, as it is default.
-                write(stdout, '("WARNING: LINSCALEFCIMCALGO option has been " &
-                              // "deprecated, and now does nothing")')
+                write(stdout, '(A)') &
+                    "WARNING: LINSCALEFCIMCALGO option has been deprecated, and now does nothing"
                 call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
             case("PARTICLE-HASH-MULTIPLIER")
