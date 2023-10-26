@@ -446,10 +446,11 @@ contains
             l = excitInfo%l
             typ = excitInfo%typ
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contr(csf_i, [2 * i, 2 * j], above_cpt, &
-                                         below_cpt)
+            call calc_orbital_pgen_contr(&
+                csf_i, [2 * i, 2 * j], above_cpt, below_cpt)
             p_orig = (above_cpt + below_cpt) * branch_pgen
             if (.not. (t_heisenberg_model .or. t_tJ_model)) then
+                ! TODO: This might be wrong for non-uniform elec picking
                 p_orig = p_orig / real(ElecPairs, dp)
             end if
         end if

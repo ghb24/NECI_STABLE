@@ -226,7 +226,7 @@ module guga_base_class
 
     type :: Entry_t
         integer(int64) :: key
-        type(DistinctDouble_t) :: exc
+        type(DistinctDouble_t) :: exc_operator
         integer(int64) :: accum = 0_int64
         real(dp) :: p_gen = -1._dp
         type(ExcitationInformation_t) :: exc_info = ExcitationInformation_t()
@@ -389,14 +389,14 @@ contains
         ilut = csf_i%to_ilut()
 
         block
-            type(DistinctDouble_t), allocatable :: excitations(:)
-            excitations = doubles_generator%gen_all_distinct(csf_i)
-            entries = [(Entry_t(excitations(i)%fuse(), excitations(i)), i = 1, size(excitations))]
+            type(DistinctDouble_t), allocatable :: exc_operators(:)
+            exc_operators = doubles_generator%gen_all_distinct(csf_i)
+            entries = [(Entry_t(exc_operators(i)%fuse(), exc_operators(i)), i = 1, size(exc_operators))]
             ASSERT(is_sorted(entries%key))
         end block
 
         do i = 1, size(entries)
-            entries(i)%p_gen = doubles_generator%calc_pgen(nI, ilut, csf_i, entries(i)%exc%get_repr_excit_info(1))
+            entries(i)%p_gen = doubles_generator%calc_pgen(nI, ilut, csf_i, entries(i)%exc_operator%get_repr_excit_info(1))
         end do
 
         L = n_iter .div. 100_int64
@@ -428,13 +428,15 @@ contains
 
             if (exc%typ /= distinct_doubles%invalid) then
                 pos = binary_search_int(entries%key, exc%fuse())
+                if (pos == -1) then
+                    call stop_all(this_routine, 'unexpected excitation')
+                end if
                 entries(pos)%accum = entries(pos)%accum + 1
                 entries(pos)%exc_info = excit_info
                 entries(pos)%p_gen = pgen
             end if
         end block
         end do
-        write(stdout, *)
     end subroutine
 
 
@@ -450,11 +452,11 @@ contains
 
             do i = 1, size(entries)
                 if (near_zero(entries(i)%p_gen)) then
-                    res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc, &
+                    res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc_operator, &
                                     entries(i)%p_gen, 1._dp, &
                                     entries(i)%accum)
                 else
-                    res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc, &
+                    res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc_operator, &
                                     entries(i)%p_gen, (entries(i)%accum / entries(i)%p_gen) / n_iter, &
                                     entries(i)%accum)
                 end if
