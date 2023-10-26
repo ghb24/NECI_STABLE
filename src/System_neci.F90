@@ -3206,11 +3206,11 @@ contains
         IF (tFixLz) THEN
             write(stdout, '(A)') "****** USING Lz SYMMETRY *******"
             write(stdout, '(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ", LzTot
-            write(stdout, *) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
-            //"on order of 1.0e-4_dp - do not use for MP2!"
+            write(stdout, *) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, &
+                &on order of 1.0e-4_dp - do not use for MP2!"
             if (nsymlabels > 4) then
-                call stop_all(this_routine, "D2h point group detected. Incompatable with Lz symmetry conserving "&
-                //"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+                call stop_all(this_routine, "D2h point group detected. Incompatable with Lz symmetry conserving &
+                    &orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
             end if
         end if
 

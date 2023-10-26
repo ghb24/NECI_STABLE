@@ -143,8 +143,8 @@ contains
                 else if (hamil_type == parallel_sparse_hamil_type .or. hamil_type == sparse_hamil_type) then
                     ! in the case of sparse implementations, the diagonal should be
                     ! created when the hamiltonian itself is.
-                    call stop_all("t_r", "the diagonal of the hamiltonian has not been allocated. " &
-                                         // "cannot perform Davidson or Lanczos calculation.")
+                    call stop_all("t_r", "the diagonal of the hamiltonian has not been allocated. &
+                                         &cannot perform Davidson or Lanczos calculation.")
                 end if
             end if
 

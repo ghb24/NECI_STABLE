@@ -1094,9 +1094,9 @@ contains
 #else
                         if (abs(AllNoatHF(run)) < MaxNoatHF - HFPopThresh) then
 #endif
-                            write(stdout, '(a,i13,a)') 'No at HF has fallen too low - reentering the ' &
-                                         // 'single particle growth phase on iteration', iter + PreviousCycles, &
-                                        ' - particle number may grow again.'
+                            write(stdout, '(a,i13,a)') &
+                                'No at HF has fallen too low - reentering the single particle growth phase on iteration', &
+                                iter + PreviousCycles, ' - particle number may grow again.'
                             tSinglePartPhase(run) = .true.
                             tReZeroShift(run) = .true.
                         end if

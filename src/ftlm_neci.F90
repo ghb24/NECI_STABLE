@@ -127,8 +127,9 @@ contains
         expected_ndets_tot = int(choose_i64(nbasis, nel))
         if (ndets_tot /= expected_ndets_tot) then
             write(stdout, *) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot
-            call stop_all('t_r', 'The number of determinants generated is not ' &
-                                    // 'consistent with the expected number.')
+            call stop_all('t_r', &
+                'The number of determinants generated is not &
+                &consistent with the expected number.')
         end if
 
         write(stdout, '(1x,a44)', advance='no') "Allocating arrays to hold Lanczos vectors..."

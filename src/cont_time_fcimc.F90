@@ -52,8 +52,8 @@ contains
         logical :: survives
 
         if (lenof_sign /= 1) then
-            call stop_all(this_routine, "Complex and multi-run calculations " &
-                         // "not supported using CONT-TIME")
+            call stop_all(this_routine, "Complex and multi-run calculations &
+                         &not supported using CONT-TIME")
         end if
 
         ! Reset free position list

@@ -143,8 +143,8 @@ contains
         associate(rep => cs_replicas(core_run))
 
             if ((.not. tSemiStochastic) .or. (.not. allocated(rep%sparse_core_ham))) &
-                call stop_all(this_routine, "You must use the semi-stochastic " &
-                    // "option and define a core space to use the determ-proj option.")
+                call stop_all(this_routine, "You must use the semi-stochastic &
+                    &option and define a core space to use the determ-proj option.")
 
             allocate(wavefunction(rep%determ_sizes(iProcIndex)))
             allocate(wavefunction_old(rep%determ_sizes(iProcIndex)))
@@ -152,8 +152,8 @@ contains
             allocate(ham_times_wf(rep%determ_sizes(iProcIndex)))
 
             write(stdout, '()')
-            write(stdout, '(a83)') "Performing a deterministic projection using the defined " &
-                             // "semi-stochastic core space."
+            write(stdout, '(a83)') "Performing a deterministic projection using the defined &
+                             &semi-stochastic core space."
             write(stdout, '()')
 
             iter = 1

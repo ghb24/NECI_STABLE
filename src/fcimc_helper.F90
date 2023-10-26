@@ -2540,8 +2540,8 @@ contains
         ! closed shell, ground state HF det.
         tNoBrillouin = .true.
         tRef_Not_HF = .true.
-        root_print "Ensuring that Brillouin's theorem is no " &
-                   // "longer used."
+        root_print "Ensuring that Brillouin's theorem is no &
+                   &longer used."
 
         ! If this is the first replica, update the global reference
         ! energy.
@@ -2563,8 +2563,8 @@ contains
 
             ! Regenerate all the diagonal elements relative to the
             ! new reference det.
-            write(stdout, *) 'Regenerating the stored diagonal ' &
-                           // 'HElements for all walkers.'
+            write(stdout, *) &
+                'Regenerating the stored diagonal HElements for all walkers.'
             do i = 1, int(Totwalkers)
                 call decode_bit_det(det, CurrentDets(:, i))
                 h_tmp =  get_diagonal_matel(det, CurrentDets(:, i))

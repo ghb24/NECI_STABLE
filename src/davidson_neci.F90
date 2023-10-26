@@ -103,9 +103,9 @@ contains
             if (this%residual_norm < residual_norm_target) exit
 
             if (i == max_num_davidson_iters) then
-                call stop_all(this_routine, "Davidson iteration reached the maximum number of iterations. " &
-                                            // "The deterministic energy may not be converged. " &
-                                            // "You can increase 'davidson-max-iters' or 'davidson-target-tolerance'.")
+                call stop_all(this_routine, "Davidson iteration reached the maximum number of iterations. &
+                                            &The deterministic energy may not be converged. &
+                                            &You can increase 'davidson-max-iters' or 'davidson-target-tolerance'.")
             end if
 
         end do

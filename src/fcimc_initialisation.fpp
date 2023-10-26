@@ -1063,13 +1063,13 @@ contains
             IF (tNoBrillouin .or. (tHub .and. tReal) .or. tRotatedOrbs) THEN
                 write(stdout, *) "No brillouin theorem assumed. Single excitations also used to calculate projected energy."
             else if (tUHF) THEN
-                write(stdout, *) "High spin calculation - but single excitations will *NOT* be used to calculate energy as "&
-                 // "this is an unrestricted calculation."
+                write(stdout, *) "High spin calculation - but single excitations will *NOT* be used to calculate energy as &
+                    &this is an unrestricted calculation."
             ELSE
                 CALL Stop_All("SetupParameters", &
-                    "High-spin, restricted calculation detected, but single excitations are " &
-                  // "not being used to calculate the energy. " &
-                  // "Either use the UHF keyword, or turn off brillouins theorem using NOBRILLOUINS, ROHF or ROTATEDORBS.")
+                    "High-spin, restricted calculation detected, but single excitations are &
+                    &not being used to calculate the energy. &
+                    &Either use the UHF keyword, or turn off brillouins theorem using NOBRILLOUINS, ROHF or ROTATEDORBS.")
             end if
 !            tRotatedOrbs=.true.
 !        else if(LMS.ne.0) THEN
@@ -1499,7 +1499,8 @@ contains
         end if
 
         if (tTruncNOpen) then
-            write (stdout, '("Truncating determinant space at a maximum of ",i3," unpaired electrons.")') trunc_nopen_max
+            write (stdout, &
+                '("Truncating determinant space at a maximum of ",i3," unpaired electrons.")') trunc_nopen_max
         end if
 
         ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given

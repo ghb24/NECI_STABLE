@@ -2018,23 +2018,23 @@ contains
             if (rat > 0.95_dp) then
 #ifdef DEBUG_
                 if(tMolpro) then
-                    write(stderr, '(a)') '*WARNING* - Highest processor spawned ' &
-                                     // 'particles has reached over 95% of allotted memory.' &
-                                     // 'Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                    write(stderr, '(a)') '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory.&
+                                     &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                 else
-                    write(stderr, '(a)') '*WARNING* - Highest processor spawned ' &
-                                     // 'particles has reached over 95% of allotted memory.' &
-                                     // 'Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                    write(stderr, '(a)') '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory.&
+                                     &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 end if
 #else
                 if(tMolpro) then
-                    write(stderr,*) '*WARNING* - Highest processor spawned ' &
-                                     // 'particles has reached over 95% of allotted memory on task ',iProcIndex,' .' &
-                                     // 'Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                    write(stderr,*) '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                     &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                 else
-                    write(stderr,*) '*WARNING* - Highest processor spawned ' &
-                                     // 'particles has reached over 95% of allotted memory on task ',iProcIndex,' .' &
-                                     // 'Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                    write(stderr,*) '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                     &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 end if
 #endif
                 call neci_flush(stderr)

@@ -75,8 +75,8 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     def_default(filename, filename_in, '')
 
 #ifdef SX
-    call stop_all(this_routine, 'The NEC compiler does not produce a working ' &
-                                // 'version of NECI.')
+    call stop_all(this_routine, 'The NEC compiler does not produce a working &
+                                &version of NECI.')
 #endif
 
     neci_MPIInit_called = .false.

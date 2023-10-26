@@ -2437,7 +2437,7 @@ contains
 
 !Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
         write (stdout, "(A,I12,A)") " Spawning vectors allowing for a total of ", MaxSpawned, &
-         " particles to be spawned in any one iteration."
+            " particles to be spawned in any one iteration."
         ALLOCATE (SpawnVec(0:NIfTot, MaxSpawned), stat=ierr)
         CALL LogMemAlloc('SpawnVec', MaxSpawned * (NIfTot + 1), size_n_int, this_routine, SpawnVecTag, ierr)
         SpawnVec(:, :) = 0
