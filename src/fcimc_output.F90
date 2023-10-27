@@ -95,8 +95,8 @@ contains
             IF(tTruncInitiator) THEN
                write(initiatorstats_unit,"(A2,A17,16A23)", advance = 'no') &
                     "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
-                    & "5.Born","6.TotUniqDets",&
-                    &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
+                     "5.Born","6.TotUniqDets",&
+                     "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
                     "12. Removed Dets",  "13. Initiator Proj.E", "14. CoreNonInits"
                offset = 14
                if(tTrialWavefunction .or. tStartTrialLater) then
@@ -114,8 +114,8 @@ contains
                 write(initiatorstats_unit,'()', advance = 'yes')
             end if
             IF(tLogComplexPops) THEN
-                write(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
-                & //"6.RealTotParts      7.ImTotParts'
+                write(complexstats_unit,"(A)") &
+                    '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      6.RealTotParts      7.ImTotParts'
             end if
             if (tLogEXLEVELStats) then
                 write(EXLEVELStats_unit, '(a)', advance='no') '# 1.Step'
@@ -134,7 +134,7 @@ contains
                             write(tchar_k,*)k
                             write(EXLEVELStats_unit, '(1x,a)', &
                                    advance='no') trim(adjustl(tchar_k))// &
-                                   &'.W'//trim(adjustl(tchar_j))//'^'// &
+                                   '.W'//trim(adjustl(tchar_j))//'^'// &
                                    trim(adjustl(tchar_i))// &
                                    trim(adjustl(tchar_r))
                         end do ! j
@@ -145,34 +145,34 @@ contains
 
 #ifdef CMPLX_
             if(tMCOutput) then
-                write(stdout, '(a)') "       Step     Shift      WalkerCng(Re)  &
-                       &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
-                       &Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  &
-                       &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
-                       &NoatDoubs      AccRat     UniqueDets   NumDetsSpawned   IterTime"
+                write(stdout, '(a)') "       Step     Shift      WalkerCng(Re)  " &
+                       // "WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    " &
+                       // "Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  " &
+                       // "Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   " &
+                       // "NoatDoubs      AccRat     UniqueDets   NumDetsSpawned   IterTime"
             end if
             write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                    "# FCIMCStats VERSION 2 - COMPLEX : NEl=", nel, &
                    " HPHF=", tHPHF, ' Lz=', tFixLz, &
                    ' Initiator=', tTruncInitiator
             write(fcimcstats_unit, "(a)", advance = 'no') &
-                   "#     1.Step   2.Shift    3.WalkerCng(Re)  &
-                   &4.WalkerCng(Im)   5.TotWalkers(Re)  6.TotWalkers(Im)  &
-                   &7.Proj.E(Re)   8.Proj.E(Im)   9.Proj.E.ThisCyc(Re)  &
-                   &10.Proj.E.ThisCyc(Im)  11.Tot-Proj.E.ThisCyc(Re)  12.NoatHF(Re)  &
-                   &13.NoatHF(Im)  14.NoatDoubs  15.AccRat  16.UniqueDets  17.IterTime &
-                   &18.FracSpawnFromSing  19.WalkersDiffProc  20.TotImagTime &
-                   &  21.HFInstShift  22.TotInstShift  &
-                   &23.HFContribtoE(Both)  &
-                   &24.NumContribtoE(Re)  &
-                   &25.NumContribtoE(Im)  26.HF weight   27.|Psi|    &
-                   &28.Inst S^2  29.PartsDiffProc   30.MaxCycSpawn"
+                   "#     1.Step   2.Shift    3.WalkerCng(Re)  " &
+                   // "4.WalkerCng(Im)   5.TotWalkers(Re)  6.TotWalkers(Im)  " &
+                   // "7.Proj.E(Re)   8.Proj.E(Im)   9.Proj.E.ThisCyc(Re)  " &
+                   // "10.Proj.E.ThisCyc(Im)  11.Tot-Proj.E.ThisCyc(Re)  12.NoatHF(Re)  " &
+                   // "13.NoatHF(Im)  14.NoatDoubs  15.AccRat  16.UniqueDets  17.IterTime " &
+                   // "18.FracSpawnFromSing  19.WalkersDiffProc  20.TotImagTime " &
+                   // "  21.HFInstShift  22.TotInstShift  " &
+                   // "23.HFContribtoE(Both)  " &
+                   // "24.NumContribtoE(Re)  " &
+                   // "25.NumContribtoE(Im)  26.HF weight   27.|Psi|    " &
+                   // "28.Inst S^2  29.PartsDiffProc   30.MaxCycSpawn"
 ! Dongxia comment 28-30 off because they are not printed out
 ! 28.SpawnedParts  29.MergedParts  30.Zero elems   31.PartsDiffProc   32.MaxCycSpawn"
             if (tTrialWavefunction .or. tStartTrialLater) then
                    write(fcimcstats_unit, "(A)", advance = 'no') &
-                   "  31.TrialNumerator(Re)  32.TrialNumerator(Im)  33.TrialDenom(Re)  &
-                   &  34.TrialDenom(Im)  35.TrialOverlap  36.TrialProjE(Re)  37.TrialProjE(Im)"
+                   "  31.TrialNumerator(Re)  32.TrialNumerator(Im)  33.TrialDenom(Re)  " &
+                   // "  34.TrialDenom(Im)  35.TrialOverlap  36.TrialProjE(Re)  37.TrialProjE(Im)"
             end if
 
             write(fcimcstats_unit, "()", advance = 'yes')
@@ -183,15 +183,15 @@ contains
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
                   ' Initiator=', tTruncInitiator
             write(fcimcstats_unit2, "(A)", advance = 'no') &
-                  "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     &
-                  &5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  &
-                  &9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF &
-                  &13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime &
-                  &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
-                  &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
-                  &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.PartsDiffProc    32.|Semistoch|/|Psi|     33.MaxCycSpawn"
+                  "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     " &
+                  // "5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  " &
+                  // "9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF " &
+                  // "13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime " &
+                  // "17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  " &
+                  // "20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  " &
+                  // "23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE " &
+                  // "26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE " &
+                  // "31.PartsDiffProc    32.|Semistoch|/|Psi|     33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
                   "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
@@ -206,30 +206,30 @@ contains
 #endif
 #ifndef CMPLX_
             if(tMCOutput) then
-                write(stdout, "(A)", advance = 'no') "        Step    Shift           &
-                      &WalkerCng       GrowRate        TotWalkers      Annihil         &
-                      &NoDied          NoBorn          Proj.E          Av.Shift        &
-                      &Proj.E.Cyc"
+                write(stdout, "(A)", advance = 'no') "        Step    Shift           " &
+                      // "WalkerCng       GrowRate        TotWalkers      Annihil         " &
+                      // "NoDied          NoBorn          Proj.E          Av.Shift        " &
+                      // "Proj.E.Cyc"
                 if (tTrialWavefunction .or. tStartTrialLater) write(stdout, "(A)", advance = 'no') &
                       "    Trial.E.Cyc "
-                write(stdout, "(A)", advance = 'yes') "      NoatHF          NoatDoubs       &
-                &AccRat        UniqueDets    NumDetsSpawned   IterTime"
+                write(stdout, "(A)", advance = 'yes') "      NoatHF          NoatDoubs       " &
+                // "AccRat        UniqueDets    NumDetsSpawned   IterTime"
             end if
             write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
                   ' Initiator=', tTruncInitiator
             write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     &
-                  &5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  &
-                  &9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF &
-                  &13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime &
-                  &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
-                  &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
-                  &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|     28.Inst S^2 &
-                  &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
-                  &32.|Semistoch|/|Psi|  33.MaxCycSpawn "
+                  "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     " &
+                  // "5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  " &
+                  // "9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF " &
+                  // "13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime " &
+                  // "17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  " &
+                  // "20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  " &
+                  // "23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE " &
+                  // "26.HF weight    27.|Psi|     28.Inst S^2 " &
+                  // "29.Inst S^2   30.AbsProjE   31.PartsDiffProc " &
+                  // "32.|Semistoch|/|Psi|  33.MaxCycSpawn "
            if (tTrialWavefunction .or. tStartTrialLater) then
               write(fcimcstats_unit, "(A)", advance = 'no') &
                    "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
@@ -312,10 +312,8 @@ contains
         if (iProcIndex == root) then
 
 #ifdef CMPLX_
-            write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&
-
-                                  &g16.7)",advance='no') &
+            write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,g16.7)", &
+                    advance='no') &
                 Iter + PreviousCycles, &                !1.
                 DiagSft + E_ref_tmp, &                  !2.
                 AllTotParts(1) - AllTotPartsLastOutput(1), &   !3.
@@ -397,9 +395,9 @@ contains
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             end if
 #elif defined(DOUBLERUN_)
-            write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
-                                   &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
-                                   &i13,2g16.7)",advance = 'no') &
+            write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5," &
+                                   // "i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3," &
+                                   // "i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(2) + E_ref_tmp(2), &                              ! 2.
                 AllTotParts(2) - AllTotPartsLastOutput(2), &      ! 3.
@@ -446,9 +444,9 @@ contains
 #endif
 #ifndef CMPLX_
 
-            write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
-                                   &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
-                                   &i13,4g16.7)",advance = 'no') &
+            write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5," &
+                                   // "i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3," &
+                                   // "i13,4g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(1) + E_ref_tmp(1), &                              ! 2.
                 AllTotParts(1) - AllTotPartsLastOutput(1), &      ! 3.
@@ -540,8 +538,7 @@ contains
             end if
 #endif
             if (tLogEXLEVELStats) then
-                write(EXLEVELStats_unit, '(i12)', advance='no') &
-                      &Iter + PreviousCycles
+                write(EXLEVELStats_unit, '(i12)', advance='no') Iter + PreviousCycles
                 do run = 1, inum_runs
                     do i = 0, 2
                         do j = 0, NEl
@@ -1546,11 +1543,11 @@ contains
                 else
 #ifdef CMPLX_
                     if(tHPHF) then
-                        write(stdout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
-                            &Init?(Re)   Init?(Im)   <D|H|D>  Proc  Spin-Coup?"
+                        write(stdout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   " &
+                            // "Init?(Re)   Init?(Im)   <D|H|D>  Proc  Spin-Coup?"
                     else
-                        write(stdout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
-                            &Init?(Re)   Init?(Im)   <D|H|D>  Proc"
+                        write(stdout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   " &
+                            // "Init?(Re)   Init?(Im)   <D|H|D>  Proc"
                     end if
 #else
                     ! output the weight of every replica, and do not only assume
@@ -1964,23 +1961,23 @@ contains
         if (rat > 0.95_dp) then
 #ifdef DEBUG_
             if(tMolpro) then
-                write(stderr, '(a)') '*WARNING* - Number of particles/determinants &
-                                 &has increased to over 95% of allotted memory. &
-                                 &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
+                write(stderr, '(a)') '*WARNING* - Number of particles/determinants ' &
+                                 // 'has increased to over 95% of allotted memory. ' &
+                                 // 'Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
             else
-                write(stderr, '(a)') '*WARNING* - Number of particles/determinants &
-                                 &has increased to over 95% of allotted memory. &
-                                 &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
+                write(stderr, '(a)') '*WARNING* - Number of particles/determinants ' &
+                                 // 'has increased to over 95% of allotted memory. ' &
+                                 // 'Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
             end if
 #else
             if(tMolpro) then
-                write(stderr,*) '*WARNING* - Number of particles/determinants &
-                                 &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
-                                 &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
+                write(stderr,*) '*WARNING* - Number of particles/determinants ' &
+                                 // 'has increased to over 95% of allotted memory on task ', iProcIndex, '. ' &
+                                 // 'Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
             else
-                write(stderr,*) '*WARNING* - Number of particles/determinants &
-                                 &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
-                                 &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
+                write(stderr,*) '*WARNING* - Number of particles/determinants ' &
+                                 // 'has increased to over 95% of allotted memory on task ', iProcIndex, '. ' &
+                                 // 'Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
             end if
 #endif
             call neci_flush(stderr)
@@ -1994,23 +1991,23 @@ contains
                 if (rat > 0.95_dp) then
 #ifdef DEBUG_
                     if(tMolpro) then
-                        write(stderr, '(a)') '*WARNING* - Highest processor spawned &
-                                         &particles has reached over 95% of allotted memory.&
-                                         &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                        write(stderr, '(a)') '*WARNING* - Highest processor spawned ' &
+                                         // 'particles has reached over 95% of allotted memory.' &
+                                         // 'Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                     else
-                        write(stderr, '(a)') '*WARNING* - Highest processor spawned &
-                                         &particles has reached over 95% of allotted memory.&
-                                         &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                        write(stderr, '(a)') '*WARNING* - Highest processor spawned ' &
+                                         // 'particles has reached over 95% of allotted memory.' &
+                                         // 'Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                     end if
 #else
                     if(tMolpro) then
-                        write(stderr,*) '*WARNING* - Highest processor spawned &
-                                         &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
-                                         &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                        write(stderr,*) '*WARNING* - Highest processor spawned ' &
+                                         // 'particles has reached over 95% of allotted memory on task ',iProcIndex,' .' &
+                                         // 'Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                     else
-                        write(stderr,*) '*WARNING* - Highest processor spawned &
-                                         &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
-                                         &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                        write(stderr,*) '*WARNING* - Highest processor spawned ' &
+                                         // 'particles has reached over 95% of allotted memory on task ',iProcIndex,' .' &
+                                         // 'Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                     end if
 #endif
                     call neci_flush(stderr)

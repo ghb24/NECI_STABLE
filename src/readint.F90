@@ -179,14 +179,14 @@ contains
                 write(stdout,*) "No number of electrons given, using NEL in FCIDUMP"
                 NEL = NELEC
             else if (.not. tIgnoreFCIDUMPHeader) then
-                call stop_all(this_routine, 'NEL in FCIDUMP differs from input file. &
-                        &Use ignore-fcidump-header keyword if you wish to continue anyway.')
+                call stop_all(this_routine, 'NEL in FCIDUMP differs from input file. ' &
+                        // 'Use ignore-fcidump-header keyword if you wish to continue anyway.')
             endif
         end if
         IF (abs(LMS) /= abs(MS2)) THEN
             if (.not. tIgnoreFCIDUMPHeader) then
-                call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. &
-                        &Use ignore-fcidump-header keyword if you wish to continue anyway.')
+                call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. ' &
+                        // 'Use ignore-fcidump-header keyword if you wish to continue anyway.')
             end if
             LMS = MS2
             write(stdout, *) ' BASIS MS : ', LMS
@@ -347,9 +347,9 @@ contains
         ! Count the number of orbs per irrep
         if (any(ORBSYM(1:NORB) == 0)) then
             if (.not. lNoSymmetry .and. .not. tIgnoreFCIDUMPHeader) then
-                call stop_all(t_r, "WARNING: Invalid ORBSYM in FCIDUMP. Use the NOSYMMETRY &
-                    &keyword if you wish to ignore this and continue without symmetry, or &
-                    &the ignore-fcidump-header keyword to continue without this warning.")
+                call stop_all(t_r, "WARNING: Invalid ORBSYM in FCIDUMP. Use the NOSYMMETRY " &
+                    // "keyword if you wish to ignore this and continue without symmetry, or " &
+                    // "the ignore-fcidump-header keyword to continue without this warning.")
             end if
         else
             orbsPerIrrep = 0
@@ -435,17 +435,15 @@ contains
                     read(iunit, *, END=99) CompInt, I, J, K, L
                     Z = real(CompInt, dp)
                     if (abs(aimag(CompInt)) > 1.0e-7_dp) then
-                        write(stdout, *) "Using the *real* neci compiled code, &
-                                   &however non-zero imaginary parts of &
-                                   &integrals found"
-                        write(stdout, *) "If all k-points are at Gamma or BZ &
-                                   &boundary, orbitals should be able to be &
-                                   &rotated to be real"
-                        write(stdout, *) "Check this is the case, or rerun in &
-                                   &complex mode to handle complex integrals."
-                        call stop_all("GETFCIBASIS", "Real orbitals indicated,&
-                                      & but imaginary part of integrals larger&
-                                      & than 1.0e-7_dp")
+                        write(stdout, *) "Using the *real* neci compiled code, " &
+                                   // "however non-zero imaginary parts of integrals found"
+                        write(stdout, *) "If all k-points are at Gamma or BZ " &
+                                   // "boundary, orbitals should be able to be rotated to be real."
+                        write(stdout, *) "Check this is the case, or rerun in " &
+                                   // "complex mode to handle complex integrals."
+                        call stop_all("GETFCIBASIS", "Real orbitals indicated," &
+                                      // " but imaginary part of integrals larger" &
+                                      // " than 1.0e-7_dp")
                     end if
                 else
                     if (tMolpro .or. tReadFreeFormat) then
@@ -673,8 +671,7 @@ contains
 
         IF (iProcIndex == 0) THEN
 
-            write (stdout, '("Two-electron integrals with a magnitude over ", &
-                      &g16.7," are screened")') UMatEps
+            write (stdout, '("Two-electron integrals with a magnitude over ", g16.7," are screened")') UMatEps
 
             if (tZeroDelimitedFCIDUMP) then
                 !In molpro, UHF FCIDUMPs are written out as:
@@ -761,8 +758,8 @@ contains
                 if (tbad) then
                     if (LzDisallowed < 100) then
                         write(stdout, '(a,2i4,a,2i4,a)', advance='no') &
-                            'Ignoring Lz disallowed integral (chem. notation)&
-                            & (', i, j, '|', k, l, '): '
+                            'Ignoring Lz disallowed integral (chem. notation)' &
+                            // ' (', i, j, '|', k, l, '): '
                         write(stdout, *) Z
                     else if (LzDisallowed == 100) then
                         write(stdout, *) 'Ignored more than 100 integrals.'
@@ -880,8 +877,8 @@ contains
                         UMAT2D(Y, X) = Z
                     else if (tRIIntegrals) THEN
                         CALL Stop_All("ReadFCIINTS", "we should not be " &
-     &                        //"reading in generic 2e integrals from " &
-     &                        //"the FCIDUMP file with ri.")
+                             //"reading in generic 2e integrals from " &
+                             //"the FCIDUMP file with ri.")
                     ELSE
                         NonZeroInt = NonZeroInt + 1
 !Read in all integrals as normal.

@@ -129,8 +129,8 @@ contains
         ! We can only initialise blocking in this manner if the blocks match
         ! the number of blocks in the popsfile
         if (pops_blocks /= balance_blocks) &
-            call stop_all(this_routine, 'Incorrect number of load balancing &
-                                        &blocks.')
+            call stop_all(this_routine, &
+                'Incorrect number of load balancing blocks.')
 
         ! Determine which blocks are found on which processors. Do this by
         ! setting all the blocks to zero, seeing what is on each processor and
@@ -155,8 +155,8 @@ contains
         ! processor.
         call MPISumAll(mapping_test, mapping_test_all)
         if (.not. all(mapping_test_all == 1 .or. mapping_test_all == 0)) then
-            call stop_all(this_routine, "Multi-processor mapping not &
-                &correctly determined")
+            call stop_all(this_routine, &
+                "Multi-processor mapping not correctly determined")
         end if
 
         ! And do a load balancing before anything else happens

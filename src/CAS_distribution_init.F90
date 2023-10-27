@@ -310,7 +310,7 @@ contains
             call stop_all(this_routine, "this does not make sense for complex code")
 #else
             CALL NECI_FRSBLKH(nCASDet, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
-         &  SCR, ISCR, INDEX, NCYCLE, B2L, .false., .false., .true.)
+             SCR, ISCR, INDEX, NCYCLE, B2L, .false., .false., .true.)
             !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL, -1.0_dp, W, 1)
 #endif
@@ -399,8 +399,8 @@ contains
         !If the reference det is not the maximum weighted det, suggest that
         !we change it!
         if (.not. all(CASFullDets(:, det_max) == ProjEDet(:, 1))) then
-            write(stdout, *) 'The specified reference determinant is not the &
-                       &maximum weighted determinant in the CAS expansion'
+            write(stdout, *) 'The specified reference determinant is not the ' &
+                       // 'maximum weighted determinant in the CAS expansion'
             write(stdout, *) 'Use following det as reference:'
             call write_det(stdout, CASFullDets(:, det_max), .true.)
             call warning_neci(this_routine, "Poor reference chosen")
@@ -442,7 +442,7 @@ contains
 
                 if (tRealCoeffByExcitLevel) ExcitLevel = FindBitExcitLevel(iLutnJ, iLutRef, nEl)
                 if (tAllRealCoeff .or. &
-                    & (tRealCoeffByExcitLevel .and. (ExcitLevel <= RealCoeffExcitThresh))) then
+                     (tRealCoeffByExcitLevel .and. (ExcitLevel <= RealCoeffExcitThresh))) then
                     NoWalkers = amp
                 else
                     NoWalkers = int(amp)

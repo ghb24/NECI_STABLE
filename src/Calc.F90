@@ -548,8 +548,8 @@ contains
                     case("STAR")
                         TSTAR = .TRUE.
                     case default
-                        call stop_all(this_routine, "Keyword "//trim(w)//                 &
-          &                " not recognised")
+                        call stop_all(this_routine, &
+                            "Keyword " // trim(w) // " not recognised")
                     end select
                 end if
             case("ENERGY")
@@ -680,16 +680,16 @@ contains
                         I_VMAX = I_VMAX + 1
                         NWHTAY(3, I_VMAX) = I_VMAX
                         call inpgetmethod(tokens, NWHTAY(1, I_VMAX), NWHTAY(2, I_VMAX),&
-        &                I_VMAX)
+                            I_VMAX)
                     case("EXCITATIONS")
                         w = to_upper(tokens%next())
                         call inpgetexcitations(NWHTAY(2, I_VMAX), w)
                     case("CYCLES")
                         NWHTAY(2, I_VMAX) = to_int(tokens%next())
                         if(NWHTAY(1, I_VMAX) /= -7 .and.                  &
-       &                     NWHTAY(1, I_VMAX) /= -19) then
+                             NWHTAY(1, I_VMAX) /= -19) then
                             call stop_all(this_routine, trim(w)//" only valid for MC "      &
-        &                    //"method")
+                             //"method")
                         end if
                     case("VERTICES")
                         NWHTAY(3, I_VMAX) = to_int(tokens%next())
@@ -697,8 +697,7 @@ contains
                         g_MultiWeight(I_VMAX) = to_realdp(tokens%next())
                     case("CALCVAR")
                         if(NWHTAY(1, I_VMAX) /= -20) then
-                            call stop_all(this_routine, "Keyword "//trim(w)//"            &
-      &                      only valid for HDIAG routine")
+                            call stop_all(this_routine, "Keyword "//trim(w)//" only valid for HDIAG routine")
                         else
                             TVARCALC(I_VMAX) = .true.
                         end if
@@ -736,10 +735,9 @@ contains
 
             case("CYCLES")
                 NWHTAY(1, 1) = to_int(tokens%next())
-                if(I_HMAX /= -7 .and.                              &
-     &               I_HMAX /= -19) then
-                    call stop_all(this_routine, trim(w)//" only valid for MC "        &
-     &                 //"method")
+                if(I_HMAX /= -7 .and. I_HMAX /= -19) then
+                    call stop_all(this_routine, &
+                        trim(w)//" only valid for MC method")
                 end if
 
             case("INITS-RDM")
@@ -809,7 +807,7 @@ contains
             case ("STARCONVERGE")
                 STARCONV = to_realdp(tokens%next())
                 if((NWHTAY(1, I_VMAX) /= 0) .and. (NWHTAY(1, I_VMAX) /= -21)&
-     &               .and. (NWHTAY(1, I_VMAX) /= -9)) then
+                        .and. (NWHTAY(1, I_VMAX) /= -9)) then
                     call stop_all(this_routine, trim(w)//" only valid for STAR method")
                 end if
             case("UFORM-POWER")
@@ -831,8 +829,8 @@ contains
                 G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
-                        call stop_all(this_routine, trim(w)//" only valid if "          &
-       &             //" another weighting scheme not specified")
+                        call stop_all(this_routine, &
+                            trim(w)//" only valid if another weighting scheme not specified")
                     end if
                 end do
                 EXCITFUNCS(5) = .true.
@@ -843,8 +841,8 @@ contains
                 G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
-                        call stop_all(this_routine, trim(w)//" only valid if "          &
-       &             //" another weighting scheme not specified")
+                        call stop_all(this_routine, &
+                            trim(w)//" only valid if another weighting scheme not specified")
                     end if
                 end do
                 EXCITFUNCS(2) = .true.
@@ -856,8 +854,8 @@ contains
                 G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
-                        call stop_all(this_routine, trim(w)//" only valid if "          &
-       &             //" another weighting scheme not specified")
+                        call stop_all(this_routine, &
+                            trim(w)//" only valid if another weighting scheme not specified")
                     end if
                 end do
                 EXCITFUNCS(3) = .true.
@@ -870,8 +868,8 @@ contains
                 IF(tokens%remaining_items() > 0) g_VMC_ExcitWeights(3, 1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
-                        call stop_all(this_routine, trim(w)//" only valid if "          &
-       &             //" another weighting scheme not specified")
+                        call stop_all(this_routine, &
+                            trim(w)//" only valid if another weighting scheme not specified")
                     end if
                 end do
                 EXCITFUNCS(1) = .true.
@@ -889,8 +887,8 @@ contains
                 G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
-                        call stop_all(this_routine, trim(w)//" only valid if "          &
-       &             //" another weighting scheme not specified")
+                        call stop_all(this_routine, &
+                            trim(w)//" only valid if another weighting scheme not specified")
                     end if
                 end do
                 EXCITFUNCS(6) = .true.
@@ -928,8 +926,8 @@ contains
             case("DERIV")
                 TNPDERIV = .true.
                 if(DBETA < 0) then
-                    call stop_all(this_routine, "Only calculate energy with derivatives"&
-       &            //" if delta_beta positive")
+                    call stop_all(this_routine, &
+                        "Only calculate energy with derivatives if delta_beta positive")
                     TNPDERIV = .false.
                 end if
             case("CIMC")
@@ -937,20 +935,20 @@ contains
             case("MCSTEPS")
                 IMCSTEPS = to_int(tokens%next())
                 if(.not. TMONTE) then
-                    call stop_all(this_routine, trim(w)//" only relevant if CI space" &
-     &              //" monte carlo is performed.")
+                    call stop_all(this_routine, &
+                        trim(w)//" only relevant if CI space monte carlo is performed.")
                 end if
             case("EQSTEPS")
                 IEQSTEPS = to_int(tokens%next())
                 if(.not. TMONTE) then
-                    call stop_all(this_routine, trim(w)//" only relevant if CI space" &
-     &              //" monte carlo is performed.")
+                    call stop_all(this_routine, &
+                        trim(w)//" only relevant if CI space monte carlo is performed.")
                 end if
             case("BETAEQ")
                 BETAEQ = to_realdp(tokens%next())
                 if(.not. TMONTE) then
-                    call stop_all(this_routine, trim(w)//" only relevant if CI space" &
-     &              //" monte carlo is performed.")
+                    call stop_all(this_routine, &
+                        trim(w)//" only relevant if CI space monte carlo is performed.")
                 end if
             case("DETSYM")
                 TMCDET = .true.
@@ -958,8 +956,8 @@ contains
                     MDK(I) = to_int(tokens%next())
                 end do
                 if(.not. TMONTE) then
-                    call stop_all(this_routine, trim(w)//" only relevant if CI space" &
-     &               //" monte carlo is performed.")
+                    call stop_all(this_routine, &
+                        trim(w)//" only relevant if CI space monte carlo is performed.")
                 end if
             case("DETINV")
                 DETINV = to_int(tokens%next())
@@ -1230,8 +1228,8 @@ contains
                     InputDiagSft = InputDiagSftSingle
                 else
                     if (inum_runs /= tokens%remaining_items()) then
-                        call stop_all(t_r, "The number of initial shifts input is not equal to &
-                                           &the number of replicas being used.")
+                        call stop_all(t_r, "The number of initial shifts input is not equal to " &
+                                           // "the number of replicas being used.")
                     end if
                     do i = 1, inum_runs
                         InputDiagSft(i) = to_realdp(tokens%next())
@@ -1308,8 +1306,7 @@ contains
                                 n_frequency_bins = nint(to_realdp(tokens%next()))
                                 if (n_frequency_bins > 10**6) then
                                     write(stdout, "(A)") &
-                                        '("WARNING: maybe too many bins used for the &
-                                        &histograms! This might cause MPI problems!")'
+                                        '("WARNING: maybe too many bins used for the histograms! This might cause MPI problems!")'
                                 end if
                             end if
                             if (can_be_real(tokens%glimpse(''))) then
@@ -1512,8 +1509,8 @@ contains
                 call write_det(stdout, DefDet, .true.)
 
             case("MAXWALKERBLOOM")
-                call stop_all(this_routine, trim(w)//" option deprecated. &
-                    &Moved to tau-search and scale-spawns respectively.")
+                call stop_all(this_routine, trim(w)//" option deprecated. " &
+                    // "Moved to tau-search and scale-spawns respectively.")
 
             case("SHIFTDAMP")
                 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
@@ -1553,8 +1550,8 @@ contains
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
                 ! This option is now deprecated, as it is default.
-                write(stdout, '("WARNING: LINSCALEFCIMCALGO option has been &
-                              &deprecated, and now does nothing")')
+                write(stdout, '(A)') &
+                    "WARNING: LINSCALEFCIMCALGO option has been deprecated, and now does nothing"
                 call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
             case("PARTICLE-HASH-MULTIPLIER")
@@ -2026,8 +2023,8 @@ contains
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 if(tFixedN0 .or. tTrialShift) then
-                    write(stdout, *) "WARNING: 'STEPSSHIFT' cannot be changed. &
-& 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
+                    write(stdout, *) "WARNING: 'STEPSSHIFT' cannot be changed. " &
+                        // " 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
                 else
                     StepsSft = to_int(tokens%next())
                 end if
@@ -2134,8 +2131,8 @@ contains
                     ShiftOffsetTmp = to_realdp(tokens%next())
                     ShiftOffset = ShiftOffsetTmp
                 else
-                    if(inum_runs /= tokens%remaining_items()) call stop_all(t_r, "The number of shift offsets is not equal to &
-                                           &the number of replicas being used.")
+                    if(inum_runs /= tokens%remaining_items()) call stop_all(t_r, "The number of shift offsets is not equal to " &
+                                           // "the number of replicas being used.")
                     do i = 1, inum_runs
                         ShiftOffset(i) = to_realdp(tokens%next())
                     end do
@@ -2442,8 +2439,8 @@ contains
                 ! A parallel FCIMC option. With this, the diagonal elements of
                 ! the hamiltonian matrix will not be stored with each particle.
                 ! This will generally be slower, but save on memory.
-                call stop_all(t_r, 'This option (REGENDIAGHELS) has been &
-                                   &deprecated')
+                call stop_all(t_r, 'This option (REGENDIAGHELS) has been ' &
+                                   // 'deprecated')
 
             case("FIXSHELLSHIFT")
 !An FCIMC option. With this, the shift is fixed at a value given here, but only for excitations which are less than
@@ -2623,8 +2620,7 @@ contains
                 ! This will create a random 1-to-1 mapping between the
                 ! orbitals, which should hopefully improve load balancing.
                 ! (now on always - sds)
-                call stop_all(t_r, "RANDOMISEHASHORBS - option removed &
-                                    &(now default)")
+                call stop_all(t_r, "RANDOMISEHASHORBS - option removed (now default)")
 
             case("SPATIAL-ONLY-HASH")
                 ! Base hash values only on spatial orbitals
@@ -3128,8 +3124,8 @@ contains
                     end select
 
                     if(tLoadBalanceBlocks) then
-                        write(stdout, '("WARNING: LOAD-BALANCE-BLOCKS option is &
-                                    &now enabled by default.")')
+                        write(stdout, '("WARNING: LOAD-BALANCE-BLOCKS option is ' &
+                                    // 'now enabled by default.")')
                     end if
                 end if
 
@@ -3594,8 +3590,8 @@ contains
                 tAllowSpawnEmpty = .true.
 
             case default
-                call stop_all(this_routine, "Keyword "                                &
-     &            //trim(w)//" not recognized in CALC block")
+                call stop_all(this_routine, &
+                    "Keyword "//trim(w)//" not recognized in CALC block")
             end select
 
         end do calc
@@ -4192,9 +4188,10 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
                         NWHTAY = IBSET(NWHTAY, 8)
                     case("ADDSINGLES")
                         NWHTAY = IBSET(NWHTAY, 7)
-                        IF(I_HMAX /= -21) call stop_all(this_routine,         &
-     &                     "Error - cannot use ADDSINGLES"     &
-     &                     //" without STAR NEW")
+                        IF(I_HMAX /= -21) then
+                            call stop_all(this_routine, &
+                              "Error - cannot use ADDSINGLES without STAR NEW")
+                        end if
                     case("DIAG")
                         NWHTAY = IBCLR(NWHTAY, 0)
                     case("POLY")
@@ -4210,11 +4207,13 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
                         NWHTAY = IBSET(NWHTAY, 6)
                     case("H0")
                         NWHTAY = IBSET(NWHTAY, 5)
-                        if(I_HMAX /= -21) call stop_all(this_routine, "H0 "  &
-    &              //"can only be specified with POLY... NEW")
+                        if(I_HMAX /= -21) then
+                            call stop_all(this_routine, &
+                                "H0 can only be specified with POLY... NEW")
+                        end if
                     case default
-                        call stop_all(this_routine, "Error - must specify DIAG" &
-      &               //" or POLY vertex star method")
+                        call stop_all(this_routine, &
+                            "Error - must specify DIAG or POLY vertex star method")
                     end select
                 end do
 !                  IF(TSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN
@@ -4223,10 +4222,11 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
 !                  end if
                 IF(STARPROD .and. BTEST(NWHTAY, 0)) THEN
                     call stop_all(this_routine, "STARPROD can only be "      &
-   &               //"specified with DIAG option")
+                       //"specified with DIAG option")
                 end if
-                if(i_hmax == 0)                              &
-   &          call stop_all(this_routine, "OLD/NEW not specified for STAR")
+                if(i_hmax == 0) then
+                    call stop_all(this_routine, "OLD/NEW not specified for STAR")
+                end if
             case("DETERM-PROJ")
                 tDetermProj = .true.
                 I_HMAX = -21
@@ -4256,8 +4256,8 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
                 call stop_all(this_routine, "Keyword error with "//trim(w))
             end select
         case default
-            call stop_all(this_routine, "Error.  Method not specified."     &
-  &           //" Stopping.")
+            call stop_all(this_routine, &
+                "Error.  Method not specified. Stopping.")
         end select
     end do
 

@@ -101,8 +101,8 @@ contains
             do part_type = 1, lenof_sign
                 if ((.not. tFillingStochRDMonFly) .or. (inum_runs == 1)) then
                     if (AllNoAtHF(part_type) < 0.0_dp) then
-                        root_print 'No. at HF < 0 - flipping sign of entire ensemble &
-                                   &of particles in simulation: ', part_type
+                        root_print 'No. at HF < 0 - flipping sign of entire ensemble ' &
+                                   // 'of particles in simulation: ', part_type
                         root_print AllNoAtHF(part_type)
 
                         ! And do the flipping
@@ -237,8 +237,8 @@ contains
                           stat=ierr, source=0_n_int)
                 call LogMemAlloc('TempSpawnedParts', size(TempSpawnedParts, kind=int64), size_per_element(TempSpawnedParts), &
                                  this_routine, TempSpawnedPartsTag, ierr)
-                write (stdout, "(' Allocating temporary array for walkers spawned &
-                           &from a particular Di.')")
+                write (stdout, "(' Allocating temporary array for walkers spawned " &
+                           // "from a particular Di.')")
                 write(stdout, "(a,f14.6,a)") " This requires ", &
                     real(((nifd + 1) * TempSpawnedPartsSize * size_n_int), dp) &
                     / 1048576.0_dp, " Mb/Processor"
@@ -537,8 +537,8 @@ contains
         send_arr = 0.0_dp
 
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
-             "No space left in arrays for communication of estimates. Please increase &
-             & the size of the send_arr and recv_arr arrays in the source code.")
+             "No space left in arrays for communication of estimates. Please increase " &
+             // " the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1) - 1; send_arr(low:upp) = SpawnFromSing;
         low = upp + 1; upp = low + sizes(2) - 1; send_arr(low:upp) = iter_data%update_growth;
@@ -708,9 +708,11 @@ contains
         sizes(12) = size(InitsEnumCyc)
         sizes(13) = size(ENumOut)
 
-        if (sum(sizes(1:14)) > arr_helem_size) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
-                                                        & increase the size of the send_arr_helem and recv_arr_helem &
-                                                        & arrays in the source code.")
+        if (sum(sizes(1:14)) > arr_helem_size) then
+            call stop_all(t_r, "No space left in arrays for communication of estimates. " &
+                    // "Please increase the size of the send_arr_helem " &
+                    // "and recv_arr_helem arrays in the source code.")
+        end if
 
         low = upp + 1; upp = low + sizes(1) - 1; send_arr_helem(low:upp) = ENumCyc;
         low = upp + 1; upp = low + sizes(2) - 1; send_arr_helem(low:upp) = SumENum;
@@ -1092,9 +1094,9 @@ contains
 #else
                         if (abs(AllNoatHF(run)) < MaxNoatHF - HFPopThresh) then
 #endif
-                            write(stdout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
-                                         &single particle growth phase on iteration', iter + PreviousCycles, ' - particle number &
-                                         &may grow again.'
+                            write(stdout, '(a,i13,a)') &
+                                'No at HF has fallen too low - reentering the single particle growth phase on iteration', &
+                                iter + PreviousCycles, ' - particle number may grow again.'
                             tSinglePartPhase(run) = .true.
                             tReZeroShift(run) = .true.
                         end if
