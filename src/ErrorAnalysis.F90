@@ -124,13 +124,13 @@ contains
             if (tFail_denom) then
                 write(stdout, "(A)")
                 write(stdout, "(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
-                    & //"projected energy denominator"
+                    //"projected energy denominator"
                 write(stdout, "(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
-                    & //"will be simple average over "
+                    //"will be simple average over "
                 write(stdout, "(A)") "all iterations (including growth phase), which may contain correlated " &
-                    & //"sampling bias. Use with caution."
+                    //"sampling bias. Use with caution."
                 write(stdout, "(A)") "Manual reblocking or continued running suggested for accurate " &
-                    & //"projected energy estimate."
+                    //"projected energy estimate."
                 tNoProjEValue = .true.
             end if
             deallocate(temp)
@@ -144,13 +144,13 @@ contains
             if (tFail_num) then
                 write(stdout, "(A)")
                 write(stdout, "(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
-                    & //"projected energy numerator"
+                    //"projected energy numerator"
                 write(stdout, "(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
-                    & //"will be simple average over "
+                    //"will be simple average over "
                 write(stdout, "(A)") "all iterations (including growth phase), which may contain correlated " &
-                    & //"sampling bias. Use with caution."
+                    //"sampling bias. Use with caution."
                 write(stdout, "(A)") "Manual reblocking or continued running suggested for accurate " &
-                    & //"projected energy estimate."
+                    //"projected energy estimate."
                 tNoProjEValue = .true.
             end if
             deallocate(temp)
@@ -180,11 +180,11 @@ contains
                 if (tFail_imnum) then
                     write(stdout, "(A)")
                     write(stdout, "(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
-                        & //"imaginary projected energy numerator"
+                        //"imaginary projected energy numerator"
                     write(stdout, "(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
-                        & //"will be simple average over "
+                        //"will be simple average over "
                     write(stdout, "(A)") "all iterations (including growth phase), which may contain correlated " &
-                        & //"sampling bias. Use with caution."
+                        //"sampling bias. Use with caution."
                     write(stdout, "(A)") "Continued running suggested for accurate projected energy estimate."
                     tNoProjEValue = .true.
                 end if
@@ -736,9 +736,10 @@ contains
                     ! Infinity. Assume that this occurs when NoAtRef --> 0.
                     ! Therefore, we should not be trying to store the stats,
                     ! and can ignore the error.
-                    if (iters > iShiftVary) &
-                        call stop_all(t_r, "This is not a valid data line - &
-                                            &should not be trying to store")
+                    if (iters > iShiftVary) then
+                        call stop_all(t_r, &
+                            "This is not a valid data line - should not be trying to store")
+                    end if
                 end if
                 if (iters > iShiftVary) then
                     i = i + 1
@@ -829,8 +830,10 @@ contains
         equil_time = 0
         if (Errordebug > 0) write(stdout, *) "Attempting to detect equilibration time"
 
-        if (.not. allocated(this)) call stop_all(t_r, "Error, array not allocated on entry into " &
-            & //"attempt_remove_equil_time")
+        if (.not. allocated(this)) then
+            call stop_all(t_r, &
+                "Error, array not allocated on entry into attempt_remove_equil_time")
+        end if
         length = size(this, 1)
         allocate(tmp(length))
         allocate(i_tmp(length))
@@ -953,8 +956,10 @@ contains
         integer :: ierr
         character(len=*), parameter :: t_r = 'reblock_data'
 
-        if (.not. allocated(this)) call stop_all(t_r, "Error, array not allocated on entry into "&
-            & //"reblock_data")
+        if (.not. allocated(this)) then
+            call stop_all(t_r, &
+                "Error, array not allocated on entry into reblock_data")
+        end if
         length = size(this, 1)
         new_length = length / blocklength ! truncates towards zero deliberate, loses data
         !write(stdout,*) "Length is", length
@@ -1056,15 +1061,15 @@ contains
         if (monotonic .and. tPrint) then
             if (iValue == 1) then
                 write(stdout, "(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*denominator of projected energy*"
+                      //"*denominator of projected energy*"
             else if (iValue == 2) then
                 write(stdout, "(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*numerator of projected energy*"
+                      //"*numerator of projected energy*"
             else if (iValue == 3) then
                 write(stdout, "(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*"
             else if (iValue == 4) then
                 write(stdout, "(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*imaginary numerator of projected energy*"
+                      //"*imaginary numerator of projected energy*"
             else
                 call stop_all(t_r, "Unknown iValue passed in")
             end if
@@ -1073,15 +1078,15 @@ contains
         else if (monotonic .and. (ErrorDebug > 0)) then
             if (iValue == 1) then
                 write(stdout, "(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*denominator of projected energy*"
+                      //"*denominator of projected energy*"
             else if (iValue == 2) then
                 write(stdout, "(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*numerator of projected energy*"
+                      //"*numerator of projected energy*"
             else if (iValue == 3) then
                 write(stdout, "(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*"
             else if (iValue == 4) then
                 write(stdout, "(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*imaginary numerator of projected energy*"
+                      //"*imaginary numerator of projected energy*"
             else
                 call stop_all(t_r, "Unknown iValue passed in")
             end if
@@ -1203,13 +1208,13 @@ contains
         EnergyDiff = abs(mean_Shift - mean_ProjE_re)
         if (EnergyDiff <= sqrt(shift_err**2 + ProjE_Err_re**2)) then
             write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree " &
-                & //"within errorbars: EDiff = ", EnergyDiff
+                  //"within errorbars: EDiff = ", EnergyDiff
         else if (EnergyDiff <= sqrt((max(shift_err, ProjE_Err_re) * 2)**2 + min(shift_err, ProjE_Err_re)**2)) then
             write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree to within two sigma " &
-                & //"of largest error: EDiff = ", EnergyDiff
+                  //"of largest error: EDiff = ", EnergyDiff
         else
             write(stdout, "(A,F15.8)") " Projected and shift energy estimates do not agree to " &
-                & //"within approximate errorbars: EDiff = ", EnergyDiff
+                  //"within approximate errorbars: EDiff = ", EnergyDiff
         end if
         if (ProjE_Err_re < shift_err) then
             BestEnergy = mean_ProjE_re + Hii

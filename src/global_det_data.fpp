@@ -218,8 +218,8 @@ contains
                 len_av_sgn_tot = len_av_sgn + len_av_sgn_transition
                 len_iter_occ_tot = len_iter_occ + len_iter_occ_transition
             end if
-            write (stdout, '(" The average current signs before death will be stored&
-                       & for use in the RDMs.")')
+            write (stdout, '(A)') &
+                " The average current signs before death will be stored for use in the RDMs."
         else
             len_av_sgn = 0
             len_iter_occ = 0

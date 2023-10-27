@@ -334,8 +334,8 @@ contains
         err = 0
         ! Only one element of child should be non-zero
         if (tSimpleInit) then
-            call stop_all(this_routine, "Cannot use a hash table to the spawned list when using the &
-                                        &simple-initiator option.")
+            call stop_all(this_routine, "Cannot use a hash table to the spawned list when using the " &
+                                        // "simple-initiator option.")
         end if
 
         call hash_table_lookup(nI_child, ilut_child, nifd, spawn_ht, &
@@ -781,8 +781,8 @@ contains
         if (tPrintOrbOcc .and. (iter >= StartPrintOrbOcc)) then
             if (iter == StartPrintOrbOcc .and. &
                 DetBitEq(ilut, ilutHF, nifd)) then
-                write(stdout, *) 'Beginning to fill the HF orbital occupation list &
-                           &during iteration', iter
+                write(stdout, *) 'Beginning to fill the HF orbital occupation list ' &
+                           // 'during iteration', iter
                 if (tPrintOrbOccInit) &
                     write(stdout, *) 'Only doing so for initiator determinants'
             end if
@@ -833,8 +833,8 @@ contains
 
         if (tHistSpawn .or. &
             (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
-            call stop_all(this_routine, "Not yet supported: Turn off HISTSPAWN,&
-                   & PRINTFCIMCPSI, PRINTORBOCCS, HISTPARTENERGIES, HIST-SPIN-DIST")
+            call stop_all(this_routine, "Not yet supported: Turn off HISTSPAWN," &
+                   // " PRINTFCIMCPSI, PRINTORBOCCS, HISTPARTENERGIES, HIST-SPIN-DIST")
         end if
 
         ! Add in the contributions to the numerator and denominator of the trial
@@ -1397,7 +1397,7 @@ contains
 
                 else
                     if (((Iter + PreviousCycles - IterRDMStart) > 0) .and. &
-                        & (mod(((Iter - 1) + PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then
+                         (mod(((Iter - 1) + PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then
                         ! The previous iteration was one where we added in diagonal
                         ! elements To keep things unbiased, we need to set up a new
                         ! averaging block now.
@@ -1476,8 +1476,8 @@ contains
         ! Initialize the Histogramming searching arrays if necessary
         if (tHistSpawn .or. tCalcFCIMCPsi) then
             if (iter == nHistEquilSteps) then
-                root_print 'The iteration is equal to HISTEQUILSTEPS. &
-                           &Beginning to histogram.'
+                root_print 'The iteration is equal to HISTEQUILSTEPS. ' &
+                           // 'Beginning to histogram.'
             end if
 
             ! Initialise start of binary searches.
@@ -1505,8 +1505,8 @@ contains
             .or. tPrintHighPop) then
             call FindHighPopDet(TotWalkersNew)
             if (tHistInitPops) then
-                root_write(stdout, '(a)') 'Writing out the spread of the &
-                                       &initiator determinant populations.'
+                root_write(stdout, '(a)') 'Writing out the spread of the ' &
+                                       // 'initiator determinant populations.'
                 call WriteInitPops(iter + PreviousCycles)
             end if
         end if
@@ -1649,13 +1649,13 @@ contains
         CALL MPIBcast(DetPos, NIfTot + 1, int(HighPopOutPos(2)))
 
         if (iProcIndex == 0) then
-            write(stdout, '(a,f12.5,a)') 'The most highly populated determinant &
-                                  & with the opposite sign to the HF has ', &
+            write(stdout, '(a,f12.5,a)') 'The most highly populated determinant ' &
+                                  // ' with the opposite sign to the HF has ', &
                                   HighPopoutNeg(1), ' walkers.'
             call WriteBitDet(stdout, DetNeg, .true.)
 
-            write(stdout, '(a,f12.5,a9)') 'The most highly populated determinant &
-                                  & with the same sign as the HF has ', &
+            write(stdout, '(a,f12.5,a9)') 'The most highly populated determinant ' &
+                                  // ' with the same sign as the HF has ', &
                                   HighPopoutPos(1), ' walkers.'
             call WriteBitDet(stdout, DetPos, .true.)
         end if
@@ -2437,8 +2437,8 @@ contains
             if (tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
                 ! TODO: why are explicit RDMs not working with replicas?
-                if (tPairedReplicas) call stop_all('check_start_rdm', "Cannot yet do replica RDM sampling with explicit RDMs. &
-                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile.")
+                if (tPairedReplicas) call stop_all('check_start_rdm', "Cannot yet do replica RDM sampling with explicit RDMs. " &
+                    // " e.g Hacky bit in Gen_Hist_ExcDjs to make it compile.")
 
                 tFillingExplicRDMonFly = .true.
                 if (tHistSpawn) NHistEquilSteps = Iter
@@ -2491,8 +2491,8 @@ contains
         iLutRef(:, run) = 0_n_int
         iLutRef(0:nifd, run) = ilut(0:nifd)
         call decode_bit_det(ProjEDet(:, run), iLutRef(:, run))
-        write(stdout, '(a,i3,a)', advance='no') 'Changing projected &
-              &energy reference determinant for run', run, &
+        write(stdout, '(a,i3,a)', advance='no') 'Changing projected ' &
+              // 'energy reference determinant for run', run, &
               ' on the next update cycle to: '
         call write_det(stdout, ProjEDet(:, run), .true.)
         call GetSym(ProjEDet(:, run), nEl, G1, nBasisMax, isym)
@@ -2523,12 +2523,12 @@ contains
                     ! one, since it was obtained by the normal
                     ! calculation!
                     call stop_all(this_routine, &
-                        "Error in changing reference determinant &
-                        &to open shell HPHF")
+                        "Error in changing reference determinant " &
+                        // "to open shell HPHF")
                 end if
-                write(stdout, "(A,i3)") "Now projecting onto open-shell &
-                    &HPHF as a linear combo of two determinants...&
-                    & for run", run
+                write(stdout, "(A,i3)") "Now projecting onto open-shell " &
+                    // "HPHF as a linear combo of two determinants..." &
+                    // " for run", run
                 tSpinCoupProjE(run) = .true.
             end if
         else
@@ -2564,8 +2564,8 @@ contains
 
             ! Regenerate all the diagonal elements relative to the
             ! new reference det.
-            write(stdout, *) 'Regenerating the stored diagonal &
-                           &HElements for all walkers.'
+            write(stdout, *) &
+                'Regenerating the stored diagonal HElements for all walkers.'
             do i = 1, int(Totwalkers)
                 call decode_bit_det(det, CurrentDets(:, i))
                 h_tmp =  get_diagonal_matel(det, CurrentDets(:, i))

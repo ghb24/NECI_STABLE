@@ -313,35 +313,35 @@ contains
         ! the other random graph algorithm cannot remove same excitation
         ! links yet.
         if (tNoSameExcit .and. .not. tInitStar) then
-            call stop_all(this_routine, "If we are using TNoSameExcit, then we have to start&
-                         & with the star. The other random graph algorithm &
-                         &cannot remove same excitation links yet.")
+            call stop_all(this_routine, "If we are using TNoSameExcit, then we have to start" &
+                         // " with the star. The other random graph algorithm " &
+                         // "cannot remove same excitation links yet.")
         end if
 
         ! The MoveDets and Biasing algorithms cannot both be used in the
         ! GraphMorph Algorithm.
         if (tBiasing .and. tMoveDets) then
-            call stop_all(this_routine, "Biasing algorithm and MoveDets algorithm cannot both&
-                        & be used")
+            call stop_all(this_routine, "Biasing algorithm and MoveDets algorithm cannot both" &
+                        // " be used")
         end if
 
         ! ..RmRootExcitStarsRootChange must be used with DiagStarStars, and not
         ! with ExcitStarsRootChange
         if (tRmRootExcitStarsRootChange .and. .not. tDiagStarStars) then
-            call stop_all(this_routine, "RmRootExcitStarsRootChange can only with used with &
-                        &DiagStarStars currently")
+            call stop_all(this_routine, "RmRootExcitStarsRootChange can only with used with " &
+                        // "DiagStarStars currently")
         end if
 
         if (TRmRootExcitStarsRootChange .and. TExcitStarsRootChange) then
-            call stop_all(this_routine, "RmRootExcitStarsRootChange and ExcitStarsRootChange &
-                        &cannot both be used as they are both different &
-                        &options with diagstarstars")
+            call stop_all(this_routine, "RmRootExcitStarsRootChange and ExcitStarsRootChange " &
+                        // "cannot both be used as they are both different " &
+                        // "options with diagstarstars")
         end if
 
         !..ExcitStarsRootChange must be used with TDiagStarStars
         if (tExcitStarsRootChange .and. .not. tDiagStarStars) then
-            call stop_all(this_routine, "ExcitStarsRootChange can only with used with &
-                        &DiagStarStars currently")
+            call stop_all(this_routine, "ExcitStarsRootChange can only with used with " &
+                        // "DiagStarStars currently")
         end if
 
         ! ..TDiagStarStars must be used with TStarStars, and cannot be used
@@ -353,26 +353,26 @@ contains
             call stop_all(this_routine, "DiagStarStars is incompatable with CalcExcitStar")
         end if
         if (tDiagStarStars .and. (tNoDoubs .or. tJustQuads)) then
-            call stop_all(this_routine, "NoDoubs/JustQuads cannot be used with DiagStarStars &
-                        &- try CalcExcitStar")
+            call stop_all(this_routine, "NoDoubs/JustQuads cannot be used with DiagStarStars " &
+                        // "- try CalcExcitStar")
         end if
 
         ! ..TNoDoubs is only an option which applied to TCalcExcitStar, and
         ! cannot occurs with TJustQuads.
         if (tNoDoubs .and. .not. tCalcExcitStar) then
-            call stop_all(this_routine, "STARNODOUBS is only an option which applied to &
-                        &TCalcExcitStar")
+            call stop_all(this_routine, "STARNODOUBS is only an option which applied to " &
+                        // "TCalcExcitStar")
         end if
 
         if (tNoDoubs .and. tJustQuads) then
-            call stop_all(this_routine, "STARNODOUBS and STARQUADEXCITS cannot be applied &
-                        &together!")
+            call stop_all(this_routine, "STARNODOUBS and STARQUADEXCITS cannot be applied " &
+                        // "together!")
         end if
 
         ! .. TJustQuads is only an option which applies to TCalcExcitStar
         if (tJustQuads .and. .not. tCalcExcitStar) then
-            call stop_all(this_routine, "STARQUADEXCITS is only an option which applies to &
-                        &tCalcExcitStar")
+            call stop_all(this_routine, "STARQUADEXCITS is only an option which applies to " &
+                        // "tCalcExcitStar")
         end if
 
         !.. tCalcExcitStar can only be used with tStarStars
@@ -382,14 +382,14 @@ contains
 
         !.. Brillouin Theorem must be applied when using TStarStars
         if (tStarStars .and. .not. tUseBrillouin) then
-            call stop_all(this_routine, "Brillouin Theorem must be used when using &
-                        &CalcExcitStar")
+            call stop_all(this_routine, "Brillouin Theorem must be used when using " &
+                        // "CalcExcitStar")
         end if
 
         !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
         if ((tQuadValMax .or. tQuadVecMax) .and. .not. tStarStars) then
-            call stop_all(this_routine, "TQuadValMax or TQuadVecMax can only be specified if &
-                        &STARSTARS specified in method line")
+            call stop_all(this_routine, "TQuadValMax or TQuadVecMax can only be specified if " &
+                        // "STARSTARS specified in method line")
         end if
 
         !.. TQuadValMax and TQuadVecMax cannot both be set
@@ -400,8 +400,8 @@ contains
         !.. TDISCONODES can only be set if NODAL is set in the star methods
         ! section
         if (tDiscoNodes .and. .not. tDiagNodes) then
-            call stop_all(this_routine, "DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
-                        &METHOD")
+            call stop_all(this_routine, "DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN " &
+                        // "METHOD")
         end if
 
         if (tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
@@ -427,8 +427,8 @@ contains
         !..   Testing ILOGGING
         !     ILOGGING = 0771
         if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
-            call stop_all(this_routine, 'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
-                         &set')
+            call stop_all(this_routine, &
+                'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not set')
         end if
 
         !Ensure beta is set.
@@ -447,8 +447,8 @@ contains
         end do
 
         if (tNoRenormRandExcits .and. (.not. ExcitFuncs(10))) then
-            write(stdout, *) "Random excitations WILL have to be renormalised, &
-                       &since an excitation weighting has been detected."
+            write(stdout, *) "Random excitations WILL have to be renormalised, " &
+                       // "since an excitation weighting has been detected."
         end if
 
         ! if the LMS value specified is not reachable with the number of electrons,
@@ -459,18 +459,18 @@ contains
 
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
             if (tUHF) then
-                call stop_all(t_r, 'Cannot calculate instantaneous values of&
-                              & S^2 with UF enabled.')
+                call stop_all(t_r, 'Cannot calculate instantaneous values of' &
+                              // ' S^2 with UF enabled.')
             end if
-            write(stdout, *) 'Enabling calculation of instantaneous S^2 each &
-                       &iteration.'
+            write(stdout, *) 'Enabling calculation of instantaneous S^2 each ' &
+                       // 'iteration.'
         end if
 
         if (tUniqueHFNode .and. nProcessors < 2) then
             write(stdout, *) "nNodes: ", nNodes
             write(stdout, *) 'nProcessors: ', nProcessors
-            call stop_all(t_r, 'At least two nodes required to designate &
-                          &a node uniquely to the HF determinant')
+            call stop_all(t_r, 'At least two nodes required to designate ' &
+                          // 'a node uniquely to the HF determinant')
         end if
 
         if (tGenHelWeighted) then
@@ -497,8 +497,8 @@ contains
 #if PROG_NUMRUNS_
         if (tKP_FCIQMC .and. .not. tMultiReplicas) then
 
-            write(stdout, *) 'Using KPFCIQMC without explicitly specifying the &
-                       &number of replica simulations'
+            write(stdout, *) 'Using KPFCIQMC without explicitly specifying the ' &
+                       // 'number of replica simulations'
             write(stdout, *) 'Defaulting to using 2 replicas'
             tMultiReplicas = .true.
 #ifdef CMPLX_
@@ -522,8 +522,8 @@ contains
 
             if (.not. tMultiReplicas) then
                 write(stdout, *) 'unspecified'
-                write(stdout, *) 'Filling RDMs without explicitly specifying the &
-                           &number of replica simplations'
+                write(stdout, *) 'Filling RDMs without explicitly specifying the ' &
+                           // 'number of replica simplations'
                 write(stdout, *) 'Defaulting to using 2 replicas'
                 tMultiReplicas = .true.
                 lenof_sign = 2
@@ -543,8 +543,8 @@ contains
         if (tRDMonFly .and. .not. tUserKnowsBiasedRDMS) then
             write(stdout, *) 'RDM sampling is specified, but this version of neci'
             write(stdout, *) 'is not compiled with the replica trick.'
-            write(stdout, *) 'You probably want to use dneci or mneci &
-                    &(or their complex counterparts).'
+            write(stdout, *) 'You probably want to use dneci or mneci ' &
+                    // '(or their complex counterparts).'
             write(stdout, *)
             write(stdout, *) 'If you know what you do and really want to sample biased RDMS'
             write(stdout, *) 'you can also add `BIASED-RDMS` to the Logging block.'
@@ -553,15 +553,15 @@ contains
 #endif
 
         if (tRDMOnFly .and. .not. tCheckHighestPop) then
-            write(stdout, *) 'Highest population checking required for calculating &
-                       &RDMs on the fly'
+            write(stdout, *) 'Highest population checking required for calculating ' &
+                       // 'RDMs on the fly'
             write(stdout, *) 'If you are seeing this, it is an input parsing error'
             call stop_all(t_r, 'RDMs without CheckHighestPop')
         end if
 
         if (tSemiStochastic .and. .not. (tAllRealCoeff .and. tUseRealCoeffs)) then
-            write(stdout, *) 'Semi-stochastic simulations only supported when using &
-                       &ALLREALCOEFF option'
+            write(stdout, *) 'Semi-stochastic simulations only supported when using ' &
+                       // 'ALLREALCOEFF option'
             call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
         end if
 
@@ -572,37 +572,37 @@ contains
         end if
 
         if (ss_space_in%tPopsCore .and. ss_space_in%tPopsProportion) then
-            call stop_all(t_r, 'POPS-CORE and POPS-CORE-PROPORTION cannot be used&
-                               & at the same time')
+            call stop_all(t_r, 'POPS-CORE and POPS-CORE-PROPORTION cannot be used' &
+                               // ' at the same time')
         end if
 
         if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
-            call stop_all(t_r, 'Options ALLREALCOEFF and REALCOEFFBYEXCITLEVEL&
-                               & are incompatibile')
+            call stop_all(t_r, 'Options ALLREALCOEFF and REALCOEFFBYEXCITLEVEL' &
+                               // ' are incompatibile')
         end if
 
         if (RDMlinspace_in_inp .and. (RDMsamplingiters_in_inp .or. calcrdmonfly_in_inp)) then
-            call stop_all(t_r, 'RDMlinspace and (RDMsamplingiters + calcrdmonfly) &
-                               &are mutually exclusive')
+            call stop_all(t_r, 'RDMlinspace and (RDMsamplingiters + calcrdmonfly) ' &
+                               // 'are mutually exclusive')
         end if
 
         if (tOrthogonaliseReplicas) then
             if (.not. tMultiReplicas) then
-                call stop_all(t_r, 'Replica orthogonalisation requires &
-                                   &SYSTEM-REPLICAS to determine the number &
-                                   &of simulations')
+                call stop_all(t_r, 'Replica orthogonalisation requires ' &
+                                   // 'SYSTEM-REPLICAS to determine the number ' &
+                                   // 'of simulations')
             end if
 
             if (tStartMP1 .or. tStartCAS) then
-                call stop_all(t_r, "MP1 or CAS starting not implemented for &
-                                   &orthogonalised calculations")
+                call stop_all(t_r, "MP1 or CAS starting not implemented for " &
+                                   // "orthogonalised calculations")
             end if
         end if
 
         if (tLoadBalanceBlocks) then
             if (tUniqueHFNode) then
-                call stop_all(t_r, "UNIQUE-HF-NODE requires disabling &
-                                   &LOAD-BALANCE-BLOCKS")
+                call stop_all(t_r, "UNIQUE-HF-NODE requires disabling " &
+                                   // "LOAD-BALANCE-BLOCKS")
             end if
 
             ! If there is only one node, then load balancing doesn't make
@@ -613,9 +613,9 @@ contains
             end if
 
             if (tContTimeFCIMC .and. tContTimeFull) then
-                call stop_all(t_r, 'Load balancing not yet usable for &
-                             &calculations requiring accumulated determinant &
-                             &specific global data')
+                call stop_all(t_r, 'Load balancing not yet usable for ' &
+                             // 'calculations requiring accumulated determinant ' &
+                             // 'specific global data')
             end if
         end if
 
@@ -721,10 +721,10 @@ contains
                 if (tau_start_val == possible_tau_start%from_popsfile) then
                     call stop_all(t_r, 'Starting tau from popsfile requires readpops.')
                 else if (.not. readpops_but_tau_not_from_popsfile) then
-                    write(stdout, *) 'Using readpops while not reading tau from popsfile is &
-                        &very likely an input error.'
-                    write(stdout, *) 'If you think that your input is correct and you know what you do &
-                        &add `readpops-but-tau-not-from-popsfile` to the tau-values keywords'
+                    write(stdout, *) 'Using readpops while not reading tau from popsfile is ' &
+                        // 'very likely an input error.'
+                    write(stdout, *) 'If you think that your input is correct and you know what you do ' &
+                        // 'add `readpops-but-tau-not-from-popsfile` to the tau-values keywords'
                     call stop_all(t_r, 'Readpops requires `tau-values start from-popsfile`.')
                 end if
             end if

@@ -356,8 +356,8 @@ contains
                         enddo
 
                         if (.not. any(opts_selected)) then
-                            write(stdout, *) 'Input '//trim(w)//' not recognised. &
-                                &Ignoring and continuing...'
+                            write(stdout, *) 'Input '//trim(w) &
+                                //' not recognised. Ignoring and continuing...'
                         endif
 
                         ! Do we have any other items to read in?
@@ -442,12 +442,12 @@ contains
             ! Change excit level
             if (opts_selected(excite)) then
                 if (.not. tTruncSpace) then
-                    root_print 'The space is not truncated, so EXCITE &
-                               &keyword in CHANGEVARS has no effect.'
+                    root_print 'The space is not truncated, so EXCITE ' &
+                               // 'keyword in CHANGEVARS has no effect.'
                 else
                     if (tHistSpawn .or. tCalcFCIMCPsi) then
-                        root_print 'Cannot increase truncation level, since &
-                                   &histogramming wavefunction.'
+                        root_print 'Cannot increase truncation level, since ' &
+                                   // 'histogramming wavefunction.'
                     else
                         call MPIBcast (ICILevel, tSource)
 
@@ -455,8 +455,8 @@ contains
                             tTruncSpace = .false.
                             root_print 'Expanding to the full space.'
                         else
-                            root_print 'Increasing truncation level of space &
-                                       &to ', ICILevel
+                            root_print 'Increasing truncation level of space ' &
+                                       // 'to ', ICILevel
                         endif
                     endif
                 endif
@@ -465,9 +465,9 @@ contains
             ! Change the CAS space
             if (opts_selected(truncatecas)) then
                 if (.not. tTruncCAS) then
-                    root_print 'The space is not truncated by CAS, so &
-                               &TRUNCATECAS keyword in CHANGEVARS has no &
-                               &effect'
+                    root_print 'The space is not truncated by CAS, so ' &
+                               // 'TRUNCATECAS keyword in CHANGEVARS has no ' &
+                               // 'effect'
                 else
 
                     call MPIBCast (OccCASORbs, tSource)
@@ -504,8 +504,8 @@ contains
             if (opts_selected(varyshift)) then
                 do run=1,inum_runs
                     if (.not. tSinglePartPhase(run)) then
-                        root_print 'Request to vary shift denied. Already in &
-                                   &variable shift mode.'
+                        root_print 'Request to vary shift denied. Already in ' &
+                                   // 'variable shift mode.'
                     else
                         tSinglePartPhase(run) = .false.
                         VaryShiftIter(run) = iter
@@ -525,10 +525,10 @@ contains
                 call MPIBCast (nmcyc_new, tSource)
 
                 if (nmcyc_new < iter) then
-                    root_print 'New value of NMCyc is LESS than the current &
-                               & iteration number.'
-                    root_print 'Therefore, the number of iterations has been &
-                               & left at ', nmcyc_value
+                    root_print 'New value of NMCyc is LESS than the current ' &
+                               // ' iteration number.'
+                    root_print 'Therefore, the number of iterations has been ' &
+                               // ' left at ', nmcyc_value
                 else
                     nmcyc_value = nmcyc_new
                     root_print 'Total number of MC cycles set to ', &
@@ -618,14 +618,14 @@ contains
                 call MPIBcast (nelVirtFrozen, tSource)
 
                 write(stdout,*) 'Allowing ', nelVirtFrozen, ' electrons in ', &
-                           nVirtPartFrozen, ' partially frozen virtual &
-                          &orbitals on iteration: ',iter
+                           nVirtPartFrozen, ' partially frozen virtual ' &
+                          // 'orbitals on iteration: ',iter
                 if (nelVirtFrozen == nel) then
                     ! Allowing as many holes as there are orbitals
                     ! --> Equivalent ton not freezing at all
                     tPartFreezeVirt = .false.
-                    write(stdout,*) 'Unfreezing any partially frozen virtual &
-                               &orbitals on iteration: ',iter
+                    write(stdout,*) 'Unfreezing any partially frozen virtual ' &
+                               // 'orbitals on iteration: ',iter
                 else
                     tPartFreezeVirt = .true.
                 endif
@@ -649,8 +649,8 @@ contains
 
             ! Restart error blocking
             if (opts_selected(restarterrorblocking)) then
-                write(stdout,*) 'Restarting the error calculations. All blocking &
-                           &arrays are re-set to zero on iteration: ',iter
+                write(stdout,*) 'Restarting the error calculations. All blocking ' &
+                           // 'arrays are re-set to zero on iteration: ',iter
                 if (iProcIndex == 0) call RestartBlocking (iter)
             endif
 
@@ -662,8 +662,8 @@ contains
 
             ! Restart shift blocking analysis
             if (opts_selected(restartshiftblocking)) then
-                root_print 'Restarting the shift error calculations. All &
-                           &shift blocking arrays set to zero.'
+                root_print 'Restarting the shift error calculations. All ' &
+                           // 'shift blocking arrays set to zero.'
                 if (iProcIndex == 0) call RestartShiftBlocking_proc (iter)
             endif
 
@@ -679,21 +679,21 @@ contains
                 root_print 'Beginning to histogram at the next update'
                 if (iProcIndex == 0) nHistEquilSteps = iter + StepsSft
                 if (.not. tCalcFCIMCPsi) then
-                    root_print 'This has no effect, as the histograms have &
-                               &not been set up at the beginning of the &
-                               &calculation.'
+                    root_print 'This has no effect, as the histograms have ' &
+                               // 'not been set up at the beginning of the ' &
+                               // 'calculation.'
                 endif
             endif
 
             ! Change the starting iteration for histogramming
             if (opts_selected(histequilsteps)) then
                 if (nHistEquilSteps < iter) nHistEquilSteps = iter + StepsSft
-                root_print 'Changing the starting iteration for &
-                           &histogramming to ', nHistEquilSteps
+                root_print 'Changing the starting iteration for ' &
+                           // 'histogramming to ', nHistEquilSteps
                 if (.not. tCalcFCIMCPsi) then
-                    root_print 'This has no effec, as the histograms have &
-                               &not been set up at the beginning of the &
-                               &calculation.'
+                    root_print 'This has no effec, as the histograms have ' &
+                               // 'not been set up at the beginning of the ' &
+                               // 'calculation.'
                 endif
             endif
 
@@ -702,16 +702,16 @@ contains
                 tTruncInitiator = .true.
                 call assign_value_to_tau( &
                     tau_value / 10, &
-                    'Beginning to allow spawning into inactive space &
-                     &for a truncated initiator calculation. &
-                    &Reducing tau by an order of magnitude.')
+                    'Beginning to allow spawning into inactive space ' &
+                     // 'for a truncated initiator calculation. ' &
+                    // 'Reducing tau by an order of magnitude.')
             endif
 
             ! Change the initiator cutoff parameter
             if (opts_selected(addtoinit)) then
                 call MPIBCast (InitiatorWalkNo, tSource)
-                root_print 'Cutoff propulation for determinants to be added &
-                           &to the initiator space changed to ', &
+                root_print 'Cutoff propulation for determinants to be added ' &
+                           // 'to the initiator space changed to ', &
                            InitiatorWalkNo
             endif
 
@@ -738,8 +738,8 @@ contains
             ! Print the determinants with the largest +- populations
             if (opts_selected(printhighpopdet)) then
                 tPrintHighPop = .true.
-                write(stdout,*) 'Request to print the determinants with the &
-                           &largest populations detected on iteration: ',iter
+                write(stdout,*) 'Request to print the determinants with the ' &
+                           // 'largest populations detected on iteration: ',iter
             endif
 
             ! Change the reference determinant on the fly
@@ -748,8 +748,8 @@ contains
                 tCheckHighestPop = .true.
                 tChangeProjEDet = .true.
                 FracLargerDet = 1.0
-                write(stdout,*) 'Changing the reference determinant to the most &
-                           &highly weighted determinant on iteration: ',iter
+                write(stdout,*) 'Changing the reference determinant to the most ' &
+                           // 'highly weighted determinant on iteration: ',iter
             endif
 
             ! Restart with new reference determinant
@@ -758,8 +758,8 @@ contains
                 tCheckHighestPop = .true.
                 tRestartHighPop = .true.
                 FracLargerDet = 1.0
-                root_print 'Restarting the calculation with the most highly &
-                           &weighted determinant as the reference determiant.'
+                root_print 'Restarting the calculation with the most highly ' &
+                           // 'weighted determinant as the reference determiant.'
             endif
 
             ! Change the maximum nopen truncation level
@@ -768,29 +768,29 @@ contains
                     call MPIBcast (trunc_nop_new, tSource)
                     if (trunc_nop_new < 0 .or. trunc_nop_new > nel) then
                         tTruncNOpen = .false.
-                        root_print 'Truncation by number of unpaired &
-                                   &electrons disabled.'
+                        root_print 'Truncation by number of unpaired ' &
+                                   // 'electrons disabled.'
                     elseif (trunc_nop_new >= trunc_nopen_max) then
                         trunc_nopen_max = trunc_nop_new
                         root_print 'Truncating space to a maximum of ', &
-                                   trunc_nopen_max, ' unpaired electrons per &
-                                   &determinant.'
+                                   trunc_nopen_max, ' unpaired electrons per ' &
+                                   // 'determinant.'
                     else
-                        root_print 'Cannot decrease truncation level for &
-                                   &truncation by number of unpaired &
-                                   &electrons during a run.'
+                        root_print 'Cannot decrease truncation level for ' &
+                                   // 'truncation by number of unpaired ' &
+                                   // 'electrons during a run.'
                     endif
                 else
-                    root_print 'WARNING: Cannot enable truncation by number &
-                               &of unpaired electrons during a run.'
+                    root_print 'WARNING: Cannot enable truncation by number ' &
+                               // 'of unpaired electrons during a run.'
                 endif
             endif
 
             ! varyshift according to reference population
             if (opts_selected(refshift)) then
                 tShiftonHFPop = .true.
-                write(stdout,*) 'Request to change default shift action to REFSHIFT &
-                &detected on a node on iteration: ',iter
+                write(stdout,*) 'Request to change default shift action to REFSHIFT ' &
+                // 'detected on a node on iteration: ',iter
             endif
 
             ! Initialise calculation of the stochastic RDM.
@@ -802,16 +802,16 @@ contains
                 call MPIBCast (RDMEnergyIter, tSource)
 
                 if (IterRDMonFly_new .le. (Iter - maxval(VaryShiftIter))) then
-                    root_print 'Request to initialise the STOCHASTIC &
-                               &calculation of the density matrices.'
-                    root_print 'However the iteration specified to start &
-                               &filling has already been.'
+                    root_print 'Request to initialise the STOCHASTIC ' &
+                               // 'calculation of the density matrices.'
+                    root_print 'However the iteration specified to start ' &
+                               // 'filling has already been.'
                     root_print 'Beginning to fill RDMs in the next iteration.'
                     IterRDMonFly_value = (Iter - maxval(VaryShiftIter)) + 1
 
                 else
-                    root_print 'Initialising the STOCHASTIC calculation of &
-                               &the reduced density matrices'
+                    root_print 'Initialising the STOCHASTIC calculation of ' &
+                               // 'the reduced density matrices'
                     IterRDMonFly_value = IterRDMonFly_new
                 endif
 
@@ -821,10 +821,10 @@ contains
             ! Initialise calculation of the explicit RDM.
             if (opts_selected(calc_explic_rdm)) then
                 if(tHPHF) then
-                    root_print 'Trying to set up calculation of the &
-                               &EXPLICIT RDM.'
-                    root_print 'But the EXPLICIT method does not work with &
-                               &HPHF.'
+                    root_print 'Trying to set up calculation of the ' &
+                               // 'EXPLICIT RDM.'
+                    root_print 'But the EXPLICIT method does not work with ' &
+                               // 'HPHF.'
                     root_print 'Ignoring request.'
                 else
                     tChangeVarsRDM = .true.
@@ -836,16 +836,16 @@ contains
                     call MPIBCast (RDMEnergyIter, tSource)
 
                     if (IterRDMonFly_new .le. (Iter - maxval(VaryShiftIter))) then
-                        root_print 'Request to initialise the EXPLICIT &
-                                   &calculation of the density matrices.'
-                        root_print 'However the iteration specified to start &
-                                   &filling has already been.'
+                        root_print 'Request to initialise the EXPLICIT ' &
+                                   // 'calculation of the density matrices.'
+                        root_print 'However the iteration specified to start ' &
+                                   // 'filling has already been.'
                         root_print 'Beginning to fill RDMs in the next iteration.'
                         IterRDMonFly_value = (Iter - maxval(VaryShiftIter)) + 1
 
                     else
-                        root_print 'Initialising the EXPLICIT calculation of &
-                                   &the reduced density matrices'
+                        root_print 'Initialising the EXPLICIT calculation of ' &
+                                   // 'the reduced density matrices'
                         IterRDMonFly_value = IterRDMonFly_new
                     endif
                 endif
@@ -856,49 +856,49 @@ contains
                 call MPIBCast (IterRDMonFly_new, tSource)
 
                 if (IterRDMonFly_new .le. (Iter - maxval(VaryShiftIter))) then
-                    root_print 'New value of IterRDMonFly is LESS than or EQUAL TO &
-                               &the current iteration number'
-                    root_print 'The number of iterations after the shift change &
-                               &to start filling the RDM has been left at ', IterRDMonFly_value
+                    root_print 'New value of IterRDMonFly is LESS than or EQUAL TO ' &
+                               // 'the current iteration number'
+                    root_print 'The number of iterations after the shift change ' &
+                               // 'to start filling the RDM has been left at ', IterRDMonFly_value
                 elseif(tRDMonFly) then
                     IterRDMonFly_value = IterRDMonFly_new
                     if(tExplicitAllRDM) then
                         if(RDMExcitLevel.eq.3) then
-                            root_print 'The 1 and 2 electron reduced density matrices &
-                                      &will be EXPLICITLY filled '
-                            root_print 'from the following number of iterations after the &
-                                      &shift changes ', IterRDMonFly_value
+                            root_print 'The 1 and 2 electron reduced density matrices ' &
+                                      // 'will be EXPLICITLY filled '
+                            root_print 'from the following number of iterations after the ' &
+                                      // 'shift changes ', IterRDMonFly_value
                         else
-                            root_print 'The ',RDMExcitLevel,' electron reduced density &
-                                      &matrices will be EXPLICITLY filled '
-                            root_print 'from the following number of iterations after the &
-                                      &shift changes ', IterRDMonFly_value
+                            root_print 'The ',RDMExcitLevel,' electron reduced density ' &
+                                      // 'matrices will be EXPLICITLY filled '
+                            root_print 'from the following number of iterations after the ' &
+                                      // 'shift changes ', IterRDMonFly_value
                         endif
                     else
                         if(RDMExcitLevel.eq.3) then
-                            root_print 'The 1 and 2 electron reduced density matrices &
-                                      &will be STOCHASTICALLY filled '
-                            root_print 'from the following number of iterations after the &
-                                      &shift changes ', IterRDMonFly_value
+                            root_print 'The 1 and 2 electron reduced density matrices ' &
+                                      // 'will be STOCHASTICALLY filled '
+                            root_print 'from the following number of iterations after the ' &
+                                      // 'shift changes ', IterRDMonFly_value
                         else
-                            root_print 'The ',RDMExcitLevel,' electron reduced density &
-                                      &matrices will be STOCHASTICALLY filled '
-                            root_print 'from the following number of iterations after the &
-                                      &shift changes ', IterRDMonFly_value
+                            root_print 'The ',RDMExcitLevel,' electron reduced density ' &
+                                      // 'matrices will be STOCHASTICALLY filled '
+                            root_print 'from the following number of iterations after the ' &
+                                      // 'shift changes ', IterRDMonFly_value
                         endif
                     endif
                 else
                     root_print 'Attempt to start filling the reduced density matrices.'
-                    root_print 'This cannot be done, because the arrays have not &
-                               &been set up.'
+                    root_print 'This cannot be done, because the arrays have not ' &
+                               // 'been set up.'
                     root_print 'Try CALC(EXPLICIT)RDM RDMExcitLevel RDMIter EnergyIter'
                 endif
             endif
 
             if (opts_selected(diag_one_rdm)) then
                 tDiagRDM = .true.
-                root_print 'Requesting to diagonalise the 1-RDM at the end of the &
-                           &calculation.'
+                root_print 'Requesting to diagonalise the 1-RDM at the end of the ' &
+                           // 'calculation.'
             endif
 
             if (opts_selected(time)) then

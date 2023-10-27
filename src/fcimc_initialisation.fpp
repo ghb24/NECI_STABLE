@@ -624,13 +624,13 @@ contains
                                             ilutRefFlip(:, run), &
                                             .true., .true., tSwapped)
                     if (tSwapped) &
-                        write(stdout, *) 'HPHF used, and open shell determinant &
-                                      &for run ', run, ' spin-flippd for &
-                                      &consistency.'
-                    write(stdout, *) "Two *different* determinants contained in &
-                                  &initial HPHF for run ", run
-                    write(stdout, *) "Projected energy will be calculated as &
-                                  &projection onto both of these."
+                        write(stdout, *) 'HPHF used, and open shell determinant ' &
+                                      // 'for run ', run, ' spin-flippd for ' &
+                                      // 'consistency.'
+                    write(stdout, *) "Two *different* determinants contained in " &
+                                  // "initial HPHF for run ", run
+                    write(stdout, *) "Projected energy will be calculated as " &
+                                  // "projection onto both of these."
 
                 else
                     tSpinCoupProjE(run) = .false.
@@ -649,7 +649,7 @@ contains
             write(stdout, "(A,I5)") "Ml value of reference determinant is: ", HFLz
             IF (HFLz /= LzTot) THEN
                 CALL Stop_All("SetupParameters", "Chosen reference determinant does not have the " &
-                & //"same Lz value as indicated in the input.")
+                    //"same Lz value as indicated in the input.")
             end if
         end if
 
@@ -1064,12 +1064,13 @@ contains
             IF (tNoBrillouin .or. (tHub .and. tReal) .or. tRotatedOrbs) THEN
                 write(stdout, *) "No brillouin theorem assumed. Single excitations also used to calculate projected energy."
             else if (tUHF) THEN
-                write(stdout, *) "High spin calculation - but single excitations will *NOT* be used to calculate energy as "&
-                & //"this is an unrestricted calculation."
+                write(stdout, *) "High spin calculation - but single excitations will *NOT* be used to calculate energy as &
+                    &this is an unrestricted calculation."
             ELSE
-                CALL Stop_All("SetupParameters", "High-spin, restricted calculation detected, but single excitations are "&
-                & //"not being used to calculate the energy.  &
-                  & Either use the UHF keyword, or turn off brillouins theorem using NOBRILLOUINS, ROHF or ROTATEDORBS.")
+                CALL Stop_All("SetupParameters", &
+                    "High-spin, restricted calculation detected, but single excitations are &
+                    &not being used to calculate the energy. &
+                    &Either use the UHF keyword, or turn off brillouins theorem using NOBRILLOUINS, ROHF or ROTATEDORBS.")
             end if
 !            tRotatedOrbs=.true.
 !        else if(LMS.ne.0) THEN
@@ -1323,11 +1324,11 @@ contains
             unitWalkerDiag = get_free_unit()
             open(unitWalkerDiag, file='WalkerSubspaceDiag', status='unknown')
             if (tTruncInitiator) then
-                write(unitWalkerDiag, '(A)') "# Iter    NoInitDets   NoOccDets  InitiatorSubspaceEnergy   &
-                        & FullSubspaceEnergy   ProjInitEnergy   ProjFullEnergy"
+                write(unitWalkerDiag, '(A)') "# Iter    NoInitDets   NoOccDets  InitiatorSubspaceEnergy   " &
+                        // " FullSubspaceEnergy   ProjInitEnergy   ProjFullEnergy"
             else
-                write(unitWalkerDiag, '(A)') "# Iter    NoOccDets    InitiatorSubspaceEnergy         &
-                        & FullSubspaceEnergy    ProjFullEnergy"
+                write(unitWalkerDiag, '(A)') "# Iter    NoOccDets    InitiatorSubspaceEnergy         " &
+                        // " FullSubspaceEnergy    ProjFullEnergy"
             end if
         end if
 
@@ -1499,8 +1500,8 @@ contains
         end if
 
         if (tTruncNOpen) then
-            write (stdout, '("Truncating determinant space at a maximum of ",i3," &
-                    &unpaired electrons.")') trunc_nopen_max
+            write (stdout, &
+                '("Truncating determinant space at a maximum of ",i3," unpaired electrons.")') trunc_nopen_max
         end if
 
         ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
@@ -1512,20 +1513,20 @@ contains
             if (allocated(spin_pure_J)) then
                 if (SD_spin_purification == possible_purification_methods%TRUNCATED_LADDER) then
                     write(stdout, *)
-                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
-                        &with off-diagonal $ J * S_{+} S_{-} $ correction.'
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants ' &
+                        // 'with off-diagonal $ J * S_{+} S_{-} $ correction.'
                     write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
                     write(stdout, *)
                 else if (SD_spin_purification == possible_purification_methods%ONLY_LADDER) then
                     write(stdout, *)
-                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
-                        &with $ J * S_{+} S_{-} $ correction.'
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants ' &
+                        // 'with $ J * S_{+} S_{-} $ correction.'
                     write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
                     write(stdout, *)
                 else
                     write(stdout, *)
-                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
-                        &with full $ J *S^2 $ spin penalty.'
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants ' &
+                        // 'with full $ J *S^2 $ spin penalty.'
                     write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
                     write(stdout, *)
                 end if
@@ -1819,7 +1820,7 @@ contains
             end if
             if (t_ueg_3_body .and. tTrcorrExgen) tLatticeGens = .false.
             write(stdout, "(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ", &
-                & REAL(MemoryAlloc, dp) / 1048576.0_dp, " Mb/Processor"
+                REAL(MemoryAlloc, dp) / 1048576.0_dp, " Mb/Processor"
             write(stdout, *) "Only one array of memory to store main particle list allocated..."
             write(stdout, *) "Initial memory allocation sucessful..."
             write(stdout, *) "============================================="
@@ -1876,8 +1877,8 @@ contains
         call init_tau()
 
         IF ((NMCyc /= 0) .and. (tRotateOrbs .and. (.not. tFindCINatOrbs))) then
-            CALL Stop_All(this_routine, "Currently not set up to rotate and then go straight into a spawning &
-            & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
+            CALL Stop_All(this_routine, "Currently not set up to rotate and then go straight into a spawning " &
+            // " calculation. Ordering of orbitals is incorrect.  This may be fixed if needed.")
         end if
 
         if (tRDMonFly) then
@@ -1980,8 +1981,8 @@ contains
 
         if (tReplicaEstimates) then
             if (.not. tPairedReplicas) then
-                call stop_all(this_routine, "The paired-replicas option must be used the logging &
-                                            &block, in order to calculate replica estimates.)")
+                call stop_all(this_routine, "The paired-replicas option must be used the logging " &
+                                            // "block, in order to calculate replica estimates.)")
             end if
 
             if (.not. (tSemiStochastic .or. (semistoch_shift_iter > 0))) then
@@ -2015,16 +2016,16 @@ contains
         ! Make sure we are performing death *after* communication, in cases
         ! where this is essential.
         if (tPreCond .and. tDeathBeforeComms) then
-            call stop_all(this_routine, "With preconditioning, death must &
-                                        &be performed after communication.")
+            call stop_all(this_routine, "With preconditioning, death must " &
+                                        // "be performed after communication.")
         end if
         if (tReplicaEstimates .and. tDeathBeforeComms) then
-            call stop_all(this_routine, "In order to calculate replica estimates, &
-                                        &death must be performed after communication.")
+            call stop_all(this_routine, "In order to calculate replica estimates, " &
+                                        // "death must be performed after communication.")
         end if
         if (tEN2Init .and. (.not. tTruncInitiator)) then
-            call stop_all(this_routine, "Cannot calculate the EN2 correction to initiator &
-                                        &error as the initiator method is not in use.")
+            call stop_all(this_routine, "Cannot calculate the EN2 correction to initiator " &
+                                        // "error as the initiator method is not in use.")
         end if
 
     end subroutine InitFCIMCCalcPar
@@ -2231,15 +2232,13 @@ contains
 
         ! What message should we display for a particle bloom?
         if (tAddToInitiator) then
-            bloom_warn_string = '("Bloom of more than n_add on ", a, " excit: &
-                                &A max of ", f10.2, " particles created. ", &
-                                &i8, " blooms occurred.")'
+            bloom_warn_string = &
+                '("Bloom of more than n_add on ", a, " excit: A max of ", f10.2, " particles created. ", i8, " blooms occurred.")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 3.0_dp
-            bloom_warn_string = '("Bloom of more than 3 on ", a, " excit: &
-                                &A max of ", f10.2, " particles created. ", &
-                                &i8, " blooms occurred.")'
+            bloom_warn_string = &
+                '("Bloom of more than 3 on ", a, " excit: A max of ", f10.2, " particles created. ", i8, " blooms occurred.")'
         end if
         bloom_max = 0
 
@@ -3208,7 +3207,7 @@ contains
 
                 if (tRealCoeffByExcitLevel) ExcitLevel = FindBitExcitLevel(iLutnJ, iLutRef(:, 1), nEl)
                 if (tAllRealCoeff .or. &
-                    & (tRealCoeffByExcitLevel .and. (ExcitLevel <= RealCoeffExcitThresh))) then
+                        (tRealCoeffByExcitLevel .and. (ExcitLevel <= RealCoeffExcitThresh))) then
                     NoWalkers = amp
                 else
                     NoWalkers = int(amp)
@@ -3419,7 +3418,7 @@ contains
                 tNoBrillouin = .true.
                 tUseBrillouin = .false.
                 write(stdout, '(A)') " Using an open shell reference determinant in a basis of restricted HF orbitals; " &
-                & //"Brillouins theorem is being turned off. "
+                 // "Brillouins theorem is being turned off. "
             end if
         end if
 
@@ -3446,9 +3445,8 @@ contains
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
 
-        write(stdout, "(A)") " Calculating approximate pDoubles for use with &
-                       &excitation generator by looking a excitations from &
-                       &reference."
+        write(stdout, "(A)") " Calculating approximate pDoubles for use with " &
+                       // "excitation generator by looking a excitations from reference."
         exflag = 3
         if (tReltvy) then
             write(stdout, *) "Counting magnetic excitations"
@@ -3479,8 +3477,8 @@ contains
 
         IF (tHub .or. tUEG) THEN
             IF (tReal) THEN
-                write(stdout, *) "Since we are using a real-space hubbard model, only single excitations are connected &
-                &   and will be generated."
+                write(stdout, *) "Since we are using a real-space hubbard model, only single excitations are connected " &
+                // "   and will be generated."
                 pDoubles = 0.0_dp
                 if (tReltvy) then
                     pDoub_spindiff1 = 0.0_dp
@@ -3492,8 +3490,8 @@ contains
                 end if
                 return
             ELSE
-                write(stdout, *) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
-     &                          are connected and will be generated."
+                write(stdout, *) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons " &
+                     // "are connected and will be generated."
                 pSingles = 0.0_dp
                 if (tReltvy) then
                     pSing_spindiff1 = 0.0_dp
@@ -3535,8 +3533,8 @@ contains
             return
         else if ((nSingles < 0) .or. (nDoubles < 0)) then
             call stop_all("CalcApproxpDoubles", &
-                          "Number of singles, doubles or Yamanouchi symbols &
-                          &found to be a negative number. Error here.")
+                          "Number of singles, doubles or Yamanouchi symbols " &
+                          // "found to be a negative number. Error here.")
         end if
         if (tReltvy) then
             denom = real(nSingles + nSing_spindiff1, dp) * SinglesBias &
@@ -3554,11 +3552,9 @@ contains
         end if
 
         IF (abs(SinglesBias - 1.0_dp) > 1.0e-12_dp) THEN
-            write (stdout, '("pDoubles set to ", f14.6, &
-                       &" rather than (without bias): ", f14.6)') &
+            write (stdout, '("pDoubles set to ", f14.6, " rather than (without bias): ", f14.6)') &
                        pDoubles, real(nDoubles, dp) / real(iTotal, dp)
-            write (stdout, '("pSingles set to ", f14.6, &
-                       &" rather than (without bias): ", f14.6)') &
+            write (stdout, '("pSingles set to ", f14.6, " rather than (without bias): ", f14.6)') &
                        pSingles, real(nSingles, dp) / real(iTotal, dp)
 
 !            write(stdout,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &

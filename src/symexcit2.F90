@@ -88,7 +88,7 @@ CONTAINS
 ! K loops over the possible pairs of states which we are allowed to excite to.
         K = -2
         Call SymGenExcitIt_GetNextPair(K, iTo, iLooped, iTo1, iTo2,  &
-    &         tDebugPrint)
+              tDebugPrint)
         DO WHILE (iLooped < 1)
 !         DO K=SymPairProds(ITO)%nIndex,SymPairProds(ITO)%nIndex+SymPairProds(ITO)%nPairs-1
 !.. Now check according to ISPN
@@ -107,45 +107,45 @@ CONTAINS
 !.. If both virtuals aren't the samem and neither are in NI, then allow
                 IF (ICC1 /= ICC3 .AND. .NOT. (L1B .OR. L2B)) THEN
                     CALL AddExcitWeight(                                  &
-       &                  ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
-       &                  ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
-       &                  ICC1,                                           &
-       &                  ICC3,                                           &
-       &                  ews, Norm, ICOUNT, NBASISMAX, Arr, NBASIS)
+                         ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
+                         ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
+                         ICC1,                                           &
+                         ICC3,                                           &
+                         ews, Norm, ICOUNT, NBASISMAX, Arr, NBASIS)
                 end if
             else if (ISPN == 2) THEN
 !.. If neither virtuals are in NI, then allow
                 IF (.NOT. (L1B .OR. L2A)) THEN
                     CALL AddExcitWeight(                                  &
-       &                  ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
-       &                  ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
-       &                  ICC1,                                           &
-       &                  ICC4,                                           &
-       &                  ews, Norm, ICOUNT, NBASISMAX, Arr, NBASIS)
+                         ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
+                         ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
+                         ICC1,                                           &
+                         ICC4,                                           &
+                         ews, Norm, ICOUNT, NBASISMAX, Arr, NBASIS)
                 end if
 !.. If neither virtuals are in NI, and they're not the same(which would give
 !.. us the same excitation as previously), then allow
                 IF (.NOT. (L1A .OR. L2B) .AND. ICC1 /= ICC3) THEN
                     CALL AddExcitWeight(                                  &
-       &                  ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
-       &                  ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
-       &                  ICC2,                                           &
-       &                  ICC3,                                           &
-       &                  ews, Norm, ICOUNT, NBASISMAX, Arr, NBASIS)
+                         ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
+                         ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
+                         ICC2,                                           &
+                         ICC3,                                           &
+                         ews, Norm, ICOUNT, NBASISMAX, Arr, NBASIS)
                 end if
             else if (ISPN == 3) THEN
 !.. If both virtuals aren't the samem and neither are in NI, then allow
                 IF (ICC1 /= ICC3 .AND. .NOT. (L1A .OR. L2A)) THEN
                     CALL AddExcitWeight(                                  &
-       &                  ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
-       &                  ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
-       &                  ICC2,                                           &
-       &                  ICC4,                                           &
-       &                  ews, Norm, ICOUNT, NBASISMAX, Arr, NBASIS)
+                         ORBPAIRS(1, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
+                         ORBPAIRS(2, SYMPRODIND(1, ISPN, IFROM) + iFromIndex),&
+                         ICC2,                                           &
+                         ICC4,                                           &
+                         ews, Norm, ICOUNT, NBASISMAX, Arr, NBASIS)
                 end if
             end if
             Call SymGenExcitIt_GetNextPair(K, iTo, iLooped, iTo1, iTo2,  &
-        &         tDebugPrint)
+                 tDebugPrint)
         end do
     END subroutine
 ! Add the weight of the excitation to the list in ExWeights
@@ -312,8 +312,8 @@ CONTAINS
             else if (EXCITFUNCS(2)) THEN
                 IF ((Arr(K, 2) + Arr(L, 2)) < g_VMC_ExcitWeights(2, CUR_VERT)) Weight = Weight
                 IF ((Arr(K, 2) + Arr(L, 2)) >= g_VMC_ExcitWeights(2, CUR_VERT)) THEN
-                    Weight = Weight * (1.0_dp / (((Arr(K, 2) + Arr(L, 2)) -                         &
-                    & g_VMC_ExcitWeights(2, CUR_VERT) + 1.0_dp)**g_VMC_ExcitWeights(3, CUR_VERT)))
+                    Weight = Weight * (1.0_dp / (((Arr(K, 2) + Arr(L, 2)) &
+                        - g_VMC_ExcitWeights(2, CUR_VERT) + 1.0_dp)**g_VMC_ExcitWeights(3, CUR_VERT)))
                 end if
             end if
         end if
@@ -879,8 +879,8 @@ CONTAINS
 !Since we do not store symprods, we have to allocate more memory to store it temporarily.
                     allocate(SymProdsTemp(SymmetrySize * (NEL * NEL + 1)), stat=ierr)
                     IF (ierr /= 0) THEN
-                        CALL Stop_All("GenSymExcitIt2Par", "Cannot &
-                             &allocate SymProdsTemp Memory")
+                        CALL Stop_All("GenSymExcitIt2Par", &
+                            "Cannot allocate SymProdsTemp Memory")
                     end if
 
 !Call SymSetupExcits3. Since we are not storing symprods, DStore is shorter than normal,
@@ -952,8 +952,7 @@ CONTAINS
                           NMEM(STORE2(4)), &
                      .FALSE., ICOUNT, DSTORE(1), DSTORE(SymClassSize * NEL + 1), &
                 DSTORE(SymClassSize * NEL + 1 + (nBasis / 32) + 1:),&
-        &       ILEVEL, iMinElec1, &
-                      iMaxElec1)
+                    ILEVEL, iMinElec1, iMaxElec1)
                     NMEM(6) = STORE2(6)
                     NMEM(23) = ICOUNT
                     IC = ICOUNT
@@ -972,8 +971,8 @@ CONTAINS
         ELSE
 
             IF (tAssumeSizeExcitGen) THEN
-                CALL Stop_All("GenSymExcitIt2", "Cannot use assumed size &
-                 &ExcitGens when enumerating all determinants.")
+                CALL Stop_All("GenSymExcitIt2", &
+                    "Cannot use assumed size ExcitGens when enumerating all determinants.")
             end if
 !.. Actually generate a det
 !            write(stdout,"(A,Z10,8I4)",advance='no') "GET",LOC(NMEM(1)),

@@ -165,7 +165,7 @@ then when you build with CMake, you must also include the flag `-DENABLE_DOC=ON`
 ```
 mkdir build
 cd build
-cmake -DENABLE_DOC=ON ${your_code_directory}
+cmake -DENABLE_DOC=ON -DENABLE_HDF5=OFF ${your_code_directory}
 make -j doc
 ```
 

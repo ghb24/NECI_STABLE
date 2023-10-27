@@ -277,6 +277,7 @@ module guga_data
             !! For this reason we can choose one representative.
             !!
             !! For example:
+            !!
             !!    * `kikj` and `kjki` are both `fullstop_lowering`.
             !!    * `ijkl` is `non_overlap`, the corresponding exchanged excitation
             !!      `ilkj` is `double_R_to_L_to_R`, hence we choose `double_R_to_L_to_R`
@@ -286,6 +287,7 @@ module guga_data
             !!   Older code does not clearly distinguish between `DistinctDoubleExcitation_t`
             !!   and `ExcitationType_t`, so the `repr` is particularly useful here.
             !! @endnote
+            !!
         type(ExcitationType_t) :: other
             !! The other Excitation that is not the representative
         character(2) :: label

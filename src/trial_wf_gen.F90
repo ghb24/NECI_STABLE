@@ -63,12 +63,12 @@ contains
 
         ! Perform checks.
         if (tIncCancelledInitEnergy .and. (.not. tTrialHash)) &
-            call stop_all(t_r, "The inc-cancelled-init-energy option cannot be used with the &
-                               &trial-bin-search option.")
-        if (.not. tUseRealCoeffs) call stop_all(t_r, "To use a trial wavefunction you must also &
-            &use real coefficients.")
-        if (nexcit_keep > nexcit_calc) call stop_all(t_r, "The number of required trial wave functions &
-                               &is more than the number that has been requested to be calculated.")
+            call stop_all(t_r, "The inc-cancelled-init-energy option cannot be used with the " &
+                               // "trial-bin-search option.")
+        if (.not. tUseRealCoeffs) call stop_all(t_r, "To use a trial wavefunction you must also " &
+            // "use real coefficients.")
+        if (nexcit_keep > nexcit_calc) call stop_all(t_r, "The number of required trial wave functions " &
+                               // "is more than the number that has been requested to be calculated.")
 
         call set_timer(Trial_Init_Time)
 
@@ -618,8 +618,8 @@ contains
         num_elem = num_elem_all_procs(iProcIndex)
 
         if (num_elem == 0) then
-            if (iProcIndex == 0) call stop_all("assign_elements_on_procs", "There are no states &
-                                               &in the trial space.")
+            if (iProcIndex == 0) call stop_all("assign_elements_on_procs", "There are no states " &
+                                               // "in the trial space.")
             min_elem = 0
             max_elem = 0
             return
