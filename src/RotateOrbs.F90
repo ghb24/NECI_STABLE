@@ -182,7 +182,7 @@ contains
         end if
 
         if (tROHF .and. tStoreSpinOrbs) call Stop_All(this_routine, "Cannot compress open shell systems into spatial " &
-            & //"orbitals when rotating, turn off ROHF.")
+             //"orbitals when rotating, turn off ROHF.")
 
         if (tTruncRODump .and. (.not. tTruncDumpbyVal)) then
             NoFrozenVirt = NoTruncOrbs(1)
@@ -613,8 +613,8 @@ contains
         if (tLagrange) then
             if (tShake) then
                 call neci_flush(stdout)
-                call Stop_All(this_routine, "ERROR. Both LAGRANGE and SHAKE keywords present in the input. &
-                & These two orthonormalisation methods clash.")
+                call Stop_All(this_routine, "ERROR. Both LAGRANGE and SHAKE keywords present in the input. " &
+                // " These two orthonormalisation methods clash.")
             end if
             write(stdout, *) "Using a Lagrange multiplier to attempt to rotate orbitals in a way to maintain orthonormality"
         else if (tShake) then
@@ -818,10 +818,10 @@ contains
         if (tLagrange) then
             write(transform_unit, "(A12, 11A18)") "# Iteration", "2.PotEnergy", "3.PEInts", "4.PEOrtho", "5.Force", "6.ForceInts", &
             "7.OrthoForce", "8.Sum<ij|kl>^2",&
-                        &"9.OrthoNormCondition", "10.DistMovedbyCs", "11.DistMovedByLs", "12.LambdaMag"
+                        "9.OrthoNormCondition", "10.DistMovedbyCs", "11.DistMovedByLs", "12.LambdaMag"
             write(stdout, "(A12, 11A19)") "Iteration", "2.PotEnergy", "3.PEInts", "4.PEOrtho", "5.Force", "6.ForceInts", "7.OrthoForce", &
                     "8.Sum<ij|kl>^2",&
-                    &"9.OrthoNormCondition", "10.DistMovedbyCs", "11.DistMovedbyLs", "12.LambdaMag"
+                    "9.OrthoNormCondition", "10.DistMovedbyCs", "11.DistMovedbyLs", "12.LambdaMag"
         else if (tERLocalization .and. tHijSqrdMin) then
             write(transform_unit, "(A12, 7A24)") "# Iteration", "2.ERPotEnergy", "3.HijSqrdPotEnergy", "4.PotEnergy", "5.Force", &
                 "6.Totalcorrforce", "7.OrthoNormCondition", "8.DistMovedbyCs"
@@ -920,7 +920,7 @@ contains
         UMATTemp01(:, :, :, :) = 0.0_dp
         if (((.not. tERLocalization) .and. (.not. tReadInCoeff) .and. (.not. tUseMP2VarDenMat) &
              .and. (.not. tFindCINatOrbs) .and. (.not. tUseHFOrbs))&
-            &.or. (tERLocalization .and. tStoreSpinOrbs)) UMATTemp02(:, :, :, :) = 0.0_dp
+            .or. (tERLocalization .and. tStoreSpinOrbs)) UMATTemp02(:, :, :, :) = 0.0_dp
 
         call CopyAcrossUMAT()
 
@@ -954,7 +954,7 @@ contains
         real(dp) :: s, t
 
         if (((.not. tERLocalization) .and. (.not. tReadInCoeff) .and. (.not. tUseMP2VarDenMat) .and. (.not. tFindCINatOrbs))&
-        &.or. (tERLocalization .and. tStoreSpinOrbs)) TMAT2DTemp(:, :) = 0.0_dp
+        .or. (tERLocalization .and. tStoreSpinOrbs)) TMAT2DTemp(:, :) = 0.0_dp
 
         ! These loops can be sped up with spatial symmetry and pairwise
         ! permutation symmetry if needed.
@@ -963,7 +963,7 @@ contains
             do g = 1, a
                 j = SymLabelList2_rot(g)
                 if (((.not. tERLocalization) .and. (.not. tReadInCoeff) .and. (.not. tUseMP2VarDenMat) .and. (.not. tFindCINatOrbs))&
-                &.or. (tERLocalization .and. tStoreSpinOrbs)) then
+                .or. (tERLocalization .and. tStoreSpinOrbs)) then
                     if (tStoreSpinOrbs) then
                         s = real(TMAT2D(i, j), dp)
                         TMAT2DTemp(a, g) = s
@@ -986,7 +986,7 @@ contains
                         UMATTemp01(g, a, d, b) = t
                         if (((.not. tERLocalization) .and. (.not. tReadInCoeff) .and. &
                             (.not. tUseMP2VarDenMat) .and. (.not. tFindCINatOrbs))&
-                        &.or. (tERLocalization .and. tStoreSpinOrbs)) then
+                        .or. (tERLocalization .and. tStoreSpinOrbs)) then
                             UMATTemp02(d, b, a, g) = t    ! d, b, a, g order also chosen to speed up the transformation.
                             UMATTemp02(d, b, g, a) = t
                             UMATTemp02(b, d, a, g) = t
@@ -2644,8 +2644,8 @@ contains
             shake_io = get_free_unit()
             open(shake_io, file='SHAKEstats', status='unknown')
             write(shake_io, '(A20, 4A35, A20)') 'Shake Iteration', 'Sum Lambdas', 'Total of corrected forces', &
-                & 'Sum unconstrained constraints',&
-                                        &'Sum corrected constraints', 'Converge count'
+                'Sum unconstrained constraints',&
+                'Sum corrected constraints', 'Converge count'
         end if
         if (Mod(Iteration, 10) == 0) write(shake_io, *) 'Orbital rotation iteration  =  ', Iteration
 
@@ -3235,7 +3235,7 @@ contains
             do j = 1, 4002
                 if (any(.not. near_zero([ROHistSCijkVir(2, j), ROHistSEijkVir(2, j), ROHistSASijkVir(2, j)]))) then
                     write(iunit, '(6F20.10)') ROHistSCijkVir(1, j), ROHistSCijkVir(2, j), ROHistSEijkVir(1, j), ROHistSEijkVir(2, j),&
-                                                        &ROHistSASijkVir(1, j), ROHistSASijkVir(2, j)
+                                                        ROHistSASijkVir(1, j), ROHistSASijkVir(2, j)
                 end if
             end do
             close(iunit)
@@ -3246,7 +3246,7 @@ contains
             do j = 1, 4002
                 if (any(.not. near_zero([ROHistSCijkVir(2, j), ROHistSEijkVir(2, j), ROHistSASijkVir(2, j)]))) then
                     write(iunit, '(6F20.10)') ROHistSCijkVir(1, j), ROHistSCijkVir(2, j), ROHistSEijkVir(1, j), ROHistSEijkVir(2, j),&
-                                                        &ROHistSASijkVir(1, j), ROHistSASijkVir(2, j)
+                                                        ROHistSASijkVir(1, j), ROHistSASijkVir(2, j)
                 end if
             end do
             close(iunit)
@@ -4589,8 +4589,9 @@ contains
                     ! it is kind of unnecessary - although it may be used to
                     ! speed things up.
                     do l = 1, j
-                        if (.not. near_zero(real(UMat(UMatInd(i, j, k, l)), dp))) &
-                                        &write(iunit, '(F21.12, 4I3)') real(UMat(UMatInd(i, j, k, l)), dp), i, k, j, l
+                        if (.not. near_zero(real(UMat(UMatInd(i, j, k, l)), dp))) then
+                            write(iunit, '(F21.12, 4I3)') real(UMat(UMatInd(i, j, k, l)), dp), i, k, j, l
+                        end if
                     end do
                 end do
             end do
@@ -4690,9 +4691,9 @@ contains
                     ! speed things up.
                     do l = 1, j
                         d = SymLabelList3_rotInv(l)
-                        if (.not. near_zero(FourIndInts(a, g, b, d))) &
-                                        &write(iunit, '(F21.12, 4I3)') FourIndInts(a, g, b, d), i, k, j, l
-
+                        if (.not. near_zero(FourIndInts(a, g, b, d))) then
+                            write(iunit, '(F21.12, 4I3)') FourIndInts(a, g, b, d), i, k, j, l
+                        end if
                     end do
                 end do
             end do

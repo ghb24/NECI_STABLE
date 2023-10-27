@@ -1064,8 +1064,8 @@ contains
         ! Each node requires 16 bytes.
         nhashes_spawn = int(0.8_dp * real(MaxSpawned, dp))
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
-        write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
-                                       &Memory required (MB):", spawn_ht_mem
+        write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. " &
+                                       // "Memory required (MB):", spawn_ht_mem
         write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(stdout)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
@@ -1073,8 +1073,8 @@ contains
             call stop_all(this_routine, "Error allocating spawn_ht array.")
         else
             write(stdout, '(1x,a5)') "Done."
-            write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
-                              &increase as further nodes are added."
+            write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will " &
+                              // "increase as further nodes are added."
         end if
 
         call init_hash_table(spawn_ht)

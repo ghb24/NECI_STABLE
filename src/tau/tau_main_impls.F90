@@ -281,8 +281,8 @@ contains
 
         if (new_tau > 0.075_dp) then
             new_tau = clamp(0.075_dp, min_tau, max_tau)
-            write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
-                                            &may be inappropriate. Care needed"
+            write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, &
+                " although this may be inappropriate. Care needed"
         end if
         call assign_value_to_tau(new_tau, this_routine)
 
@@ -364,8 +364,8 @@ contains
 
         if (new_tau > 0.075_dp) then
             new_tau = clamp(0.075_dp, min_tau, max_tau)
-            write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
-                                            &may be inappropriate. Care needed"
+            write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, &
+                " although this may be inappropriate. Care needed"
         end if
         call assign_value_to_tau(new_tau, this_routine)
     end subroutine hubbard_find_tau_from_refdet_conn

@@ -292,18 +292,18 @@ contains
                                 int(G1(2 * SymLabelList2_rot(j))%sym%S), rdm%matrix(i, j)
                         end if
                         if (tUseMP2VarDenMat) then
-                            write(stdout, *) '**WARNING** - There is a non-zero 1-RDM &
-                            &value between orbitals of different symmetry.'
-                            write(stdout, *) 'These elements will be ignored, and the symmetry &
-                            &maintained in the final transformation matrix.'
+                            write(stdout, *) '**WARNING** - There is a non-zero 1-RDM ' &
+                            // 'value between orbitals of different symmetry.'
+                            write(stdout, *) 'These elements will be ignored, and the symmetry ' &
+                            // 'maintained in the final transformation matrix.'
                         else
                             write(stdout, *) 'k,SymLabelList2_rot(k),SymLabelListInv_rot(k)'
                             do k = 1, NoOrbs
                                 write(stdout, *) k, SymLabelList2_rot(k), SymLabelListInv_rot(k)
                             end do
                             call neci_flush(stdout)
-                            call Stop_All(t_r, 'Non-zero rdm%matrix value between &
-                            &different symmetries.')
+                            call Stop_All(t_r, 'Non-zero rdm%matrix value between ' &
+                            // 'different symmetries.')
                         end if
                     end if
                     rdm%matrix(i, j) = 0.0_dp
@@ -321,8 +321,8 @@ contains
                                 int(G1(2 * SymLabelList2_rot(i))%Ml), &
                                 int(G1(2 * SymLabelList2_rot(j))%Ml), rdm%matrix(i, j)
                         end if
-                        write(stdout, '(A)') ' **WARNING** - There is a non-zero 1-RDM element &
-                        &between orbitals of different Lz symmetry.'
+                        write(stdout, '(A)') ' **WARNING** - There is a non-zero 1-RDM element ' &
+                        // 'between orbitals of different Lz symmetry.'
                     end if
                 end if
             end do
@@ -434,8 +434,8 @@ contains
         if ((abs(SumDiagTrace - SumTrace)) > 1.0_dp) then
             write(stdout, *) 'Sum of diagonal 1-RDM elements : ', SumTrace
             write(stdout, *) 'Sum of eigenvalues : ', SumDiagTrace
-            write(stdout, *) 'WARNING : &
-            &The trace of the 1RDM matrix before diagonalisation is '
+            write(stdout, *) 'WARNING : ' &
+            // 'The trace of the 1RDM matrix before diagonalisation is '
             write(stdout, *) 'not equal to that after.'
         end if
 
@@ -1133,8 +1133,8 @@ contains
                     n = 1
                     do l2 = (l1 + 1), NoOrbs
 
-                        if ((abs((evalues(l1) / diffnorm) - (evalues(l2) / diffnorm)) / abs((evalues(l2) / diffnorm)))&
-                            & < occ_numb_diff) then
+                        if ((abs((evalues(l1) / diffnorm) - (evalues(l2) / diffnorm)) / abs((evalues(l2) / diffnorm))) &
+                             < occ_numb_diff) then
                         if (.not. partnerfound) then
                             m = m + 1
                             n = n + 1
@@ -1189,7 +1189,7 @@ contains
                         localdelocal = .true.
                     end if
                     call Rotate2Orbs(iumat, jumat, trans_2orbs_coeffs, selfint(iumat),&
-                        &selfint(jumat), localdelocal)
+                            selfint(jumat), localdelocal)
 
                     ! The new NOs are
                     ! phi_{i'} = cos a p_{i} + sin a p_{j}
@@ -1244,8 +1244,8 @@ contains
                                 localdelocal = .true.
                             end if
                             call Rotate2Orbs(iumat, jumat,&
-                                &trans_2orbs_coeffs, selfint(iumat), selfint(jumat)&
-                                &, localdelocal)
+                                trans_2orbs_coeffs, selfint(iumat), selfint(jumat), &
+                                localdelocal)
 
                             ! The new NOs are
                             ! phi_{i'} = cos a p_{i} + sin a p_{j}
@@ -1265,8 +1265,8 @@ contains
 
                         ! Check for convergence.
                         sum_new = sum(selfint)
-                        write(stdout, '(A50,2G20.12)') 'Current and previous selfinteraction:',&
-                            &sum_new, sum_old
+                        write(stdout, '(A50,2G20.12)') 'Current and previous selfinteraction:', &
+                                sum_new, sum_old
                         if (abs(sum_new - sum_old) < 1e-12_dp) then
                             exit
                         end if
@@ -1301,7 +1301,7 @@ contains
                             one_rdm(:, :) = 0.0_dp
                             do l4 = 1, NoOrbs
                                 if ((l4 /= rotate_list(l1, 1)) .and. (l4 /= rotate_list(l1, 2))&
-                                    & .and. (l4 /= rotate_list(l1, 3)) .and. (l4 /= rotate_list(l1, 4))) then
+                                    .and. (l4 /= rotate_list(l1, 3)) .and. (l4 /= rotate_list(l1, 4))) then
                                     one_rdm(l4, l4) = 1.0_dp
                                 end if
                             end do
@@ -1337,7 +1337,7 @@ contains
                         sum_new = sum(selfint)
 
                         write(stdout, "(A50,2G20.12)") 'Current and previous selfinteractions:',&
-                            &sum_new, sum_old
+                                sum_new, sum_old
 
                         if (abs(sum_new - sum_old) < 1e-12_dp) then
                             exit
@@ -1416,12 +1416,12 @@ contains
         ! <ij|kl> (physical notation) in the NO basis
 
         coeffcos = Umat(UmatInd(i, i, i, j)) + Umat(UmatInd(i, i, j, i)) + Umat(UmatInd(i, j, i, i)) &
-            & - Umat(UmatInd(i, j, j, j)) + Umat(UmatInd(j, i, i, i)) - Umat(UmatInd(j, i, j, j)) &
-            & - Umat(UmatInd(j, j, i, j)) - Umat(UmatInd(j, j, j, i))
+             - Umat(UmatInd(i, j, j, j)) + Umat(UmatInd(j, i, i, i)) - Umat(UmatInd(j, i, j, j)) &
+             - Umat(UmatInd(j, j, i, j)) - Umat(UmatInd(j, j, j, i))
 
         coeffsin = -Umat(UmatInd(i, i, i, i)) + Umat(UmatInd(i, i, j, j)) + Umat(UmatInd(i, j, i, j)) &
-            & + Umat(UmatInd(i, j, j, i)) + Umat(UmatInd(j, i, i, j)) + Umat(UmatInd(j, i, j, i)) &
-            & + Umat(UmatInd(j, j, i, i)) - Umat(UmatInd(j, j, j, j))
+             + Umat(UmatInd(i, j, j, i)) + Umat(UmatInd(j, i, i, j)) + Umat(UmatInd(j, i, j, i)) &
+             + Umat(UmatInd(j, j, i, i)) - Umat(UmatInd(j, j, j, j))
 
         ! atan return a value in [-pi/2,pi/2]
         ! because of the 4*alpha in the equation there are 8 distinct solutions
@@ -1457,9 +1457,9 @@ contains
                     do l4 = 1, 2
                         do l5 = 1, 2
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2, 1)&
-                                &* trans_2orbs_coeffs(l3, 1) *&
-                                &trans_2orbs_coeffs(l4, 1) * trans_2orbs_coeffs(l5, 1) *&
-                                &Umat(UmatInd(indicesij(l2), indicesij(l3), indicesij(l4), indicesij(l5)))
+                                * trans_2orbs_coeffs(l3, 1) &
+                                * trans_2orbs_coeffs(l4, 1) * trans_2orbs_coeffs(l5, 1) &
+                                * Umat(UmatInd(indicesij(l2), indicesij(l3), indicesij(l4), indicesij(l5)))
                         end do
                     end do
                 end do
@@ -1468,10 +1468,10 @@ contains
                 do l3 = 1, 2
                     do l4 = 1, 2
                         do l5 = 1, 2
-                            selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2, 2)&
-                                &* trans_2orbs_coeffs(l3, 2) *&
-                                &trans_2orbs_coeffs(l4, 2) * trans_2orbs_coeffs(l5, 2) *&
-                                &Umat(UmatInd(indicesij(l2), indicesij(l3), indicesij(l4), indicesij(l5)))
+                            selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2, 2) &
+                                * trans_2orbs_coeffs(l3, 2) &
+                                * trans_2orbs_coeffs(l4, 2) * trans_2orbs_coeffs(l5, 2) &
+                                * Umat(UmatInd(indicesij(l2), indicesij(l3), indicesij(l4), indicesij(l5)))
                         end do
                     end do
                 end do
@@ -1504,14 +1504,14 @@ contains
                 do l4 = 1, 2
                     do l5 = 1, 2
                         selfintorb1 = selfintorb1 + trans_2orbs_coeffs(l2, 1)&
-                            &* trans_2orbs_coeffs(l3, 1) *&
-                            &trans_2orbs_coeffs(l4, 1) * trans_2orbs_coeffs(l5, 1) *&
-                            &Umat(UmatInd(indicesij(l2), indicesij(l3), indicesij(l4), indicesij(l5)))
+                            * trans_2orbs_coeffs(l3, 1) &
+                            * trans_2orbs_coeffs(l4, 1) * trans_2orbs_coeffs(l5, 1) &
+                            * Umat(UmatInd(indicesij(l2), indicesij(l3), indicesij(l4), indicesij(l5)))
 
                         selfintorb2 = selfintorb2 + trans_2orbs_coeffs(l2, 2)&
-                            &* trans_2orbs_coeffs(l3, 2) *&
-                            &trans_2orbs_coeffs(l4, 2) * trans_2orbs_coeffs(l5, 2) *&
-                            &Umat(UmatInd(indicesij(l2), indicesij(l3), indicesij(l4), indicesij(l5)))
+                            * trans_2orbs_coeffs(l3, 2) &
+                            * trans_2orbs_coeffs(l4, 2) * trans_2orbs_coeffs(l5, 2) &
+                            * Umat(UmatInd(indicesij(l2), indicesij(l3), indicesij(l4), indicesij(l5)))
                     end do
                 end do
             end do

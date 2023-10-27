@@ -215,8 +215,8 @@ contains
                 inquire (file=trim(rdm_filename(irdm)), exist=file_exists)
 
                 if (.not. file_exists) then
-                    call stop_all(t_r, "Attempting to read in a spinfree 2-RDM from "//trim(rdm_filename(irdm))//", &
-                                       &but this file does not exist.")
+                    call stop_all(t_r, "Attempting to read in a spinfree 2-RDM from "&
+                        // trim(rdm_filename(irdm)) // ", but this file does not exist.")
                 end if
             end do
         end associate
@@ -305,9 +305,9 @@ contains
         character(len=*), parameter :: t_r = 'print_1rdms_from_2rdms_wrapper'
 
         if (size(one_rdms) == 0) then
-            call stop_all(t_r, "You have asked to print 1-RDMs but they are not allocated. Make sure &
-                                &that you have asked for both 1-RDMs and 2-RDMs to be calculated by &
-                                &seting the RDMExcitLevel to 3, i.e. 'CALCRDMONFLY 3 ...' in input options.")
+            call stop_all(t_r, "You have asked to print 1-RDMs but they are not allocated. Make sure " &
+                                // "that you have asked for both 1-RDMs and 2-RDMs to be calculated by " &
+                                // "seting the RDMExcitLevel to 3, i.e. 'CALCRDMONFLY 3 ...' in input options.")
         end if
 
         !call calc_rdm_trace(two_rdms, rdm_trace)

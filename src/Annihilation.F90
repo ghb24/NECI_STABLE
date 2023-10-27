@@ -237,7 +237,7 @@ contains
             write(stdout, *) 'On task ', iProcIndex, ': ', MaxIndex, MaxSpawned
 #endif
             call Warning_neci("SendProcNewParts", "Maximum index of newly-spawned array is " &
-            & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
+             //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
         end if
 
         call MPIAlltoAllv(SpawnedParts, sendcounts, disps, SpawnedParts2, recvcounts, recvdisps, error)
@@ -1147,8 +1147,8 @@ contains
                                 else
                                     write(stdout, *) "***", SpawnedParts(0:NIftot, i)
                                     Call writebitdet(stdout, SpawnedParts(0:NIfTot, i), .true.)
-                                    call stop_all(this_routine, "Cannot find corresponding FCI "&
-                                            & //"determinant when histogramming")
+                                    call stop_all(this_routine, "Cannot find corresponding FCI &
+                                             &determinant when histogramming")
                                 end if
                             end if
                         end if

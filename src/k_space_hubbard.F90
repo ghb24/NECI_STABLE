@@ -2983,10 +2983,10 @@ contains
             do i = 1, nBasis
                 IF (G1(i)%Ms == 1) THEN
                     OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) = &
-                    & OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
+                        OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
                 ELSE
                     OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) = &
-                    & OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
+                        OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
                 end if
             end do
 

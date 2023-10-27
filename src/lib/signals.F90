@@ -56,8 +56,8 @@ contains
 
         if (sigint_count == 1) then
             write(stdout,*) 'Calculation will cleanly exit at the next update cycle.'
-            write(stdout,*) 'To kill the application immediately, resend signal again &
-                       & (Ctrl-C)'
+            write(stdout,*) 'To kill the application immediately, resend signal again ' &
+                       // ' (Ctrl-C)'
             write(stdout,*) '----------------------------------------'
             write(stdout,*)
 

@@ -133,8 +133,7 @@ contains
     pure function to_str_PCHB_DoublesOptions_t(options) result(res)
         class(PCHB_DoublesOptions_t), intent(in) :: options
         character(19) :: res
-        res = options%particle_selection%to_str() &
-                // ':' // options%hole_selection%to_str()
+        res = options%particle_selection%to_str() // ':' // options%hole_selection%to_str()
     end function
 
 
