@@ -123,6 +123,7 @@ module guga_gas_pchb_doubles_select_particles
             !! To make doubly occupied orbitals more probable we have doubly the
             !! amount of spatial orbitals and treat it as if there were spin-orbitals.
             !! @endnote
+            !!
         type(AliasSampler_2D_t) :: j_sampler
             !! The shape is (number_of_spat_orbs, n_supergroup) -> number_of_spat_orbs
 

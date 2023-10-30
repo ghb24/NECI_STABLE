@@ -128,6 +128,7 @@ module guga_gas_pchb_singles_main
             !! To make doubly occupied orbitals more probable we have doubly the
             !! amount of spatial orbitals and treat it as if there were spin-orbitals.
             !! @endnote
+            !!
         type(AliasSampler_2D_t) :: A_sampler
             !! The shape is (nSpatOrbs, n_supergroup) -> 2 * nSpatOrbs
             !!
@@ -136,7 +137,7 @@ module guga_gas_pchb_singles_main
             !! we have doubly the
             !! amount of spatial orbitals and treat it as if there were spin-orbitals.
             !! @endnote
-
+            !!
         procedure(get_weight_t), pointer, nopass :: get_weight => null()
 
         integer(n_int), private :: last_possible_occupied
