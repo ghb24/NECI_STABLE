@@ -1,6 +1,6 @@
 module test_guga_matrixelements_mod
     use fruit, only: assert_true, assert_false, assert_equals, run_test_case
-    use constants, only: dp, n_int, maxExcit
+    use constants, only: dp, n_int, maxExcit, stdout
     use guga_bitRepOps, only: convert_guga_to_ni, StepVectorVals_t, StepVector_t, stepvector_vals, &
         EncodeBitDet_guga, CSF_Info_t
     use SystemData, only: nEl, nSpatOrbs, nBasis
