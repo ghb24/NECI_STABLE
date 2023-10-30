@@ -320,9 +320,9 @@ contains
                 ! tHFNoOrder flags which do different things.
                 tHFOrder = .true.
             case ("NOORDER")
-                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
-                                            &Note the default behaviour is to not &
-                                            &order orbitals.")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. " &
+                                            // "Note the default behaviour is to not " &
+                                            // "order orbitals.")
                 tHFNoOrder = .true.
             end select
         case ("BINREAD")            ! Instead, specify Binary within the system block.
@@ -333,9 +333,9 @@ contains
             case ("ORDER")
                 tHFOrder = .true.
             case ("NOORDER")
-                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
-                                            &Note the default behaviour is to not &
-                                            &order orbitals.")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. " &
+                                            // "Note the default behaviour is to not " &
+                                            // "order orbitals.")
                 tHFNoOrder = .true.
             end select
         case ("READ", "GENERIC")
@@ -345,9 +345,9 @@ contains
             case ("ORDER")
                 tHFOrder = .true.
             case ("NOORDER")
-                call stop_all(this_routine, "`noorder` keyword has been deprecated. &
-                                            &Note the default behaviour is to not &
-                                            &order orbitals.")
+                call stop_all(this_routine, "`noorder` keyword has been deprecated. " &
+                                            // "Note the default behaviour is to not " &
+                                            // "order orbitals.")
                 tHFNoOrder = .true.
             end select
 
@@ -687,8 +687,8 @@ contains
                 t_calc_adjoint = .true.
                 write(stdout, *) "Calculating H^\dagger instead of H."
                 if (.not. t_non_hermitian_1_body .and. .not. t_non_hermitian_2_body) then
-                    write(stdout, *) "WARNING: Adjoint matrix calculation for a &
-                        &Hermitian matrix. Assuming this is intended."
+                    write(stdout, *) "WARNING: Adjoint matrix calculation for a " &
+                        // "Hermitian matrix. Assuming this is intended."
                 end if
 
             case ('MOLECULAR-TRANSCORR')
@@ -1796,8 +1796,8 @@ contains
             case ("PCHB-WEIGHTED-SINGLES")
                 ! Enable using weighted single excitations with the pchb excitation generator
                 write(stdout, *) trim(w)//" is deprecated."
-                write(stdout, *) "For SD basis please use `nonuniformrandexcits pchb &
-                    &singles on-fly-heat-bath` instead."
+                write(stdout, *) "For SD basis please use `nonuniformrandexcits pchb " &
+                    // "singles on-fly-heat-bath` instead."
                 write(stdout, *) "For GUGA please use `GUGA-PCHB-WEIGHTED-SINGLES`."
                 call stop_all(this_routine, trim(w)//" is deprecated.")
 
@@ -1852,8 +1852,8 @@ contains
                 tNoBrillouin = .true.
                 tBrillouinsDefault = .false.
                 IF (tFindCINatOrbs) CALL Stop_All("ReadSysInp", "For orbital rotations of open shell "&
-                &//"systems, UMAT must be stored in spin &
-                & orbitals - cannot be compressed using ROHF.")
+                // "systems, UMAT must be stored in spin " &
+                // " orbitals - cannot be compressed using ROHF.")
 
             case ("LZTOT")
                 tFixLz = .true.
@@ -1864,8 +1864,8 @@ contains
                 ! Use the impurity model excitation generator (star geometry)
                 t_impurity_excitgen = .true.
             case ("MOLPROMIMIC")
-                write (stdout, "(A)") "WARNING: using the molpromimic keyword is strongly &
-                                            & discouraged. Consider order-by-1elec-energy instead."
+                write (stdout, "(A)") "WARNING: using the molpromimic keyword is strongly " &
+                                            // " discouraged. Consider order-by-1elec-energy instead."
                 !Mimic the run-time behaviour of molpros NECI implementation
                 tMolpro = .true.
                 tMolproMimic = .true.
@@ -1898,8 +1898,8 @@ contains
 #endif
                 if (inum_runs > inum_runs_max) then
                     write(stdout, *) 'Maximum SYSTEM-REPLICAS: ', inum_runs_max
-                    call stop_all(t_r, 'SYSTEM-REPLICAS is greater than maximum &
-                                       &permitted value')
+                    call stop_all(t_r, 'SYSTEM-REPLICAS is greater than maximum ' &
+                                       // 'permitted value')
                 end if
 #else
                 itmp = to_int(tokens%next())
@@ -1908,8 +1908,8 @@ contains
 #else
                 if (itmp /= 1) then
 #endif
-                    call stop_all(t_r, "mneci.x build must be used for running &
-                                       &with multiple simultaneous replicas")
+                    call stop_all(t_r, "mneci.x build must be used for running " &
+                                       // "with multiple simultaneous replicas")
                 end if
 #endif
             case("ADJOINT-REPLICAS")
@@ -2065,8 +2065,8 @@ contains
         if (.not. tUEG2) then
             if (THUB .OR. TUEG .OR. .NOT. (TREADINT .OR. TCPMD .or. tVASP)) then
                 if (NMAXX == 0) then
-                    call stop_all(this_routine, "Must specify CELL - &
-                        &the number of basis functions in each dim.")
+                    call stop_all(this_routine, "Must specify CELL - " &
+                        // "the number of basis functions in each dim.")
                 end if
                 if (.NOT. THUB .AND. near_zero(BOX)) then
                     call stop_all(this_routine, "Must specify BOX size.")
@@ -2486,10 +2486,10 @@ contains
                     write(stdout, '(A)') "****** USING Lz SYMMETRY *******"
                     write(stdout, '(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ", LzTot
                     write(stdout, *) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
-                    &//"on order of 1.0e-4_dp - do not use for MP2!"
+                        //"on order of 1.0e-4_dp - do not use for MP2!"
                     if (nsymlabels > 4) then
                         call stop_all(this_routine, "D2h point group detected. Incompatable with Lz symmetry conserving "&
-                        &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+                        //"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
                     end if
                 end if
 
@@ -3236,11 +3236,11 @@ contains
         IF (tFixLz) THEN
             write(stdout, '(A)') "****** USING Lz SYMMETRY *******"
             write(stdout, '(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ", LzTot
-            write(stdout, *) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
-            &//"on order of 1.0e-4_dp - do not use for MP2!"
+            write(stdout, *) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, &
+                &on order of 1.0e-4_dp - do not use for MP2!"
             if (nsymlabels > 4) then
-                call stop_all(this_routine, "D2h point group detected. Incompatable with Lz symmetry conserving "&
-                &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+                call stop_all(this_routine, "D2h point group detected. Incompatable with Lz symmetry conserving &
+                    &orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
             end if
         end if
 

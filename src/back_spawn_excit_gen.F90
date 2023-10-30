@@ -829,7 +829,7 @@ contains
                     pAIJ = 1.0_dp / real(nBasis - nel, dp)
                 else
                     orb_a = 2 * (INT(nBasis / 2 * x) + 1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
-                    & - (1 - (iSpn / 3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+                        - (1 - (iSpn / 3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
                     if (iSpn == 1) then
                         paij = 1.0_dp / (nbasis / 2 - noccbeta)
                     else !(ispn = 3)..

@@ -184,7 +184,7 @@ contains
 !The number NExcit is the number of unoccupied orbitals that the orbital was chosen from
 ! (including symmetry-forbidden orbital pairs) Arguments:
         CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB, &
-      &             SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
+                   SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
         IF(tAOrbFail) THEN
             nJ(1)=0
             pGen=HUGE(0.0_dp)
@@ -538,7 +538,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 !the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
                         ForbiddenOrbs = ForbiddenOrbs + ClassCountUnocc2(ClassCountInd(2,   &
-                &           RandExcitSymLabelProd(SymProduct, SymInvLabel(i)), 0))
+                            RandExcitSymLabelProd(SymProduct, SymInvLabel(i)), 0))
                         !No unocc alphas in i, therefore all betas in ConjSym are forbidden
 !                        write(stdout,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     end if
@@ -548,7 +548,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase
 !the forbidden orbital number, since it can never be chosen.
                         ForbiddenOrbs = ForbiddenOrbs + ClassCountUnocc2(ClassCountInd(1,   &
-                &           RandExcitSymLabelProd(SymProduct, SymInvLabel(i)), 0))
+                            RandExcitSymLabelProd(SymProduct, SymInvLabel(i)), 0))
                     end if
                     Ind = Ind + 2
                 end do
@@ -666,7 +666,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 !               MlA = Ml of the a orbital chosen
 !               MlB = Required Ml of the b orbital still to be chosen
     SUBROUTINE PickAOrb(nI, iSpn, ILUT, ClassCountUnocc2, NExcit, Elec1Ind, Elec2Ind, SpinOrbA, OrbA, SymA, SymB, &
-    &   SymProduct, SumMl, MlA, MlB, ForbiddenOrbs, tAOrbFail)
+        SymProduct, SumMl, MlA, MlB, ForbiddenOrbs, tAOrbFail)
         INTEGER, INTENT(IN) :: nI(NEl), iSpn, Elec1Ind, Elec2Ind, ForbiddenOrbs, SymProduct, SumMl, ClassCountUnocc2(ScratchSize)
         INTEGER, INTENT(OUT) :: SpinOrbA, SymA, MlA, MlB, NExcit, SymB, OrbA
         INTEGER(KIND=n_int), INTENT(IN) :: ILUT(0:NIfTot)
@@ -1169,8 +1169,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 write(stdout, *) "Cannot find single excitation from electrons after 250 attempts..."
                 call write_det(stdout, nI, .true.)
                 write(stdout, *) "***"
-                call stop_all(t_r, "Cannot find single excitation from &
-                                   &electrons after 250 attempts...")
+                call stop_all(t_r, "Cannot find single excitation from electrons after 250 attempts...")
             end if
             Attempts = Attempts + 1
 
@@ -1221,8 +1220,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 
 !We now have our final orbitals. i=nI(Eleci). a=Orb.
             IF (z /= ChosenUnocc) THEN
-                call stop_all(t_r, "Could not find allowed unoccupied orbital &
-                                   &to excite to.")
+                call stop_all(t_r, "Could not find allowed unoccupied orbital to excite to.")
             end if
 
         ELSE
@@ -1258,8 +1256,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                     write(stdout, *) "Number of orbitals (of correct spin) in symmetry = ", nOrbs
                     write(stdout, *) "Number of orbitals to legitimatly pick = ", NExcit
                     call write_det(stdout, nI, .true.)
-                    call stop_all(t_r, "Cannot find single excitation &
-                                   &unoccupied orbital after 250 attempts...")
+                    call stop_all(t_r, "Cannot find single excitation unoccupied orbital after 250 attempts...")
                 end if
                 Attempts = Attempts + 1
 
@@ -1883,7 +1880,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 ChosenUnocc = INT(nBasis * r) + 1
             ELSE ! alpha/alpha, beta/beta
                 ChosenUnocc = 2 * (INT(nBasis / 2 * r) + 1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
-                & - (1 - (iSpn / 3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+                    - (1 - (iSpn / 3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
             end if
             ! Check a isn't occupied
             IF (.not. (BTEST(iLutnI((ChosenUnocc - 1) / bits_n_int), MOD(ChosenUnocc - 1, bits_n_int)))) THEN
@@ -2197,9 +2194,9 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
             allocate(Excludedk(NEl, 3))
             ! Is a = b allowed by momentum and disallowed by spin symmetry?
             IF ((G1(nI(Elec1Ind))%Ms == G1(nI(Elec2Ind))%Ms) .and. &
-            &       (MOD(ki(1) - kj(1), 2) == 0) .and. &
-            &       (MOD(ki(2) - kj(2), 2) == 0) .and. &
-            &       (MOD(ki(3) - kj(3), 2) == 0)) THEN ! This is the disallowed double-excitation to the same orbital
+                    (MOD(ki(1) - kj(1), 2) == 0) .and. &
+                    (MOD(ki(2) - kj(2), 2) == 0) .and. &
+                    (MOD(ki(3) - kj(3), 2) == 0)) THEN ! This is the disallowed double-excitation to the same orbital
                 iElecInExcitRange = iElecInExcitRange + 1
                 Excludedk(iElecInExcitRange, :) = (ki + kj) / 2 ! Integer division okay because we're already checked for mod2=0
                 tExtraPoint = .true.
@@ -2221,8 +2218,8 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 IF (kTrial(3) > KaZUpperLimit) CYCLE
                 IF (tExtraPoint) THEN
                     IF ((kTrial(1) == Excludedk(1, 1))    &
-                    & .and. (kTrial(2) == Excludedk(1, 2))   &
-                    & .and. (kTrial(3) == Excludedk(1, 3))) CYCLE
+                      .and. (kTrial(2) == Excludedk(1, 2))   &
+                      .and. (kTrial(3) == Excludedk(1, 3))) CYCLE
                 end if
                 iElecInExcitRange = iElecInExcitRange + 1
                 Excludedk(iElecInExcitRange, :) = kTrial
@@ -2694,7 +2691,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 write(stdout, *) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
                 write(stdout, *) "This means that ISK functions cannot be constructed."
                 write(stdout, *) "However, through correct rotation of orbitals, all orbitals should be " &
-                & //"made real, and the code run in real mode (with tRotatedOrbsReal set)."
+                     //"made real, and the code run in real mode (with tRotatedOrbsReal set)."
                 write(stdout, *) "Alternatively, run again in complex mode without ISK functions."
                 write(stdout, *) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
     !            call stop_all(this_routine,"All kpoints are self-inverse")
@@ -2768,12 +2765,12 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
     !                write(stdout,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
     !                write(stdout,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
                     OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) = &
-                    & OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
+                      OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
                 ELSE
     !                write(stdout,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
     !                write(stdout,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
                     OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) = &
-                    & OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
+                      OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
                 end if
             end do
         end if

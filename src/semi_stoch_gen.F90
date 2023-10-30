@@ -197,15 +197,15 @@ contains
                 ! Typically, all replicas will have either similar or the same space size
                 write(stdout, '("Total size of deterministic space:",1X,i8)') rep%determ_space_size
                 if (rep%determ_space_size > (AllNoInitDets(run) .div. 2_int64) .and. tTruncInitiator) then
-                    write(stdout, *)"WARNING: Total size of deterministic space is greater than&
-                        & 50% of the initiator space."
-                    write(stdout, *)"         Reducing the size of the deterministic space is&
-                        & encouraged."
+                    write(stdout, *)"WARNING: Total size of deterministic space is greater than" &
+                        // " 50% of the initiator space."
+                    write(stdout, *)"         Reducing the size of the deterministic space is" &
+                        // " encouraged."
                     if (iProcIndex == 0) then
-                        write(stderr, *)"WARNING: Total size of deterministic space is greater than&
-                            & 50% of the initiator space."
-                        write(stderr, *)"         Reducing the size of the deterministic space is&
-                            & encouraged."
+                        write(stderr, *)"WARNING: Total size of deterministic space is greater than" &
+                            // " 50% of the initiator space."
+                        write(stderr, *)"         Reducing the size of the deterministic space is" &
+                            // " encouraged."
                     end if
                 end if
                 write(stdout, '("Size of deterministic space on this processor:",1X,i8)') rep%determ_sizes(iProcIndex)
@@ -392,19 +392,19 @@ contains
             if (core_in%tDoubles) then
                 call generate_sing_doub_guga(SpawnedParts, space_size, core_in%tHFConn)
             else if (core_in%tCAS) then
-                call stop_all("init_semi_stochastic", "CAS core space with CSFs is not &
-                              &currently implemented.")
+                call stop_all("init_semi_stochastic", "CAS core space with CSFs is not " &
+                              // "currently implemented.")
             else if (core_in%tCAS) then
-                call stop_all("init_semi_stochastic", "Cannot use a RAS core space with &
-                              &CSFs.")
+                call stop_all("init_semi_stochastic", "Cannot use a RAS core space with " &
+                              // "CSFs.")
 
             else if (core_in%tOptimised) then
                 call generate_optimised_space(core_in%opt_data, core_in%tLimitSpace, &
                                               SpawnedParts, space_size, core_in%max_size)
 
             else if (core_in%tLowE) then
-                call stop_all("init_semi_stochastic", "Low energy core space with CSFs is not &
-                              &currently implemented.")
+                call stop_all("init_semi_stochastic", "Low energy core space with CSFs is not " &
+                              // "currently implemented.")
             else if (core_in%tMP1) then
                 call generate_using_mp1_criterion(core_in%mp1_ndets, SpawnedParts, space_size)
             end if
@@ -694,8 +694,8 @@ contains
             ras_info%max_3 > ras_info%size_3 * 2) &
             call stop_all("generate_ras", "RAS parameters are not possible.")
 
-        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS space only implmented for &
-                                            & closed shell molecules.")
+        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS space only implmented for " &
+                                            // " closed shell molecules.")
 
         call initialise_ras_space(ras_info, ras_classes)
 
@@ -1120,9 +1120,9 @@ contains
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
         if (total_length < n_pops_keep) then
-            call warning_neci(this_routine, "The number of states in the walker list is less &
-                                   &than the number you requested. All states &
-                                   &will be used.")
+            call warning_neci(this_routine, "The number of states in the walker list is less " &
+                                   // "than the number you requested. All states " &
+                                   // "will be used.")
             n_pops_keep = total_length
         end if
 
@@ -1414,9 +1414,9 @@ contains
         end if
 
         call warning_neci("generate_using_mp1_criterion", &
-            "Note that there are less connections to the Hartree-Fock than the requested &
-            &size of the space. The space will therefore be smaller than requested, &
-            &containing all connections.")
+            "Note that there are less connections to the Hartree-Fock than the requested " &
+            // "size of the space. The space will therefore be smaller than requested, " &
+            // "containing all connections.")
 
         ! Now that the correct determinants have been selected, add them to the desired space.
         do i = 1, min(ndets, target_ndets)
@@ -1603,21 +1603,21 @@ contains
         integer :: temp(1, 1), hf_ind, ndets, i
         character(*), parameter :: t_r = "generate_fci_core"
 
-        if (.not. tSymSet) call stop_all(t_r, "To use the 'FCI-CORE' option you must also choose the symmetry sector of &
-                                              &space to be generated by using the 'SYM' option.")
+        if (.not. tSymSet) call stop_all(t_r, "To use the 'FCI-CORE' option you must also choose the symmetry sector of " &
+                                              // "space to be generated by using the 'SYM' option.")
 
         if (.not. (tSpn .or. tGUGACore)) then
-            call stop_all(t_r, "To use the FCI-CORE option you must fix the total spin on &
-                               &z-axis, e.g., by using 'SPIN-RESTRICT' option for a SD &
-                               &basis or 'GUGA' option for a GT basis.")
+            call stop_all(t_r, "To use the FCI-CORE option you must fix the total spin on " &
+                               // "z-axis, e.g., by using 'SPIN-RESTRICT' option for a SD " &
+                               // "basis or 'GUGA' option for a GT basis.")
         end if
 
         ! Count the total number of determinants.
         call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
         allocate(nI_list(nel, ndets))
         if (size(ilut_list, 2) < ndets) then
-            call stop_all(t_r, 'The ilut_list argument is too small. Probably SpawnedParts was allocated too small &
-                    & Please increase memoryfacspawn and memoryfacpart')
+            call stop_all(t_r, 'The ilut_list argument is too small. Probably SpawnedParts was allocated too small ' &
+                    // ' Please increase memoryfacspawn and memoryfacpart')
         end if
         ! Generate and store all the determinants in nI_list.
         call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)

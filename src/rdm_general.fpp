@@ -107,8 +107,8 @@ contains
                 print_2rdm_est = .false.
             else
                 print_2rdm_est = .true.
-                write (stdout, '(1X,"Calculating the energy from the reduced density matrix. &
-                              &This requires the 2 electron RDM from which the 1-RDM can also be constructed.")')
+                write (stdout, '(1X,"Calculating the energy from the reduced density matrix. ' &
+                              // 'This requires the 2 electron RDM from which the 1-RDM can also be constructed.")')
             end if
         end if
 
@@ -128,8 +128,8 @@ contains
         if (tHPHF .and. tExplicitAllRDM) call stop_all(t_r, 'HPHF not set up with the explicit calculation of the RDM.')
 
         if (tDipoles) then
-            write (stdout, '("WARNING - The calculation of dipole moments is currently not supported for the new RDM code. &
-                      &Use the OLDRDMS option to use feature.")')
+            write (stdout, '("WARNING - The calculation of dipole moments is currently not supported for the new RDM code. ' &
+                      // 'Use the OLDRDMS option to use feature.")')
         end if
 
         SpatOrbs = nbasis / 2
@@ -391,8 +391,8 @@ contains
 
         if (tPrint1RDMsFromSpinfree) then
             if (tGUGA) then
-                call stop_all(t_r, "check if 'print-1rdms-from-spinfree' &
-                   & works with GUGA")
+                call stop_all(t_r, "check if 'print-1rdms-from-spinfree" &
+                   // " works with GUGA")
             end if
             call read_spinfree_2rdm_files(rdm_definitions, two_rdm_main, two_rdm_spawn)
             call print_1rdms_from_sf2rdms_wrapper(rdm_definitions, one_rdms, two_rdm_main)
@@ -419,8 +419,8 @@ contains
             end if
 
             if (any(tSinglePartPhase)) then
-                write (stdout, '("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of &
-                          &the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging.")')
+                write (stdout, '(A)') "WARNING - Asking to read in the RDMs, but not varying shift from the beginning of " &
+                    // "the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging."
                 ! Clear these objects, before the main simulation, since we
                 ! haven't started averaging RDMs yet.
                 call clear_one_rdms(one_rdms)

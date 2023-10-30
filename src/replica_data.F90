@@ -29,8 +29,8 @@ contains
 
         if (inum_runs > inum_runs_max .or. lenof_sign > lenof_sign_max) then
             write(stdout, *) "System has too many replicas"
-            write(stdout, *) "This breaks the use of initiator flags, and &
-                       &potentially other things."
+            write(stdout, *) "This breaks the use of initiator flags, and " &
+                       // "potentially other things."
             call stop_all(this_routine, "Too many replicas requested")
         end if
 

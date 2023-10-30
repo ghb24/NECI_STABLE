@@ -251,8 +251,8 @@ contains
         TDebug = .false.  ! Set debugging flag
 
         if (t_store_ci_coeff .and. n_store_ci_level > 3) then
-            call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not implemented for &
-                                        &excitation levels higher than 3')
+            call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not implemented for ' &
+                                        // 'excitation levels higher than 3')
         else if (t_store_ci_coeff .and. tHPHF) then
             call stop_all(this_routine,'!ERROR! CI COEFFICIENTS collection not working with HPHF')
         endif
@@ -638,8 +638,8 @@ contains
                                     bloom_count(i)
 
                                 if (tUEG2) &
-                                    call stop_all(this_routine, "Should never &
-                                                 &bloom in UEG2")
+                                    call stop_all(this_routine, "Should never " &
+                                                 // "bloom in UEG2")
 
                             end if
                         end if
@@ -815,8 +815,8 @@ contains
                 end if
                 IF (iExitWalkers /= -1_int64 .and. sum(AllTotParts) > iExitWalkers) THEN
                     !Exit criterion based on total walker number met.
-                    write(stdout, "(A,I15)") "Total walker population exceeds that given by &
-                        &EXITWALKERS criteria - exiting...", sum(AllTotParts)
+                    write(stdout, "(A,I15)") "Total walker population exceeds that given by " &
+                        // "EXITWALKERS criteria - exiting...", sum(AllTotParts)
                     tIncrement = .false.
                     exit
                 end if
@@ -1226,14 +1226,14 @@ contains
             write(stdout, "(A)")
             EnergyDiff = abs(mean_Shift - mean_ProjE_re)
             if (EnergyDiff <= sqrt(shift_err**2 + ProjE_Err_re**2)) then
-                write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree " &
-                    & //"within errorbars: EDiff = ", EnergyDiff
+                write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree "  &
+                    //"within errorbars: EDiff = ", EnergyDiff
             else if (EnergyDiff <= sqrt((max(shift_err, ProjE_Err_re) * 2)**2 + min(shift_err, ProjE_Err_re)**2)) then
-                write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree to within " &
-                    & //"two sigma of largest error: EDiff = ", EnergyDiff
+                write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree to within "  &
+                    //"two sigma of largest error: EDiff = ", EnergyDiff
             else
                 write(stdout, "(A,F15.8)") " Projected and shift energy estimates do not agree to " &
-                    & //"within approximate errorbars: EDiff = ", EnergyDiff
+                    //"within approximate errorbars: EDiff = ", EnergyDiff
             end if
             if (ProjE_Err_re < shift_err) then
                 BestEnergy = mean_ProjE_re + OutputHii

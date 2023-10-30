@@ -275,9 +275,9 @@ contains
             do j = sparse_diag_positions(i) + 1, sparse_row_sizes(i)
 
                 sparse_ham(sparse_ham(i)%positions(j))%&
-                    &positions(indices(sparse_ham(i)%positions(j))) = i
+                    positions(indices(sparse_ham(i)%positions(j))) = i
                 sparse_ham(sparse_ham(i)%positions(j))%&
-                    &elements(indices(sparse_ham(i)%positions(j))) = h_conjg(sparse_ham(i)%elements(j))
+                    elements(indices(sparse_ham(i)%positions(j))) = h_conjg(sparse_ham(i)%elements(j))
 
                 indices(sparse_ham(i)%positions(j)) = indices(sparse_ham(i)%positions(j)) + 1
 

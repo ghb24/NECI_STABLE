@@ -1121,8 +1121,8 @@ contains
                             p = spatial(i); q = spatial(j);
                             r = spatial(k); s = spatial(l);
                             if ((.not. open_shell) .and. is_beta(i)) then
-                                call stop_all(t_r, "This is a closed shell system but we have an open shell type RDM element.&
-                                                   & An error must have occured.")
+                                call stop_all(t_r, "This is a closed shell system but we have an open shell type RDM element." &
+                                                   // " An error must have occured.")
                             end if
 
                             ! Find out what the spin labels are, and print the RDM

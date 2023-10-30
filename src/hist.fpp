@@ -126,8 +126,8 @@ contains
             call writebitdet(stdout, ilut, .true.)
             write(stdout, *) '***', ilut
             write(stdout, *) '***', ExcitLevel, HistMinInd(ExcitLevel), Det
-            call stop_all(t_r, "Cannot find corresponding FCI determinant &
-                                &when histogramming")
+            call stop_all(t_r, &
+                "Cannot find corresponding FCI determinant when histogramming")
         end if
 
     end subroutine

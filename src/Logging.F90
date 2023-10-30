@@ -631,11 +631,11 @@ contains
                 tPairedReplicas = .true.
 #endif
                 if (IterRDMOnFly < semistoch_shift_iter) then
-                    call stop_all(t_r, "Semi-stochastic needs to be &
-                        &turned on before RDMs are turned on.")
+                    call stop_all(t_r, "Semi-stochastic needs to be " &
+                        // "turned on before RDMs are turned on.")
                 else if (IterRDMOnFly < trial_shift_iter) then
-                    call stop_all(t_r, "Trial wavefunctions needs to be &
-                        &turned on before RDMs are turned on.")
+                    call stop_all(t_r, "Trial wavefunctions needs to be " &
+                        // "turned on before RDMs are turned on.")
                 end if
 
             case ("RDMLINSPACE")
@@ -662,11 +662,11 @@ contains
                 tPairedReplicas = .true.
 #endif
                 if (IterRDMOnFly < semistoch_shift_iter) then
-                    call stop_all(t_r, "Semi-stochastic needs to be &
-                        &turned on before RDMs are turned on.")
+                    call stop_all(t_r, "Semi-stochastic needs to be " &
+                        // "turned on before RDMs are turned on.")
                 else if (IterRDMOnFly < trial_shift_iter) then
-                    call stop_all(t_r, "Trial wavefunctions needs to be &
-                        &turned on before RDMs are turned on.")
+                    call stop_all(t_r, "Trial wavefunctions needs to be " &
+                        // "turned on before RDMs are turned on.")
                 end if
 
             case ("BIASED-RDMS")
@@ -779,8 +779,8 @@ contains
 ! will rotate (2,3) (4,5) (1,5,6) (7,8,9,10)
                 allocate(RotNOs((2 * rottwo) + (3 * rotthree) + (4 * rotfour)), stat=ierr)
                 tagRotNOs = 0
-                call LogMemAlloc('RotNOs', ((2 * rottwo) + (3 * rotthree) + (4 * rotfour))&
-                    &, 4, t_r, tagRotNOs, ierr)
+                call LogMemAlloc('RotNOs', ((2 * rottwo) + (3 * rotthree) + (4 * rotfour)), &
+                    4, t_r, tagRotNOs, ierr)
                 RotNOs(:) = 0
                 do i = 1, ((2 * rottwo) + (3 * rotthree) + (4 * rotfour))
                     RotNOs(i) = to_int(tokens%next())
@@ -791,9 +791,9 @@ contains
                 tDipoles = .true.
 
             case ("CALCRDMENERGY")
-                call stop_all(t_r, "The CALCRDMENERGY option has been replaced by CALC-2RDM-ESTIMATES. &
-                                   &The 2-RDM energy is calculated by default when 2-RDMs are being &
-                                   &sampled, so this option is only needed if one wants to turn this off.")
+                call stop_all(t_r, "The CALCRDMENERGY option has been replaced by CALC-2RDM-ESTIMATES. " &
+                                   // "The 2-RDM energy is calculated by default when 2-RDMs are being " &
+                                   // "sampled, so this option is only needed if one wants to turn this off.")
 
             case ("CALC-2RDM-ESTIMATES")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.
@@ -1167,7 +1167,7 @@ contains
                         ILOGGING = IOR(ILOGGING, 2**2)
                     case default
                         call stop_all(this_routine, "Logging keyword FMCPR "//trim(w)       &
-           &               //" not recognised")
+                          //" not recognised")
                     end select
                 end do
             case ("CALCPATH")
@@ -1182,7 +1182,7 @@ contains
                         ILOGGING = IOR(ILOGGING, 2**4)
                     case default
                         call stop_all(this_routine, "Logging keyword CALCPATH "//trim(w)    &
-           &               //" not recognised")
+                          //" not recognised")
                     end select
                 end do
             case ("XIJ")

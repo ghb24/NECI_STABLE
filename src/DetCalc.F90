@@ -149,12 +149,12 @@ CONTAINS
                 if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS_BLK(NEL, nBasis, BRR, NBASISMAX, NMRKS, .TRUE.,             &
-         &                NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, -LMS2, TPARITY,        &
-         &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
+                         NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, -LMS2, TPARITY,        &
+                        SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
                 else
                     CALL GNDTS_BLK(NEL, nBasis, BRR, NBASISMAX, NMRKS, .TRUE.,             &
-         &                NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, LMS2, TPARITY,        &
-         &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
+                         NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, LMS2, TPARITY,        &
+                        SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
                 end if
                 write(stdout, *) "NBLOCKS:", NBLOCKS
                 write(stdout, *) "Determining determinants."
@@ -215,10 +215,10 @@ CONTAINS
                 if (tZeroDelimitedFCIDUMP) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
                     CALL GNDTS_BLK(NEL, nBasis, BRR, NBASISMAX, NMRKS, .FALSE., NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, -LMS2, TPARITY, &
-         &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
+                         SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
                 else
                     CALL GNDTS_BLK(NEL, nBasis, BRR, NBASISMAX, NMRKS, .FALSE., NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, LMS2, TPARITY, &
-         &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
+                         SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
                 end if
             ELSE
                 if (tZeroDelimitedFCIDUMP) then
@@ -526,7 +526,7 @@ CONTAINS
             call stop_all(this_routine, "this does not make sense for complex code")
 #else
                 CALL NECI_FRSBLKH(NDET, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A, W, V, AM, BM, T, WT, &
-         &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .true.)
+            SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .true.)
 #endif
 
 !Multiply all eigenvalues by -1.

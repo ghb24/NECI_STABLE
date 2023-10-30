@@ -93,8 +93,8 @@ contains
         HElement_t(dp) :: OrbE
         character(25), parameter :: this_routine = 'DetPreFreezeInit_old'
         ! seems this is only used in one place in the code, and only for GUGA.
-        write(stdout, "(A)") "WARNING: Routine DetPreFreezeInit_old is deprecated. &
-                            &Use DetPreFreezeInit instead."
+        write(stdout, "(A)") "WARNING: Routine DetPreFreezeInit_old is deprecated. " &
+                            // "Use DetPreFreezeInit instead."
         allocate (FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
         IF (tDefineDet) THEN
@@ -109,9 +109,9 @@ contains
             if (abs(ms) /= abs(lms)) then
                 write (stdout, *) 'LMS', lms
                 write (stdout, *) 'Calculated Ms', ms
-                call stop_all(this_routine, "Defined determinant has the &
-                     &wrong Ms value. Change DEFINEDET or &
-                     &SPIN-RESTRICT")
+                call stop_all(this_routine, "Defined determinant has the " &
+                     // "wrong Ms value. Change DEFINEDET or " &
+                     // "SPIN-RESTRICT")
             end if
 
             if (tGUGA) then
@@ -119,9 +119,9 @@ contains
                 if (ms < 0 .or. ms /= STOT) then
                     write (stdout, *) "S: ", STOT
                     write (stdout, *) "calculated S of inputted CSF: ", ms
-                    call stop_all(this_routine, " Defined CSF has the &
-                        &wrong total spin quantum number. Change DEFINEDET or &
-                        &S quantum numnber!")
+                    call stop_all(this_routine, " Defined CSF has the " &
+                        // "wrong total spin quantum number. Change DEFINEDET or " &
+                        // "S quantum numnber!")
                 end if
             end if
 
@@ -578,8 +578,8 @@ contains
         end if
 
         if (tHPHFInts) &
-            call stop_all(this_routine, "Should not be calling HPHF &
-                          &integrals from here.")
+            call stop_all(this_routine, "Should not be calling HPHF " &
+                          // "integrals from here.")
 
         ! nobody actually uses Simons old CSF implementations..
         if (t_lattice_model) then
@@ -634,9 +634,10 @@ contains
             return
         end if
 
-        if (tHPHFInts) &
-            call stop_all(this_routine, "Should not be calling HPHF &
-                          &integrals from here.")
+        if (tHPHFInts) then
+            call stop_all(this_routine, &
+                "Should not be calling HPHF integrals from here.")
+        end if
 
         if (t_lattice_model) then
             if (present(ICret)) then
@@ -719,9 +720,9 @@ contains
         end if
 
         if (IC < 0) then
-            call stop_all(this_routine, "get_helement_excit should only be &
-                         &used if we know the number of excitations and the &
-                         &excitation matrix")
+            call stop_all(this_routine, "get_helement_excit should only be " &
+                         // "used if we know the number of excitations and the " &
+                         // "excitation matrix")
         end if
 
         hel = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tParity)
