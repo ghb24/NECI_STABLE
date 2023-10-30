@@ -1304,7 +1304,7 @@ contains
         integer :: i, a, st, en, step_i(nSpatOrbs), step_j(nSpatOrbs), &
                    delta_b(nSpatOrbs), gen, d_i, d_j, delta, &
                    b_i(nSpatOrbs), b_j(nSpatOrbs)
-        real(dp) :: occ_i(nSpatOrbs), occ_j(nSpatOrbs)
+        integer :: occ_i(nSpatOrbs), occ_j(nSpatOrbs)
         real(dp) :: botCont, topCont, tempWeight, prod, StartCont, EndCont
         integer :: iO, jO, step
 
@@ -1350,8 +1350,13 @@ contains
         ! this would simplify things!
 
         ! for simplicity it is best to have these quantities:
-        call calc_csf_i(calc_step_vector(ilutI), step_i, b_i, occ_i)
-        call calc_csf_i(calc_step_vector(ilutJ), step_j, b_j, occ_j)
+        block
+            real(dp) :: dummy(nSpatOrbs)
+            step_i = calc_step_vector(ilutI)
+            call calc_csf_i(step_i, b_i, occ_i, dummy)
+            step_j = calc_step_vector(ilutJ)
+            call calc_csf_i(step_j, b_j, occ_j, dummy)
+        end block
 
         delta_b = b_i - b_j
 
@@ -1477,7 +1482,7 @@ contains
 
             ! exchange contribution:
             ! wtf is this b_i == 0 check? that does not make any sense..
-            if (step_i(iO) == 3 .or. ((occ_i(iO) .isclose.1.0_dp) .and. b_i(iO) == 0)) then
+            if (step_i(iO) == 3 .or. ((occ_i(iO) == 1) .and. b_i(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
 

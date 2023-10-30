@@ -8,7 +8,7 @@ module guga_data
     use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_, int64
     use MemoryManager, only: TagIntType
     use bit_rep_data, only: BitRep_t, GugaBits
-    use util_mod, only: EnumBase_t, swap
+    use util_mod, only: EnumBase_t, swap, near_zero
     use indexing_mod, only: fuse_symm_idx, fuse_idx, inv_fuse_symm_idx, inv_fuse_idx
     use error_handling_neci, only: stop_all
 
@@ -1391,36 +1391,41 @@ contains
     pure function funA(b, x, y) result(ret)
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
-        !ASSERT( (b + y) >= 0.0_dp)
+        debug_function_name("funA")
+        ASSERT( (b + y) > 0.0_dp)
         ret = sqrt((b + x) / (b + y))
     end function funA
 
     pure function funB(b, x, y) result(ret)
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
-        !ASSERT( (b + x) > 0.0_dp)
-        !ASSERT( (b + y) > 0.0_dp)
+        debug_function_name("funB")
+        ASSERT( (b + x) > 0.0_dp)
+        ASSERT( (b + y) > 0.0_dp)
         ret = sqrt(2.0_dp / ((b + x) * (b + y)))
     end function funB
 
     pure function funC(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
-        !ASSERT( (b + x) > 0.0_dp)
+        debug_function_name("funC")
+        ASSERT( (b + x) > 0.0_dp)
         ret = funA(b, x - 1.0_dp, x) * funA(b, x + 1.0_dp, x)
     end function funC
 
     pure function funD(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
-        !ASSERT( (b + x) > 0.0_dp)
+        debug_function_name("funD")
+        ASSERT( (b + x) > 0.0_dp)
         ret = funA(b, x + 2.0_dp, x) * funA(b, x - 1.0_dp, x + 1.0_dp)
     end function funD
 
     pure function funOverB(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
-        !ASSERT( (b + x) > 0.0_dp)
+        debug_function_name("funOverB")
+        ASSERT( (b + x) > 0.0_dp)
         ret = 1.0_dp / (b + x)
     end function funOverB
 
