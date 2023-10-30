@@ -52,7 +52,7 @@ module guga_bitRepOps
             encodebitdet_guga, identify_excitation, &
             CSF_Info_t, current_csf_i, csf_ref, new_CSF_Info_t, fill_csf_i, &
             is_compatible, &
-            calc_csf_i, extract_h_element, getexcitation_guga, &
+            extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
             contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
             extract_2_rdm_ind, encode_rdm_ind, extract_rdm_ind, &
