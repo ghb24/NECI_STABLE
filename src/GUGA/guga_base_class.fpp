@@ -13,6 +13,7 @@ module guga_base_class
     use guga_bitRepOps, only: CSF_Info_t
     use guga_excitations, only: get_excit_level_from_excitInfo
     use sets_mod, only: is_sorted
+    use sort_mod, only: sort
     use error_handling_neci, only: stop_all
     use util_mod, only: EnumBase_t, operator(.isclose.), binary_search_int, near_zero, operator(.div.)
 
@@ -445,27 +446,37 @@ contains
         integer(int64), intent(in) :: n_iter
         procedure(compare_entry_t), optional :: compare_entry
         type(AnalyzedEntries_t) :: res(size(entries))
+#ifdef IFORT_
+        routine_name("analyze_entries")
+#endif
 
         integer :: i
+        integer(int64) :: total_hits
 
-        associate(total_hits => sum(entries%accum))
+        total_hits = sum(entries%accum)
 
-            do i = 1, size(entries)
-                if (near_zero(entries(i)%p_gen)) then
-                    res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc_operator, &
-                                    entries(i)%p_gen, 1._dp, &
-                                    entries(i)%accum)
-                else
-                    res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc_operator, &
-                                    entries(i)%p_gen, (entries(i)%accum / entries(i)%p_gen) / n_iter, &
-                                    entries(i)%accum)
-                end if
-            end do
 
-        end associate
+        do i = 1, size(entries)
+            if (near_zero(entries(i)%p_gen)) then
+                res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc_operator, &
+                                entries(i)%p_gen, 1._dp, &
+                                entries(i)%accum)
+            else
+                res(i) = AnalyzedEntries_t(entries(i)%key, entries(i)%exc_operator, &
+                                entries(i)%p_gen, (entries(i)%accum / entries(i)%p_gen) / n_iter, &
+                                entries(i)%accum)
+            end if
+        end do
+
 
         if (present(compare_entry)) then
+#ifdef IFORT_
+            call stop_all(this_routine, &
+                "Does not work with Intel. &
+                &At least with ifort 21 the compiler has an internal error.")
+#else
             @:sort(AnalyzedEntries_t, res, rank=1, along=1, comp=compare_entry)
+#endif
         end if
 
     end function
