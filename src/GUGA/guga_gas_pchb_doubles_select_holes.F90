@@ -783,9 +783,6 @@ contains
         ! and both I and J are electron and hole indices here
         above_cpt = this%alias_sampler%get_prob(ij, i_sg, ij) / 2.0_dp
 
-        ! TODO(@Werner): I think this here is the right one!
-        ! above_cpt = this%alias_sampler%get_prob(ij, i_sg, ij)
-
         ! but since they will get added in later routines i actually have
         ! do divide by 2 here..
 
