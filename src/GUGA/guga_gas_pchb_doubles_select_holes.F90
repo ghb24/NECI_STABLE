@@ -764,31 +764,22 @@ contains
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
 
-        integer :: ij, i_sg
+        integer :: i, j, ij, i_sg
+        real(dp) :: p_gen
 
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(csf_I)
         else
             i_sg = this%indexer%idx_csf(csf_i)
         end if
-        ! this function can in theory be called with both i < j and i > j..
-        ! to take the correct values here!
-        ! although for the fuseIndex function the order is irrelevant
+        i = gtID(occ_orbs(1))
+        j = gtID(occ_orbs(2))
+        ij = fuse_symm_idx(i, j)
+        p_gen = this%particle_selector%get_pgen(csf_i%to_nI(), csf_i, i_sg, i, j) &
+                    * this%alias_sampler%get_prob(ij, i_sg, ij)
 
-        ! i think i have to consider both the above and below contribution..
-        ! but i am not so sure how.. in this PCHB case..
-        ! maybe in PCHB those 2 are just the same.. i am confused
-        ij = fuse_symm_idx(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
-
-        ! and both I and J are electron and hole indices here
-        above_cpt = this%alias_sampler%get_prob(ij, i_sg, ij) / 2.0_dp
-
-        ! but since they will get added in later routines i actually have
-        ! do divide by 2 here..
-
-        ! and in the PCHB there is no difference between the 2!
+        above_cpt =  p_gen / 2.0_dp
         below_cpt = above_cpt
-
     end subroutine calc_orbital_pgen_contr
 
     pure subroutine calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)
@@ -815,7 +806,8 @@ contains
         ij = fuse_symm_idx(i, j)
         ab = fuse_symm_idx(i, orb_a)
 
-        orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
+        orb_pgen = this%particle_selector%get_pgen(csf_i%to_nI(), csf_i, i_sg, i, j) &
+                        * this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_start
 
     subroutine calc_orbital_pgen_contr_end(this, csf_i, occ_orbs, orb_a, orb_pgen)
@@ -845,7 +837,8 @@ contains
         ij = fuse_symm_idx(i, j)
         ab = fuse_symm_idx(orb_a, j)
 
-        orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
+        orb_pgen = this%particle_selector%get_pgen(csf_i%to_nI(), csf_i, i_sg, i, j) &
+                        * this%alias_sampler%get_prob(ij, i_sg, ab)
     end subroutine calc_orbital_pgen_contr_end
 
 

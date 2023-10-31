@@ -592,9 +592,9 @@ contains
             cpt_a = 0.0_dp
             cpt_b = 0.0_dp
         else
-            ! and get hopefully correct final values:
-            cpt_a = cpt_a / cum_sum * cpt_ba / ba_sum
-            cpt_b = cpt_b / cum_sum * cpt_ab / ab_sum
+            ! The last term assumes uniform particle picking
+            cpt_a = cpt_a / cum_sum * cpt_ba / ba_sum / real(ElecPairs, dp)
+            cpt_b = cpt_b / cum_sum * cpt_ab / ab_sum / real(ElecPairs, dp)
         end if
 
     end subroutine calc_orbital_pgen_contr_mol
@@ -626,6 +626,9 @@ contains
             below_cpt = (cum_arr(i) - cum_arr(i - 1)) / cum_sum
         end if
 
+        ! The last term assumes uniform particle picking
+        above_cpt = above_cpt / real(ElecPairs, dp)
+        below_cpt = below_cpt / real(ElecPairs, dp)
     end subroutine calc_orbital_pgen_contr_ueg
 
     subroutine calcDoubleR2L_stochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
@@ -3544,7 +3547,9 @@ contains
             cpt_b = cpt_b / cum_sum * cpt_ab / ab_sum
 
             ! and add them up to the final orbital pgen
-            orb_pgen = cpt_a + cpt_b
+            ! assume uniform particle picking
+            ! and account for i being doubly occupied
+            orb_pgen = (cpt_a + cpt_b) / real(ElecPairs, dp) * csf_i%occ_int(i)
         end if
 
     end subroutine calc_orbital_pgen_contrib_end_def
@@ -3636,9 +3641,10 @@ contains
             cpt_b = cpt_b / cum_sum * cpt_ab / ab_sum
 
             ! and add them up to the final orbital pgen
-            orb_pgen = cpt_a + cpt_b
+            ! assume uniform particle picking
+            ! and account for i being doubly occupied
+            orb_pgen = (cpt_a + cpt_b) / real(ElecPairs, dp) * csf_i%occ_int(j)
         end if
-
     end subroutine calc_orbital_pgen_contrib_start_def
 
     subroutine forced_mixed_start(ilut, csf_i, excitInfo, t, probWeight)
