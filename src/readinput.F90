@@ -715,11 +715,10 @@ contains
         if (tExLevelAFCriterion .and. .not. tTruncateHubbard) then
             call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
         end if
-        
-        if ((PartialNodeGamma < 0.0_dp) .or. (PartialNodeGamma > 1.0_dp) &
-            .or. (.not. tFixedNode)) then
-            call stop_all(t_r, "PartialNodeGamma has to be between 0 and 1 &
-            & and FIXED-NODE has to be on as well.")
+
+        if (.not. (tFixedNode .implies. (0.0_dp <= PartialNodeGamma .and. PartialNodeGamma <= 1.0_dp))) then
+            call stop_all(t_r, &
+                "PartialNodeGamma has to be between 0 and 1 when fixed Node is on.")
         end if
 
         block
