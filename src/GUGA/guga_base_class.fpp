@@ -438,6 +438,7 @@ contains
             end if
         end block
         end do
+        write(stdout, *)
     end subroutine
 
 

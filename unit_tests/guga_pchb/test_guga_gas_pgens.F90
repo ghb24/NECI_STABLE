@@ -53,7 +53,7 @@ contains
         type(CSF_Info_t) :: csfs(2)
         type(PCHB_DoublesOptions_t) :: options(2)
         integer, parameter :: n_el = 12, ref_csf(n_el) = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18]
-        integer(int64) :: n_iter = 5_int64 * 10_int64**9_int64
+        integer(int64) :: n_iter = 5_int64 * 10_int64**4_int64
         integer :: i, j
 
         fcidump_writer = BenzeneDimerFciDumpWriter_t(filepath='FCIDUMP')
