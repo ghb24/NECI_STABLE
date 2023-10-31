@@ -712,9 +712,12 @@ contains
                         t12FoldSym = .true.
                         tNoSinglesPossible = .true.
                     case default
-                        t_mol_3_body = .true.
-                        tGenMatHEl = .false.
+                        call stop_all(this_routine, &
+                             'Invalid MOLECULAR-TRANSCORR argument supplied. Include "UEG" or "3-BODY" in input file.')
                     end select
+                else
+                    call stop_all(this_routine, &
+                         'No MOLECULAR-TRANSCORR argument supplied. Include "UEG" or "3-BODY" in input file.')
                 end if
                 if (t_mol_3_body) max_ex_level = 3
 
