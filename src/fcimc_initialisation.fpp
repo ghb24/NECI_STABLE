@@ -68,7 +68,7 @@ module fcimc_initialisation
     use tau_main, only: tau_search_method, &
         tau_start_val, possible_tau_start, &
         max_death_cpt, min_tau, max_tau, tau, taufactor, &
-        assign_value_to_tau, init_tau
+        assign_value_to_tau, init_tau, ignore_diagonal_estimate
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
                         nRefUpdateInterval, SIUpdateInterval
@@ -204,7 +204,7 @@ module fcimc_initialisation
         Sync_Time, MPIAllReduceDatatype
 
     use util_mod, only: stop_all, get_free_unit, neci_flush, &
-        operator(.isclose.), operator(.div.), warning_neci
+        operator(.isclose.), operator(.div.), warning_neci, near_zero
 
     use fortran_strings, only: str
 
@@ -1013,14 +1013,26 @@ contains
             write(stdout, *) "Highest energy determinant is: ", HighEDet(:)
 
             associate(deterministic_max_tau => UpperTau * 1.1_dp)
-            if (deterministic_max_tau < max_tau) then
-                write(stdout, "(A)") "The deterministic tau is smaller than max_tau."
-                write(stdout, "(A, F25.15)") "We will limit max_tau to:", deterministic_max_tau
-                max_tau = deterministic_max_tau
-                if (tau > max_tau) then
-                    call assign_value_to_tau(max_tau, 'Initial tau was higher than deterministic tau limit.')
+                if (ignore_diagonal_estimate) then
+                    write(stdout, *) "The estimated deterministic tau of: ", &
+                        deterministic_max_tau, " is ignored."
+                else
+                    if (near_zero(deterministic_max_tau)) then
+                        write(stdout, "(A)") "The estimated deterministic tau is nearly zero."
+                        write(stdout, "(A)") "To meaningfully continue the calculation &
+                            &the `IGNORE-DIAGONAL-ESTIMATE` subkeyword is required."
+                        write(stdout, "(A)") "Please read about this subkeyword and &
+                            &add it if appropiate."
+                        call stop_all(this_routine, "`IGNORE-DIAGONAL-ESTIMATE` required.")
+                    else if (deterministic_max_tau < max_tau) then
+                        write(stdout, "(A)") "The deterministic tau is smaller than max_tau."
+                        write(stdout, "(A, F25.15)") "We will limit max_tau to:", deterministic_max_tau
+                        max_tau = deterministic_max_tau
+                        if (tau > max_tau) then
+                            call assign_value_to_tau(max_tau, 'Initial tau was higher than deterministic tau limit.')
+                        end if
+                    end if
                 end if
-            end if
             end associate
         else
             UpperTau = 0.0_dp
@@ -2875,7 +2887,7 @@ contains
         do run = 1, inum_runs
 
             ! If this run should have the reference on this site, then
-            ! initialise it as appropriate.
+            ! initialise it as appropiate.
             if (iProcIndex == iRefProc(run)) then
 
                 ! Check if this reference is the same as any of the previous
