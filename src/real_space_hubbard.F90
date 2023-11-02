@@ -80,6 +80,7 @@ module real_space_hubbard
                               current_csf_i, CSF_Info_t
     use excit_mod, only: GetExcitation
     use HartreeFockGuide, only: U_matrix
+    use blas_interface_mod, only: dsyev
 
     implicit none
     private
@@ -287,7 +288,7 @@ contains
         if (tHartreeGutzwiller) then 
             do i=1, nbasis
                 do j=1, nbasis
-                    T(i,j) = getTMatEl(i,j)
+                    T(i,j) = realpart(getTMatEl(i,j))
                 end do
             end do
 
