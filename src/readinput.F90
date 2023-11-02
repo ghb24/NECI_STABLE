@@ -720,6 +720,12 @@ contains
             call stop_all(t_r, &
                 "PartialNodeGamma has to be between 0 and 1 when fixed Node is on.")
         end if
+        
+        if (tHartreeGutzwiller .and. .not. t_new_real_space_hubbard) then
+            call stop_all(t_r, &
+                "HARTREE-GUTZWILLER only works in the real-space Hubbard model")
+        end if
+
 
         block
             use load_balance_calcnodes, only: &

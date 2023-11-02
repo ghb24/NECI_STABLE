@@ -44,7 +44,7 @@ module real_space_hubbard
         possible_tau_search_methods, t_scale_tau_to_death, tau, assign_value_to_tau, &
         min_tau, max_tau
 
-    use CalcData, only: matele_cutoff, pSinglesIn, pDoublesIn
+    use CalcData, only: matele_cutoff, pSinglesIn, pDoublesIn, tHartreeGutzwiller
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -79,6 +79,7 @@ module real_space_hubbard
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, is_compatible, &
                               current_csf_i, CSF_Info_t
     use excit_mod, only: GetExcitation
+    use HartreeFockGuide, only: U_matrix
 
     implicit none
     private
@@ -144,6 +145,13 @@ contains
         character(*), parameter :: this_routine = "init_real_space_hubbard"
         ! especially do some stop_all here so no wrong input is used
         real(dp) :: tau_opt
+
+        real(dp), allocatable :: Works(:)
+        real(dp) :: T(nbasis, nbasis)
+
+        integer :: i, j, lwork
+        real(dp) :: Energie_ground(nbasis)
+        integer :: Info
 
         root_print "using new real-space hubbard implementation: "
 
@@ -274,6 +282,27 @@ contains
                               "more than half-filling! does neel state make sense?")
             end if
 
+        end if
+        
+        if (tHartreeGutzwiller) then 
+            do i=1, nbasis
+                do j=1, nbasis
+                    T(i,j) = getTMatEl(i,j)
+                end do
+            end do
+
+            lwork = max(1,3*nbasis-1)
+            allocate(Works(lwork))
+
+            if (.not. allocated(U_matrix)) allocate(U_matrix(nbasis, nbasis))
+            ! Calculate eigenvectors of the T matrix
+            ! This then is the U_matrix
+            call dsyev('V', 'U', nbasis, T, nbasis, Energie_ground, Works, lwork, Info)
+            do i=1, nbasis
+                do j=1, nbasis
+                    U_matrix(i,j) = T(i,j)
+                end do
+            end do
         end if
 
         ! i need to setup the necessary stuff for the new hopping
