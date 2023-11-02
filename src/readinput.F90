@@ -14,7 +14,8 @@ MODULE ReadInput_neci
     use tau_main, only: tau_start_val, possible_tau_start, &
         min_tau, max_tau, tau, readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
         tau_search_method, possible_tau_search_methods
-    use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms, &
+        tHartreeGutzwiller
 
     Implicit none
 !   Used to specify which default set of inputs to use
@@ -720,7 +721,7 @@ contains
             call stop_all(t_r, &
                 "PartialNodeGamma has to be between 0 and 1 when fixed Node is on.")
         end if
-        
+
         if (tHartreeGutzwiller .and. .not. t_new_real_space_hubbard) then
             call stop_all(t_r, &
                 "HARTREE-GUTZWILLER only works in the real-space Hubbard model")

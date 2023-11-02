@@ -23,7 +23,7 @@ calc
     memoryfacpart  50.00
     memoryfacspawn  100.00
     hartree-gutzwiller -0.1
-    nmcyc 5000
+    nmcyc 3000
 endcalc
 
 logging

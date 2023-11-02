@@ -284,11 +284,11 @@ contains
             end if
 
         end if
-        
-        if (tHartreeGutzwiller) then 
+
+        if (tHartreeGutzwiller) then
             do i=1, nbasis
                 do j=1, nbasis
-                    T(i,j) = realpart(getTMatEl(i,j))
+                    T(i, j) = real(getTMatEl(i, j), dp)
                 end do
             end do
 
@@ -1003,7 +1003,7 @@ contains
                     ASSERT(ind <= nbasis / 2)
 
                 end do
-                
+
                 if (t_nn_hopping) call stop_all(this_routine, "N-n hopping not implemented with twisted bcs.")
             else
                 ! what do i need to do?
@@ -1040,10 +1040,10 @@ contains
                     if (t_nn_hopping) then
                         associate(next => lat%get_nn_neighbors(i))
                             ! beta orbitals:
-                            tmat2d(2*ind - 1, 2*next - 1) = nn_bhub 
-                            ! alpha: 
+                            tmat2d(2*ind - 1, 2*next - 1) = nn_bhub
+                            ! alpha:
                             tmat2d(2*ind, 2*next) = nn_bhub
-                            
+
                             if (t_print_tmat) then
                                 do j = 1, size(next)
                                     write(iunit,*) 2*i - 1, 2*next(j) - 1, nn_bhub
