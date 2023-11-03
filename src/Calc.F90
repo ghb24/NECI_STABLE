@@ -1256,6 +1256,7 @@ contains
                         case("NOT-NEEDED")
                             ! The user explicitly says, that tau is not required.
                             tau_start_val = possible_tau_start%not_needed
+                            ignore_diagonal_estimate = .true.
                         case("REFDET-CONNECTIONS")
                             tau_start_val = possible_tau_start%refdet_connections
                         case("TAU-FACTOR")
