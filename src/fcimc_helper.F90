@@ -17,7 +17,7 @@ module fcimc_helper
     use bit_rep_data, only: IlutBits, NIfTot, NIfD, test_flag, extract_sign, &
         flag_static_init, flag_deterministic, flag_determ_parent, &
         flag_trial, flag_connected, flag_deterministic, flag_modshift, flag_nospawn, &
-        flag_expanded, flag_signflip
+        flag_expanded, flag_signflip, well_defined
 
     use calcrho_mod, only: igetexcitlevel
 
@@ -1282,7 +1282,7 @@ contains
             end if
         end if
         if (Senior) initiator = .true.
-        tExpandedState = tInitExpandAdd .and. test_flag(ilut, flag_expanded)
+        tExpandedState = tInitExpandAdd .and. (well_defined(flag_expanded) .implies. test_flag(ilut, flag_expanded))
         if(tExpandedState) initiator = .true.
 
         if (.not. initiator) then
@@ -2474,9 +2474,9 @@ contains
             end if
 
             ! Remove the determinant from the indexing list
-            if (.not. tAccumEmptyDet(CurrentDets(:, DetPosition)) .and. &
-                .not. test_flag(CurrentDets(:, DetPosition), flag_nospawn) .and. &
-                .not. test_flag(CurrentDets(:, DetPosition), flag_expanded)) &
+            if (.not. tAccumEmptyDet(CurrentDets(:, DetPosition)) &
+                    .and. (well_defined(flag_nospawn) .and. .not. test_flag(CurrentDets(:, DetPosition), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .and. .not. test_flag(CurrentDets(:, DetPosition), flag_expanded))) &
                 call RemoveHashDet(HashIndex, DetCurr, DetPosition)
             ! Encode a null det to be picked up
             call encode_sign(CurrentDets(:, DetPosition), null_part)
@@ -2730,7 +2730,7 @@ contains
             call extract_sign(CurrentDets(:, j), sgn)
 
             if ((IsUnoccDet(sgn) .and. .not. (tCalcAccumE .and. tAccumEmptyDet(CurrentDets(:, j)))) &
-                .or. test_flag(CurrentDets(:, j), flag_nospawn)) cycle
+                .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn))) cycle
 
             call decode_bit_det(det, CurrentDets(:, j))
             if (tCalcAccumE) accum_sgn = get_pops_sum_full(j)

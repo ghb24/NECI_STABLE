@@ -89,7 +89,7 @@ module FciMCParMod
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone, &
-                            flag_nospawn, flag_expanded, flag_signflip
+                            flag_nospawn, flag_expanded, flag_signflip, well_defined
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
@@ -138,7 +138,7 @@ module FciMCParMod
 
     use bit_reps, only: decode_bit_det, writebitdet
 
-    use util_mod, only: operator(.div.), neci_flush
+    use util_mod, only: operator(.div.), neci_flush, operator(.implies.)
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
@@ -1518,9 +1518,9 @@ contains
                             ! kill all walkers on the determinant
                             call nullify_ilut(CurrentDets(:, j))
                             ! and remove it from the hashtable
-                            if (.not. tAccumEmptyDet(CurrentDets(:, j)) .and. &
-                                .not. test_flag(CurrentDets(:, j), flag_nospawn) .and. &
-                                .not. test_flag(CurrentDets(:, j), flag_expanded)) &
+                            if (.not. tAccumEmptyDet(CurrentDets(:, j)) &
+                                .and. (well_defined(flag_nospawn) .implies.  .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                                .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) &
                                 call RemoveHashDet(HashIndex, DetCurr, j)
                             cycle
                         end if
@@ -1591,7 +1591,7 @@ contains
             end if
 
             if (tBosonNoSpawn) then
-                if (test_flag(CurrentDets(:, j), flag_nospawn)) then
+                if (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn)) then
                     do part_type = 1, lenof_sign
                         NoSpawnDets(part_type) = NoSpawnDets(part_type) + 1
                         if (IsUnoccDet(SignCurr)) then
@@ -1613,8 +1613,8 @@ contains
                 ! and if so, skip the state.
                 if (any(tCoreDet) &
                     .or. tAccumEmptyDet(CurrentDets(:, j)) &
-                    .or. test_flag(CurrentDets(:, j), flag_nospawn) &
-                    .or. test_flag(CurrentDets(:, j), flag_expanded)) cycle
+                    .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                    .or. (well_defined(flag_expanded) .and. test_flag(CurrentDets(:, j), flag_expanded))) cycle
 
                 !It has been removed from the hash table already
                 !Just add to the "freeslot" list
@@ -1702,7 +1702,7 @@ contains
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            if (.not. test_flag(CurrentDets(:, j), flag_nospawn)) then
+            if (well_defined(flag_nospawn) .implies. (.not. test_flag(CurrentDets(:, j), flag_nospawn))) then
                 do part_type = 1, lenof_sign
                     run = part_type_to_run(part_type)
                     if (tNoNegSpawns .and. test_flag(CurrentDets(:, j), flag_signflip(run))) then
@@ -1807,7 +1807,7 @@ contains
 
             loop_over_type : do part_type = 1, lenof_sign
 
-                if (test_flag(CurrentDets(:, j), flag_nospawn)) then
+                if (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn)) then
                     if (tNoSpawnRev .and. (abs(SignCurr(part_type)) > NoSpawnThresh)) then
                         call clr_flag(CurrentDets(:, j), flag_nospawn)
                     else
@@ -1815,7 +1815,7 @@ contains
                     endif
                 endif
 
-                if (tNoNegSpawns .and. (SignCurr(part_type) .le. 0.0_dp)) cycle
+                if (tNoNegSpawns .and. (SignCurr(part_type) < 0.0_dp)) cycle
 
                 run = part_type_to_run(part_type)
                 TempSpawnedPartsInd = 0

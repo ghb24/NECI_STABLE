@@ -22,7 +22,7 @@ module load_balance
                             flag_connected, flag_trial, flag_prone, flag_removed, &
                             niftot, flag_deterministic, test_flag, extract_sign, &
                             flag_modshift, test_flag_multi, flag_nospawn, &
-                            flag_expanded
+                            flag_expanded, well_defined
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut, &
                         writebitdet, decode_bit_det
@@ -57,7 +57,7 @@ module load_balance
         MPIRecv, MPISend, nProcessors, iProcIndex, root, bNodeRoot, &
         nNodes
     use constants, only: int64, dp, n_int, stdout, stderr, inum_runs, lenof_sign
-    use util_mod, only: stop_all, neci_flush, abs_sign, operator(.div.)
+    use util_mod, only: stop_all, neci_flush, abs_sign, operator(.div.), operator(.implies.)
     use hash, only: add_hash_table_entry, remove_hash_table_entry, &
         FindWalkerHash
 
@@ -142,8 +142,8 @@ contains
         do j = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
-                .and. .not. test_flag(CurrentDets(:, j), flag_nospawn) .and. &
-                .not. test_flag(CurrentDets(:, j), flag_expanded)) cycle
+                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) cycle
 
             ! Use ceiling as part-integer particles involve the same
             ! computational cost...
@@ -220,8 +220,8 @@ contains
 
             call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
-                .and. .not. test_flag(CurrentDets(:, j), flag_nospawn) &
-                .and. .not. test_flag(CurrentDets(:, j), flag_expanded)) then
+                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) then
                 HolesInList = HolesInList + 1
                 if (tAccumPopsActive) then
                     iEndFreeSlot = iEndFreeSlot + 1
@@ -397,8 +397,8 @@ contains
                 ! Skip unoccupied sites (non-contiguous)
                 call extract_sign(CurrentDets(:, j), sgn)
                 if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
-                    .and. .not. test_flag(CurrentDets(:, j), flag_nospawn) &
-                    .and. .not. test_flag(CurrentDets(:, j), flag_expanded)) cycle
+                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) cycle
 
                 call decode_bit_det(det, CurrentDets(:, j))
                 det_block = get_det_block(nel, det, 0)
@@ -686,9 +686,11 @@ contains
                 if (tSemiStochastic) tIsStateDeterm = test_flag_multi(CurrentDets(:, i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                    if (.not. tAccumEmptyDet(CurrentDets(:, i)) .and. &
-                        .not. test_flag(CurrentDets(:, i), flag_nospawn) .and. &
-                        .not. test_flag(CurrentDets(:, i), flag_expanded)) AnnihilatedDet = AnnihilatedDet + 1
+                    if (.not. tAccumEmptyDet(CurrentDets(:, i)) &
+                        .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn)) &
+                        .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, i), flag_expanded))) then
+                        AnnihilatedDet = AnnihilatedDet + 1
+                    end if
                 else
 
                     ! count the number of walkers that are single-spawns at the threshold
@@ -716,10 +718,10 @@ contains
                                     CurrentSign(j) = 0.0_dp
                                     call nullify_ilut_part(CurrentDets(:, i), j)
                                     call decode_bit_det(nI, CurrentDets(:, i))
-                                    if (IsUnoccDet(CurrentSign) .and. &
-                                        .not. tAccumEmptyDet(CurrentDets(:, i)) .and. &
-                                        .not. test_flag(CurrentDets(:, i), flag_nospawn) .and. &
-                                        .not. test_flag(CurrentDets(:, i), flag_expanded)) then
+                                    if (IsUnoccDet(CurrentSign) &
+                                        .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
+                                        .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn)) &
+                                        .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, i), flag_expanded))) then
                                         call RemoveHashDet(HashIndex, nI, i)
                                         ! also update both the number of annihilated dets
                                         AnnihilatedDet = AnnihilatedDet + 1

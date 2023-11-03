@@ -1,8 +1,9 @@
 #include "macros.h"
 module bit_rep_data
 
-    use CalcData, only: tUseRealCoeffs
+    use CalcData, only: tUseRealCoeffs, tBosonNoSpawn, tInitExpand
     use constants, only: n_int, dp, lenof_sign, inum_runs, lenof_sign_max
+    use error_handling_neci, only: stop_all
 
     implicit none
 
@@ -142,9 +143,25 @@ contains
         integer, intent(in) :: flg
         logical :: bSet
 
+        ! ASSERT(well_defined(flg))
         bSet = btest(ilut(IlutBits%ind_flag), flg)
 
     end function test_flag
+
+
+    logical elemental function well_defined(flg)
+        !! Check if a flag is well-defined.
+        integer, intent(in) :: flg
+
+        if (flg == flag_nospawn) then
+            well_defined = tBosonNoSpawn
+        else if (flg == flag_expanded) then
+            well_defined = tInitExpand
+        else
+            well_defined = .true.
+        end if
+
+    end function
 
     pure function test_flag_multi(ilut, flg) result(bSet)
         integer(n_int), intent(in) :: ilut(0:nIfTot)

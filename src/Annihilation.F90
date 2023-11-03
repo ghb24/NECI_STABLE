@@ -42,7 +42,7 @@ module AnnihilationMod
         eps, stdout
     use bit_rep_data, only: IlutBitsParent, flag_adi_checked, flag_prone, flag_deterministic, &
                             test_flag_multi, IlutBits, niftot, nIfD, test_flag, flag_initiator, &
-                            flag_nospawn, flag_expanded, flag_signflip
+                            flag_nospawn, flag_expanded, flag_signflip, well_defined
     use bit_reps, only: decode_bit_det, writebitdet, &
                         encode_sign, set_flag, &
                         encode_part_sign, &
@@ -85,7 +85,6 @@ module AnnihilationMod
     public :: SendProcNewParts, test_abort_spawn, directannihilation, &
         compressspawnedlist, communicate_and_merge_spawns, rm_non_inits_from_spawnedparts, &
         annihilatespawnedparts, deterministic_annihilation
-
 
 contains
 
@@ -1078,7 +1077,7 @@ contains
 
                 if (sum(abs(CurrentSign)) >= 1e-12_dp .or. tDetermState &
                     .or. tExpandedState &
-                    .or. test_flag(CurrentDets(:, PartInd), flag_nospawn)) then
+                    .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, PartInd), flag_nospawn))) then
 
                     ! If the sign changed, the adi check has to be redone
                     if (any(real(SignProd, dp) < 0.0_dp)) then
@@ -1198,7 +1197,7 @@ contains
                             ! no others find it (it is impossible to have another
                             ! spawned walker yet to find this determinant).
                             if (.not. (tAccumEmptyDet(CurrentDets(:, PartInd)) &
-                                        .or. test_flag(CurrentDets(:, PartInd), flag_nospawn)) &
+                                        .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, PartInd), flag_nospawn))) &
                                 ) then
                                 call RemoveHashDet(HashIndex, nJ, PartInd)
                             end if

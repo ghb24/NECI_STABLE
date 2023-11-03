@@ -79,7 +79,7 @@ module hdf5_popsfile
     use error_handling_neci, only: neci_flush
     use constants, only: dp, stdout, n_int, int32, int64, hdf_log, hdf_err, lenof_sign, &
                          inum_runs, build_64bit
-    use util_mod, only: near_zero, operator(.div.), get_unique_filename
+    use util_mod, only: near_zero, operator(.div.), get_unique_filename, operator(.implies.)
     use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, BosonNoSpawnThreshold, FermionNoSpawnThreshold, &
                         pSinglesIn, pDoublesIn, pTriplesIn, tNonInitModShift, tModShiftTarget
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
@@ -784,7 +784,7 @@ contains
     subroutine write_walkers(parent, MaxEx)
 
         use bit_rep_data, only: NIfD, NIfTot, IlutBits, &
-                                flag_nospawn, test_flag
+                                flag_nospawn, test_flag, well_defined
         use FciMCData, only: CurrentDets, TotWalkers, iLutHF
         use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
         use global_det_data, only: writeFValsAsInt, writeAPValsAsInt
@@ -839,8 +839,9 @@ contains
         do i = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, i), CurrentSign)
             ! Skip empty determinants (unless we are accumulating its population)
-            if (IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
-                .and. .not. test_flag(CurrentDets(:, i), flag_nospawn)) cycle
+            if (IsUnoccDet(CurrentSign) &
+                .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
+                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn))) cycle
 
             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:, i))
 
