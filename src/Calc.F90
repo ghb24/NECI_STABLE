@@ -1657,11 +1657,11 @@ contains
                 ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
                 ras_min_1 = to_int(tokens%next())  ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
                 ras_max_3 = to_int(tokens%next())  ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
-                ss_space_in%ras%size_1 = int(ras_size_1, sp)
-                ss_space_in%ras%size_2 = int(ras_size_2, sp)
-                ss_space_in%ras%size_3 = int(ras_size_3, sp)
-                ss_space_in%ras%min_1 = int(ras_min_1, sp)
-                ss_space_in%ras%max_3 = int(ras_max_3, sp)
+                ss_space_in%ras%size_1 = int(ras_size_1)
+                ss_space_in%ras%size_2 = int(ras_size_2)
+                ss_space_in%ras%size_3 = int(ras_size_3)
+                ss_space_in%ras%min_1 = int(ras_min_1)
+                ss_space_in%ras%max_3 = int(ras_max_3)
             case("OPTIMISED-CORE")
                 ss_space_in%tOptimised = .true.
             case("OPTIMISED-CORE-CUTOFF-AMP")

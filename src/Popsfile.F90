@@ -2436,21 +2436,17 @@ contains
         CALL MPIBarrier(error)  !Sync
 
 !Allocate memory to hold walkers at least temporarily
-        ALLOCATE (WalkVecDets(0:NIfTot, MaxWalkersPart), stat=ierr)
-        IF (ierr /= 0) CALL Stop_All(this_routine, 'Problem allocating WalkVecDets array.')
+        ALLOCATE (WalkVecDets(0:NIfTot, MaxWalkersPart), stat=ierr, source=0_n_int)
         CALL LogMemAlloc('WalkVecDets', MaxWalkersPart * (NIfTot + 1), size_n_int, this_routine, WalkVecDetsTag, ierr)
-        WalkVecDets(:, :) = 0
         MemoryAlloc = (NIfTot + 1) * MaxWalkersPart * size_n_int    !Memory Allocated in bytes
 
 !Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
         write (stdout, "(A,I12,A)") " Spawning vectors allowing for a total of ", MaxSpawned, &
             " particles to be spawned in any one iteration."
-        ALLOCATE (SpawnVec(0:NIfTot, MaxSpawned), stat=ierr)
+        ALLOCATE (SpawnVec(0:NIfTot, MaxSpawned), stat=ierr, source=0_n_int)
         CALL LogMemAlloc('SpawnVec', MaxSpawned * (NIfTot + 1), size_n_int, this_routine, SpawnVecTag, ierr)
-        SpawnVec(:, :) = 0
-        ALLOCATE (SpawnVec2(0:NIfTot, MaxSpawned), stat=ierr)
+        ALLOCATE (SpawnVec2(0:NIfTot, MaxSpawned), stat=ierr, source=0_n_int)
         CALL LogMemAlloc('SpawnVec2', MaxSpawned * (NIfTot + 1), size_n_int, this_routine, SpawnVec2Tag, ierr)
-        SpawnVec2(:, :) = 0
         MemoryAlloc = MemoryAlloc + MaxSpawned * (1 + NIfTot) * 2 * size_n_int
 
 !Point at correct spawning arrays
