@@ -21,7 +21,8 @@ module tau_main
               max_death_cpt, assign_value_to_tau, &
               stop_options, find_tau_from_refdet_conn, &
               readpops_but_tau_not_from_popsfile, &
-              init_tau, finalize_tau, stop_tau_search, MaxWalkerBloom
+              init_tau, finalize_tau, stop_tau_search, MaxWalkerBloom, &
+              ignore_diagonal_estimate
 
     protected :: tau
 
@@ -110,6 +111,19 @@ module tau_main
     type(TauStartVal_t), allocatable :: tau_start_val
 
     real(dp) :: min_tau = 0._dp, max_tau = huge(max_tau), taufactor = 0._dp
+
+    logical :: ignore_diagonal_estimate = .false.
+        !! The linearized imaginary time propagation requires a limit
+        !! of \( \Delta \tau \leq \frac{2}{E_{\mathrm{max}} - E_0} \) for the time step
+        !! to guarantee convergence to the groundstate,
+        !! where \(E_{\mathrm{max}}, E_0 \) are they eigenvalues of the Hamiltonian.[@Booth2009]
+        !! This is true **even for a deterministic** time propagation.
+        !! Of course the spread of eigenvalues is not known at the beginning of a calculation
+        !! hence the upper bound is estimated from the spread of the diagonal elements of the
+        !! hamiltonian. This is a good estimate for molecular systems, but can be misleading
+        !! for edge case in the Hubbard model.
+        !! With this flag the estimated upper bound to \( \Delta \tau \) can be explicitly ignored.
+
 
     logical :: scale_tau_to_death_triggered = .false., t_scale_tau_to_death = .false.
     real(dp) :: max_death_cpt = 0._dp

@@ -1,0 +1,46 @@
+title
+
+system hubbard
+    nonuniformrandexcits nosymgen
+    real
+    CELL 2 2 1
+    b  1
+    u  0
+    electrons  4
+    spin-restrict 0
+endsys
+
+calc
+    load-balance-blocks off
+    seed 7
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    nmcyc          10000
+    totalwalkers   1000
+    walkcontgrow
+
+     tau-values \
+        start user-defined 0.01 \
+        ignore-diagonal-estimate
+
+    nmcyc 2000
+    definedet 1 4 6 7
+    allrealcoeff
+    realspawncutoff 0.1
+    startsinglepart 10
+    shiftdamp 0.1
+    stepsshift 10
+    memoryfacpart   100.00
+    memoryfacspawn  100.00
+    time 30
+endcalc
+
+logging
+    highlypopwrite 1000
+    hdf5-pops
+endlog
+
+end
