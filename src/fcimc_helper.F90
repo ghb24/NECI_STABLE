@@ -1229,6 +1229,8 @@ contains
         !      This means we can call it for individual, or aggregate,
         !      particles.
 
+        debug_function_name("TestInitiator_explicit")
+
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
         integer, intent(in) :: run, nI(nel), exLvl, det_idx
@@ -1282,7 +1284,10 @@ contains
             end if
         end if
         if (Senior) initiator = .true.
-        if(tInitExpandAdd .and. (well_defined(flag_expanded) .implies. test_flag(ilut, flag_expanded))) initiator = .true.
+        if (tInitExpandAdd) then
+            ASSERT(well_defined(flag_expanded))
+            if (test_flag(ilut, flag_expanded)) initiator = .true.
+        end if
 
         if (.not. initiator) then
 
@@ -2472,8 +2477,8 @@ contains
 
             ! Remove the determinant from the indexing list
             if (.not. tAccumEmptyDet(CurrentDets(:, DetPosition)) &
-                    .and. (well_defined(flag_nospawn) .and. .not. test_flag(CurrentDets(:, DetPosition), flag_nospawn)) &
-                    .and. (well_defined(flag_expanded) .and. .not. test_flag(CurrentDets(:, DetPosition), flag_expanded))) &
+                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, DetPosition), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, DetPosition), flag_expanded))) &
                 call RemoveHashDet(HashIndex, DetCurr, DetPosition)
             ! Encode a null det to be picked up
             call encode_sign(CurrentDets(:, DetPosition), null_part)

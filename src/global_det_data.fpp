@@ -88,7 +88,7 @@ module global_det_data
     integer :: pos_ann_sum, pos_spawns_sum
     ! total size
     integer :: ieavals_size
-    
+
     ! Accumulated correction factor for mod-shift
     integer :: pos_corr_pop, len_corr_pop
 
@@ -219,7 +219,7 @@ contains
             len_spawns_sum = 0
         end if
         ieavals_size = len_ann_sum + len_spawns_sum
-        
+
         if (tModShiftCorr) then
             len_corr_pop = inum_runs
         else
@@ -839,7 +839,7 @@ contains
     end subroutine writeAPVals
 
     !------------------------------------------------------------------------------------------!
-    
+
     subroutine reset_iea_all(ndets)
 
         integer(int64), intent(in) :: ndets
@@ -851,9 +851,9 @@ contains
         end do
 
     end subroutine
-    
+
     subroutine update_iea(j, run, t_ann, t_spawn)
-        
+
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t_ann, t_spawn
 
@@ -865,10 +865,10 @@ contains
     end subroutine
 
     function get_iea(j, run) result(t_rat)
-        
+
         integer, intent(in) :: j, run
         real(dp) :: t_rat
-        
+
         if (global_determinant_data(pos_spawns_sum + run - 1, j) > 0.0_dp) then
             t_rat = abs(global_determinant_data(pos_ann_sum + run - 1, j) / &
                 global_determinant_data(pos_spawns_sum + run - 1, j))
@@ -879,7 +879,7 @@ contains
     end function
 
     !------------------------------------------------------------------------------------------!
-    
+
     subroutine reset_corr_pop(j, run)
 
         integer, intent(in) :: j, run
@@ -887,10 +887,10 @@ contains
         global_determinant_data(pos_corr_pop:pos_corr_pop + run - 1, j) = 0.0_dp
 
     end subroutine
-    
+
 
     subroutine scale_corr_pop(j, run, t_factor)
-        
+
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t_factor
 
@@ -903,7 +903,7 @@ contains
 
 
     subroutine add_corr_pop(j, run, t_spawned_walkers)
-        
+
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t_spawned_walkers
 
@@ -912,13 +912,13 @@ contains
 
     end subroutine
 
- 
+
     function get_corr_pop(j, run) result(t_corr_pop)
-        
+
         integer, intent(in) :: j, run
         real(dp) :: t_corr_pop
-        
-        t_corr_pop = global_determinant_data(pos_corr_pop + run - 1, j) 
+
+        t_corr_pop = global_determinant_data(pos_corr_pop + run - 1, j)
 
     end function
 

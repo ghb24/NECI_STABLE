@@ -141,9 +141,12 @@ contains
         mapping_test = 0
         do j = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, j), sgn)
-            if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
-                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
-                .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) cycle
+            if (IsUnoccDet(sgn) &
+                    .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
+                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) then
+                cycle
+            end if
 
             ! Use ceiling as part-integer particles involve the same
             ! computational cost...
@@ -219,9 +222,10 @@ contains
         do j = 1, int(TotWalkers)
 
             call extract_sign(CurrentDets(:, j), sgn)
-            if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
-                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
-                .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) then
+            if (IsUnoccDet(sgn) &
+                    .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
+                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) then
                 HolesInList = HolesInList + 1
                 if (tAccumPopsActive) then
                     iEndFreeSlot = iEndFreeSlot + 1
@@ -396,9 +400,12 @@ contains
 
                 ! Skip unoccupied sites (non-contiguous)
                 call extract_sign(CurrentDets(:, j), sgn)
-                if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
-                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
-                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) cycle
+                if (IsUnoccDet(sgn) &
+                        .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
+                        .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                        .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) then
+                    cycle
+                end if
 
                 call decode_bit_det(det, CurrentDets(:, j))
                 det_block = get_det_block(nel, det, 0)
@@ -687,8 +694,8 @@ contains
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     if (.not. tAccumEmptyDet(CurrentDets(:, i)) &
-                        .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn)) &
-                        .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, i), flag_expanded))) then
+                            .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn)) &
+                            .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, i), flag_expanded))) then
                         AnnihilatedDet = AnnihilatedDet + 1
                     end if
                 else
@@ -719,9 +726,9 @@ contains
                                     call nullify_ilut_part(CurrentDets(:, i), j)
                                     call decode_bit_det(nI, CurrentDets(:, i))
                                     if (IsUnoccDet(CurrentSign) &
-                                        .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
-                                        .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn)) &
-                                        .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, i), flag_expanded))) then
+                                            .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
+                                            .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn)) &
+                                            .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, i), flag_expanded))) then
                                         call RemoveHashDet(HashIndex, nI, i)
                                         ! also update both the number of annihilated dets
                                         AnnihilatedDet = AnnihilatedDet + 1
