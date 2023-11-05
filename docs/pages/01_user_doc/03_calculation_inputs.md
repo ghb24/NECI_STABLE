@@ -832,6 +832,19 @@ and ends with the `endcalc` keyword.
         a popsfile then it is necessary to explicitly state that
         it is indeed wanted.
 
+    - **[ignore-diagonal-estimate]**<br>
+        Optional keyword.
+        The linearized imaginary time propagation requires a limit
+        of \( \Delta \tau \leq \frac{2}{E_{\mathrm{max}} - E_0} \) for the time step
+        to guarantee convergence to the groundstate,
+        where \(E_{\mathrm{max}}, E_0 \) are they eigenvalues of the Hamiltonian.[@Booth2009]
+        This is true **even for a deterministic** time propagation.
+        Of course the spread of eigenvalues is not known at the beginning of a calculation
+        hence the upper bound is estimated from the spread of the diagonal elements of the
+        hamiltonian. This is a good estimate for molecular systems, but can be misleading
+        for edge case in the Hubbard model.
+        With this flag the estimated upper bound to \( \Delta \tau \) can be explicitly ignored.
+
 
 -   **\textcolor{blue}{tau-search}**<br>
     The \(\Delta \tau\)-search is off by default,
