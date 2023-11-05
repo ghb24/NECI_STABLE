@@ -417,7 +417,8 @@ contains
             call extract_sign(walker_list(:, i), real_sign)
             tCoreDet = .false.
             if (tSemiStochastic) tCoreDet = test_flag_multi(walker_list(:, i), flag_deterministic)
-            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) &
+            if (IsUnoccDet(real_sign) &
+                .and. (.not. tCoreDet) &
                 .and. .not. tAccumEmptyDet(walker_list(:, i)) &
                 .and. (well_defined(flag_nospawn) .implies. .not. test_flag(walker_list(:, i), flag_nospawn)) &
                 .and. (well_defined(flag_expanded) .implies. .not. test_flag(walker_list(:,i), flag_expanded))) cycle

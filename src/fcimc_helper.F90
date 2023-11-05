@@ -1237,7 +1237,7 @@ contains
         logical :: initiator, staticInit, popInit, spawnInit
         integer :: i
 
-        logical :: Senior, tExpandedState
+        logical :: Senior
         real(dp) :: DetAge, HalfLife, AvgShift, diagH
 
         ! initiator flag according to population/spawn coherence
@@ -1282,8 +1282,7 @@ contains
             end if
         end if
         if (Senior) initiator = .true.
-        tExpandedState = tInitExpandAdd .and. (well_defined(flag_expanded) .implies. test_flag(ilut, flag_expanded))
-        if(tExpandedState) initiator = .true.
+        if(tInitExpandAdd .and. (well_defined(flag_expanded) .implies. test_flag(ilut, flag_expanded))) initiator = .true.
 
         if (.not. initiator) then
 
@@ -1308,9 +1307,8 @@ contains
             if (.not. (staticInit) &
                 .and. .not. (check_determ_flag(ilut, run) .and. t_core_inits) &
                 .and. .not. Senior &
-                .and. .not. tExpandedState &
+                .and. (well_defined(flag_expanded) .implies. .not. (tInitExpandAdd .and. test_flag(ilut, flag_expanded))) &
                 .and. (.not. popInit)) then
-
                 ! Population has fallen too low. Initiator status
                 ! removed.
                 initiator = .false.
@@ -2383,8 +2381,7 @@ contains
         do run = 1, inum_runs
             tCoreDet(min_part_type(run):max_part_type(run)) = check_determ_flag(iLutCurr, run)
         end do
-        iDie = attempt_die(DetCurr, Kii, realwSign, WalkExcitLevel, &
-            DetPosition, iLutCurr)
+        iDie = attempt_die(DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition, iLutCurr)
         def_default(t_core_die, t_core_die_, .true.)
         if (.not. t_core_die) then
             where (tCoredet) iDie = 0.0_dp
@@ -2729,8 +2726,11 @@ contains
 
             call extract_sign(CurrentDets(:, j), sgn)
 
-            if ((IsUnoccDet(sgn) .and. .not. (tCalcAccumE .and. tAccumEmptyDet(CurrentDets(:, j)))) &
-                .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn))) cycle
+            if ((IsUnoccDet(sgn) &
+                    .and. .not. (tCalcAccumE .and. tAccumEmptyDet(CurrentDets(:, j)))) &
+                    .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn))) then
+                cycle
+            end if
 
             call decode_bit_det(det, CurrentDets(:, j))
             if (tCalcAccumE) accum_sgn = get_pops_sum_full(j)

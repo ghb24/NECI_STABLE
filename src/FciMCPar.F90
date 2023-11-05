@@ -1519,7 +1519,7 @@ contains
                             call nullify_ilut(CurrentDets(:, j))
                             ! and remove it from the hashtable
                             if (.not. tAccumEmptyDet(CurrentDets(:, j)) &
-                                .and. (well_defined(flag_nospawn) .implies.  .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
                                 .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) &
                                 call RemoveHashDet(HashIndex, DetCurr, j)
                             cycle

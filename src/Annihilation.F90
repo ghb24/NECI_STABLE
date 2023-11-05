@@ -990,7 +990,7 @@ contains
         integer :: ExcitLevel, DetHash, nJ(nel)
         real(dp) :: ScaledOccupiedThresh, scFVal, diagH
         HElement_t(dp) :: offdiagH
-        logical :: tSuccess, tSuc, tDetermState, tExpandedState
+        logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
         logical :: tTruncSpawn, t_truncate_this_det
         routine_name("AnnihilateSpawnedParts")
@@ -1022,8 +1022,6 @@ contains
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             tDetermState = .false.
-            tExpandedState = .false.
-
             ! for scaled walkers, truncation is done here
             t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
 
@@ -1072,12 +1070,12 @@ contains
                 end if
 
                 tDetermState = test_flag_multi(CurrentDets(:, PartInd), flag_deterministic)
-                tExpandedState = test_flag(CurrentDets(:, PartInd), flag_expanded)
                 ! Transfer new sign across.
 
-                if (sum(abs(CurrentSign)) >= 1e-12_dp .or. tDetermState &
-                    .or. tExpandedState &
-                    .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, PartInd), flag_nospawn))) then
+                if (sum(abs(CurrentSign)) >= 1e-12_dp &
+                        .or. tDetermState &
+                        .or. (well_defined(flag_expanded) .and. test_flag(CurrentDets(:, PartInd), flag_expanded))&
+                        .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, PartInd), flag_nospawn))) then
 
                     ! If the sign changed, the adi check has to be redone
                     if (any(real(SignProd, dp) < 0.0_dp)) then
@@ -1096,7 +1094,8 @@ contains
                             ! decide whether to abort it or not.
                             if (tTruncInitiator .and. .not. tAllowSpawnEmpty .and. .not. tModShiftPhase) then
                                 if (.not. (test_flag(SpawnedParts(:, i), get_initiator_flag(j)) &
-                                            .or. tDetermState .or. tExpandedState) &
+                                            .or. tDetermState &
+                                            .or. (well_defined(flag_expanded) .and. test_flag(CurrentDets(:, PartInd), flag_expanded))) &
                                     ) then
 
                                     ! Walkers came from outside initiator space.
@@ -1189,7 +1188,8 @@ contains
                     call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
                     call encode_sign(SpawnedParts(:, i), null_part)
 
-                    if (.not. (tDetermState .or. tExpandedState)) then
+                    if (.not. (tDetermState &
+                            .or. (well_defined(flag_expanded) .and. test_flag(CurrentDets(:, PartInd), flag_expanded)))) then
                         call extract_sign(CurrentDets(:, PartInd), SignTemp)
                         if (IsUnoccDet(SignTemp)) then
                             ! All walkers in this main list have been annihilated
