@@ -13,6 +13,7 @@ calc
     endmethods
 
     seed -7
+    load-balance-blocks off
     totalwalkers   5000
     tau-values \
         start user-defined 0.001

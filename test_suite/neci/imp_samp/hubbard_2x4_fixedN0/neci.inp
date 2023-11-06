@@ -1,7 +1,7 @@
 title
 
 system hubbard real-space
-    lattice rectangle  2  4 
+    lattice rectangle  2  4
     b -1
     u  8
     electrons  8
@@ -13,6 +13,7 @@ calc
     endmethods
 
     seed -7
+    load-balance-blocks off
     totalwalkers   10000
     fixed-n0   20
     tau-values \

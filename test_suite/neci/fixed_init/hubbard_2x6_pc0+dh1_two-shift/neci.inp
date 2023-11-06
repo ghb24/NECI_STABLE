@@ -13,6 +13,7 @@ calc
     endmethods
 
     seed -7
+    load-balance-blocks off
     totalwalkers   8000
     fixed-n0   20
     tau-values \
