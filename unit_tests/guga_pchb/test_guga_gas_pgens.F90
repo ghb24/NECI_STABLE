@@ -91,10 +91,12 @@ contains
                 is_problematic = analyzed_entry%p_gen > 1e-6_dp .and. abs(analyzed_entry%quality - 1._dp) > 0.03
             end function
 
+#ifndef IFORT_
             logical pure function quality_comp(p1, p2)
                 type(AnalyzedEntries_t), intent(in) :: p1, p2
                 quality_comp = p1%quality >= p2%quality
             end function
+#endif
 
             subroutine my_test_pgen(n_iter, csf_i, chosen_options)
                 integer(int64), intent(in) :: n_iter
@@ -118,7 +120,11 @@ contains
                     write(file_id, *) '`calc_orbital_pgen_contr` with division of 2'
 
                     call test_pgen(orbital_picker, csf_i, n_iter, entries)
+#ifdef IFORT_
+                    associate(analyzed_entries => analyze_entries(entries, n_iter))
+#else
                     associate(analyzed_entries => analyze_entries(entries, n_iter, quality_comp))
+#endif
                         call output(file_id, pack(analyzed_entries, is_problematic(analyzed_entries)))
                     end associate
 
