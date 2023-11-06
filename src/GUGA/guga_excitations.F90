@@ -449,10 +449,6 @@ contains
             call calc_orbital_pgen_contr(&
                 csf_i, [2 * i, 2 * j], above_cpt, below_cpt)
             p_orig = (above_cpt + below_cpt) * branch_pgen
-            if (.not. (t_heisenberg_model .or. t_tJ_model)) then
-                ! TODO: This might be wrong for non-uniform elec picking
-                p_orig = p_orig / real(ElecPairs, dp)
-            end if
         end if
 
         global_excitInfo = excitInfo
@@ -1637,8 +1633,7 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_end(&
                     csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
-            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            p_orig = orb_pgen * branch_pgen
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t, 2), 1)
@@ -1900,9 +1895,7 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_end(&
                     csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
-            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
-
+            p_orig = orb_pgen * branch_pgen
         end if
 
         ! the x1-element is still encoded in the second entry..
@@ -3114,8 +3107,7 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_start(&
                     csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
-            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            p_orig = orb_pgen * branch_pgen
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t, 1) + &
@@ -3384,8 +3376,7 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_start(&
                     csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
-            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            p_orig = orb_pgen * branch_pgen
         end if
 
         ! put everything in first entry
