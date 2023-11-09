@@ -162,7 +162,7 @@ make -j
 
 We aim to support as many compilers as possible.
 As of now (2023-11-09) we test with `ifort 2021.8.0 + IntelMPI` and `gfortran 7.5.0 + OpenMPI`.
-Intel compilers older than `ifort 2021` do not work, since they lack some features.
+Intel compilers older than `ifort 2020` do not work, since they lack some features.
 Newer compilers (in particular GNU) should work, but this is not yet tested.
 
 
