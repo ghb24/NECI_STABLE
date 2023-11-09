@@ -158,6 +158,14 @@ cmake -DENABLE_HDF5=ON ${your_code_directory}
 make -j
 ```
 
+## Supported compilers
+
+We aim to support as many compilers as possible.
+As of now (2023-11-09) we test with `ifort 2021.8.0 + IntelMPI` and `gfortran 7.5.0 + OpenMPI`.
+Intel compilers older than `ifort 2021` do not work, since they lack some features.
+Newer compilers (in particular GNU) should work, but this is not yet tested.
+
+
 ## Documentation
 
 If you wish to generate documentation for NECI, based on [Ford](https://github.com/Fortran-FOSS-Programmers/ford),
