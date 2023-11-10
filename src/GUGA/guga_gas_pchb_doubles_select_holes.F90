@@ -8,8 +8,6 @@ module guga_gas_pchb_doubles_select_holes
     use guga_data, only: ExcitationInformation_t, &
         distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t, &
         ijkl_Index_t, fused_to_DistinctDouble
-    use sort_mod, only: sort
-    use sets_mod, only: is_sorted, set
     use guga_bitrepops, only: CSF_Info_t
     use util_mod, only: near_zero, stop_all, operator(.isclose.), EnumBase_t
     use indexing_mod, only: fuse_symm_idx
@@ -879,7 +877,6 @@ contains
                 end do
             end do
         end do
-        ! res = fused_to_DistinctDouble(set(buffer%buf(:buffer%size())))
         res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
     end function
 
