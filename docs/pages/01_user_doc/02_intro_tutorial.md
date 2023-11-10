@@ -53,10 +53,10 @@ title
     seed 8
 
     totalWalkers 50000
-    tau-values \                                                                    
-        start user-defined 0.01                                                     
-    tau-search \                                                                    
-        algorithm conventional \                                                    
+    tau-values \
+        start user-defined 0.01
+    tau-search \
+        algorithm conventional \
         stop-condition no-change 1000
 
     # use the initiator method
