@@ -44,7 +44,7 @@ title
   # read integrals from FCIDUMP
   system read
     electrons 6
-    nonuniformrandexcits pchb
+    nonuniformrandexcits pchb delocalised
   endsys
 
   calc
@@ -53,7 +53,11 @@ title
     seed 8
 
     totalWalkers 50000
-    tau 0.01 search
+    tau-values \                                                                    
+        start user-defined 0.01                                                     
+    tau-search \                                                                    
+        algorithm conventional \                                                    
+        stop-condition no-change 1000
 
     # use the initiator method
     truncinitiator
