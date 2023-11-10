@@ -1732,14 +1732,25 @@ contains
 
     elemental function fused_to_DistinctDouble(n) result(distinct_double)
         !! Return a Distinct Double excitation from a fused integer index
+        !!
+        !! @note
+        !!  Note the set of valid `n` is not contiguos.
+        !! @endnote
         integer(int64), intent(in) :: n
         type(DistinctDouble_t) :: distinct_double
         integer(int64) :: idx_typ, ijkl
+        debug_function_name("fused_to_DistinctDouble")
         call inv_fuse_idx(n, size(distinct_doubles_arr, kind=int64), idx_typ, ijkl, fortran=.true.)
         distinct_double = DistinctDouble_t(&
                                 fused_to_ijkl(ijkl), &
                                 distinct_doubles_arr(idx_typ - 1) &
                           )
+
+#ifdef DEBUG_
+        associate(dd => DistinctDouble_t(fused_to_ijkl(ijkl)))
+            ASSERT(dd%fuse() == n)
+        end associate
+#endif
     end function
 
 end module
