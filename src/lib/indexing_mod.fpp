@@ -53,6 +53,12 @@ contains
         !! create a composite index out of two indices, assuming they are unordered
         !! i.e. their ordering does not matter.
         !!
+        !! @note
+        !!  Note that this function does not preserve order if we assume lexicographical ordering.
+        !!  If `(p_1, q_1) <= (p_2, q_2)`, then we don't have necessarily
+        !!  `fuse_sym_idx(p_1, q_1) <= fuse_symm_idx(p_2, q_2)`.
+        !! @endote
+        !!
         !! The ordering looks like this:
         !!
         !!   1   2   4   7
@@ -106,29 +112,43 @@ contains
         q = int(tmp_q, kind(q))
     end subroutine
 
-    elemental function fuse_idx_int64(p, q, n_rows) result(pq)
+    elemental function fuse_idx_int64(p, q, n_rows, fortran) result(pq)
         !! Fuse `p, q` into one contiguous index
         !!
-        !! This assumes columnwise Fortran order, i.e. the index looks like this:
+        !! If `fortran` is true, then this assumes columnwise Fortran order, i.e. the index looks like this:
         !!
         !!    1     5
         !!    2     6
         !!    3     7
         !!    4     8
+        !!
+        !! Otherwise it is `C`-order, i.e. row mayor (but still one-indexed).
+        !!
+        !! @note
+        !!  Note that this function does preserve lexicographical ordering, if `fortran == .false.`.
+        !!  If `(p_1, q_1) <= (p_2, q_2)`
+        !!  `fuse_idx(p_1, q_1, n_rows, fortran=.false.) <= fuse_idx(p_2, q_2, fortran=.false.)`.
+        !! @endote
         integer(int64), intent(in) :: p, q
             !! 2d-array indices
         integer(int64), intent(in) :: n_rows
             !! number of rows
+        logical, intent(in) :: fortran
+            !! Use column mayor order
         integer(int64) :: pq
             !! contiguous 1d-array index
         debug_function_name("fuse_idx_int64")
 
         @:pure_ASSERT(all([p, q, n_rows] > 0))
         @:pure_ASSERT(p <= n_rows)
-        pq = p + (q - 1_int64) * n_rows
+        if (fortran) then
+            pq = p + (q - 1_int64) * n_rows
+        else
+            pq = q + (p - 1_int64) * n_rows
+        end if
     end function
 
-    elemental function fuse_idx_int32(p, q, n_rows) result(pq)
+    elemental function fuse_idx_int32(p, q, n_rows, fortran) result(pq)
         !! Fuse `p, q` into one contiguous index
         !!
         !! This assumes columnwise Fortran order, i.e. the index looks like this:
@@ -137,17 +157,27 @@ contains
         !!    2     6
         !!    3     7
         !!    4     8
+        !!
+        !! Otherwise it is `C`-order, i.e. row mayor.
+        !!
+        !! @note
+        !!  Note that this function does preserve lexicographical ordering, if `fortran == .false.`.
+        !!  If `(p_1, q_1) <= (p_2, q_2)`
+        !!  `fuse_idx(p_1, q_1, n_rows, fortran=.false.) <= fuse_idx(p_2, q_2, fortran=.false.)`.
+        !! @endote
         integer(int32), intent(in) :: p, q
             !! 2d-array indices
         integer(int32), intent(in) :: n_rows
             !! number of rows
+        logical, intent(in) :: fortran
+            !! Use column mayor order
         integer(int32) :: pq
             !! contiguous 1d-array index
 
-        pq = int(fuse_idx(int(p, int64), int(q, int64), int(n_rows, int64)), kind(pq))
+        pq = int(fuse_idx(int(p, int64), int(q, int64), int(n_rows, int64), fortran), kind(pq))
     end function
 
-    elemental subroutine inv_fuse_idx_int64(pq, n_rows, p, q)
+    elemental subroutine inv_fuse_idx_int64(pq, n_rows, p, q, fortran)
         !! Fuse `p, q` into one contiguous index
         !!
         !! This assumes columnwise Fortran order, i.e. the index looks like this:
@@ -160,14 +190,21 @@ contains
             !! number of rows
         integer(int64), intent(in) :: pq
             !! contiguous 1d-array index
+        logical, intent(in) :: fortran
+            !! Use column mayor order
         integer(int64), intent(out) :: p, q
             !! 2d-array indices
 
-        q = (pq - 1_int64) / n_rows + 1_int64
-        p = pq - (q - 1_int64) * n_rows
+        if (fortran) then
+            q = (pq - 1_int64) / n_rows + 1_int64
+            p = pq - (q - 1_int64) * n_rows
+        else
+            p = (pq - 1_int64) / n_rows + 1_int64
+            q = pq - (p - 1_int64) * n_rows
+        end if
     end subroutine
 
-    elemental subroutine inv_fuse_idx_int32(pq, n_rows, p, q)
+    elemental subroutine inv_fuse_idx_int32(pq, n_rows, p, q, fortran)
         !! Fuse `p, q` into one contiguous index
         !!
         !! This assumes columnwise Fortran order, i.e. the index looks like this:
@@ -180,12 +217,14 @@ contains
             !! number of rows
         integer(int32), intent(in) :: pq
             !! contiguous 1d-array index
+        logical, intent(in) :: fortran
+            !! Use column mayor order
         integer(int32), intent(out) :: p, q
             !! 2d-array indices
 
         integer(int64) :: large_p, large_q
 
-        call inv_fuse_idx(int(pq, int64), int(n_rows, int64), large_p, large_q)
+        call inv_fuse_idx(int(pq, int64), int(n_rows, int64), large_p, large_q, fortran)
         p = int(large_p, kind(p))
         q = int(large_q, kind(q))
     end subroutine

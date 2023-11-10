@@ -860,11 +860,11 @@ contains
 
         do i = 1, nSpatOrbs
             if (csf_i%occ_int(i) == 0) cycle
-            do j = 1, nSpatOrbs
+            do j = i, nSpatOrbs
                 if (csf_i%occ_int(j) == 0) cycle
                 if (i == j .and. csf_i%occ_int(i) /= 2) cycle
                 do a = 1, nSpatOrbs
-                    do b = 1, nSpatOrbs
+                    do b = a, nSpatOrbs
                         if (any(csf_i%stepvector([a, b]) == 3)) cycle
                         if (a == b .and. csf_i%stepvector(a) /= 0) cycle
                         idx = ijkl_Index_t([a, i, b, j])
@@ -879,7 +879,8 @@ contains
                 end do
             end do
         end do
-        res = fused_to_DistinctDouble(set(buffer%buf(:buffer%size())))
+        ! res = fused_to_DistinctDouble(set(buffer%buf(:buffer%size())))
+        res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
     end function
 
     pure function HoleAlgorithm_to_str(this) result(res)

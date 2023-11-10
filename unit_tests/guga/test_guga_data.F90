@@ -221,89 +221,42 @@ contains
     subroutine test_gen_all_excits()
         type(CSF_Info_t) :: csf_i
         type(DistinctDouble_t), allocatable :: excitations(:)
-        integer, allocatable :: expected(:, :)
-
-        integer :: i
+        type(DistinctDouble_t), allocatable :: dd_expected(:)
 
         nSpatOrbs = 4
 
         csf_i = CSF_Info_t([s0, s2, u, d])
         excitations = gen_all_distinct_doubles(csf_i)
 
-        expected = reshape( [ &
-                   [1, 2, 1, 2], &
-                   [1, 2, 3, 2], &
-                   [1, 2, 4, 2], &
-                   [1, 2, 3, 2], &
-                   [3, 2, 4, 2], &
-                   [1, 2, 4, 2], &
-                   [3, 2, 4, 2], &
-                   [1, 2, 1, 3], &
-                   [1, 2, 3, 3], &
-                   [1, 2, 4, 3], &
-                   [2, 2, 3, 3], &
-                   [2, 2, 4, 3], &
-                   [1, 2, 3, 3], &
-                   [2, 2, 3, 3], &
-                   [1, 2, 4, 3], &
-                   [2, 2, 4, 3], &
-                   [1, 2, 1, 4], &
-                   [1, 2, 3, 4], &
-                   [1, 2, 4, 4], &
-                   [2, 2, 3, 4], &
-                   [2, 2, 4, 4], &
-                   [1, 2, 3, 4], &
-                   [2, 2, 3, 4], &
-                   [3, 2, 4, 4], &
-                   [1, 2, 4, 4], &
-                   [2, 2, 4, 4], &
-                   [3, 2, 4, 4], &
-                   [1, 2, 1, 3], &
-                   [1, 2, 3, 3], &
-                   [1, 2, 4, 3], &
-                   [2, 2, 3, 3], &
-                   [2, 2, 4, 3], &
-                   [1, 2, 3, 3], &
-                   [2, 2, 3, 3], &
-                   [1, 2, 4, 3], &
-                   [2, 2, 4, 3], &
-                   [1, 3, 1, 4], &
-                   [1, 3, 2, 4], &
-                   [1, 3, 4, 4], &
-                   [1, 3, 2, 4], &
-                   [2, 3, 4, 4], &
-                   [3, 3, 4, 4], &
-                   [1, 3, 4, 4], &
-                   [2, 3, 4, 4], &
-                   [3, 3, 4, 4], &
-                   [1, 2, 1, 4], &
-                   [1, 2, 3, 4], &
-                   [1, 2, 4, 4], &
-                   [2, 2, 3, 4], &
-                   [2, 2, 4, 4], &
-                   [1, 2, 3, 4], &
-                   [2, 2, 3, 4], &
-                   [3, 2, 4, 4], &
-                   [1, 2, 4, 4], &
-                   [2, 2, 4, 4], &
-                   [3, 2, 4, 4], &
-                   [1, 3, 1, 4], &
-                   [1, 3, 2, 4], &
-                   [1, 3, 4, 4], &
-                   [1, 3, 2, 4], &
-                   [2, 3, 4, 4], &
-                   [3, 3, 4, 4], &
-                   [1, 3, 4, 4], &
-                   [2, 3, 4, 4], &
-                   [3, 3, 4, 4]], &
-                [4, 65] &
+        dd_expected = reshape( [ &
+                    DistinctDouble_t(ijab_Index_t([2, 2, 1, 1])), &
+                    DistinctDouble_t(ijab_Index_t([2, 2, 1, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 2, 1, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 2, 3, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 1, 1])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 1, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 1, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 2, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 2, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 1, 1])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 1, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 1, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 2, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 2, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 3, 4])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 1, 1])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 1, 2])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 1, 4])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 2, 4])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 3, 4]))], &
+
+                [20] &
         )
 
-        call assert_equals(size(excitations), size(expected, 2))
+        call assert_equals(size(excitations), size(dd_expected))
 
-        do i = 1, size(excitations)
-            call assert_equals(excitations(i)%idx%val, expected(:, i), 4)
-        end do
+        call assert_true(all(excitations%fuse() == dd_expected%fuse()))
+
     end subroutine
 
 

@@ -46,8 +46,13 @@ contains
 
             do i = 1, n_rows
                 do j = 1, n_cols
-                    ij = fuse_idx(i, j, n_rows)
-                    call inv_fuse_idx(ij, n_rows, out_i, out_j)
+                    ij = fuse_idx(i, j, n_rows, fortran=.true.)
+                    call assert_true(ij == fuse_idx(j, i, n_rows, fortran=.false.))
+                    call inv_fuse_idx(ij, n_rows, out_i, out_j, fortran= .true.)
+                    call assert_true(i == out_i .and. j == out_j)
+
+                    ij = fuse_idx(i, j, n_rows, fortran=.false.)
+                    call inv_fuse_idx(ij, n_rows, out_i, out_j, fortran= .false.)
                     call assert_true(i == out_i .and. j == out_j)
                 end do
             end do

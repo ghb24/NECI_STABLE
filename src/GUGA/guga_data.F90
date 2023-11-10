@@ -1665,7 +1665,7 @@ contains
         integer(int64) :: res
         associate(i => int(this%val(1), int64), j => int(this%val(2), int64), &
                   k => int(this%val(3), int64), l => int(this%val(4), int64))
-            res = fuse_idx(fuse_symm_idx(i, k), fuse_symm_idx(j, l), ij_pairs)
+            res = fuse_idx(fuse_symm_idx(i, k), fuse_symm_idx(j, l), ij_pairs, fortran=.false.)
         end associate
     end function
 
@@ -1675,7 +1675,7 @@ contains
         integer(int64) :: res
         associate(i => int(this%val(1), int64), j => int(this%val(2), int64), &
                   a => int(this%val(3), int64), b => int(this%val(4), int64))
-            res = fuse_idx(fuse_symm_idx(a, b), fuse_symm_idx(i, j), ij_pairs)
+            res = fuse_idx(fuse_symm_idx(a, b), fuse_symm_idx(i, j), ij_pairs, fortran=.false.)
         end associate
     end function
 
@@ -1686,7 +1686,7 @@ contains
         integer(int64):: i, j, k, l, ik, jl
         debug_function_name("fused_to_ijkl")
 
-        call inv_fuse_idx(ijkl, ij_pairs, ik, jl)
+        call inv_fuse_idx(ijkl, ij_pairs, ik, jl, fortran=.false.)
         call inv_fuse_symm_idx(ik, i, k)
         call inv_fuse_symm_idx(jl, j, l)
 
@@ -1701,7 +1701,7 @@ contains
         integer(int64):: i, j, a, b, ij, ab
         debug_function_name("fused_to_ijab")
 
-        call inv_fuse_idx(ijab, ij_pairs, ab, ij)
+        call inv_fuse_idx(ijab, ij_pairs, ab, ij, fortran=.false.)
         call inv_fuse_symm_idx(ab, a, b)
         call inv_fuse_symm_idx(ij, i, j)
 
@@ -1716,11 +1716,17 @@ contains
         !! This means that a composite index for
         !! [typ, fused_ijkl_index]
         !! is created.
+        !!
+        !! @note
+        !!  This function does not preserve lexicographical ordering.
+        !!  I.e. if `(i_1, j_1, k_1, l_1) <= (i_2, j_2, k_2, l_2)`
+        !!  then the fused index is not necessarily `<=`.
+        !! @endnote
         class(DistinctDouble_t), intent(in) :: this
         integer(int64) :: res
 
         res = fuse_idx(int(this%typ%val, int64) + 1, this%idx%fuse(), &
-                       size(distinct_doubles_arr, kind=int64))
+                       size(distinct_doubles_arr, kind=int64), fortran=.true.)
     end function
 
 
@@ -1729,7 +1735,7 @@ contains
         integer(int64), intent(in) :: n
         type(DistinctDouble_t) :: distinct_double
         integer(int64) :: idx_typ, ijkl
-        call inv_fuse_idx(n, size(distinct_doubles_arr, kind=int64), idx_typ, ijkl)
+        call inv_fuse_idx(n, size(distinct_doubles_arr, kind=int64), idx_typ, ijkl, fortran=.true.)
         distinct_double = DistinctDouble_t(&
                                 fused_to_ijkl(ijkl), &
                                 distinct_doubles_arr(idx_typ - 1) &

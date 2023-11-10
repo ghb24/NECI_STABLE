@@ -16662,11 +16662,11 @@ contains
 
         do i = 1, nSpatOrbs
             if (csf_i%occ_int(i) == 0) cycle
-            do j = 1, nSpatOrbs
+            do j = i, nSpatOrbs
                 if (csf_i%occ_int(j) == 0) cycle
                 if (i == j .and. csf_i%occ_int(i) /= 2) cycle
                 do a = 1, nSpatOrbs
-                    do b = 1, nSpatOrbs
+                    do b = a, nSpatOrbs
                         if (a == b .and. csf_i%stepvector(b) /= 0) cycle
                         idx = ijkl_Index_t([a, i, b, j])
                         idx = idx%normalize()
