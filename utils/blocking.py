@@ -323,7 +323,7 @@ If plotfile is given, then the graph is saved to the specifed file rather than b
                 blocks = [stat.block_size for stat in data.stats]
                 se = [stat.se for stat in data.stats]
                 se_error = [stat.se_error for stat in data.stats]
-                plt.semilogx(blocks, se, 'g-', basex=2, label=r'$\sigma(X_{%s})$' % (data.data_col))
+                plt.semilogx(blocks, se, 'g-', base=2, label=r'$\sigma(X_{%s})$' % (data.data_col))
                 plt.errorbar(blocks, se, yerr=se_error, ecolor='g')
                 xmax = 2**numpy.ceil(numpy.log2(blocks[0]+1))
                 plt.xlim(xmax, 1)
