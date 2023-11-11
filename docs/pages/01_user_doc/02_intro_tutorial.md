@@ -54,10 +54,10 @@ title
 
     totalWalkers 50000
     tau-values \
-        start user-defined 0.01
+      start user-defined 0.01
     tau-search \
-        algorithm conventional \
-        stop-condition no-change 1000
+      algorithm conventional \
+      stop-condition no-change 1000
 
     # use the initiator method
     truncinitiator
@@ -182,17 +182,20 @@ That is, if all the above 6 plots indicate convergence but the blocking analysis
 
 ### Continuing a NECI Calculation
 
-In order to continue a NECI calculation (for example, if like in this example you have done a calculation only to find you do not have enough data), simply take the same NECI input as above, but add into the calc the `readPops` command, which indicates that NECI must read the popsfile previously created. You may also wish to increase the number of iterations `nmcyc`, e.g.
+In order to continue a NECI calculation (for example, if like in this example you have done a calculation only to find you do not have enough data), simply take the same NECI input as above, but add into the calc the `readPops` command and replace `start user-defined 0.01` with `start from-popsfile`, which indicates that NECI must read the popsfile previously created. You may also wish to increase the number of iterations `nmcyc`, e.g.
 ```text
 title
   ...
   calc
-  readPops
-  nmcyc 70000
+    readPops
+    nmcyc 70000
+    ...
+    tau-values \
+      start from-popsfile
   ...
 end
 ```
-This will add data into the previous FCIMCStats. After you have run this the same way as described above, repeat the blocking analysis. The plots will all still have well-defined plateaus, but the blocking analysis will result in something like this:
+This will add data into the previous `FCIMCStats`. After you have run this the same way as described above, repeat the blocking analysis. The plots will all still have well-defined plateaus, but the blocking analysis will result in something like this:
 
 ![](|media|/plots2/blocking.png)
 
@@ -228,15 +231,18 @@ To be completely sure of our FCIQMC calculation, we must again continue from the
 To do this, we keep the `readPops` keyword and add the keyword and add the `walkContGrow` keyword into the `calc` block. We will, of course, also want to increase the total number of walkers (say, to 100000), and from our previous experience above we know we need more data so we can also increase the number of iterations, i.e.
 ```text
 title
-...
-calc
-# continue on from previous calculation
-readPops
-# allow growth from previous calc
-walkContGrow
+  ...
+  calc
+    # continue on from previous calculation
+    readPops
+    # allow growth from previous calc
+    walkContGrow
 
-nmcyc 100000
-...
+    totalWalkers 50000
+    nmcyc 100000
+    tau-values \
+      start from-popsfile
+  ...
 end
 ```
 
