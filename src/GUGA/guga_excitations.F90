@@ -94,6 +94,8 @@ module guga_excitations
 
     use growing_buffers, only: buffer_int64_1D_t
 
+    use sort_mod, only: sort
+
     better_implicit_none
 
     private
@@ -16645,18 +16647,23 @@ contains
     end function checkCompatibility_single
 
 
-    pure function gen_all_distinct_doubles(csf_i) result(res)
+    pure function gen_all_distinct_doubles(csf_i, sort_fused_idx) result(res)
         !! This function returns all possible excitations for the orbital picker
         !!
         !! This means it considers only occupation, not spin recoupling.
         type(CSF_Info_t), intent(in) :: csf_i
+        logical, optional, intent(in) :: sort_fused_idx
+            !! The fused index of the excitations should be sorted.
         type(DistinctDouble_t), allocatable :: res(:)
 
+        logical :: sort_fused_idx_
         type(buffer_int64_1D_t) :: buffer
         type(DistinctDouble_t) :: exc
         type(ijkl_Index_t) :: idx
 
         integer :: i, j, a, b
+
+        def_default(sort_fused_idx_, sort_fused_idx, .false.)
 
         call buffer%init()
 
@@ -16678,7 +16685,13 @@ contains
             end do
         end do
 
-        res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+
+        if (sort_fused_idx_) then
+            call sort(buffer%buf(:buffer%size()))
+            res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+        else
+            res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+        end if
 
     end function
 

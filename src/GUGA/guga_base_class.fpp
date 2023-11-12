@@ -76,7 +76,7 @@ module guga_base_class
         procedure(DoublesCalcOrbitalPgenContr_t), deferred :: calc_orbital_pgen_contr_end
         procedure(Doublescalc_orbital_pgen_contr_t), deferred :: calc_orbital_pgen_contr
 
-        procedure(Doubles_gen_all_distinct_doubles), deferred :: gen_all_distinct
+        procedure(Doubles_gen_all_distinct_doubles_t), deferred :: gen_all_distinct
     end type
 
     type, abstract, extends(GUGABase_t) :: AbInitGUGABase_t
@@ -173,7 +173,7 @@ module guga_base_class
             real(dp), intent(out) :: above_cpt, below_cpt
         end subroutine
 
-        pure function Doubles_gen_all_distinct_doubles(this, csf_i) result(res)
+        pure function Doubles_gen_all_distinct_doubles_t(this, csf_i, sort_fused_key) result(res)
             !! This function returns all possible excitations for the orbital picker
             !!
             !! This means it considers only occupation, not spin recoupling.
@@ -181,6 +181,8 @@ module guga_base_class
             implicit none
             class(DoublesGUGABase_t), intent(in) :: this
             type(CSF_Info_t), intent(in) :: csf_i
+            logical, optional, intent(in) :: sort_fused_key
+                !! The fused index of the excitations should be sorted.
             type(DistinctDouble_t), allocatable :: res(:)
         end function
 
@@ -391,7 +393,7 @@ contains
 
         block
             type(DistinctDouble_t), allocatable :: exc_operators(:)
-            exc_operators = doubles_generator%gen_all_distinct(csf_i)
+            exc_operators = doubles_generator%gen_all_distinct(csf_i, sort_fused_key=.true.)
             entries = [(Entry_t(exc_operators(i)%fuse(), exc_operators(i)), i = 1, size(exc_operators))]
             @:ASSERT(is_sorted(entries%key))
         end block
@@ -439,6 +441,12 @@ contains
         end block
         end do
         write(stdout, *)
+
+        contains
+            logical elemental function leq_key(x, y)
+            type(Entry_t), intent(in) :: x, y
+            leq_key = x%key <= y%key
+            end function
     end subroutine
 
 

@@ -23,6 +23,7 @@ module guga_gas_pchb_doubles_select_holes
     use MPI_wrapper, only: iProcIndex_intra, iProcIndex, root
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use procedure_pointers, only: get_umat_el
+    use sort_mod, only: sort
 
     use growing_buffers, only: buffer_int64_1D_t
 
@@ -840,19 +841,23 @@ contains
     end subroutine calc_orbital_pgen_contr_end
 
 
-    pure function gen_all_distinct(this, csf_i) result(res)
+    pure function gen_all_distinct(this, csf_i, sort_fused_key) result(res)
         !! This function returns all possible excitations for the orbital picker
         !!
         !! This means it considers only occupation, not spin recoupling.
         class(GAS_PCHB_FastFast_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
+        logical, intent(in), optional :: sort_fused_key
+            !! The fused index of the excitations should be sorted.
         type(DistinctDouble_t), allocatable :: res(:)
 
         type(buffer_int64_1D_t) :: buffer
         type(DistinctDouble_t) :: exc
         type(ijkl_Index_t) :: idx
-
+        logical :: sort_fused_key_
         integer :: i, j, a, b
+
+        def_default(sort_fused_key_, sort_fused_key, .false.)
 
         call buffer%init()
 
@@ -877,7 +882,14 @@ contains
                 end do
             end do
         end do
-        res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+
+        if (sort_fused_key_) then
+            call sort(buffer%buf(:buffer%size()))
+            res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+        else
+            res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+        end if
+
     end function
 
     pure function HoleAlgorithm_to_str(this) result(res)
