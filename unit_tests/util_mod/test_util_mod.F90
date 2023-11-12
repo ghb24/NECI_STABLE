@@ -5,7 +5,8 @@ module test_util_mod
     use constants, only: int64, dp
     use util_mod, only: choose_i64
     use indexing_mod, only: fuse_symm_idx, inv_fuse_symm_idx, &
-        fuse_idx, inv_fuse_idx
+        fuse_idx, inv_fuse_idx, &
+        triangle_number, inv_triangle_number
     better_implicit_none
     private
     public :: test_driver
@@ -39,8 +40,17 @@ contains
 
 
     subroutine test_fuse()
+        test_triangle_number: block
+            integer(int64) :: i
+
+            do i = 1_int64, 100_int64
+                call assert_equals(i, inv_triangle_number(triangle_number(i)))
+            end do
+
+        end block test_triangle_number
+
         symmetric_matrix: block
-            integer, parameter :: n_rows = 5, n_cols = n_rows
+            integer, parameter :: n_rows = 4, n_cols = n_rows
 
             idx: block
                 integer :: i, j, ij, out_i, out_j
@@ -62,14 +72,9 @@ contains
 
             symm_idx: block
                 integer :: i, j, ij, out_i, out_j
-
-
                 do i = 1, n_rows
                     do j = 1, n_cols
                         ij = fuse_symm_idx(i, j)
-                        write(*, *)
-                        write(*, *) i, j, ij
-                        write(*, *)
                         call inv_fuse_symm_idx(ij, out_i, out_j)
                         if (i <= j) then
                             call assert_true(i == out_i .and. j == out_j)
