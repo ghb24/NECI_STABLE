@@ -22,7 +22,6 @@ module guga_gas_pchb_doubles_select_holes
     use shared_array, only: shared_array_int64_t
     use MPI_wrapper, only: iProcIndex_intra, iProcIndex, root
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
-    use procedure_pointers, only: get_umat_el
     use sort_mod, only: sort
 
     use guga_pchb_doubles_weights_mod, only: WeightingChoice_t, get_doubles_weight_t, &

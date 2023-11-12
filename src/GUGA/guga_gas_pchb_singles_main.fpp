@@ -15,11 +15,12 @@ module guga_gas_pchb_singles_main
     use bit_reps, only: decode_bit_det
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
     use UMatCache, only: gtID, get_umat_el
-    use OneEInts, only: GetTMatEl
 
     use guga_base_class, only: SinglesGUGABase_t
     use guga_bitrepops, only: CSF_Info_t
     use guga_data, only: ExcitationInformation_t, gen_type
+    use guga_pchb_singles_weights_mod, only: get_weight_t, GAS_PCHB_SinglesWeighting_t, &
+        GAS_PCHB_SinglesWeighting_vals_t, set_get_weight_pointer
     use guga_excitations, only: assign_excitinfo_values_single, &
         checkcompatibility_single
     better_implicit_none
@@ -39,20 +40,6 @@ module guga_gas_pchb_singles_main
         procedure, nopass :: from_str => alg_from_str
     end type
 
-    type, extends(EnumBase_t) :: GAS_PCHB_SinglesWeighting_t
-        character(9) :: str
-    end type
-
-
-    type :: GAS_PCHB_SinglesWeighting_vals_t
-        type(GAS_PCHB_SinglesWeighting_t) :: &
-            UNIFORM = GAS_PCHB_SinglesWeighting_t(1, 'UNIFORM'), &
-            ABS_INTEGRAL = GAS_PCHB_SinglesWeighting_t(2, 'ABS-INTEGRAL'), &
-            RHF_EXPR = GAS_PCHB_SinglesWeighting_t(3, 'RHF-EXPRESSION')
-    contains
-        procedure, nopass :: from_str => weight_from_str
-    end type
-
     type :: GAS_PCHB_SinglesOptions_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: algorithm
         type(GAS_PCHB_SinglesWeighting_t) :: weighting
@@ -69,15 +56,6 @@ module guga_gas_pchb_singles_main
 
     type(GAS_PCHB_SinglesOptions_vals_t), parameter :: &
         option_vals = GAS_PCHB_SinglesOptions_vals_t()
-
-
-    abstract interface
-        real(dp) function get_weight_t(i, a)
-            import :: dp
-            integer, intent(in) :: i, a
-                !! Spatial orbital index
-        end function
-    end interface
 
 
     !> The precomputed GAS uniform excitation generator
@@ -164,23 +142,6 @@ contains
         is_valid = (this%algorithm == option_vals%algorithm%UNIF_UNIF &
                             .implies. this%weighting == option_vals%weighting%UNIFORM)
     end function
-
-
-    subroutine set_get_weight_pointer(weight_choice, ptr)
-        type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weight_choice
-        procedure(get_weight_t), pointer, intent(out) :: ptr
-        routine_name("set_get_weight_pointer")
-
-        if (weight_choice == option_vals%weighting%UNIFORM) then
-            ptr => get_weight_uniform
-        else if (weight_choice == option_vals%weighting%ABS_INTEGRAL) then
-            ptr => get_weight_abs_integral
-        else if (weight_choice == option_vals%weighting%RHF_EXPR) then
-            ptr => get_weight_RHF_expr
-        else
-            call stop_all(this_routine, "Invalid weight choice: "//weight_choice%str)
-        end if
-    end subroutine
 
 
     subroutine allocate_and_init(GAS_spec, options, use_lookup, create_lookup, generator)
@@ -415,24 +376,6 @@ contains
         end select
     end function
 
-    elemental function weight_from_str(str) result(res)
-        character(*), intent(in) :: str
-        type(GAS_PCHB_SinglesWeighting_t) :: res
-        routine_name("alg_from_str")
-
-        select case(to_upper(str))
-        case(option_vals%weighting%UNIFORM%str)
-            res = option_vals%weighting%UNIFORM
-        case(option_vals%weighting%ABS_INTEGRAL%str)
-            res = option_vals%weighting%ABS_INTEGRAL
-        case(option_vals%weighting%RHF_EXPR%str)
-            res = option_vals%weighting%RHF_EXPR
-        case default
-            call stop_all(this_routine, 'Invalid input: '//str)
-        end select
-    end function
-
-
     subroutine init_GAS_Weighted_t(this, weighting, GAS_spec, use_lookup, create_lookup)
         class(GAS_Weighted_t), intent(inout) :: this
         type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weighting
@@ -657,73 +600,5 @@ contains
         ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
         call decode_bit_det(unoccupied, ilut_unoccupied)
     end subroutine
-
-
-    pure function get_weight_uniform(i, a) result(weight)
-        integer, intent(in) :: i, a
-            !! Spatial orbital index
-        real(dp) :: weight
-        routine_name("get_weight_uniform")
-        @:pure_ASSERT(all(1 <= [i, a] .and. [i, a] <= nSpatOrbs))
-        weight = merge(1._dp, 0._dp, i /= a)
-    end function
-
-
-    pure function get_weight_abs_integral(i, a) result(weight)
-        integer, intent(in) :: i, a
-            !! Spatial orbital index
-        real(dp) :: weight
-        routine_name("get_weight_abs_integral")
-
-        real(dp) :: two_el_term
-        integer :: r
-        @:pure_ASSERT(all(1 <= [i, a] .and. [i, a] <= nSpatOrbs))
-
-        two_el_term = 0._dp
-        do R = 1, nSpatOrbs
-            ! Triangle inequality makes it non-zero, whenever integrals are non-zero:
-            ! |a| + |b|  >=  | a + b |
-            two_el_term = two_el_term + abs(g(i, a, r, r)) + abs(g(i, r, r, a))
-        end do
-        weight = abs(h(i, a)) + two_el_term
-    end function
-
-    pure function get_weight_RHF_expr(i, a) result(weight)
-        integer, intent(in) :: i, a
-            !! Spatial orbital index
-        real(dp) :: weight
-        routine_name("get_weight_uniform")
-
-        real(dp) :: two_el_term
-        integer :: r
-        @:pure_ASSERT(all(1 <= [i, a] .and. [i, a] <= nSpatOrbs))
-
-        two_el_term = 0._dp
-        do R = 1, nSpatOrbs
-            two_el_term = two_el_term + abs(2 * g(i, a, r, r) - g(i, r, r, a))
-        end do
-        weight = abs(h(i, a)) + two_el_term
-    end function
-
-
-    HElement_t(dp) elemental function h(i, a)
-        !! Return the 1el integral \( h_{I, A) \)
-        !!
-        !! I and A are **spatial** indices.
-        !! Follows the definition of the purple book.
-        integer, intent(in) :: i, a
-        h = GetTMATEl(2 * i, 2 * a)
-    end function
-
-
-    HElement_t(dp) elemental function g(i, a, j, b)
-        integer, intent(in) :: i, a, j, b
-        !! Return the 2el integral \( g_{I, A, J, B} \)
-
-        !! i, a, j, and b are **spatial ** indices.
-        !! Order follows the definition of the purple book (chemist's notation).
-        !! \( g_{I, A, J, B} = < I J | 1 / r | A B > \)
-        g = get_umat_el(i, j, a, b)
-    end function
 
 end module

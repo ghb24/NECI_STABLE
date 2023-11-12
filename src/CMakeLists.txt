@@ -423,6 +423,7 @@ set( FYPP_SRC_FILES
     GUGA/guga_gas_pchb_doubles_main.fpp
     GUGA/guga_gas_pchb_doubles_select_particles.fpp
     GUGA/guga_pchb_doubles_weights.fpp
+    GUGA/guga_pchb_singles_weights.fpp
     CDF_sampling.fpp
     orb_idx.fpp
     excitation_types.fpp
