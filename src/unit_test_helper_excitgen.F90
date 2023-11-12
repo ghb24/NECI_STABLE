@@ -8,7 +8,7 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen, nSpatOrbs, ij_pairs, tGUGA, tUHF, tMolpro, &
+                          tReadInt, t_pcpp_excitgen, nSpatOrbs, nSpatOrbs_i8, ij_pairs, tGUGA, tUHF, tMolpro, &
                           user_input_m_s, tZeroDelimitedFCIDUMP
     use sort_mod
     use gasci, only: GASSpec_t
@@ -293,7 +293,8 @@ contains
         call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
 
         nSpatOrbs = nBasis .div. 2
-        ij_pairs = fuse_symm_idx(int(nSpatOrbs, int64), int(nSpatOrbs, int64))
+        nSpatOrbs_i8 = int(nBasis .div. 2, int64)
+        ij_pairs = fuse_symm_idx(nSpatOrbs_i8, nSpatOrbs_i8)
 
         call GetUMatSize(nBasis, umatsize)
 

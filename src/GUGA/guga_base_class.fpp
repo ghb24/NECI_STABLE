@@ -393,7 +393,7 @@ contains
             type(DistinctDouble_t), allocatable :: exc_operators(:)
             exc_operators = doubles_generator%gen_all_distinct(csf_i)
             entries = [(Entry_t(exc_operators(i)%fuse(), exc_operators(i)), i = 1, size(exc_operators))]
-            ASSERT(is_sorted(entries%key))
+            @:ASSERT(is_sorted(entries%key))
         end block
 
         do i = 1, size(entries)

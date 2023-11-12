@@ -4,7 +4,7 @@
 ! GUGA approach.
 module guga_data
     use SystemData, only: nBasis, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
-                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA, ij_pairs
+                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA, nSpatOrbs_i8, ij_pairs
     use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_, int64
     use MemoryManager, only: TagIntType
     use bit_rep_data, only: BitRep_t, GugaBits
@@ -1725,8 +1725,8 @@ contains
         class(DistinctDouble_t), intent(in) :: this
         integer(int64) :: res
 
-        res = fuse_idx(int(this%typ%val, int64) + 1, this%idx%fuse(), &
-                       size(distinct_doubles_arr, kind=int64), fortran=.true.)
+        res = fuse_idx(this%idx%fuse(), int(this%typ%val, int64) + 1, &
+                       size(distinct_doubles_arr, kind=int64), fortran=.false.)
     end function
 
 
@@ -1740,7 +1740,7 @@ contains
         type(DistinctDouble_t) :: distinct_double
         integer(int64) :: idx_typ, ijkl
         debug_function_name("fused_to_DistinctDouble")
-        call inv_fuse_idx(n, size(distinct_doubles_arr, kind=int64), idx_typ, ijkl, fortran=.true.)
+        call inv_fuse_idx(n, size(distinct_doubles_arr, kind=int64), ijkl, idx_typ, fortran=.false.)
         distinct_double = DistinctDouble_t(&
                                 fused_to_ijkl(ijkl), &
                                 distinct_doubles_arr(idx_typ - 1) &

@@ -39,41 +39,70 @@ contains
 
 
     subroutine test_fuse()
-        integer, parameter :: n_rows = 100, n_cols = n_rows
+        symmetric_matrix: block
+            integer, parameter :: n_rows = 5, n_cols = n_rows
 
-        idx: block
-            integer :: i, j, ij, out_i, out_j
+            idx: block
+                integer :: i, j, ij, out_i, out_j
 
-            do i = 1, n_rows
-                do j = 1, n_cols
-                    ij = fuse_idx(i, j, n_rows, fortran=.true.)
-                    call assert_true(ij == fuse_idx(j, i, n_rows, fortran=.false.))
-                    call inv_fuse_idx(ij, n_rows, out_i, out_j, fortran= .true.)
-                    call assert_true(i == out_i .and. j == out_j)
-
-                    ij = fuse_idx(i, j, n_rows, fortran=.false.)
-                    call inv_fuse_idx(ij, n_rows, out_i, out_j, fortran= .false.)
-                    call assert_true(i == out_i .and. j == out_j)
-                end do
-            end do
-        end block idx
-
-
-        symm_idx: block
-            integer :: i, j, ij, out_i, out_j
-
-            do i = 1, n_rows
-                do j = 1, n_cols
-                    ij = fuse_symm_idx(i, j)
-                    call inv_fuse_symm_idx(ij, out_i, out_j)
-                    if (i <= j) then
+                do i = 1, n_rows
+                    do j = 1, n_cols
+                        ij = fuse_idx(i, j, n_rows, fortran=.true.)
+                        call assert_true(ij == fuse_idx(j, i, n_rows, fortran=.false.))
+                        call inv_fuse_idx(ij, n_rows, out_i, out_j, fortran= .true.)
                         call assert_true(i == out_i .and. j == out_j)
-                    else
-                        call assert_true(j == out_i .and. i == out_j)
-                    end if
+
+                        ij = fuse_idx(i, j, n_rows, fortran=.false.)
+                        call inv_fuse_idx(ij, n_rows, out_i, out_j, fortran= .false.)
+                        call assert_true(i == out_i .and. j == out_j)
+                    end do
+                end do
+            end block idx
+
+
+            symm_idx: block
+                integer :: i, j, ij, out_i, out_j
+
+
+                do i = 1, n_rows
+                    do j = 1, n_cols
+                        ij = fuse_symm_idx(i, j)
+                        write(*, *)
+                        write(*, *) i, j, ij
+                        write(*, *)
+                        call inv_fuse_symm_idx(ij, out_i, out_j)
+                        if (i <= j) then
+                            call assert_true(i == out_i .and. j == out_j)
+                        else
+                            call assert_true(j == out_i .and. i == out_j)
+                        end if
+                    end do
+                end do
+            end block symm_idx
+        end block symmetric_matrix
+
+        non_symmetric_matrix: block
+            integer, parameter :: n_rows = 10, n_cols = 100
+
+            integer :: i, j
+
+            do i = 1, n_rows
+                do j = 1, n_cols
+                    fortran: block
+                        integer :: ij, out_i, out_j
+                        ij = fuse_idx(i, j, n_rows, fortran=.true.)
+                        call inv_fuse_idx(ij, n_rows, out_i, out_j, fortran=.true.)
+                        call assert_true(i == out_i .and. j == out_j)
+                    end block fortran
+                    C: block
+                        integer :: ij, out_i, out_j
+                        ij = fuse_idx(i, j, n_cols, fortran=.false.)
+                        call inv_fuse_idx(ij, n_cols, out_i, out_j, fortran=.false.)
+                        call assert_true(i == out_i .and. j == out_j)
+                    end block C
                 end do
             end do
-        end block symm_idx
+        end block non_symmetric_matrix
     end subroutine
 
 

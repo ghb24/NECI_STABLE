@@ -274,6 +274,7 @@ module SystemData
 
 ! also store the number of spatial orbitals here, to use it generally
     integer :: nSpatOrbs
+    integer(int64) :: nSpatOrbs_i8
 
     integer(int64) :: ij_pairs
         !! This is the possible number of ordered spatial
