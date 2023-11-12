@@ -276,6 +276,13 @@ module SystemData
     integer :: nSpatOrbs
     integer(int64) :: nSpatOrbs_i8
 
+    integer(int64) :: ij_pairs
+        !! This is the possible number of ordered spatial
+        !! orbital pairs `i <= j`.
+        !! This **is not** the same as ElecPairs, which considers the
+        !! particle number and works in spin orbitals.
+
+
 ! put in a logical to not reorder the orbitals in the guga + hubbard case
 ! to directly compare it with the determinental implementation, even if
 ! this might decrease the efficiency of the guga implmenetation

@@ -5,7 +5,7 @@ module test_guga_data_mod
               DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, &
               excit_type, fused_to_ijab, fused_to_ijkl, fused_to_DistinctDouble
 
-    use SystemData, only: nSpatOrbs
+    use SystemData, only: nSpatOrbs, ij_pairs
     use indexing_mod, only: fuse_symm_idx
     use guga_bitrepops, only: CSF_Info_t, StepVector_t, stepvector_vals
     use guga_excitations, only: gen_all_distinct_doubles
@@ -172,6 +172,7 @@ contains
         integer :: i, j, k, l
 
         nSpatOrbs = 10
+        ij_pairs = fuse_symm_idx(nSpatOrbs, nSpatOrbs)
 
         do i = 1, nSpatOrbs
             do j = 1, nSpatOrbs

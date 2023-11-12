@@ -8,7 +8,7 @@ module tJ_model
                           t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
                           t_trans_corr, trans_corr_param, &
                           t_trans_corr_2body, trans_corr_param_2body, &
-                          nSpatOrbs, nSpatOrbs_i8, t_bipartite_order
+                          nSpatOrbs, nSpatOrbs_i8, ij_pairs, t_bipartite_order
 
     use constants, only: dp, n_int, EPS, bits_n_int, maxExcit, int64
 
@@ -117,6 +117,7 @@ contains
 
         nSpatOrbs = nBasis .div. 2
         nSpatOrbs_i8 = int(nBasis .div. 2, int64)
+        ij_pairs = fuse_symm_idx(nSpatOrbs_i8, nSpatOrbs_i8)
 
         pSingles = 0.1_dp
         pDoubles = 1.0_dp - pSingles
