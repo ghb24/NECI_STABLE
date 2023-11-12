@@ -158,6 +158,10 @@ To do this in one line, [there is a convenience script here](|media|/N2_neci_fil
 which is run with gnuplot via `gnuplot plot_fcimcstats.plt` and will output plots of the most useful columns to a new `plots/` directory.
 Your results should look something like this:
 
+@note
+The population growth in your calculation may be faster than the growth in the plots below, as some algorithms have been updated.
+@endnote
+
 1. ![](|media|/plots1/check_totE.png)
 2. ![](|media|/plots1/check_totWalkers.png)
 3. ![](|media|/plots1/check_refPop.png)
