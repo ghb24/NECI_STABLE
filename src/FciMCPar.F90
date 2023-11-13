@@ -3,7 +3,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use constants, only: sp, PI
+    use constants, only: sp, PI, lenof_sign, inum_runs
 
     use SystemData, only: nel, tUEG2, tGen_4ind_2, &
         tGen_4ind_weighted, tGUGA, &
@@ -81,14 +81,15 @@ module FciMCParMod
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use bit_reps, only: set_flag, clr_flag, any_run_is_initiator, &
-                        all_runs_are_initiator
+                        all_runs_are_initiator, decode_bit_det, writebitdet
+
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet, &
                             need_load_balancing
     use load_balance_calcnodes, only: loadBalanceInterval
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone, &
-        flag_trial, flag_connected, flag_removed
+        flag_trial, flag_connected, flag_removed, niftot
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
@@ -126,7 +127,8 @@ module FciMCParMod
         walkerstospawn, tInDetermSpace, HighPopNeg, n_prone_dets, &
         tFill_RDM, HighPopPos, IterLastRDMFill, TempSpawnedPartsInd
 
-    use Parallel_neci, only: MPI_MIN, MPI_MAX, MPI_SUM, MPIReduce, MPIAllReduce
+    use Parallel_neci, only: MPI_MIN, MPI_MAX, MPI_SUM, MPIReduce, MPIAllReduce, &
+        nProcessors
 
 
     use neci_signals, only: init_signals, clear_signals
@@ -156,8 +158,6 @@ module FciMCParMod
                               cnt_real_time_copies
 
     use real_time_init, only: init_overlap_buffers
-
-    use bit_reps, only: decode_bit_det, writebitdet
 
     use util_mod, only: operator(.div.), neci_flush
 
