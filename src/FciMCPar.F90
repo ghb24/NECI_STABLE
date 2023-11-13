@@ -3,7 +3,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use constants, only: sp
+    use constants, only: sp, PI
 
     use SystemData, only: nel, tUEG2, tGen_4ind_2, &
         tGen_4ind_weighted, tGUGA, &
