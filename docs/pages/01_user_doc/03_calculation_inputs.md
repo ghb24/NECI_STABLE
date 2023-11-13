@@ -41,6 +41,7 @@ considered. The block starts with the `system` keyword and ends with the
 
     -   **order**<br>
         Orders the orbitals (by default, does no reordering).
+
         @warning
         Please note, for best results you may wish to rather use
         `order-by-1elec-energy` below, also in the system block as the
@@ -791,6 +792,7 @@ and ends with the `endcalc` keyword.
         This defines the source of the initial \(\Delta \tau\).
 
         Has to be followed by one of the following sub-keywords:
+
         -   **\textcolor{blue}{user-defined} \(\Delta \tau\)**<br>
             Has to be followed by a real number that is the initial \(\Delta \tau\).
 
@@ -1442,6 +1444,7 @@ and is stopped after 10000 iterations.
         When diagonalising the matrix formed from the top determinants, take
         the left eigenvector as your trial wave function instead of the right.
         This keyword is intended to be used for non-Hermitian systems.
+
         @note
         The mathematically correct approach is to run a separate calculation with
         the `adjoint-calculation` and without this keyword (so taking the right
