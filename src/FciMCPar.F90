@@ -3,55 +3,60 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
+    use constants, only: sp
+
     use SystemData, only: nel, tUEG2, tGen_4ind_2, &
-                          tGen_4ind_weighted, tGUGA, &
-                          t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
-                          t_k_space_hubbard, max_ex_level, t_uniform_excits, &
-                          tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
-                          tReal, t_mixed_excits, &
-                          t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_analyze_pchb
+        tGen_4ind_weighted, tGUGA, &
+        t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
+        t_k_space_hubbard, max_ex_level, t_uniform_excits, &
+        tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
+        tReal, t_mixed_excits, &
+        t_crude_exchange_noninits, t_approx_exchange_noninits, &
+        is_init_guga, tGen_sym_guga_ueg, t_analyze_pchb, &
+        tGen_sym_guga_mol
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
-                        tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
-                        AvMCExcits, pops_norm_unit, iExitWalkers, tAdaptiveShift, &
-                        iFullSpaceIter, semistoch_shift_iter, tEN2, tOutputInitsRDM, &
-                        tOrthogonaliseReplicas, orthogonalise_iter, tNonInitsForRDMs, &
-                        tDetermHFSpawning, use_spawn_hash_table, tInitsRDMRef, &
-                        ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
-                        trial_shift_iter, tStartTrialLater, &
-                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
-                        t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
-                        t_trunc_guga_pgen_noninits, &
-                        tLogAverageSpawns, tActivateLAS, eq_cyc, &
-                        t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
-                        tDetermProjApproxHamil, tCoreAdaptiveShift, &
-                        tScaleBlooms, max_allowed_spawn
+        tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
+        AvMCExcits, pops_norm_unit, iExitWalkers, tAdaptiveShift, &
+        iFullSpaceIter, semistoch_shift_iter, tEN2, tOutputInitsRDM, &
+        tOrthogonaliseReplicas, orthogonalise_iter, tNonInitsForRDMs, &
+        tDetermHFSpawning, use_spawn_hash_table, tInitsRDMRef, &
+        ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
+        trial_shift_iter, tStartTrialLater, &
+        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
+        t_back_spawn, back_spawn_delay, &
+        t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
+        t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
+        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
+        tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
+        t_trunc_guga_pgen_noninits, &
+        tLogAverageSpawns, tActivateLAS, eq_cyc, &
+        t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
+        tDetermProjApproxHamil, tCoreAdaptiveShift, &
+        tScaleBlooms, max_allowed_spawn, tSeniorInitiators, &
+        tloggreensfunction, tPrintReplicaOverlaps
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
-                        tDelayAllDoubsInits, tReferenceChanged, &
-                        SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
-                        SIUpdateOffset
+        tDelayAllDoubsInits, tReferenceChanged, &
+        SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
+        SIUpdateOffset
 
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
-                           tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault, &
-                           compare_amps_period, PopsFileTimer, &
-                           write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
-                           equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
-                           t_spin_measurements, &
-                           tCoupleCycleOutput, StepsPrint, &
-                           tFValEnergyHist, tFValPopHist, &
-                           FvalEnergyHist_EnergyBins, FvalEnergyHist_FValBins, &
-                           FvalPopHist_PopBins, FvalPopHist_FValBins, &
-                           tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
-                           tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
-                           tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent, t_print_core_vec, &
-                           t_store_ci_coeff, t_start_ci_coeff, n_iter_ci_coeff, n_store_ci_level
+        tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault, &
+        compare_amps_period, PopsFileTimer, write_end_core_size, &
+        t_calc_double_occ, t_calc_double_occ_av, &
+        equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
+        t_spin_measurements, tCoupleCycleOutput, StepsPrint, tFValEnergyHist, &
+        tFValPopHist, FvalEnergyHist_EnergyBins, FvalEnergyHist_FValBins, &
+        FvalPopHist_PopBins, FvalPopHist_FValBins, &
+        tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
+        tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
+        tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
+        AccumPopsExpirePercent, t_print_core_vec, &
+        t_store_ci_coeff, t_start_ci_coeff, n_iter_ci_coeff, n_store_ci_level, &
+        RDMEnergyIter, IterRDMonFly, FCIMCDebug, iWriteHistEvery, &
+        tHistEnergies
+
 
     use sdt_amplitudes, only : output_ci_coeff, store_ci_coeff
 
@@ -82,7 +87,8 @@ module FciMCParMod
     use load_balance_calcnodes, only: loadBalanceInterval
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
-    use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone
+    use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone, &
+        flag_trial, flag_connected, flag_removed
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
@@ -107,13 +113,37 @@ module FciMCParMod
     use adi_references, only: setup_reference_space, enable_adi, adjust_nRefs, &
                               update_reference_space
     use fcimc_initialisation
-    use fcimc_iter_utils
-    use replica_estimates
-    use neci_signals
-    use fcimc_helper, only: create_particle, create_particle_with_hash_table
-    use fcimc_output
-    use FciMCData
-    use constants
+    use fcimc_iter_utils, only: fix_trial_overlap, update_iter_data, population_check, &
+        iteration_output_wrapper, calculate_new_shift_wrapper
+
+
+    use replica_estimates, only: get_ests_from_spawns, get_ests_from_spawns_simple
+    use FciMCData, only: precond_denom_all, rep_est_overlap_all, &
+        en2_new_all, en2_pert_all, e_squared_num_all, var_e_num_all, &
+        precond_e_num_all, iter_data_fciqmc, fcimc_iter_data, &
+        proj_e_for_precond, t_global_core_space, SumSpawns, SumSigns, &
+        replica_est_unit, OutputHii, iterrdmstart, &
+        walkerstospawn, tInDetermSpace, HighPopNeg, n_prone_dets, &
+        tFill_RDM, HighPopPos, IterLastRDMFill, TempSpawnedPartsInd
+
+    use Parallel_neci, only: MPI_MIN, MPI_MAX, MPI_SUM, MPIReduce, MPIAllReduce
+
+
+    use neci_signals, only: init_signals, clear_signals
+
+    use timing_neci, only: set_timer, halt_timer
+    use fcimc_helper, only: create_particle, create_particle_with_hash_table, &
+        TestMCExit, diagwalkersubspace, calc_proje, check_start_rdm, &
+        end_iter_stats, perform_death_all_walkers, &
+        rescale_spawns, decide_num_to_spawn, walker_death, &
+        rezero_iter_stats_each_iter, sumecontrib
+    use fcimc_output, only: PrintFCIMCPsi, getProjEOffset, PrintHighPops, &
+        WriteHistogramEnergies, WriteHistogram, print_fval_pop_hist, &
+        print_fval_energy_hist, WriteFCIMCStats, WriteFciMCStatsHeader, &
+        write_fcimcstats2, end_iteration_print_warn
+    use hist_data, only: tHistSpawn
+
+    use util_mod, only: neci_etime, int_fmt
 
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
