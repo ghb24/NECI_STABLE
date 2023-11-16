@@ -601,9 +601,6 @@ module CalcData
     real(dp), allocatable :: wfn_coeff(:)
     integer(kind=n_int), allocatable :: wfn_ilut(:)
 
-    ! HF treshold
-    real(dp) :: tHFTresh
-
     logical :: tInitExpand = .false.
     logical :: tInitExpandAdd = .false.
     logical :: tInitExpandReset = .false.
