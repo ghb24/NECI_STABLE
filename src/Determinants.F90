@@ -386,7 +386,7 @@ contains
                 !the diagonal matrix element of the respective determinant)
 
                 if (tHartreeGutzwiller) then
-                      call calc_det_ratio(nJ,nI,det_ratio)
+                      call calc_det_ratio(nJ, nI, det_ratio)
                       ratio = abs(det_ratio) &
                                 * exp(GutzwillerParam &
                                         * (real(get_helement(nJ, nJ, 0)) &

@@ -3754,7 +3754,7 @@ contains
                 N0_Target = 0
                 if (tokens%remaining_items() > 0) then
                     N0_Target = to_int(tokens%next())
-               end if
+                end if
                 InitExpandPeriod = InitExpandIters+InitRecoverIters
 
             case("INIT-EXPAND-ADD")

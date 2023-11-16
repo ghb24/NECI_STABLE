@@ -1,8 +1,8 @@
 #include "macros.h"
 module HartreeFockGuide
 
-    !This module contains the new stuff about hartree fock guide function
-    !and the stuff about the hf state approx
+    ! This module contains the routines to calculate the HF guiding wavefunction
+    ! for the real-space Hubbard model
 
     use OneEInts, only: GetTMatEl
     use constants, only: dp, EPS
@@ -22,10 +22,11 @@ contains
         real(dp), intent(out) :: det_ratio
         real(dp), allocatable :: UI(:, :), UJ(:, :)
         real(dp) :: determinantJ, determinantI
+
         ! Here we compute the U Matrix in order to access the det ratio
         UI = get_U(nI)
-
         UJ = get_U(nJ)
+
         determinantJ = determinant(UJ)
         determinantI = determinant(UI)
         ! Fix a minimum value to avoid the 0.0
@@ -54,7 +55,7 @@ contains
     subroutine calc_hf_weight(nI, hf_weight)
         integer, intent(in) :: nI(nel)
         real(dp), intent(out) :: hf_weight
-        real(dp), allocatable:: U(:, :)
+        real(dp), allocatable :: U(:, :)
 
         U = get_U(nI)
         hf_weight = determinant(U)
@@ -129,9 +130,11 @@ contains
 
     function abinitio_det(nI, orb_coeff) result(det)
         ! return abinitio overlap determinant value
-        integer :: nI(nel), num_row_swaps, total_num_swaps
+        integer, intent(in) :: nI(nel)
+        real(dp), intent(in) :: orb_coeff(nBasis / 2, nBasis / 2)
+        integer :: num_row_swaps, total_num_swaps
         integer, allocatable :: a_arr(:), b_arr(:)
-        real(dp) :: det, det_a, det_b, orb_coeff(nBasis / 2, nBasis / 2)
+        real(dp) :: det, det_a, det_b
 
         call split_spin_orbs(nI, a_arr, b_arr, num_row_swaps)
 
@@ -162,12 +165,12 @@ contains
         end if
     end function abinitio_det
 
-    function determinant(aa) result(det)
-        real(dp) :: aa(:, :)
+    pure function determinant(aa) result(det)
+        real(dp), intent(in) :: aa(:, :)
         real(dp) :: tmp, c(size(aa, dim=1), size(aa, dim=2))
         real(dp) :: maxi
         integer:: i, k, l, m, num(size(aa, dim=1)), n
-        real(dp):: det
+        real(dp) :: det
 
         n = size(aa, dim=1)
         det = 1.0_dp
@@ -193,7 +196,7 @@ contains
                 do l = k, n
                     aa(m, l) = aa(m, l) - c(m, k) * aa(k, l)
                 end do
-            end do !There we made matrix triangular!
+            end do ! There we made matrix triangular!
         end do
 
         do i = 1, n
