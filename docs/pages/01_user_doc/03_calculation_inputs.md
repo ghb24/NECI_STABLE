@@ -1237,7 +1237,7 @@ and is stopped after 10000 iterations.
     The average is taken over \(i\) iterations.
 
 -   **init-expand-full**<br>
-    Only works in conjunction with `init-expand`. Adds all determinats that are occupied
+    Only works in conjunction with `init-expand`. Adds all determinants that are occupied
     at least once during the first phase of each expansion period.
     
 
