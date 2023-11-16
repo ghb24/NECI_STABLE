@@ -44,7 +44,7 @@ title
   # read integrals from FCIDUMP
   system read
     electrons 6
-    nonuniformrandexcits pchb
+    nonuniformrandexcits pchb delocalised
   endsys
 
   calc
@@ -53,7 +53,11 @@ title
     seed 8
 
     totalWalkers 50000
-    tau 0.01 search
+    tau-values \
+      start user-defined 0.01
+    tau-search \
+      algorithm conventional \
+      stop-condition no-change 1000
 
     # use the initiator method
     truncinitiator
@@ -88,7 +92,7 @@ All these keywords (and plenty more) are explained in the [next section](03_calc
     - We specify the number of iterations the FCIQMC calculation will do, with `nmcyc`. Specifically, we specify 10000 iterations.
     - We also specify a seed with the `seed` keyword. FCIQMC is a randomised algorithm, and setting the seed simply ensures we get the same result every time (useful for testing or checking stochastic effects, for example). This keyword is optional.
     - We also must include the `totalWalkers` keyword, followed by the target number of walkers. Once this number is reached, NECI will enter variable-shift mode; that is, the shift will vary so as to keep the number of walkers constant. We wish to have a statistically significant number of iterations where the number of walkers is roughly constant, as we will see. In this case, we have `totalWalkers 50000`.
-    - We must also include `tau` which is the size of the time step per iteration. The additional keyword `search` is optional but useful for stability.
+    - We must also include `tau-values` followed by `start <source>` to set the source of the initial size of the time step per iteration. The additional keyword `tau-search` and the following keywords are optional but useful for stability.
     - Another form of FCIQMC is i-FCIQMC, which uses "initiator" walkers to speed up the calculation.[@Cleland2010] This is optional, but generally recommended. Presence of the `truncinitiator` keyword in the `calc` block indicates i-FCIQMC, and `addToInitiator 3` means that any determinant with a population >= 3 will become an initiator.
     - Finally, as a mandatory subblock *inside* the calc block, we have the `methods` subblock, which necessarily ends with `endmethods`. Here, we simply specify what kind of calculation to do. We choose `method vertex fcimc`, which simply means to run an FCIQMC calculation.
 - Finally, we have an *optional* `logging` block which ends with `endlog`. By default, NECI will keep track of the population of walkers in a "POPSFILE", which is by default ASCII. Here, we wish to have an HDF5 POPSFILE which is generally better-performing. To do this, inside the `logging` block we have the `hdf5-pops` keyword.
@@ -154,6 +158,10 @@ To do this in one line, [there is a convenience script here](|media|/N2_neci_fil
 which is run with gnuplot via `gnuplot plot_fcimcstats.plt` and will output plots of the most useful columns to a new `plots/` directory.
 Your results should look something like this:
 
+@note
+The population growth in your calculation may be faster than the growth in the plots below, as some algorithms have been updated.
+@endnote
+
 1. ![](|media|/plots1/check_totE.png)
 2. ![](|media|/plots1/check_totWalkers.png)
 3. ![](|media|/plots1/check_refPop.png)
@@ -178,17 +186,20 @@ That is, if all the above 6 plots indicate convergence but the blocking analysis
 
 ### Continuing a NECI Calculation
 
-In order to continue a NECI calculation (for example, if like in this example you have done a calculation only to find you do not have enough data), simply take the same NECI input as above, but add into the calc the `readPops` command, which indicates that NECI must read the popsfile previously created. You may also wish to increase the number of iterations `nmcyc`, e.g.
+In order to continue a NECI calculation (for example, if like in this example you have done a calculation only to find you do not have enough data), simply take the same NECI input as above, but add into the calc the `readPops` command and replace `start user-defined 0.01` with `start from-popsfile`, which indicates that NECI must read the popsfile previously created. You may also wish to increase the number of iterations `nmcyc`, e.g.
 ```text
 title
   ...
   calc
-  readPops
-  nmcyc 70000
+    readPops
+    nmcyc 70000
+    ...
+    tau-values \
+      start from-popsfile
   ...
 end
 ```
-This will add data into the previous FCIMCStats. After you have run this the same way as described above, repeat the blocking analysis. The plots will all still have well-defined plateaus, but the blocking analysis will result in something like this:
+This will add data into the previous `FCIMCStats`. After you have run this the same way as described above, repeat the blocking analysis. The plots will all still have well-defined plateaus, but the blocking analysis will result in something like this:
 
 ![](|media|/plots2/blocking.png)
 
@@ -224,15 +235,18 @@ To be completely sure of our FCIQMC calculation, we must again continue from the
 To do this, we keep the `readPops` keyword and add the keyword and add the `walkContGrow` keyword into the `calc` block. We will, of course, also want to increase the total number of walkers (say, to 100000), and from our previous experience above we know we need more data so we can also increase the number of iterations, i.e.
 ```text
 title
-...
-calc
-# continue on from previous calculation
-readPops
-# allow growth from previous calc
-walkContGrow
+  ...
+  calc
+    # continue on from previous calculation
+    readPops
+    # allow growth from previous calc
+    walkContGrow
 
-nmcyc 100000
-...
+    totalWalkers 50000
+    nmcyc 100000
+    tau-values \
+      start from-popsfile
+  ...
 end
 ```
 
