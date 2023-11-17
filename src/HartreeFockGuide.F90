@@ -16,6 +16,9 @@ module HartreeFockGuide
 
     character(len=1024) :: orb_coeff_name
 
+    private
+    public :: U_matrix, calc_det_ratio, calc_abinitio_det_ratio
+
 contains
     subroutine calc_det_ratio(nJ, nI, det_ratio)
         integer, intent(in) :: nI(nel), nJ(nel)
@@ -52,24 +55,6 @@ contains
         end if
     end subroutine calc_abinitio_det_ratio
 
-    subroutine calc_hf_weight(nI, hf_weight)
-        integer, intent(in) :: nI(nel)
-        real(dp), intent(out) :: hf_weight
-        real(dp), allocatable :: U(:, :)
-
-        U = get_U(nI)
-        hf_weight = determinant(U)
-        if (abs(hf_weight) < FixedNodeMinThresh) hf_weight = FixedNodeLowestVal
-    end subroutine calc_hf_weight
-
-    subroutine calc_abinitio_hf_weight(nI, orb_coeff, hf_weight)
-        integer, intent(in) :: nI(nel)
-        real(dp), intent(in) :: orb_coeff(nBasis / 2, nBasis / 2)
-        real(dp), intent(out) :: hf_weight
-
-        hf_weight = abinitio_det(nI, orb_coeff)
-    end subroutine calc_abinitio_hf_weight
-
     function get_U(nD) result(U_final)
         integer :: nD(nel)
         real(dp) :: U_final(nel, nel)
@@ -82,90 +67,7 @@ contains
         end do
     end function get_U
 
-    subroutine read_orb_coeff(orb_coeff)
-        ! Read an orbital coefficient matrix output and
-        ! construct an overlap matrix
-        ! Currently only supports Molpro coeff file
-
-        ! avoid using dimension
-        real(dp), intent(out) :: orb_coeff(nBasis / 2, nBasis / 2)
-        real(dp) :: line(nBasis / 2)
-        integer :: iunit, i
-
-        open(newunit=iunit, FILE=orb_coeff_name)
-
-        do i = 1, nBasis / 2
-            read(iunit, *) line
-            orb_coeff(:, i) = line
-        end do
-
-        close(iunit)
-    end subroutine read_orb_coeff
-
-    subroutine split_spin_orbs(nI, a_arr, b_arr, num_swaps)
-        ! Split nI into alpha (odd) and beta (even) arrays
-        ! Also count the number of row swaps that necessary to
-        ! construct a block diagonal matrix
-        integer, intent(in)  :: nI(nel)
-        integer, intent(out), allocatable :: a_arr(:), b_arr(:)
-        integer, intent(out) :: num_swaps
-        integer :: i, b_counter
-
-        allocate(a_arr(0))
-        allocate(b_arr(0))
-
-        num_swaps = 0
-        b_counter = 0
-
-        do i = 1, size(nI)
-            if (mod(nI(i), 2) == 0) then
-                b_arr = [b_arr, nI(i)]
-                b_counter = b_counter + 1
-            else
-                a_arr = [a_arr, nI(i)]
-                num_swaps = num_swaps + b_counter
-            end if
-        end do
-    end subroutine split_spin_orbs
-
-    function abinitio_det(nI, orb_coeff) result(det)
-        ! return abinitio overlap determinant value
-        integer, intent(in) :: nI(nel)
-        real(dp), intent(in) :: orb_coeff(nBasis / 2, nBasis / 2)
-        integer :: num_row_swaps, total_num_swaps
-        integer, allocatable :: a_arr(:), b_arr(:)
-        real(dp) :: det, det_a, det_b
-
-        call split_spin_orbs(nI, a_arr, b_arr, num_row_swaps)
-
-        ! final det = sign_factor * det_alpha * det_beta
-
-        ! Selection rules (valid only for the HF guiding wf)
-        ! Even nel: #alpha = #beta
-        ! Odd nel: #alpha = #beta + 1
-        ! Otherwise det = 0
-        if (mod(nel, 2) == 0) then
-            if (size(a_arr) == size(b_arr)) then
-                det_a = determinant(orb_coeff(1:nel / 2,(a_arr + 1) / 2))
-                det_b = determinant(orb_coeff(1:nel / 2, b_arr / 2))
-                total_num_swaps = num_row_swaps + nel * (nel - 2) / 8
-                det = (1 - 2 * mod(total_num_swaps, 2)) * det_a * det_b
-            else
-                det = 0.0_dp
-            end if
-        else
-            if (size(a_arr) == size(b_arr) + 1) then
-                det_a = determinant(orb_coeff(1:(nel + 1) / 2,(a_arr + 1) / 2))
-                det_b = determinant(orb_coeff(1:nel / 2, b_arr / 2))
-                total_num_swaps = num_row_swaps + (nel * nel - 1) / 8
-                det = (1 - 2 * mod(total_num_swaps, 2)) * det_a * det_b
-            else
-                det = 0.0_dp
-            end if
-        end if
-    end function abinitio_det
-
-    pure function determinant(aa) result(det)
+    function determinant(aa) result(det)
         real(dp), intent(in) :: aa(:, :)
         real(dp) :: tmp, c(size(aa, dim=1), size(aa, dim=2))
         real(dp) :: maxi
