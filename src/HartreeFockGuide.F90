@@ -68,7 +68,7 @@ contains
     end function get_U
 
     function determinant(aa) result(det)
-        real(dp), intent(in) :: aa(:, :)
+        real(dp), intent(inout) :: aa(:, :)
         real(dp) :: tmp, c(size(aa, dim=1), size(aa, dim=2))
         real(dp) :: maxi
         integer:: i, k, l, m, num(size(aa, dim=1)), n
