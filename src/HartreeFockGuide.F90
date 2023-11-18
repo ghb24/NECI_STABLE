@@ -12,12 +12,12 @@ module HartreeFockGuide
 
     implicit none
 
+    private
+    public :: U_matrix, calc_det_ratio, calc_abinitio_det_ratio
+
     real(dp), allocatable :: U_matrix(:, :)
 
     character(len=1024) :: orb_coeff_name
-
-    private
-    public :: U_matrix, calc_det_ratio, calc_abinitio_det_ratio
 
 contains
     subroutine calc_det_ratio(nJ, nI, det_ratio)
