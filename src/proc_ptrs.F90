@@ -52,7 +52,7 @@ module procedure_pointers
         ! Generic attempt create routine
         function attempt_create_t(nI, ilutI, wSign, nJ, ilutJ, prob, HElGen, &
                                   ic, ex, tPar, exLevel, part_type, &
-                                  AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) &
+                                  AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac, j) &
             result(child)
 
             use SystemData, only: nel
@@ -72,6 +72,7 @@ module procedure_pointers
             real(dp), intent(in) :: AvExPerWalker
             real(dp), intent(out) :: RDMBiasFacCurr
             real(dp), intent(in) :: precond_fac
+            integer, intent(in), optional :: j
             HElement_t(dp), intent(inout) :: HElGen
             real(dp) :: child(lenof_sign)
 
@@ -113,16 +114,18 @@ module procedure_pointers
 
         !
         ! Generic particle death routine
-        function attempt_die_t(nI, Kii, wSign, exLevel, DetPosition) result(ndie)
+        function attempt_die_t(nI, Kii, wSign, exLevel, DetPosition, ilutCurr) result(ndie)
 
             use SystemData, only: nel
             use constants
+            use bit_rep_data, only: NIfTot
             implicit none
 
             integer, intent(in) :: nI(nel), exLevel
             real(dp), intent(in) :: Kii, wSign(lenof_sign)
             integer, intent(in), optional :: DetPosition
             real(dp), dimension(lenof_sign) :: ndie
+            integer(kind=n_int), intent(in), optional :: ilutCurr(0:NIfTot)
 
         end function
 

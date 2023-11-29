@@ -2,9 +2,8 @@ module hdiag_from_excit
 
     use bit_rep_data, only: NIfTot
     use constants, only: dp, n_int
-    use DetBitOps, only: CalcOpenOrbs, TestClosedShellDet, FindBitExcitLevel
+    use DetBitOps, only: CalcOpenOrbs, TestClosedShellDet, FindBitExcitLevel, FindExcitBitDetSym
     use Integrals_neci, only: get_umat_el
-    use HPHFRandExcitMod, only: FindExcitBitDetSym
     use OneEInts, only: GetTMatEl
     use sltcnd_mod, only: sltcnd
     use SystemData, only: nel, tExch, G1, tReltvy, tHPHF, tOddS_HPHF

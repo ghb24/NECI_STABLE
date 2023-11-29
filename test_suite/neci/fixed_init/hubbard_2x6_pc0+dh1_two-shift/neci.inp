@@ -1,0 +1,41 @@
+title
+
+system hubbard real-space
+    lattice rectangle  2  6
+    b -1
+    u  8
+    electrons 12
+endsys
+
+calc
+    methods
+    method vertex fcimc
+    endmethods
+
+    seed -7
+    load-balance-blocks off
+    totalwalkers   8000
+    fixed-n0   20
+    tau-values \
+        start user-defined 0.001
+    start-neel-state
+    allrealcoeff
+    shiftdamp 0.1
+    stepsshift 10
+    memoryfacpart  50.00
+    memoryfacspawn  100.00
+    gutzwiller-guide -0.1
+    trunc-hubb  0 -1 -1  1
+    mod-shift-target .1 -40. 4000 200
+    nmcyc 7000
+endcalc
+
+logging
+    highlypopwrite 1000
+    hdf5-pops
+    writeinitiators
+    exlevel
+    mc-hilbert-space-size   10000
+endlog
+
+end

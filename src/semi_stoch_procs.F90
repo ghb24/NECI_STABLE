@@ -7,10 +7,12 @@ module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, NIfD, NIfTot, test_flag, &
                             test_flag_multi, IlutBits, extract_sign, &
-                            flag_connected, flag_trial
+                            flag_connected, flag_trial, &
+                            flag_nospawn, flag_expanded, well_defined
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run, &
-        set_flag, encode_sign
+                        set_flag, encode_sign
+
     use calcrho_mod, only: igetexcitlevel
 
     use mpi_f08, only: MPI_INTEGER, MPI_INTEGER8, MPI_IN_PLACE, MPI_AllGather, &
@@ -20,7 +22,7 @@ module semi_stoch_procs
 
     use constants
 
-    use util_mod, only: stop_all, neci_flush, warning_neci
+    use util_mod, only: stop_all, neci_flush, warning_neci, operator(.implies.)
 
     use orb_idx_mod, only: SpinOrbIdx_t
 
@@ -1283,8 +1285,10 @@ contains
                 call extract_sign(CurrentDets(:, i), walker_sign)
                 ! Don't add the determinant to the hash table if its unoccupied and not
                 ! in the core space and not accumulated.
-                if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:, i))) &
-                    .and. .not. tAccumEmptyDet(CurrentDets(:, i))) cycle
+                 if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:, i))) &
+                     .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
+                     .and. (well_defined(flag_nospawn) .implies. (.not. test_flag(CurrentDets(:, i), flag_nospawn))) &
+                     .and. (well_defined(flag_expanded) .implies. (.not. test_flag(CurrentDets(:, i), flag_expanded)))) cycle
                 call decode_bit_det(nI, CurrentDets(:, i))
                 hash_val = FindWalkerHash(nI, nWalkerHashes)
                 temp_node => HashIndex(hash_val)

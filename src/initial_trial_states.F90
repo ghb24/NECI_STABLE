@@ -640,6 +640,8 @@ contains
         use hash, only: hash_table_lookup
         use Parallel_neci, only: MPISumAll
         use SystemData, only: nel
+        use CalcData, only: tImportanceSampling
+        use Determinants, only: calcImportanceGuide
 
         integer(n_int), intent(in) :: trial_iluts(0:, :)
         integer, intent(in) :: ntrial
@@ -682,6 +684,9 @@ contains
                 else
                     trial_sign = qmc_sign
                 end if
+                if(tImportanceSampling)then
+                    trial_sign = trial_sign / calcImportanceGuide(nI)
+                endif
 
                 norm = norm + trial_sign**2
                 evecs_this_proc(:, i) = trial_sign

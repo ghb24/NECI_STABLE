@@ -35,7 +35,7 @@ MODULE HPHFRandExcitMod
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
-                         DetBitEQ, GetBitExcitation
+                         DetBitEQ, FindExcitBitDetSym, FindDetSpinSym, GetBitExcitation
 
     use FciMCData, only: pDoubles, ilutRef
 
@@ -518,80 +518,6 @@ contains
 
     END SUBROUTINE ReturnAlphaOpenDet
 
-!This create the spin-coupled determinant of nI in nJ in natural ordered form.
-    PURE SUBROUTINE FindDetSpinSym(nI, nJ, NEl)
-        INTEGER, intent(in) :: NEl, nI(NEl)
-        integer, intent(out) :: nJ(NEl)
-        integer :: i
-
-
-        ! for debug compilation treat first entry seperately
-        if (is_alpha(nI(1))) then
-            nJ(1) = nI(1) - 1
-        else
-            if (get_alpha(nI(1)) /= nI(2)) then
-                nJ(1) = nI(1) + 1
-            else
-                nJ(1) = nI(1)
-            end if
-        end if
-
-        do i = 2, nel
-            ! If electron is an alpha electron, change it to a beta (unless
-            ! it is part of a closed pair of electrons).
-            if(is_alpha(nI(i))) then
-                if(i == 1) then
-                    nJ(i) = nI(i) - 1
-                else if(get_beta(nI(i)) /= nI(i - 1)) then
-                    nJ(i) = nI(i) - 1
-                else
-                    nJ(i) = nI(i)
-                end if
-                ! vice-versa for beta.
-            else
-                if(i == nel) then
-                    nJ(i) = nI(i) + 1
-                else if(get_alpha(nI(i)) /= nI(i + 1)) then
-                    nJ(i) = nI(i) + 1
-                else
-                    nJ(i) = nI(i)
-                end if
-            end if
-        end do
-
-    END SUBROUTINE FindDetSpinSym
-
-!In closed-shell systems with equal number of alpha and beta strings, the amplitude of a
-!determinant in the final CI wavefunction is the same
-!when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details).
-!It will sometimes be necessary to find this other
-!determinant when spawning. This routine will find the bit-representation of an excitation
-!by constructing the symmetric iLut from the its
-!symmetric partner, also in bit form.
-    PURE SUBROUTINE FindExcitBitDetSym(iLut, iLutSym)
-        IMPLICIT NONE
-        INTEGER(KIND=n_int), intent(in) :: iLut(0:NIfTot)
-        INTEGER(KIND=n_int), intent(out) :: iLutSym(0:NIfTot)
-        INTEGER(KIND=n_int) :: iLutAlpha(0:NIfTot), iLutBeta(0:NIfTot)
-        INTEGER :: i
-
-        iLutSym(:) = 0
-        iLutAlpha(:) = 0
-        iLutBeta(:) = 0
-
-        do i = 0, NIfD
-
-            iLutAlpha(i) = IAND(iLut(i), MaskAlpha)    !Seperate the alpha and beta bit strings
-            iLutBeta(i) = IAND(iLut(i), MaskBeta)
-
-            iLutAlpha(i) = ISHFT(iLutAlpha(i), -1)  !Shift all alpha bits to the left by one.
-            iLutBeta(i) = ISHFT(iLutBeta(i), 1)   !Shift all beta bits to the right by one.
-
-            iLutSym(i) = IOR(iLutAlpha(i), iLutBeta(i))    !Combine the bit strings to give the final bit representation.
-
-        end do
-
-    END SUBROUTINE FindExcitBitDetSym
 
 !!This routine will take a HPHF nI, and find Iterations number of excitations of it.
 !It will then histogram these, summing in 1/pGen for every occurance of

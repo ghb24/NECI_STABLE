@@ -6,12 +6,12 @@ module fast_determ_hamil
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: decode_bit_det
     use constants
-    use DetBitOps, only: CountBits, TestClosedShellDet, CalcOpenOrbs
-    use Determinants, only: get_helement
+    use DetBitOps, only: CountBits, TestClosedShellDet, CalcOpenOrbs, FindExcitBitDetSym
+    use CalcData, only: tImportanceSampling
+    use Determinants, only: get_helement, calcImportanceRatio
     use FciMCData, only: Hii
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_off_diag_helement_opt, hphf_off_diag_special_case
-    use HPHFRandExcitMod, only: FindExcitBitDetSym
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, iProcIndex_intra, mpi_comm_intra
     use sltcnd_mod, only: sltcnd_knowIC
     use sparse_arrays
@@ -1443,8 +1443,10 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), &
-                        rep%core_space(:, ind_j))
+                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
+                    if(tImportanceSampling)then
+                        hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j),nI,rep%core_space(:, i_full))
+                    endif
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_j)
                         call hamil_row%push_back(hel)
@@ -1465,8 +1467,10 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), &
-                        rep%core_space(:, ind_j))
+                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
+                    if(tImportanceSampling)then
+                        hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j), nI,rep%core_space(:, i_full))
+                    endif
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_j)
                         call hamil_row%push_back(hel)
@@ -1487,6 +1491,9 @@ contains
                     ind_k = alpha_dets%sub(int(ind_alpha_conn, int32), intersec_inds(k))
                     call decode_bit_det(nK, rep%core_space(:, ind_k))
                     hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
+                    if(tImportanceSampling)then
+                        hel = hel*calcImportanceRatio(nK, rep%core_space(:, ind_k), nI,rep%core_space(:, i_full))
+                    endif
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_k)
                         call hamil_row%push_back(hel)

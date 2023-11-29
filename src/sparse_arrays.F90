@@ -13,10 +13,10 @@ module sparse_arrays
 
     use bit_rep_data, only: NIfTot, NIfD, nifguga
     use bit_reps, only: decode_bit_det
-    use CalcData, only: tReadPops
+    use CalcData, only: tReadPops, tImportanceSampling
     use constants
     use DetBitOps, only: DetBitEq, CountBits, TestClosedShellDet
-    use Determinants, only: get_helement
+    use Determinants, only: get_helement, calcImportanceRatio
     use FciMCData, only: SpawnedParts, Hii
     use core_space_util, only: cs_replicas, sparse_matrix_real, sparse_matrix_int, &
                                core_space_t
@@ -535,6 +535,9 @@ contains
 !                             hamiltonian_row(j) = get_helement(nI_tmp, nJ_tmp, IC, ilutI_tmp, ilutJ_tmp)
                             hamiltonian_row(j) = get_helement(nJ_tmp, nI_tmp, IC, ilutJ_tmp, ilutI_tmp)
                         end if
+                        if(tImportanceSampling)then
+                            hamiltonian_row(j) = hamiltonian_row(j)*calcImportanceRatio(nJ, IlutJ, nI,ilutI)
+                        endif
                     end if
                     if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                 end if

@@ -8,22 +8,24 @@ module load_balance
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas, tSeniorInitiators, &
-                        t_activate_decay, tAutoAdaptiveShift, tMoveGlobalDetData
+                        t_activate_decay, tAutoAdaptiveShift, tMoveGlobalDetData, &
+                        tBosonNoSpawn, tModShiftCorr, tModShiftPhase
     use global_det_data, only: global_determinant_data, &
                                global_determinant_data_tmp, &
                                set_det_diagH, set_det_offdiagH, &
                                set_spawn_rate, set_supergroup_idx, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints, det_diagH, &
-                               store_decoding, reset_all_tot_spawns, &
-                               reset_all_acc_spawns
+                               reset_all_shift_ints, det_diagH, store_decoding, &
+                               reset_all_tot_spawns, reset_all_acc_spawns, &
+                               scale_corr_pop, get_corr_pop
     use bit_rep_data, only: flag_initiator, nifd, &
                             flag_connected, flag_trial, flag_prone, flag_removed, &
                             niftot, flag_deterministic, test_flag, extract_sign, &
-                             test_flag_multi
+                            flag_modshift, test_flag_multi, flag_nospawn, &
+                            flag_expanded, well_defined
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut, writebitdet, &
-                        decode_bit_det
+                        encode_part_sign, nullify_ilut, &
+                        writebitdet, decode_bit_det
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
@@ -33,7 +35,7 @@ module load_balance
                          InstNoAtHf, NoBorn, NoRemoved, iStartFreeSlot, &
                          iter, IterRDM_HF, tEScaleWalkers, TotParts, &
                          Hii, MaxWalkersPart, tTrialHash, TotWalkers, &
-                         trial_space_size, ll_node
+                         trial_space_size, ll_node, NoBosonActiveWalk
     use core_space_util, only: cs_replicas
     use gasci_supergroup_index, only: lookup_supergroup_indexer
     use SystemData, only: nel
@@ -55,7 +57,7 @@ module load_balance
         MPIRecv, MPISend, nProcessors, iProcIndex, root, bNodeRoot, &
         nNodes
     use constants, only: int64, dp, n_int, stdout, stderr, inum_runs, lenof_sign
-    use util_mod, only: stop_all, neci_flush, abs_sign, operator(.div.)
+    use util_mod, only: stop_all, neci_flush, abs_sign, operator(.div.), operator(.implies.)
     use hash, only: add_hash_table_entry, remove_hash_table_entry, &
         FindWalkerHash
 
@@ -139,7 +141,12 @@ contains
         mapping_test = 0
         do j = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, j), sgn)
-            if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j))) cycle
+            if (IsUnoccDet(sgn) &
+                    .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
+                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) then
+                cycle
+            end if
 
             ! Use ceiling as part-integer particles involve the same
             ! computational cost...
@@ -215,7 +222,10 @@ contains
         do j = 1, int(TotWalkers)
 
             call extract_sign(CurrentDets(:, j), sgn)
-            if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j))) then
+            if (IsUnoccDet(sgn) &
+                    .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
+                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) then
                 HolesInList = HolesInList + 1
                 if (tAccumPopsActive) then
                     iEndFreeSlot = iEndFreeSlot + 1
@@ -390,7 +400,12 @@ contains
 
                 ! Skip unoccupied sites (non-contiguous)
                 call extract_sign(CurrentDets(:, j), sgn)
-                if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:, j))) cycle
+                if (IsUnoccDet(sgn) &
+                        .and. .not. tAccumEmptyDet(CurrentDets(:, j)) &
+                        .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                        .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) then
+                    cycle
+                end if
 
                 call decode_bit_det(det, CurrentDets(:, j))
                 det_block = get_det_block(nel, det, 0)
@@ -678,7 +693,11 @@ contains
                 if (tSemiStochastic) tIsStateDeterm = test_flag_multi(CurrentDets(:, i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                    if (.not. tAccumEmptyDet(CurrentDets(:, i))) AnnihilatedDet = AnnihilatedDet + 1
+                    if (.not. tAccumEmptyDet(CurrentDets(:, i)) &
+                            .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn)) &
+                            .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, i), flag_expanded))) then
+                        AnnihilatedDet = AnnihilatedDet + 1
+                    end if
                 else
 
                     ! count the number of walkers that are single-spawns at the threshold
@@ -706,7 +725,10 @@ contains
                                     CurrentSign(j) = 0.0_dp
                                     call nullify_ilut_part(CurrentDets(:, i), j)
                                     call decode_bit_det(nI, CurrentDets(:, i))
-                                    if (IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:, i))) then
+                                    if (IsUnoccDet(CurrentSign) &
+                                            .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
+                                            .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn)) &
+                                            .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, i), flag_expanded))) then
                                         call RemoveHashDet(HashIndex, nI, i)
                                         ! also update both the number of annihilated dets
                                         AnnihilatedDet = AnnihilatedDet + 1
@@ -717,10 +739,20 @@ contains
                                     NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(CurrentSign(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) &
                                                          + scaledOccupiedThresh - abs(CurrentSign(j))
+                                    if (tModShiftCorr) then
+                                        !print *, j, "Original", get_corr_pop(j, run)
+                                        !print *, j, "Factor", abs(ScaledOccupiedThresh/CurrentSign(j))
+                                        call scale_corr_pop(i, run, abs(ScaledOccupiedThresh/CurrentSign(j)))
+                                        !print *, j, "Final", get_corr_pop(j, run)
+                                    end if
                                     CurrentSign(j) = sign(scaledOccupiedThresh, CurrentSign(j))
                                     call encode_part_sign(CurrentDets(:, i), CurrentSign(j), j)
                                 end if
                             end if
+                        end if
+
+                        if (tBosonNoSpawn .and. .not. test_flag(CurrentDets(:, i), flag_nospawn)) then
+                            NoBosonActiveWalk(j) = NoBosonActiveWalk(j) + abs(CurrentSign(j))
                         end if
                     end do
 
@@ -801,7 +833,7 @@ contains
             write(stdout, *) "TotParts: ", TotParts
             call neci_flush(stdout)
             call stop_all(t_r, "Error in determining annihilated determinants")
-        end if
+       end if
     end subroutine CalcHashTableStats
 
     subroutine addNormContribution(CurrentSign, tIsStateDeterm)

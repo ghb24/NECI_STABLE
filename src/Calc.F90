@@ -80,6 +80,7 @@ MODULE Calc
 
     use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
     use real_time, only: perform_real_time_fciqmc
+    use lattice_mod, only: lat
 
     use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range
 
@@ -180,6 +181,19 @@ contains
         tTrialShift = .false.
         tFixTrial(:) = .false.
         TrialTarget = 0.0
+        tInitShift = .false.
+        tModShiftTarget = .false.
+        tModShiftPhase = .false.
+        tModShiftCorr = .false.
+        tModShiftCorrOnlyS1 = .false.
+        ModShiftCorrPrefac = 1.0_dp
+        ModShiftTargetFrac = 0.0_dp
+        tot_walkers = 0.0_dp
+        TargetWalkers1 = 1000.0_dp
+        TargetWalkers2 = 0.0_dp
+        DiagSft2Init = -100.0_dp
+        ModShiftTargetIter = 5000
+        ModShiftConstIters = 10
         tAdaptiveShift = .false.
         tCoreAdaptiveShift = .false.
         tLinearAdaptiveShift = .false.
@@ -320,6 +334,8 @@ contains
         tDefineDet = .false.
         tTruncInitiator = .false.
         tAddtoInitiator = .false.
+        tNonInitModShift = .false.
+        modShift = 0.0_dp
         tActivateLAS = .false.
         tLogAverageSpawns = .false.
         spawnSgnThresh = 3.0_dp
@@ -348,6 +364,9 @@ contains
         RealSpawnCutoff = 0.95_dp
         OccupiedThresh = 1.0_dp
         tJumpShift = .true.
+        tNoNegSpawns = .false.
+        tTruncInitHalf = .false.
+        NoNegSpawnThresh = 0.0_dp
 !Feb 08 default set.
         IF(Feb08) THEN
             RhoEpsilon = 1.0e-8_dp
@@ -497,6 +516,24 @@ contains
         ! scaling of spawns
         tScaleBlooms = .false.
         max_allowed_spawn = MaxWalkerBloom
+        SftDamp2 = 0.0
+
+        tImportanceSampling = .false.
+        tGutzwillerGuide = .false.
+        GutzwillerParam = 0.0
+        tGutzwillerHubbardAF = .false.
+        GutzwillerParam2 = 0.0
+        tHubbardDoublonHolon = .false.
+        GutzwillerParam3 = 0.0
+
+        NoSpawnThresh = 3.0
+
+        FreePropStart = 0
+        FreePropPeriod = 0
+        RecoveryPeriod = 0
+        FreePropSwitch = 0
+        FreePropMinRef = 10.0
+
         t_left_trial = .false.
     end subroutine SetCalcDefaults
 
@@ -1626,11 +1663,11 @@ contains
                 ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
                 ras_min_1 = to_int(tokens%next())  ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
                 ras_max_3 = to_int(tokens%next())  ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
-                ss_space_in%ras%size_1 = int(ras_size_1, sp)
-                ss_space_in%ras%size_2 = int(ras_size_2, sp)
-                ss_space_in%ras%size_3 = int(ras_size_3, sp)
-                ss_space_in%ras%min_1 = int(ras_min_1, sp)
-                ss_space_in%ras%max_3 = int(ras_max_3, sp)
+                ss_space_in%ras%size_1 = int(ras_size_1)
+                ss_space_in%ras%size_2 = int(ras_size_2)
+                ss_space_in%ras%size_3 = int(ras_size_3)
+                ss_space_in%ras%min_1 = int(ras_min_1)
+                ss_space_in%ras%max_3 = int(ras_max_3)
             case("OPTIMISED-CORE")
                 ss_space_in%tOptimised = .true.
             case("OPTIMISED-CORE-CUTOFF-AMP")
@@ -2056,6 +2093,43 @@ contains
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
+            case("INIT-SHIFT")
+                tInitShift = .true.
+            case("MOD-SHIFT-TARGET")
+                tTruncInitiator = .true.
+                tTargetShiftdamp = .true.
+                tNonInitModShift = .true.
+                tModShiftTarget = .true.
+                ModShiftTargetFrac = to_realdp(tokens%next())
+                if (.not. (0._dp <= ModShiftTargetFrac .and. ModShiftTargetFrac <= 1._dp)) then
+                    call stop_all(t_r, 'Give a fraction between 0 and 1 for MOD-SHIFT-TARGET')
+                end if
+                tot_walkers = real(InitWalkers, dp) * real(nProcessors, dp)
+                TargetWalkers2 = tot_walkers * ModShiftTargetFrac
+                TargetWalkers1 = tot_walkers - TargetWalkers2
+                DiagSft2Init = to_realdp(tokens%next())
+                ModShiftTargetIter = to_int(tokens%next())
+                ModShiftConstIters = to_int(tokens%next())
+                if (tReadPops) then
+                    ModShiftTargetIter = 0
+                    ModShiftConstIters = 0
+                end if
+                SftDamp2 = SftDamp**2 / 4._dp
+                tModShiftPhase = tModShiftPhase .or. tFixedN0
+            case("MOD-SHIFT-CORR")
+                tModShiftCorr = .true.
+                if(tokens%remaining_items() > 0) then
+                    ModShiftCorrPrefac = to_realdp(tokens%next())
+                end if
+            case("MOD-SHIFT-CORR-ONLY-S1")
+                if (.not. tModShiftTarget) then
+                    call stop_all(t_r, 'Only works in conjunction with MOD-SHIFT-SHIFT or MOD-SHIFT-TARGET')
+                end if
+                tModShiftCorr = .true.
+                tModShiftCorrOnlyS1 = .true.
+                if(tokens%remaining_items() > 0) then
+                    ModShiftCorrPrefac = to_realdp(tokens%next())
+                end if
             case("LINEAR-ADAPTIVE-SHIFT", "ADAPTIVE-SHIFT")
                 ! scale the shift down per determinant linearly depending on the local population
                 tAdaptiveShift = .true.
@@ -2494,6 +2568,9 @@ contains
 !determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space.
                 tTruncInitiator = .true.
+            case("TRUNCINITIATOR-HALF")
+                tTruncInitiator = .true.
+                tTruncInitHalf = .true.
             case("AVSPAWN-INITIATORS")
 ! Create initiators based on the average spawn onto some determinant
                 tActivateLAS = .true.
@@ -2506,8 +2583,18 @@ contains
 ! using the population of that replica
                 tGlobalInitFlag = .true.
 
+            case("NON-INIT-MOD-SHIFT")
+! Applies modified shift to spawns of non-initiators (which are allowed).
+                tTruncInitiator = .true.
+                tNonInitModShift = .true.
+                modShift = to_realdp(tokens%next())
+
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule = .false.
+
+            case("NO-NEG-SPAWNS")
+                tNoNegSpawns = .true.
+                NoNegSpawnThresh = to_realdp(tokens%next())
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")
@@ -3594,12 +3681,137 @@ contains
 
             case("ALLOW-SPAWN-EMPTY")
                 tAllowSpawnEmpty = .true.
+            case("GUTZWILLER-GUIDE")
+                tImportanceSampling = .true.
+                tGutzwillerGuide = .true.
+                GutzwillerParam = to_realdp(tokens%next())
+            case("PRINT-UMAT")
+                tPrintUMat = .true.
+            case("HARTREE-GUTZWILLER")
+                tImportanceSampling = .true.
+                tGutzwillerGuide = .true.
+                tHartreeGutzwiller = .true.
+                GutzwillerParam = to_realdp(tokens%next())
+            case("CONTROL-ZERO-DENOM")
+                tControlZeroDenom = .true.
+            case("MEASURE-OVERLAP")
+                ! Measure the overlap between the given trial wavefunction and
+                ! the fciqmc wave function.
+                ! Note that the trial wave function here is not the same as the
+                ! trial wave function determined by the population (TRIAL-WAVEFUNCTION).
+                tMeasureOverlap = .true.
+            case("GUTZWILLER-ANTIFERRO")
+                tGutzwillerHubbardAF = .true.
+                GutzwillerParam2 = to_realdp(tokens%next())
+            case("HUBBARD-DOUBLON-HOLON")
+                tHubbardDoublonHolon = .true.
+                GutzwillerParam3 = to_realdp(tokens%next())
+
+            case("FREE-PROP")
+                FreePropStart = to_int(tokens%next())! This reads in the first iteration to switch free propogation on
+
+                if (tokens%remaining_items() > 0) then
+                    FreePropPeriod = to_int(tokens%next())
+                endif
+                if (tokens%remaining_items() > 0) then
+                    RecoveryPeriod = to_int(tokens%next())
+                endif
+                FreePropSwitch = merge(0, FreePropStart, FreePropPeriod <= 0)
+
+                !If recovery period is not specified use the same number of
+                !iterations used for the initial initiator period
+                if (RecoveryPeriod <= 0) RecoveryPeriod = FreePropStart
+
+                tTruncInitiator = .true.
+
+            case("FP-MIN-REF")
+                FreePropMinRef = to_realdp(tokens%next())
+
+            case("RENORM")
+                tRenorm = .true.
+
+            case("STOQ-NOSPAWN")
+                tBosonNoSpawn = .true.
+                BosonNoSpawnThreshold = to_realdp(tokens%next())
+                FermionNoSpawnThreshold = to_realdp(tokens%next())
+                bosonic_popsfile = 'stoq.h5'
+
+            case("NOSPAWN-REV")
+                tNoSpawnRev = .true.
+                NoSpawnThresh = to_realdp(tokens%next())
+
+            case("INIT-EXPAND")
+                tInitExpand = .true.
+                InitExpandStart = to_int(tokens%next())
+                InitExpandIters = to_int(tokens%next())
+                InitRecoverIters = to_int(tokens%next())
+                tFixedN0 = .false.
+                N0_Target = 0
+                if (tokens%remaining_items() > 0) then
+                    N0_Target = to_int(tokens%next())
+                end if
+                InitExpandPeriod = InitExpandIters+InitRecoverIters
+
+            case("INIT-EXPAND-ADD")
+                tInitExpandAdd = .true.
+
+            case("INIT-EXPAND-RESET")
+                tInitExpandReset = .true.
+
+            case("INIT-EXPAND-ANNIHIL")
+                tInitExpandAnnihil = .true.
+                InitExpandAnnihilThresh = to_realdp(tokens%next())
+                InitExpandAnnihilIters = to_realdp(tokens%next())
+
+            case("INIT-EXPAND-FULL")
+                tInitExpandFull = .true.
+
+            case("TRUNC-HUBB")
+                tTruncateDets = .true.
+                tTruncateHubbard = .true.
+                !Criteria values:
+                ! - negative: disable criterion
+                ! - zero: nearst neighbors
+                ! - one: with diagonals
+                ! - two: next nearest neightbors
+                if (tokens%remaining_items() > 0) then
+                    pairing_criterion = to_int(tokens%next())
+                    if (pairing_criterion > 2)then
+                        call stop_all(t_r, "Pairing criterion should be less than or equal 2")
+                    endif
+                endif
+                if (tokens%remaining_items() > 0) then
+                    repel_criterion = to_int(tokens%next())
+                    if (repel_criterion > 2)then
+                        call stop_all(t_r, "Repel criterion should be less than or equal 2")
+                    endif
+                endif
+                af_criterion = to_int(tokens%next())
+                max_doublons = to_int(tokens%next())
+                if (tokens%remaining_items() > 0) then
+                    max_holons = to_int(tokens%next())
+                else
+                    max_holons = max_doublons
+                endif
+
+            case("TRUNC-HUBB-ALL-CLOSE")
+                tTruncHubbAllClose = .true.
+
+            case ("EXLEVEL-AF-TRUNC")
+                tExLevelAFCriterion = .true.
+
+            case ("AF-TRUNC-BRACKET")
+                tAFTruncBracket = .true.
+                if (tokens%remaining_items() > 0) then
+                    af_criterion_bracket = to_int(tokens%next())
+                else
+                    af_criterion_bracket = 2 * lat%get_total_links() - af_criterion
+                endif
 
             case default
                 call stop_all(this_routine, &
                     "Keyword "//trim(w)//" not recognized in CALC block")
             end select
-
         end do calc
 
         IF(.not.(TReadPops .or. (ScaleWalkers.isclose.1.0_dp))) THEN
@@ -3623,7 +3835,6 @@ contains
 
         if(tOutputInitsRDM .and. tInitsRDMRef) call stop_all(t_r, &
                                                              "Incompatible keywords INITS-GAMMA0 and INITS-RDM")
-
     contains
 
         subroutine setDefdet(m, orb)

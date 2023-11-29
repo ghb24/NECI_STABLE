@@ -13,7 +13,7 @@ module rdm_filling
                               fill_csf_i, identify_excitation, CSF_Info_t
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
-                        tNonVariationalRDMs
+                        tNonVariationalRDMs, tImportanceSampling
     use FciMCData, only: projEDet, ilutRef
     use DetBitOps, only: DetBitEq, GetBitExcitation
     use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
@@ -22,6 +22,7 @@ module rdm_filling
                         add_rdm_from_ij_pair_guga_exact
     use util_mod, only: near_zero
     use guga_data, only: excit_type, ExcitationInformation_t
+    use Determinants, only: calcImportanceGuide
     use LoggingData, only: t_full_core_rdms
 
     use excit_mod, only: getexcitation
@@ -120,11 +121,10 @@ contains
         ! been occupied.
 
         use bit_reps, only: decode_bit_det, all_runs_are_initiator
-        use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
+        use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel,FindExcitBitDetSym
         use FciMCData, only: Iter, IterRDMStart, PreviousCycles, AvNoAtHF
         use global_det_data, only: len_iter_occ_tot
         use hphf_integrals, only: hphf_sign
-        use HPHFRandExcitMod, only: FindExcitBitDetSym
         use LoggingData, only: RDMEnergyIter, RDMExcitLevel
         use rdm_data, only: one_rdm_t
         use SystemData, only: tHPHF
@@ -622,9 +622,8 @@ contains
         ! and we have also considered I' -> J'. But we need to also account
         ! for I -> J' and I' -> J.
 
-        use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
+        use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel, FindExcitBitDetSym, FindDetSpinSym
         use hphf_integrals, only: hphf_sign
-        use HPHFRandExcitMod, only: FindExcitBitDetSym, FindDetSpinSym
         use rdm_data, only: one_rdm_t
         use SystemData, only: nel
 
@@ -724,6 +723,7 @@ contains
         integer :: Ex(2, maxExcit), Ex_symm(2, maxExcit)
         logical :: tParity
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
+        real(dp)  :: guideI, guideJ
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_From_IJ_Pair"
 #endif
@@ -736,6 +736,14 @@ contains
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
         call GetExcitation(nI, nJ, nel, Ex, tParity)
+
+        if(tImportanceSampling)then
+            guideI = calcImportanceGuide(nI)
+            guideJ = calcImportanceGuide(nJ)
+        else
+            guideI = 1.0_dp
+            guideJ = 1.0_dp
+        endif
 
         full_sign = 0.0_dp
         if (tParity) then
@@ -752,16 +760,16 @@ contains
             ! Add in the contribution from this pair into the 1-RDM.
 
             if (RDMExcitLevel == 1) then
-                call fill_sings_1rdm(one_rdms, Ex, tParity, realSignI, realSignJ, .false.)
+                call fill_sings_1rdm(one_rdms, Ex, tParity, realSignI/guideI, realSignJ/guideJ, .false.)
             else
-                call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
+                call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign/(guideI*guideJ))
             end if
 
         else if (RDMExcitLevel /= 1) then
 
             ! Otherwise Di and Dj are connected by a double excitation.
             ! Add in this contribution to the 2-RDM, if being calculated.
-            call add_to_rdm_spawn_t(spawn, Ex(2, 1), Ex(2, 2), Ex(1, 1), Ex(1, 2), full_sign, .false.)
+            call add_to_rdm_spawn_t(spawn, Ex(2, 1), Ex(2, 2), Ex(1, 1), Ex(1, 2), full_sign/(guideI*guideJ), .false.)
         end if
 
     end subroutine Add_RDM_From_IJ_Pair
@@ -776,12 +784,18 @@ contains
         real(dp), intent(in) :: full_sign(spawn%rdm_send%sign_length)
 
         integer :: iel, jel
+        real(dp) :: guideI2
 
+        if(tImportanceSampling)then
+            guideI2 =  calcImportanceGuide(nI)**2
+        else
+            guideI2 = 1.0
+        endif
         ! Looking at elements of the type Gamma(i,j,i,j).
         do iel = 1, nel - 1
             do jel = iel + 1, nel
                 associate(i => nI(iel), j => nI(jel))
-                    call add_to_rdm_spawn_t(spawn, i, j, i, j, full_sign, .false.)
+                    call add_to_rdm_spawn_t(spawn, i, j, i, j, full_sign/guideI2, .false.)
                 end associate
             end do
         end do
@@ -849,6 +863,13 @@ contains
         integer :: RDMIters(size(one_rdms))
         real(dp) :: ScaleContribFac, final_contrib(size(one_rdms))
         logical :: tCoreSpaceDet, tLC
+        real(dp) :: guideI2
+
+        if(tImportanceSampling)then
+            guideI2 =  calcImportanceGuide(nI)**2
+        else
+            guideI2 = 1.0
+        endif
 
         if (present(tLagrCorr)) then
             tLC = tLagrCorr
@@ -882,9 +903,9 @@ contains
                 ind = SymLabelListInv_rot(gtID(nI(i)))
             end if
             if (size(contrib_sign) == 1) then
-                final_contrib = contrib_sign**2 * RDMIters * ScaleContribFac
+                final_contrib = contrib_sign**2 * RDMIters * ScaleContribFac / guideI2
             else
-                final_contrib = contrib_sign(1::2)*contrib_sign(2::2) * RDMIters * ScaleContribFac
+                final_contrib = contrib_sign(1::2)*contrib_sign(2::2) * RDMIters * ScaleContribFac / guideI2
             end if
             ! in adaptive shift mode, the reference contribution is rescaled
             ! we assume that projEDet is the same on all runs, else there is no point
@@ -969,6 +990,7 @@ contains
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         type(CSF_Info_t) :: csf_i, csf_j
         integer :: nI(nel), nJ(nel), IC, n
+        real(dp) :: guideI, guideJ
         integer :: IterRDM, connect_elem, num_j
         type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "fill_rdm_offdiag_deterministic"
@@ -1068,6 +1090,7 @@ contains
                         full_sign = AvSignI * AvSignJ * IterRDM
                     end if
 
+
                     if (tHPHF) then
                         call decode_bit_det(nJ, iLutJ)
                         call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, &
@@ -1078,6 +1101,14 @@ contains
                         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, &
                                   ilutI, csf_i, ilutJ, csf_j, AvSignI * IterRDM, AvSignJ)
                     else
+                        if(tImportanceSampling)then
+                            guideI = calcImportanceGuide(nI)
+                            call decode_bit_det(nJ, iLutJ)
+                            guideJ = calcImportanceGuide(nJ)
+                        else
+                            guideI = 1.0_dp
+                            guideJ = 1.0_dp
+                        endif
                         if (IC == 1) then
                             ! Single excitation - contributes to 1- and 2-RDM
                             ! (if calculated).
@@ -1090,10 +1121,10 @@ contains
                             ! No need to explicitly fill symmetrically as we'll
                             ! generate pairs of determinants both ways around using
                             ! the connectivity matrix.
-                            if (RDMExcitLevel /= 1) call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
+                            if (RDMExcitLevel /= 1) call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign/(guideI*guideJ))
 
                             if (RDMExcitLevel == 1) then
-                                call fill_sings_1rdm(one_rdms, Ex, tParity, AvSignI * IterRDM, AvSignJ, .false.)
+                                call fill_sings_1rdm(one_rdms, Ex, tParity, AvSignI*IterRDM/guideI, AvSignJ/guideJ, .false.)
                             end if
 
                         else if ((IC == 2) .and. (RDMExcitLevel /= 1)) then
@@ -1101,7 +1132,7 @@ contains
                             ! but will do for now as we need the Ex...
                             call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)
 
-                            call add_to_rdm_spawn_t(spawn, Ex(2, 1), Ex(2, 2), Ex(1, 1), Ex(1, 2), full_sign, .false.)
+                            call add_to_rdm_spawn_t(spawn, Ex(2, 1), Ex(2, 2), Ex(1, 1), Ex(1, 2), full_sign/(guideI*guideJ), .false.)
                         end if
                     end if
                 end do

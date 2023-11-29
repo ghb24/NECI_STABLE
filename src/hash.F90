@@ -3,7 +3,9 @@
 module hash
 
     use FciMCData, only: hash_iter, hash_shift, RandomHash2, HFDet, ll_node
-    use bit_rep_data, only: flag_deterministic, test_flag, test_flag_multi, extract_sign
+    use bit_rep_data, only: flag_deterministic, test_flag, test_flag_multi, &
+                            extract_sign, flag_nospawn, flag_expanded, well_defined
+    use util_mod, only: operator(.implies.)
     use bit_reps, only: decode_bit_det
     use Systemdata, only: nel, nBasis
     use CalcData, only: tSemiStochastic
@@ -374,7 +376,10 @@ contains
                     tCoreDet = test_flag_multi(walker_list(:, i), flag_deterministic)
                 end if
                 call extract_sign(walker_list(:, i), real_sign)
-                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:, i)))) cycle
+                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) &
+                    .and. .not. tAccumEmptyDet(walker_list(:, i)) &
+                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(walker_list(:, i), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(walker_list(:,i), flag_expanded))) cycle
             end if
 
             call decode_bit_det(nI, walker_list(:, i))
@@ -412,7 +417,11 @@ contains
             call extract_sign(walker_list(:, i), real_sign)
             tCoreDet = .false.
             if (tSemiStochastic) tCoreDet = test_flag_multi(walker_list(:, i), flag_deterministic)
-            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:, i)))) cycle
+            if (IsUnoccDet(real_sign) &
+                .and. (.not. tCoreDet) &
+                .and. .not. tAccumEmptyDet(walker_list(:, i)) &
+                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(walker_list(:, i), flag_nospawn)) &
+                .and. (well_defined(flag_expanded) .implies. .not. test_flag(walker_list(:,i), flag_expanded))) cycle
             found = .false.
             call decode_bit_det(nI, walker_list(:, i))
 
