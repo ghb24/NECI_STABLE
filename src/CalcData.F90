@@ -596,10 +596,6 @@ module CalcData
     logical :: tNoSpawnRev = .false.
     real(dp) :: NoSpawnThresh
 
-    real(dp), allocatable :: orb_coeff(:, :)
-    real(dp), allocatable :: wfn_coeff(:)
-    integer(kind=n_int), allocatable :: wfn_ilut(:)
-
     ! HF treshold
     real(dp) :: tHFTresh
 

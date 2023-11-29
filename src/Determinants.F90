@@ -36,8 +36,7 @@ module Determinants
     use FCIMCData, only: Hii
     use CalcData, only: tGutzwillerGuide, GutzwillerParam, &
         tGutzwillerHubbardAF, GutzwillerParam2, &
-        tHubbardDoublonHolon, GutzwillerParam3, tHartreeGutzwiller, &
-        orb_coeff
+        tHubbardDoublonHolon, GutzwillerParam3, tHartreeGutzwiller
     use HartreeFockGuide, only: calc_det_ratio
 
     better_implicit_none
