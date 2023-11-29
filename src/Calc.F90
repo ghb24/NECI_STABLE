@@ -3692,11 +3692,6 @@ contains
                 tGutzwillerGuide = .true.
                 tHartreeGutzwiller = .true.
                 GutzwillerParam = to_realdp(tokens%next())
-            case("ABINITIO-GUTZWILLER-GUIDE")
-                tGutzwillerGuide = .true.
-                tAbinitioGutzwillerGuide = .true.
-                tImportanceSampling = .true.
-                GutzwillerParam = to_realdp(tokens%next())
             case("CONTROL-ZERO-DENOM")
                 tControlZeroDenom = .true.
             case("MEASURE-OVERLAP")

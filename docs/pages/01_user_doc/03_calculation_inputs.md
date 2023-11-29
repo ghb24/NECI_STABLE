@@ -1168,7 +1168,7 @@ and is stopped after 10000 iterations.
 
 -   **af-trunc-bracket \(a\)**<br>
     Only works in conjunction with `trunc-hubb`. Extends the normal antiferromagnetic criterion
-    and also allows for determinants with a high penalty score not to be truncated. Only 
+    and also allows for determinants with a high penalty score not to be truncated. Only
     determinants with an intermediate penalty score between \(a\) and \(2*n_links - a\) are
     truncated.
 
@@ -1239,7 +1239,7 @@ and is stopped after 10000 iterations.
 -   **init-expand-full**<br>
     Only works in conjunction with `init-expand`. Adds all determinants that are occupied
     at least once during the first phase of each expansion period.
-    
+
 
 #### Adaptive shift options
 
@@ -1512,12 +1512,6 @@ and is stopped after 10000 iterations.
 -   **hartree-gutzwiller \(g\)**<br>
     Activates the full Gutzwiller guiding wavefunction for importance sampling,
     i.e. also calculates the overlap with the \(U = 0\) wavefunction.
-    More expensive to calculate. Usable only with the internal Hubbard implementation.
-    \(g\) is the Gutzwiller parameter.
-
--   **abinitio-gutzwiller-guide \(g\)**<br>
-    Activates the full Gutzwiller guiding wavefunction for importance sampling,
-    i.e. also calculates the overlap with the Hartree–Fock wavefunction.
     More expensive to calculate. Usable only with the internal Hubbard implementation.
     \(g\) is the Gutzwiller parameter.
 

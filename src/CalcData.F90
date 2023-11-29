@@ -576,7 +576,6 @@ module CalcData
     logical :: tAmpCriteria
     logical :: tSignFlip
     logical :: tHartreeGutzwiller
-    logical :: tAbinitioGutzwillerGuide
     logical :: tControlZeroDenom
     logical :: tMeasureOverlap
 

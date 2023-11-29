@@ -37,8 +37,8 @@ module Determinants
     use CalcData, only: tGutzwillerGuide, GutzwillerParam, &
         tGutzwillerHubbardAF, GutzwillerParam2, &
         tHubbardDoublonHolon, GutzwillerParam3, tHartreeGutzwiller, &
-        tAbinitioGutzwillerGuide, orb_coeff
-    use HartreeFockGuide, only: calc_det_ratio, calc_abinitio_det_ratio
+        orb_coeff
+    use HartreeFockGuide, only: calc_det_ratio
 
     better_implicit_none
     private
@@ -392,13 +392,6 @@ contains
                                         * (real(get_helement(nJ, nJ, 0)) &
                                             - real(get_helement(nI, nI, 0)) &
                                           ) &
-                                )
-                else if (tAbinitioGutzwillerGuide) then
-                    call calc_abinitio_det_ratio(nJ, nI, orb_coeff, det_ratio)
-                    ratio = abs(det_ratio) &
-                             * exp(GutzwillerParam &
-                                        * (real(get_helement(nJ, nJ, 0)) &
-                                            - real(get_helement(nI, nI, 0))) &
                                 )
                 else
                      ratio = exp(GutzwillerParam &
