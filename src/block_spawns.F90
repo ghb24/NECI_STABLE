@@ -55,9 +55,9 @@ contains
             else
                 call stop_all(t_r, "Unexpected EOF reached.")
             end if
-!#ifdef DEBUG_
+#ifdef DEBUG_
             write(stdout, *) "Determinant/CSF", i, "to be blocked:", nI_blocked
-!#endif
+#endif
         end do
 
         write(stdout, *) 'Read in', numlines, 'determinants/CSFs to be blocked.'
