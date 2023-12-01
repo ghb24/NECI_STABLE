@@ -4236,31 +4236,6 @@ contains
         if (allocated(user_input_SftDamp)) deallocate(user_input_SftDamp)
     End Subroutine CalcCleanup
 
-
-    subroutine parse_definedet(tokens, def_det)
-        type(TokenIterator_t), intent(inout) :: tokens
-        integer, intent(out) :: def_det(nEl)
-        character(*), parameter :: this_routine = 'parse_definedet'
-
-        integer, allocatable :: input_range(:), local_def_det(:)
-
-        local_def_det = [integer ::]
-        do while(tokens%remaining_items() > 0)
-            input_range = get_range(tokens%next())
-            if (disjoint(local_def_det, input_range)) then
-                local_def_det = local_def_det .U. input_range
-            else
-                call stop_all(this_routine, 'Every value of definedet has to be given only once.')
-            end if
-        end do
-        if (size(local_def_det) < nEl) then
-            call stop_all(this_routine, 'Too few elements specified for Definedet.')
-        else if (size(local_def_det) > nEl) then
-            call stop_all(this_routine, 'Too many elements specified for Definedet.')
-        end if
-        def_det(:) = local_def_det(:)
-    end subroutine
-
 END MODULE Calc
 
 subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
