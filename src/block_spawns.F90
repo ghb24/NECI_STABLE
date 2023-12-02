@@ -59,6 +59,7 @@ contains
             write(stdout, *) "Determinant/CSF", i, "to be blocked:", nI_blocked
 #endif
         end do
+        call filereader%close()
 
         write(stdout, *) 'Read in', numlines, 'determinants/CSFs to be blocked.'
 
