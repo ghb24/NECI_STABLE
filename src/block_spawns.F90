@@ -33,11 +33,9 @@ contains
         integer(kind=n_int), allocatable, intent(inout) :: blocklist(:,:)
         type(ll_node), pointer, intent(inout) :: blocklist_ht(:)
         character(len=255), intent(in) :: blocklistname
-        integer :: iunit, nI_blocked(nel)
+        integer :: nI_blocked(nel)
         integer(kind=n_int) :: ilut_blocked(0:nifd)
-        character(len=500) :: line
         type(TokenIterator_t) :: tokens
-        character(*), parameter :: t_r = 'init_block_list'
         class(FileReader_t), allocatable :: filereader
         type(buffer_int64_2D_t) :: buffer
 
@@ -83,7 +81,7 @@ contains
         integer(kind=n_int), intent(in) :: excited_ilut(0:nifd)
         integer(kind=n_int), allocatable :: blocklist(:,:)
         logical :: tAbort
-        integer :: blocked_nJ(nel), idx, DetHash
+        integer :: idx, DetHash
 
         tAbort = .false.
 
