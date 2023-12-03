@@ -9,12 +9,14 @@ module block_spawns
                                 ManagingFileReader_t
     use DetBitOps, only: EncodeBitDet
     use bit_rep_data, only: niftot
+    use bit_reps, only: decode_bit_det
 
     better_implicit_none
 
     private
 
-    public :: init_block_list, tBlockSpawns, blocklist_name, block_list
+    public :: init_block_list, tBlockSpawns, blocklist_name, block_list, &
+              is_excitation_aborted
 
     logical :: tBlockSpawns
     character(len=255) :: blocklist_name
@@ -64,5 +66,25 @@ contains
         write(stdout, *) 'Read in', numlines, 'determinants/CSFs to be blocked.'
 
     end subroutine init_block_list
+
+    function is_excitation_aborted(excited_nJ, blocklist) result(tAbort)
+        integer, intent(in) :: excited_nJ(nel)
+        integer(kind=n_int), intent(in), optional, allocatable :: blocklist(:,:)
+        logical :: tAbort
+        integer :: i, blocked_nJ(nel)
+
+        tAbort = .false.
+
+        if (present(blocklist)) then
+            do i = 1, size(blocklist, 2)
+                call decode_bit_det(blocked_nJ, blocklist(:, i))
+                if (all(blocked_nJ == excited_nJ)) then
+                    tAbort = .true.
+                    exit
+                end if
+            end do
+        end if
+
+    end function is_excitation_aborted
 
 end module block_spawns
