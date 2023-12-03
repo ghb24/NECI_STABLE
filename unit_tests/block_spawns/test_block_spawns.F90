@@ -24,9 +24,9 @@ contains
     subroutine block_spawns_test_driver() 
         nEL = 6
         ! Hard coded hash initialization
+        allocate(RandomHash2(12), source=0)
         RandomHash2 = [6313, 2856, 5705, 7890, 2242, 503, &
                        5423, 1637, 104, 1121, 3750, 4292]
-        allocate(RandomHash2(12), source=0)
         call run_test_case(test_init_block_list, "test_init_block_list")
         call run_test_case(test_is_excitation_aborted, &
                            "test_is_excitation_aborted")
