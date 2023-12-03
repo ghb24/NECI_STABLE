@@ -13,6 +13,7 @@ module block_spawns
     use FciMCData, only: ll_node
     use hash, only: init_hash_table, fill_in_hash_table, clear_hash_table, &
                     hash_table_lookup
+    use growing_buffers, only: buffer_int64_2D_t
 
     better_implicit_none
 
@@ -29,46 +30,38 @@ module block_spawns
 contains
 
     subroutine init_block_list(blocklistname, blocklist, blocklist_ht)
-        integer :: iunit, numlines, i, stat, nI_blocked(nel)
         integer(kind=n_int), allocatable, intent(inout) :: blocklist(:,:)
         type(ll_node), pointer, intent(inout) :: blocklist_ht(:)
         character(len=255), intent(in) :: blocklistname
+        integer :: iunit, nI_blocked(nel)
+        integer(kind=n_int) :: ilut_blocked(0:nifd)
         character(len=500) :: line
         type(TokenIterator_t) :: tokens
         character(*), parameter :: t_r = 'init_block_list'
         class(FileReader_t), allocatable :: filereader
+        type(buffer_int64_2D_t) :: buffer
 
-! has to be replaced with growing buffer
-        ! Count the number of lines
-        iunit = get_free_unit()
-        open(newunit=iunit, file=blocklistname)
-        numlines = 0
-        do
-            read(iunit, *, iostat=stat) line
-            if (stat /= 0) exit
-            numlines = numlines + 1
-        end do
-        close(iunit)
-        if (numlines == 0) then
-            call stop_all(t_r, trim(blocklistname)//" file is empty.")
-        end if
-        allocate(blocklist(0:nifd, numlines), source=0_n_int)
+        call buffer%init(size(ilut_blocked))
 
         filereader = ManagingFileReader_t(blocklistname)
-        do i = 1, numlines
-            if (filereader%nextline(tokens, skip_empty=.false.)) then
-                call parse_definedet(tokens, nI_blocked)
-                call EncodeBitDet(nI_blocked, blocklist(:, i))
-            else
-                call stop_all(t_r, "Unexpected EOF reached.")
-            end if
+
+        do while (filereader%nextline(tokens, skip_empty=.false.))
+            call parse_definedet(tokens, nI_blocked)
+
+            call EncodeBitDet(nI_blocked, ilut_blocked)
+
+            call buffer%push_back(ilut_blocked)
+
 #ifdef DEBUG_
             write(stdout, *) "Determinant/CSF", i, "to be blocked:", nI_blocked
 #endif
         end do
+
         call filereader%close()
 
-        write(stdout, *) 'Read in', numlines, 'determinants/CSFs to be blocked.'
+        call buffer%dump_reset(blocklist)
+
+        write(stdout, *) 'Read in', size(blocklist, 2), 'determinants/CSFs to be blocked.'
 
         call init_blocklist_hashtable(blocklist, blocklist_ht)
 
@@ -90,7 +83,7 @@ contains
         integer(kind=n_int), intent(in) :: excited_ilut(0:nifd)
         integer(kind=n_int), allocatable :: blocklist(:,:)
         logical :: tAbort
-        integer :: i, blocked_nJ(nel), idx, DetHash
+        integer :: blocked_nJ(nel), idx, DetHash
 
         tAbort = .false.
 
