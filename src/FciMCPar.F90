@@ -170,7 +170,7 @@ module FciMCParMod
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
-    use block_spawns, only: is_excitation_aborted, block_list
+    use block_spawns, only: is_excitation_aborted
 
     better_implicit_none
     private
