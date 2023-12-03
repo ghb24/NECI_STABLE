@@ -53,7 +53,7 @@ contains
             call buffer%push_back(ilut_blocked)
 
 #ifdef DEBUG_
-            write(stdout, *) "Determinant/CSF", i, "to be blocked:", nI_blocked
+            write(stdout, *) "Determinant/CSF to be blocked:", nI_blocked
 #endif
         end do
 
