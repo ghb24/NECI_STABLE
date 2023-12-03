@@ -3,7 +3,7 @@
 module test_block_spawns_mod
     use fruit, only: run_test_case, assert_true
     use constants, only: n_int
-    use block_spawns, only: init_block_list
+    use block_spawns, only: init_block_list, block_list, is_excitation_aborted
     use SystemData, only: nEL
     use bit_reps, only: decode_bit_det
     use util_mod, only: get_free_unit
@@ -20,12 +20,13 @@ contains
     subroutine block_spawns_test_driver() 
         nEL = 6
         call run_test_case(test_init_block_list, "test_init_block_list")
+        call run_test_case(test_is_excitation_aborted, &
+                           "test_is_excitation_aborted")
 
     end subroutine block_spawns_test_driver
 
     subroutine test_init_block_list
         character(len=255) :: blocklist_name, blocklist_content
-        integer(kind=n_int), allocatable :: block_list(:, :)
         integer :: nI(nel), i, iunit
         integer, allocatable :: ref_list(:, :)
 
@@ -59,6 +60,24 @@ contains
         end do
 
     end subroutine test_init_block_list
+
+    subroutine test_is_excitation_aborted()
+        integer :: nI(nEL)
+
+        nI = [1, 2, 3, 4, 5, 6]
+        call assert_true(is_excitation_aborted(nI, block_list))
+        nI = [1, 4, 5, 8, 9, 12]
+        call assert_true(is_excitation_aborted(nI, block_list))
+        nI = [2, 3, 4, 5, 10, 11]
+        call assert_true(is_excitation_aborted(nI, block_list))
+        nI = [4, 5, 6, 7, 8, 9]
+        call assert_true(is_excitation_aborted(nI, block_list))
+        nI = [2, 5, 6, 7, 8, 9]
+        call assert_true(.not. is_excitation_aborted(nI, block_list))
+        nI = [1, 4, 5, 8, 11, 12]
+        call assert_true(.not. is_excitation_aborted(nI, block_list))
+
+    end subroutine test_is_excitation_aborted
 
 end module test_block_spawns_mod
 
