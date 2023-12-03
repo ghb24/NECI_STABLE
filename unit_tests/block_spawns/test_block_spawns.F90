@@ -3,11 +3,15 @@
 module test_block_spawns_mod
     use fruit, only: run_test_case, assert_true
     use constants, only: n_int
-    use block_spawns, only: init_block_list, block_list, is_excitation_aborted
+    use block_spawns, only: init_block_list, block_list, is_excitation_aborted,&
+                            blocklist_hash_table
     use SystemData, only: nEL
     use bit_reps, only: decode_bit_det
+    use bit_rep_data, only: nifd
     use util_mod, only: get_free_unit
     use unit_test_helper_excitgen, only: delete_file
+    use hash, only: RandomHash2
+    use DetBitOps, only: EncodeBitDet
 
     better_implicit_none
 
@@ -19,6 +23,10 @@ contains
 
     subroutine block_spawns_test_driver() 
         nEL = 6
+        ! Hard coded hash initialization
+        RandomHash2 = [6313, 2856, 5705, 7890, 2242, 503, &
+                       5423, 1637, 104, 1121, 3750, 4292]
+        allocate(RandomHash2(12), source=0)
         call run_test_case(test_init_block_list, "test_init_block_list")
         call run_test_case(test_is_excitation_aborted, &
                            "test_is_excitation_aborted")
@@ -43,7 +51,7 @@ contains
         write(iunit, '(A)') blocklist_content
         close(iunit)
 
-        call init_block_list(blocklist_name, block_list)
+        call init_block_list(blocklist_name, block_list, blocklist_hash_table)
 
         open (newunit=iunit, file=blocklist_name, status='old')
         close (iunit, status='delete')
@@ -63,19 +71,26 @@ contains
 
     subroutine test_is_excitation_aborted()
         integer :: nI(nEL)
+        integer(kind=n_int) :: ilut(0:nifd)
 
         nI = [1, 2, 3, 4, 5, 6]
-        call assert_true(is_excitation_aborted(nI, block_list))
+        call EncodeBitDet(nI, ilut)
+        call assert_true(is_excitation_aborted(nI, ilut))
         nI = [1, 4, 5, 8, 9, 12]
-        call assert_true(is_excitation_aborted(nI, block_list))
+        call EncodeBitDet(nI, ilut)
+        call assert_true(is_excitation_aborted(nI, ilut))
         nI = [2, 3, 4, 5, 10, 11]
-        call assert_true(is_excitation_aborted(nI, block_list))
+        call EncodeBitDet(nI, ilut)
+        call assert_true(is_excitation_aborted(nI, ilut))
         nI = [4, 5, 6, 7, 8, 9]
-        call assert_true(is_excitation_aborted(nI, block_list))
+        call EncodeBitDet(nI, ilut)
+        call assert_true(is_excitation_aborted(nI, ilut))
         nI = [2, 5, 6, 7, 8, 9]
-        call assert_true(.not. is_excitation_aborted(nI, block_list))
+        call EncodeBitDet(nI, ilut)
+        call assert_true(.not. is_excitation_aborted(nI, ilut))
         nI = [1, 4, 5, 8, 11, 12]
-        call assert_true(.not. is_excitation_aborted(nI, block_list))
+        call EncodeBitDet(nI, ilut)
+        call assert_true(.not. is_excitation_aborted(nI, ilut))
 
     end subroutine test_is_excitation_aborted
 

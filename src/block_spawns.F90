@@ -8,25 +8,30 @@ module block_spawns
     use input_parser_mod, only: TokenIterator_t, FileReader_t, parse_definedet,&
                                 ManagingFileReader_t
     use DetBitOps, only: EncodeBitDet
-    use bit_rep_data, only: niftot
+    use bit_rep_data, only: nifd
     use bit_reps, only: decode_bit_det
+    use FciMCData, only: ll_node
+    use hash, only: init_hash_table, fill_in_hash_table, clear_hash_table, &
+                    hash_table_lookup
 
     better_implicit_none
 
     private
 
     public :: init_block_list, tBlockSpawns, blocklist_name, block_list, &
-              is_excitation_aborted
+              is_excitation_aborted, blocklist_hash_table
 
     logical :: tBlockSpawns
     character(len=255) :: blocklist_name
     integer(kind=n_int), allocatable :: block_list(:, :)
+    type(ll_node), pointer :: blocklist_hash_table(:)
 
 contains
 
-    subroutine init_block_list(blocklistname, blocklist)
+    subroutine init_block_list(blocklistname, blocklist, blocklist_ht)
         integer :: iunit, numlines, i, stat, nI_blocked(nel)
-        integer(kind=n_int), allocatable :: blocklist(:,:)
+        integer(kind=n_int), allocatable, intent(inout) :: blocklist(:,:)
+        type(ll_node), pointer, intent(inout) :: blocklist_ht(:)
         character(len=255), intent(in) :: blocklistname
         character(len=500) :: line
         type(TokenIterator_t) :: tokens
@@ -47,7 +52,7 @@ contains
         if (numlines == 0) then
             call stop_all(t_r, trim(blocklistname)//" file is empty.")
         end if
-        allocate(blocklist(0:niftot, numlines), source=0_n_int)
+        allocate(blocklist(0:nifd, numlines), source=0_n_int)
 
         filereader = ManagingFileReader_t(blocklistname)
         do i = 1, numlines
@@ -65,24 +70,34 @@ contains
 
         write(stdout, *) 'Read in', numlines, 'determinants/CSFs to be blocked.'
 
+        call init_blocklist_hashtable(blocklist, blocklist_ht)
+
     end subroutine init_block_list
 
-    function is_excitation_aborted(excited_nJ, blocklist) result(tAbort)
+    subroutine init_blocklist_hashtable(blocklist, blocklist_ht)
+        integer(kind=n_int), intent(in) :: blocklist(0:,:)
+        type(ll_node), pointer, intent(inout) :: blocklist_ht(:)
+
+            allocate(blocklist_ht(size(blocklist, 2)))
+            call init_hash_table(blocklist_ht)
+            call fill_in_hash_table(blocklist_ht, size(blocklist, 2), &
+                                    blocklist, size(blocklist, 2), .false.)
+
+    end subroutine init_blocklist_hashtable
+
+    function is_excitation_aborted(excited_nJ, excited_ilut) result(tAbort)
         integer, intent(in) :: excited_nJ(nel)
-        integer(kind=n_int), intent(in), optional, allocatable :: blocklist(:,:)
+        integer(kind=n_int), intent(in) :: excited_ilut(0:nifd)
+        integer(kind=n_int), allocatable :: blocklist(:,:)
         logical :: tAbort
-        integer :: i, blocked_nJ(nel)
+        integer :: i, blocked_nJ(nel), idx, DetHash
 
         tAbort = .false.
 
-        if (present(blocklist)) then
-            do i = 1, size(blocklist, 2)
-                call decode_bit_det(blocked_nJ, blocklist(:, i))
-                if (all(blocked_nJ == excited_nJ)) then
-                    tAbort = .true.
-                    exit
-                end if
-            end do
+        if (allocated(block_list)) then
+            call hash_table_lookup(excited_nJ, excited_ilut, nifd, &
+                                   blocklist_hash_table, block_list, idx, &
+                                   DetHash, tAbort)
         end if
 
     end function is_excitation_aborted

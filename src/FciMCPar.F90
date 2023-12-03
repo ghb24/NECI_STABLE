@@ -1869,9 +1869,7 @@ contains
                         endif
                     endif
 
-                    if (allocated(block_list)) then
-                        if (is_excitation_aborted(nJ, block_list)) nJ(1) = 0
-                    end if
+                    if (is_excitation_aborted(nJ, ilutnJ)) nJ(1) = 0
 
                     ! If a valid excitation, see if we should spawn children.
                     if (IsNullDet(nJ)) then
