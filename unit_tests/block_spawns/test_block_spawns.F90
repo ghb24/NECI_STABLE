@@ -5,7 +5,7 @@ module test_block_spawns_mod
     use constants, only: n_int
     use block_spawns, only: init_block_list, block_list, is_excitation_aborted,&
                             blocklist_hash_table
-    use SystemData, only: nEL
+    use SystemData, only: nEL, nbasis
     use bit_reps, only: decode_bit_det
     use bit_rep_data, only: nifd
     use util_mod, only: get_free_unit
@@ -23,6 +23,7 @@ contains
 
     subroutine block_spawns_test_driver() 
         nEL = 6
+        nbasis = 12
         ! Hard coded hash initialization
         allocate(RandomHash2(12), source=0)
         RandomHash2 = [6313, 2856, 5705, 7890, 2242, 503, &
