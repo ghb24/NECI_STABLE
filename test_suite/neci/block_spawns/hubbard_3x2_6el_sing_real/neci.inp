@@ -1,0 +1,48 @@
+title
+
+system hubbard real-space
+    lattice rect 3 2
+    electrons 6
+    spin-restrict 0
+    b -1
+    u 0
+    open-bc xy
+endsys
+
+calc
+    time 3000
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    definedet 1 4 5 8 9 12
+
+    allrealcoeff
+    realspawncutoff off
+
+    tau-values \
+        start user-defined 0.001 \
+        IGNORE-DIAGONAL-ESTIMATE
+
+    seed 1
+
+    nmcyc 4000
+
+    block-spawns blocklist
+
+    startSinglePart 20
+
+    totalwalkers 2000
+    shiftdamp 0.1
+    stepsshift 10
+
+    memoryFacSpawn 10
+endcalc
+
+
+logging
+    popsfile -1
+endlog
+
+end
