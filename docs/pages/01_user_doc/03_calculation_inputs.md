@@ -686,7 +686,7 @@ and ends with the `endcalc` keyword.
 
 -   **block-spawns \(blocklist\)**<br>
     Blocks spawns to determinants/CSFs given in the \(blocklist\) file.
-    Each line of (\blocklist\) is a determinant/CSF represented in the 
+    Each line of \(blocklist\) is a determinant/CSF represented in the 
     `definedet` format. In detail, excitations to those determinants/CSFs are
     rejected.
 
