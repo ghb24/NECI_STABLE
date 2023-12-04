@@ -79,7 +79,6 @@ contains
     function is_excitation_aborted(excited_nJ, excited_ilut) result(tAbort)
         integer, intent(in) :: excited_nJ(nel)
         integer(kind=n_int), intent(in) :: excited_ilut(0:nifd)
-        integer(kind=n_int), allocatable :: blocklist(:,:)
         logical :: tAbort
         integer :: idx, DetHash
 
