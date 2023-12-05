@@ -69,10 +69,12 @@ contains
         integer(kind=n_int), intent(in) :: blocklist(0:,:)
         type(ll_node), pointer, intent(inout) :: blocklist_ht(:)
 
-            allocate(blocklist_ht(size(blocklist, 2)))
-            call init_hash_table(blocklist_ht)
-            call fill_in_hash_table(blocklist_ht, size(blocklist, 2), &
-                                    blocklist, size(blocklist, 2), .false.)
+        allocate(blocklist_ht(size(blocklist, 2)))
+
+        call init_hash_table(blocklist_ht)
+
+        call fill_in_hash_table(blocklist_ht, size(blocklist, 2), &
+                                blocklist, size(blocklist, 2), .false.)
 
     end subroutine init_blocklist_hashtable
 
