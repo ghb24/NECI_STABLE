@@ -82,6 +82,10 @@ contains
         logical :: tAbort
         integer :: idx, DetHash
 
+        ! At least, `gen_excit_rs_hubbard` sets nJ(1) = 0 if the excitation is 
+        ! invalied
+        if (excited_nJ(1) == 0) return
+
         tAbort = .false.
 
         if (allocated(block_list)) then
