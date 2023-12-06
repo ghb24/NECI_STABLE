@@ -21,9 +21,11 @@ calc
     allrealcoeff
     realspawncutoff off
 
+    load-balance-blocks off
+
     tau-values \
         start user-defined 0.001 \
-        IGNORE-DIAGONAL-ESTIMATE
+        ignore-diagonal-estimate
 
     seed 1
 
