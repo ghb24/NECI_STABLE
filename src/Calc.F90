@@ -3817,8 +3817,8 @@ contains
                 logical :: blocklist_exist
                 inquire(file=trim(blocklist_name), exist=blocklist_exist)
                 if (.not. blocklist_exist) then
-                    call stop_all(t_r, &
-                                  "No "//trim(blocklist_name)//" file detected.")
+                    call stop_all(&
+                        t_r, "No "//trim(blocklist_name)//" file detected.")
                 end if
                 end block
 

@@ -30,8 +30,8 @@ module block_spawns
 contains
 
     subroutine init_block_list(blocklistname, blocklist, blocklist_ht)
-        integer(kind=n_int), allocatable, intent(inout) :: blocklist(:,:)
-        type(ll_node), pointer, intent(inout) :: blocklist_ht(:)
+        integer(kind=n_int), allocatable, intent(out) :: blocklist(:,:)
+        type(ll_node), pointer, intent(out) :: blocklist_ht(:)
         character(len=255), intent(in) :: blocklistname
         integer :: nI_blocked(nel)
         integer(kind=n_int) :: ilut_blocked(0:nifd)
@@ -67,14 +67,15 @@ contains
 
     subroutine init_blocklist_hashtable(blocklist, blocklist_ht)
         integer(kind=n_int), intent(in) :: blocklist(0:,:)
-        type(ll_node), pointer, intent(inout) :: blocklist_ht(:)
+        type(ll_node), pointer, intent(out) :: blocklist_ht(:)
 
         allocate(blocklist_ht(size(blocklist, 2)))
 
         call init_hash_table(blocklist_ht)
 
-        call fill_in_hash_table(blocklist_ht, size(blocklist, 2), &
-                                blocklist, size(blocklist, 2), .false.)
+        call fill_in_hash_table(&
+            blocklist_ht, size(blocklist, 2), blocklist, size(blocklist, 2), &
+            .false.)
 
     end subroutine init_blocklist_hashtable
 
@@ -84,16 +85,16 @@ contains
         logical :: tAbort
         integer :: idx, DetHash
 
+        tAbort = .false.
+
         ! At least, `gen_excit_rs_hubbard` sets nJ(1) = 0 if the excitation is 
         ! invalied
         if (excited_nJ(1) == 0) return
 
-        tAbort = .false.
-
         if (allocated(block_list)) then
-            call hash_table_lookup(excited_nJ, excited_ilut, nifd, &
-                                   blocklist_hash_table, block_list, idx, &
-                                   DetHash, tAbort)
+            call hash_table_lookup(&
+                excited_nJ, excited_ilut, nifd, blocklist_hash_table, &
+                block_list, idx, DetHash, tAbort)
         end if
 
     end function is_excitation_aborted

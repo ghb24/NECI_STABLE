@@ -2069,8 +2069,10 @@ contains
                                         // "error as the initiator method is not in use.")
         end if
 
-        if (tBlockSpawns) call init_block_list(blocklist_name, block_list, &
-                                               blocklist_hash_table)
+        if (tBlockSpawns) then
+            call init_block_list(&
+                blocklist_name, block_list, blocklist_hash_table)
+        end if
 
         if (tFullProjE) then
             allocate(connected_dets(0:NIfTot, max_connected_size), stat=ierr)
@@ -2508,10 +2510,7 @@ contains
             call LogMemDealloc(this_routine, ConnectedTag, ierr)
         end if
 
-        if (tBlockSpawns) then
-            deallocate(block_list)
-            deallocate(blocklist_hash_table)
-        end if
+        if (tBlockSpawns) deallocate(block_list, blocklist_hash_table)
 
     end subroutine DeallocFCIMCMemPar
 
