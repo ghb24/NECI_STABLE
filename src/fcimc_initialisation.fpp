@@ -384,6 +384,9 @@ module fcimc_initialisation
     use blas_interface_mod, only: dgeev
 
     use DetBitOps, only: LargestBitSet
+
+    use block_spawns, only: tBlockSpawns, init_block_list, blocklist_name, &
+                            block_list, blocklist_hash_table
     implicit none
 
 contains
@@ -2066,6 +2069,11 @@ contains
                                         // "error as the initiator method is not in use.")
         end if
 
+        if (tBlockSpawns) then
+            call init_block_list(&
+                blocklist_name, block_list, blocklist_hash_table)
+        end if
+
         if (tFullProjE) then
             allocate(connected_dets(0:NIfTot, max_connected_size), stat=ierr)
             call LogMemAlloc("connected_dets", max_connected_size * (NIfTot + 1), size_n_int, t_r, ConnectedTag, ierr)
@@ -2501,6 +2509,8 @@ contains
             deallocate(connected_dets, stat=ierr)
             call LogMemDealloc(this_routine, ConnectedTag, ierr)
         end if
+
+        if (tBlockSpawns) deallocate(block_list, blocklist_hash_table)
 
     end subroutine DeallocFCIMCMemPar
 

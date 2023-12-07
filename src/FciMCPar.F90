@@ -170,6 +170,8 @@ module FciMCParMod
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
+    use block_spawns, only: is_excitation_aborted
+
     better_implicit_none
     private
     public :: FciMCPar
@@ -1866,6 +1868,8 @@ contains
                             nJ(1) = 0
                         endif
                     endif
+
+                    if (is_excitation_aborted(nJ, ilutnJ)) nJ(1) = 0
 
                     ! If a valid excitation, see if we should spawn children.
                     if (IsNullDet(nJ)) then

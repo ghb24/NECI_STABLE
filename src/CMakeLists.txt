@@ -11,6 +11,7 @@ set( SRC_FILES
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
+    block_spawns.F90
     CalcData.F90
     Calc.F90
     calcrho.F90

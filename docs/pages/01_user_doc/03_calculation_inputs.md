@@ -684,6 +684,12 @@ and ends with the `endcalc` keyword.
     Set the target convergence tolerance of the residual norm of Davidson
     diagonalization. The default value is \(10^{-7}\).
 
+-   **block-spawns `blocklist`**<br>
+    Blocks spawns to determinants/CSFs given in the `blocklist` file.
+    Each line of `blocklist` is a determinant/CSF represented in the
+    `definedet` format. In detail, excitations to those determinants/CSFs are
+    rejected.
+
 #### Population control options
 
 -   **\textcolor{red}{totalWalkers \(n\)}**<br>

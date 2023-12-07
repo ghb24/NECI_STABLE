@@ -82,15 +82,16 @@ MODULE Calc
     use real_time, only: perform_real_time_fciqmc
     use lattice_mod, only: lat
 
-    use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range
-
-    use sets_mod, only: disjoint, operator(.U.)
+    use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range, &
+                                parse_definedet
 
     use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
 
     use lattice_models_utils, only: create_neel_state
 
     use gndts_blk_mod, only: gensymdetss
+
+    use block_spawns, only: tBlockSpawns, blocklist_name
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -3808,6 +3809,19 @@ contains
                     af_criterion_bracket = 2 * lat%get_total_links() - af_criterion
                 endif
 
+            case("BLOCK-SPAWNS")
+                blocklist_name = tokens%next()
+                tBlockSpawns = .true.
+
+                block
+                logical :: blocklist_exist
+                inquire(file=trim(blocklist_name), exist=blocklist_exist)
+                if (.not. blocklist_exist) then
+                    call stop_all(&
+                        t_r, "No "//trim(blocklist_name)//" file detected.")
+                end if
+                end block
+
             case default
                 call stop_all(this_routine, &
                     "Keyword "//trim(w)//" not recognized in CALC block")
@@ -4235,31 +4249,6 @@ contains
         if (allocated(user_input_seed)) deallocate(user_input_seed)
         if (allocated(user_input_SftDamp)) deallocate(user_input_SftDamp)
     End Subroutine CalcCleanup
-
-
-    subroutine parse_definedet(tokens, def_det)
-        type(TokenIterator_t), intent(inout) :: tokens
-        integer, intent(out) :: def_det(nEl)
-        character(*), parameter :: this_routine = 'parse_definedet'
-
-        integer, allocatable :: input_range(:), local_def_det(:)
-
-        local_def_det = [integer ::]
-        do while(tokens%remaining_items() > 0)
-            input_range = get_range(tokens%next())
-            if (disjoint(local_def_det, input_range)) then
-                local_def_det = local_def_det .U. input_range
-            else
-                call stop_all(this_routine, 'Every value of definedet has to be given only once.')
-            end if
-        end do
-        if (size(local_def_det) < nEl) then
-            call stop_all(this_routine, 'Too few elements specified for Definedet.')
-        else if (size(local_def_det) > nEl) then
-            call stop_all(this_routine, 'Too many elements specified for Definedet.')
-        end if
-        def_det(:) = local_def_det(:)
-    end subroutine
 
 END MODULE Calc
 
