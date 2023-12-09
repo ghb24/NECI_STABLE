@@ -481,7 +481,7 @@ contains
 
                 ! also set LMS value to the inputted STOT to misuse the reference
                 ! determinant creation for a fixed LMS also for the GUGA approach...
-                LMS = STOT
+                user_input_m_s = -STOT
                 ! =============================================================
 
             case ("TEST-DOUBLE")
