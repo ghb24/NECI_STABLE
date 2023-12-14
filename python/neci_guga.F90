@@ -70,7 +70,6 @@ subroutine run_neci(norb, perm, weight)
     !f2py intent(hide), depend(perm) :: norb = shape(perm, dim = 0)
     !f2py intent(out) :: weight
 
-
 #include "NECICore.h"
 
     if (norb /= nSpatOrbs) then
