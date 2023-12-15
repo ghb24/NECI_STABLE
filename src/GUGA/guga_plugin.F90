@@ -6,7 +6,7 @@ module guga_plugin
     use SystemData, only: nEl, tReadInt, eCore, lms, &
         nBasis, nSpatOrbs, nbasismax, stot, &
         tgen_guga_weighted, tgen_sym_guga_mol, &
-        tGUGA, tReadFreeFormat, tStoreSpinOrbs
+        tGUGA, tReadFreeFormat, tStoreSpinOrbs, tIgnoreFCIDUMPHeader
     use FCimcData, only: tFillingStochRDMOnFly
     use read_fci, only: readfciint, fcidump_name, initfromfcid, &
         UMatEps
@@ -54,6 +54,8 @@ contains
         def_default(nbasis, nbasis_, 0)
         def_default(nSpatOrbs, nSpatOrbs_, 0)
         def_default(stot, stot_, 0)
+
+        tIgnoreFCIDUMPHeader = .true.
 
         umatsize = 0
         lms = 0

@@ -174,16 +174,15 @@ contains
             end if
         end if
 
-        IF (NELEC /= NEL) THEN
+        if (NELEC /= NEL) THEN
             if( NEL == NEL_UNINITIALIZED ) then
-                write(stdout,*) "No number of electrons given, using NEL in FCIDUMP"
-                NEL = NELEC
+                call stop_all(this_routine, 'NEL is not initialized.')
             else if (.not. tIgnoreFCIDUMPHeader) then
                 call stop_all(this_routine, 'NEL in FCIDUMP differs from input file. ' &
                         // 'Use ignore-fcidump-header keyword if you wish to continue anyway.')
             endif
         end if
-        IF (abs(LMS) /= abs(MS2)) THEN
+        if (abs(LMS) /= abs(MS2)) THEN
             if (.not. tIgnoreFCIDUMPHeader) then
                 call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. ' &
                         // 'Use ignore-fcidump-header keyword if you wish to continue anyway.')
@@ -196,9 +195,9 @@ contains
             !Need to x2 to get spin orbitals
             LEN = 2 * NORB
         else
-            IF (UHF .or. tRel) then
+            if (UHF .or. tRel) then
                 LEN = NORB
-            ELSE
+            else
                 LEN = 2 * NORB
             end if
         end if
