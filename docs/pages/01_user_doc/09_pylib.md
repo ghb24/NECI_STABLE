@@ -29,9 +29,9 @@ to the calling python module or script.
 The `neci_guga` python module can then be loaded in calling python code
 with `import neci_guga` and provides the following functionality:
 
--   `neci_guga.init_guga(fcidump_path, S, nel, orb)`
+-   `neci_guga.init_guga(fcidump_path, S, nel, norb)`
     Takes the desired total spin `S`, and the number of electrons `nel` and
-    the number of orbitals `nel`. This initializes the GUGA functionality
+    the number of orbitals `norb`. This initializes the GUGA functionality
     of neci by reading in an existing FCIDUMP (`fcidump_path`) file.
 
 -   `neci_guga.clear_guga()`
