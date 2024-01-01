@@ -997,7 +997,7 @@ contains
         end if
 
         if (allocated(input_tau_search_method)) then
-            if (t_print_frq_histograms .and. input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+            if (t_print_frq_histograms .and. tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
                 call print_frequency_histograms()
             end if
         end if
