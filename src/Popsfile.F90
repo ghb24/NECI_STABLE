@@ -48,8 +48,7 @@ MODULE PopsfileMod
                            tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod, only: sort
-    use tau_main, only: input_tau_search_method, tau_search_method, &
-        possible_tau_search_methods, max_death_cpt, tau_start_val, possible_tau_start, &
+    use tau_main, only: max_death_cpt, tau_start_val, possible_tau_start, &
         t_scale_tau_to_death, min_tau, max_tau, tau, assign_value_to_tau
     use tau_search_conventional, only: tau_search_stats
     use tau_search_hist, only: finalize_hist_tau_search, t_fill_frequency_hists
