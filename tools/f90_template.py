@@ -135,7 +135,6 @@ def read_config(fin, silent):
     # insert into the templated functions.
     parser = configparser.RawConfigParser()
 
-    # parser.readfp(config_lines)
     if sys.version_info.major >= 3:
         parser.read_file(config_lines)
     else:
