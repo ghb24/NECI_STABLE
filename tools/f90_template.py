@@ -117,7 +117,7 @@ def read_config(fin, silent):
 
     # Read in the config data to a file like object, so that configparser can
     # work on less than a whole file.
-    re_section = re.compile('^\[(.*)\]$')
+    re_section = re.compile(r'^\[(.*)\]$')
     while True:
         line = fin.readline()
         if line and line[0] == '=':
@@ -135,7 +135,11 @@ def read_config(fin, silent):
     # insert into the templated functions.
     parser = configparser.RawConfigParser()
 
-    parser.readfp(config_lines)
+    # parser.readfp(config_lines)
+    if sys.version_info.major >= 3:
+        parser.read_file(config_lines)
+    else:
+        parser.readfp(config_lines)
 
     if not silent:
         print('Producing configurations: ')
@@ -168,7 +172,7 @@ def super_module(template, config, silent):
     properly included in the super-module).
     """
 
-    re_mod = re.compile ('(\n\s*module[\s^\n]*([^\s]*))\n')
+    re_mod = re.compile (r'(\n\s*module[\s^\n]*([^\s]*))\n')
 
     m = re_mod.search(template)
     if not m:
@@ -182,7 +186,7 @@ def super_module(template, config, silent):
     template = re_mod.sub (substr, template)
 
     # Extract any lines for the super module from the template file
-    re_supermod = re.compile ('(\n\s*supermodule[\s^\n]*([^\s\n]*))\n((.|\n)*?)(end supermodule)')
+    re_supermod = re.compile (r'(\n\s*supermodule[\s^\n]*([^\s\n]*))\n((.|\n)*?)(end supermodule)')
     m_super = re_supermod.search(template)
     if m_super:
         if not silent:
@@ -215,7 +219,7 @@ def adj_arrays(template, config):
     # All possible types we are looking for. Only interested if the
     # dimensionality > 1 (i.e. we have to adjust the dimensions)
     types = dict()
-    re_dim = re.compile('([\s,]*)dimension(\(.*\))')
+    re_dim = re.compile(r'([\s,]*)dimension(\(.*\))')
     for i in config:
         if i[0:4] == "type":
             if config[i][0] != "!":
@@ -238,10 +242,10 @@ def adj_arrays(template, config):
     # operable types beginning with 'type'.  dimstring is the string that was used for declaring the variable's dimensions
 
     # We split the template into sections for each function or subroutine
-    tsplitter = re.compile("\n[^!\n]*(subroutine|function)", flags=re.IGNORECASE)
+    tsplitter = re.compile(r"\n[^!\n]*(subroutine|function)", flags=re.IGNORECASE)
 
     # Locate any local interfaces.
-    re_interfaces = re.compile("(\n[^!\n]*interface)((.|\n)+?)(\n[^!\n]*end\s+interface)")
+    re_interfaces = re.compile(r"(\n[^!\n]*interface)((.|\n)+?)(\n[^!\n]*end\s+interface)")
 
     # Find splitting points for subroutines excluding those within
     # interface statements.
@@ -272,7 +276,7 @@ def adj_arrays(template, config):
         # number of dimensions
         for type in types:
                 #re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*\n' % type)
-                re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*.*\n' % type)
+                re_var = re.compile (r'\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*.*\n' % type)
 
                 # Search for lines of the form
                 # TYPE :: VARIABLE
@@ -290,9 +294,9 @@ def adj_arrays(template, config):
                     # If we are sizing an array based on the size of another, remove
                     # this condition if the type is actually a scalar in this case.
                     if types[type] == 0 and v.group(2) == None:
-                        re_fix = re.compile ('(\n\s*%%\(%s\)s.*::[\s^\n]*([^\(\)\n]*))'
-                                             '([\s^\n]*\(([^\(\)\n]|\(([^\(\)\n]|'
-                                             '\([^\(\)\n]*\))*\))*\))*' % type)
+                        re_fix = re.compile (r'(\n\s*%%\(%s\)s.*::[\s^\n]*([^\(\)\n]*))'
+                                             r'([\s^\n]*\(([^\(\)\n]|\(([^\(\)\n]|'
+                                             r'\([^\(\)\n]*\))*\))*\))*' % type)
                         templpart = (templpart[0:v.start()+offset] +
                         re_fix.sub("\\1", templpart[v.start()+offset:], 1))
                     offset = offset + v.start() + 1
@@ -315,7 +319,7 @@ def adj_arrays(template, config):
                 dimstr = ":,"*(vars[var][1]-1)
                 #redim = '([\( ,]+)%s\s*\(' % (var)
                 #substr = ('\\1%s(' % var) + dimstr
-                redim = '([\( ,=])%s\s*\(' % (var)
+                redim = r'([\( ,=])%s\s*\(' % (var)
                 substr = ('\\1%s(' % var) + dimstr
 
                 # If our original dimension string was empty (i.e. didn't
@@ -324,14 +328,14 @@ def adj_arrays(template, config):
                 #  - we do this by changing VARIABLE() to VARIABLE(:)
 
                 if vars[var][2]=="":
-                    re_redim = re.compile (redim+"\)")
+                    re_redim = re.compile (redim+r"\)")
                     templpart = re_redim.sub (('\\1%s(' % var)+":)", templpart)
                 re_redim = re.compile (redim)
                 templpart = re_redim.sub (substr, templpart)
 
             # If we've ended up with a scalar, just remove the (:)
             elif vars[var][1]==0:
-                redim = '%s\s*\(%s\)' % (var,vars[var][2])
+                redim = r'%s\s*\(%s\)' % (var,vars[var][2])
                 re_redim = re.compile(redim)
                 templpart = re_redim.sub(var,templpart)
 
@@ -358,7 +362,7 @@ def adj_arrays(template, config):
             # of it
             if types[type] == 0:
 
-                re_assumed = re.compile ('(\n\s*%%\(%s\)s.*::\s*[^()]*)([\s^\n]*\(\*\))(.*\n)' % type)
+                re_assumed = re.compile (r'(\n\s*%%\(%s\)s.*::\s*[^()]*)([\s^\n]*\(\*\))(.*\n)' % type)
 
                 v = re_assumed.search(templpart)
                 offset = 0
@@ -394,8 +398,8 @@ def interface_procs(template, silent):
         print("Interface generation")
 
     # Do we have procedures in this template file?
-    re_contains = re.compile('\n\s*contains\s*\n', flags=re.IGNORECASE)
-    re_end_mod = re.compile('\n\s*end\s*module')
+    re_contains = re.compile(r'\n\s*contains\s*\n', flags=re.IGNORECASE)
+    re_end_mod = re.compile(r'\n\s*end\s*module')
     m = re_contains.search(template)
     if m:
         interface = "\n"
@@ -403,7 +407,7 @@ def interface_procs(template, silent):
         # Find all of the functions or subroutines. Note that it requires functions to
         # be new style functions, with results declared in result(ret) format.
         #re_proc = re.compile ('\n\s*(subroutine|function)[\s^\n]+\(\w+\)[\s^\n]+\(')
-        re_proc = re.compile('(\n\s*((elemental|pure)[\s^\n]+)*(subroutine|function)[\s^\n]+)(\w+)([\s^\n]*\()',re.I)
+        re_proc = re.compile(r'(\n\s*((elemental|pure)[\s^\n]+)*(subroutine|function)[\s^\n]+)(\w+)([\s^\n]*\()',re.I)
 
         offset = m.start()
         m_end_mod = re_end_mod.search(template[offset:])
@@ -502,6 +506,3 @@ if __name__ == '__main__':
         print('Output file: %s' % (fout.name))
 
         process_file(fin, fout, silent=False)
-
-
-
