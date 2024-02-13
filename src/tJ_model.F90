@@ -82,7 +82,7 @@ module tJ_model
         get_offdiag_helement_heisenberg, get_offdiag_helement_tj, &
         spin_free_exchange, exchange_matrix, pick_orbitals_guga_heisenberg, &
         calc_orbital_pgen_contr_heisenberg, init_get_helement_tj_guga, &
-        init_guga_tj_model, pick_orbitals_guga_tJ
+        init_guga_tj_model, pick_orbitals_guga_tJ, gen_all_excits_heisenberg
 
     real(dp), allocatable :: exchange_matrix(:, :)
     real(dp), allocatable :: spin_free_exchange(:, :)
@@ -1871,4 +1871,52 @@ contains
 
     end function get_offdiag_helement_tJ
 
+    subroutine gen_all_excits_heisenberg(nI, n_excits, det_list)
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
+
+        integer(n_int) :: ilutI(0:NIfTot)
+        integer(n_int), allocatable :: temp_list(:, :)
+        integer :: src, des, n_bound, k, flip, ex(2, maxExcit), elec
+        integer, allocatable :: neighbors(:)
+
+        call EncodeBitDet(nI, ilutI)
+
+        n_bound = nel * 2**lat%get_ndim()
+        allocate(temp_list(0:NIfTot, n_bound))
+        temp_list = 0_n_int
+        n_excits = 0
+
+        do elec=1,nel
+            src = nI(elec)
+            neighbors = lat%get_spinorb_neighbors(src)
+            ex(1, 1) = src
+            if (is_beta(src)) then
+                flip = +1
+            else
+                flip = -1
+            end if
+
+            ! add the spinflipped
+            ex(2, 1) = src + flip
+
+            do k = 1, ubound(neighbors, 1)
+                des = neighbors(k)
+                if (des>src .and. IsNotOcc(ilutI, des)) then
+                !if (IsNotOcc(ilutI, des)) then
+                    ex(1, 2) = des + flip
+                    ex(2, 2) = des
+                    n_excits = n_excits + 1
+                    temp_list(:, n_excits) = make_ilutJ(ilutI, ex, 2)
+                end if
+            end do
+            deallocate(neighbors)
+        end do
+
+        allocate(det_list(0:NIfTot, n_excits), source=temp_list(:, 1:n_excits))
+
+        deallocate(temp_list)
+
+    end subroutine gen_all_excits_heisenberg
 end module tJ_model

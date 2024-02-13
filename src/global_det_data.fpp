@@ -5,7 +5,8 @@ module global_det_data
     use SystemData, only: nel
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
                         tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, &
-                        tReplicaEstimates, tMoveGlobalDetData, tScaleBlooms
+                        tReplicaEstimates, tMoveGlobalDetData, tScaleBlooms, &
+                        tInitExpandAnnihil, tModShiftCorr
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
@@ -33,7 +34,8 @@ module global_det_data
         replica_est_len, get_spawn_rate, reset_tau_int, get_all_spawn_pops, &
         reset_shift_int, update_shift_int, update_tau_int, set_spawn_pop, &
         update_pops_sum_all, get_pops_iter, get_max_ratio, update_max_ratio, &
-        set_supergroup_idx, get_supergroup_idx
+        set_supergroup_idx, get_supergroup_idx, update_iea, get_iea, reset_iea_all, &
+        reset_corr_pop, scale_corr_pop, add_corr_pop, get_corr_pop, death_corr_pop
 #ifdef USE_HDF_
     public :: set_max_ratio_hdf5Int, write_max_ratio_as_int
 #endif
@@ -80,6 +82,15 @@ module global_det_data
     integer :: pos_pops_sum, pos_pops_iter
     !total size of pops sum and iter
     integer :: apvals_size
+
+    ! Accumulated annihilations per spawn
+    integer :: len_ann_sum, len_spawns_sum
+    integer :: pos_ann_sum, pos_spawns_sum
+    ! total size
+    integer :: ieavals_size
+
+    ! Accumulated correction factor for mod-shift
+    integer :: pos_corr_pop, len_corr_pop
 
     ! Average sign and first occupation of iteration.
     integer :: pos_av_sgn, len_av_sgn
@@ -200,6 +211,21 @@ contains
         end if
         apvals_size = len_pops_sum + len_pops_iter
 
+        if (tInitExpandAnnihil) then
+            len_ann_sum = lenof_sign
+            len_spawns_sum = lenof_sign
+        else
+            len_ann_sum = 0
+            len_spawns_sum = 0
+        end if
+        ieavals_size = len_ann_sum + len_spawns_sum
+
+        if (tModShiftCorr) then
+            len_corr_pop = inum_runs
+        else
+            len_corr_pop = 0
+        end if
+
         ! If we are using calculating RDMs stochastically, need to include the
         ! average sign and the iteration on which it became occupied.
         if (tRDMonFly .and. .not. tExplicitAllRDM) then
@@ -269,13 +295,17 @@ contains
         pos_pos_spawns = pos_spawn_rate + len_spawn_rate
         pos_neg_spawns = pos_pos_spawns + len_pos_spawns
         pos_max_ratio = pos_neg_spawns + len_neg_spawns
-        pos_sg_idx = pos_max_ratio + len_max_ratio
+        pos_ann_sum = pos_max_ratio + len_max_ratio
+        pos_spawns_sum = pos_ann_sum + len_ann_sum
+        pos_sg_idx = pos_spawns_sum + len_spawns_sum
+        pos_corr_pop = pos_sg_idx + len_corr_pop
 
         tot_len = len_hel + len_hel_off + len_spawn_pop + len_tau_int + &
                   len_shift_int + len_tot_spawns + len_acc_spawns + &
                   len_pops_sum + len_pops_iter + len_av_sgn_tot + &
                   len_iter_occ_tot + len_pos_spawns + len_neg_spawns + &
-                  len_max_ratio + len_sg_idx
+                  len_max_ratio + len_sg_idx + len_ann_sum + &
+                  len_spawns_sum + len_sg_idx + len_corr_pop
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign.div.2
@@ -807,7 +837,104 @@ contains
             apvals(lenof_sign + 1, j) = get_pops_iter(j + start - 1)
         end do
     end subroutine writeAPVals
+
     !------------------------------------------------------------------------------------------!
+
+    subroutine reset_iea_all(ndets)
+
+        integer(int64), intent(in) :: ndets
+        integer :: j
+
+        do j = 1, int(ndets)
+            global_determinant_data(pos_ann_sum:pos_ann_sum + len_ann_sum - 1, j) = 0.0_dp
+            global_determinant_data(pos_spawns_sum:pos_spawns_sum + len_spawns_sum - 1, j) = 0.0_dp
+        end do
+
+    end subroutine
+
+    subroutine update_iea(j, run, t_ann, t_spawn)
+
+        integer, intent(in) :: j, run
+        real(dp), intent(in) :: t_ann, t_spawn
+
+        global_determinant_data(pos_ann_sum + run - 1, j) = &
+            global_determinant_data(pos_ann_sum + run - 1, j) + t_ann
+        global_determinant_data(pos_spawns_sum + run - 1, j) = &
+            global_determinant_data(pos_spawns_sum + run - 1, j) + t_spawn
+
+    end subroutine
+
+    function get_iea(j, run) result(t_rat)
+
+        integer, intent(in) :: j, run
+        real(dp) :: t_rat
+
+        if (global_determinant_data(pos_spawns_sum + run - 1, j) > 0.0_dp) then
+            t_rat = abs(global_determinant_data(pos_ann_sum + run - 1, j) / &
+                global_determinant_data(pos_spawns_sum + run - 1, j))
+        else
+            t_rat = 0.0_dp
+        end if
+
+    end function
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine reset_corr_pop(j, run)
+
+        integer, intent(in) :: j, run
+
+        global_determinant_data(pos_corr_pop:pos_corr_pop + run - 1, j) = 0.0_dp
+
+    end subroutine
+
+
+    subroutine scale_corr_pop(j, run, t_factor)
+
+        integer, intent(in) :: j, run
+        real(dp), intent(in) :: t_factor
+
+        if (t_factor > 0.0_dp) then
+            global_determinant_data(pos_corr_pop + run - 1, j) = &
+                global_determinant_data(pos_corr_pop + run - 1, j) * t_factor
+        end if
+
+    end subroutine
+
+
+    subroutine add_corr_pop(j, run, t_spawned_walkers)
+
+        integer, intent(in) :: j, run
+        real(dp), intent(in) :: t_spawned_walkers
+
+        global_determinant_data(pos_corr_pop + run - 1, j) = &
+            global_determinant_data(pos_corr_pop + run - 1, j) + t_spawned_walkers
+
+    end subroutine
+
+
+    function get_corr_pop(j, run) result(t_corr_pop)
+
+        integer, intent(in) :: j, run
+        real(dp) :: t_corr_pop
+
+        t_corr_pop = global_determinant_data(pos_corr_pop + run - 1, j)
+
+    end function
+
+
+    subroutine death_corr_pop(j, run, fac)
+
+        integer, intent(in) :: j, run
+        real(dp) :: fac
+
+        global_determinant_data(pos_corr_pop + run - 1, j) = &
+            global_determinant_data(pos_corr_pop + run - 1, j) * (1.0_dp - fac)
+
+    end subroutine
+
+    !------------------------------------------------------------------------------------------!
+
     subroutine set_av_sgn_tot_sgl(j, part, av_sgn)
 
         integer, intent(in) :: j, part

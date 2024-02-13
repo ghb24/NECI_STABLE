@@ -3,7 +3,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use constants, only: sp, PI, lenof_sign, inum_runs
+    use constants, only: sp, PI, lenof_sign, inum_runs, sizeof_int
 
     use SystemData, only: nel, tUEG2, tGen_4ind_2, &
         tGen_4ind_weighted, tGUGA, &
@@ -34,7 +34,14 @@ module FciMCParMod
         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
         tDetermProjApproxHamil, tCoreAdaptiveShift, &
         tScaleBlooms, max_allowed_spawn, tSeniorInitiators, &
-        tloggreensfunction, tPrintReplicaOverlaps
+        tloggreensfunction, tPrintReplicaOverlaps, &
+        FreePropStart, FreePropSwitch, &
+        FreePropPeriod, RecoveryPeriod, FreePropMinRef, tRenorm, &
+        tNoSpawnRev, NoSpawnThresh, tInitExpand, InitExpandStart, &
+        InitExpandIters, InitExpandPeriod, tInitExpandReset, &
+        tInitExpandAnnihil, InitExpandAnnihilIters, InitExpandAnnihilThresh, &
+        tInitExpandFull, tTruncateDets, tNoNegSpawns, NoNegSpawnThresh, &
+        tModShiftCorr, DiagSft2, ModShiftCorrPrefac, N0_Target
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
         tDelayAllDoubsInits, tReferenceChanged, &
@@ -56,7 +63,6 @@ module FciMCParMod
         t_store_ci_coeff, t_start_ci_coeff, n_iter_ci_coeff, n_store_ci_level, &
         RDMEnergyIter, IterRDMonFly, FCIMCDebug, iWriteHistEvery, &
         tHistEnergies
-
 
     use sdt_amplitudes, only : output_ci_coeff, store_ci_coeff
 
@@ -89,7 +95,8 @@ module FciMCParMod
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone, &
-        flag_trial, flag_connected, flag_removed, niftot
+        flag_trial, flag_connected, flag_removed, niftot,&
+        flag_nospawn, flag_expanded, flag_signflip, well_defined
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
@@ -97,14 +104,16 @@ module FciMCParMod
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj, perform_determ_proj_approx_ham
     use cont_time, only: iterate_cont_time
-    use global_det_data, only: det_diagH, det_offdiagH, reset_tau_int, &
-                               get_all_spawn_pops, reset_shift_int, &
-                               update_shift_int, update_tau_int, &
-                               set_spawn_pop, get_tot_spawns, get_acc_spawns, &
+    use global_det_data, only: det_diagH, det_offdiagH, reset_tau_int, get_all_spawn_pops, &
+                               reset_shift_int, update_shift_int, &
+                               update_tau_int, set_spawn_pop, &
+                               get_tot_spawns, get_acc_spawns, &
                                update_pops_sum_all, get_pops_iter, &
-                               replica_est_len, get_max_ratio, update_max_ratio
-    use DetBitOps, only: tAccumEmptyDet
+                               replica_est_len, get_max_ratio, update_max_ratio, &
+                               reset_iea_all, get_iea, reset_corr_pop, &
+                               scale_corr_pop, get_corr_pop
 
+    use DetBitOps, only: tAccumEmptyDet
 
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -125,7 +134,8 @@ module FciMCParMod
         proj_e_for_precond, t_global_core_space, SumSpawns, SumSigns, &
         replica_est_unit, OutputHii, iterrdmstart, &
         walkerstospawn, tInDetermSpace, HighPopNeg, n_prone_dets, &
-        tFill_RDM, HighPopPos, IterLastRDMFill, TempSpawnedPartsInd
+        tFill_RDM, HighPopPos, IterLastRDMFill, TempSpawnedPartsInd, &
+        fullproje_unit, NoSpawnDetsEmpty, fullproje_num, fullproje_den
 
     use Parallel_neci, only: MPI_MIN, MPI_MAX, MPI_SUM, MPIReduce, MPIAllReduce, &
         nProcessors
@@ -138,7 +148,8 @@ module FciMCParMod
         TestMCExit, diagwalkersubspace, calc_proje, check_start_rdm, &
         end_iter_stats, perform_death_all_walkers, &
         rescale_spawns, decide_num_to_spawn, walker_death, &
-        rezero_iter_stats_each_iter, sumecontrib
+        rezero_iter_stats_each_iter, sumecontrib, scaledetwalkers, &
+        calc_FullProjE, IsTruncated
     use fcimc_output, only: PrintFCIMCPsi, getProjEOffset, PrintHighPops, &
         WriteHistogramEnergies, WriteHistogram, print_fval_pop_hist, &
         print_fval_energy_hist, WriteFCIMCStats, WriteFciMCStatsHeader, &
@@ -159,7 +170,9 @@ module FciMCParMod
 
     use real_time_init, only: init_overlap_buffers
 
-    use util_mod, only: operator(.div.), neci_flush
+    use bit_reps, only: decode_bit_det, writebitdet
+
+    use util_mod, only: operator(.div.), neci_flush, operator(.implies.)
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
@@ -178,7 +191,6 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
-
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, &
                                gen_excit_uniform_k_space_hub_transcorr, &
                                gen_excit_mixed_k_space_hub_transcorr, &
@@ -191,6 +203,8 @@ module FciMCParMod
     use hdf5_popsfile, only: write_popsfile_hdf5
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
+
+    use block_spawns, only: is_excitation_aborted
 
     better_implicit_none
     private
@@ -257,6 +271,8 @@ contains
 
         integer :: tmp_det(nel)
 
+        real(dp) :: t_rat
+
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
             write(stdout, "(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
@@ -313,86 +329,92 @@ contains
         end if
 
 #ifdef DEBUG_
-        call decode_bit_det(tmp_det, ilutHF)
-        write(stdout, *) "HF: ", tmp_det
-        call decode_bit_det(tmp_det, ilutHF_true)
-        write(stdout, *) "HF_true: ", tmp_det
-        call decode_bit_det(tmp_det, ilutRef(:, 1))
-        write(stdout, *) "Ref: ", tmp_det
-        write(stdout, *) "ProjEDet: ", ProjEDet
+          call decode_bit_det(tmp_det, ilutHF)
+          write(stdout, *) "HF: ", tmp_det
+          call decode_bit_det(tmp_det, ilutHF_true)
+          write(stdout, *) "HF_true: ", tmp_det
+          call decode_bit_det(tmp_det, ilutRef(:, 1))
+          write(stdout, *) "Ref: ", tmp_det
+          write(stdout, *) "ProjEDet: ", ProjEDet
 #endif
 
-        ! Attach signal handlers to give a more graceful death-mannerism
-        call init_signals()
+          ! Attach signal handlers to give a more graceful death-mannerism
+          call init_signals()
 
-        ! We want to do some population checking before we run any iterations.
-        ! In the normal case this is run between iterations, but it is
-        ! helpful to do it here.
-        call population_check()
+          ! We want to do some population checking before we run any iterations.
+          ! In the normal case this is run between iterations, but it is
+          ! helpful to do it here.
+          call population_check()
 
-        if (n_int /= int64) then
-            call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')
-        end if
+          if (n_int /= int64) then
+              call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')
+          end if
 
-        if (tDetermProj) then
-            ! If performing a deterministic projection instead of an FCIQMC calc:
-            if (tDetermProjApproxHamil) then
-                call perform_determ_proj_approx_ham()
-            else
-                call perform_determ_proj()
-            end if
-            return
-        else if (tFTLM) then
-            ! If performing a finite-temperature Lanczos method job instead of FCIQMC:
-            call perform_ftlm()
-            return
-        else if (tSpecLanc) then
-            call perform_spectral_lanczos()
-            return
-        else if (tExactSpec) then
-            call get_exact_spectrum()
-            return
-        else if (tExactDiagAllSym) then
-            call perform_exact_diag_all_symmetry()
-            return
-        end if
+          if (tDetermProj) then
+              ! If performing a deterministic projection instead of an FCIQMC calc:
+              if (tDetermProjApproxHamil) then
+                  call perform_determ_proj_approx_ham()
+              else
+                  call perform_determ_proj()
+              end if
+              return
+          else if (tFTLM) then
+              ! If performing a finite-temperature Lanczos method job instead of FCIQMC:
+              call perform_ftlm()
+              return
+          else if (tSpecLanc) then
+              call perform_spectral_lanczos()
+              return
+          else if (tExactSpec) then
+              call get_exact_spectrum()
+              return
+          else if (tExactDiagAllSym) then
+              call perform_exact_diag_all_symmetry()
+              return
+          end if
 
-        ! Initial output
-        if (tFCIMCStats2) then
-            call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
-            call write_fcimcstats2(iter_data_fciqmc)
-        else
-            call WriteFciMCStatsHeader()
-            ! Prepend a # to the initial status line so analysis doesn't pick
-            ! up repetitions in the FCIMCStats or INITIATORStats files from
-            ! restarts.
-            !write(stdout,'("#")', advance='no')
-            if (iProcIndex == root) then
-                write(fcimcstats_unit, '("#")', advance='no')
-                if (inum_runs == 2) &
-                    write(fcimcstats_unit2, '("#")', advance='no')
-                write(initiatorstats_unit, '("#")', advance='no')
-                if (tLogEXLEVELStats) &
-                    write(EXLEVELStats_unit, '("#")', advance='no')
-            end if
-            call WriteFCIMCStats()
-        end if
+          ! Initial output
+          if (tFCIMCStats2) then
+              call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
+              call write_fcimcstats2(iter_data_fciqmc)
+          else
+              call WriteFciMCStatsHeader()
+              ! Prepend a # to the initial status line so analysis doesn't pick
+              ! up repetitions in the FCIMCStats or INITIATORStats files from
+              ! restarts.
+              !write(stdout,'("#")', advance='no')
+              if (iProcIndex == root) then
+                  write(fcimcstats_unit, '("#")', advance='no')
+                  if (inum_runs == 2) &
+                      write(fcimcstats_unit2, '("#")', advance='no')
+                  write(initiatorstats_unit, '("#")', advance='no')
+                  if (tLogEXLEVELStats) &
+                      write(EXLEVELStats_unit, '("#")', advance='no')
+              end if
+              call WriteFCIMCStats()
+          end if
+          if (tFullProjE) then
+              if (iProcIndex == root) then
+                  fullproje_unit = get_free_unit()
+                  open(fullproje_unit, file = "FullProjE", status = 'unknown')
+              end if
+          endif
 
-        if (t_measure_local_spin) then
-            call write_local_spin_stats(initial = .true.)
-            call write_local_spin_stats()
-        end if
-        ! double occupancy:
-        if (t_calc_double_occ) then
-            call write_double_occ_stats(initial=.true.)
-            call write_double_occ_stats()
+          if (t_measure_local_spin) then
+              call write_local_spin_stats(initial = .true.)
+              call write_local_spin_stats()
+          end if
+          ! double occupancy:
+          if (t_calc_double_occ) then
+              call write_double_occ_stats(initial=.true.)
+              call write_double_occ_stats()
 
-            if (t_spin_measurements) then
+              if (t_spin_measurements) then
 
-                call write_spin_diff_stats(initial=.true.)
-                call write_spin_diff_stats()
+                  call write_spin_diff_stats(initial=.true.)
+                  call write_spin_diff_stats()
 
-                call write_spat_doub_occ_stats(initial=.true.)
+                  call write_spat_doub_occ_stats(initial=.true.)
                 call write_spat_doub_occ_stats()
             end if
         end if
@@ -671,6 +693,18 @@ contains
                 ! If the output is in sync, do a non-communicated output
                 if (tCoupleCycleOutput) call iteration_output_wrapper(iter_data_fciqmc, TotParts, &
                                                                       tPairedReplicas, t_comm_req=.false.)
+                if (tFullProjE) then
+                    call calc_FullProjE()
+                    if(iProcIndex == root) then
+                        write(FullProjE_Unit, "(i12,4g16.7)", advance = 'yes') &
+                            Iter + PreviousCycles, &
+                            DiagSft(1) + Hii, &
+                            AllTotParts(1), &
+                            FullProjE_Num(1), &
+                            FullProjE_Den(1)
+                    end if
+                endif
+
                 call halt_timer(Stats_Comms_Time)
 
                 if (t_measure_local_spin) then
@@ -703,6 +737,97 @@ contains
                         end if
                     end if
                 end if
+
+                if(FreePropStart>0 .and. Iter+PreviousCycles>=FreePropStart)then
+                    if(FreePropSwitch<=0.0)then
+                        !FreePropPeriod is not specific in the input
+                        !Detect the maximum period allowed till Ref pop depletes
+                        if(any(abs(AllNoatHF)<FreePropMinRef))then
+                            tTruncInitiator = .true.
+                            FreePropPeriod = Iter-FreePropStart
+                            write(stdout, *) "Free propogation period allowed by reference population is ", FreePropPeriod, " iterations"
+                            write(stdout, *) "Starting a recovery period of ", RecoveryPeriod, " iterations"
+                            FreePropSwitch = Iter+PreviousCycles+RecoveryPeriod
+                        else
+                            tTruncInitiator = .false.
+                        endif
+
+                    else if(Iter+PreviousCycles==FreePropSwitch)then
+                        tTruncInitiator = .not. tTruncInitiator
+
+                        if(tTruncInitiator)then
+                            !Constraint has just switched on
+                            write(stdout, *) "Starting a recovery period of ", RecoveryPeriod, " iterations"
+                            FreePropSwitch = Iter+PreviousCycles+RecoveryPeriod
+                        else
+                            !Free Propogation has just switched on
+                            write(stdout, *) "Starting a free propogation period of ", FreePropPeriod, "iterations"
+                            FreePropSwitch = Iter+PreviousCycles+FreePropPeriod
+                        endif
+                    endif
+                endif
+
+                InitExpand: if (tInitExpand)then
+                    do run = 1, inum_runs
+                        if(Iter+PreviousCycles==InitExpandStart)then
+                            tTruncInitiator = .false.
+                        elseif(tFixedN0)then
+                            cycle
+                        elseif(Iter+PreviousCycles>InitExpandStart)then
+                            if(mod(Iter+PreviousCycles-InitExpandStart, InitExpandPeriod)==InitExpandIters)then
+                                tTruncInitiator = .true.
+                                if(.not. tInitExpandFull)then
+                                    do j = 1, int(TotWalkers, sizeof_int)
+                                        call extract_sign(CurrentDets(:, j), CurrentSign)
+                                        if (IsUnoccDet(CurrentSign)) cycle
+                                        call set_flag(CurrentDets(:,j), flag_expanded)
+                                    enddo
+                                endif
+                                if(tInitExpandAnnihil)then
+                                    call reset_iea_all(TotWalkers)
+                                    tInitProbation = .true.
+                                endif
+                            elseif(mod(Iter+PreviousCycles-InitExpandStart, InitExpandPeriod)==0)then
+                                if(.not. tInitExpandAnnihil .and. abs(AllNoatHF(run))<=DBLE(N0_Target))then
+                                    tFixedN0 = .true.
+                                    tSkipRef(run) = .true.
+                                else
+                                    tTruncInitiator = .false.
+                                end if
+                                if(tInitExpandReset)then
+                                    !Remove all empty dets
+                                    do j = 1, int(TotWalkers, sizeof_int)
+                                        ! Keep semi-stochastic dets
+                                        if (check_determ_flag(CurrentDets(:, j))) cycle
+                                        call extract_sign(CurrentDets(:, j), CurrentSign)
+                                        if (IsUnoccDet(CurrentSign)) then
+                                            call clr_flag(CurrentDets(:,j), flag_expanded)
+                                            call decode_bit_det(nJ, CurrentDets(:, j))
+                                            call RemoveHashDet(HashIndex, nJ, j)
+                                        endif
+                                    enddo
+                                endif
+                            endif
+                            if (tInitExpandAnnihil) then
+                                if(mod(Iter+PreviousCycles-InitExpandStart, InitExpandPeriod)==InitExpandIters+InitExpandAnnihilIters)then
+                                    tInitProbation = .false.
+                                    if(abs(AllNoatHF(run)) <= real(N0_Target, dp))then
+                                        tFixedN0 = .true.
+                                        tSkipRef(run) = .true.
+                                    else
+                                        do j = 1, int(TotWalkers, sizeof_int)
+                                            t_rat = get_iea(j, run)
+                                            if(t_rat<InitExpandAnnihilThresh.or.(.not.abs(t_rat)>0.0_dp))then
+                                                call clr_flag(CurrentDets(:, j), get_initiator_flag_by_run(run))
+                                                call clr_flag(CurrentDets(:, j), flag_expanded)
+                                            endif
+                                        end do
+                                    endif
+                                endif
+                            endif
+                        endif
+                    enddo
+                end if InitExpand
 
                 if (iProcIndex == root) TotalTime8 = real(s_end - s_global_start, dp)
 
@@ -906,7 +1031,7 @@ contains
         end if
 
         if (allocated(input_tau_search_method)) then
-            if (t_print_frq_histograms .and. input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+            if (t_print_frq_histograms .and. tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
                 call print_frequency_histograms()
             end if
         end if
@@ -948,6 +1073,8 @@ contains
                 if (tAccumPopsActive) &
                     write(stdout, *) 'Accumulated projected energy of popsfile:', AccumE + Hii
             end if
+
+
         end if
 
         IF (tCalcFCIMCPsi) THEN
@@ -1028,6 +1155,7 @@ contains
             IF (tLogComplexPops) close(complexstats_unit)
             if (tWritePopsNorm) close(pops_norm_unit)
             if (tLogEXLEVELStats) close(EXLEVELStats_unit)
+            if (tFullProjE) close(FullProjE_Unit)
         end if
         IF (TDebug) close(11)
 
@@ -1247,11 +1375,15 @@ contains
         logical :: signChanged, newlyOccupied, flag_mixed
 
         real(dp) :: currArg, spawnArg
-        integer :: scaleFactor
         ! how many entries were added to (the end of) CurrentDets in the last iteration
         integer, save :: detGrowth = 0
 
         real(dp) :: inst_rdm_occ
+        integer(int64) :: target_walkers, run_walkers
+        real(dp):: RenormFactor(lenof_sign)
+        integer :: lb, ub
+
+        real(dp) :: prefac(lenof_sign)
 
         call set_timer(Walker_Time, 30)
         err = 0
@@ -1321,10 +1453,47 @@ contains
             end if
         end if
         lstart = mpi_wtime()
-        loop_over_determinants: do j = 1, int(TotWalkers)
+
+        if (tRenorm) then
+            target_walkers = int(InitWalkers, int64) * int(nNodes, int64)
+
+            call MPISumAll(TotParts, AllTotParts)
+            do run = 1, inum_runs
+                lb = min_part_type(run)
+                ub = max_part_type(run)
+                run_walkers = sum(AllTotParts(lb:ub))
+
+                if(tSinglePartPhase(run) .and. run_walkers>target_walkers)then
+                    write(stdout, '(a,i13,a,i1)') 'Exiting the growing phase on iteration: ' &
+                        , iter + PreviousCycles, ' - total population of the following run is now renormalized: ', run
+                    !Set these parameters because other parts of the code depends on them
+                    VaryShiftIter(run) = Iter
+                    iBlockingIter(run) = Iter + PreviousCycles
+                    tSinglePartPhase(run) = .false.
+                endif
+
+                if(tSinglePartPhase(run))then
+                    RenormFactor(lb:ub) = 1.0_dp
+                else
+                    RenormFactor(lb:ub) = real(target_walkers, dp)/real(run_walkers, dp)
+                endif
+            enddo
+        else
+            RenormFactor = 1.0_dp
+        endif
+
+        loop_over_determinants: do j = 1, int(TotWalkers, sizeof_int)
 
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
+
+            !Rescale walkers on det j
+            if(tRenorm)then
+                call ScaleDetWalkers(j, RenormFactor, iter_data)
+            endif
+
+            ! reset this flag for each det:
+            ! W.D. remove this option for now..
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -1353,6 +1522,21 @@ contains
             call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:, j), j, DetCurr, SignCurr, FlagsCurr, &
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
 
+            if (tNoNegSpawns) then
+                do part_type = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if (SignCurr(part_type) .lt. (-1.0_dp)*abs(NoNegSpawnThresh)) then
+                        SignCurr(part_type) = abs(SignCurr(part_type))
+                        if (test_flag(CurrentDets(:, j), flag_signflip(run))) then
+                            call clr_flag(CurrentDets(:, j), flag_signflip(run))
+                        else
+                            call set_flag(CurrentDets(:, j), flag_signflip(run))
+                        end if
+                    end if
+                enddo
+                call encode_sign(CurrentDets(:, j), SignCurr)
+            end if
+
             ! if we CurrentDets is almost full, make some space
             if (t_activate_decay) then
                 if (test_flag(CurrentDets(:, j), flag_prone)) then
@@ -1370,7 +1554,9 @@ contains
                             ! kill all walkers on the determinant
                             call nullify_ilut(CurrentDets(:, j))
                             ! and remove it from the hashtable
-                            if (.not. tAccumEmptyDet(CurrentDets(:, j))) &
+                            if (.not. tAccumEmptyDet(CurrentDets(:, j)) &
+                                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                                .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, j), flag_expanded))) &
                                 call RemoveHashDet(HashIndex, DetCurr, j)
                             cycle
                         end if
@@ -1440,13 +1626,31 @@ contains
                 end do
             end if
 
+            if (tBosonNoSpawn) then
+                if (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn)) then
+                    do part_type = 1, lenof_sign
+                        NoSpawnDets(part_type) = NoSpawnDets(part_type) + 1
+                        if (IsUnoccDet(SignCurr)) then
+                            NoSpawnDetsEmpty(part_type) = NoSpawnDetsEmpty(part_type) + 1
+                        end if
+                    end do
+                end if
+            end if
+
+            if (tInitExpandFull .and. .not. tTruncInitiator) then
+                call set_flag(CurrentDets(:, j), flag_expanded)
+            end if
+
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
             if (IsUnoccDet(SignCurr)) then
                 ! The deterministic states are always kept in CurrentDets, even when
                 ! the amplitude is zero. Hence we must check if the amplitude is zero,
                 ! and if so, skip the state.
-                if (any(tCoreDet) .or. tAccumEmptyDet(CurrentDets(:, j))) cycle
+                if (any(tCoreDet) &
+                    .or. tAccumEmptyDet(CurrentDets(:, j)) &
+                    .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn)) &
+                    .or. (well_defined(flag_expanded) .and. test_flag(CurrentDets(:, j), flag_expanded))) cycle
 
                 !It has been removed from the hash table already
                 !Just add to the "freeslot" list
@@ -1499,6 +1703,7 @@ contains
                     end if
                 end do
             end if
+
             if (tTruncInitiator) then
                 call CalcParentFlag(j, DetCurr, WalkExcitLevel, parent_flags)
             end if
@@ -1533,8 +1738,17 @@ contains
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), &
-                HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
+            if (well_defined(flag_nospawn) .implies. (.not. test_flag(CurrentDets(:, j), flag_nospawn))) then
+                do part_type = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if (tNoNegSpawns .and. test_flag(CurrentDets(:, j), flag_signflip(run))) then
+                        prefac(part_type) = -1.0_dp
+                    else
+                        prefac(part_type) = 1.0_dp
+                    end if
+                end do
+                call SumEContrib(DetCurr, WalkExcitLevel, prefac*SignCurr, CurrentDets(:, j), HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
+            end if
 
             if (t_calc_double_occ) then
 #ifdef CMPLX_
@@ -1629,6 +1843,16 @@ contains
 
             loop_over_type : do part_type = 1, lenof_sign
 
+                if (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn)) then
+                    if (tNoSpawnRev .and. (abs(SignCurr(part_type)) > NoSpawnThresh)) then
+                        call clr_flag(CurrentDets(:, j), flag_nospawn)
+                    else
+                        cycle
+                    endif
+                endif
+
+                if (tNoNegSpawns .and. (SignCurr(part_type) < 0.0_dp)) cycle
+
                 run = part_type_to_run(part_type)
                 TempSpawnedPartsInd = 0
 
@@ -1672,6 +1896,15 @@ contains
                         nJ(1) = 0
                     end if
 
+                    if(tTruncateDets .and. .not. IsNullDet(nJ) .and. .not. tTruncInitiator) then
+                        if(IsTruncated(nJ)) then
+                            !Set nJ to null
+                            nJ(1) = 0
+                        endif
+                    endif
+
+                    if (is_excitation_aborted(nJ, ilutnJ)) nJ(1) = 0
+
                     ! If a valid excitation, see if we should spawn children.
                     if (IsNullDet(nJ)) then
                         nInvalidExcits = nInvalidExcits + 1
@@ -1713,7 +1946,7 @@ contains
                                                CurrentDets(:, j), SignCurr, &
                                                nJ, iLutnJ, Prob, HElGen, IC, ex, &
                                                tParity, walkExcitLevel, part_type, &
-                                               AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
+                                               AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac, j)
                         ! Note these last two, AvSignCurr and
                         ! RDMBiasFacCurr are not used unless we're
                         ! doing an RDM calculation.

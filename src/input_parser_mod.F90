@@ -7,10 +7,13 @@ module input_parser_mod
     use constants, only: stderr, stdout
     use util_mod, only: stop_all
     use fortran_strings, only: str, Token_t, split, to_int, WHITESPACE
+    use sets_mod, only: disjoint, operator(.U.)
+    use SystemData, only: nEl
     better_implicit_none
     private
     public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, &
-        TokenIterator_t, tokenize, get_range, construct_ManagingFileReader_t
+        TokenIterator_t, tokenize, get_range, construct_ManagingFileReader_t, &
+        parse_definedet
 
     integer, parameter :: max_line_length = 1028
 
@@ -134,7 +137,6 @@ contains
         !! Close the file.
         class(FileReader_t), intent(inout) :: this
         logical, intent(in), optional :: delete
-        deallocate(this%file_name)
         if (present(delete)) then
             if (delete) then
                 close(this%file_id, status='delete')
@@ -437,4 +439,29 @@ contains
             call stop_all(this_routine, 'Current line not defined.')
         end if
     end function
+
+    subroutine parse_definedet(tokens, def_det)
+        type(TokenIterator_t), intent(inout) :: tokens
+        integer, intent(out) :: def_det(nEl)
+        character(*), parameter :: this_routine = 'parse_definedet'
+
+        integer, allocatable :: input_range(:), local_def_det(:)
+
+        local_def_det = [integer ::]
+        do while(tokens%remaining_items() > 0)
+            input_range = get_range(tokens%next())
+            if (disjoint(local_def_det, input_range)) then
+                local_def_det = local_def_det .U. input_range
+            else
+                call stop_all(this_routine, 'Every value of definedet has to be given only once.')
+            end if
+        end do
+        if (size(local_def_det) < nEl) then
+            call stop_all(this_routine, 'Too few elements specified for Definedet.')
+        else if (size(local_def_det) > nEl) then
+            call stop_all(this_routine, 'Too many elements specified for Definedet.')
+        end if
+        def_det(:) = local_def_det(:)
+    end subroutine
+
 end module

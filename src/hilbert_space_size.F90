@@ -25,7 +25,7 @@ module hilbert_space_size
     private
     public :: FindSymMCSizeExcitLevel, create_rand_det_no_sym, &
         CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det, &
-        FindSymMCSizeofSpace, FindSymSizeofTruncSpace, FindSymSizeofSpace
+        FindSymMCSizeofSpace, FindSymSizeofTruncSpace, FindSymSizeofSpace, findhilbsizetrunchubb
 
 contains
 
@@ -1126,4 +1126,70 @@ contains
 
     END SUBROUTINE FindSymSizeofTruncSpace
 
+    subroutine FindHilbSizeTruncHubb()
+        use fcimc_helper, only: IsTruncated
+        use SystemData, only: nbasis, nel, nOccAlpha, nOccBeta
+        use LoggingData, only: HilbSpaceSamples
+        use Parallel_neci
+        use sort_mod
+
+        integer :: i, nI(nel), Attempts, AttemptsTotal, &
+            Fails, FailsTotal, FullSpace
+        real(dp) :: ratio
+
+        Attempts = 0
+        Fails = 0
+        do i = 1, HilbSpaceSamples
+            nI = GenRandDetHubb()
+            Attempts = Attempts + 1
+            if (IsTruncated(nI)) Fails = Fails + 1
+        end do
+
+        call MPIAllReduce(Attempts, MPI_SUM, AttemptsTotal)
+        call MPIAllReduce(Fails, MPI_SUM, FailsTotal)
+        if (iProcIndex == 0) then
+            ratio = real(AttemptsTotal-FailsTotal, dp)/real(AttemptsTotal, dp)
+            FullSpace = choose_i64(nbasis/2, nOccAlpha)*choose_i64(nbasis/2, nOccBeta)
+            write(stdout, "(A)") ""
+            write(stdout, "(A)") "=========================================================================="
+            write(stdout, "(A)") "** MC-sampled Hilbert space size: **"
+            write(stdout, "(A,I18)") "Total number of samples: ", AttemptsTotal
+            write(stdout, "(A,I18)") "Total number of non-truncated dets: ", AttemptsTotal-FailsTotal
+            write(stdout, "(A,F18.5)") "Ratio: ", ratio
+            write(stdout, "(A,I18)") "Total Hilbert space size: ", FullSpace
+            write(stdout, "(A,I18)") "Estimated Hilbert space size: ", int(ratio*FullSpace)
+            write(stdout, "(A)") "=========================================================================="
+            write(stdout, "(A)") ""
+        end if
+
+        contains
+
+            function GenRandDetHubb() result(nI)
+                use dSFMT_interface, only: genrand_real2_dSFMT
+
+                integer :: n
+                integer :: nI(nel)
+                integer :: r
+
+                nI = 0
+                n = 1
+
+                do while (n <= nOccAlpha)
+                    r = 2*int(nbasis/2 * genrand_real2_dSFMT()) + 2
+                    if (any(nI == r)) cycle
+                    nI(n) = r
+                    n = n + 1
+                end do
+
+                do while (n <= nel)
+                    r = 2*int(nbasis/2 * genrand_real2_dSFMT()) + 1
+                    if (any(nI == r)) cycle
+                    nI(n) = r
+                    n = n + 1
+                end do
+
+                call sort(nI)
+            end function
+
+    end subroutine
 end module hilbert_space_size

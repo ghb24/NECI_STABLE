@@ -126,7 +126,12 @@ module CalcData
     LOGICAL :: tCheckHighestPop, tRestartHighPop, tChangeProjEDet
     LOGICAL :: tRotoAnnihil, tSpawnAsDet
     LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
-    logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
+    logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag, tNonInitModShift, &
+        tModShiftCorr, tModShiftCorrOnlyS1
+    real(dp) :: modShift, modShiftTargetFrac, tot_walkers, TargetWalkers1, TargetWalkers2, DiagSft2Init, &
+        ModShiftCorrPrefac
+    integer :: modShiftTargetIter, modShiftConstIters
+    logical :: tInitShift, tModShiftTarget, tModShiftPhase
 ! Are all core-space determinants initiators?
     logical :: t_core_inits = .true.
     logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
@@ -237,7 +242,7 @@ module CalcData
 
     real(dp) :: MemoryFacInit
 
-    real(dp), allocatable, target :: DiagSft(:)
+    real(dp), allocatable, target :: DiagSft(:), DiagSft2(:)
 ! for consistency with forgetting the walkcontgrow keyword and hdf5 read-in
 ! use a temporary storage of the read-in diags-shift
     real(dp), allocatable :: hdf5_diagsft(:)
@@ -560,16 +565,70 @@ module CalcData
 !Use additional second shift damping factor for improved walker population
 !control.
     logical :: tTargetShiftdamp = .false.
+    logical :: tImportanceSampling
+    logical :: tGutzwillerGuide
+    real(dp) :: GutzwillerParam
+    logical :: tGutzwillerHubbardAF
+    real(dp) :: GutzwillerParam2
+    logical :: tHubbardDoublonHolon
+    real(dp) :: GutzwillerParam3
+    logical :: tSignCriteria
+    logical :: tAmpCriteria
+    logical :: tSignFlip
+    logical :: tHartreeGutzwiller
+    logical :: tControlZeroDenom
+    logical :: tMeasureOverlap
 
-! variables used in running imaginary-time FCIQMC calculations in presence of external field
-logical :: tCalcWithField
-! Total number of external fields
-integer :: nFields_it
+!Free Propogation Parameters
+    integer :: FreePropStart  ! The first iteration to switch free propogation on
+    integer :: FreePropPeriod ! How many iterations should free propogation be on
+    integer :: RecoveryPeriod ! How many iterations should free propogation be off
+    integer :: FreePropSwitch ! Next iteration to switch free propogation on/off
+    real(dp) :: FreePropMinRef !Miniumum population of reference det allowed during free prop.
+                               !This is only enforced if FreePropPeriod is not specified
 
-! Properties of the Field
-real(dp), allocatable :: FieldStrength_it(:)
+    logical :: tRenorm = .false. !Control population by directly rescaling walkers
 
-! Name of the files from which integrals will be read for each of the external fields
-character(len=100), allocatable :: FieldFiles_it(:)
+    logical :: tBosonNoSpawn = .false.
+    real(dp) :: BosonNoSpawnThreshold, FermionNoSpawnThreshold
+    character(255) :: bosonic_popsfile
 
+    logical :: tNoSpawnRev = .false.
+    real(dp) :: NoSpawnThresh
+
+    ! HF treshold
+    real(dp) :: tHFTresh
+
+    logical :: tInitExpand = .false.
+    logical :: tInitExpandAdd = .false.
+    logical :: tInitExpandReset = .false.
+    logical :: tInitExpandAnnihil = .false.
+    integer :: InitExpandStart, InitExpandIters, InitRecoverIters, InitExpandPeriod
+    real(dp) :: InitExpandAnnihilThresh
+    integer :: InitExpandAnnihilIters
+    logical :: tInitExpandFull = .false.
+
+    logical :: tTruncateDets = .false.
+    logical :: tTruncateHubbard = .false.
+    logical :: tTruncHubbAllClose = .false.
+    logical :: tExLevelAFCriterion = .false.
+    logical :: tAFTruncBracket = .false.
+    integer :: pairing_criterion = -1, repel_criterion = -1, af_criterion = -1, af_criterion_bracket = -1 !A negative value disables the criterion
+    integer :: max_doublons = -1, max_holons = -1 !A negative value indicates no maximum
+    logical :: tPrintUMat = .false.
+
+    ! variables used in running imaginary-time FCIQMC calculations in presence of external field
+    logical :: tCalcWithField
+    ! Total number of external fields
+    integer :: nFields_it
+
+    ! Properties of the Field
+    real(dp), allocatable :: FieldStrength_it(:)
+
+    ! Name of the files from which integrals will be read for each of the external fields
+    character(len=100), allocatable :: FieldFiles_it(:)
+
+
+    logical :: tNoNegSpawns = .false., tTruncInitHalf = .false.
+    real(dp) :: NoNegSpawnThresh
 end module CalcData

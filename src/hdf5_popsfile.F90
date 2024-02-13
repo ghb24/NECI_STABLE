@@ -79,8 +79,9 @@ module hdf5_popsfile
     use error_handling_neci, only: neci_flush
     use constants, only: dp, stdout, n_int, int32, int64, hdf_log, hdf_err, lenof_sign, &
                          inum_runs, build_64bit
-    use util_mod, only: near_zero, operator(.div.), get_unique_filename
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn
+    use util_mod, only: near_zero, operator(.div.), get_unique_filename, operator(.implies.)
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, BosonNoSpawnThreshold, FermionNoSpawnThreshold, &
+                        pSinglesIn, pDoublesIn, pTriplesIn, tNonInitModShift, tModShiftTarget
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
@@ -129,6 +130,10 @@ module hdf5_popsfile
         nm_iters = 'completed_iters', &
         nm_tot_imag = 'tot_imag_time', &
         nm_shift = 'shift', &
+        nm_shift2 = 'shift2', &
+        nm_modshiftwalk = 'modshiftwalk', &
+        nm_hfcyc = 'hfcyc', &
+        nm_enumcyc = 'enumcyc', &
         nm_tAuto = 'tAutoAdaptiveShift', &
         nm_tAP = 'tAccumPops', &
         nm_accum_counter = 'iAccumPopsCounter', &
@@ -167,6 +172,7 @@ module hdf5_popsfile
         nm_num_dets = 'num_dets', &
         nm_ilut = 'ilut', &
         nm_sgns = 'sgns', &
+        nm_flags = 'flags', &
         nm_norm_sqr = 'norm_sqr', &
         nm_num_parts = 'num_parts', &
         nm_gdata = 'gdata', &
@@ -179,6 +185,7 @@ module hdf5_popsfile
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
+    public :: ReadBosonicPopsfile
 
 contains
 
@@ -423,8 +430,9 @@ contains
 
     subroutine write_calc_data(parent)
 
-        use FciMCData, only: Iter, PreviousCycles, TotImagTime, Hii
-        use CalcData, only: DiagSft
+        use FciMCData, only: Iter, PreviousCycles, TotImagTime, Hii, &
+            AllNoNonModShiftWalk, AllHFCyc, AllENumCyc
+        use CalcData, only: DiagSft, DiagSft2
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: calc_grp
@@ -437,6 +445,12 @@ contains
         call write_int64_scalar(calc_grp, nm_iters, iter + PreviousCycles)
         call write_dp_scalar(calc_grp, nm_tot_imag, TotImagTime)
         call write_dp_1d_dataset(calc_grp, nm_shift, DiagSft + Hii)
+        if (tNonInitModShift) then
+            call write_dp_1d_dataset(calc_grp, nm_shift2, DiagSft2 + Hii)
+            call write_dp_1d_dataset(calc_grp, nm_modshiftwalk, AllNoNonModShiftWalk)
+            call write_dp_1d_dataset(calc_grp, nm_hfcyc, real(AllHFCyc, dp))
+            call write_dp_1d_dataset(calc_grp, nm_enumcyc, real(AllENumCyc, dp))
+        end if
 
         ! Output the values used for tau optimisation. Only output non-zero
         ! (i.e. used) values.
@@ -541,7 +555,7 @@ contains
         ! for the new hist-tau search i essentially only need to indicat
         ! that a histogramming tau-search was used:
         if (allocated(input_tau_search_method)) then
-            if (input_tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
+            if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
                 call write_log_scalar(tau_grp, nm_hist_tau, .true.)
             end if
         end if
@@ -581,13 +595,16 @@ contains
     subroutine read_calc_data(parent)
 
         use FciMCData, only: PreviousCycles, Hii, TotImagTime, &
-                             pSingles, pDoubles, pParallel
-        use CalcData, only: DiagSft, tWalkContGrow, hdf5_diagsft
+                             pSingles, pDoubles, pParallel, &
+                             OldAllNoNonModShiftWalk, &
+                             AllHFCyc, AllENumCyc
+        use CalcData, only: DiagSft, DiagSft2, tWalkContGrow, hdf5_diagsft
         use tc_three_body_data, only: pTriples, tReadPTriples
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         logical :: exists
+        real(dp), allocatable :: hfcyc_out(:), enumcyc_out(:)
         debug_function_name("read_calc_data")
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
@@ -612,6 +629,17 @@ contains
             DiagSft = DiagSft - Hii
             tSinglePartPhase = (abs(DiagSft(1)) < 1.0e-6)
             write(stdout, *) 'Initial shift: ', DiagSft
+            if (tNonInitModShift) then
+                call read_dp_1d_dataset(grp_id, nm_shift2, DiagSft2)
+                DiagSft2 = DiagSft2 - Hii
+                write(stdout, *) 'Initial mod-shift: ', DiagSft2
+                call read_dp_1d_dataset(grp_id, nm_modshiftwalk, OldAllNoNonModShiftWalk)
+                write(stdout, *) 'initial non-mod-shift walkers: ', OldAllNoNonModShiftWalk
+                call read_dp_1d_dataset(grp_id, nm_hfcyc, hfcyc_out)
+                call read_dp_1d_dataset(grp_id, nm_enumcyc, enumcyc_out)
+                AllHFCyc = hfcyc_out
+                AllENumCyc = enumcyc_out
+            end if
         else
             tSinglePartPhase = .true.
 
@@ -755,8 +783,9 @@ contains
 
     subroutine write_walkers(parent, MaxEx)
 
-        use FciMCData, only: CurrentDets, &
-                             TotWalkers, iLutHF
+        use bit_rep_data, only: NIfD, NIfTot, IlutBits, &
+                                flag_nospawn, test_flag, well_defined
+        use FciMCData, only: CurrentDets, TotWalkers, iLutHF
         use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
         use global_det_data, only: writeFValsAsInt, writeAPValsAsInt
 
@@ -810,7 +839,9 @@ contains
         do i = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:, i), CurrentSign)
             ! Skip empty determinants (unless we are accumulating its population)
-            if (IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:, i))) cycle
+            if (IsUnoccDet(CurrentSign) &
+                .and. .not. tAccumEmptyDet(CurrentDets(:, i)) &
+                .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, i), flag_nospawn))) cycle
 
             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:, i))
 
@@ -912,6 +943,15 @@ contains
             [0_hsize_t, sum(counts(0:iProcIndex - 1))] & ! output offset
             )
 
+        call write_2d_multi_arr_chunk_buff( &
+            wfn_grp_id, nm_flags, h5kind_to_type(int64, H5_INTEGER_KIND), &
+            PrintedDets, &
+            [int(1, hsize_t), int(printed_count, hsize_t)], & ! dims
+            [int(IlutBits%ind_flag, hsize_t), 0_hsize_t], & ! offset
+            [int(1, hsize_t), all_count], & ! all dims
+            [0_hsize_t, sum(counts(0:iProcIndex - 1))] & ! output offset
+            )
+
         deallocate(TmpVecDets)
 
         if (gdata_size > 0) then
@@ -955,7 +995,7 @@ contains
         integer :: proc, nreceived
         integer(hid_t) :: grp_id, calc_grp_id
         integer(hdf_err) :: err
-        integer(hid_t) :: ds_sgns, ds_ilut, ds_gdata
+        integer(hid_t) :: ds_sgns, ds_ilut, ds_flags, ds_gdata
         integer(int64) :: nread_walkers
         integer :: ierr
 
@@ -967,9 +1007,9 @@ contains
         real(dp), allocatable :: pops_num_parts(:), pops_norm_sqr(:)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
         logical :: running, any_running
-        integer(hsize_t), dimension(:, :), allocatable :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:, :), allocatable :: temp_ilut, temp_sgns, temp_flags
         integer(hsize_t), dimension(:, :), allocatable :: gdata_buf
-        integer :: temp_ilut_tag, temp_sgns_tag, rest
+        integer :: temp_ilut_tag, temp_sgns_tag, temp_flags_tag, rest
         integer(int32) :: read_lenof_sign
         type(gdata_io_t) :: gdata_read_handler
         integer :: gdata_size, tmp_fvals_size, tmp_apvals_size
@@ -1075,6 +1115,7 @@ contains
         ! Open the relevant datasets
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
+        call h5dopen_f(grp_id, nm_flags, ds_flags, err)
 
         ! size of the ms data read in
         tmp_fvals_size = 2 * tmp_inum_runs
@@ -1179,6 +1220,9 @@ contains
         allocate(temp_sgns(int(tmp_lenof_sign), int(this_block_size)), stat=ierr)
         call LogMemAlloc('temp_sgns', size(temp_sgns), lenof_sign, 'read_walkers', temp_sgns_tag, ierr)
 
+        allocate(temp_flags(int(1), int(this_block_size)), stat=ierr)
+        call LogMemAlloc('temp_flags', size(temp_flags), 1, 'read_walkers', temp_flags_tag, ierr)
+
         allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
 
         do while (any_running)
@@ -1202,9 +1246,9 @@ contains
                     tmp_fvals_size, max_ratio_size, tmp_apvals_size)
             end if
 
-            call read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, &
+            call read_walker_block_buff(ds_ilut, ds_sgns, ds_flags, ds_gdata, block_start, &
                                         this_block_size, bit_rep_width, temp_ilut, temp_sgns, &
-                                        gdata_buf)
+                                        temp_flags, gdata_buf)
 
             if (tmp_lenof_sign /= lenof_sign) then
                 call clone_signs(temp_sgns, tmp_lenof_sign, lenof_sign, this_block_size)
@@ -1219,7 +1263,7 @@ contains
             ! distribution and storage of the data is done with the read_handler, which
             ! has the memory layout for the current calculation
             call distribute_and_add_walkers(this_block_size, gdata_read_handler, &
-                                            temp_ilut, temp_sgns, gdata_buf, &
+                                            temp_ilut, temp_sgns, temp_flags, gdata_buf, &
                                             dets, nreceived, CurrWalkers, norm, parts)
 
             nread_walkers = nread_walkers + nreceived
@@ -1242,10 +1286,12 @@ contains
         deallocate(temp_ilut, temp_sgns)
         call LogMemDeAlloc('read_walkers', temp_ilut_tag)
         call LogMemDeAlloc('read_walkers', temp_sgns_tag)
+        call LogMemDeAlloc('read_walkers', temp_flags_tag)
 
         if (t_read_gdata) call h5dclose_f(ds_gdata, err)
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
+        call h5dclose_f(ds_flags, err)
         call h5gclose_f(grp_id, err)
 
         ! Do some checking
@@ -1260,8 +1306,8 @@ contains
 
     end subroutine read_walkers
 
-    subroutine read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, block_size, &
-                                      bit_rep_width, temp_ilut, temp_sgns, gdata_buf)
+    subroutine read_walker_block_buff(ds_ilut, ds_sgns, ds_flags, ds_gdata, block_start, block_size, &
+                                      bit_rep_width, temp_ilut, temp_sgns, temp_flags, gdata_buf)
 
 
         ! Read the walkers into the array spawnedparts2
@@ -1272,10 +1318,10 @@ contains
         ! --> It would also be possible to read into scratch arrays, and then
         !     do some transferring.
 
-        integer(hid_t), intent(in) :: ds_ilut, ds_sgns, ds_gdata
+        integer(hid_t), intent(in) :: ds_ilut, ds_sgns, ds_flags, ds_gdata
         integer(hsize_t), intent(in) :: block_start, block_size
         integer(int32), intent(in) :: bit_rep_width
-        integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns, temp_flags
         integer(hsize_t), dimension(:, :) :: gdata_buf
         integer :: gdata_size
 
@@ -1293,6 +1339,12 @@ contains
             [0_hsize_t, block_start], &
             [0_hsize_t, 0_hsize_t])
 
+        call read_2d_multi_chunk( &
+            ds_flags, temp_flags, h5kind_to_type(int64, H5_INTEGER_KIND), &
+            [int(1, hsize_t), block_size], &
+            [0_hsize_t, block_start], &
+            [0_hsize_t, 0_hsize_t])
+
         gdata_size = size(gdata_buf, dim=1)
         if (gdata_size > 0) then
             call read_2d_multi_chunk( &
@@ -1306,12 +1358,10 @@ contains
         call stop_all("read_walker_block", "32-64bit conversion not yet implemented")
 #endif
 
-        ! TODO: Flags here!!!
-
     end subroutine read_walker_block_buff
 
     subroutine distribute_and_add_walkers(block_size, gdata_read_handler, &
-                                          temp_ilut, temp_sgns, gdata_buf, &
+                                          temp_ilut, temp_sgns, temp_flags, gdata_buf, &
                                           dets, nreceived, CurrWalkers, norm, parts)
         use FciMCData, only: MaxSpawned
         implicit none
@@ -1321,7 +1371,8 @@ contains
         type(gdata_io_t), intent(in) :: gdata_read_handler
         integer:: nreceived
         real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
-        integer(hsize_t):: temp_ilut(:, :), temp_sgns(:, :), gdata_buf(:, :)
+        integer(hsize_t):: temp_ilut(:, :), temp_sgns(:, :), &
+            temp_flags(:, :), gdata_buf(:, :)
         integer(MPIArg) :: sendcount(0:nProcessors - 1)
         integer :: nlocal = 0
         integer :: gdata_size
@@ -1333,7 +1384,7 @@ contains
         allocate(gdata_comm(gdata_size, MaxSpawned), stat=ierr)
         allocate(gdata_loc(gdata_size, MaxSpawned), stat=ierr)
 
-        call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
+        call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, temp_flags, &
                                        gdata_buf, gdata_loc, gdata_comm, sendcount)
 
         !add elements that are on the right processor already
@@ -1360,17 +1411,17 @@ contains
 
     end subroutine distribute_and_add_walkers
 
-    subroutine assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
+    subroutine assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, temp_flags, &
                                          gdata_buf, gdata_loc, gdata_comm, sendcount)
 
         use load_balance_calcnodes, only: DetermineDetNode
         use FciMCData, only: SpawnedParts2, SpawnedParts
 
-        use DeterminantData, only: write_det
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
-        integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns, gdata_buf, gdata_comm
+        integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns, temp_flags, &
+            gdata_buf, gdata_comm
         integer(hsize_t), dimension(:, :) :: gdata_loc
         integer(hsize_t) :: onepart(0:IlutBits%len_bcast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
@@ -1387,6 +1438,7 @@ contains
         do j = 1, int(block_size)
             onepart(0:sizeilut - 1) = temp_ilut(:, j)
             onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
+            onepart(sizeilut + int(lenof_sign):sizeilut + int(lenof_sign)) = temp_flags(:, j)
             ! Which processor does this determinant live on?
             call decode_bit_det(det, onepart)
             proc = DetermineDetNode(nel, det, 0)
@@ -1667,4 +1719,403 @@ contains
 
     end subroutine add_pops_norm_contrib
 
+    subroutine ReadBosonicPopsfile(filename)
+        !The Bosonic popsfile is just a normal popsfile resulting from a bosoic
+        !FCIQMC simulation. What is special here is what information we exctract
+        !out of that file and how we use it in specifiying flag_nospawn
+
+        character(255), intent(in) :: filename
+        character(*), parameter :: t_r = 'ReadBosonicPopsFile'
+#ifdef USE_HDF_
+        integer(hid_t) :: file_id, plist_id
+        integer(hdf_err) :: err
+        integer :: mpi_err
+
+
+        write(6, *)
+        write(6, *) "========== Reading in Bosonic WF from HDF5 popsfile =========="
+        write(6, *) 'File name: ', trim(filename)
+
+        ! Initialise the hdf5 fortran interface
+        call h5open_f(err)
+
+        ! Set up a property list to ensure file handling across all nodes.
+        call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
+        call h5pset_fapl_mpio_f(plist_id, CommGlobal%MPI_VAL, mpiInfoNull%MPI_VAL, err)
+
+        ! Open the popsfile
+        call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &
+                       access_prp=plist_id)
+        if (err /= 0) call stop_all(t_r, "No bosonic popsfile found")
+
+        call read_bosonic_walkers(file_id)
+
+        ! And we are done
+        call h5pclose_f(plist_id, err)
+        call h5fclose_f(file_id, err)
+        call h5close_f(err)
+
+        call neci_flush(6)
+        call MPIBarrier(mpi_err)
+#else
+        unused_var(filename)
+        call stop_all(t_r, 'HDF5 support not enabled at compile time')
+#endif
+
+    end subroutine ReadBosonicPopsfile
+
+#ifdef USE_HDF_
+    subroutine read_bosonic_walkers(parent)
+
+        use bit_rep_data, only: NIfD
+
+
+        integer(hid_t), intent(in) :: parent
+        character(*), parameter :: t_r = 'read_bosonic_walkers'
+
+        integer :: proc, nreceived, nmarked, nfound
+        integer(hid_t) :: grp_id
+        integer(hdf_err) :: err
+        integer(hid_t) :: ds_sgns, ds_ilut, ds_flags, ds_gdata
+        integer(int64) :: ndets_large, all_ndets_large, ndets_nospawn, all_ndets_nospawn
+        integer(int64) :: ndets_common, all_ndets_common
+        integer :: ierr
+
+        integer(int32) :: bit_rep_width
+        integer(hsize_t) :: all_count, block_size, counts(0:nProcessors - 1)
+        integer(hsize_t) :: offsets(0:nProcessors - 1)
+        integer(hsize_t) :: block_start, block_end, last_part
+        integer(hsize_t) :: this_block_size
+        logical :: running, any_running
+        integer(hsize_t), dimension(:, :), allocatable :: temp_ilut, temp_sgns, temp_flags
+        integer(hsize_t), dimension(:, :), allocatable :: gdata_buf
+        integer :: temp_ilut_tag, temp_sgns_tag, temp_flags_tag, rest
+        integer(int32) :: read_lenof_sign
+
+
+        call h5gopen_f(parent, nm_wfn_grp, grp_id, err)
+
+        ! TODO: Make sure that this plays nicely with 32bit!!!
+        if (.not. build_64bit) &
+            call stop_all(t_r, "Needs manual, careful testing and adjustment")
+
+        ! Get attributes about the sizes of stuff in the popsfile.
+        ! ========
+
+        ! We can only read in bit representations that are the right size!
+        call read_int32_attribute(grp_id, nm_rep_width, bit_rep_width)
+        if (bit_rep_width /= NIfD + 1) &
+            call stop_all(t_r, "Mismatched bit representations")
+
+        call read_int32_attribute(grp_id, nm_sgn_len, read_lenof_sign)
+        ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
+        tmp_lenof_sign = int(read_lenof_sign)
+        ! assign the tmp_inum_runs accordingly
+#ifdef CMPLX_
+        tmp_inum_runs = tmp_lenof_sign.div.2
+#else
+        tmp_inum_runs = tmp_lenof_sign
+#endif
+
+        call read_int64_attribute(grp_id, nm_num_dets, all_count, &
+                                  required=.true.)
+
+
+        write(6, *)
+        write(6, *) 'Reading in ', all_count, 'bosonic determinants'
+
+        ! How many particles should each processor read in (try and distribute
+        ! this as uniformly as possible. Also calculate the associated data
+        ! offsets
+        counts = all_count / nProcessors
+        rest = int(mod(all_count, nProcessors))
+        if (rest > 0) counts(0:rest - 1) = counts(0:rest - 1) + 1
+
+        if (sum(counts) /= all_count .or. any(counts < 0)) &
+            call stop_all(t_r, "Invalid particles counts")
+        offsets(0) = 0
+        do proc = 1, nProcessors - 1
+            offsets(proc) = offsets(proc - 1) + counts(proc - 1)
+        end do
+
+        write(6, *) 'Reading in ', counts(iProcIndex), &
+            'bosonic determinants on this process ...'
+
+
+        ! Open the relevant datasets
+        call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
+        call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
+        call h5dopen_f(grp_id, nm_flags, ds_flags, err)
+
+        ! Check that these datasets look like we expect them to.
+        call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
+                                  [int(bit_rep_width, hsize_t), all_count])
+        call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
+                                  [int(tmp_lenof_sign, hsize_t), all_count])
+        call check_dataset_params(ds_flags, nm_flags, 8_hsize_t, H5T_INTEGER_F, &
+                                  [int(1, hsize_t), all_count])
+
+        !limit the buffer size per MPI task to 50MB or MaxSpawned entries
+        block_size = 50000000 / (bit_rep_width * lenof_sign) / sizeof(SpawnedParts(1, 1))
+        block_size = min(block_size, MaxSpawned)
+
+        ! Initialise relevant counters
+        ndets_large = 0
+        ndets_nospawn = 0
+        ndets_common = 0
+
+        ! Note that reading in the HDF5 library is zero based, not one based
+        ! TODO: We need to keep looping until all the processes are done, not
+        !       just the one!
+        block_start = offsets(iProcIndex)
+        if (iProcIndex == nProcessors - 1) then
+            last_part = all_count - 1
+        else
+            last_part = offsets(iProcIndex + 1) - 1
+        end if
+        block_end = min(block_start + block_size - 1, last_part)
+        this_block_size = block_end - block_start + 1
+
+        running = .true.
+        any_running = .true.
+
+        allocate(temp_ilut(int(bit_rep_width), int(this_block_size)), stat=ierr)
+        call LogMemAlloc('temp_ilut', size(temp_ilut), int(sizeof(temp_ilut(1, 1))), 'read_bosonic_walkers', temp_ilut_tag, ierr)
+
+        allocate(temp_sgns(int(tmp_lenof_sign), int(this_block_size)), stat=ierr)
+        call LogMemAlloc('temp_sgns', size(temp_sgns), lenof_sign, 'read_bosonic_walkers', temp_sgns_tag, ierr)
+
+        allocate(temp_flags(int(1), int(this_block_size)), stat=ierr)
+        call LogMemAlloc('temp_flags', size(temp_flags), 1, 'read_bosonic_walkers', temp_flags_tag, ierr)
+
+        !Allocate dummy buffer because we do not need global data
+        allocate(gdata_buf(0, int(this_block_size)), stat=ierr)
+
+        do while (any_running)
+            if (running) then
+                ! If this is the last block, its size will differ from the biggest
+                ! one allowed.
+                this_block_size = block_end - block_start + 1
+
+                call read_walker_block_buff(ds_ilut, ds_sgns, ds_flags, ds_gdata, block_start, &
+                                            this_block_size, bit_rep_width, temp_ilut, temp_sgns, &
+                                            temp_flags, gdata_buf)
+
+                call distribute_bosonic_walkers(this_block_size, temp_ilut, temp_sgns, nreceived)
+
+                call mark_bosonic_nospawn(nreceived, nmarked, nfound)
+
+                ndets_large = ndets_large + nreceived
+                ndets_nospawn = ndets_nospawn + nmarked
+                ndets_common = ndets_common + nfound
+
+                ! And update for the next block
+                block_start = block_end + 1
+                block_end = min(block_start + block_size - 1, last_part)
+
+                if (block_start > last_part) running = .false.
+            else
+                this_block_size = 0
+            end if
+
+            ! Test if _all_ of the processes have finished. If they have
+            ! not then
+            call MPIAllLORLogical(running, any_running)
+
+        end do
+
+        deallocate(temp_ilut, temp_sgns)
+        deallocate(gdata_buf)
+        call LogMemDeAlloc('read_bosonic_walkers', temp_ilut_tag)
+        call LogMemDeAlloc('read_bosonic_walkers', temp_sgns_tag)
+        call LogMemDeAlloc('read_bosonic_walkers', temp_flags_tag)
+
+        call h5dclose_f(ds_sgns, err)
+        call h5dclose_f(ds_ilut, err)
+        call h5dclose_f(ds_flags, err)
+        call h5gclose_f(grp_id, err)
+
+
+        !Check that we read all dets
+        call MPISum(ndets_large, all_ndets_large)
+        call MPISum(ndets_nospawn, all_ndets_nospawn)
+        call MPISum(ndets_common, all_ndets_common)
+
+        if (iProcIndex == 0) then
+            write(6, *) 'Total Bosonic determinants above threshold: ', all_ndets_large
+            write(6, *) 'Out of those, the following found in Fermionc WF: ', all_ndets_common
+            write(6, *) 'Total NoSpawn determinants: ', all_ndets_nospawn
+        end if
+
+        write(6, *) "... done reading bosoinic wf"
+        write(6, *)
+
+    end subroutine read_bosonic_walkers
+
+    subroutine distribute_bosonic_walkers(block_size, temp_ilut, temp_sgns, num_received)
+
+        use load_balance_calcnodes, only: DetermineDetNode
+        use bit_reps, only: decode_bit_det
+        use FciMCData, only: SpawnedParts
+        use bit_rep_data, only: IlutBits
+        use SystemData, only: nel
+
+        integer(hsize_t), intent(in) :: block_size
+        integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns
+        integer(hsize_t) :: onepart(0:IlutBits%len_bcast)
+        integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
+        integer(MPIArg) :: sendcounts(0:nProcessors - 1)
+        integer :: index
+
+        integer, intent(out) :: num_received
+        integer(int64) :: lnum_received
+
+        integer(MPIArg) :: recvcounts(0:nProcessors - 1), recvcountsScaled(0:nProcessors - 1)
+        integer(MPIArg) :: disps(0:nProcessors - 1), recvdisps(0:nProcessors - 1)
+        integer(MPIArg) :: dispsScaled(0:nProcessors - 1), recvdispsScaled(0:nProcessors - 1)
+        integer(MPIArg) :: sendcountsScaled(0:nProcessors - 1)
+        integer :: ierr, arrSize
+        real(dp) :: real_sgn(tmp_lenof_sign)
+
+        sizeilut = size(temp_ilut, 1)
+
+        ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor.
+        onepart = 0
+        sendcounts = 0
+        do j = 1, int(block_size)
+            onepart(0:sizeilut - 1) = temp_ilut(:, j)
+            real_sgn = transfer(temp_sgns(:, j), real_sgn)
+            if(sum(abs(real_sgn))>BosonNoSpawnThreshold)then
+                ! Which processor does this determinant live on?
+                call decode_bit_det(det, onepart)
+                proc = DetermineDetNode(nel, det, 0)
+                targetproc(j) = proc
+                sendcounts(proc) = sendcounts(proc) + 1
+           endif
+        end do
+
+        ! Write the elements to SpawnedParts in the correct order for sending
+        index = 1
+        do p = 0, nProcessors - 1
+            do j = 1, int(block_size)
+                if (targetproc(j) == p) then
+                    real_sgn = transfer(temp_sgns(:, j), real_sgn)
+                    if(sum(abs(real_sgn))>BosonNoSpawnThreshold)then
+                        onepart(0:sizeilut - 1) = temp_ilut(:, j)
+                        onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
+                        SpawnedParts(0:sizeilut - 1, index) = onepart
+                        index = index + 1
+                    endif
+                end if
+            end do
+        end do
+
+        !offsets for data to the different procs
+        disps(0) = 0
+        do j = 1, nProcessors - 1
+            disps(j) = disps(j - 1) + sendcounts(j - 1)
+        end do
+
+        ! Communicate the number of particles that need to go to each proc
+        call MPIAllToAll(sendcounts, 1, recvcounts, 1, ierr)
+
+        ! We want the data to be contiguous after the move. So calculate the
+        ! offsets
+        recvdisps(0) = 0
+        do j = 1, nProcessors - 1
+            recvdisps(j) = recvdisps(j - 1) + recvcounts(j - 1)
+        end do
+        num_received = recvdisps(nProcessors - 1) + recvcounts(nProcessors - 1)
+        lnum_received = recvdisps(nProcessors - 1) + recvcounts(nProcessors - 1)
+
+        ! Adjust offsets so that they match the size of the array
+        arrSize = size(SpawnedParts, 1)
+        recvcountsScaled = recvcounts * arrSize
+        recvdispsScaled = recvdisps * arrSize
+        sendcountsScaled = sendcounts * arrSize
+        dispsScaled = disps * arrSize
+
+        if (num_received > size(SpawnedParts2, 2)) then
+            ! there could in principle be a memory problem because we are not limiting the
+            ! size of receivebuff.
+            write(6, *) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
+                & num_received * size(SpawnedParts, 1) * sizeof(SpawnedParts(1, 1)) / 1000000, 'MB'
+            allocate(receivebuff(size(SpawnedParts, 1), num_received))
+            call LogMemAlloc('receivebuff', size(receivebuff), int(sizeof(receivebuff(1, 1))), &
+                             'distribute_bosonic_walkers', receivebuff_tag, ierr)
+            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, receivebuff, &
+                              recvcountsScaled, recvdispsScaled, ierr)
+
+        else
+            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
+                              recvcountsScaled, recvdispsScaled, ierr)
+        end if
+    end subroutine distribute_bosonic_walkers
+
+    subroutine mark_bosonic_nospawn(nreceived, nmarked, nfound)
+        use bit_reps, only: decode_bit_det, set_flag, encode_sign
+        use bit_rep_data, only: NIfD, NIfTot, flag_nospawn
+        use SystemData, only: nel, tHPHF
+        use hash, only: hash_table_lookup
+        use load_balance, only: AddNewHashDet
+        use FciMCData, only: Hii, HashIndex, CurrentDets, TotWalkers
+        use Determinants, only: get_helement
+        use hphf_integrals, only: hphf_diag_helement
+
+        integer, intent(in) :: nreceived
+        integer, intent(out) :: nmarked, nfound
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: det(nel), PartInd, DetHash, err, TotWalkersNew
+
+        integer(int64) :: j
+        real(dp) :: diagH
+        HElement_t(dp) :: offdiagH
+        ! offdiagH is only a dummy variable for AddNewHashDet and is undefined
+        ! by construction, so be careful when sampling RDMs
+        logical :: tSuccess
+        real(dp) :: sgn(lenof_sign)
+
+        nmarked = 0
+        nfound = 0
+
+        do j = 1, nreceived
+            if (allocated(receivebuff)) then
+                ilut = receivebuff(:, j)
+            else
+                ilut = SpawnedParts2(:, j)
+            end if
+            call decode_bit_det(det, ilut)
+
+            call hash_table_lookup(det, ilut, nifd, HashIndex, &
+                                   CurrentDets, PartInd, DetHash, tSuccess)
+            if(.not. tSuccess) then
+                TotWalkersNew = int(TotWalkers)
+                if (tHPHF) then
+                    diagH = real(hphf_diag_helement(det, ilut)) - Hii
+                else
+                    diagH = real(get_helement(det, det, 0)) - Hii
+                end if
+                sgn = 0
+                call encode_sign(ilut, sgn)
+                call AddNewHashDet(TotWalkersNew, ilut, DetHash, det, diagH, offdiagH, PartInd, err)
+                TotWalkers = TotWalkersNew
+                call set_flag(CurrentDets(:, PartInd), flag_nospawn)
+                nmarked = nmarked + 1
+            else
+                nfound = nfound + 1
+                call extract_sign(CurrentDets(:, PartInd), Sgn)
+                if(sum(abs(sgn))<=FermionNoSpawnThreshold)then
+                    call set_flag(CurrentDets(:, PartInd), flag_nospawn)
+                    nmarked = nmarked + 1
+                endif
+            endif
+
+        end do
+
+        if (allocated(receivebuff)) then
+            deallocate(receivebuff)
+            call LogMemDeAlloc('mark_bosonic_nospawn', receivebuff_tag)
+        endif
+    end subroutine mark_bosonic_nospawn
+#endif
 end module

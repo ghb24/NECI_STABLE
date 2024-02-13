@@ -11,7 +11,9 @@ module AnnihilationMod
                         tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
                         tNonInitsForRDMs, &
                         tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
-                        tSimpleInit, tAllConnsPureInit, tAllowSpawnEmpty
+                        tSimpleInit, tAllConnsPureInit, tAllowSpawnEmpty, &
+                        tModShiftPhase, tInitExpandAnnihil, &
+                        tNoNegSpawns, tModShiftCorr
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci, only: MPIBarrier, MPIAlltoAll, MPIAlltoAllv, &
          iprocindex, procnode, NodeRoots, nNodes, nProcessors, &
@@ -28,7 +30,7 @@ module AnnihilationMod
         AnnMain_time, BinSearch_time, HolesInList, &
         iluthf, iStartFreeSlot, tFillingStochRDMonFly, tIncCancelledInitEnergy, &
         iEndFreeSlot, Spawned_Parts_Zero, SpawnInfo, SpawnInfo2, &
-        MaxSpawned, Sort_time, CurrentDets
+        MaxSpawned, Sort_time, CurrentDets, tInitProbation
 
     use global_utilities, only: timer, set_timer, halt_timer
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
@@ -39,7 +41,8 @@ module AnnihilationMod
     use constants, only: n_int, lenof_sign, null_part, sizeof_int, MPIArg, dp, &
         eps, stdout
     use bit_rep_data, only: IlutBitsParent, flag_adi_checked, flag_prone, flag_deterministic, &
-        test_flag_multi, IlutBits, niftot, nIfD, test_flag, flag_initiator
+                            test_flag_multi, IlutBits, niftot, nIfD, test_flag, flag_initiator, &
+                            flag_nospawn, flag_expanded, flag_signflip, well_defined
     use bit_reps, only: decode_bit_det, writebitdet, &
                         encode_sign, set_flag, &
                         encode_part_sign, &
@@ -62,7 +65,9 @@ module AnnihilationMod
 
     use global_det_data, only: det_diagH, store_spawn, &
                                update_tot_spawns, update_acc_spawns, &
-                               get_tot_spawns, get_acc_spawns
+                               get_tot_spawns, get_acc_spawns, &
+                               update_iea, add_corr_pop, &
+                               get_corr_pop, reset_corr_pop
     use procedure_pointers, only: scaleFunction
     use hphf_integrals, only: hphf_diag_helement
     use rdm_data, only: rdm_estimates, en_pert_main, rdm_inits_defs, two_rdm_inits_spawn, &
@@ -80,7 +85,6 @@ module AnnihilationMod
     public :: SendProcNewParts, test_abort_spawn, directannihilation, &
         compressspawnedlist, communicate_and_merge_spawns, rm_non_inits_from_spawnedparts, &
         annihilatespawnedparts, deterministic_annihilation
-
 
 contains
 
@@ -982,7 +986,7 @@ contains
         integer, intent(out) :: err
         integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
-        real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
+        real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd, prefac
         integer :: ExcitLevel, DetHash, nJ(nel)
         real(dp) :: ScaledOccupiedThresh, scFVal, diagH
         HElement_t(dp) :: offdiagH
@@ -1018,9 +1022,9 @@ contains
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             tDetermState = .false.
-
             ! for scaled walkers, truncation is done here
             t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
+
 
             if (tSuccess) then
                 ! Our SpawnedParts determinant is found in CurrentDets.
@@ -1068,11 +1072,15 @@ contains
                 tDetermState = test_flag_multi(CurrentDets(:, PartInd), flag_deterministic)
                 ! Transfer new sign across.
 
-                if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
+                if (sum(abs(CurrentSign)) >= 1e-12_dp &
+                        .or. tDetermState &
+                        .or. (well_defined(flag_expanded) .and. test_flag(CurrentDets(:, PartInd), flag_expanded))&
+                        .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, PartInd), flag_nospawn))) then
 
                     ! If the sign changed, the adi check has to be redone
-                    if (any(real(SignProd, dp) < 0.0_dp)) &
+                    if (any(real(SignProd, dp) < 0.0_dp)) then
                         call clr_flag(CurrentDets(:, PartInd), flag_adi_checked)
+                    end if
 
                     ! this det is not prone anymore
                     if (t_prone_walkers) call clr_flag(CurrentDets(:, PartInd), flag_prone)
@@ -1084,9 +1092,12 @@ contains
                             ! This determinant is actually *unoccupied* for the
                             ! run we're considering. We need to
                             ! decide whether to abort it or not.
-                            if (tTruncInitiator .and. .not. tAllowSpawnEmpty) then
-                                if (.not. test_flag(SpawnedParts(:, i), get_initiator_flag(j)) .and. &
-                                    .not. tDetermState) then
+                            if (tTruncInitiator .and. .not. tAllowSpawnEmpty .and. .not. tModShiftPhase) then
+                                if (.not. (test_flag(SpawnedParts(:, i), get_initiator_flag(j)) &
+                                            .or. tDetermState &
+                                            .or. (well_defined(flag_expanded) .and. test_flag(CurrentDets(:, PartInd), flag_expanded))) &
+                                    ) then
+
                                     ! Walkers came from outside initiator space.
                                     ! have to also keep track which RK step
                                     if (.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
@@ -1152,20 +1163,42 @@ contains
                                 end if
                             end if
                         end if
+                        if (tInitExpandAnnihil .and. tInitProbation) then
+                            if (test_flag(CurrentDets(:, PartInd), get_initiator_flag_by_run(run))) then
+                                call update_iea(PartInd, run, SpawnedSign(j), abs(SpawnedSign(j)))
+                            end if
+                        end if
+                        if (tNoNegSpawns) then
+                            if (test_flag(CurrentDets(:, PartInd), flag_signflip(run))) then
+                                prefac(run) = -1.0_dp
+                            else
+                                prefac(run) = 1.0_dp
+                            endif
+                            !SpawnedSign(j) = prefac(run) * sign(1.0_dp, CurrentSign(j)) * SpawnedSign(j)
+                            SpawnedSign(j) = prefac(run) * SpawnedSign(j)
+                        endif
+                        if (tModShiftCorr) then
+                            call add_corr_pop(PartInd, run, SpawnedSign(j))
+                            !print *, "existing 1: ", SpawnedSign(j)
+                            !print *, "existing 2: ", get_corr_pop(PartInd, run)
+                        end if
                     end do ! over all components of the sign
 
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
                     call encode_sign(SpawnedParts(:, i), null_part)
 
-                    if (.not. tDetermState) then
+                    if (.not. (tDetermState &
+                            .or. (well_defined(flag_expanded) .and. test_flag(CurrentDets(:, PartInd), flag_expanded)))) then
                         call extract_sign(CurrentDets(:, PartInd), SignTemp)
                         if (IsUnoccDet(SignTemp)) then
                             ! All walkers in this main list have been annihilated
                             ! away. Remove it from the hash index array so that
                             ! no others find it (it is impossible to have another
                             ! spawned walker yet to find this determinant).
-                            if (.not. tAccumEmptyDet(CurrentDets(:, PartInd))) then
+                            if (.not. (tAccumEmptyDet(CurrentDets(:, PartInd)) &
+                                        .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, PartInd), flag_nospawn))) &
+                                ) then
                                 call RemoveHashDet(HashIndex, nJ, PartInd)
                             end if
                         end if
@@ -1196,6 +1229,7 @@ contains
                 ! walkers came from - because if the newly spawned walkers are
                 ! from a parent outside the active space they should be killed,
                 ! as they have been spawned on an unoccupied determinant.
+
                 if (tTruncInitiator) then
 
                     call extract_sign(SpawnedParts(:, i), SpawnedSign)
@@ -1203,7 +1237,8 @@ contains
                     ! Are we about to abort this spawn (on any replica) due to
                     ! initiator criterion?
                     do j = 1, lenof_sign
-                        abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
+                        run = part_type_to_run(j)
+                        abort(j) = .not. tModShiftPhase .and. test_abort_spawn(SpawnedParts(:, i), j)
                     end do
 
                     ! If calculating an EN2 correction to initiator error,
@@ -1264,7 +1299,12 @@ contains
                             end if
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot, i), DetHash, nJ, &
                                                diagH, offdiagH, PartInd, err)
-                            ! abort upon error
+                            if (tModShiftCorr) then
+                                do j = 1, lenof_sign
+                                    run = part_type_to_run(j)
+                                    call add_corr_pop(PartInd, run, SpawnedSign(j))
+                                end do
+                            end if
                             if (err /= 0) return
                         end if
                     end if
@@ -1308,6 +1348,13 @@ contains
                             end if
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(:, i), DetHash, nJ, &
                                                diagH, offdiagH, PartInd, err)
+                            if (tModShiftCorr) then
+                                do j = 1, lenof_sign
+                                    run = part_type_to_run(j)
+                                    call add_corr_pop(PartInd, run, SpawnedSign(j))
+                                end do
+                            end if
+
                             ! abort annihilation upon error
                             if (err /= 0) return
                         end if

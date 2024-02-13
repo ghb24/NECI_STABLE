@@ -7,19 +7,23 @@ module fcimc_pointed_fns
                           tUEG, nBasis, tgen_guga_crude, &
                           t_k_space_hubbard, t_new_real_space_hubbard, &
                           t_trans_corr_2body, t_trans_corr_hop, &
-                          t_precond_hub, uhub
+                          t_precond_hub, uhub, tFixedNode, &
+                          PartialNodeGamma, tPartialNodeThresh, PartialNodeThresh
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
-                        RealCoeffExcitThresh, DiagSft, &
+                        RealCoeffExcitThresh, DiagSft, DiagSft2, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
-                        tPrecond, AAS_Const, ShiftOffset, tAS_Offset
+                        tPrecond, AAS_Const, ShiftOffset, tAS_Offset,&
+                        tImportanceSampling, tNonInitModShift, modShift, &
+                        tTruncInitHalf, tModShiftCorr, tModShiftCorrOnlyS1, &
+                        ModShiftCorrPrefac
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -36,9 +40,7 @@ module fcimc_pointed_fns
     use tau_search_conventional, only: log_spawn_magnitude
     use tau_search_hist, only: t_fill_frequency_hists, fill_frequency_histogram_4ind, &
         fill_frequency_histogram_sd, fill_frequency_histogram
-
     use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run, writebitdet
-
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
@@ -48,7 +50,7 @@ module fcimc_pointed_fns
     use FciMCData
     use constants
 
-    use bit_rep_data, only: nifguga
+    use bit_rep_data, only: nifguga, flag_modshift
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
 
@@ -66,8 +68,8 @@ module fcimc_pointed_fns
 
     use hphf_integrals, only: hphf_diag_helement
 
-    use Determinants, only: get_helement
-    use global_det_data, only: get_tot_spawns, get_acc_spawns
+    use Determinants, only: get_helement, calcImportanceRatio
+    use global_det_data, only: get_tot_spawns, get_acc_spawns, get_corr_pop, death_corr_pop, reset_corr_pop, add_corr_pop
 
     implicit none
 
@@ -75,7 +77,7 @@ contains
 
     function attempt_create_trunc_spawn(DetCurr, iLutCurr, RealwSign, nJ, &
                                         iLutnJ, prob, HElGen, ic, ex, tparity, walkExcitLevel, part_type, &
-                                        AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
+                                        AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac, j) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -89,6 +91,7 @@ contains
         real(dp), intent(in) :: AvExPerWalker
         real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
+        integer, intent(in), optional :: j
         logical :: tAllowForEN2Calc
         HElement_t(dp), intent(inout) :: HElGen
 
@@ -104,14 +107,14 @@ contains
             if (CheckAllowedTruncSpawn(walkExcitLevel, nJ, iLutnJ, IC)) then
                 child = attempt_create_normal(DetCurr, iLutCurr, RealwSign, &
                                               nJ, iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, &
-                                              part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
+                                              part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac, j)
             else
                 child = 0
             end if
         else
             child = attempt_create_normal(DetCurr, iLutCurr, RealwSign, nJ, &
                                           iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, &
-                                          AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
+                                          AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac, j)
         end if
     end function
 
@@ -132,7 +135,7 @@ contains
     function att_create_trunc_spawn_enc(DetCurr, &
                                         iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
                                         ic, ex, tparity, walkExcitLevel, part_type, &
-                                        AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
+                                        AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac, j) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -146,6 +149,7 @@ contains
         real(dp), intent(in) :: AvExPerWalker
         real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
+        integer, intent(in), optional :: j
         logical :: tAllowForEN2Calc
         ! make sure that HElgen is assigned on return
         HElement_t(dp), intent(inout) :: HElGen
@@ -164,20 +168,20 @@ contains
             if (CheckAllowedTruncSpawn(walkExcitLevel, nJ, iLutnJ, IC)) then
                 child = attempt_create_normal(DetCurr, iLutCurr, RealwSign, &
                                               nJ, iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, &
-                                              part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
+                                              part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac, j)
             else
                 child = 0
             end if
         else
             child = attempt_create_normal(DetCurr, iLutCurr, RealwSign, nJ, &
                                           iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, &
-                                          AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
+                                          AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac, j)
         end if
     end function
 
     function attempt_create_normal(DetCurr, iLutCurr, RealwSign, nJ, iLutnJ, &
                                    prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr, &
-                                   AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
+                                   AvExPerWalker, RDMBiasFacCurr, precond_fac, j) result(child)
 
         use orb_idx_mod, only: SpinOrbIdx_t
 
@@ -194,10 +198,13 @@ contains
         real(dp), intent(in) :: AvExPerWalker
         real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
+        integer, intent(in), optional :: j
         HElement_t(dp), intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
-        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
+        integer :: run
+        real(dp) :: rat, r, walkerweight, walkerweight_unsigned, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &
+            walkerweight_added
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
@@ -212,8 +219,12 @@ contains
 
         integer :: temp_ex(2, ic)
 
+        real(dp) :: importance_ratio
+
         unused_var(AvSignCurr)
         unused_var(WalkExcitLevel)
+
+        run = part_type_to_run(part_type)
 
         ! Just in case
         child = 0.0_dp
@@ -363,8 +374,27 @@ contains
             end if
 #endif
 
-!             ASSERT(prob /= 0.0_dp)
-            nSpawn = -tau * MatEl * walkerweight / prob
+            if(tImportanceSampling .and. ((MatEl > 0.0_dp) .or. (MatEl < 0.0_dp)))then
+                importance_ratio = calcImportanceRatio(DetCurr, iLutCurr, nJ, iLutnJ)
+            else
+                importance_ratio = 1.0
+            endif
+
+            if (tModShiftCorr) then
+                if (.not. test_flag(iLutCurr, flag_modshift)) then
+                    ! With the only-S1 option only scale spawns to the S1 space
+                    if (tModShiftCorrOnlyS1 .and. (.not. test_flag(iLutnJ, flag_modshift))) then
+                        continue
+                    else
+                        walkerweight_added = get_corr_pop(j, run)/abs(RealwSign(part_type)) - walkerweight
+                        walkerweight = (walkerweight + walkerweight_added) * ModShiftCorrPrefac
+                    end if
+                else
+                    continue
+                end if
+            end if
+
+            nSpawn = -importance_ratio * tau * MatEl * walkerweight / prob
 
 #ifdef DEBUG_
             ! so.. does a |nSpawn| > 1 in my new tau-search implitly mean
@@ -545,7 +575,8 @@ contains
                 if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
 
                 ! Count particle blooms, and their sources
-                if (sum(abs(child(min_part_type(run) : max_part_type(run)))) > InitiatorWalkNo) then
+                if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo &
+                    .or. (tTruncInitHalf .and. any(child(min_part_type(run):max_part_type(run)) > 0.0_dp))) then
                     bloom_count(ic) = bloom_count(ic) + 1
                     bloom_sizes(ic) = max(real(sum(abs(child(min_part_type(run):max_part_type(run)))), dp), bloom_sizes(ic))
                 end if
@@ -555,7 +586,8 @@ contains
             if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
 
             ! Count particle blooms, and their sources
-            if (abs(child(part_type)) > InitiatorWalkNo) then
+            if (abs(child(part_type)) > InitiatorWalkNo &
+                .or. (tTruncInitHalf .and. (child(part_type) > 0.0_dp))) then
                 bloom_count(ic) = bloom_count(ic) + 1
                 bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
             end if
@@ -569,7 +601,7 @@ contains
         end if
     end subroutine
 
-    function attempt_die_normal(DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition) result(ndie)
+    function attempt_die_normal(DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition, ilutCurr) result(ndie)
 
         ! Should we kill the particle at determinant DetCurr.
         ! The function allows multiple births (if +ve shift), or deaths from
@@ -589,6 +621,7 @@ contains
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
         integer, intent(in), optional :: DetPosition
+        integer(kind=n_int), intent(in), optional :: ilutCurr(0:niftot)
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         integer(kind=n_int) :: iLutnI(0:niftot)
@@ -626,7 +659,13 @@ contains
                         !Each replica's shift should be scaled using its own reference
                         relShiftOffset = proje_ref_energy_offsets(i) ! i.e. E(Ref(i)) - Hii
                     end if
-                  shift = relShiftOffset + (DiagSft(i) - relShiftOffset) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign, i))
+                    shift = relShiftOffset + (DiagSft(i) - relShiftOffset) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign, i))
+                else if (tNonInitModShift) then
+                    if (test_flag(ilutCurr, flag_modshift)) then
+                        shift = DiagSft(i)
+                    else
+                        shift = DiagSft2(i)
+                    end if
                 else
                     shift = DiagSft(i)
                 end if
@@ -676,6 +715,10 @@ contains
             .or. tAllRealCoeff) then
             do run = 1, inum_runs
                 ndie(min_part_type(run)) = fac(run) * abs(realwSign(min_part_type(run)))
+                if (tModShiftCorr) then
+                    call death_corr_pop(DetPosition, run, tau * (Kii - DiagSft(run)))
+                end if
+
 #ifdef CMPLX_
                 ndie(max_part_type(run)) = fac(run) * abs(realwSign(max_part_type(run)))
 #endif
@@ -700,11 +743,14 @@ contains
                 if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
                     ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
 #endif
+                if (tModShiftCorr) then
+                    call death_corr_pop(DetPosition, run, tau * (Kii - DiagSft(run)))
+                end if
             end do
         end if
     end function attempt_die_normal
 
-    function attempt_die_precond(DetCurr, Kii, realwSign, WalkExcitLevel, DetPos) result(ndie)
+    function attempt_die_precond(DetCurr, Kii, realwSign, WalkExcitLevel, DetPos, ilutCurr) result(ndie)
         ! Should we kill the particle at determinant DetCurr.
         ! The function allows multiple births (if +ve shift), or deaths from
         ! the same particle. The returned number is the number of deaths if
@@ -725,6 +771,7 @@ contains
         integer, intent(in) :: WalkExcitLevel
 
         integer, intent(in), optional :: DetPos
+        integer(kind=n_int), intent(in), optional :: ilutCurr(0:niftot)
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: probsign, r
@@ -736,7 +783,8 @@ contains
         real(dp) :: rat(1)
 #endif
         unused_var(Kii); unused_var(DetPos);
-        unused_var(DetCurr); unused_var(DetPos)
+        unused_var(DetCurr); unused_var(DetPos);
+        unused_var(ilutCurr)
 
 
         do i = 1, inum_runs

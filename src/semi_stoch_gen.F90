@@ -375,7 +375,9 @@ contains
             if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
             if (core_in%tTriples) call generate_trip_determinants(SpawnedParts, space_size, &
                                                                   core_in%tHFConn)
-            if (core_in%tCAS) call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
+            if (core_in%tCAS) then
+                call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
+            end if
             if (core_in%tRAS) call generate_ras(core_in%ras, SpawnedParts, space_size)
             if (core_in%tOptimised) call generate_optimised_space(core_in%opt_data, core_in%tLimitSpace, &
                                                                   SpawnedParts, space_size, core_in%max_size)
@@ -751,8 +753,8 @@ contains
 
         ! The total number of orbitals in the active space:
         num_active_orbs = occ_orbs + virt_orbs
-        allocate(CASBrr(1:num_active_orbs))
-        allocate(CASRef(1:occ_orbs))
+        allocate(CASBrr(1:num_active_orbs), source=0)
+        allocate(CASRef(1:occ_orbs), source=0)
         do i = 1, num_active_orbs
             ! Run through the cas space, and create an array which will map these orbtials to the
             ! orbitals they actually represent.
@@ -796,6 +798,7 @@ contains
             ! First, create the bitstring representing this state:
             ! Start from the HF determinant and apply cas_not_bitmask to clear all active space
             ! orbitals.
+            ilut = 0_n_int
             ilut(0:NIfD) = iand(ilutHF(0:NIfD), cas_not_bitmask)
             ! Then loop through the occupied orbitals in the active space, stored in CASDets(:,i),
             ! and set the corresponding bits.

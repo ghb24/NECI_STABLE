@@ -7,14 +7,17 @@ module fcimc_iter_utils
                         tCheckHighestPopOnce, tRestartHighPop, StepsSft, &
                         tTruncInitiator, tJumpShift, TargetGrowRate, &
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
-                        HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
+                        HFPopThresh, DiagSft, DiagSft2, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, SftDamp2, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, &
                         tSkipRef, N0_Target, tSpinProject, &
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
-                        tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
+                        tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp, tInitShift, &
+                        tNonInitModShift, TargetWalkers1, TargetWalkers2, DiagSft2Init, &
+                        modShiftTargetIter, tmodShiftPhase, modShiftConstIters, tRenorm, tBosonNoSpawn, &
+                        tModShiftTarget
 
     use tau_main, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
@@ -539,6 +542,23 @@ contains
             NoArrs = 43
         end if
 
+        if (tNonInitModShift) then
+            sizes(44) = size(NoModShiftWalk)
+            sizes(45) = size(NoNonModShiftWalk)
+            NoArrs = 45
+        else
+            NoArrs = 43
+        end if
+
+        if (tBosonNoSpawn) then
+            sizes(46) = size(NoBosonActiveWalk)
+            sizes(47) = size(NoSpawnDets)
+            sizes(48) = size(NoSpawnDetsEmpty)
+            NoArrs = 48
+        else
+            NoArrs = 45
+        end if
+
         send_arr = 0.0_dp
 
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
@@ -615,6 +635,17 @@ contains
             if (t_real_time_fciqmc) then
                 low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = popSnapShot;
             end if
+        end if
+
+        if (tNonInitModShift) then
+            low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = NoModShiftWalk;
+            low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = NoNonModShiftWalk;
+        end if
+
+        if (tBosonNoSpawn) then
+            low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = NoBosonActiveWalk;
+            low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = NoSpawnDets;
+            low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = NoSpawnDetsEmpty;
         end if
 
         ! Perform the communication.
@@ -694,6 +725,18 @@ contains
                 low = upp + 1; upp = low + sizes(44) - 1; allPopSnapShot = recv_arr(low:upp);
             end if
         end if
+
+        if (tNonInitModShift) then
+            low = upp + 1; upp = low + sizes(44) - 1; AllNoModShiftWalk = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(45) - 1; AllNoNonModShiftWalk = recv_arr(low:upp);
+        end if
+
+        if (tBosonNoSpawn) then
+            low = upp + 1; upp = low + sizes(46) - 1; AllNoBosonActiveWalk = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(47) - 1; AllNoSpawnDets = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(48) - 1; AllNoSpawnDetsEmpty = recv_arr(low:upp);
+        end if
+
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -980,6 +1023,8 @@ contains
                 end if
 
                 if (tFixedN0) then
+                    if (tModShiftTarget) tModShiftPhase = .true.
+
                     if (.not. tSkipRef(run) .and. abs(AllHFCyc(run)) >= N0_Target) then
                         !When reaching target N0, set flag to keep the population of reference det fixed.
                         tSkipRef(run) = .True.
@@ -997,9 +1042,23 @@ contains
                         !population of the reference det and thus reduce the
                         !fluctuations of the projected energy.
 
-                        !ToDo: Make DiafSft complex
+                        !ToDo: Make DiagSft complex
                         DiagSft(run) = real((AllENumCyc(run)) &
                             / (AllHFCyc(run)) + proje_ref_energy_offsets(run), dp)
+                        if (tModShiftTarget) then
+                            tot_walkers = int(InitWalkers, int64) * int(nNodes, int64)
+                            TargetWalkers2 = tot_walkers - AllNoModShiftWalk(run)
+                            if (TargetWalkers2 < 1.0_dp) TargetWalkers2 = 1.0_dp
+                            if (iter < (ModShiftTargetIter+ModShiftConstIters)) then
+                                DiagSft2(run) = DiagSft2Init
+                            else
+                                DiagSft2(run) = &
+                                    DiagSft2(run) &
+                                    - (log(AllNoNonModShiftWalk(run)/OldAllNoNonModShiftWalk(run)) * SftDamp &
+                                            + log(AllNoNonModShiftWalk(run)/TargetWalkers2) * SftDamp2) &
+                                        / (Tau * StepsSft)
+                            end if
+                        end if
 
                         ! Update the shift averages
                         if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -1012,6 +1071,7 @@ contains
                     else
                         !Keep shift equal to input till target reference population is reached.
                         DiagSft(run) = InputDiagSft(run)
+                        if (tModShiftTarget) DiagSft2(run) = DiagSft2Init
                     end if
 
                 else if (tFixTrial(run)) then
@@ -1031,7 +1091,7 @@ contains
                         AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
                     end if
 
-                else !not Fixed-N0 and not Trial-Shift
+                else if(.not. tRenorm) then!not Fixed-N0 and not Trial-Shift
                     tot_walkers = int(InitWalkers, int64) * int(nNodes, int64)
                     single_part_phase : if (TSinglePartPhase(run)) then
 
@@ -1063,7 +1123,7 @@ contains
                         start_varying_shift = .false.
                         if (tLetInitialPopDie) then
                             if (AllTotParts(run) < tot_walkers) start_varying_shift = .true.
-                        else if (tTargetShiftdamp) then
+                        else if (tTargetShiftdamp .or. tBosonNoSpawn) then
                             start_varying_shift = .true.
                         else
                             if ((AllTotParts(run) > tot_walkers) .or. &
@@ -1089,6 +1149,10 @@ contains
                                 DiagSft(run) = real(proje_iter(run), dp)
                                 defer_update(run) = .true.
                             end if
+
+                            if (tNonInitModShift .and. .not. tModShiftTarget) then
+                                tModShiftPhase = .true.
+                            end if
                         end if
 #endif
                     else ! .not.tSinglePartPhase(run)
@@ -1110,7 +1174,11 @@ contains
                     ! How should the shift change for the entire ensemble of walkers
                     ! over all processors.
 
-                    if (.not. (tSinglePartPhase(run) &
+                    if (tModShiftTarget .and. iter > ModShiftTargetIter) then
+                        tModShiftPhase = .true.
+                    end if
+
+                    if (.not. tRenorm .and. .not. (tSinglePartPhase(run) &
                                .and. near_zero(TargetGrowRate(run)) &
                                .or. defer_update(run))) then
 
@@ -1134,9 +1202,9 @@ contains
                                 ! Same for the info shifts for complex walkers
 #ifdef CMPLX_
                                 DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run) - TargetGrowRate(run)) * SftDamp) / &
-                                                 (Tau * StepsSft)
+                                                     (Tau * StepsSft)
                                 DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run) - TargetGrowRate(run)) * SftDamp) / &
-                                                 (Tau * StepsSft)
+                                                     (Tau * StepsSft)
 #endif
                             end if
                         else
@@ -1144,14 +1212,28 @@ contains
                                 !Calculate the shift required to keep the HF population constant
 
                                 AllHFGrowRate(run) = abs(AllHFCyc(run) / real(StepsSft, dp)) / abs(OldAllHFCyc(run))
-                                if (.not. near_zero(AllHFGrowRate(run))) then
-                                    DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
+                                DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
+                                               (Tau * StepsSft)
+                            else if (tInitShift) then
+                                DiagSft(run) = DiagSft(run) - (log(AllNoInitWalk(run)/OldAllNoInitWalk(run)) * SftDamp) / &
+                                               (Tau * StepsSft)
+                            else if (tModShiftTarget) then
+                                DiagSft(run) = DiagSft(run) - (log(AllNoModShiftWalk(run)/OldAllNoModShiftWalk(run)) * SftDamp + &
+                                                   log(AllNoModShiftWalk(run)/TargetWalkers1) * SftDamp2) / &
                                                    (Tau * StepsSft)
+                                if (iter < (modShiftTargetIter + modShiftConstIters)) then
+                                    DiagSft2(run) = DiagSft2Init
                                 else
-                                    call stop_all(this_routine, "Shift undefined because HF growth rate is zero. Aborting.")
+                                    DiagSft2(run) = DiagSft2(run) - (log(AllNoNonModShiftWalk(run)/OldAllNoNonModShiftWalk(run)) * SftDamp + &
+                                                        log(AllNoNonModShiftWalk(run)/TargetWalkers2) * SftDamp2) / &
+                                                        (Tau * StepsSft)
                                 end if
+                            else if (tBosonNoSpawn) then
+                                DiagSft(run) = DiagSft(run) - (log(AllNoBosonActiveWalk(run)/OldAllNoBosonActiveWalk(run)) * SftDamp + &
+                                                   log(AllNoBosonActiveWalk(run)/tot_walkers) * SftDamp2) / &
+                                                   (Tau * StepsSft)
                             else if (tTargetShiftdamp) then
-                                if (.not. near_zero(AllGrowRate(run)) .and. .not. near_zero(AllWalkers(run))) then
+                               if (.not. near_zero(AllGrowRate(run)) .and. .not. near_zero(AllWalkers(run))) then
                                     DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp + &
                                                    log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
                                                    (Tau * StepsSft)
@@ -1222,6 +1304,7 @@ contains
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0.0_dp
+                    DiagSft2(run) = 0.0_dp
                     VaryShiftCycles(run) = 0
                     SumDiagSft(run) = 0.0_dp
                     AvDiagSft(run) = 0.0_dp
@@ -1244,8 +1327,10 @@ contains
 
         ! Broadcast the shift from root to all the other processors
         call MPIBcast(tSinglePartPhase)
+        call MPIBCast(tModShiftPhase)
         call MPIBcast(VaryShiftIter)
         call MPIBcast(DiagSft)
+        call MPIBcast(DiagSft2)
         call MPIBcast(tSkipRef)
         call MPIBcast(tFixTrial)
         call MPIBcast(VaryShiftCycles)
@@ -1329,6 +1414,19 @@ contains
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
+
+        ! For the init-shift
+        OldAllNoInitWalk = AllNoInitWalk
+
+        if (tNonInitModShift) then
+            ! For the mod-shift-shift
+            OldAllNoModShiftWalk = AllNoModShiftWalk
+            OldAllNoNonModShiftWalk = AllNoNonModShiftWalk
+        end if
+        if (tBosonNoSpawn) then
+            ! For the bosonized no-spawn
+            OldAllNoBosonActiveWalk = AllNoBosonActiveWalk
+        end if
 
         ! also reset the real-time specific quantities:
         ! and maybe have to call this routine twice to rezero also the

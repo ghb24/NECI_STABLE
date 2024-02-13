@@ -25,7 +25,7 @@ module LMat_mod
 #endif
     use IntegralsData, only: t_use_tchint_lib, tchint_mode, t_rs_factors
 #ifdef USE_TCHINT_
-    use tchint, only: tc_matel, tchint_init, tchint_finalize
+    use tchint_simple, only: tc_matel, tchint_init => init_and_calc_simple, tchint_finalize => finalize_simple
 #endif
     implicit none
 

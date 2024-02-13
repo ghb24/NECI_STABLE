@@ -1,8 +1,9 @@
 #include "macros.h"
 module bit_rep_data
 
-    use CalcData, only: tUseRealCoeffs
+    use CalcData, only: tUseRealCoeffs, tBosonNoSpawn, tInitExpand
     use constants, only: n_int, dp, lenof_sign, inum_runs, lenof_sign_max
+    use error_handling_neci, only: stop_all
 
     implicit none
 
@@ -100,22 +101,32 @@ module bit_rep_data
 
 #ifdef PROG_NUMRUNS_
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                          = (/13, 14, 15, 16, 17, 18, 19, &
-                              20, 21, 22, 23, 24, 25, 26, 57, 58/), &
+                          = [13, 14, 15, 16, 17, 18, 19, &
+                              20, 21, 22, 23, 24, 25, 26, 57, 58], &
                           flag_static_init(lenof_sign_max) &
-                          = (/27, 28, 29, 30, 31, 32, 33, &
-                              34, 35, 36, 37, 38, 39, 40, 59, 60/), &
+                              = [27, 28, 29, 30, 31, 32, 33, &
+                                  34, 35, 36, 37, 38, 39, 40, 59, 60], &
                           flag_deterministic(lenof_sign_max) &
-                          = (/41, 42, 43, 44, 45, 46, 47, &
-                              48, 49, 50, 51, 52, 53, 54, 61, 62/), &
-                          flag_adi_checked = 56, &
-                          num_flags = 63
+                              = [41, 42, 43, 44, 45, 46, 47, &
+                                  48, 49, 50, 51, 52, 53, 54, 61, 62], &
+                          flag_adi_checked = 55, &
+                          flag_modshift = 56, &
+                          flag_nospawn = 63, &
+                          flag_expanded = 65, &
+                          flag_signflip(lenof_sign_max) &
+                              = [66, 67, 68, 69, 70, 71, 72, &
+                                  73, 74, 75, 76, 77, 78, 79, 80, 81], &
+                          num_flags = 82
 #else
-    integer, parameter :: flag_initiator(2) = (/13, 14/), &
+    integer, parameter :: flag_initiator(2) = [13, 14], &
                           flag_adi_checked = 15, &
-                          flag_static_init(2) = (/16, 17/), &
-                          flag_deterministic(2) = (/19, 20/), &
-                          num_flags = 21
+                          flag_static_init(2) = [16, 17], &
+                          flag_deterministic(2) = [19, 20], &
+                          flag_modshift = 21, &
+                          flag_nospawn = 22, &
+                          flag_expanded = 23, &
+                          flag_signflip(2) = [24, 25], &
+                          num_flags = 26
 #endif
 
 contains
@@ -132,9 +143,25 @@ contains
         integer, intent(in) :: flg
         logical :: bSet
 
+        ! ASSERT(well_defined(flg))
         bSet = btest(ilut(IlutBits%ind_flag), flg)
 
     end function test_flag
+
+
+    logical elemental function well_defined(flg)
+        !! Check if a flag is well-defined.
+        integer, intent(in) :: flg
+
+        if (flg == flag_nospawn) then
+            well_defined = tBosonNoSpawn
+        else if (flg == flag_expanded) then
+            well_defined = tInitExpand
+        else
+            well_defined = .true.
+        end if
+
+    end function
 
     pure function test_flag_multi(ilut, flg) result(bSet)
         integer(n_int), intent(in) :: ilut(0:nIfTot)

@@ -2,11 +2,12 @@
 
 MODULE Logging
 
-    use constants, only: dp, int64, nreplicas
+    use constants, only: dp, int64, nreplicas, stdout
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
     use SystemData, only: nel, LMS, nbasis, tGUGA
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
-                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData
+                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData, &
+                        tTruncateDets
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -193,6 +194,7 @@ contains
         HDF5PopsMin = 1.0_dp
         iHDF5PopsMinEx = 4
         tPopsProjE = .false.
+        tFullProjE = .false.
         tHDF5TruncPopsWrite = .false.
         iHDF5TruncPopsEx = 0
         iHDF5TruncPopsIter = 0
@@ -216,6 +218,8 @@ contains
         tFvalPopHist = .false.
         FvalPopHist_PopBins = 100
         FvalPopHist_FValBins = 10
+        tEstHilbSpaceMC = .false.
+        HilbSpaceSamples = 1000
 
 ! Feb08 defaults
         IF (Feb08) THEN
@@ -1036,6 +1040,12 @@ contains
                 ! popsfile wavefunction - instantaneous and accumulated (if available)
                 tPopsProjE = .true.
 
+            case("FULL-PROJE")
+                tFullProjE = .true.
+
+                write(stdout, *) "WARNING: FULL-PROJE only works for sign-problem free cases .i.e. "// &
+                               "we assume that if H_ij < 0, then s_i*_s_j>0, for i!=j and vice versa"
+
             case ("HDF5-TRUNC-POPS-WRITE")
                 ! Write another HDF5 popsfile with dets restricted to a maximum
                 ! exitation level and/or minimum population
@@ -1509,6 +1519,12 @@ contains
 
                 allocate(symmetry_states_ilut(0:niftot, n_symmetry_states))
                 symmetry_states = 0_n_int
+
+            case ('MC-HILBERT-SPACE-SIZE')
+                if (.not. tTruncateDets) call stop_all(t_r, 'MC-HILBERT-SPACE-SIZE &
+                    & only works in conjunction with TRUNC-HUBB')
+                tEstHilbSpaceMC = .true.
+                HilbSpaceSamples = to_int(tokens%next())
 
             case default
                 call stop_all(this_routine, "Logging keyword "//trim(w)//" not recognised")

@@ -5,7 +5,7 @@ MODULE PopsfileMod
     use SystemData, only: nel, tHPHF, tFixLz, nBasis, tNoBrillouin, tReal, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy, &
                           t_lattice_model, t_non_hermitian_2_body, t_3_body_excits
-    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, &
+    use CalcData, only: DiagSft, DiagSft2, tWalkContGrow, nEquilSteps, aliasStem, &
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, tPopsAlias, &
@@ -48,8 +48,7 @@ MODULE PopsfileMod
                            tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
                            iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod, only: sort
-    use tau_main, only: input_tau_search_method, tau_search_method, &
-        possible_tau_search_methods, max_death_cpt, tau_start_val, possible_tau_start, &
+    use tau_main, only: max_death_cpt, tau_start_val, possible_tau_start, &
         t_scale_tau_to_death, min_tau, max_tau, tau, assign_value_to_tau
     use tau_search_conventional, only: tau_search_stats
     use tau_search_hist, only: finalize_hist_tau_search, t_fill_frequency_hists
@@ -147,7 +146,7 @@ contains
         integer :: PopNIfTot, PopBlockingIter, read_nnodes, Popinum_runs
         integer :: PopRandomHash(2056)
         integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft(inum_runs), read_tau, read_psingles
+        real(dp) :: PopDiagSft(inum_runs), PopModDiagSft(inum_runs), read_tau, read_psingles
         real(dp) :: read_pparallel, read_ptriples
         real(dp), dimension(lenof_sign) :: PopSumNoatHF
         integer(int64) :: read_walkers_on_nodes(0:nProcessors - 1)
@@ -179,6 +178,7 @@ contains
         read_pparallel = 0.0_dp
         read_tau = 0.0_dp
         PopDiagSft = 0.0_dp
+        PopModDiagSft = 0.0_dp
 
         ! For the following operations, the mapping of determinants to processors
         ! has to be initialized
@@ -201,7 +201,7 @@ contains
                                         PopNIfD, PopNIfSgn, PopNIfFlag, PopNIfTot)
                 else
                     call ReadPopsHeadv4(iunit, tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, PopNel, &
-                                        iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                                        iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
                                         PopNIfD, PopNIfSgn, Popinum_runs, PopNIfFlag, PopNIfTot, read_tau, &
                                         PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
                                         read_ptriples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
@@ -777,8 +777,8 @@ contains
         logical :: formpops, binpops
         logical :: tPopHPHF, tPop64Bit, tPopLz
         integer(int64) :: iPopAllTotWalkers
-        integer(int64) :: read_walkers_on_nodes(0:nProcessors - 1)
-        real(dp) :: PopDiagSft(inum_runs), read_tau
+        integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
+        real(dp) :: PopDiagSft(inum_runs), PopModDiagSft(inum_runs), read_tau
         real(dp) :: read_psingles, read_pparallel, read_ptriples
         real(dp), dimension(lenof_sign) :: PopSumNoatHF
         HElement_t(dp) :: PopAllSumENum(inum_runs)
@@ -791,6 +791,7 @@ contains
         read_pparallel = 0.0_dp
         read_tau = 0.0_dp
         PopDiagSft = 0.0_dp
+        PopModDiagSft = 0.0_dp
 
         ! Read the header.
         call open_pops_head(iunithead, formpops, binpops)
@@ -799,7 +800,7 @@ contains
 
         if (PopsVersion == 4) then
             call ReadPopsHeadv4(iunithead, tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, PopNel, &
-                                iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                                iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
                                 PopNIfD, PopNIfSgn, Popinum_runs, PopNIfFlag, PopNIfTot, &
                                 read_tau, PopBlockingIter, PopRandomHash, read_psingles, &
                                 read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, &
@@ -819,7 +820,7 @@ contains
         end if
 
         call CheckPopsParams(tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, PopNel, &
-                             iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                             iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
                              PopNIfD, PopNIfSgn, PopNIfTot, &
                              WalkerListSize, read_tau, PopBlockingIter, read_psingles, read_pparallel, &
                              read_ptriples, perturb_ncreate, perturb_nannihilate)
@@ -1063,8 +1064,8 @@ contains
     end subroutine InitFCIMC_pops
 
     subroutine CheckPopsParams(tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, iPopNel, &
-                               iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
-                               PopNIfD, PopNIfSgn, PopNIfTot, &
+                               iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF, &
+                               PopAllSumENum, iPopIter, PopNIfD, PopNIfSgn, PopNIfTot, &
                                WalkerListSize, read_tau, PopBlockingIter, read_psingles, &
                                read_pparallel, read_ptriples, perturb_ncreate, perturb_nann)
         use LoggingData, only: tZeroProjE
@@ -1072,7 +1073,7 @@ contains
         integer, intent(in) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfSgn, PopNIfTot
         integer, intent(in) :: PopBlockingIter
         integer(int64), intent(in) :: iPopAllTotWalkers
-        real(dp), intent(in) :: PopDiagSft(inum_runs), read_tau
+        real(dp), intent(in) :: PopDiagSft(inum_runs), PopModDiagSft(inum_runs), read_tau
         real(dp), intent(in) :: read_psingles, read_pparallel, read_ptriples
         real(dp), dimension(lenof_sign), intent(in) :: PopSumNoatHF
         HElement_t(dp), intent(in) :: PopAllSumENum(inum_runs)
@@ -1116,7 +1117,9 @@ contains
             DiagSft = PopDiagSft
         end if
 
-        if (abs(PopDiagSft(1)) < 1.0e-12_dp) then
+        DiagSft2 = PopModDiagSft
+
+        if(abs(PopDiagSft(1)) < 1.0e-12_dp) then
             !If the popsfile has a shift of zero, continue letting the population grow
             tWalkContGrow = .true.
             if (inum_runs == 2) then
@@ -1307,7 +1310,7 @@ contains
 
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead, tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, iPopNel, &
-                              iPopAllTotWalkers, PopDiagSft, PopSumNoatHF_out, PopAllSumENum, iPopIter, &
+                              iPopAllTotWalkers, PopDiagSft, PopModDiagSft, PopSumNoatHF_out, PopAllSumENum, iPopIter, &
                               PopNIfD, PopNIfSgn, Popinum_runs, PopNIfFlag, PopNIfTot, read_tau, &
                               PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, read_ptriples, &
                               read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
@@ -1317,9 +1320,9 @@ contains
         integer, intent(out) :: PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
         integer, intent(out) :: PopRandomHash(2056), PopBalanceBlocks
-        integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors - 1)
+        integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64), intent(out) :: iPopAllTotWalkers
-        real(dp), intent(out) :: PopDiagSft(inum_runs), read_tau, read_psingles, read_ptriples
+        real(dp), intent(out) :: PopDiagSft(inum_runs), PopModDiagSft(inum_runs), read_tau, read_psingles, read_ptriples
         real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign)
         real(dp) :: PopSumNoatHF(2056), PopMultiSft(2056)
         real(dp) :: PopMultiSumENum(2056), PopMultiSumNoatHF(2056)
@@ -1336,7 +1339,7 @@ contains
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing, PopPTriples
         real(dp) :: PopPDoubles, PopPSing_spindiff1, PopPDoub_spindiff1, PopPDoub_spindiff2
         real(dp) :: PopGammaDoub, PopGammaTrip, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
-        real(dp) :: PopTotImagTime, PopSft2, PopParBias
+        real(dp) :: PopTotImagTime, PopSft2, PopModSft, PopParBias
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
         integer :: PopAccumPopsCounter
         character(*), parameter :: this_routine = 'ReadPopsHeadv4'
@@ -1346,7 +1349,7 @@ contains
         integer :: PopNifY
 
         namelist /POPSHEAD/ Pop64Bit, PopHPHF, PopLz, PopLensign, PopNEl, &
-            PopTotwalk, PopSft, PopSft2, PopSumNoatHF, PopSumENum, &
+            PopTotwalk, PopSft, PopSft2, PopModSft, PopSumNoatHF, PopSumENum, &
             PopCyc, PopNIfD, PopNifY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
             PopTau, PopiBlockingIter, PopRandomHash, &
             PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, PopPTriples, &
@@ -1388,6 +1391,7 @@ contains
         call MPIBCast(PopTotwalk)
         call MPIBCast(PopSft)
         call MPIBCast(PopSft2)
+        call MPIBCast(PopModSft)
         call MPIBCast(PopSumENum)
         call MPIBCast(PopCyc)
         call MPIBCast(PopNIfD)
@@ -1489,6 +1493,7 @@ contains
                 PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
             endif
             PopAllSumENum(1:inum_runs) = PopSumENum
+            PopModDiagSft(1:inum_runs) = PopModSft
         end if
         call MPIBCast(PopSumNoatHF_out)
 
@@ -1973,8 +1978,9 @@ contains
         if (.not. tMultiReplicas) then
             write (iunit, *) 'PopSft=', DiagSft(1)
             ! if tMultiReplicas is not set, inum_runs=1, so this will write AllSumNoatHF
-            write (iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1:lenof_sign)
-            write (iunit, *) 'PopSumENum=', AllSumENum(1)
+            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1:lenof_sign)
+            write(iunit, *) 'PopSumENum=', AllSumENum(1)
+            write(iunit, *) 'PopModSft=', DiagSft2(1)
         else
             write (iunit, *) 'PopMultiSft=', DiagSft(1:inum_runs)
             write (iunit, *) 'PopMultiSumNoatHF=', AllSumNoatHF(1:lenof_sign)
@@ -2429,21 +2435,17 @@ contains
         CALL MPIBarrier(error)  !Sync
 
 !Allocate memory to hold walkers at least temporarily
-        ALLOCATE (WalkVecDets(0:NIfTot, MaxWalkersPart), stat=ierr)
-        IF (ierr /= 0) CALL Stop_All(this_routine, 'Problem allocating WalkVecDets array.')
+        ALLOCATE (WalkVecDets(0:NIfTot, MaxWalkersPart), stat=ierr, source=0_n_int)
         CALL LogMemAlloc('WalkVecDets', MaxWalkersPart * (NIfTot + 1), size_n_int, this_routine, WalkVecDetsTag, ierr)
-        WalkVecDets(:, :) = 0
         MemoryAlloc = (NIfTot + 1) * MaxWalkersPart * size_n_int    !Memory Allocated in bytes
 
 !Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
         write (stdout, "(A,I12,A)") " Spawning vectors allowing for a total of ", MaxSpawned, &
             " particles to be spawned in any one iteration."
-        ALLOCATE (SpawnVec(0:NIfTot, MaxSpawned), stat=ierr)
+        ALLOCATE (SpawnVec(0:NIfTot, MaxSpawned), stat=ierr, source=0_n_int)
         CALL LogMemAlloc('SpawnVec', MaxSpawned * (NIfTot + 1), size_n_int, this_routine, SpawnVecTag, ierr)
-        SpawnVec(:, :) = 0
-        ALLOCATE (SpawnVec2(0:NIfTot, MaxSpawned), stat=ierr)
+        ALLOCATE (SpawnVec2(0:NIfTot, MaxSpawned), stat=ierr, source=0_n_int)
         CALL LogMemAlloc('SpawnVec2', MaxSpawned * (NIfTot + 1), size_n_int, this_routine, SpawnVec2Tag, ierr)
-        SpawnVec2(:, :) = 0
         MemoryAlloc = MemoryAlloc + MaxSpawned * (1 + NIfTot) * 2 * size_n_int
 
 !Point at correct spawning arrays

@@ -49,7 +49,7 @@ MODULE GenRandSymExcitNUMod
     use sltcnd_mod, only: sltcnd_excit
     use constants, only: dp, n_int, bits_n_int, maxExcit, stdout
     use bit_rep_data, only: NIfTot
-    use sym_mod, only: mompbcsym, GetLz
+    use sym_mod, only: mompbcsym, GetLz, getsym, DecomposeAbelianSym 
     use timing_neci
     use sym_general_mod
     use get_excit, only: make_single, make_double
@@ -61,7 +61,6 @@ MODULE GenRandSymExcitNUMod
 
     use neci_intfce
     use bit_rep_data, only: test_flag
-    use sym_mod
     use SystemData, only: G1, NEl, Symmetry, nBasisMax, BasisFN
     use FciMCData, only: HFSym
     implicit none

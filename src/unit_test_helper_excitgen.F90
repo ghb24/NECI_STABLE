@@ -8,8 +8,8 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen, nSpatOrbs, nSpatOrbs_i8, ij_pairs, tGUGA, tUHF, tMolpro, &
-                          user_input_m_s, tZeroDelimitedFCIDUMP
+      tReadInt, t_pcpp_excitgen, nSpatOrbs, nSpatOrbs_i8, ij_pairs, tGUGA, tUHF, tMolpro, &
+      user_input_m_s, tZeroDelimitedFCIDUMP, tIgnoreFCIDUMPHeader
     use sort_mod
     use gasci, only: GASSpec_t
     use System, only: SysInit, SetSysDefaults, SysCleanup
@@ -290,6 +290,7 @@ contains
         user_input_m_s = sum(merge(1, -1, mod(ref_det, 2) == 0))
         call evaluate_depending_keywords()
 
+        tIgnoreFCIDUMPHeader = .true.
         call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
 
         nSpatOrbs = nBasis .div. 2

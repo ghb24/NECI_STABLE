@@ -75,7 +75,24 @@ MODULE Calc
         TGraphMorph, THDiag, tLogAverageSpawns, TMC, TMCDets, &
         TREADRHO, tRealSpawnCutoff, TMCSTAR, tReplicaEstimates, TReturnPathMC, &
         TRhoElems, TRHOIJ, tRotoAnnihil, tSetInitFlagsBeforeDeath, &
-        TSTARSTARS, TStarTrips, tStaticCore, tUseProcsAsNodes, SinglesBias
+        TSTARSTARS, TStarTrips, tStaticCore, tUseProcsAsNodes, SinglesBias, &
+        af_criterion, af_criterion_bracket, bosonic_popsfile, BosonNoSpawnThreshold, &
+        DiagSft2Init, FermionNoSpawnThreshold, FreePropMinRef, FreePropPeriod, &
+        FreePropStart, FreePropSwitch, GutzwillerParam, GutzwillerParam2, &
+        GutzwillerParam3, InitExpandAnnihilIters, InitExpandAnnihilThresh, &
+        InitExpandIters, InitExpandPeriod, InitExpandStart, &
+        InitRecoverIters, max_doublons, max_holons, modShift, ModShiftConstIters, &
+        ModShiftCorrPrefac, ModShiftTargetFrac, ModShiftTargetIter, NoNegSpawnThresh, &
+        NoSpawnThresh, pairing_criterion, RecoveryPeriod, repel_criterion, &
+        tAFTruncBracket, TargetWalkers1, TargetWalkers2, tBosonNoSpawn, &
+        tControlZeroDenom, tExLevelAFCriterion, tGutzwillerGuide, &
+        tGutzwillerHubbardAF, tHartreeGutzwiller, tHubbardDoublonHolon, &
+        tImportanceSampling, tInitExpand, tInitExpandAdd, &
+        tInitExpandAnnihil, tInitExpandFull, tInitExpandReset, tInitShift, &
+        tMeasureOverlap, tModShiftCorr, tModShiftCorrOnlyS1, tModShiftPhase, &
+        tModShiftTarget, tNoNegSpawns, tNonInitModShift, tNoSpawnRev, tot_walkers, &
+        tPrintUMat, tRenorm, tTruncateDets, tTruncateHubbard, tTruncHubbAllClose, &
+        tTruncInitHalf
 
     use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DetCalc, only: CK, DetInv, iObs, jObs, kObs, nBlk, nKry, tBlock, tCalcHMat, tEnergy, tFindDets, tRead
@@ -168,6 +185,12 @@ MODULE Calc
     use unit_test_helpers, only: batch_run_excit_gen_tester
     use util_mod, only: addToIntArray, get_free_unit, NECI_ICOPY, int_fmt, &
         near_zero, operator(.isclose.), operator(.div.), stop_all, neci_flush
+    use lattice_mod, only: lat
+
+    use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range, &
+                                parse_definedet
+
+    use block_spawns, only: tBlockSpawns, blocklist_name
 
     better_implicit_none
     private
@@ -177,12 +200,6 @@ MODULE Calc
         CalcDoCalc
 
     interface
-        subroutine inpgetexcitations(NWHTAY, w)
-            IMPLICIT NONE
-            INTEGER NWHTAY
-            CHARACTER(LEN=16) w
-        end subroutine
-
         subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
             import :: TokenIterator_t
             implicit none
@@ -276,6 +293,19 @@ contains
         tTrialShift = .false.
         tFixTrial(:) = .false.
         TrialTarget = 0.0
+        tInitShift = .false.
+        tModShiftTarget = .false.
+        tModShiftPhase = .false.
+        tModShiftCorr = .false.
+        tModShiftCorrOnlyS1 = .false.
+        ModShiftCorrPrefac = 1.0_dp
+        ModShiftTargetFrac = 0.0_dp
+        tot_walkers = 0.0_dp
+        TargetWalkers1 = 1000.0_dp
+        TargetWalkers2 = 0.0_dp
+        DiagSft2Init = -100.0_dp
+        ModShiftTargetIter = 5000
+        ModShiftConstIters = 10
         tAdaptiveShift = .false.
         tCoreAdaptiveShift = .false.
         tLinearAdaptiveShift = .false.
@@ -416,6 +446,8 @@ contains
         tDefineDet = .false.
         tTruncInitiator = .false.
         tAddtoInitiator = .false.
+        tNonInitModShift = .false.
+        modShift = 0.0_dp
         tActivateLAS = .false.
         tLogAverageSpawns = .false.
         spawnSgnThresh = 3.0_dp
@@ -444,6 +476,9 @@ contains
         RealSpawnCutoff = 0.95_dp
         OccupiedThresh = 1.0_dp
         tJumpShift = .true.
+        tNoNegSpawns = .false.
+        tTruncInitHalf = .false.
+        NoNegSpawnThresh = 0.0_dp
 !Feb 08 default set.
         IF(Feb08) THEN
             RhoEpsilon = 1.0e-8_dp
@@ -593,6 +628,24 @@ contains
         ! scaling of spawns
         tScaleBlooms = .false.
         max_allowed_spawn = MaxWalkerBloom
+        SftDamp2 = 0.0
+
+        tImportanceSampling = .false.
+        tGutzwillerGuide = .false.
+        GutzwillerParam = 0.0
+        tGutzwillerHubbardAF = .false.
+        GutzwillerParam2 = 0.0
+        tHubbardDoublonHolon = .false.
+        GutzwillerParam3 = 0.0
+
+        NoSpawnThresh = 3.0
+
+        FreePropStart = 0
+        FreePropPeriod = 0
+        RecoveryPeriod = 0
+        FreePropSwitch = 0
+        FreePropMinRef = 10.0
+
         t_left_trial = .false.
     end subroutine SetCalcDefaults
 
@@ -707,7 +760,7 @@ contains
                 case("OLD")
                     TNEWEXCITATIONS = .FALSE.
                 case default
-                    call inpgetexcitations(NWHTAY(1, 1), w)
+                    NWHTAY(1, 1) = inpgetexcitations(w)
                 end select
             case("STEPS")
                 NCYCLE = to_int(tokens%next())
@@ -766,8 +819,7 @@ contains
                         call inpgetmethod(tokens, NWHTAY(1, I_VMAX), NWHTAY(2, I_VMAX),&
                             I_VMAX)
                     case("EXCITATIONS")
-                        w = to_upper(tokens%next())
-                        call inpgetexcitations(NWHTAY(2, I_VMAX), w)
+                        NWHTAY(2, I_VMAX) = inpgetexcitations(to_upper(tokens%next()))
                     case("CYCLES")
                         NWHTAY(2, I_VMAX) = to_int(tokens%next())
                         if(NWHTAY(1, I_VMAX) /= -7 .and.                  &
@@ -1707,11 +1759,11 @@ contains
                 ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
                 ras_min_1 = to_int(tokens%next())  ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
                 ras_max_3 = to_int(tokens%next())  ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
-                ss_space_in%ras%size_1 = int(ras_size_1, sp)
-                ss_space_in%ras%size_2 = int(ras_size_2, sp)
-                ss_space_in%ras%size_3 = int(ras_size_3, sp)
-                ss_space_in%ras%min_1 = int(ras_min_1, sp)
-                ss_space_in%ras%max_3 = int(ras_max_3, sp)
+                ss_space_in%ras%size_1 = int(ras_size_1)
+                ss_space_in%ras%size_2 = int(ras_size_2)
+                ss_space_in%ras%size_3 = int(ras_size_3)
+                ss_space_in%ras%min_1 = int(ras_min_1)
+                ss_space_in%ras%max_3 = int(ras_max_3)
             case("OPTIMISED-CORE")
                 ss_space_in%tOptimised = .true.
             case("OPTIMISED-CORE-CUTOFF-AMP")
@@ -2137,6 +2189,43 @@ contains
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
+            case("INIT-SHIFT")
+                tInitShift = .true.
+            case("MOD-SHIFT-TARGET")
+                tTruncInitiator = .true.
+                tTargetShiftdamp = .true.
+                tNonInitModShift = .true.
+                tModShiftTarget = .true.
+                ModShiftTargetFrac = to_realdp(tokens%next())
+                if (.not. (0._dp <= ModShiftTargetFrac .and. ModShiftTargetFrac <= 1._dp)) then
+                    call stop_all(t_r, 'Give a fraction between 0 and 1 for MOD-SHIFT-TARGET')
+                end if
+                tot_walkers = real(InitWalkers, dp) * real(nProcessors, dp)
+                TargetWalkers2 = tot_walkers * ModShiftTargetFrac
+                TargetWalkers1 = tot_walkers - TargetWalkers2
+                DiagSft2Init = to_realdp(tokens%next())
+                ModShiftTargetIter = to_int(tokens%next())
+                ModShiftConstIters = to_int(tokens%next())
+                if (tReadPops) then
+                    ModShiftTargetIter = 0
+                    ModShiftConstIters = 0
+                end if
+                SftDamp2 = SftDamp**2 / 4._dp
+                tModShiftPhase = tModShiftPhase .or. tFixedN0
+            case("MOD-SHIFT-CORR")
+                tModShiftCorr = .true.
+                if(tokens%remaining_items() > 0) then
+                    ModShiftCorrPrefac = to_realdp(tokens%next())
+                end if
+            case("MOD-SHIFT-CORR-ONLY-S1")
+                if (.not. tModShiftTarget) then
+                    call stop_all(t_r, 'Only works in conjunction with MOD-SHIFT-SHIFT or MOD-SHIFT-TARGET')
+                end if
+                tModShiftCorr = .true.
+                tModShiftCorrOnlyS1 = .true.
+                if(tokens%remaining_items() > 0) then
+                    ModShiftCorrPrefac = to_realdp(tokens%next())
+                end if
             case("LINEAR-ADAPTIVE-SHIFT", "ADAPTIVE-SHIFT")
                 ! scale the shift down per determinant linearly depending on the local population
                 tAdaptiveShift = .true.
@@ -2575,6 +2664,9 @@ contains
 !determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space.
                 tTruncInitiator = .true.
+            case("TRUNCINITIATOR-HALF")
+                tTruncInitiator = .true.
+                tTruncInitHalf = .true.
             case("AVSPAWN-INITIATORS")
 ! Create initiators based on the average spawn onto some determinant
                 tActivateLAS = .true.
@@ -2587,8 +2679,18 @@ contains
 ! using the population of that replica
                 tGlobalInitFlag = .true.
 
+            case("NON-INIT-MOD-SHIFT")
+! Applies modified shift to spawns of non-initiators (which are allowed).
+                tTruncInitiator = .true.
+                tNonInitModShift = .true.
+                modShift = to_realdp(tokens%next())
+
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule = .false.
+
+            case("NO-NEG-SPAWNS")
+                tNoNegSpawns = .true.
+                NoNegSpawnThresh = to_realdp(tokens%next())
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")
@@ -3675,12 +3777,150 @@ contains
 
             case("ALLOW-SPAWN-EMPTY")
                 tAllowSpawnEmpty = .true.
+            case("GUTZWILLER-GUIDE")
+                tImportanceSampling = .true.
+                tGutzwillerGuide = .true.
+                GutzwillerParam = to_realdp(tokens%next())
+            case("PRINT-UMAT")
+                tPrintUMat = .true.
+            case("HARTREE-GUTZWILLER")
+                tImportanceSampling = .true.
+                tGutzwillerGuide = .true.
+                tHartreeGutzwiller = .true.
+                GutzwillerParam = to_realdp(tokens%next())
+            case("CONTROL-ZERO-DENOM")
+                tControlZeroDenom = .true.
+            case("MEASURE-OVERLAP")
+                ! Measure the overlap between the given trial wavefunction and
+                ! the fciqmc wave function.
+                ! Note that the trial wave function here is not the same as the
+                ! trial wave function determined by the population (TRIAL-WAVEFUNCTION).
+                tMeasureOverlap = .true.
+            case("GUTZWILLER-ANTIFERRO")
+                tGutzwillerHubbardAF = .true.
+                GutzwillerParam2 = to_realdp(tokens%next())
+            case("HUBBARD-DOUBLON-HOLON")
+                tHubbardDoublonHolon = .true.
+                GutzwillerParam3 = to_realdp(tokens%next())
+
+            case("FREE-PROP")
+                FreePropStart = to_int(tokens%next())! This reads in the first iteration to switch free propogation on
+
+                if (tokens%remaining_items() > 0) then
+                    FreePropPeriod = to_int(tokens%next())
+                endif
+                if (tokens%remaining_items() > 0) then
+                    RecoveryPeriod = to_int(tokens%next())
+                endif
+                FreePropSwitch = merge(0, FreePropStart, FreePropPeriod <= 0)
+
+                !If recovery period is not specified use the same number of
+                !iterations used for the initial initiator period
+                if (RecoveryPeriod <= 0) RecoveryPeriod = FreePropStart
+
+                tTruncInitiator = .true.
+
+            case("FP-MIN-REF")
+                FreePropMinRef = to_realdp(tokens%next())
+
+            case("RENORM")
+                tRenorm = .true.
+
+            case("STOQ-NOSPAWN")
+                tBosonNoSpawn = .true.
+                BosonNoSpawnThreshold = to_realdp(tokens%next())
+                FermionNoSpawnThreshold = to_realdp(tokens%next())
+                bosonic_popsfile = 'stoq.h5'
+
+            case("NOSPAWN-REV")
+                tNoSpawnRev = .true.
+                NoSpawnThresh = to_realdp(tokens%next())
+
+            case("INIT-EXPAND")
+                tInitExpand = .true.
+                InitExpandStart = to_int(tokens%next())
+                InitExpandIters = to_int(tokens%next())
+                InitRecoverIters = to_int(tokens%next())
+                tFixedN0 = .false.
+                N0_Target = 0
+                if (tokens%remaining_items() > 0) then
+                    N0_Target = to_int(tokens%next())
+                end if
+                InitExpandPeriod = InitExpandIters+InitRecoverIters
+
+            case("INIT-EXPAND-ADD")
+                tInitExpandAdd = .true.
+
+            case("INIT-EXPAND-RESET")
+                tInitExpandReset = .true.
+
+            case("INIT-EXPAND-ANNIHIL")
+                tInitExpandAnnihil = .true.
+                InitExpandAnnihilThresh = to_realdp(tokens%next())
+                InitExpandAnnihilIters = to_realdp(tokens%next())
+
+            case("INIT-EXPAND-FULL")
+                tInitExpandFull = .true.
+
+            case("TRUNC-HUBB")
+                tTruncateDets = .true.
+                tTruncateHubbard = .true.
+                !Criteria values:
+                ! - negative: disable criterion
+                ! - zero: nearst neighbors
+                ! - one: with diagonals
+                ! - two: next nearest neightbors
+                if (tokens%remaining_items() > 0) then
+                    pairing_criterion = to_int(tokens%next())
+                    if (pairing_criterion > 2)then
+                        call stop_all(t_r, "Pairing criterion should be less than or equal 2")
+                    endif
+                endif
+                if (tokens%remaining_items() > 0) then
+                    repel_criterion = to_int(tokens%next())
+                    if (repel_criterion > 2)then
+                        call stop_all(t_r, "Repel criterion should be less than or equal 2")
+                    endif
+                endif
+                af_criterion = to_int(tokens%next())
+                max_doublons = to_int(tokens%next())
+                if (tokens%remaining_items() > 0) then
+                    max_holons = to_int(tokens%next())
+                else
+                    max_holons = max_doublons
+                endif
+
+            case("TRUNC-HUBB-ALL-CLOSE")
+                tTruncHubbAllClose = .true.
+
+            case ("EXLEVEL-AF-TRUNC")
+                tExLevelAFCriterion = .true.
+
+            case ("AF-TRUNC-BRACKET")
+                tAFTruncBracket = .true.
+                if (tokens%remaining_items() > 0) then
+                    af_criterion_bracket = to_int(tokens%next())
+                else
+                    af_criterion_bracket = 2 * lat%get_total_links() - af_criterion
+                endif
+
+            case("BLOCK-SPAWNS")
+                blocklist_name = tokens%next()
+                tBlockSpawns = .true.
+
+                block
+                logical :: blocklist_exist
+                inquire(file=trim(blocklist_name), exist=blocklist_exist)
+                if (.not. blocklist_exist) then
+                    call stop_all(&
+                        t_r, "No "//trim(blocklist_name)//" file detected.")
+                end if
+                end block
 
             case default
                 call stop_all(this_routine, &
                     "Keyword "//trim(w)//" not recognized in CALC block")
             end select
-
         end do calc
 
         IF(.not.(TReadPops .or. (ScaleWalkers.isclose.1.0_dp))) THEN
@@ -3704,7 +3944,6 @@ contains
 
         if(tOutputInitsRDM .and. tInitsRDMRef) call stop_all(t_r, &
                                                              "Incompatible keywords INITS-GAMMA0 and INITS-RDM")
-
     contains
 
         subroutine setDefdet(m, orb)
@@ -4070,30 +4309,25 @@ contains
         if (allocated(user_input_SftDamp)) deallocate(user_input_SftDamp)
     End Subroutine CalcCleanup
 
-
-    subroutine parse_definedet(tokens, def_det)
-        type(TokenIterator_t), intent(inout) :: tokens
-        integer, intent(out) :: def_det(nEl)
-        character(*), parameter :: this_routine = 'parse_definedet'
-
-        integer, allocatable :: input_range(:), local_def_det(:)
-
-        local_def_det = [integer ::]
-        do while(tokens%remaining_items() > 0)
-            input_range = get_range(tokens%next())
-            if (disjoint(local_def_det, input_range)) then
-                local_def_det = local_def_det .U. input_range
-            else
-                call stop_all(this_routine, 'Every value of definedet has to be given only once.')
-            end if
-        end do
-        if (size(local_def_det) < nEl) then
-            call stop_all(this_routine, 'Too few elements specified for Definedet.')
-        else if (size(local_def_det) > nEl) then
-            call stop_all(this_routine, 'Too many elements specified for Definedet.')
-        end if
-        def_det(:) = local_def_det(:)
-    end subroutine
+    pure function inpgetexcitations(w) result(res)
+        CHARACTER(LEN=16), intent(in) :: w
+        integer :: res
+        character(*), parameter :: this_routine = 'inpgetexcitations'
+        select case(w)
+        case("FORCEROOT")
+            res = IOR(res, 1)
+        case("FORCETREE")
+            res = IOR(res, 2)
+        case("SINGLES")
+            res = IOR(res, 8)
+        case("DOUBLES")
+            res = IOR(res, 16)
+        case("ALL")
+            res = 0
+        case default
+            call stop_all(this_routine, "Keyword error with EXCITATIONS "//trim(w))
+        end select
+    end function
 
 END MODULE Calc
 
@@ -4313,28 +4547,6 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
     end do
 
 end subroutine inpgetmethod
-
-subroutine inpgetexcitations(NWHTAY, w)
-    use util_mod, only: stop_all
-    IMPLICIT NONE
-    INTEGER NWHTAY
-    character(*), parameter :: this_routine = 'inpgetexcitations'
-    CHARACTER(LEN=16) w
-    select case(w)
-    case("FORCEROOT")
-        NWHTAY = IOR(NWHTAY, 1)
-    case("FORCETREE")
-        NWHTAY = IOR(NWHTAY, 2)
-    case("SINGLES")
-        NWHTAY = IOR(NWHTAY, 8)
-    case("DOUBLES")
-        NWHTAY = IOR(NWHTAY, 16)
-    case("ALL")
-        NWHTAY = 0
-    case default
-        call stop_all(this_routine, "Keyword error with EXCITATIONS "//trim(w))
-    end select
-end subroutine inpgetexcitations
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
 FUNCTION GETRHOEPS(RHOEPSILON, BETA, NEL, BRR, I_P)

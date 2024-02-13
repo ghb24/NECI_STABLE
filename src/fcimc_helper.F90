@@ -7,15 +7,17 @@ module fcimc_helper
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tRef_Not_HF, &
                           tGUGA, t_3_body_excits, non_hermitian, &
-                          t_ueg_3_body, t_mol_3_body, t_pcpp_excitgen
+                          t_ueg_3_body, t_mol_3_body, t_pcpp_excitgen, t_heisenberg_model, &
+                          length_x, length_y, t_open_bc_x, t_open_bc_y
     use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state, check_determ_flag
 
     use bit_rep_data, only: IlutBits, NIfTot, NIfD, test_flag, extract_sign, &
-        flag_static_init, flag_deterministic, flag_static_init, flag_determ_parent, &
-        flag_trial, flag_connected, flag_deterministic
+        flag_static_init, flag_deterministic, flag_determ_parent, &
+        flag_trial, flag_connected, flag_deterministic, flag_modshift, flag_nospawn, &
+        flag_expanded, flag_signflip, well_defined
 
     use calcrho_mod, only: igetexcitlevel
 
@@ -24,14 +26,14 @@ module fcimc_helper
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
                         log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
-                        extract_spawn_hdiag, &
-                        all_runs_are_initiator, writebitdet
+                        extract_spawn_hdiag, all_runs_are_initiator, &
+                        writebitdet
 
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet, tAccumEmptyDet
 
-    use Determinants, only: get_helement
+    use Determinants, only: get_helement, calcImportanceRatio, calcImportanceGuide
     use DeterminantData, only: write_det
     use FciMCData
     use hist, only: add_hist_spawn, add_hist_energies, HistMinInd
@@ -62,10 +64,12 @@ module fcimc_helper
                         tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
                         tPrecond, &
                         tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
-                        allowedSpawnSign, tAS_Offset, ShiftOffset
+                        allowedSpawnSign, tAS_Offset, ShiftOffset, tImportanceSampling, &
+                        tNonInitModShift, tModShiftPhase, tBosonNoSpawn, tInitExpandAdd, &
+                        tTruncateDets, tExLevelAFCriterion, tAFTruncBracket, tTruncHubbAllClose, &
+                        tNoNegSpawns, tTruncInitHalf
 
     use dSFMT_interface, only: genrand_real2_dSFMT
-
     use adi_data, only: tSignedRepAv
 
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -128,6 +132,13 @@ module fcimc_helper
         module procedure TestInitiator_explicit
     end interface TestInitiator
 
+    interface
+        function check_close(site1, site2, criterion)
+            integer, intent(in) :: site1, site2, criterion
+            logical :: check_close
+        end function
+    end interface
+
 contains
 
     function TestMCExit(Iter, RDMSamplingIter) result(ExitCriterion)
@@ -150,7 +161,7 @@ contains
 
     end function TestMCExit
 
-    subroutine create_particle(nJ, iLutJ, child, part_type, hdiag_spawn, err, ilutI, SignCurr, &
+    subroutine create_particle(nJ, iLutJ, child_in, part_type, hdiag_spawn, err, ilutI, SignCurr, &
                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos)
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -161,7 +172,8 @@ contains
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: nJ(nel), part_type
         integer(n_int), intent(in) :: iLutJ(0:niftot)
-        real(dp), intent(in) :: child(lenof_sign)
+        real(dp), intent(in) :: child_in(lenof_sign)
+        real(dp) :: child(lenof_sign)
         integer, intent(out) :: err
         HElement_t(dp), intent(in) :: hdiag_spawn
         integer(n_int), intent(in), optional :: ilutI(0:niftot)
@@ -185,6 +197,13 @@ contains
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
         run = part_type_to_run(part_type)
+
+        if (tNoNegSpawns .and. test_flag(ilutI, flag_signflip(run))) then
+            child = -child_in
+        else
+            child = child_in
+        end if
+
         ASSERT(sum(abs(child)) - sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
@@ -195,6 +214,7 @@ contains
             return
         end if
         !We initially encode no flags
+
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
@@ -308,12 +328,13 @@ contains
 
     end subroutine create_particle
 
-    subroutine create_particle_with_hash_table(nI_child, ilut_child, child_sign, &
+    subroutine create_particle_with_hash_table(nI_child, ilut_child, child_sign_in, &
                                                part_type, ilut_parent, iter_data, err)
         use hash, only: hash_table_lookup, add_hash_table_entry
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
-        real(dp), intent(in) :: child_sign(lenof_sign)
+        real(dp), intent(in) :: child_sign_in(lenof_sign)
+        real(dp) :: child_sign(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(out) :: err
 
@@ -325,6 +346,14 @@ contains
         integer :: global_position
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
+
+        run = part_type_to_run(part_type)
+
+        if (tNoNegSpawns .and. test_flag(ilut_parent, flag_signflip(run))) then
+            child_sign = -child_sign_in
+        else
+            child_sign = child_sign_in
+        end if
 
         !Only one element of child should be non-zero except for real-time evolution
         if (.not. (t_rotated_time .or. tVerletSweep)) then
@@ -472,7 +501,6 @@ contains
         ! RT_M_Merge: Merge
         ! rmneci_setup: introduced multirun support, fixed issue in non
         ! real-time scheme
-        run = part_type_to_run(part_type)
 
         if (.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
             acceptances(run) = &
@@ -542,6 +570,7 @@ contains
 
         real(dp), allocatable :: amps(:)
         real(dp) :: w(0:2)
+        real(dp) :: importance_ratio, guideI
 
         if (allocated(current_trial_amps)) allocate (amps(size(current_trial_amps, 1)))
 
@@ -558,13 +587,18 @@ contains
         CmplxwSign = ARR_RE_OR_CPLX(realwsign, 1)
 
         if (tTrialWavefunction .and. present(ind)) then
+            if(tImportanceSampling)then
+                guideI = calcImportanceGuide(nI)
+            else
+                guideI = 1.0
+            endif
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
-                    trial_denom = trial_denom + conjg(current_trial_amps(1, ind)) * CmplxwSign
+                    trial_denom = trial_denom + conjg(current_trial_amps(1, ind)) * CmplxwSign / guideI
                     ! this does somehow not support kmneci
                     if (test_flag(ilut, get_initiator_flag_by_run(1))) &
                         init_trial_denom = init_trial_denom + conjg( &
-                                           current_trial_amps(1, ind)) * CmplxwSign
+                                           current_trial_amps(1, ind)) * CmplxwSign / guideI
                 else if (ntrial_excits == lenof_sign) then
                     call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
                 end if
@@ -574,10 +608,11 @@ contains
                 end if
             else if (test_flag(ilut, flag_connected)) then
                 if (ntrial_excits == 1) then
-                    trial_numerator = trial_numerator + conjg(current_trial_amps(1, ind)) * cmplxwsign
+                    trial_numerator = trial_numerator + conjg(current_trial_amps(1, ind)) * cmplxwsign / guideI
                     if (test_flag(ilut, get_initiator_flag_by_run(1))) &
-                        init_trial_numerator = init_trial_numerator + conjg( &
-                                               current_trial_amps(1, ind)) * CmplxwSign
+                        init_trial_numerator = &
+                              init_trial_numerator &
+                              + conjg(current_trial_amps(1, ind)) * CmplxwSign / guideI
                 else if (ntrial_excits == lenof_sign) then
                     call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
                 end if
@@ -585,22 +620,27 @@ contains
         end if
 #else
         if (tTrialWavefunction .and. present(ind)) then
+            if(tImportanceSampling)then
+                 guideI = calcImportanceGuide(nI)
+            else
+                 guideI = 1.0
+            endif
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
-                    trial_denom = trial_denom + current_trial_amps(1, ind) * RealwSign
-                    trial_denom_inst = trial_denom_inst + current_trial_amps(1, ind) * RealwSign
+                    trial_denom = trial_denom + current_trial_amps(1, ind) * RealwSign / guideI
+                    trial_denom_inst = trial_denom_inst + current_trial_amps(1, ind) * RealwSign / guideI
                     do run = 1, inum_runs
                         if (test_flag(ilut, get_initiator_flag_by_run(run))) &
                             init_trial_denom(run) = init_trial_denom(run) + &
-                                                    current_trial_amps(1, ind) * RealwSign(run)
+                                                    current_trial_amps(1, ind) * RealwSign(run) / guideI
                     end do
                 else if (ntrial_excits == lenof_sign) then
-                    trial_denom = trial_denom + current_trial_amps(:, ind) * RealwSign
-                    trial_denom_inst = trial_denom_inst + current_trial_amps(:, ind) * RealwSign
+                    trial_denom = trial_denom + current_trial_amps(:, ind) * RealwSign / guideI
+                    trial_denom_inst = trial_denom_inst + current_trial_amps(:, ind) * RealwSign / guideI
                     do run = 1, inum_runs
                         if (test_flag(ilut, get_initiator_flag_by_run(run))) &
                             init_trial_denom(run) = init_trial_denom(run) + &
-                                                    current_trial_amps(run, ind) * RealwSign(run)
+                                                    current_trial_amps(run, ind) * RealwSign(run) / guideI
                     end do
                 end if
 
@@ -608,18 +648,19 @@ contains
                     call get_con_amp_trial_space(ilut, amps)
 
                     if (ntrial_excits == 1) then
-                        trial_numerator = trial_numerator + amps(1) * RealwSign
+                        trial_numerator = trial_numerator + amps(1) * RealwSign / guideI
+
                         do run = 1, inum_runs
                             if (test_flag(ilut, get_initiator_flag_by_run(run))) &
                                 init_trial_numerator(run) = init_trial_numerator(run) + &
-                                                            amps(1) * RealwSign(run)
+                                                            amps(1) * RealwSign(run) / guideI
                         end do
                     else if (ntrial_excits == lenof_sign) then
-                        trial_numerator = trial_numerator + amps * RealwSign
+                        trial_numerator = trial_numerator + amps * RealwSign / guideI
                         do run = 1, inum_runs
                             if (test_flag(ilut, get_initiator_flag_by_run(run))) &
                                 init_trial_numerator(run) = init_trial_numerator(run) + &
-                                                            amps(run) * RealwSign(run)
+                                                            amps(run) * RealwSign(run) / guideI
                         end do
                     end if
                 end if
@@ -628,21 +669,21 @@ contains
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
                 if (ntrial_excits == 1) then
-                    trial_numerator = trial_numerator + current_trial_amps(1, ind) * RealwSign
-                    trial_num_inst = trial_num_inst + current_trial_amps(1, ind) * RealwSign
+                    trial_numerator = trial_numerator + current_trial_amps(1, ind) * RealwSign / guideI
+                    trial_num_inst = trial_num_inst + current_trial_amps(1, ind) * RealwSign / guideI
                     do run = 1, inum_runs
                         if (test_flag(ilut, get_initiator_flag_by_run(run))) &
                             ! this is the real case, so inum_runs == lenof_sign
                             init_trial_numerator(run) = init_trial_numerator(run) + &
-                                                        current_trial_amps(1, ind) * RealwSign(run)
+                                                        current_trial_amps(1, ind) * RealwSign(run) / guideI
                     end do
                 else if (ntrial_excits == lenof_sign) then
-                    trial_numerator = trial_numerator + current_trial_amps(:, ind) * RealwSign
-                    trial_num_inst = trial_num_inst + current_trial_amps(:, ind) * RealwSign
+                    trial_numerator = trial_numerator + current_trial_amps(:, ind) * RealwSign / guideI
+                    trial_num_inst = trial_num_inst + current_trial_amps(:, ind) * RealwSign / guideI
                     do run = 1, inum_runs
                         if (test_flag(ilut, get_initiator_flag_by_run(run))) &
                             init_trial_numerator(run) = init_trial_numerator(run) + &
-                                                        current_trial_amps(run, ind) * RealwSign(run)
+                                                        current_trial_amps(run, ind) * RealwSign(run) / guideI
                     end do
                 end if
             end if
@@ -684,25 +725,35 @@ contains
         end if
 
         ! Perform normal projection onto reference determinant
-        if (t_adjoint_replicas) then
+        if (t_adjoint_replicas .or. tImportanceSampling) then
             if (      ExcitLevel_local == 2 &
                 .or. (ExcitLevel_local == 1 .and. tNoBrillouin) &
                 .or. (ExcitLevel_local == 3 &
                     .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
+
+                if (tImportanceSampling) then
+                    importance_ratio = calcImportanceRatio(nI, ilut, ProjEDet(:, 1), ilutRef(:, 1))
+                else
+                    importance_ratio = 1.0
+                endif
+
                 ! Obtain off-diagonal element
                 do run = 1, inum_runs
                     if(t_evolve_adjoint(part_type_to_run(run))) then
                         HOffDiag(run) = &
-                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut) * importance_ratio
+                    else if (tHPHF) then
+                        HOffDiag(run) = &
+                            hphf_off_diag_helement(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut) * importance_ratio
                     else
                         HOffDiag(run) = &
-                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
+                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1)) * importance_ratio
                     end if
                 end do
             end if
         else
             HOffDiag(1:inum_runs) = HOffDiagCurr
-        endif
+        end if
 
         ! For the real-space Hubbard model, determinants are only
         ! connected to excitations one level away, and Brillouins
@@ -830,6 +881,7 @@ contains
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
 
         HElement_t(dp) :: amps(size(current_trial_amps, 1))
+        real(dp) :: importance_ratio, guideI
 
         if (tHistSpawn .or. &
             (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
@@ -840,20 +892,25 @@ contains
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
         if (tTrialWavefunction .and. present(ind)) then
+            if(tImportanceSampling)then
+                guideI = calcImportanceGuide(nI)
+            else
+                guideI = 1.0
+            endif
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
-                    trial_denom = trial_denom + current_trial_amps(1, ind) * sgn
+                    trial_denom = trial_denom + current_trial_amps(1, ind) * sgn / guideI
                 else
                     if (tPairedReplicas) then
 #if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
 #ifdef CMPLX_
                             trial_denom(run - 1) = trial_denom(run - 1) + current_trial_amps(run / 2, ind) * &
-                                                   cmplx(sgn(min_part_type(run - 1)), sgn(max_part_type(run - 1)), dp)
+                                                   cmplx(sgn(min_part_type(run - 1)), sgn(max_part_type(run - 1)), dp)/guideI
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run / 2, ind) * &
-                                               cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)
+                                               cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)/guideI
 #else
-                            trial_denom(run - 1:run) = trial_denom(run - 1:run) + current_trial_amps(run / 2, ind) * sgn(run - 1:run)
+                            trial_denom(run - 1:run) = trial_denom(run - 1:run) + current_trial_amps(run / 2, ind) * sgn(run - 1:run)/guideI
 #endif
                         end do
 #else
@@ -863,10 +920,10 @@ contains
 #ifdef CMPLX_
                         do run = 1, inum_runs
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run, ind) * &
-                                               cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)
+                                               cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)/guideI
                         end do
 #else
-                        trial_denom = trial_denom + current_trial_amps(:, ind) * sgn(:)
+                        trial_denom = trial_denom + current_trial_amps(:, ind) * sgn(:)/guideI
 #endif
                     end if
                 end if
@@ -875,18 +932,18 @@ contains
                     call get_con_amp_trial_space(ilut, amps)
 
                     if (ntrial_excits == 1) then
-                        trial_numerator = trial_numerator + amps(1) * sgn
+                        trial_numerator = trial_numerator + amps(1) * sgn/guideI
                     else
                         if (tPairedReplicas) then
 #if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                             do run = 2, inum_runs, 2
-                                trial_numerator(run - 1:run) = trial_numerator(run - 1:run) + amps(run / 2) * sgn(run - 1:run)
+                                trial_numerator(run - 1:run) = trial_numerator(run - 1:run) + amps(run / 2) * sgn(run - 1:run)/guideI
                             end do
 #else
                             call stop_all(this_routine, "INVALID")
 #endif
                         else
-                            trial_numerator = trial_numerator + amps * sgn
+                            trial_numerator = trial_numerator + amps * sgn/guideI
                         end if
                     end if
                 end if
@@ -895,18 +952,18 @@ contains
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
                 if (ntrial_excits == 1) then
-                    trial_numerator = trial_numerator + current_trial_amps(1, ind) * sgn
+                    trial_numerator = trial_numerator + current_trial_amps(1, ind) * sgn / guideI
                 else
                     if (tPairedReplicas) then
 #if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
 #ifdef CMPLX_
                             trial_numerator(run - 1) = trial_numerator(run - 1) + current_trial_amps(run / 2, ind) * &
-                                                       cmplx(sgn(min_part_type(run - 1)), sgn(max_part_type(run - 1)), dp)
+                                                       cmplx(sgn(min_part_type(run - 1)), sgn(max_part_type(run - 1)), dp) / guideI
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run / 2, ind) * &
-                                                   cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)
+                                                   cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)/guideI
 #else
-                           trial_numerator(run - 1:run) = trial_numerator(run - 1:run) + current_trial_amps(run / 2, ind) * sgn(run - 1:run)
+                           trial_numerator(run - 1:run) = trial_numerator(run - 1:run) + current_trial_amps(run / 2, ind) * sgn(run - 1:run)/guideI
 #endif
                         end do
 #else
@@ -916,10 +973,10 @@ contains
 #ifdef CMPLX_
                         do run = 1, inum_runs
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run, ind) * &
-                                                   cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)
+                                                   cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)/guideI
                         end do
 #else
-                        trial_numerator = trial_numerator + current_trial_amps(:, ind) * sgn
+                        trial_numerator = trial_numerator + current_trial_amps(:, ind) * sgn/guideI
 #endif
                     end if
                 end if
@@ -960,18 +1017,25 @@ contains
                     hoffdiag = calc_off_diag_guga_ref(ilut, CSF_Info_t(ilut), run, exlevel)
                 end if
             else
-                if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
+                if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin) .or. &
+                    (exlevel == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
+
+                    if(tImportanceSampling)then
+                         importance_ratio = calcImportanceRatio(nI, ilut, ProjEDet(:, run), ilutRef(:, run))
+                    else
+                        importance_ratio = 1.0
+                    endif
                     ! Obtain the off-diagonal elements
                     if (tHPHF) then
                         hoffdiag = hphf_off_diag_helement(ProjEDet(:, run), nI, &
-                                                          iLutRef(:, run), ilut)
+                                                          iLutRef(:, run), ilut)*importance_ratio
                     else
                         if(t_evolve_adjoint(part_type_to_run(run))) then
                             hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
-                                                ilutRef(:, run), ilut)
+                                                ilutRef(:, run), ilut)*importance_ratio
                         else
                             hoffdiag = get_helement(nI, ProjEDet(:, run), exlevel, &
-                                                ilut, ilutRef(:, run))
+                                                ilut, ilutRef(:, run))*importance_ratio
                         end if
                     end if
 
@@ -979,10 +1043,10 @@ contains
                          (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
                     if(t_evolve_adjoint(part_type_to_run(run))) then
                         hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
-                                            iLutRef(:, run), ilut)
+                                                ilutRef(:, run), ilut)*importance_ratio
                     else
                         hoffdiag = get_helement(nI, ProjEDet(:, run), exlevel, &
-                                            ilut, iLutRef(:, run))
+                                            ilut, iLutRef(:,run))*importance_ratio
                     end if
                 end if
             end if
@@ -1049,7 +1113,7 @@ contains
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
         integer :: run, nopen
-        logical :: tDetinCAS, parent_init
+        logical :: tDetinCAS, parent_init, parent_modshift
         real(dp) :: init_tm, expected_lifetime, hdiag
         character(*), parameter :: this_routine = 'CalcParentFlag'
 
@@ -1063,6 +1127,16 @@ contains
                 ! By default, the parent_flags are the flags of the parent.
                 parent_init = test_flag(CurrentDets(:, j), get_initiator_flag_by_run(run))
 
+                if (tNonInitModShift) then
+                    parent_modshift = test_flag(CurrentDets(:, j), flag_modshift)
+                    if (parent_modshift .or. parent_init) then
+                        call set_flag(CurrentDets(:, j), flag_modshift, .true.)
+                        NoModShiftWalk(run) = NoModShiftWalk(run) + mag_of_run(CurrentSign, run)
+                    else
+                        NoNonModShiftWalk(run) = NoNonModShiftWalk(run) + mag_of_run(CurrentSign, run)
+                    end if
+                end if
+
                 ! Should this particle be considered to be an initiator
                 ! for spawning purposes.
                 if (tPureInitiatorSpace) then
@@ -1070,6 +1144,10 @@ contains
                 else
                     parent_init = TestInitiator_explicit(CurrentDets(:, j), nI, j, parent_init, &
                                                          CurrentSign, exLvl, run)
+                end if
+
+                if (tTruncateDets) then
+                    if (.not. IsTruncated(nI)) parent_init = .true.
                 end if
 
                 ! log the initiator
@@ -1152,6 +1230,8 @@ contains
         !      This means we can call it for individual, or aggregate,
         !      particles.
 
+        debug_function_name("TestInitiator_explicit")
+
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
         integer, intent(in) :: run, nI(nel), exLvl, det_idx
@@ -1205,6 +1285,10 @@ contains
             end if
         end if
         if (Senior) initiator = .true.
+        if (tInitExpandAdd) then
+            ASSERT(well_defined(flag_expanded))
+            if (test_flag(ilut, flag_expanded)) initiator = .true.
+        end if
 
         if (.not. initiator) then
 
@@ -1229,6 +1313,7 @@ contains
             if (.not. (staticInit) &
                 .and. .not. (check_determ_flag(ilut, run) .and. t_core_inits) &
                 .and. .not. Senior &
+                .and. (well_defined(flag_expanded) .implies. .not. (tInitExpandAdd .and. test_flag(ilut, flag_expanded))) &
                 .and. (.not. popInit)) then
                 ! Population has fallen too low. Initiator status
                 ! removed.
@@ -1302,23 +1387,8 @@ contains
             tot_sgn = mag_of_run(sign, run)
         end if
         ! make it an initiator
-        init_flag = (tot_sgn > scaledInitiatorWalkNo)
-
-        ! option to use the average population instead of the local one
-        ! for purpose of initiator threshold
-        if (tGlobalInitFlag) then
-            ! we can use a signed or unsigned sum
-            if (tSignedRepAv) then
-                tot_sgn = real(abs(sum(sign)), dp) / inum_runs
-            else
-                tot_sgn = av_pop(sign)
-            end if
-        else
-            tot_sgn = mag_of_run(sign, run)
-        end if
-        ! make it an initiator
-        init_flag = (tot_sgn > scaledInitiatorWalkNo)
-
+        init_flag = tot_sgn > scaledInitiatorWalkNo &
+                     .or. (tTruncInitHalf .and. (sign(run) > 0.0_dp))
     end function initiator_criterium
 
     function spawn_criterium(idx) result(spawnInit)
@@ -1361,7 +1431,17 @@ contains
         NoNonInitDets = 0_int64
         NoInitWalk = 0.0_dp
         NoNonInitWalk = 0.0_dp
+        if (tNonInitModShift) then
+            NoModShiftWalk = 0.0_dp
+            NoNonModShiftWalk = 0.0_dp
+        end if
         InitRemoved = 0_int64
+
+        if (tBosonNoSpawn) then
+            NoBosonActiveWalk = 0.0_dp
+            NoSpawnDets = 0
+            NoSpawnDetsEmpty = 0
+        end if
 
         ! replica-initiator info
 
@@ -2307,7 +2387,7 @@ contains
         do run = 1, inum_runs
             tCoreDet(min_part_type(run):max_part_type(run)) = check_determ_flag(iLutCurr, run)
         end do
-        iDie = attempt_die(DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
+        iDie = attempt_die(DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition, iLutCurr)
         def_default(t_core_die, t_core_die_, .true.)
         if (.not. t_core_die) then
             where (tCoredet) iDie = 0.0_dp
@@ -2350,7 +2430,8 @@ contains
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
 
         ! In the initiator approximation, abort any anti-particles.
-        if (tTruncInitiator .and. any(abs(CopySign) > 1.0e-12_dp)) then
+        if (tTruncInitiator .and. any(abs(CopySign) > 1.0e-12_dp) &
+                .and. .not. tModShiftPhase) then
             do i = 1, lenof_sign
                 if (CopySign(i) > 0.0_dp .neqv. RealwSign(i) > 0.0_dp) then
                     NoAborted(i) = NoAborted(i) + abs(CopySign(i))
@@ -2396,7 +2477,10 @@ contains
             end if
 
             ! Remove the determinant from the indexing list
-            if (.not. tAccumEmptyDet(CurrentDets(:, DetPosition))) call RemoveHashDet(HashIndex, DetCurr, DetPosition)
+            if (.not. tAccumEmptyDet(CurrentDets(:, DetPosition)) &
+                    .and. (well_defined(flag_nospawn) .implies. .not. test_flag(CurrentDets(:, DetPosition), flag_nospawn)) &
+                    .and. (well_defined(flag_expanded) .implies. .not. test_flag(CurrentDets(:, DetPosition), flag_expanded))) &
+                call RemoveHashDet(HashIndex, DetCurr, DetPosition)
             ! Encode a null det to be picked up
             call encode_sign(CurrentDets(:, DetPosition), null_part)
         end if
@@ -2636,6 +2720,7 @@ contains
         HElement_t(dp):: ENumAccum(inum_runs), HFAccum(inum_runs)
         HElement_t(dp):: AllENumAccum(inum_runs), AllHFAccum(inum_runs)
         logical :: tCalcAccumE
+        real(dp) :: importance_ratio
 
         tCalcAccumE = tAccumPopsActive .and. present(AccumE)
         HFInst = 0.0_dp
@@ -2647,7 +2732,11 @@ contains
 
             call extract_sign(CurrentDets(:, j), sgn)
 
-            if (IsUnoccDet(sgn) .and. .not. (tCalcAccumE .and. tAccumEmptyDet(CurrentDets(:, j)))) cycle
+            if ((IsUnoccDet(sgn) &
+                    .and. .not. (tCalcAccumE .and. tAccumEmptyDet(CurrentDets(:, j)))) &
+                    .or. (well_defined(flag_nospawn) .and. test_flag(CurrentDets(:, j), flag_nospawn))) then
+                cycle
+            end if
 
             call decode_bit_det(det, CurrentDets(:, j))
             if (tCalcAccumE) accum_sgn = get_pops_sum_full(j)
@@ -2701,15 +2790,18 @@ contains
                         hoffdiag = get_helement(ProjEDet(:, run), det, exlevel, &
                                                 ilutRef(:, run), CurrentDets(:, j))
                     end if
+                    if(tImportanceSampling)then
+                        importance_ratio = calcImportanceRatio(det, CurrentDets(:, j), ProjEDet(:, run), ilutRef(:, run))
+                    else
+                        importance_ratio = 1.0
+                    endif
 
+                    ENumInst(run) = ENumInst(run) + (importance_ratio * hoffdiag * sgn_run)
+                    if (tCalcAccumE) then
+                        ENumAccum(run) = ENumAccum(run) + (importance_ratio * hoffdiag * accum_sgn_run)
+                    end if
                 end if
-
-                ENumInst(run) = ENumInst(run) + (hoffdiag * sgn_run)
-                if (tCalcAccumE) &
-                    ENumAccum(run) = ENumAccum(run) + (hoffdiag * accum_sgn_run)
-
             end do
-
         end do
 
         ! Accumulate values over all processors
@@ -2750,5 +2842,358 @@ contains
             if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic(run))
         end if
     end function check_semistoch_flags
+
+    subroutine Calc_FullProjE()
+        ! Estimate energy by projecting the wavefuncion on a trial state
+        !that has +1/-1 coefficient for all states in the Hilber space
+        ! and the same sign strucutre as the wavefunction
+        ! E = [sum_i |N_i| (sum_j H_ij s_i s_j)] / [sum_i |N_i|]
+        ! where s_i is the sign of det i
+
+        !Warning: This only works for sign-problem free cases
+        !i.e. we assume that if H_ij < 0, then s_i*_s_j>0, for i!=j
+        ! and vice versa
+
+        use enumerate_excitations, only: generate_connected_space
+        use hphf_integrals, only: hphf_off_diag_helement
+        use load_balance, only: get_diagonal_matel
+        use Determinants, only: get_helement
+        use bit_reps, only: decode_bit_det
+        use FCIMCData, only: connected_dets
+
+        implicit none
+
+        HElement_t(dp) :: HOffDiag, HElSum
+        real(dp) :: sgn(lenof_sign)
+        integer :: det(nel), other_det(nel)
+        integer :: i, j, connected_size, run
+        HElement_t(dp):: Num(inum_runs), Den(inum_runs), sgn_run
+        real(dp) :: importance_ratio
+        character(len=*), parameter :: t_r = "calc_fullproje"
+
+
+        Num = 0.0_dp
+        Den = 0.0_dp
+
+        do j = 1, int(TotWalkers, sizeof_int)
+            do run = 1, inum_runs
+#ifdef CMPLX_
+                sgn_run = cmplx(sgn(min_part_type(run)), sgn(max_part_type(run)), dp)
+#else
+                sgn_run = sgn(run)
+#endif
+                call decode_bit_det(det, CurrentDets(:, j))
+                call extract_sign(CurrentDets(:, j), Sgn)
+                HElSum = get_diagonal_matel(det, CurrentDets(:, j))
+                call generate_connected_space(1, CurrentDets(:, j:j), connected_size, connected_dets)
+                do i = 1, connected_size
+                    call decode_bit_det(other_det, connected_dets(:, i))
+                    if (tImportanceSampling) then
+                        importance_ratio = calcImportanceRatio(det, CurrentDets(:, j), other_det, connected_dets(:,i))
+                    else
+                        importance_ratio = 1.0
+                    endif
+                    if (tHPHF) then
+                        HElSum = HElSum - abs(hphf_off_diag_helement(other_det, det, &
+                                                          connected_dets(:,i), CurrentDets(:, j))) * importance_ratio
+                    else
+                        HElSum = HElSum - abs(get_helement(other_det, det, &
+                                                          connected_dets(:,i), CurrentDets(:, j))) * importance_ratio
+                    end if
+                end do
+                Num(run) = Num(run) + abs(sgn_run)*HElSum
+                Den(run) = Den(run) + abs(sgn_run)
+            end do
+        end do
+
+        call MPISumAll(Num, FullProjE_Num)
+        call MPISumAll(Den, FullProjE_Den)
+
+    end subroutine Calc_FullProjE
+
+    subroutine ScaleDetWalkers(det_idx, ScaleFactor, iter_data)
+        integer, intent(in) :: det_idx
+        real(dp), intent(in) :: ScaleFactor(lenof_sign)
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        real(dp) :: sgn(lenof_sign), change(lenof_sign)
+        integer :: run, pt
+
+        call extract_sign(CurrentDets(:, det_idx), Sgn)
+        call encode_sign(CurrentDets(:, det_idx), Sgn*ScaleFactor)
+
+        change = abs(Sgn*(1.0-ScaleFactor))
+        do pt = 1, lenof_sign
+            run = part_type_to_run(pt)
+            if(ScaleFactor(pt)<1.0)then
+                iter_data%ndied(run) = iter_data%ndied(run) + change(pt)
+                NoDied(run) = NoDied(run) + change(pt)
+            else
+                iter_data%nborn(run) = iter_data%nborn(run) + change(pt)
+                NoBorn(run) = NoBorn(run) + change(pt)
+            endif
+        end do
+    end subroutine ScaleDetWalkers
+
+    function IsTruncated(nI) result(truncated)
+        use double_occ_mod, only: get_doublons_holons, count_double_orbs
+        use lattice_mod, only: lat
+        use Determinants, only: DefDet
+        use CalcData, only: tTruncateHubbard, pairing_criterion, repel_criterion, &
+            af_criterion, af_criterion_bracket, max_doublons, max_holons
+        integer, intent(in) :: nI(nel)
+        integer(n_int) :: ilut(0:niftot), ilutRef(0:niftot)
+        logical :: truncated
+        integer :: doublons(1:nbasis/2), holons(1:nbasis/2), doublons_count, holons_count, neel_state(nel), exlevel, &
+            unpaired_count
+        integer, allocatable :: neighbors(:)
+        integer :: i, j, af_param, max_diff
+        logical :: paired
+        procedure(check_close), pointer :: are_close
+
+        if (lat%get_name() == 'square' .or. lat%get_name() == 'rectangle' .or. &
+            lat%get_name() == 'hexagonal' .or. lat%get_name() == 'honeycomb') then
+            are_close => are_close_direct
+        else
+            are_close => are_close_via_neighbors
+        end if
+
+        truncated = .false.
+
+        call EncodeBitDet (nI, iLut)
+        if(tTruncateHubbard)then
+            call get_doublons_holons(ilut(:NIfD), doublons, holons, doublons_count, holons_count)
+            if((max_doublons>=0 .and. doublons_count>max_doublons) .or. (max_holons>=0 .and. holons_count>max_holons))then
+                truncated = .true.
+                return
+            endif
+            !-----------------------------------------------------------------!
+            if(pairing_criterion>=0)then
+                unpaired_count = 0
+                do i=1, doublons_count
+                    paired = .false.
+                    if(holons_count == 0) paired = .true.
+                    do j=1, holons_count
+                        if(are_close(doublons(i), holons(j), pairing_criterion))then
+                            paired = .true.
+                            exit
+                        endif
+                    enddo
+                    if(.not. paired) then
+                        unpaired_count = unpaired_count + 1
+                        if(tTruncHubbAllClose)then
+                            max_diff = 0
+                        else
+                            max_diff = max(doublons_count-holons_count,0)
+                        endif
+                        if(unpaired_count > max_diff)then
+                            !More unpaired than excess doublons, truncate
+                            truncated = .true.
+                            return
+                        endif
+                    endif
+                enddo
+
+                unpaired_count = 0
+                do j=1, holons_count
+                    paired = .false.
+                    if(doublons_count == 0) paired = .true.
+                    do i=1, doublons_count
+                        if(are_close(doublons(i), holons(j), pairing_criterion))then
+                            paired = .true.
+                            exit
+                        endif
+                    enddo
+                    if(.not. paired) then
+                        if(tTruncHubbAllClose)then
+                            max_diff = 0
+                        else
+                            max_diff = max(holons_count-doublons_count,0)
+                        endif
+                        unpaired_count = unpaired_count + 1
+                        if(unpaired_count > max_diff)then
+                            !More unpaired than excess holons, truncate
+                            truncated = .true.
+                            return
+                        endif
+                    endif
+                enddo
+
+            endif
+            !-----------------------------------------------------------------!
+            if(repel_criterion>=0)then
+                do i=1, doublons_count
+                    !Check if there is another doublon nearby
+                    do j=i+1, doublons_count
+                        if(are_close(doublons(i), doublons(j), repel_criterion))then
+                            truncated = .true.
+                            return
+                        endif
+                    enddo
+                enddo
+
+                do i=1, holons_count
+                    !Check if there is another holon nearby
+                    do j=i+1, holons_count
+                        if(are_close(holons(i), holons(j), repel_criterion))then
+                            truncated = .true.
+                            return
+                        endif
+                    enddo
+                enddo
+            endif
+            !-----------------------------------------------------------------!
+            if(af_criterion>=0)then
+                if (tExLevelAFCriterion) then
+                    call EncodeBitDet(DefDet, ilutRef)
+                    exlevel = FindBitExcitLevel(ilutRef, ilut)
+                    if(min(exlevel, nel-exlevel)-doublons_count>af_criterion)then
+                        truncated = .true.
+                    endif
+                else
+                    af_param = af_func(ilut)
+                    if (tAFTruncBracket .and. af_criterion_bracket>=0) then
+                        if (af_param > af_criterion .and. &
+                            af_param < af_criterion_bracket) &
+                            truncated = .true.
+                    else
+                        if (af_param > af_criterion) truncated = .true.
+                    end if
+                end if
+            end if
+        endif
+        contains
+
+        function af_func(ilut) result(val)
+            integer(n_int), intent(in) :: ilut(0:niftot)
+            integer :: i, j, idx, val
+            integer, allocatable :: neighbors(:)
+
+            val = lat%get_total_links()
+            do i = 1, lat%get_nsites()
+                neighbors = lat%get_neighbors(i)
+                do idx = 1, size(neighbors)
+                    j = neighbors(idx)
+                    if (j > i) cycle
+                    if (IsOcc(ilut, 2*i-1) .and. IsOcc(ilut, 2*j)) val = val - 1
+                    if (IsOcc(ilut, 2*i-1) .and. IsOcc(ilut, 2*j-1)) val = val + 1
+                    if (IsOcc(ilut, 2*i) .and. IsOcc(ilut, 2*j)) val = val + 1
+                    if (IsOcc(ilut, 2*i) .and. IsOcc(ilut, 2*j-1)) val = val - 1
+                end do
+            end do
+        end function af_func
+
+        function are_close_direct(site1, site2, criterion) result(nearby)
+            integer, intent(in) :: site1, site2
+            integer, intent(in) :: criterion
+            integer :: r1(3), r2(3), x1, x2, y1, y2, dx, dy, lx, ly
+            logical :: nearby, t_hc
+            character(*), parameter :: this_routine = 'are_close_direct'
+
+            t_hc = ((lat%get_name() == 'hexagonal') .or. (lat%get_name() == 'honeycomb'))
+
+            if(t_hc)then
+                lx = 4*length_x
+                ly = 4*length_y
+            else
+                lx = length_x
+                ly = length_y
+            endif
+
+            r1 = lat%get_r_vec(site1)
+            r2 = lat%get_r_vec(site2)
+
+            x1 = r1(1)
+            x2 = r2(1)
+
+            y1 = r1(2)
+            y2 = r2(2)
+
+            if(t_open_bc_x)then
+                dx = abs(x1-x2)
+            else
+                dx = min(modulo(x1-x2, lx), modulo(x2-x1, lx))
+            endif
+
+            if(t_open_bc_y)then
+                dy = abs(y1-y2)
+            else
+                dy = min(modulo(y1-y2, ly), modulo(y2-y1, ly))
+            endif
+
+            if(t_hc)then
+                select case(criterion)
+
+                case (0)
+                    nearby = ((dx<=1) .and. (dy<=1))
+
+                case (1)
+                    call stop_all(this_routine, "PC1 not working for honeycomb lattice!")
+
+                case (2)
+                    nearby = (((dx+dy)<=2) .or. ((dx<=1) .and. (dy<=2)))
+
+                case default
+                    nearby = .false.
+                endselect
+            else
+                select case(criterion)
+
+                case (0)
+                    nearby = (dx+dy)<=1
+
+                case (1)
+                    nearby = (dx<=1 .and. dy<=1)
+
+                case (2)
+                    nearby = (dx+dy)<=2
+
+                case default
+                    nearby = .false.
+                endselect
+            endif
+        end function are_close_direct
+
+        pure function are_close_via_neighbors(site1, site2, criterion) result(nearby)
+            integer, intent(in) :: site1, site2
+            integer, intent(in) :: criterion
+            integer, allocatable :: diag_neighs(:)
+            logical :: nearby
+
+            if (criterion == 0) then
+                nearby = any(lat%get_neighbors(site1) == site2)
+            else if (criterion == 1) then
+                diag_neighs = find_diag_neighs(&
+                            lat%get_nn_neighbors(site1), &
+                            lat%get_num_neighbors(site1)**2)
+                nearby = any(lat%get_neighbors(site1) == site2) &
+                            .or. any(diag_neighs == site2)
+            else if (criterion == 2) then
+                nearby = any(lat%get_neighbors(site1) == site2) &
+                            .or.  any(lat%get_nn_neighbors(site1) == site2)
+            end if
+        end function are_close_via_neighbors
+
+        pure function find_diag_neighs(nn_neighs, num_nn_neighs) result(diag_neighs)
+            integer, intent(in) :: num_nn_neighs, nn_neighs(num_nn_neighs)
+            integer :: res(num_nn_neighs)
+            integer, allocatable :: diag_neighs(:)
+            integer :: i, j, ind, k
+
+            k = 0
+            do i = 1, size(nn_neighs)
+                ind = nn_neighs(i)
+                do j = i + 1, size(nn_neighs)
+                    if (nn_neighs(j) == ind) then
+                        k = k + 1
+                        res(k) = ind
+                    end if
+                end do
+            end do
+
+            diag_neighs = res(1:k)
+        end function
+
+    end function IsTruncated
+
 
 end module

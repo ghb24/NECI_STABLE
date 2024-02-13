@@ -22,7 +22,7 @@ module DetBitOps
         spatial_bit_det, testclosedshelldet, findexcitbitdet, &
         isallowedhphf, calcopenorbs, get_single_parity, sign_lt, sign_gt, &
         spin_sym_ilut, findspatialbitexcitlevel, detbitzero, &
-        Countbits_elemental
+        Countbits_elemental, FindExcitBitDetSym, FindDetSpinSym, LargestBitSet
 
 #ifdef INT64_
     ! 10101010 and 01010101 in binary respectively.
@@ -868,8 +868,8 @@ contains
         !        the determinants.
 
         use bit_rep_data, only: NIfD
-!         use DetBitOps, only: count_set_bits
         use constants, only: n_int, bits_n_int, end_n_int
+        implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2, *)
         logical, intent(out) :: tSign
@@ -928,85 +928,148 @@ contains
                         set_bits = count_set_bits(ilutnI(i))
                         iel1 = iel1 + set_bits
                         iel2 = iel2 + set_bits
-                    end if
-                end if
-                if (iLutnI(i) == iLutnJ(i)) cycle
-                do j = 0, end_n_int
-
-                    testI = btest(iLutnI(i), j)
-                    testJ = btest(iLutnJ(i), j)
-
-                    if (testJ) iel2 = iel2 + 1
-
-                    if (testI) then
-                        iel1 = iel1 + 1
-                        if (.not. testJ) then
-                            ! occupied in iLutnI but not in iLutnJ
-                            iexcit1 = iexcit1 + 1
-                            Ex(1, iexcit1) = i * bits_n_int + j + 1
-                            !perm = perm + (shift - iel1 + iexcit1)
-                            perm = perm + iel1
-                        end if
-                    else
-                        if (testJ) then
-                            ! occupied in iLutnI but not in iLutnJ
-                            iexcit2 = iexcit2 + 1
-                            Ex(2, iexcit2) = i * bits_n_int + j + 1
-                            !perm = perm + (shift - iel2 + iexcit2)
-                            perm = perm + iel2
                         end if
                     end if
+                    if (iLutnI(i) == iLutnJ(i)) cycle
+                    do j = 0, end_n_int
+
+                        testI = btest(iLutnI(i), j)
+                        testJ = btest(iLutnJ(i), j)
+
+                        if (testJ) iel2 = iel2 + 1
+
+                        if (testI) then
+                            iel1 = iel1 + 1
+                            if (.not. testJ) then
+                                ! occupied in iLutnI but not in iLutnJ
+                                iexcit1 = iexcit1 + 1
+                                Ex(1, iexcit1) = i * bits_n_int + j + 1
+                                !perm = perm + (shift - iel1 + iexcit1)
+                                perm = perm + iel1
+                            end if
+                        else
+                            if (testJ) then
+                                ! occupied in iLutnI but not in iLutnJ
+                                iexcit2 = iexcit2 + 1
+                                Ex(2, iexcit2) = i * bits_n_int + j + 1
+                                !perm = perm + (shift - iel2 + iexcit2)
+                                perm = perm + iel2
+                            end if
+                        end if
+                        if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
+                    end do
                     if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
                 end do
-                if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
-            end do
 
-            ! It seems that this test is faster than btest(perm,0)!
-            tSign = mod(perm, 2) == 1
+                ! It seems that this test is faster than btest(perm,0)!
+                tSign = mod(perm, 2) == 1
 
-            if (iexcit1 < max_excit) then
-                Ex(:, iexcit1 + 1) = 0 ! Indicate we've ended the excitation.
+                if (iexcit1 < max_excit) then
+                    Ex(:, iexcit1 + 1) = 0 ! Indicate we've ended the excitation.
+                end if
+
             end if
 
+        end subroutine GetBitExcitation
+
+!In closed-shell systems with equal number of alpha and beta strings, the amplitude of a
+!determinant in the final CI wavefunction is the same
+!when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details).
+!It will sometimes be necessary to find this other
+!determinant when spawning. This routine will find the bit-representation of an excitation
+!by constructing the symmetric iLut from the its
+!symmetric partner, also in bit form.
+    PURE SUBROUTINE FindExcitBitDetSym(iLut, iLutSym)
+        IMPLICIT NONE
+        INTEGER(KIND=n_int), intent(in) :: iLut(0:NIfTot)
+        INTEGER(KIND=n_int), intent(out) :: iLutSym(0:NIfTot)
+        INTEGER(KIND=n_int) :: iLutAlpha(0:NIfTot), iLutBeta(0:NIfTot)
+        INTEGER :: i
+
+        iLutSym(:) = 0
+        iLutAlpha(:) = 0
+        iLutBeta(:) = 0
+
+        do i = 0, NIfD
+
+            iLutAlpha(i) = IAND(iLut(i), MaskAlpha)    !Seperate the alpha and beta bit strings
+            iLutBeta(i) = IAND(iLut(i), MaskBeta)
+
+            iLutAlpha(i) = ISHFT(iLutAlpha(i), -1)  !Shift all alpha bits to the left by one.
+            iLutBeta(i) = ISHFT(iLutBeta(i), 1)   !Shift all beta bits to the right by one.
+
+            iLutSym(i) = IOR(iLutAlpha(i), iLutBeta(i))    !Combine the bit strings to give the final bit representation.
+
+        end do
+
+    END SUBROUTINE FindExcitBitDetSym
+
+!This create the spin-coupled determinant of nI in nJ in natural ordered form.
+    PURE SUBROUTINE FindDetSpinSym(nI, nJ, NEl)
+        INTEGER, intent(in) :: NEl, nI(NEl)
+        integer, intent(out) :: nJ(NEl)
+        integer :: i
+
+
+        ! for debug compilation treat first entry seperately
+        if (is_alpha(nI(1))) then
+            nJ(1) = nI(1) - 1
+        else
+            if (get_alpha(nI(1)) /= nI(2)) then
+                nJ(1) = nI(1) + 1
+            else
+                nJ(1) = nI(1)
+            end if
         end if
 
-    end subroutine GetBitExcitation
-
-end module
-
-!This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
-SUBROUTINE LargestBitSet(iLut, NIfD, LargestOrb)
-    use constants, only: bits_n_int, end_n_int, n_int
-    use error_handling_neci, only: stop_all
-    IMPLICIT NONE
-    INTEGER :: LargestOrb, NIfD, i, j
-    INTEGER(KIND=n_int) :: iLut(0:NIfD)
-
-#ifdef DEBUG_
-    character(*), parameter :: this_routine = 'LargestBitSet'
-#endif
-
-!        do i=NIfD,0,-1
-!!Count down through the integers in the bit string.
-!!The largest set bit is equal to INT(log_2 (N))
-!            IF(iLut(i).ne.0) THEN
-!                LargestOrb=NINT(LOG(REAL(iLut(i)+1))*1.4426950408889634)
-!                EXIT
-!            end if
-!        end do
-!        LargestOrb=LargestOrb+(i*32)
-
-    ! Initialise with invalid value (in case being erroniously called on empty bit-string).
-    ASSERT(.not. all(ilut == 0))
-    LargestOrb = 99999
-
-    do i = NIfD, 0, -1
-        do j = end_n_int, 0, -1
-            if (btest(iLut(i), j)) then
-                LargestOrb = (i * bits_n_int) + j + 1
-                return
+        do i = 2, nel
+            ! If electron is an alpha electron, change it to a beta (unless
+            ! it is part of a closed pair of electrons).
+            if(is_alpha(nI(i))) then
+                if(i == 1) then
+                    nJ(i) = nI(i) - 1
+                else if(get_beta(nI(i)) /= nI(i - 1)) then
+                    nJ(i) = nI(i) - 1
+                else
+                    nJ(i) = nI(i)
+                end if
+                ! vice-versa for beta.
+            else
+                if(i == nel) then
+                    nJ(i) = nI(i) + 1
+                else if(get_alpha(nI(i)) /= nI(i + 1)) then
+                    nJ(i) = nI(i) + 1
+                else
+                    nJ(i) = nI(i)
+                end if
             end if
         end do
-    end do
 
-END SUBROUTINE LargestBitSet
+    END SUBROUTINE FindDetSpinSym
+
+!This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
+    pure function LargestBitSet(iLut, NIfD) result(LargestOrb)
+        use constants, only: bits_n_int, end_n_int, n_int
+        use error_handling_neci, only: stop_all
+        IMPLICIT NONE
+        integer, intent(in) :: nIfD
+        integer(kind=n_int), intent(in) :: iLut(0:NIfD)
+        integer :: LargestOrb
+        integer :: i, j
+        debug_function_name("LargestBitSet")
+
+        ! Initialise with invalid value (in case being erroniously called on empty bit-string).
+        ASSERT(.not. all(ilut == 0))
+        LargestOrb = 99999
+
+        do i = NIfD, 0, -1
+            do j = end_n_int, 0, -1
+                if (btest(iLut(i), j)) then
+                    LargestOrb = (i * bits_n_int) + j + 1
+                    return
+                end if
+            end do
+        end do
+    end function
+end module
+

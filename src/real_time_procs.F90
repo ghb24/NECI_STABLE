@@ -671,7 +671,7 @@ contains
 
     function attempt_create_realtime(DetCurr, iLutCurr, RealwSign, nJ, iLutnJ, &
                                      prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr, &
-                                     AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
+                                     AvExPerWalker, RDMBiasFacCurr, precond_fac, j) result(child)
 
         ! create a specific attempt_create function for the real-time fciqmc
         ! to avoid preprocessor flag jungle..
@@ -689,6 +689,7 @@ contains
         real(dp), intent(in) :: AvExPerWalker
         real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
+        integer, intent(in), optional :: j
         HElement_t(dp), intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
 
@@ -702,6 +703,7 @@ contains
 
         unused_var(precond_fac)
         unused_var(AvSignCurr)
+        unused_var(j)
 
         ! This is crucial
         child = 0.0_dp

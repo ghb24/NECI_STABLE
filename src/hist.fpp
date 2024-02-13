@@ -7,13 +7,12 @@ module hist
                           tOddS_HPHF, G1, tGUGA
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
-                         CalcOpenOrbs, IsAllowedHPHF, FindBitExcitLevel
+                         CalcOpenOrbs, IsAllowedHPHF, FindBitExcitLevel, FindExcitBitDetSym
     use load_balance_calcnodes, only: DetermineDetNode
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
                          all_norm_psi_squared, ilutRef
-    use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
     use bit_rep_data, only: NIfTot, NIfD, extract_sign, test_flag, flag_initiator
     use bit_reps, only: encode_sign, extract_bit_rep, &

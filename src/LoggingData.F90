@@ -248,6 +248,10 @@ module LoggingData
     ! output RDMs also in Molcas format in the GUGA RDMs implementation
     logical :: t_print_molcas_rdms = .false.
 
+    logical :: tFullProjE
+    
+    logical :: tEstHilbSpaceMC = .false.
+    integer :: HilbSpaceSamples
     logical :: t_measure_local_spin = .false.
 
     logical :: t_full_core_rdms = .false.

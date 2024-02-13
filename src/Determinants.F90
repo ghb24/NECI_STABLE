@@ -1,6 +1,7 @@
 #include "macros.h"
 module Determinants
-    use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det, GetBitExcitation
+    use DetBitOps, only: EncodeBitDet, count_open_orbs, &
+        spatial_bit_det, GetBitExcitation, FindBitExcitLevel, FindExcitBitDetSym
     use DeterminantData, only: Fdet, calculated_ms, tagfdet, write_det, write_det_len
     use IntegralsData, only: UMat, FCK, NMAX, nFrozen, nFrozenIn
     use MemoryManager, only: TagIntType
@@ -14,8 +15,10 @@ module Determinants
         tfixlz, tguga, thphfints, thub, tmolpro, tpickvirtuniform, &
         tref_not_hf, tspn, tstoreasexcitations, tsymset, tueg, tueg2, &
         tuegspecifymomentum, tusebrillouin, t_k_space_hubbard, &
-        tStoquastize, tZeroDelimitedFCIDUMP, tHFOrder, tHFNoOrder
+        tStoquastize, tZeroDelimitedFCIDUMP, tHFOrder, tHFNoOrder, &
+        t_heisenberg_model, tHPHF, exchange_j
     use bit_rep_data, only: nIfTot
+    use bit_reps, only: decode_bit_det
     use blas_interface_mod, only: dcopy
     use constants, only: Pi, Pi2, THIRD, dp, n_int, bits_n_int, int64, maxExcit, stdout
     use excitation_types, only: Excitation_t, Excite_2_t, get_excitation
@@ -30,6 +33,11 @@ module Determinants
     use util_mod, only: NECI_ICOPY, operator(.div.)
     use error_handling_neci, only: stop_all
     use fmt_utils, only: int_fmt
+    use FCIMCData, only: Hii
+    use CalcData, only: tGutzwillerGuide, GutzwillerParam, &
+        tGutzwillerHubbardAF, GutzwillerParam2, &
+        tHubbardDoublonHolon, GutzwillerParam3, tHartreeGutzwiller
+    use HartreeFockGuide, only: calc_det_ratio
 
     better_implicit_none
     private
@@ -38,7 +46,7 @@ module Determinants
         GetUEGKE, DetFreezeBasis, GetH0Element3, tagSpecDet, specdet, tSpecDet, &
         geth0element4, tDefineDet, tagDefDet, DefDet, WriteDetBit, get_helement_det_only, &
         iactivebasis, nActiveBasis, nActiveSpace, DetInit, DetPreFreezeInit, &
-        DetPreFreezeInit_old, DetCleanup
+        DetPreFreezeInit_old, DetCleanup, calcImportanceRatio, calcImportanceGuide
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
     !       list, or with only a bit-det
@@ -324,6 +332,212 @@ contains
 
     End Subroutine DetPreFreezeInit
 
+    function calcImportanceRatio(nI_, iLutnI_, nJ, iLutnJ) result(ratio)
+        integer, intent(in) :: nI_(nel), nJ(nel)
+        integer(kind=n_int), intent(in) :: iLutnI_(0:niftot), iLutnJ(0:niftot)
+        integer(kind=n_int) :: iLutnI(0:niftot)
+        integer :: nI(nel)
+        integer :: ex(2, 2), ExcitLevel, j, idx
+        logical :: tParity
+        real(dp) :: ratio, contrib
+        character(*), parameter :: this_routine = 'calcImportanceRatio'
+        integer, allocatable :: neighbors(:)
+        real(dp) :: det_ratio
+
+        if(tHPHF)then
+            !In HPHF, the determinants may not be directly connected
+            !Make sure to have the connected pair
+            ExcitLevel = FindBitExcitLevel(ilutnI_, ilutnJ, 3)
+            if(ExcitLevel>2)then
+                call FindExcitBitDetSym(iLutnI_, iLutnI)
+                call decode_bit_det(nI, iLutnI)
+            else
+                iLutnI = iLutnI_
+                nI = nI_
+            endif
+        else
+            iLutnI = iLutnI_
+            nI = nI_
+        endif
+
+        if(tGutzwillerGuide)then
+            if(t_heisenberg_model)then
+                !Nearest-Neighbour Gutzwiller wavefunction
+                !for the Heisenberg model:
+                !psi(S) = exp(-b*2*\sum_{<i,j>} S^z_i * S^z_j)
+
+                ex(1,1) = 2
+                call GetBitExcitation(ilutnI, ilutnJ, ex, tParity)
+                if(ex(1,1)==0)then
+                    !This means nI==nJ
+                    ratio = 1.0
+                else
+                ! Ex(1,:) contain the orbital(s) excited from
+                ! Ex(2,:) contain out as the orbital(s) excited to
+                    ASSERT(is_in_pair(ex(1,1),ex(2,1)))
+                    ASSERT(is_in_pair(ex(1,2),ex(2,2)))
+                    ratio = exp(calcSiteContrib(ex(1,1))+calcSiteContrib(ex(1,2)))
+                endif
+            else
+                !Gutzwiller-like guiding function for the real-space Hubbard model:
+                !psi = exp(-b*\sum_{i} n_{i \uparrow} n_{i \downarrow})
+                !(number of double occupations in the exponent which is given by
+                !the diagonal matrix element of the respective determinant)
+
+                if (tHartreeGutzwiller) then
+                      call calc_det_ratio(nJ, nI, det_ratio)
+                      ratio = abs(det_ratio) &
+                                * exp(GutzwillerParam &
+                                        * (real(get_helement(nJ, nJ, 0)) &
+                                            - real(get_helement(nI, nI, 0)) &
+                                          ) &
+                                )
+                else
+                     ratio = exp(GutzwillerParam &
+                                  * (real(get_helement(nJ, nJ, 0)) &
+                                      - real(get_helement(nI, nI, 0))) &
+                            )
+                end if
+
+                if(tGutzwillerHubbardAF)then
+                    ex(1,1) = 1
+                    call GetBitExcitation(ilutnI, ilutnJ, ex, tParity)
+                    ASSERT(same_spin(ex(1,1),ex(2,1)))
+                    contrib = 0.0
+                    neighbors = lat%get_spinorb_neighbors(ex(1,1))
+                    do idx = 1, size(neighbors)
+                        j = neighbors(idx)
+                        if(.not. j == ex(2,1) .and. IsOcc(ilutnI, j))then
+                            contrib = contrib - 1
+                        endif
+                        j = ab_pair(j)
+                        if(.not. j == ex(2,1) .and. IsOcc(ilutnI, j))then
+                            contrib = contrib + 1
+                        endif
+                    enddo
+                    neighbors = lat%get_spinorb_neighbors(ex(2,1))
+                    do idx = 1, size(neighbors)
+                        j = neighbors(idx)
+                        if(.not. j == ex(1,1) .and. IsOcc(ilutnJ, j))then
+                            contrib = contrib + 1
+                        endif
+                        j = ab_pair(j)
+                        if(.not. j == ex(1,1) .and. IsOcc(ilutnJ, j))then
+                            contrib = contrib - 1
+                        endif
+                    enddo
+                    ratio = ratio * exp(contrib * GutzwillerParam2)
+                endif
+                if(tHubbardDoublonHolon)then
+                    ! Implementing a diagonal guiding wavefunction that enhances
+                    ! doublons and holons to be nearby. In a first step only nearest
+                    ! neighbours are considered:
+                    ! \sum_<i, j> = d_i d_j + h_i h_j - d_i h_j - h_i d_j
+                    ! with d_i = n_{i, up} n_{i, down}
+                    ! and h_i = (1-n_{i, up}) (1-n_{i, down}).
+                    contrib = 0.0
+                    ex(1,1) = 1
+                    call GetBitExcitation(ilutnI, ilutnJ, ex, tParity)
+                    ASSERT(same_spin(ex(1,1),ex(2,1)))
+                    ! Factor 2 because also the contribution of the neighbouring
+                    ! sites changes, respectively.
+                    contrib = 2.0*(calcDoubHolContrib(ilutnJ, ex(1,1)) &
+                        + calcDoubHolContrib(ilutnJ, ex(2,1)) &
+                        - calcDoubHolContrib(ilutnI, ex(1,1)) &
+                        - calcDoubHolContrib(ilutnI, ex(2,1)))
+                    ratio = ratio * exp(contrib * GutzwillerParam3)
+                endif
+            endif
+        else
+            ratio = 1.0
+        endif
+
+
+        contains
+
+        function calcSiteContrib(i) result(contrib)
+
+            integer, intent(in) :: i
+            integer, allocatable :: neighbors(:)
+            real(dp) :: contrib
+            integer :: idx, j
+
+            neighbors = lat%get_spinorb_neighbors(i)
+            contrib = 0.0
+            do idx=1, size(neighbors)
+                j = neighbors(idx)
+                if(IsOcc(iLutnI, j) .and. IsOcc(iLutnJ, j))then
+                   contrib = contrib + 1
+                elseif(IsNotOcc(iLutnI, j) .and. IsNotOcc(iLutnJ, j))then
+                   contrib = contrib - 1
+                endif
+            end do
+            !write(6,*) size(neighbors), contrib, GutzwillerParam
+            contrib = contrib * GutzwillerParam
+
+
+        end function
+
+
+        function calcDoubHolContrib(ilut, i) result(contrib)
+
+            integer, intent(in) :: i
+            integer, allocatable :: neighbors(:)
+            real(dp) :: contrib
+            integer :: idx, j
+            integer(kind=n_int) :: ilut(0:niftot)
+
+            neighbors = lat%get_spinorb_neighbors(i)
+            contrib = 0.0
+            if(IsDoub(ilut, i))then
+                do idx=1, size(neighbors)
+                    j = neighbors(idx)
+                    if(IsNotOcc(ilut, j) .and. IsNotOcc(ilut, ab_pair(j)))then
+                        ! d_i h_j
+                        contrib = contrib + 1
+                    elseif(IsDoub(ilut, j))then
+                        ! d_i d_j
+                        contrib = contrib - 1
+                    endif
+                enddo
+            elseif(IsNotOcc(ilut, i) .and. IsNotOcc(ilut, ab_pair(i)))then
+                do idx=1, size(neighbors)
+                    j = neighbors(idx)
+                    if(IsDoub(ilut, j))then
+                        ! h_i d_j
+                        contrib = contrib + 1
+                    elseif(IsNotOcc(ilut, j) .and. IsNotOcc(ilut, ab_pair(j)))then
+                        ! h_i h_j
+                        contrib = contrib - 1
+                    endif
+                enddo
+
+            endif
+        end function
+
+
+    end function
+
+    function calcImportanceGuide(nI) result(val)
+        integer, intent(in) :: nI(nel)
+        real(dp) :: val
+
+        !Note: the overall normalization of the guiding wavefunction is aribtrary
+        !to avoid numerical issues, it is better to scale all values by the value
+        !of the reference determinante
+        if(tGutzwillerGuide)then
+            if(t_heisenberg_model)then
+                !For the Heisenberg model the guiding wavefunction in
+                !calcImportanceRatio differs from diagonal elements by a
+                !factor exchage_j/2. So we add it for consistency.
+                val = exp(-GutzwillerParam*(real(get_helement(nI,nI,0))-Hii)*2.0/exchange_j)
+            else
+                val = exp(GutzwillerParam*(real(get_helement(nI,nI,0))-Hii))
+            endif
+        else
+            val = 1.0
+        endif
+    end function
 
     function get_helement_compat(nI, nJ, IC, iLutI, iLutJ) result(hel)
         ! Get the matrix element of the hamiltonian. This assumes that we

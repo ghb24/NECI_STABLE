@@ -1,6 +1,6 @@
 module test_guga_matrixelements_mod
     use fruit, only: assert_true, assert_false, assert_equals, run_test_case
-    use constants, only: dp, n_int, maxExcit
+    use constants, only: dp, n_int, maxExcit, stdout
     use guga_bitRepOps, only: convert_stepvector_to_nI, StepVectorVals_t, StepVector_t, stepvector_vals, &
         EncodeBitDet_guga, CSF_Info_t
     use SystemData, only: nEl, nSpatOrbs, nBasis
@@ -31,7 +31,7 @@ contains
             call assert_true(all(step_v%val == [3, 1, 1, 2, 1, 1, 0, 2, 0]))
         end block
 
-        write(*, *) get_coupling_coefficients([s0, u, s0, u], [u, s0, u, s0])
+        write(stdout, *) get_coupling_coefficients([s0, u, s0, u], [u, s0, u, s0])
     end subroutine
 
     pure function get_coupling_coefficients(stepv_i, stepv_j) result(res)

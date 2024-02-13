@@ -18,10 +18,10 @@ module fcimc_output
                          AllHistogramEnergy
 
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
-                        DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, &
-                        tEN2, &
-                        tSemiStochastic, t_truncate_spawns, tLogGreensfunction
+                        DiagSft, DiagSft2, tSpatialOnlyHash, tOrthogonaliseReplicas, &
+                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
+                        tSemiStochastic, t_truncate_spawns, tLogGreensfunction, &
+                        tNonInitModShift, tModShiftTarget, tBosonNoSpawn
 
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -102,6 +102,11 @@ contains
                if(tTrialWavefunction .or. tStartTrialLater) then
                   write(initiatorstats_unit,"(A)", advance = 'no') &
                   "15. TrialNumerators (inits)   16. TrialDenom (inits)"
+                  offset = 16
+               end if
+               if(tNonInitModShift) then
+                  write(initiatorstats_unit,"(A)", advance = 'no') &
+                  "15. ModShiftWalks   16. NonModShiftWalks"
                   offset = 16
                end if
                 do k = 1, maxInitExLvlWrite
@@ -240,6 +245,16 @@ contains
               validExCaption = "  34.InvalidExcits  35. ValidExcits  "
            end if
            write(fcimcstats_unit, "(A)", advance = 'no') validExCaption
+           if (tModShiftTarget) then
+              write(fcimcstats_unit, "(A)", advance = 'no') &
+                   "  36.ModShift"
+           end if
+           if (tBosonNoSpawn) then
+              write(fcimcstats_unit, "(3A)", advance = 'no') &
+                   "  36.ActiveWalks", &
+                   "  37.NoSpawnDets", &
+                   "  38.NoSpawnDetsEmpty"
+           end if
            if(t_truncate_spawns) write(fcimcstats_unit, "(A)", advance = 'no') &
                 trunc_caption
 
@@ -384,6 +399,9 @@ contains
                if(tTrialWavefunction .or. tStartTrialLater) &
                     write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
                     tot_init_trial_numerator(1)/StepsPrint, tot_init_trial_denom(1)/StepsPrint
+               if(tNonInitModShift) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    AllNoModShiftWalk(1), AllNoNonModShiftWalk(1)
                do j = 1, maxInitExLvlWrite
                   write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)/StepsPrint
                end do
@@ -491,6 +509,16 @@ contains
                 if(t_truncate_spawns) then
                    write(fcimcstats_unit, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
                 end if
+                if (tModShiftTarget) then
+                    write(fcimcstats_unit, "(G16.7)", advance = 'no') &
+                    DiagSft2(1)
+                end if
+                if (tBosonNoSpawn) then
+                    write(fcimcstats_unit, "(g16.7,2i12)", advance = 'no') &
+                    AllNoBosonActiveWalk(1), &  ! 36.
+                    AllNoSpawnDets(1), &        ! 37.
+                    AllNoSpawnDetsEmpty(1)      ! 38.
+                end if
                 write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
@@ -531,6 +559,9 @@ contains
                if(tTrialWavefunction .or. tStartTrialLater) &
                     write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
                     tot_init_trial_numerator(1)/StepsPrint, tot_init_trial_denom(1)/StepsPrint
+               if(tNonInitModShift) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    AllNoModShiftWalk(1), AllNoNonModShiftWalk(1)
                do j = 1, maxInitExLvlWrite
                   write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
                end do
@@ -923,6 +954,10 @@ contains
                     call stats_out(state_i, .false., AllNoInitWalk(p), 'InitWalks (' // trim(adjustl(tmpc)) // ")")
                     call stats_out(state_i, .false., AllNoNonInitWalk(p), 'NonInitWalks (' // trim(adjustl(tmpc)) // ")")
                 end do
+            end if
+            if (tNonInitModShift) then
+                call stats_out(state_i, .false., AllNoModShiftWalk(p), 'ModShiftWalk. (' // trim(adjustl(tmpc)) // ")")
+                call stats_out(state_i, .false., AllNoNonModShiftWalk(p), 'NonModShiftWalk. (' // trim(adjustl(tmpc)) // ")")
             end if
             ! And we are done
             write(state%funit, *)

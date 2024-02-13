@@ -675,4 +675,34 @@ contains
 
     end subroutine calc_double_occ_from_rdm
 
+    subroutine get_doublons_holons(ilut, doublons, holons, doublons_count, holons_count)
+        use DetBitOps, only: MaskAlpha, MaskBeta
+        integer(kind=n_int), intent(in) :: iLut(0:NIfD)
+        integer(kind=n_int), dimension(0:NIfD) :: alpha, beta, double, empty
+        integer, intent(out) :: doublons(1:nbasis/2), holons(1:nbasis/2), doublons_count, holons_count
+        integer :: pos, orb
+
+        alpha = iand(iLut, MaskAlpha)
+        beta = iand(iLut, MaskBeta)
+        alpha = ishft(alpha, -1)
+        double = iand(alpha, beta)
+        empty = not(ior(alpha, beta))
+        doublons_count = 0
+        holons_count = 0
+
+        doublons = 0
+        holons = 0
+        do orb=1, nbasis, 2
+            pos = (orb - 1) / bits_n_int                                      
+            if(btest(double(pos), mod(orb - 1, bits_n_int)))then
+                doublons_count = doublons_count+1
+                doublons(doublons_count) = get_spatial(orb)
+            endif
+            if(btest(empty(pos), mod(orb - 1, bits_n_int)))then
+                holons_count = holons_count+1
+                holons(holons_count) = get_spatial(orb)
+            endif
+        end do
+    end subroutine
+
 end module double_occ_mod

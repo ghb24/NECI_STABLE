@@ -14,7 +14,8 @@ MODULE ReadInput_neci
     use tau_main, only: tau_start_val, possible_tau_start, &
         min_tau, max_tau, tau, readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
         tau_search_method, possible_tau_search_methods
-    use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms
+    use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms, &
+        tHartreeGutzwiller
 
     Implicit none
 !   Used to specify which default set of inputs to use
@@ -218,14 +219,15 @@ contains
         ! Check that the specified runtime options are consistent and valid
 
         use SystemData, only: nel, tUseBrillouin, beta, tFixLz, &
-                              tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT, &
-                              tSpn, tUHF, tGenHelWeighted, tHPHF, &
+                              tFindCINatOrbs, tNoRenormRandExcits, LMS, &
+                              tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
                               tGen_4ind_lin_exact, tGen_4ind_2, &
                               tComplexOrbs_RealInts, tLatticeGens, &
-                              t_mol_3_body, t_ueg_3_body
+                              t_heisenberg_model, t_new_real_space_hubbard, &
+                              PartialNodeGamma, tFixedNode
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -242,7 +244,9 @@ contains
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
                             user_input_seed, tTargetShiftdamp, tFixedN0, t_core_inits, &
-                            tWalkContGrow
+                            tWalkContGrow, tAFTruncBracket, tTruncateHubbard, &
+                            tExlevelAFCriterion, tGutzwillerGuide, &
+                            tGutzwillerHubbardAF, tTruncHubbAllClose
         use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
@@ -685,10 +689,6 @@ contains
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
         end if
 
-        if (tTargetShiftdamp .and. tFixedN0) then
-            call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
-        end if
-
         if (tTargetShiftdamp .and. tWalkContGrow) then
             call stop_all(t_r, "TARGET-SHIFTDAMP and WALKCONTGROW not compatible.")
         end if
@@ -696,6 +696,37 @@ contains
         if (.not. (tInfInit .implies. t_core_inits)) then
             call stop_all(t_r, 'INFINITE-INIT requires CORE-INITS OFF.')
         end if
+
+        if (tGutzwillerHubbardAF .and. .not. (t_heisenberg_model .or. t_new_real_space_hubbard)) then
+            call stop_all(t_r, "GUTZWILLER-ANTIFERRO is only valid for Heisenberg and real-space Hubbard model")
+        end if
+
+        if (tGutzwillerHubbardAF .and. .not. tGutzwillerGuide) then
+            call stop_all(t_r, "GUTZWILLER-ANTIFERRO only working in conjunction with GUTZWILLER-GUIDE")
+        end if
+
+        if (tTruncHubbAllClose .and. .not. tTruncateHubbard) then
+            call stop_all(t_r, "TRUNC-HUBB-ALL-CLOSE only works in conjunction with TRUNC-HUBB")
+        end if
+
+        if (tAFTruncBracket .and. .not. tTruncateHubbard) then
+            call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
+        end if
+
+        if (tExLevelAFCriterion .and. .not. tTruncateHubbard) then
+            call stop_all(t_r, "EXLEVEL-AF-TRUNC only works in conjunction with TRUNC-HUBB")
+        end if
+
+        if (.not. (tFixedNode .implies. (0.0_dp <= PartialNodeGamma .and. PartialNodeGamma <= 1.0_dp))) then
+            call stop_all(t_r, &
+                "PartialNodeGamma has to be between 0 and 1 when fixed Node is on.")
+        end if
+
+        if (tHartreeGutzwiller .and. .not. t_new_real_space_hubbard) then
+            call stop_all(t_r, &
+                "HARTREE-GUTZWILLER only works in the real-space Hubbard model")
+        end if
+
 
         block
             use load_balance_calcnodes, only: &
@@ -751,6 +782,13 @@ contains
                 end if
             end if
         end block time_step
+
+        block
+            use CalcData, only: tModShiftCorr, tModShiftTarget, tModShiftCorrOnlyS1
+            if (.not. ((tModShiftCorr .or. tModShiftCorrOnlyS1) .implies. tModShiftTarget)) then
+                call stop_all(t_r, 'Only works in conjunction with MOD-SHIFT-SHIFT or MOD-SHIFT-TARGET')
+            end if
+        end block
 
     end subroutine checkinput
 

@@ -63,9 +63,25 @@ contains
                   AllNoAddedInitiators(lenof_sign), &
                   AllNoInitDets(lenof_sign), AllNoNonInitDets(lenof_sign), &
                   AllNoInitWalk(lenof_sign), AllNoNonInitWalk(lenof_sign), &
-                  AllNoExtraInitDoubs(lenof_sign), AllInitRemoved(lenof_sign), &
-                  AllGrowRateAbort(lenof_sign), &
-                  stat=ierr)
+                  AllNoExtraInitDoubs(lenof_sign), AllInitRemoved(lenof_sign))
+
+        if (tNonInitModShift) then
+            allocate(NoModShiftWalk(lenof_sign), NoNonModShiftWalk(lenof_sign), &
+                     OldAllNoInitWalk(lenof_sign), &
+                     AllNoModShiftWalk(lenof_sign), AllNoNonModShiftWalk(lenof_sign), &
+                     OldAllNoModShiftWalk(lenof_sign), &
+                     OldAllNoNonModShiftWalk(lenof_sign))
+        end if
+
+        if (tBosonNoSpawn) then
+            allocate(NoBosonActiveWalk(lenof_sign), &
+                     AllNoBosonActiveWalk(lenof_sign), &
+                     OldAllNoBosonActiveWalk(lenof_sign), &
+                     NoSpawnDets(lenof_sign), &
+                     NoSpawnDetsEmpty(lenof_sign), &
+                     AllNoSpawnDets(lenof_sign), &
+                     AllNoSpawnDetsEmpty(lenof_sign))
+        end if
 
         ! Global simulation properties that apply per simulation, i.e. will
         ! not be duplicated if complex walkers are used. --> inum_runs
@@ -128,16 +144,13 @@ contains
             InstShift(inum_runs), &
             AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
             DiagSft(inum_runs), &
+            DiagSft2(inum_runs), &
             hdf5_diagsft(inum_runs), &
             DiagSftRe(inum_runs), &
             DiagSftIm(inum_runs), &
-            tSinglePartPhase(inum_runs), stat=ierr)
-
-        if (ierr /= MPI_SUCCESS) then
-            write(error_message, '(A, I0)') &
-                'Error during allocation. ierr = ', ierr
-            call Stop_All(this_routine, error_message)
-        end if
+            tSinglePartPhase(inum_runs), &
+            FullProjE_Num(inum_runs), &
+            FullProjE_Den(inum_runs))
 
         ! Variables which are only used conditionally.
         ! NB, NFrozen has not been subtracted from NEl yet!
@@ -202,7 +215,6 @@ contains
                     Annihilated, AllAnnihilated, &
                     Acceptances, AllAcceptances, &
                     SpawnFromSing, AllSpawnFromSing, &
-                    AllGrowRateAbort, &
                     NoatDoubs, AllNoatDoubs, &
                     AccRat, &
                     AllHFCyc, OldAllHFCyc, AllHFOut, &
@@ -239,14 +251,35 @@ contains
                     InstShift, &
                     AvDiagSft, SumDiagSft, &
                     DiagSft, &
+                    DiagSft2, &
                     hdf5_diagsft, &
                     DiagSftRe, &
                     DiagSftIm, &
                     tSinglePartPhase, &
+                    FullProjE_Num, &
+                    FullProjE_Den, &
                     ! KPFCIQMC
                     TotPartsInit, &
                     AllTotPartsInit, &
                     tSinglePartPhaseKPInit)
+        
+        if (tNonInitModShift) then
+            deallocate(NoModShiftWalk, NoNonModShiftWalk, &
+                       OldAllNoInitWalk, &
+                       AllNoModShiftWalk, AllNoNonModShiftWalk, &
+                       OldAllNoModShiftWalk, &
+                       OldAllNoNonModShiftWalk)
+        end if
+
+        if (tBosonNoSpawn) then
+            deallocate(NoBosonActiveWalk, &
+                       AllNoBosonActiveWalk, &
+                       OldAllNoBosonActiveWalk, &
+                       NoSpawnDets, &
+                       NoSpawnDetsEmpty, &
+                       AllNoSpawnDets, &
+                       AllNoSpawnDetsEmpty)
+        end if
 
         if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
 
@@ -333,6 +366,8 @@ contains
 
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
+
+        OldAllNoBosonActiveWalk = AllTotParts
 
 #ifdef PROG_NUMRUNS_
         do run = 1, inum_runs

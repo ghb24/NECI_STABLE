@@ -94,12 +94,19 @@ MODULE FciMCData
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
+    real(dp), allocatable :: NoModShiftWalk(:), NoNonModShiftWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
     integer(int64), allocatable :: AllNoNonInitDets(:)
-    real(dp), allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
+    real(dp), allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:), &
+        OldAllNoInitWalk(:)
+    real(dp), allocatable :: AllNoModShiftWalk(:), AllNoNonModShiftWalk(:), &
+        OldAllNoModShiftWalk(:), OldAllNoNonModShiftWalk(:)
+    real(dp), allocatable :: NoBosonActiveWalk(:), &
+        AllNoBosonActiveWalk(:), OldAllNoBosonActiveWalk(:)
+    integer, allocatable :: NoSpawnDets(:), AllNoSpawnDets(:), &
+        NoSpawnDetsEmpty(:), AllNoSpawnDetsEmpty(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
-    integer(int64), allocatable :: AllGrowRateAbort(:)
     integer :: n_core_non_init = 0
     integer :: all_n_core_non_init = 0
 
@@ -664,6 +671,13 @@ MODULE FciMCData
     ! sense for non-hermitian operator)
     logical :: t_adjoint_replicas = .false.
 
+    HElement_t(dp), allocatable :: FullProjE_Num(:), FullProjE_Den(:)
+    integer :: FullProjE_Unit
+    integer, parameter :: max_connected_size = 100000
+    integer(TagIntType) :: ConnectedTag
+    integer(n_int), allocatable, dimension(:, :) :: connected_dets
+
+    logical :: tInitProbation = .false., tInitExpandEnd = .false.
     ! Stores the reference weight of the last run
     real(dp) :: fciqmc_run_ref_weight
 

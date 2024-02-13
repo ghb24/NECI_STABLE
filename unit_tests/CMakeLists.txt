@@ -105,3 +105,5 @@ add_subdirectory( sampler )
 add_subdirectory( index_convention )
 
 add_subdirectory( sltcnd )
+
+add_subdirectory( block_spawns )

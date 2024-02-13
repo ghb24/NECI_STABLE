@@ -152,6 +152,10 @@ contains
             write(stdout, '("Calculating the number of states in the connected space...")'); call neci_flush(stdout)
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), con_space_size)
+            if(qmc_trial_wf)then
+                !In this case we also want to add the trial states to the connected space
+                con_space_size = con_space_size+num_elem
+            endif
 
             write(stdout, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
                 real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(stdout)
@@ -165,6 +169,11 @@ contains
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), &
                                           con_space_size, con_space)
+
+            if(qmc_trial_wf)then
+                write(6, '("Needed for qmc-trial: Adding trial states to the connected space...")'); call neci_flush(stdout)
+                con_space(:,con_space_size-num_elem+1:) =  SpawnedParts(0:NIfTot, min_elem:max_elem)
+            endif
 
             write(stdout, '("Removing repeated states and sorting by processor...")'); call neci_flush(stdout)
 
