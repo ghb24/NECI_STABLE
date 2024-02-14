@@ -10,7 +10,7 @@ module sdt_amplitudes
     use bit_reps, only: decode_bit_det, encode_sign
     use constants, only: dp, lenof_sign, n_int, int64, stdout
     use DetBitOps, only: get_bit_excitmat, EncodeBitDet, GetBitExcitation
-    use util_mod, only: near_zero, stop_all, lex_leq
+    use util_mod, only: near_zero, stop_all, lex_leq, swap
     use FciMCData, only: TotWalkers, iLutRef, CurrentDets, AllNoatHF, projedet, &
                          ll_node
     use hash, only: hash_table_lookup, add_hash_table_entry, init_hash_table, &
@@ -21,6 +21,8 @@ module sdt_amplitudes
     use MPI_wrapper, only: root
     use sort_mod, only: sort
     use fortran_strings, only: str
+    use SymExcitDataMod, only: OrbClassCount
+    use GenRandSymExcitNUMod, only: ClassCountInd
 
     better_implicit_none
     private
@@ -391,8 +393,6 @@ contains
     ! it finds all the alpha/beta occ/unocc orbs in the reference
     ! determinant and saves the relative indices in an array
     function findAlphaBetaOrbs(symmax, nbasis)  result(idxAlphaBetaOrbs)
-        use SymExcitDataMod, only: OrbClassCount
-        use GenRandSymExcitNUMod, only: ClassCountInd
         integer, intent(in) :: symmax, nbasis
         integer :: idxAlphaBetaOrbs(nbasis)
 
@@ -466,7 +466,6 @@ contains
 
     ! PreSorting routine which converts the indices into Molpro standard
     subroutine idxPreSort(iCI, idxAlphaBetaOrbs, ex, signCI)
-        use util_mod, only: swap
         integer, intent(in)  :: iCI, idxAlphaBetaOrbs(nbasis)
         integer, intent(out) :: signCI
         integer, intent(inout) :: ex(2, n_store_ci_level)
