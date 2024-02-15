@@ -7,7 +7,7 @@ System read
     freeformat
     nonuniformrandexcits guga-gas-pchb \
         drawing unif:unif unif-unif:fast-fast \
-        weighting uniform Initial-Werner
+        weighting uniform Initial-dobrautz
     guga 0
     GAS-SPEC LOCAL 4
         3 2 4

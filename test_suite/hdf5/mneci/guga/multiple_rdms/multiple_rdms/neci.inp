@@ -7,7 +7,7 @@ title
     guga                               1
     nonUniformRandExcits       guga-pchb \
         drawing unif:unif unif-unif:fast-fast \
-        weighting uniform initial-Werner
+        weighting uniform initial-dobrautz
     freeformat
     nobrillouintheorem
   endsys

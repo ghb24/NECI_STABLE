@@ -67,12 +67,12 @@ contains
                     PCHB_DoublesOptions_t(&
                         options_vals%doubles%particle_selection%UNIF_UNIF, &
                         options_vals%doubles%hole_selection%FAST_FAST, &
-                        options_vals%doubles%weighting%INITIAL_WERNER &
+                        options_vals%doubles%weighting%INITIAL_DOBRAUTZ &
                     ), &
                     PCHB_DoublesOptions_t(&
                         options_vals%doubles%particle_selection%FULL_FULL, &
                         options_vals%doubles%hole_selection%FAST_FAST, &
-                        options_vals%doubles%weighting%INITIAL_WERNER &
+                        options_vals%doubles%weighting%INITIAL_DOBRAUTZ &
                     ) &
         ]
 

@@ -5,7 +5,7 @@ system read
     electrons 10
     nonuniformrandexcits guga-pchb \
         drawing unif:unif unif-unif:fast-fast \
-        weighting uniform initial-Werner
+        weighting uniform initial-dobrautz
     guga 0
 endsys
 
