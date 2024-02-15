@@ -366,6 +366,7 @@ contains
                                 if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
                                         .and. spin_allowed(exc)) then
                                     w_B(B) = get_PCHB_weight(exc)
+                                    w_B(B) = merge(0._dp, w_B(B), abs(w_B(B)) < 1e-4_dp)
                                 end if
                             end if
                             end associate
