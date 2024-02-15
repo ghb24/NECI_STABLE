@@ -505,7 +505,7 @@ contains
                 return
             end if
             tgt = gtId(spin_tgt)
-            p_tgt = csf_I%occ_int(tgt) * p_tgt
+            p_tgt = (2 - csf_I%occ_int(tgt)) * p_tgt
         end block select_hole
         pgen = p_src * p_tgt
 
@@ -583,7 +583,7 @@ contains
             end if
 
 
-            p_tgt = csf_I%occ_int(excitInfo%i) &
+            p_tgt = (2 - csf_I%occ_int(excitInfo%i)) &
                     * this%A_sampler%constrained_getProb(excitInfo%j, i_sg, unoccupied, renorm_tgt, spin_tgt)
         end block select_hole
         pgen = p_src * p_tgt
