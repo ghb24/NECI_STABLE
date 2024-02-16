@@ -1,0 +1,64 @@
+Title
+
+System read
+    electrons 12
+    nobrillouintheorem
+    FCIDUMP-name N4_tetra.FciDmp
+    freeformat
+    # nonuniformrandexcits mol_guga_weighted
+    nonuniformrandexcits guga-gas-pchb \
+        drawing full:full full-full:fast-fast \
+        weighting RHF-expression initial-dobrautz
+    guga 0
+    GAS-SPEC CUMULATIVE 4
+        3  3  3
+        3  6  6
+        3  9  9
+        3 12 12
+        3*1 3*2 3*3 3*4
+    ignore-fcidump-header
+endsys
+
+calc
+    seed 7
+    load-balance-blocks off
+
+    nmcyc 1e3
+
+    definedet    1  3  5 \
+                 8 10 12 \
+                13 15 17 \
+                20 22 24
+    totalwalkers 1e3
+    semi-stochastic 5e2
+    pops-core 1e5
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    target-shiftdamp 0.2
+
+
+    proje-changeref 2.00
+    truncinitiator
+    addtoinitiator  3
+    allrealcoeff
+    realspawncutoff .30
+    tau-values \
+        start user-defined 0.1
+    tau-search \
+        algorithm conventional \
+        stop-condition off \
+        maxwalkerbloom 2
+    memoryfacspawn 100.00
+    memoryfacpart 50.00
+    startsinglepart 100
+
+endcalc
+
+logging
+    highlypopwrite 50
+    hdf5-pops
+endlog
+end
