@@ -1,7 +1,7 @@
 #include "macros.h"
 module guga_gas_pchb_doubles_select_holes
 
-    use aliasSampling, only: AliasSampler_2D_t
+    use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t
     use constants, only: n_int, dp, int64, stdout, int_rdm, bits_n_int
     use bit_rep_data, only: GugaBits
     use SystemData, only: nel, nSpatOrbs
@@ -104,28 +104,57 @@ module guga_gas_pchb_doubles_select_holes
         end subroutine
     end interface
 
-
-
     type, extends(GAS_PCHB_Doubles_t) :: GAS_PCHB_FastFast_t
         private
 
-        !> The shape is (fused_number_of_double_excitations, n_supergroup)
+        !> The shape is (fused_number_of_particles i <= j, n_supergroup)
         type(AliasSampler_2D_t) :: alias_sampler
         integer, allocatable :: tgtOrbs(:, :)
 
     contains
         private
-        procedure, public :: pickOrbitals
-        procedure, public :: calc_pgen
+        procedure, public :: pickOrbitals => pickOrbitals_FastFast
+        procedure, public :: calc_pgen => calc_pgen_FastFast
 
-        procedure, public :: calc_orbital_pgen_contr
-        procedure, public :: calc_orbital_pgen_contr_start
-        procedure, public :: calc_orbital_pgen_contr_end
+        procedure, public :: calc_orbital_pgen_contr => calc_orbital_pgen_contr_FastFast
+        procedure, public :: calc_orbital_pgen_contr_start => calc_orbital_pgen_contr_start_FastFast
+        procedure, public :: calc_orbital_pgen_contr_end => calc_orbital_pgen_contr_end_FastFast
 
-        procedure, public :: gen_all_distinct
+        procedure, public :: gen_all_distinct => gen_all_distinct_FastFast
 
-        procedure :: setup_pchb_sampler_conditional
-        procedure :: finalize_pchb_sampler
+        procedure :: setup_pchb_sampler_conditional => setup_pchb_sampler_conditional_FastFast
+        procedure :: finalize_pchb_sampler => finalize_pchb_sampler_FastFast
+    end type
+
+    type, extends(GAS_PCHB_Doubles_t) :: GAS_PCHB_FullFull_t
+        private
+
+        !> The shape is (fused_number_of_double_excitations, n_supergroup) -> orbitals
+        type(AliasSampler_2D_t) :: A_sampler
+        !> The shape is (orbitals, fused_number_of_double_excitations, n_supergroup) -> orbitals
+        type(AliasSampler_3D_t) :: B_sampler
+
+        integer(n_int), private :: last_possible_occupied
+            !! The last element of the ilut array has some elements
+            !! which are not used, if the number of spinorbitals is not a multiple of
+            !! bitsize_n_int.
+            !! To correctly zero them this bitmask is 1 wherever a determinant
+            !! could be occupied in the last element, and 0 otherwise.
+    contains
+        private
+        procedure, public :: pickOrbitals => pickOrbitals_FullFull
+        procedure, public :: calc_pgen => calc_pgen_FullFull
+
+        procedure, public :: calc_orbital_pgen_contr => calc_orbital_pgen_contr_FullFull
+        procedure, public :: calc_orbital_pgen_contr_start => calc_orbital_pgen_contr_start_FullFull
+        procedure, public :: calc_orbital_pgen_contr_end => calc_orbital_pgen_contr_end_FullFull
+
+        procedure, public :: gen_all_distinct => gen_all_distinct_FullFull
+
+        procedure :: setup_pchb_sampler_conditional => setup_pchb_sampler_conditional_FullFull
+        procedure :: finalize_pchb_sampler => finalize_pchb_sampler_FullFull
+
+        procedure :: get_unoccupied
     end type
 
 contains
@@ -262,7 +291,6 @@ contains
         end if
     end function
 
-
     pure function HoleAlgorithm_from_str(str) result(res)
         character(*), intent(in) :: str
         type(PCHB_HoleAlgorithm_t) :: res
@@ -276,6 +304,12 @@ contains
         end select
     end function
 
+    pure function HoleAlgorithm_to_str(this) result(res)
+        class(PCHB_HoleAlgorithm_t), intent(in) :: this
+        character(9) :: res
+        res = this%str
+    end function
+
     logical elemental function symmetry_allowed(exc)
         type(DistinctDouble_t), intent(in) :: exc
         integer :: i, j, a, b
@@ -286,7 +320,7 @@ contains
     end function
 
 
-    subroutine setup_pchb_sampler_conditional(this, rank_with_info, ij_weights)
+    subroutine setup_pchb_sampler_conditional_FastFast(this, rank_with_info, ij_weights)
         class(GAS_PCHB_FastFast_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
         real(dp), allocatable, intent(out) :: ij_weights(:, :, :)
@@ -373,15 +407,15 @@ contains
                 end do
             end do
         end do
-    end subroutine setup_pchb_sampler_conditional
+    end subroutine setup_pchb_sampler_conditional_FastFast
 
-    subroutine finalize_pchb_sampler(this)
+    subroutine finalize_pchb_sampler_FastFast(this)
         class(GAS_PCHB_FastFast_t), intent(inout) :: this
         call this%alias_sampler%finalize()
         if (allocated(this%tgtOrbs)) deallocate(this%tgtOrbs)
     end subroutine
 
-    subroutine pickOrbitals(this, nI, ilut, csf_i, excitInfo, pgen)
+    subroutine pickOrbitals_FastFast(this, nI, ilut, csf_i, excitInfo, pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
@@ -391,7 +425,7 @@ contains
 
         integer :: src(2), a, b, orbs(2), ij, ab, i_sg
         real(dp) :: pgen_elec, pgen_orbs
-        routine_name("pickOrbitals")
+        routine_name("pickOrbitals_FastFast")
 
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(csf_I)
@@ -452,9 +486,9 @@ contains
 
         pGen = pgen_elec * pgen_orbs
         ASSERT(pgen .isclose. this%calc_pgen(nI, ilut, csf_i, excitInfo))
-    end subroutine pickOrbitals
+    end subroutine pickOrbitals_FastFast
 
-    function calc_pgen(this, nI, ilutI, csf_i, excitInfo) result(pgen)
+    function calc_pgen_FastFast(this, nI, ilutI, csf_i, excitInfo) result(pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
@@ -473,11 +507,11 @@ contains
 
         p_elec = this%particle_selector%get_pgen(nI, csf_i, excitInfo%i_sg_start, excitInfo%j, excitInfo%l)
         pgen = p_elec * this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ab)
-    end function calc_pgen
+    end function calc_pgen_FastFast
 
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
-    pure subroutine calc_orbital_pgen_contr(this, csf_i, occ_orbs, above_cpt, below_cpt)
+    pure subroutine calc_orbital_pgen_contr_FastFast(this, csf_i, occ_orbs, above_cpt, below_cpt)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
@@ -499,9 +533,9 @@ contains
 
         above_cpt =  p_gen / 2.0_dp
         below_cpt = above_cpt
-    end subroutine calc_orbital_pgen_contr
+    end subroutine
 
-    pure subroutine calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)
+    pure subroutine calc_orbital_pgen_contr_start_FastFast(this, csf_i, occ_orbs, orb_a, orb_pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
@@ -527,9 +561,9 @@ contains
 
         orb_pgen = this%particle_selector%get_pgen(csf_i%to_nI(), csf_i, i_sg, i, j) &
                         * this%alias_sampler%get_prob(ij, i_sg, ab)
-    end subroutine calc_orbital_pgen_contr_start
+    end subroutine
 
-    subroutine calc_orbital_pgen_contr_end(this, csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contr_end_FastFast(this, csf_i, occ_orbs, orb_a, orb_pgen)
         class(GAS_PCHB_FastFast_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
@@ -558,10 +592,10 @@ contains
 
         orb_pgen = this%particle_selector%get_pgen(csf_i%to_nI(), csf_i, i_sg, i, j) &
                         * this%alias_sampler%get_prob(ij, i_sg, ab)
-    end subroutine calc_orbital_pgen_contr_end
+    end subroutine
 
 
-    pure function gen_all_distinct(this, csf_i, sort_fused_key) result(res)
+    pure function gen_all_distinct_FastFast(this, csf_i, sort_fused_key) result(res)
         !! This function returns all possible excitations for the orbital picker
         !!
         !! This means it considers only occupation, not spin recoupling.
@@ -609,12 +643,305 @@ contains
         else
             res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
         end if
-
     end function
 
-    pure function HoleAlgorithm_to_str(this) result(res)
-        class(PCHB_HoleAlgorithm_t), intent(in) :: this
-        character(9) :: res
-        res = this%str
+
+    subroutine setup_pchb_sampler_conditional_FullFull(this, rank_with_info, ij_weights)
+        class(GAS_PCHB_FullFull_t), intent(inout) :: this
+        integer, intent(in) :: rank_with_info
+        real(dp), allocatable, intent(out) :: ij_weights(:, :, :)
+        integer :: i, j, ij, a, b, ab, i_sg
+        integer(int64) :: ijMax, abMax, memCost
+        integer, allocatable :: supergroups(:, :)
+        real(dp), allocatable :: w(:)
+
+        ! possible supergroups
+        supergroups = this%indexer%get_supergroups()
+
+        ! initialize the mapping ab -> (a, b)
+        abMax = fuse_symm_idx(nSpatOrbs, nSpatOrbs)
+        ijMax = abMax
+
+        this%last_possible_occupied = 0_n_int
+        block
+            integer :: i
+            do i = 0, ilut_off(nBasis)
+                this%last_possible_occupied = ibset(this%last_possible_occupied, i)
+            end do
+        end block
+
+    end subroutine setup_pchb_sampler_conditional_FullFull
+
+    subroutine finalize_pchb_sampler_FullFull(this)
+        class(GAS_PCHB_FullFull_t), intent(inout) :: this
+        call this%A_sampler%finalize()
+        call this%B_sampler%finalize()
+    end subroutine
+
+    subroutine pickOrbitals_FullFull(this, nI, ilut, csf_i, excitInfo, pgen)
+        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+
+        integer :: src(2), a, b, ij, i_sg
+        integer :: unoccupied(nBasis - nEl), spin_tgts(2), tgts(2)
+        real(dp) :: renorm_first, p_first(2)
+        real(dp) :: renorm_second(2), p_second(2)
+        integer(n_int) :: ilut_unoccupied(0 : nIfD)
+        routine_name("pickOrbitals_FullFull")
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
+
+        call this%particle_selector%draw(nI, ilut, csf_i, i_sg, src, pgen_elec)
+        ASSERT(src(1) <= src(2))
+        if (src(1) == 0) then
+            excitInfo%valid = .false.
+            pgen = 0.0_dp
+            return
+        end if
+        ij = fuse_symm_idx(src(1), src(2))
+
+        picking: block
+            integer :: dummy
+            call this%get_unoccupied(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
+            renorm_first = 1._dp - sum(this%A_sampler%get_prob(ij, i_sg, nI))
+            if (do_direct_calculation(renorm_first)) then
+                renorm_first = sum(this%A_sampler%get_prob(ij, i_sg, unoccupied))
+            end if
+
+            call this%A_sampler%constrained_sample(&
+                ij, i_sg, unoccupied, ilut_unoccupied, renorm_first, &
+                dummy, spin_tgts(1), p_first(1))
+            if (spin_tgts(1) == 0) then
+                call make_invalid()
+                return
+            end if
+
+            renorm_second(1) = 1._dp - sum(this%B_sampler%get_prob(spin_tgts(1), ij, i_sg, nI))
+            if (do_direct_calculation(renorm_second(1))) then
+                renorm_second(1) = sum(this%B_sampler%get_prob(spin_tgts(1), ij, i_sg, unoccupied))
+            end if
+            ! Note that p(A | A, IJ) is automatically zero and cannot be drawn
+            call this%B_sampler%constrained_sample(&
+                spin_tgts(1), ij, i_sg, unoccupied, ilut_unoccupied, renorm_second(1), &
+                dummy, spin_tgts(2), p_second(1))
+            if (spin_tgts(2) == 0) then
+                call make_invalid()
+                return
+            end if
+        end block picking
+
+        tgts(:) = gtID(spin_tgts(:))
+        if (tgts(1) == tgts(2)) then
+            ASSERT(csf_i%occ_int(tgts(1)) == 0)
+            p = 2._dp * p_first(1) * p_second(1)
+            return
+        end if
+        ! From now on we assume tgts(1) /= tgts(2)!
+
+        ! We could have picked them the other way round.
+        ! Account for that.
+        ! The renormalization for the first hole is the same
+        p_first(2) = this%A_sampler%constrained_getProb(&
+            i_sg, unoccupied, renorm_first, spin_tgts(2))
+        renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(spin_tgts(2), i_sg, nI))
+        if (do_direct_calculation(renorm_second(2))) then
+            renorm_second(2) = sum(this%B_sampler%get_prob(spin_tgts(2), i_sg, unoccupied))
+        end if
+        p_second(2) = this%B_sampler%constrained_getProb(&
+            spin_tgts(2), i_sg, unoccupied, renorm_second(2), spin_tgts(1))
+
+        pgen = sum((2 - csf_i%occ_int(tgts)) * p_first(:) &
+                   * (2 - csf_i%occ_int(tgts(2:1:-1))) * p_second(:))
+
+        if (tgts(1) > tgts(2)) call swap(tgts(1), tgts(2))
+        block
+            integer :: ab
+            ab = fuse_symm_idx(tgts(1), tgts(2))
+            call extract_excit_info(this%get_info_entry(ij, ab), excitInfo)
+            excitInfo%i_sg_start = i_sg
+        end block
+        ! get a pair of orbitals using the precomputed weights
+        ASSERT(pgen .isclose. this%calc_pgen(nI, ilut, csf_i, excitInfo))
+        contains
+            subroutine make_invalid()
+                excitInfo%valid = .false.
+                pgen = 0.0_dp
+            end subroutine
+    end subroutine pickOrbitals_FullFull
+
+    function calc_pgen_FullFull(this, nI, ilutI, csf_i, excitInfo) result(pgen)
+        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp) :: pgen
+
+        integer :: ij, ab
+        real(dp) :: p_elec
+        unused_var(ilutI)
+
+        ! i, j, k and l entries have the info about the electrons and
+        ! holes of the excitation: E_{ij}E_{kl} is the convention ...
+        ij = fuse_symm_idx(excitInfo%j, excitInfo%l)
+
+        p_elec = this%particle_selector%get_pgen(nI, csf_i, excitInfo%i_sg_start, excitInfo%j, excitInfo%l)
+        pgen = p_elec * this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ab)
+    end function calc_pgen_FullFull
+
+    ! I need the pgen-recalculation routines for exchange type excitations
+    ! also for the PCHB excit-gen
+    pure subroutine calc_orbital_pgen_contr_FullFull(this, csf_i, occ_orbs, above_cpt, below_cpt)
+        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: occ_orbs(2)
+        real(dp), intent(out) :: above_cpt, below_cpt
+
+        integer :: i, j, ij, i_sg
+        real(dp) :: p_gen
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_csf(csf_i)
+        end if
+        i = gtID(occ_orbs(1))
+        j = gtID(occ_orbs(2))
+        ij = fuse_symm_idx(i, j)
+        p_gen = this%particle_selector%get_pgen(csf_i%to_nI(), csf_i, i_sg, i, j) &
+                    * this%alias_sampler%get_prob(ij, i_sg, ij)
+
+        above_cpt =  p_gen / 2.0_dp
+        below_cpt = above_cpt
+    end subroutine
+
+    pure subroutine calc_orbital_pgen_contr_start_FullFull(this, csf_i, occ_orbs, orb_a, orb_pgen)
+        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: occ_orbs(2), orb_a
+        real(dp), intent(out) :: orb_pgen
+        character(*), parameter :: this_routine = 'calc_orbital_pgen_contr_start'
+
+        integer :: i, j, ij, ab, i_sg
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_csf(csf_i)
+        end if
+
+        ! depending on type (R->L / L->R) a can be > j or < j, but always > i
+        i = gtID(occ_orbs(1))
+        j = gtID(occ_orbs(2))
+        ASSERT(i < orb_a)
+
+        ! here i is both electron and hole index!
+        ij = fuse_symm_idx(i, j)
+        ab = fuse_symm_idx(i, orb_a)
+
+        orb_pgen = this%particle_selector%get_pgen(csf_i%to_nI(), csf_i, i_sg, i, j) &
+                        * this%alias_sampler%get_prob(ij, i_sg, ab)
+    end subroutine
+
+    subroutine calc_orbital_pgen_contr_end_FullFull(this, csf_i, occ_orbs, orb_a, orb_pgen)
+        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: occ_orbs(2), orb_a
+        real(dp), intent(out) :: orb_pgen
+        character(*), parameter :: this_routine = "calc_orbital_pgen_contr_end"
+
+        integer :: i, j, ij, ab, i_sg
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_csf(csf_i)
+        end if
+
+        i = gtID(occ_orbs(1))
+        j = gtID(occ_orbs(2))
+
+        ! and j is at the same time electron and hole index!
+
+        ! depending on L->R or R->L type a can be > i o r < i, but always < j!
+        ASSERT(orb_a < j)
+
+        ! j here is both elec and hole ind!
+        ij = fuse_symm_idx(i, j)
+        ab = fuse_symm_idx(orb_a, j)
+
+        orb_pgen = this%particle_selector%get_pgen(csf_i%to_nI(), csf_i, i_sg, i, j) &
+                        * this%alias_sampler%get_prob(ij, i_sg, ab)
+    end subroutine
+
+
+    pure function gen_all_distinct_FullFull(this, csf_i, sort_fused_key) result(res)
+        !! This function returns all possible excitations for the orbital picker
+        !!
+        !! This means it considers only occupation, not spin recoupling.
+        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        logical, intent(in), optional :: sort_fused_key
+            !! The fused index of the excitations should be sorted.
+        type(DistinctDouble_t), allocatable :: res(:)
+
+        type(buffer_int64_1D_t) :: buffer
+        type(DistinctDouble_t) :: exc
+        type(ijkl_Index_t) :: idx
+        logical :: sort_fused_key_
+        integer :: i, j, a, b
+
+        def_default(sort_fused_key_, sort_fused_key, .false.)
+
+        call buffer%init()
+
+        do i = 1, nSpatOrbs
+            if (csf_i%occ_int(i) == 0) cycle
+            do j = i, nSpatOrbs
+                if (csf_i%occ_int(j) == 0) cycle
+                if (i == j .and. csf_i%occ_int(i) /= 2) cycle
+                do a = 1, nSpatOrbs
+                    do b = a, nSpatOrbs
+                        if (any(csf_i%stepvector([a, b]) == 3)) cycle
+                        if (a == b .and. csf_i%stepvector(a) /= 0) cycle
+                        idx = ijkl_Index_t([a, i, b, j])
+                        idx = idx%normalize()
+                        exc = DistinctDouble_t(idx)
+                        if (exc%typ == distinct_doubles%invalid &
+                            .or. .not. this%GAS_spec%is_allowed(exc, this%GAS_spec%count_per_GAS(csf_i))) then
+                            cycle
+                        end if
+                        call buffer%push_back(exc%fuse())
+                    end do
+                end do
+            end do
+        end do
+
+        if (sort_fused_key_) then
+            call sort(buffer%buf(:buffer%size()))
+            res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+        else
+            res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+        end if
     end function
+
+
+    pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
+        !! Return a bitmask and enumeration of the unoccupied spin orbitals.
+        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+        integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
+        integer, intent(out) :: unoccupied(nBasis - nEl)
+        ilut_unoccupied = not(ilutI)
+        ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
+        call decode_bit_det(unoccupied, ilut_unoccupied)
+    end subroutine
 end module
