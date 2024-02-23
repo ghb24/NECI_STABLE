@@ -29,7 +29,7 @@ module guga_gas_pchb_doubles_select_particles
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
         private
-        character(9) :: str
+        character(20) :: str
     contains
         procedure :: to_str
     end type
