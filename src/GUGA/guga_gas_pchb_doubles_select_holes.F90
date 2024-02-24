@@ -614,7 +614,7 @@ contains
 
     pure function HoleAlgorithm_to_str(this) result(res)
         class(PCHB_HoleAlgorithm_t), intent(in) :: this
-        character(9) :: res
-        res = this%str
+        character(:), allocatable :: res
+        res = trim(this%str)
     end function
 end module
