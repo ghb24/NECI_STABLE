@@ -10,6 +10,7 @@ module guga_gas_pchb_doubles_main
 
     use guga_base_class, only: DoublesGUGABase_t
     use guga_gas_pchb_doubles_select_holes, only: GAS_PCHB_FastFast_t, &
+        GAS_PCHB_FullFull_t, &
         PCHB_HoleAlgorithm_t, PCHB_HoleAlgorithm_vals_t, &
         WeightingChoice_t, WeightingChoice_vals_t
     use guga_gas_pchb_doubles_select_particles, only: &
@@ -55,10 +56,15 @@ contains
 
         if (options%hole_selection == doubles_options_vals%hole_selection%FAST_FAST) then
             allocate(GAS_PCHB_FastFast_t :: generator)
+        else if (options%hole_selection == doubles_options_vals%hole_selection%FULL_FULL) then
+            allocate(GAS_PCHB_FullFull_t :: generator)
         end if
 
         select type(generator)
         type is(GAS_PCHB_FastFast_t)
+            call generator%init(&
+                GAS_spec, options%particle_selection, options%weighting, use_lookup, create_lookup)
+        type is(GAS_PCHB_FullFull_t)
             call generator%init(&
                 GAS_spec, options%particle_selection, options%weighting, use_lookup, create_lookup)
         class default

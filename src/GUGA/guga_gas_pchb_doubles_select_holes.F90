@@ -43,7 +43,8 @@ module guga_gas_pchb_doubles_select_holes
 
     private
     public :: GAS_PCHB_FastFast_t, PCHB_HoleAlgorithm_t, PCHB_HoleAlgorithm_vals_t, &
-        WeightingChoice_t, WeightingChoice_vals_t
+        WeightingChoice_t, WeightingChoice_vals_t, &
+        GAS_PCHB_FullFull_t
 
     type, extends(EnumBase_t) :: PCHB_HoleAlgorithm_t
         private
@@ -668,11 +669,13 @@ contains
                         w_B_spat(:) = 0.0_dp
                         do b = 1, nSpatOrbs
                             if (iProcIndex_intra == rank_with_info) then
-                                associate(exc => DistinctDouble_t(ijab_Index_t([i, j, a, b])))
+                                associate(idx => ijab_Index_t([i, j, a, b]))
+                                associate(exc => DistinctDouble_t(idx%normalize()))
                                 if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
                                         .and. symmetry_allowed(exc)) then
                                     w_B_spat(b) = this%get_weight(exc)
                                 end if
+                                end associate
                                 end associate
                             end if
                         end do
