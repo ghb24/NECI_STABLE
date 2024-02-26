@@ -311,12 +311,6 @@ contains
         end select
     end function
 
-    pure function HoleAlgorithm_to_str(this) result(res)
-        class(PCHB_HoleAlgorithm_t), intent(in) :: this
-        character(9) :: res
-        res = this%str
-    end function
-
     logical elemental function symmetry_allowed(exc)
         type(DistinctDouble_t), intent(in) :: exc
         integer :: i, j, a, b
@@ -1054,7 +1048,6 @@ contains
         end if
     end function
 
-
     pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
         !! Return a bitmask and enumeration of the unoccupied spin orbitals.
         class(GAS_PCHB_FullFull_t), intent(in) :: this
@@ -1065,4 +1058,11 @@ contains
         ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
         call decode_bit_det(unoccupied, ilut_unoccupied)
     end subroutine
+
+    pure function HoleAlgorithm_to_str(this) result(res)
+        class(PCHB_HoleAlgorithm_t), intent(in) :: this
+        character(:), allocatable :: res
+        res = trim(this%str)
+    end function
+
 end module

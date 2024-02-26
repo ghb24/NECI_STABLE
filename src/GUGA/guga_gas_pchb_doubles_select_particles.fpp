@@ -29,7 +29,7 @@ module guga_gas_pchb_doubles_select_particles
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
         private
-        character(9) :: str
+        character(20) :: str
     contains
         procedure :: to_str
     end type
@@ -206,8 +206,8 @@ contains
 
     pure function to_str(options) result(res)
         class(PCHB_ParticleSelection_t), intent(in) :: options
-        character(9) :: res
-        res = options%str
+        character(:), allocatable :: res
+        res = trim(options%str)
     end function
 
     pure function from_keyword(w) result(res)

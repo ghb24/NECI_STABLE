@@ -25,7 +25,7 @@ module guga_pchb_singles_weights_mod
 
 
     type, extends(EnumBase_t) :: GAS_PCHB_SinglesWeighting_t
-        character(9) :: str
+        character(20) :: str
     end type
 
 
