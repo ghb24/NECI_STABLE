@@ -141,9 +141,12 @@ module util_mod
     end interface abs_l1
 
     interface swap
-        module procedure swap_int64
-        module procedure swap_int32
-    end interface swap
+        #:for type, kinds in field_types.items()
+        #:for kind in kinds
+        module procedure swap_${type}$_${kind}$
+        #:endfor
+        #:endfor
+    end interface
 
     interface custom_findloc
         #:for type, kinds in extended_types.items()
@@ -408,29 +411,18 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    elemental subroutine swap_int32(a, b)
-        ! exchange the value of two integers a,b
-        ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
-        integer(int32), intent(inout) :: a, b
-        integer(int32) :: tmp
-
+    #:for type, kinds in field_types.items()
+    #:for kind in kinds
+    elemental subroutine swap_${type}$_${kind}$ (a, b)
+        !! Swap the values a, b
+        ${type}$(${kind}$), intent(inout) :: a, b
+        ${type}$(${kind}$) :: tmp
         tmp = a
         a = b
         b = tmp
-    end subroutine swap_int32
-
-!------------------------------------------------------------------------------------------!
-
-    elemental subroutine swap_int64(a, b)
-        ! exchange the value of two integers a,b
-        ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
-        integer(int64), intent(inout) :: a, b
-        integer(int64) :: tmp
-
-        tmp = a
-        a = b
-        b = tmp
-    end subroutine swap_int64
+    end subroutine
+    #:endfor
+    #:endfor
 
 !------------------------------------------------------------------------------------------!
 

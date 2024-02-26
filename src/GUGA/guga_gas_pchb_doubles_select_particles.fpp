@@ -526,7 +526,7 @@ contains
 
             if (i == j) then
                 if (csf_i%occ_int(i) /= 2) then
-                    p = 0_dp
+                    p = 0._dp
                     return
                 else
                     p = &
