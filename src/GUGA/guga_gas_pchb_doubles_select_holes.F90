@@ -618,7 +618,6 @@ contains
         integer(int64) :: ijMax, abMax
         real(dp), allocatable :: w_A(:), w_B(:), w_B_spat(:)
         integer, allocatable :: supergroups(:, :)
-        real(dp), allocatable :: w(:)
 
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
@@ -643,7 +642,7 @@ contains
             allocate(w_A(nBasis), w_B(nBasis), w_B_spat(nSpatOrbs), source=0._dp)
             allocate(ij_weights(nSpatOrbs, nSpatOrbs, size(supergroups, 2)), source=0._dp)
         else
-            allocate(w(0))
+            allocate(w_A(0), w_B(0), w_B_spat(0))
             allocate(ij_weights(0, 0, 0))
         end if
 
@@ -679,18 +678,22 @@ contains
                                 end associate
                             end if
                         end do
-                        w_B(1::2) = w_B_spat(:)
-                        w_B(2::2) = w_B_spat(:)
-                        w_B(2 * a - 1) = 0._dp
-                        call this%B_sampler%setup_entry(2 * a - 1, IJ, i_sg, root, w_B(:))
-                        call swap(w_B(2 * a - 1), w_B(2 * a))
-                        call this%B_sampler%setup_entry(2 * a, IJ, i_sg, root, w_B(:))
+                        if (iProcIndex_intra == root) then
+                            w_B(1::2) = w_B_spat(:)
+                            w_B(2::2) = w_B_spat(:)
+                            w_B(2 * a - 1) = 0._dp
+                        end if
+                        call this%B_sampler%setup_entry(2 * a - 1, IJ, i_sg, root, w_B)
+                        if (iProcIndex_intra == root) then
+                            call swap(w_B(2 * a - 1), w_B(2 * a))
+                        end if
+                        call this%B_sampler%setup_entry(2 * a, IJ, i_sg, root, w_B)
                         if (iProcIndex_intra == root) then
                             w_A(2 * A - 1) = sum(w_B_spat)
                             w_A(2 * A) = w_A(2 * A - 1)
                         end if
                     end do
-                    call this%A_sampler%setup_entry(IJ, i_sg, root, w_A(:))
+                    call this%A_sampler%setup_entry(IJ, i_sg, root, w_A)
                     if (iProcIndex_intra == root) then
                         ij_weights(i, j, i_sg) = sum(w_A)
                         ij_weights(j, i, i_sg) = ij_weights(i, j, i_sg)
@@ -721,7 +724,7 @@ contains
             !! `unoccupied` lists the unoccupied "spin"-orbitals in nI-format.
             !! `spin_tgts` lists the tgts as fake "spin"-orbitals.
             !! `tgts` lists the tgts with spatial orbitals.
-        real(dp) :: pgen_elec
+        real(dp) :: pgen_elec, pgen_hole
         real(dp) :: renorm_first, p_first(2)
         real(dp) :: renorm_second(2), p_second(2)
         integer(n_int) :: ilut_unoccupied(0 : nIfD)
@@ -776,33 +779,35 @@ contains
         if (tgts(1) == tgts(2)) then
             ASSERT(csf_i%occ_int(tgts(1)) == 0)
             pgen = pgen_elec * 2._dp * p_first(1) * p_second(1)
-            return
+        else
+            ! From now on we assume tgts(1) /= tgts(2)!
+
+            ! We could have picked them the other way round.
+            ! Account for that.
+            ! The renormalization for the first hole is the same
+            p_first(2) = this%A_sampler%constrained_getProb(&
+                ij, i_sg, unoccupied, renorm_first, spin_tgts(2))
+            renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(spin_tgts(2), ij, i_sg, nI))
+            if (do_direct_calculation(renorm_second(2))) then
+                renorm_second(2) = sum(this%B_sampler%get_prob(spin_tgts(2), ij, i_sg, unoccupied))
+            end if
+            p_second(2) = this%B_sampler%constrained_getProb(&
+                spin_tgts(2), ij, i_sg, unoccupied, renorm_second(2), spin_tgts(1))
+
+            associate(holes => (2 - csf_i%occ_int(tgts(:))))
+                pgen_hole = sum(p_first(:) * p_second(:) * holes(:) * holes(2:1:-1))
+            end associate
+            pgen = pgen_elec * pgen_hole
         end if
-        ! From now on we assume tgts(1) /= tgts(2)!
-
-        ! We could have picked them the other way round.
-        ! Account for that.
-        ! The renormalization for the first hole is the same
-        p_first(2) = this%A_sampler%constrained_getProb(&
-            ij, i_sg, unoccupied, renorm_first, spin_tgts(2))
-        renorm_second(2) = 1._dp - sum(this%B_sampler%get_prob(spin_tgts(2), ij, i_sg, nI))
-        if (do_direct_calculation(renorm_second(2))) then
-            renorm_second(2) = sum(this%B_sampler%get_prob(spin_tgts(2), ij, i_sg, unoccupied))
-        end if
-        p_second(2) = this%B_sampler%constrained_getProb(&
-            spin_tgts(2), ij, i_sg, unoccupied, renorm_second(2), spin_tgts(1))
-
-        pgen = pgen_elec * sum((2 - csf_i%occ_int(tgts)) * p_first(:) &
-                               * (2 - csf_i%occ_int(tgts(2:1:-1))) * p_second(:))
-
         if (tgts(1) > tgts(2)) call swap(tgts(1), tgts(2))
+
         block
             integer :: ab
             ab = fuse_symm_idx(tgts(1), tgts(2))
             call extract_excit_info(this%get_info_entry(ij, ab), excitInfo)
             excitInfo%i_sg_start = i_sg
         end block
-        ! get a pair of orbitals using the precomputed weights
+
         ASSERT(pgen .isclose. this%calc_pgen(nI, ilut, csf_i, excitInfo))
         contains
             subroutine make_invalid()
@@ -870,8 +875,8 @@ contains
                 ! TODO replace with Ilut lookup
                 if ((A .in. unoccupied) .and. (B .in. unoccupied)) then
                     p_second = this%B_sampler%constrained_getProb(&
-                                ij, A, i_sg, unoccupied, &
-                                sum(this%B_sampler%get_prob(ij, A, i_sg, unoccupied)), B)
+                                A, ij, i_sg, unoccupied, &
+                                sum(this%B_sampler%get_prob(A, ij, i_sg, unoccupied)), B)
                 else
                     p_second = 0._dp
                 end if
@@ -887,22 +892,15 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
 
-        integer :: ij, a, b, i_sg
-        real(dp) :: p_elec, p_hole
-        unused_var(ilutI)
+        integer :: ij, i_sg
 
         ! i, j, k and l entries have the info about the electrons and
         ! holes of the excitation: E_{ij}E_{kl} is the convention ...
         i_sg = excitInfo%i_sg_start
         ij = fuse_symm_idx(excitInfo%j, excitInfo%l)
-        a = excitInfo%i
-        b = excitInfo%k
 
-        p_elec = this%particle_selector%get_pgen(&
-            nI, csf_i, i_sg, excitInfo%j, excitInfo%l)
-        p_hole = this%calc_orb_pgen(ilutI, csf_i, ij, i_sg, a, b)
-
-        pgen = p_elec * p_hole
+        pgen = this%particle_selector%get_pgen(nI, csf_i, i_sg, excitInfo%j, excitInfo%l) &
+               * this%calc_orb_pgen(ilutI, csf_i, ij, i_sg, excitInfo%i, excitInfo%k)
     end function calc_pgen_FullFull
 
     ! I need the pgen-recalculation routines for exchange type excitations
