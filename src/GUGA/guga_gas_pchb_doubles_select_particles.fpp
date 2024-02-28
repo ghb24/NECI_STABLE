@@ -42,17 +42,10 @@ module guga_gas_pchb_doubles_select_particles
                 !! We draw from \( p(I)|_{D_i} \) and then \( p(J | I)_{J \in D_i} \)
                 !! and both probabilites come from the PCHB weighting scheme.
                 !! We guarantee that \(I\) and \(J\) are occupied.
-            UNIF_FULL = PCHB_ParticleSelection_t(3, 'UNIF-FULL'), &
+            UNIF_FULL = PCHB_ParticleSelection_t(3, 'UNIF-FULL')
                 !! We draw \( \tilde{p}(I)|_{D_i} \) uniformly and then \( p(J | I)_{J \in D_i} \)
                 !! The second distribution comes from the PCHB weighting scheme.
                 !! We guarantee that \(I\) and \(J\) are occupied.
-            UNIF_FAST = PCHB_ParticleSelection_t(4, 'UNIF-FAST'), &
-                !! We draw \( \tilde{p}(I)|_{D_i} \) uniformly and then \( p(J | I)_{J} \).
-                !! The second distribution comes from the PCHB weighting scheme.
-                !! We guarantee that \(I\) is occupied.
-            PLAYING = PCHB_ParticleSelection_t(5, 'PLAYING'), &
-            DRAW_SPATIAL = PCHB_ParticleSelection_t(6, 'DRAW-SPATIAL'), &
-            DRAW_FAKE_SPIN_ORB = PCHB_ParticleSelection_t(7, 'DRAW-FAKE-SPIN-ORB')
     contains
         procedure, nopass :: from_str => from_keyword
     end type
@@ -154,53 +147,6 @@ module guga_gas_pchb_doubles_select_particles
         procedure, public :: draw => draw_PC_WeightedParticles_t
         procedure, public :: get_pgen => get_pgen_PC_WeightedParticles_t
     end type
-    !
-    ! type, extends(PC_Particles_t) :: PC_FastWeightedParticles_t
-    ! contains
-    !     private
-    !     procedure, public :: draw => draw_PC_FastWeightedParticles_t
-    !     procedure, public :: get_pgen => get_pgen_PC_FastWeightedParticles_t
-    ! end type
-
-    type, extends(ParticleSelector_t) :: Playing_t
-    contains
-        private
-        procedure, public :: draw => draw_Playing_t
-        procedure, public :: get_pgen => get_pgen_Playing_t
-        procedure, public :: finalize => finalize_Playing_t
-    end type
-
-
-    type, extends(ParticleSelector_t) :: DrawSpatial_t
-        private
-        type(AliasSampler_1D_t) :: i_sampler
-            !! The shape is (n_supergroup) -> number_of_spat_orbs
-        type(AliasSampler_2D_t) :: j_sampler
-            !! The shape is (number_of_spat_orbs, n_supergroup) -> number_of_spat_orbs
-
-        class(GASSpec_t), allocatable :: GAS_spec
-        ! This is only a pointer because components cannot be targets
-        ! otherwise. :-(
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
-        logical, public :: use_lookup = .false.
-            !! Use a lookup for the supergroup index in global_det_data.
-        logical, public :: create_lookup = .false.
-            !! Create **and** manage! the supergroup index lookup in global_det_data.
-    contains
-        private
-        procedure, public :: draw => draw_DrawSpatial_t
-        procedure, public :: get_pgen => get_pgen_DrawSpatial_t
-        procedure, public :: init => init_DrawSpatial_t
-        procedure, public :: finalize => finalize_DrawSpatial_t
-    end type
-
-
-    type, extends(PC_Particles_t) :: DrawFakeSpinOrb_t
-    contains
-        private
-        procedure, public :: draw => draw_DrawFakeSpinOrb_t
-        procedure, public :: get_pgen => get_pgen_DrawFakeSpinOrb_t
-    end type
 
 contains
 
@@ -222,14 +168,6 @@ contains
             res = PCHB_particle_selection_vals%FULL_FULL
         case(PCHB_particle_selection_vals%UNIF_FULL%str)
             res = PCHB_particle_selection_vals%UNIF_FULL
-        case(PCHB_particle_selection_vals%UNIF_FAST%str)
-            res = PCHB_particle_selection_vals%UNIF_FAST
-        case(PCHB_particle_selection_vals%PLAYING%str)
-            res = PCHB_particle_selection_vals%PLAYING
-        case(PCHB_particle_selection_vals%DRAW_SPATIAL%str)
-            res = PCHB_particle_selection_vals%DRAW_SPATIAL
-        case(PCHB_particle_selection_vals%DRAW_FAKE_SPIN_ORB%str)
-            res = PCHB_particle_selection_vals%DRAW_FAKE_SPIN_ORB
         case default
             call stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
         end select
@@ -250,20 +188,6 @@ contains
         routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
         if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_UNIF) then
             allocate(UniformParticles_t :: particle_selector)
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%PLAYING) then
-            allocate(Playing_t :: particle_selector)
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%DRAW_SPATIAL) then
-            allocate(DrawSpatial_t :: particle_selector)
-            select type(particle_selector)
-            type is(DrawSpatial_t)
-                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
-            end select
-        else if (PCHB_particle_selection == PCHB_particle_selection_vals%DRAW_FAKE_SPIN_ORB) then
-            allocate(DrawFakeSpinOrb_t :: particle_selector)
-            select type(particle_selector)
-            type is(DrawFakeSpinOrb_t)
-                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
-            end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%FULL_FULL) then
             allocate(PC_FullyWeightedParticles_t :: particle_selector)
             select type(particle_selector)
@@ -472,27 +396,25 @@ contains
         srcs(2) = gtID(spin_srcs(2))
 
         if (srcs(1) == srcs(2)) then
-            @:ASSERT(csf_i%stepvector(srcs(1)) == 3)
+            @:ASSERT(csf_i%occ_int(srcs(1)) == 2)
             p = 2._dp * p_first(1) * p_second(1)
-            return
-        end if
-        ! From now on we assume srcs(1) /= srcs(2)!
+        else
+            ! From now on we assume srcs(1) /= srcs(2)!
 
-        ! We could have picked them the other way round.
-        ! Account for that.
-        ! The renormalization for the first electron is the same
-        p_first(2) = this%I_sampler%constrained_getProb(&
-            i_sg, nI, renorm_first, spin_srcs(2))
-        renorm_second(2) = sum(this%J_sampler%get_prob(spin_srcs(2), i_sg, nI))
-        p_second(2) = this%J_sampler%constrained_getProb(&
-            spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
+            ! We could have picked them the other way round.
+            ! Account for that.
+            ! The renormalization for the first electron is the same
+            p_first(2) = this%I_sampler%constrained_getProb(&
+                i_sg, nI, renorm_first, spin_srcs(2))
+            renorm_second(2) = sum(this%J_sampler%get_prob(spin_srcs(2), i_sg, nI))
+            p_second(2) = this%J_sampler%constrained_getProb(&
+                spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
 
-        associate(particles => csf_i%occ_int(srcs))
-            p = sum(particles * p_first(:) * particles(2:1:-1) * p_second(:))
-        end associate
+            associate(particles => csf_i%occ_int(srcs))
+                p = sum(particles * p_first(:) * particles(2:1:-1) * p_second(:))
+            end associate
 
-        if (srcs(1) > srcs(2)) then
-            call swap(srcs(1), srcs(2))
+            if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
         end if
 
         @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
@@ -690,365 +612,5 @@ contains
                     p_second = 0._dp
                 end if
             end function
-    end function
-
-
-    subroutine draw_Playing_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
-        class(Playing_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-            !! The determinant in nI-format and the supergroup index
-        integer(n_int), intent(in) :: ilutI(0 : nIfD)
-            !! The determinant in bitmask format
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i_sg
-            !! The supergroup index
-        integer, intent(out) :: srcs(2)
-            !! The chosen particles \(I, J\) and their index in `nI`.
-            !! It is guaranteed that `scrs(1) < srcs(2)`.
-        real(dp), intent(out) :: p
-            !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
-            !! This is the probability of drawing two particles from
-            !! a given determinant \(D_i\) regardless of order.
-
-        @:unused_var(this, nI, ilutI, i_sg)
-
-        srcs(1) = int(genrand_real2_dSFMT() * nSpatOrbs) + 1
-        srcs(2) = int(genrand_real2_dSFMT() * nSpatOrbs) + 1
-
-        if (any(csf_i%occ_int(srcs) == 0) &
-            .or. (srcs(1) == srcs(2) .and. csf_i%occ_int(srcs(1)) /= 2)) then
-            srcs = 0
-        end if
-
-        if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
-
-        p = merge(2._dp, 1._dp, srcs(1) /= srcs(2)) / nSpatOrbs**2
-    end subroutine
-
-    pure function get_pgen_Playing_t(this, nI, csf_i, i_sg, i, j) result(p)
-        !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
-        !!
-        !! This is the probability of drawing two particles from
-        !! a given determinant \(D_i\) regardless of order.
-        !!
-        !! Note that the unordered probability is given by the ordered
-        !! probability as:
-        !! $$ p(\{I, J\}) \Big |_{D_i} = p((I, J)) \Big |_{D_i}
-        !!              + p((J, I)) \Big |_{D_i} \quad.$$
-        !! In addition we have
-        !! $$ p((I, J)) \Big |_{D_i} \neq p((J, I)) \Big |_{D_i} $$
-        !! so we have to actually calculate the probability of drawing
-        !! two given particles in different order.
-        class(Playing_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl), i_sg
-            !! The CSF in nI-format
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i, j
-            !! The particles.
-        real(dp) :: p
-        @:unused_var(this, nI, csf_i, i, j, i_sg)
-        p = merge(2._dp, 1._dp, i /= j) / nSpatOrbs**2
-    end function
-
-    subroutine finalize_Playing_t(this)
-        class(Playing_t), intent(inout) :: this
-        @:unused_var(this)
-        ! Nothing to do
-    end subroutine
-
-
-
-    subroutine init_DrawSpatial_t(this, GAS_spec, weights, rank_with_info, use_lookup, create_lookup)
-        class(DrawSpatial_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
-        real(dp), intent(in) :: weights(:, :, :)
-            !! `w(j, i, i_sg)`, The weight of picking `j` after picking `i` under supergroup `i_sg`
-        integer, intent(in) :: rank_with_info
-            !! The **intra-node** rank that contains the weights to be used
-            !! all other arr of all other ranks are ignored (and can be allocated with size 0).
-        logical, intent(in) :: use_lookup, create_lookup
-        character(*), parameter :: this_routine = 'init_DrawSpatial_t'
-
-        integer, allocatable :: supergroups(:, :)
-        integer :: i_sg
-
-        this%GAS_spec = GAS_spec
-
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
-        this%create_lookup = create_lookup
-        this%use_lookup = use_lookup
-
-        if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
-                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
-            else
-                write(stdout, *) 'PC particles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
-            end if
-        end if
-        if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
-
-        supergroups = this%indexer%get_supergroups()
-
-        if (iProcIndex_intra == rank_with_info) then
-            @:ASSERT(nSpatOrbs == size(weights, 1) .and. nSpatOrbs == size(weights, 2))
-            @:ASSERT(size(supergroups, 2) == size(weights, 3))
-        end if
-
-        call this%i_sampler%shared_alloc(size(supergroups, 2), nSpatOrbs, 'PC_particles_i')
-        call this%j_sampler%shared_alloc([nSpatOrbs, size(supergroups, 2)], nSpatOrbs, 'PC_particles_j')
-        block
-            integer :: I
-            real(dp), allocatable :: i_weight(:), j_weight(:)
-            if (iProcIndex_intra == rank_with_info) then
-                allocate(i_weight(nSpatOrbs), j_weight(nSpatOrbs), source=0._dp)
-            else
-                allocate(i_weight(0), j_weight(0))
-            end if
-            do i_sg = 1, size(supergroups, 2)
-                do i = 1, nSpatOrbs
-                    if (iProcIndex_intra == rank_with_info) then
-                        j_weight(:) = weights(:, i, i_sg)
-                    end if
-                    call this%j_sampler%setup_entry(I, i_sg, rank_with_info, J_weight)
-                end do
-                if (iProcIndex_intra == rank_with_info) then
-                    i_weight(:) = sum(weights(:, :, i_sg), dim=1)
-                end if
-                call this%I_sampler%setup_entry(i_sg, rank_with_info, i_weight)
-            end do
-        end block
-    end subroutine
-
-    subroutine finalize_DrawSpatial_t(this)
-        class(DrawSpatial_t), intent(inout) :: this
-
-        if (allocated(this%GAS_spec)) then
-            call this%i_sampler%finalize()
-            call this%j_sampler%finalize()
-            ! Yes, we assume, that either all or none are allocated
-            deallocate(this%indexer, this%GAS_spec)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
-        end if
-    end subroutine
-
-
-    subroutine draw_DrawSpatial_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
-        class(DrawSpatial_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-            !! The determinant in nI-format and the supergroup index
-        integer(n_int), intent(in) :: ilutI(0 : nIfD)
-            !! The determinant in bitmask format
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i_sg
-            !! The supergroup index
-        integer, intent(out) :: srcs(2)
-            !! The chosen particles \(I, J\) and their index in `nI`.
-            !! It is guaranteed that `scrs(1) <= srcs(2)`.
-        real(dp), intent(out) :: p
-            !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
-            !! This is the probability of drawing two particles from
-            !! a given determinant \(D_i\) regardless of order.
-        character(*), parameter :: this_routine = 'draw'
-
-        real(dp) :: p_first(2), p_second(2)
-
-        @:unused_var(nI, ilutI)
-
-        call this%i_sampler%sample(i_sg, srcs(1), p_first(1))
-        call this%j_sampler%sample(srcs(1), i_sg, srcs(2), p_second(1))
-
-        if (any(csf_i%occ_int(srcs) == 0) &
-                .or. (srcs(1) == srcs(2) .and. csf_i%occ_int(srcs(1)) /= 2)) then
-            srcs = 0
-            return
-        end if
-
-        if (srcs(1) == srcs(2)) then
-            p_first(2) = 0._dp
-            p_second(2) = 0._dp
-        else
-            p_first(2) = this%i_sampler%get_prob(i_sg, srcs(2))
-            p_second(2) = this%j_sampler%get_prob(srcs(2), i_sg, srcs(1))
-        end if
-
-        p = sum(p_first * p_second)
-        if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
-
-        @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)))
-    end subroutine
-
-    pure function get_pgen_DrawSpatial_t(this, nI, csf_i, i_sg, i, j) result(p)
-        !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
-        !!
-        !! This is the probability of drawing two particles from
-        !! a given determinant \(D_i\) regardless of order.
-        !!
-        !! Note that the unordered probability is given by the ordered
-        !! probability as:
-        !! $$ p(\{I, J\}) \Big |_{D_i} = p((I, J)) \Big |_{D_i}
-        !!              + p((J, I)) \Big |_{D_i} \quad.$$
-        !! In addition we have
-        !! $$ p((I, J)) \Big |_{D_i} \neq p((J, I)) \Big |_{D_i} $$
-        !! so we have to actually calculate the probability of drawing
-        !! two given particles in different order.
-        class(DrawSpatial_t), intent(in) :: this
-        type(CSF_Info_t), intent(in) :: csf_I
-        integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
-        integer, intent(in) :: i, j
-            !! The particles in spatial format
-        real(dp) :: p
-
-        @:unused_var(nI)
-
-        if (any(csf_i%occ_int([i, j]) == 0) &
-                .or. (i == j .and. csf_i%occ_int(i) /= 2)) then
-            p = 0._dp
-            return
-        end if
-
-        if (i == j ) then
-            p = this%i_sampler%get_prob(i_sg, i) * this%j_sampler%get_prob(i, i_sg, i)
-        else
-            p =   this%i_sampler%get_prob(i_sg, i) * this%j_sampler%get_prob(i, i_sg, j) &
-                + this%i_sampler%get_prob(i_sg, j) * this%j_sampler%get_prob(j, i_sg, i)
-        end if
-    end function
-
-    subroutine draw_DrawFakeSpinOrb_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
-        class(DrawFakeSpinOrb_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-            !! The determinant in nI-format and the supergroup index
-        integer(n_int), intent(in) :: ilutI(0 : nIfD)
-            !! The determinant in bitmask format
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i_sg
-            !! The supergroup index
-        integer, intent(out) :: srcs(2)
-            !! The chosen particles \(I, J\) and their index in `nI`.
-            !! It is guaranteed that `scrs(1) <= srcs(2)`.
-        real(dp), intent(out) :: p
-            !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
-            !! This is the probability of drawing two particles from
-            !! a given determinant \(D_i\) regardless of order.
-
-        routine_name("draw_DrawFakeSpinOrb_t")
-
-        real(dp) :: p_first(2), p_second(2)
-        integer :: spin_src(2)
-
-        @:unused_var(nI, ilutI)
-
-        call this%i_sampler%sample(i_sg, spin_src(1), p_first(1))
-        srcs(1) = gtID(spin_src(1))
-        call this%j_sampler%sample(spin_src(1), i_sg, spin_src(2), p_second(1))
-        srcs(2) = gtID(spin_src(2))
-
-        if (any(csf_i%occ_int(srcs) == 0)) then
-            srcs = 0
-            return
-        end if
-
-        associate(i_u => 2 * srcs(1) - 1, i_d => 2 * srcs(1), &
-                  j_u => 2 * srcs(2) - 1, j_d => 2 * srcs(2))
-
-            if (srcs(1) == srcs(2)) then
-                if (csf_i%occ_int(srcs(1)) /= 2) then
-                    srcs = 0
-                    return
-                else
-                    p = &
-                        this%i_sampler%get_prob(i_sg, i_u) &
-                            * this%j_sampler%get_prob(i_u, i_sg, j_u) &
-                        + this%i_sampler%get_prob(i_sg, i_u) &
-                            * this%j_sampler%get_prob(i_u, i_sg, j_d) &
-                        + this%i_sampler%get_prob(i_sg, i_d) &
-                            * this%j_sampler%get_prob(i_d, i_sg, j_u) &
-                        + this%i_sampler%get_prob(i_sg, i_d) &
-                            * this%j_sampler%get_prob(i_d, i_sg, j_d)
-                end if
-            else
-
-                p = &
-                      this%i_sampler%get_prob(i_sg, i_u) &
-                          * this%j_sampler%get_prob(i_u, i_sg, j_u) &
-                    + this%i_sampler%get_prob(i_sg, i_u) &
-                          * this%j_sampler%get_prob(i_u, i_sg, j_d) &
-                    + this%i_sampler%get_prob(i_sg, i_d) &
-                          * this%j_sampler%get_prob(i_d, i_sg, j_u) &
-                    + this%i_sampler%get_prob(i_sg, i_d) &
-                          * this%j_sampler%get_prob(i_d, i_sg, j_d) &
-                    + this%i_sampler%get_prob(i_sg, j_u) &
-                          * this%j_sampler%get_prob(j_u, i_sg, i_u) &
-                    + this%i_sampler%get_prob(i_sg, j_u) &
-                          * this%j_sampler%get_prob(j_u, i_sg, i_d) &
-                    + this%i_sampler%get_prob(i_sg, j_d) &
-                          * this%j_sampler%get_prob(j_d, i_sg, i_u) &
-                    + this%i_sampler%get_prob(i_sg, j_d) &
-                          * this%j_sampler%get_prob(j_d, i_sg, i_d)
-
-                @:ASSERT(this%j_sampler%get_prob(i_u, i_sg, j_u) .isclose. this%j_sampler%get_prob(i_u, i_sg, j_d))
-
-                if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
-            end if
-        end associate
-        @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)))
-    end subroutine
-
-    pure function get_pgen_DrawFakeSpinOrb_t(this, nI, csf_i, i_sg, i, j) result(p)
-        !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
-        !!
-        !! This is the probability of drawing two particles from
-        !! a given determinant \(D_i\) regardless of order.
-        !!
-        !! Note that the unordered probability is given by the ordered
-        !! probability as:
-        !! $$ p(\{I, J\}) \Big |_{D_i} = p((I, J)) \Big |_{D_i}
-        !!              + p((J, I)) \Big |_{D_i} \quad.$$
-        !! In addition we have
-        !! $$ p((I, J)) \Big |_{D_i} \neq p((J, I)) \Big |_{D_i} $$
-        !! so we have to actually calculate the probability of drawing
-        !! two given particles in different order.
-        class(DrawFakeSpinOrb_t), intent(in) :: this
-        type(CSF_Info_t), intent(in) :: csf_I
-        integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
-        integer, intent(in) :: i, j
-            !! The particles in spatial format
-        real(dp) :: p
-        routine_name("get_pgen_DrawFakeSpinOrb_t")
-
-        @:unused_var(nI)
-        @:pure_ASSERT(i <= j)
-
-        if (any(csf_i%occ_int([i, j]) == 0)) then
-            p = 0._dp
-            return
-        end if
-
-        associate(i_u => 2 * i - 1, i_d => 2 * i, &
-                  j_u => 2 * j - 1, j_d => 2 * j)
-
-            if (i == j) then
-                if (csf_i%occ_int(i) /= 2) then
-                    p = 0._dp
-                    return
-                else
-                    p = &
-                        2 * this%i_sampler%get_prob(i_sg, i_u) &
-                            * this%j_sampler%get_prob(i_u, i_sg, j_d)
-                end if
-            else
-
-                p = &
-                    4 * this%i_sampler%get_prob(i_sg, i_u) &
-                        * this%j_sampler%get_prob(i_u, i_sg, j_u) &
-                    + 4 * this%i_sampler%get_prob(i_sg, j_u) &
-                        * this%j_sampler%get_prob(j_u, i_sg, i_u)
-
-                @:pure_ASSERT(this%j_sampler%get_prob(i_u, i_sg, j_u) .isclose. this%j_sampler%get_prob(i_u, i_sg, j_d))
-            end if
-        end associate
     end function
 end module
