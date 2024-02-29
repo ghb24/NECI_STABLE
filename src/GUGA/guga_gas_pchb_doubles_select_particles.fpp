@@ -410,9 +410,7 @@ contains
             p_second(2) = this%J_sampler%constrained_getProb(&
                 spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
 
-            associate(particles => csf_i%occ_int(srcs))
-                p = sum(particles * p_first(:) * particles(2:1:-1) * p_second(:))
-            end associate
+            p = sum(csf_i%occ_int(srcs) * p_first(:) * csf_i%occ_int(srcs(2:1:-1)) * p_second(:))
 
             if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
         end if
