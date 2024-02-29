@@ -443,54 +443,55 @@ contains
 
         @:pure_ASSERT(csf_I%stepvector(i) /= 0 .and. csf_I%stepvector(j) /= 0)
 
-        associate(i_u => 2 * i - 1, i_d => 2 * i, &
-                  j_u => 2 * j - 1, j_d => 2 * j)
 
             if (i == j) then
                 if (csf_i%occ_int(i) /= 2) then
                     p = 0._dp
                     return
                 else
-                    p = 2 * p_first(i_u) * p_second(i_u, i_d)
+                    associate(i_u => 2 * i - 1, i_d => 2 * i)
+                    p = 2 &
+                        * this%i_sampler%constrained_getProb(&
+                            i_sg, nI, sum(this%I_sampler%get_prob(i_sg, nI)), i_u) &
+                        * this%j_sampler%constrained_getProb(&
+                            i_u, i_sg, nI, sum(this%j_sampler%get_prob(i_u, i_sg, nI)), i_d)
+                    end associate
                 end if
             else
-                p = &
-                        p_first(i_u) * p_second(i_u, j_u) &
-                        + p_first(i_u) * p_second(i_u, j_d) &
-                        + p_first(i_d) * p_second(i_d, j_u) &
-                        + p_first(i_d) * p_second(i_d, j_d) &
-                        + p_first(j_u) * p_second(j_u, i_u) &
-                        + p_first(j_u) * p_second(j_u, i_d) &
-                        + p_first(j_d) * p_second(j_d, i_u) &
-                        + p_first(j_d) * p_second(j_d, i_d)
+            block
+                ! We have to account for occupation number, particles from
+                ! doubly occupied orbitals are twice as likely to be picked.
+                ! This is achieved by using "fake" spin orbitals.
+                ! We also have to account for that we can pick `I, J` or `J, I`,
+                ! i.e. reverse the order.
+                integer :: spin_srcs(2)
+                real(dp) :: p_first(2), p_second(2)
+                real(dp) :: renorm_first, renorm_second(2)
+
+                ! If the stepvector value is 3, i.e. doubly occupied,
+                ! then the "fake" spin orb index could take both values, u or d.
+                ! We decide on d, because it allows a simple ternary logical operation.
+                spin_srcs(1) = merge(2 * i, 2 * i - 1, csf_i%stepvector(i) > 1)
+                spin_srcs(2) = merge(2 * j, 2 * j - 1, csf_i%stepvector(j) > 1)
+
+                renorm_first = sum(this%I_sampler%get_prob(i_sg, nI))
+
+                p_first(1) = this%I_sampler%constrained_getProb(&
+                    i_sg, nI, renorm_first, spin_srcs(1))
+                p_first(2) = this%I_sampler%constrained_getProb(&
+                    i_sg, nI, renorm_first, spin_srcs(2))
+
+                renorm_second(1) = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
+                renorm_second(2) = sum(this%J_sampler%get_prob(spin_srcs(2), i_sg, nI))
+
+                p_second(1) = this%J_sampler%constrained_getProb(&
+                    spin_srcs(1), i_sg, nI, renorm_second(1), spin_srcs(2))
+                p_second(2) = this%J_sampler%constrained_getProb(&
+                    spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
+
+                p = sum(csf_i%occ_int([i, j]) * p_first(:) * csf_i%occ_int([j, i]) * p_second(:))
+            end block
             end if
-        end associate
-
-        contains
-
-            real(dp) pure function p_first(I)
-                integer, intent(in) :: I
-                    !! Spin orbital index, i.e. u-d-index
-                ! TODO replace with Ilut lookup
-                if (I .in. nI) then
-                    p_first = this%i_sampler%constrained_getProb(&
-                        i_sg, nI, sum(this%I_sampler%get_prob(i_sg, nI)), I)
-                else
-                    p_first = 0._dp
-                end if
-            end function
-
-            real(dp) pure function p_second(I, J)
-                integer, intent(in) :: I, J
-                    !! Spin orbital index, i.e. u-d-index
-                ! TODO replace with Ilut lookup
-                if ((I .in. nI) .and. (J .in. nI)) then
-                    p_second = this%j_sampler%constrained_getProb(&
-                                I, i_sg, nI, sum(this%j_sampler%get_prob(I, i_sg, nI)), J)
-                else
-                    p_second = 0._dp
-                end if
-            end function
     end function
 
 
