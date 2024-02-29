@@ -392,10 +392,7 @@ contains
             if (early_return(1)) then
                 ! if we reach this point, probs is uninitialized -> null it
                 this%probs%ptr => null()
-                write(*, *) '>>>>>', 0
                 return
-            else
-                write(*, *) '>>>>>', 1
             end if
         end block
 

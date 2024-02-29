@@ -15,8 +15,6 @@ module guga_gas_pchb_doubles_select_holes
     use sets_mod, only: operator(.in.)
     use indexing_mod, only: fuse_symm_idx
     use CalcData, only: t_truncate_spawns
-    use tau_main, only: tau_search_method, possible_tau_search_methods
-    use tau_search_hist, only: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
     use fortran_strings, only: to_upper
     use SymExcitDataMod, only: SpinOrbSymLabel
     use UMatCache, only: gtID
@@ -213,28 +211,6 @@ contains
         character(*), parameter :: this_routine = "init_GAS_PCHB_Doubles_t"
 
         real(dp), allocatable :: ij_weights(:, :, :)
-
-        ! also set some more strict defaults for the PCHB implo:
-        root_print "Setting reasonable defaults for GUGA-PCHB:"
-        if (tau_search_method == possible_tau_search_methods%HISTOGRAMMING) then
-            if (frq_ratio_cutoff < 0.999999) then
-                root_print "setting frequency cutoff to 0.999999"
-                frq_ratio_cutoff = 0.999999
-            end if
-            if (max_frequency_bound < 1e5) then
-                root_print "setting  max_frequency_bound to 1e5"
-                max_frequency_bound = 1e5
-            end if
-            if (n_frequency_bins < 1e5) then
-                root_print "setting n_frequency_bins to 1e5"
-                n_frequency_bins = 1e5
-            end if
-        end if
-
-        if (.not. t_truncate_spawns) then
-            root_print "'truncate-spawns' not activated! consider turning it &
-                &on if too many blooms happen!"
-        end if
 
         ASSERT(GAS_spec%recoupling())
 

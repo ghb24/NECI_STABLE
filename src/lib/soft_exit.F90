@@ -128,7 +128,7 @@ module soft_exit
     use tau_main, only: tau_search_method, possible_tau_search_methods, &
         tau_value => tau, assign_value_to_tau, possible_tau_stop_methods, &
         stop_tau_search
-    use tau_search_hist, only: frq_ratio_cutoff, t_fill_frequency_hists
+    use tau_search_hist, only: histogramming_spec
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -409,7 +409,7 @@ contains
                         elseif (i == fill_rdm_iter) then
                             IterRDMonFly_new = to_int(tokens%next())
                         elseif (i == frequency_cutoff) then
-                            frq_ratio_cutoff = to_realdp(tokens%next())
+                            call histogramming_spec%set_frq_ratio_cutoff(to_realdp(tokens%next()))
                         elseif (i == time) then
                             MaxTimeExit = to_realdp(tokens%next())
                         endif

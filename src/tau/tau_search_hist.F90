@@ -41,17 +41,39 @@ module tau_search_hist
 
     use gasci, only: tSD_GAS
 
+    use guga_base_class, only: GUGA_ExcGenerator_t, GUGA_exc_generator_vals
+
     implicit none
     private
     public :: finalize_hist_tau_search, fill_frequency_histogram_4ind, &
               fill_frequency_histogram_sd, &
               fill_frequency_histogram, init_hist_tau_search, update_tau_hist, &
-              print_frequency_histograms
+              print_frequency_histograms, get_settings
 
     public :: t_fill_frequency_hists, t_test_hist_tau
 
-    public :: frq_ratio_cutoff, max_frequency_bound, n_frequency_bins
+    public :: HistogrammingSpec_t, histogramming_spec, user_input_histogramming_spec
 
+    type :: HistogrammingSpec_t
+        private
+        real(dp) :: max_frequency_bound = 10000.0_dp
+        integer :: n_frequency_bins = 100000
+            !! optional input to adjust the number of bins
+        real(dp) :: frq_ratio_cutoff = 0.999_dp
+            !! use also an input dependent ratio cutoff for the time-step adaptation
+
+        real(dp) :: frq_step_size = 0.1_dp
+    contains
+        private
+        procedure, public :: set_frq_ratio_cutoff
+    end type
+
+    interface HistogrammingSpec_t
+        module procedure construct_HistogrammingSpec_t
+    end interface
+
+    type(HistogrammingSpec_t) :: histogramming_spec
+    type(HistogrammingSpec_t), allocatable :: user_input_histogramming_spec
 
     ! variables which i might have to define differently:
     logical :: consider_par_bias
@@ -64,14 +86,7 @@ module tau_search_hist
                below_thresh_doubles, below_thresh_triples
     logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
     logical :: enough_trip_hist
-    ! store the necessary quantities here and not in CalcData!
-    real(dp) :: frq_step_size = 0.1_dp
-    real(dp) :: max_frequency_bound = 10000.0_dp
-    integer :: n_frequency_bins = 100000 ! optional input to adjust the number of bins
 
-
-! use also an input dependent ratio cutoff for the time-step adaptation
-    real(dp) :: frq_ratio_cutoff = 0.999_dp
 
     ! i need bin arrays for all types of possible spawns:
     integer(int64), allocatable :: &
@@ -233,17 +248,17 @@ contains
 
         ! print out the standard quantities:
         root_print "Setup of the Histogramming tau-search: "
-        root_print "  Integration cut-off: ", frq_ratio_cutoff
-        root_print "  Number of bins: ", n_frequency_bins
-        root_print "  Max. ratio: ", max_frequency_bound
+        root_print "  Integration cut-off: ", histogramming_spec%frq_ratio_cutoff
+        root_print "  Number of bins: ", histogramming_spec%n_frequency_bins
+        root_print "  Max. ratio: ", histogramming_spec%max_frequency_bound
 
         ! do the initialization of the frequency analysis here..
         ! i think otherwise it is not done on all the nodes..
         ! don't need to check if t_frequency_analysis here anymore
         ! determine the global and fixed step-size quantitiy!
-        frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
+        ASSERT(histogramming_spec%frq_step_size .isclose. (histogramming_spec%max_frequency_bound / real(histogramming_spec%n_frequency_bins, dp)))
 
-        root_print "  Bin-width: ", frq_step_size
+        root_print "  Bin-width: ", histogramming_spec%frq_step_size
 
         ! and do the rest of the initialisation:
 
@@ -340,12 +355,12 @@ contains
             min_opp = huge(0.0_dp)
             min_par = huge(0.0_dp)
 
-            allocate(frequency_bins_anti(n_frequency_bins), &
-                     frequency_bins_para(n_frequency_bins), &
-                     frequency_bins_singles(n_frequency_bins), &
+            allocate(frequency_bins_anti(histogramming_spec%n_frequency_bins), &
+                     frequency_bins_para(histogramming_spec%n_frequency_bins), &
+                     frequency_bins_singles(histogramming_spec%n_frequency_bins), &
                      stat=ierr, source=0_int64)
 
-            call LogMemAlloc('frequency_bins', n_frequency_bins * 3, int(sizeof(frequency_bins_anti(1))), &
+            call LogMemAlloc('frequency_bins', histogramming_spec%n_frequency_bins * 3, int(sizeof(frequency_bins_anti(1))), &
                              this_routine, mem_tag_histograms, ierr)
 
         else if (tGen_sym_guga_mol .or. &
@@ -353,8 +368,8 @@ contains
                   (t_new_real_space_hubbard .or. t_k_space_hubbard))) then
 
             ! i always use the singles histogram dont I? i think so..
-            allocate(frequency_bins_singles(n_frequency_bins), &
-                     frequency_bins_doubles(n_frequency_bins), source=0_int64)
+            allocate(frequency_bins_singles(histogramming_spec%n_frequency_bins), &
+                     frequency_bins_doubles(histogramming_spec%n_frequency_bins), source=0_int64)
 
         else
             ! just to be save also use my new flags..
@@ -362,24 +377,24 @@ contains
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body) .or. &
                 (t_new_real_space_hubbard .and. .not. t_trans_corr_hop)) then
                 ! only one histogram is used!
-                allocate(frequency_bins(n_frequency_bins), stat=ierr, source=0_int64)
+                allocate(frequency_bins(histogramming_spec%n_frequency_bins), stat=ierr, source=0_int64)
 
-                call LogMemAlloc('frequency_bins', n_frequency_bins, int(sizeof(frequency_bins(1))), &
+                call LogMemAlloc('frequency_bins', histogramming_spec%n_frequency_bins, int(sizeof(frequency_bins(1))), &
                                  this_routine, mem_tag_histograms, ierr)
 
             else
 
                 ! i always use the singles histogram dont I? i think so..
-                allocate(frequency_bins_singles(n_frequency_bins), &
-                         frequency_bins_doubles(n_frequency_bins), source=0_int64, stat=ierr)
-                call LogMemAlloc('frequency_bins', n_frequency_bins * 2, int(sizeof(frequency_bins(1))), &
+                allocate(frequency_bins_singles(histogramming_spec%n_frequency_bins), &
+                         frequency_bins_doubles(histogramming_spec%n_frequency_bins), source=0_int64, stat=ierr)
+                call LogMemAlloc('frequency_bins', histogramming_spec%n_frequency_bins * 2, int(sizeof(frequency_bins(1))), &
                                  this_routine, mem_tag_histograms, ierr)
             end if
         end if
 
         if (t_mol_3_body) then
             ! when doing integral-based triples, we are here
-            allocate(frequency_bins_triples(n_frequency_bins), source=0_int64)
+            allocate(frequency_bins_triples(histogramming_spec%n_frequency_bins), source=0_int64)
         end if
 
         if (t_log_ija) then
@@ -828,7 +843,7 @@ contains
             ! in the transcorr hubbard case..
             ratio = ratio * pSingles
 
-            if (ratio < max_frequency_bound) then
+            if (ratio < histogramming_spec%max_frequency_bound) then
 
                 ! also keep track of the number of done excitations
                 if (.not. enough_sing_hist) then
@@ -842,7 +857,7 @@ contains
                 ! if the ratio happens to be exactly the upper bound, it
                 ! still has to be put in the last bin or? yes i guess..
                 ! so take the minimum of the ind and the max bin index
-                ind = int(ratio / frq_step_size) + 1
+                ind = int(ratio / histogramming_spec%frq_step_size) + 1
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
                 ! for now also test if the actually ratio is below the
@@ -855,7 +870,7 @@ contains
                 print *, "Warning: single excitation H_ij/pgen above max_frequency_bound!"
                 print *, " H_ij: ", mat_ele, ", pgen: ", pgen, ", pSingles: ", pSingles
                 print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
-                print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+                print *, " H_ij/pgen: ", ratio, " ; bound: ", histogramming_spec%max_frequency_bound
                 print *, " Consider increasing the bound!"
 #ifdef DEBUG_
                 indi = gtid(ex(1, 1))
@@ -909,13 +924,13 @@ contains
 
                 end if
 #endif
-                if (ratio < max_frequency_bound) then
+                if (ratio < histogramming_spec%max_frequency_bound) then
                     if (.not. enough_par_hist) then
                         cnt_par_hist = cnt_par_hist + 1
                         if (cnt_par_hist > 2 * cnt_threshold) enough_par_hist = .true.
                     end if
 
-                    ind = int(ratio / frq_step_size) + 1
+                    ind = int(ratio / histogramming_spec%frq_step_size) + 1
 
                     frequency_bins_para(ind) = frequency_bins_para(ind) + 1
                 else
@@ -971,13 +986,13 @@ contains
                 end if
 #endif
 
-                if (ratio < max_frequency_bound) then
+                if (ratio < histogramming_spec%max_frequency_bound) then
                     if (.not. enough_opp_hist) then
                         cnt_opp_hist = cnt_opp_hist + 1
                         if (cnt_opp_hist > cnt_threshold) enough_opp_hist = .true.
                     end if
 
-                    ind = int(ratio / frq_step_size) + 1
+                    ind = int(ratio / histogramming_spec%frq_step_size) + 1
 
                     frequency_bins_anti(ind) = frequency_bins_anti(ind) + 1
 
@@ -1070,21 +1085,21 @@ contains
             ! change to unbias the stored ratios:
             ratio = ratio * pSingles
 
-            if (ratio < max_frequency_bound) then
+            if (ratio < histogramming_spec%max_frequency_bound) then
 
                 if (.not. enough_sing_hist) then
                     cnt_sing_hist = cnt_sing_hist + 1
                     if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
                 end if
 
-                ind = int(ratio / frq_step_size) + 1
+                ind = int(ratio / histogramming_spec%frq_step_size) + 1
 
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
             else
                 above_max_singles = above_max_singles + 1
                 print *, "Warning: single excitation H_ij/pgen above max_frequency_bound!"
-                print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+                print *, " H_ij/pgen: ", ratio, " ; bound: ", histogramming_spec%max_frequency_bound
                 print *, " Consider increasing the bound!"
             end if
 
@@ -1095,21 +1110,21 @@ contains
 
             ratio = ratio * pDoubles
 
-            if (ratio < max_frequency_bound) then
+            if (ratio < histogramming_spec%max_frequency_bound) then
 
                 if (.not. enough_doub_hist) then
                     cnt_doub_hist = cnt_doub_hist + 1
                     if (cnt_doub_hist > cnt_threshold) enough_doub_hist = .true.
                 end if
 
-                ind = int(ratio / frq_step_size) + 1
+                ind = int(ratio / histogramming_spec%frq_step_size) + 1
 
                 frequency_bins_doubles(ind) = frequency_bins_doubles(ind) + 1
 
             else
                 above_max_doubles = above_max_doubles + 1
                 print *, "Warning: double excitation H_ij/pgen above max_frequency_bound!"
-                print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+                print *, " H_ij/pgen: ", ratio, " ; bound: ", histogramming_spec%max_frequency_bound
                 print *, " Consider increasing the bound!"
             end if
 
@@ -1120,7 +1135,7 @@ contains
 
             ratio = ratio * pTriples
             ! check if ratio is within range
-            if (ratio < max_frequency_bound) then
+            if (ratio < histogramming_spec%max_frequency_bound) then
 
                 ! check if enough triple spawns have been logged
                 if (.not. enough_trip_hist) then
@@ -1129,7 +1144,7 @@ contains
                 end if
 
                 ! get the corresponding bin in the histogram
-                ind = int(ratio / frq_step_size) + 1
+                ind = int(ratio / histogramming_spec%frq_step_size) + 1
                 frequency_bins_triples(ind) = frequency_bins_triples(ind) + 1
 
             else
@@ -1188,7 +1203,7 @@ contains
         ! then i have to first check if i have to make the histogram bigger...
         ratio = mat_ele / pgen
 
-        if (ratio < max_frequency_bound) then
+        if (ratio < histogramming_spec%max_frequency_bound) then
             ! the ratio fits in to the bins now i just have to find the
             ! correct one
             if (.not. enough_doub_hist) then
@@ -1196,7 +1211,7 @@ contains
                 if (cnt_doub_hist > cnt_threshold) enough_doub_hist = .true.
             end if
 
-            ind = int(ratio / frq_step_size) + 1
+            ind = int(ratio / histogramming_spec%frq_step_size) + 1
 
             ! increase counter
             frequency_bins(ind) = frequency_bins(ind) + 1
@@ -1218,8 +1233,8 @@ contains
         use MPI_wrapper, only: root
 
         character(255) :: filename, exname
-        integer(int64) :: all_frequency_bins_spec(n_frequency_bins)
-        integer(int64) :: all_frequency_bins(n_frequency_bins)
+        integer(int64) :: all_frequency_bins_spec(histogramming_spec%n_frequency_bins)
+        integer(int64) :: all_frequency_bins(histogramming_spec%n_frequency_bins)
         integer :: iunit, i
         ! sashas tip: why do i not just use a real as summation?
         real(dp) :: sum_all
@@ -1227,7 +1242,7 @@ contains
         integer(int64) :: tmp_int_64
         real(dp) :: cnt, threshold
         real(dp) :: max_tmp, min_tmp
-        real(dp) :: temp_bins(n_frequency_bins)
+        real(dp) :: temp_bins(histogramming_spec%n_frequency_bins)
 
         all_frequency_bins = 0
 
@@ -1257,7 +1272,7 @@ contains
                 ! also outout the obtained ratio integration here for now!
                 temp_bins = real(all_frequency_bins, dp)
                 sum_all = sum(temp_bins)
-                threshold = frq_ratio_cutoff * sum_all
+                threshold = histogramming_spec%frq_ratio_cutoff * sum_all
 
                 iunit = get_free_unit()
                 call get_unique_filename('frequency_histogram', .true., &
@@ -1267,9 +1282,9 @@ contains
                 cnt = 0.0_dp
 
                 write(stdout, *) "writing frequency histogram..."
-                do i = 1, n_frequency_bins
+                do i = 1, histogramming_spec%n_frequency_bins
                     if (all_frequency_bins(i) == 0) cycle
-                    write(iunit, "(f16.7)", advance='no') frq_step_size * i
+                    write(iunit, "(f16.7)", advance='no') histogramming_spec%frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins(i)
                     if (cnt < threshold) then
                         cnt = cnt + temp_bins(i)
@@ -1277,7 +1292,7 @@ contains
                     end if
                     ! also print only as far as necessary until largest
                     ! H_ij/pgen ratio
-                    if (frq_step_size * i > max_tmp) exit
+                    if (histogramming_spec%frq_step_size * i > max_tmp) exit
                 end do
                 close(iunit)
                 write(stdout, *) "Done!"
@@ -1308,13 +1323,13 @@ contains
 
                 ! also output the obtained integrated threshold and the
                 ! maximum values H_ij/pgen ratio for this type of excitation:
-                write(stdout, *) "integrated H_ij/pgen ratio: ", j * frq_step_size
-                write(stdout, *) "for ", frq_ratio_cutoff, " percent coverage!"
+                write(stdout, *) "integrated H_ij/pgen ratio: ", j * histogramming_spec%frq_step_size
+                write(stdout, *) "for ", histogramming_spec%frq_ratio_cutoff, " percent coverage!"
 
                 ! also  output the maximum H_ij/pgen ratio.. and maybe the
                 ! improvement of the integrated tau search?
                 write(stdout, *) "maximum H_ij/pgen ratio: ", max_tmp
-                write(stdout, *) "maximum/integrated ratio: ", max_tmp / (j * frq_step_size)
+                write(stdout, *) "maximum/integrated ratio: ", max_tmp / (j * histogramming_spec%frq_step_size)
                 write(stdout, *) "minimum H_ij/pgen ratio: ", min_tmp
 
             end if
@@ -1368,7 +1383,7 @@ contains
                     temp_bins = real(all_frequency_bins_spec, dp)
                     sum_all = sum(temp_bins)
 
-                    threshold = frq_ratio_cutoff * sum_all
+                    threshold = histogramming_spec%frq_ratio_cutoff * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_para', .true., &
@@ -1378,15 +1393,15 @@ contains
                     cnt = 0.0_dp
 
                     write(stdout, *) "writing parallel frequency histogram..."
-                    do i = 1, n_frequency_bins
+                    do i = 1, histogramming_spec%n_frequency_bins
                         if (all_frequency_bins_spec(i) == 0) cycle
-                        write(iunit, "(f16.7)", advance='no') frq_step_size * i
+                        write(iunit, "(f16.7)", advance='no') histogramming_spec%frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
                             cnt = cnt + temp_bins(i)
                             j = i
                         end if
-                        if (frq_step_size * i > max_tmp) exit
+                        if (histogramming_spec%frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(stdout, *) "Done!"
@@ -1420,12 +1435,12 @@ contains
                     write(stdout, *) "ratio of parallel excitations below threshold: ", &
                         real(tmp_int, dp) / sum_all
 
-                    write(stdout, *) "integrated parallel H_ij/pgen ratio: ", j * frq_step_size
-                    write(stdout, *) "for ", frq_ratio_cutoff, " percent coverage!"
+                    write(stdout, *) "integrated parallel H_ij/pgen ratio: ", j * histogramming_spec%frq_step_size
+                    write(stdout, *) "for ", histogramming_spec%frq_ratio_cutoff, " percent coverage!"
 
                     write(stdout, *) "maximum parallel H_ij/pgen ratio: ", max_tmp
                     write(stdout, *) "maximum/integrated parallel ratio: ", &
-                        max_tmp / (j * frq_step_size)
+                        max_tmp / (j * histogramming_spec%frq_step_size)
                     write(stdout, *) "minimum parallel H_ij/pgen ratio: ", min_tmp
 
                     ! and add them up for the final normed one
@@ -1446,7 +1461,7 @@ contains
 
                     temp_bins = real(all_frequency_bins_spec, dp)
                     sum_all = sum(temp_bins)
-                    threshold = frq_ratio_cutoff * sum_all
+                    threshold = histogramming_spec%frq_ratio_cutoff * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_anti', .true., &
@@ -1456,15 +1471,15 @@ contains
                     cnt = 0.0_dp
 
                     write(stdout, *) "writing anti-parallel frequency histogram..."
-                    do i = 1, n_frequency_bins
+                    do i = 1, histogramming_spec%n_frequency_bins
                         if (all_frequency_bins_spec(i) == 0) cycle
-                        write(iunit, "(f16.7)", advance='no') frq_step_size * i
+                        write(iunit, "(f16.7)", advance='no') histogramming_spec%frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
                             cnt = cnt + temp_bins(i)
                             j = i
                         end if
-                        if (frq_step_size * i > max_tmp) exit
+                        if (histogramming_spec%frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(stdout, *) "Done!"
@@ -1499,12 +1514,12 @@ contains
                     write(stdout, *) "ratio of anti-parallel excitations below threshold: ", &
                         real(tmp_int, dp) / sum_all
 
-                    write(stdout, *) "integrated anti-parallel H_ij/pgen ratio: ", j * frq_step_size
-                    write(stdout, *) "for ", frq_ratio_cutoff, " percent coverage!"
+                    write(stdout, *) "integrated anti-parallel H_ij/pgen ratio: ", j * histogramming_spec%frq_step_size
+                    write(stdout, *) "for ", histogramming_spec%frq_ratio_cutoff, " percent coverage!"
 
                     write(stdout, *) "maximum anti-parallel H_ij/pgen ratio: ", max_tmp
                     write(stdout, *) "maximum/integrated anti-parallel ratio: ", &
-                        max_tmp / (j * frq_step_size)
+                        max_tmp / (j * histogramming_spec%frq_step_size)
                     write(stdout, *) "minimum anti-parallel H_ij/pgen ratio: ", min_tmp
 
                     ! and add them up for the final normed one
@@ -1527,7 +1542,7 @@ contains
 
                     temp_bins = real(all_frequency_bins_spec, dp)
                     sum_all = sum(temp_bins)
-                    threshold = frq_step_size * sum_all
+                    threshold = histogramming_spec%frq_step_size * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_doubles', .true., &
@@ -1537,15 +1552,15 @@ contains
                     cnt = 0.0_dp
 
                     write(stdout, *) "writing doubles frequency histogram..."
-                    do i = 1, n_frequency_bins
+                    do i = 1, histogramming_spec%n_frequency_bins
                         if (all_frequency_bins_spec(i) == 0) cycle
-                        write(iunit, "(f16.7)", advance='no') frq_step_size * i
+                        write(iunit, "(f16.7)", advance='no') histogramming_spec%frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
                             cnt = cnt + temp_bins(i)
                             j = i
                         end if
-                        if (frq_step_size * i > max_tmp) exit
+                        if (histogramming_spec%frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(stdout, *) "Done!"
@@ -1579,11 +1594,11 @@ contains
                     write(stdout, *) "ratio of excitations below threshold: ", &
                         real(tmp_int, dp) / sum_all
 
-                    write(stdout, *) "integrated doubles H_ij/pgen ratio: ", j * frq_step_size
-                    write(stdout, *) "for ", frq_ratio_cutoff, " percent coverage!"
+                    write(stdout, *) "integrated doubles H_ij/pgen ratio: ", j * histogramming_spec%frq_step_size
+                    write(stdout, *) "for ", histogramming_spec%frq_ratio_cutoff, " percent coverage!"
 
                     write(stdout, *) "maximum doubles H_ij/pgen ratio: ", max_tmp
-                    write(stdout, *) "maximum/integrated doubles ratio: ", max_tmp / (j * frq_step_size)
+                    write(stdout, *) "maximum/integrated doubles ratio: ", max_tmp / (j * histogramming_spec%frq_step_size)
                     write(stdout, *) "minimum doubles H_ij/pgen ratio: ", min_tmp
                     ! and add them up for the final normed one
                     all_frequency_bins = all_frequency_bins + all_frequency_bins_spec
@@ -1607,10 +1622,10 @@ contains
                                          .true., 1, filename)
                 open(iunit, file=filename, status='unknown')
 
-                do i = 1, n_frequency_bins
+                do i = 1, histogramming_spec%n_frequency_bins
                     ! only print if above threshold
                     if (temp_bins(i) / sum_all < EPS) cycle
-                    write(iunit, "(f16.7)", advance='no') frq_step_size * i
+                    write(iunit, "(f16.7)", advance='no') histogramming_spec%frq_step_size * i
                     write(iunit, "(f16.7)") temp_bins(i) / sum_all
                 end do
 
@@ -1747,23 +1762,23 @@ contains
             if (iProcIndex == root) then
                 temp_bins = real(all_frequency_bins_spec, dp)
                 sum_all = sum(temp_bins)
-                threshold = frq_ratio_cutoff * sum_all
+                threshold = histogramming_spec%frq_ratio_cutoff * sum_all
 
                 iunit = get_free_unit()
                 write(stdout, *) "writing "//trim(histname)//" frequency histogram..."
                 open(iunit, file=filename, status='unknown')
                 cnt = 0.0_dp
                 ! also output here the integrated ratio!
-                do i = 1, n_frequency_bins
+                do i = 1, histogramming_spec%n_frequency_bins
                     if (all_frequency_bins_spec(i) == 0) cycle
-                    write(iunit, "(f16.7)", advance='no') frq_step_size * i
+                    write(iunit, "(f16.7)", advance='no') histogramming_spec%frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins_spec(i)
                     if (cnt < threshold) then
                         !                         cnt = cnt + all_frequency_bins_spec(i)
                         cnt = cnt + temp_bins(i)
                         j = i
                     end if
-                    if (frq_step_size * i > max_tmp) exit
+                    if (histogramming_spec%frq_step_size * i > max_tmp) exit
                 end do
                 close(iunit)
                 write(stdout, *) "Done!"
@@ -1799,11 +1814,11 @@ contains
                 if (abs(sum_all) > 0._dp) write(stdout, *) "ratio of "//trim(histname)//" excitations below threshold: ", &
                     real(tmp_int, dp) / sum_all
 
-                write(stdout, *) "integrated "//trim(histname)//" H_ij/pgen ratio: ", j * frq_step_size
-                write(stdout, *) "for ", frq_ratio_cutoff, " percent coverage!"
+                write(stdout, *) "integrated "//trim(histname)//" H_ij/pgen ratio: ", j * histogramming_spec%frq_step_size
+                write(stdout, *) "for ", histogramming_spec%frq_ratio_cutoff, " percent coverage!"
 
                 write(stdout, *) "maximum "//trim(histname)//" H_ij/pgen ratio: ", max_tmp
-                write(stdout, *) ""//trim(histname)//" maximum/integrated ratio: ", max_tmp / (j * frq_step_size)
+                write(stdout, *) ""//trim(histname)//" maximum/integrated ratio: ", max_tmp / (j * histogramming_spec%frq_step_size)
 
                 write(stdout, *) "minimum "//trim(histname)//" H_ij/pgen ratio: ", min_tmp
 
@@ -1832,11 +1847,11 @@ contains
     subroutine integrate_frequency_histogram_spec(spec_frequency_bins, ratio)
         ! specific histogram integration routine which sums up the inputted
         ! frequency_bins
-        integer(int64), intent(in) :: spec_frequency_bins(n_frequency_bins)
+        integer(int64), intent(in) :: spec_frequency_bins(histogramming_spec%n_frequency_bins)
         real(dp), intent(out) :: ratio
         character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
 
-        integer(int64) :: all_frequency_bins(n_frequency_bins)
+        integer(int64) :: all_frequency_bins(histogramming_spec%n_frequency_bins)
         integer(int64) :: i, threshold
         integer(int64) :: n_elements, cnt
         real(dp) :: test_ratio, all_test_ratio
@@ -1861,7 +1876,7 @@ contains
 
             else
 
-                threshold = int(frq_ratio_cutoff * n_elements, kind=int64)
+                threshold = int(histogramming_spec%frq_ratio_cutoff * n_elements, kind=int64)
                 cnt = 0_int64
                 i = 0_int64
                 do while (cnt < threshold)
@@ -1869,7 +1884,7 @@ contains
                     cnt = cnt + spec_frequency_bins(i)
                 end do
 
-                test_ratio = i * frq_step_size
+                test_ratio = i * histogramming_spec%frq_step_size
 
             end if
 
@@ -1920,7 +1935,7 @@ contains
             return
         end if
 
-        threshold = int(frq_ratio_cutoff * n_elements, kind=int64)
+        threshold = int(histogramming_spec%frq_ratio_cutoff * n_elements, kind=int64)
 
         cnt = 0
         i = 0
@@ -1929,8 +1944,42 @@ contains
             cnt = cnt + all_frequency_bins(i)
         end do
 
-        ratio = i * frq_step_size
+        ratio = i * histogramming_spec%frq_step_size
 
     end subroutine integrate_frequency_histogram_spec
+
+    elemental function construct_HistogrammingSpec_t(max_frequency_bound, n_frequency_bins, frq_ratio_cutoff) result(res)
+        real(dp), intent(in) :: max_frequency_bound
+        integer, intent(in) :: n_frequency_bins
+        real(dp), intent(in) :: frq_ratio_cutoff
+        type(HistogrammingSpec_t) :: res
+
+        res = HistogrammingSpec_t(&
+                max_frequency_bound, n_frequency_bins, frq_ratio_cutoff, &
+                max_frequency_bound / real(n_frequency_bins, dp))
+    end function
+
+    elemental subroutine set_frq_ratio_cutoff(this, frq_ratio_cutoff)
+        class(HistogrammingSpec_t), intent(inout) :: this
+        real(dp), intent(in) :: frq_ratio_cutoff
+        this%frq_ratio_cutoff = frq_ratio_cutoff
+    end subroutine
+
+    pure function get_settings(user_input_histogramming_spec, GUGA_selected_exc_generator) result(res)
+        type(HistogrammingSpec_t), allocatable, intent(in) :: user_input_histogramming_spec
+        type(GUGA_ExcGenerator_t), allocatable, intent(in) :: GUGA_selected_exc_generator
+        type(HistogrammingSpec_t) :: res
+
+        if (allocated(user_input_histogramming_spec)) then
+            res = user_input_histogramming_spec
+        else if (tGUGA .and. allocated(GUGA_selected_exc_generator)) then
+            if (GUGA_selected_exc_generator == GUGA_exc_generator_vals%FCI_PCHB &
+                    .or. GUGA_selected_exc_generator == GUGA_exc_generator_vals%GAS_PCHB) then
+                res = HistogrammingSpec_t(1.e5_dp, 10**5, 0.999999_dp)
+            end if
+        else
+            res = HistogrammingSpec_t()
+        end if
+    end function
 
 end module
