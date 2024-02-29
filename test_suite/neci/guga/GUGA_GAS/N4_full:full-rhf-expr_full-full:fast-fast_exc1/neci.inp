@@ -3,7 +3,7 @@ Title
 System read
     electrons 12
     nobrillouintheorem
-    FCIDUMP-name N4_tetra.FciDmp
+    FCIDUMP-name ../N4_tetra.FciDmp
     freeformat
     # nonuniformrandexcits mol_guga_weighted
     nonuniformrandexcits guga-gas-pchb \
