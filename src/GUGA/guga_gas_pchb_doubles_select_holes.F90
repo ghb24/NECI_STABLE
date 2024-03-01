@@ -83,6 +83,7 @@ module guga_gas_pchb_doubles_select_holes
         procedure, public :: init => init_GAS_PCHB_Doubles_t
         procedure, public :: finalize => finalize_GugaAliasSampler_t
 
+        procedure, public :: gen_all_distinct
 
         procedure :: new_info_table
         procedure :: set_info_entry
@@ -123,8 +124,6 @@ module guga_gas_pchb_doubles_select_holes
         procedure, public :: calc_orbital_pgen_contr_start => calc_orbital_pgen_contr_start_FastFast
         procedure, public :: calc_orbital_pgen_contr_end => calc_orbital_pgen_contr_end_FastFast
 
-        procedure, public :: gen_all_distinct => gen_all_distinct_FastFast
-
         procedure :: setup_pchb_sampler_conditional => setup_pchb_sampler_conditional_FastFast
         procedure :: finalize_pchb_sampler => finalize_pchb_sampler_FastFast
     end type
@@ -152,8 +151,6 @@ module guga_gas_pchb_doubles_select_holes
         procedure, public :: calc_orbital_pgen_contr => calc_orbital_pgen_contr_FullFull
         procedure, public :: calc_orbital_pgen_contr_start => calc_orbital_pgen_contr_start_FullFull
         procedure, public :: calc_orbital_pgen_contr_end => calc_orbital_pgen_contr_end_FullFull
-
-        procedure, public :: gen_all_distinct => gen_all_distinct_FullFull
 
         procedure :: setup_pchb_sampler_conditional => setup_pchb_sampler_conditional_FullFull
         procedure :: finalize_pchb_sampler => finalize_pchb_sampler_FullFull
@@ -573,19 +570,6 @@ contains
     end subroutine
 
 
-    pure function gen_all_distinct_FastFast(this, csf_i, sort_fused_key) result(res)
-        !! This function returns all possible excitations for the orbital picker
-        !!
-        !! This means it considers only occupation, not spin recoupling.
-        class(GAS_PCHB_FastFast_t), intent(in) :: this
-        type(CSF_Info_t), intent(in) :: csf_i
-        logical, intent(in), optional :: sort_fused_key
-            !! The fused index of the excitations should be sorted.
-        type(DistinctDouble_t), allocatable :: res(:)
-        res = gen_all_distinct_GAS(this%GAS_spec, csf_i, sort_fused_key)
-    end function
-
-
     subroutine setup_pchb_sampler_conditional_FullFull(this, rank_with_info, ij_weights)
         class(GAS_PCHB_FullFull_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
@@ -792,71 +776,67 @@ contains
             end subroutine
     end subroutine pickOrbitals_FullFull
 
-    pure function calc_pgen_orb_FullFull(this, ilutI, csf_i, ij, i_sg, a, b) result(pgen)
+    function calc_pgen_orb_FullFull(this, ilutI, csf_i, ij, i_sg, a, b) result(pgen)
         class(GAS_PCHB_FullFull_t), intent(in) :: this
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: ij, i_sg, a, b
         real(dp) :: pgen
+        debug_function_name("calc_pgen_orb_FullFull")
 
         integer :: unoccupied(nBasis - nEl)
             !! `unoccupied` lists the unoccupied "spin"-orbitals in nI-format.
         integer(n_int) :: ilut_unoccupied(0 : nIfD)
 
-
+        ASSERT(all(csf_i%occ_int([a, b]) < 2))
         call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
-        associate(a_u => 2 * a - 1, a_d => 2 * a, &
-                  b_u => 2 * b - 1, b_d => 2 * b)
-            if (a == b) then
-                if (csf_i%occ_int(a) /= 0) then
-                    pgen = 0._dp
-                else
-                    pgen = &
-                        p_first(a_u) * p_second(a_u, b_u) &
-                        + p_first(a_u) * p_second(a_u, b_d) &
-                        + p_first(a_d) * p_second(a_d, b_u) &
-                        + p_first(a_d) * p_second(a_d, b_d)
-                end if
+        if (a == b) then
+            if (csf_i%occ_int(a) /= 0) then
+                pgen = 0._dp
             else
-                pgen = &
-                        p_first(a_u) * p_second(a_u, b_u) &
-                        + p_first(a_u) * p_second(a_u, b_d) &
-                        + p_first(a_d) * p_second(a_d, b_u) &
-                        + p_first(a_d) * p_second(a_d, b_d) &
-                        + p_first(b_u) * p_second(b_u, a_u) &
-                        + p_first(b_u) * p_second(b_u, a_d) &
-                        + p_first(b_d) * p_second(b_d, a_u) &
-                        + p_first(b_d) * p_second(b_d, a_d)
+            associate(a_u => 2 * a - 1, a_d => 2 * a)
+                pgen = 2 &
+                    * this%a_sampler%constrained_getProb(&
+                        ij, i_sg, unoccupied, sum(this%a_sampler%get_prob(ij, i_sg, unoccupied)), a_u) &
+                    * this%b_sampler%constrained_getProb(&
+                        a_u, ij, i_sg, unoccupied, sum(this%b_sampler%get_prob(a_u, ij, i_sg, unoccupied)), a_d)
+            end associate
             end if
-        end associate
+        else
+        block
+            ! We have to account for occupation number,
+            ! holes from completely empty orbitals are twice as likely to be picked.
+            ! This is achieved by using "fake" spin orbitals.
+            ! We also have to account for that we can pick `A, B` or `B, A`,
+            ! i.e. reverse the order.
+            integer :: spin_tgts(2)
+            real(dp) :: p_first(2), p_second(2)
+            real(dp) :: renorm_first, renorm_second(2)
 
-        contains
+            ! If the stepvector value is 0, i.e. fully empty
+            ! then the "fake" spin orb index could take both values, u or d.
+            ! We decide on d, because it allows a simple ternary logical operation.
+            spin_tgts(1) = merge(2 * a, 2 * a - 1, csf_i%stepvector(a) <= 1)
+            spin_tgts(2) = merge(2 * b, 2 * b - 1, csf_i%stepvector(b) <= 1)
 
-            real(dp) pure function p_first(A)
-                integer, intent(in) :: A
-                    !! Spin orbital index, i.e. u-d-index
-                ! TODO replace with Ilut lookup
-                if (A .in. unoccupied) then
-                    p_first = this%a_sampler%constrained_getProb(&
-                        ij, i_sg, unoccupied, &
-                        sum(this%A_sampler%get_prob(ij, i_sg, unoccupied)), A)
-                else
-                    p_first = 0._dp
-                end if
-            end function
+            renorm_first = sum(this%A_sampler%get_prob(ij, i_sg, unoccupied))
 
-            real(dp) pure function p_second(A, B)
-                integer, intent(in) :: A, B
-                    !! Spin orbital index, i.e. u-d-index
-                ! TODO replace with Ilut lookup
-                if ((A .in. unoccupied) .and. (B .in. unoccupied)) then
-                    p_second = this%B_sampler%constrained_getProb(&
-                                A, ij, i_sg, unoccupied, &
-                                sum(this%B_sampler%get_prob(A, ij, i_sg, unoccupied)), B)
-                else
-                    p_second = 0._dp
-                end if
-            end function
+            p_first(1) = this%A_sampler%constrained_getProb(&
+                ij, i_sg, unoccupied, renorm_first, spin_tgts(1))
+            p_first(2) = this%A_sampler%constrained_getProb(&
+                ij, i_sg, unoccupied, renorm_first, spin_tgts(2))
+
+            renorm_second(1) = sum(this%B_sampler%get_prob(spin_tgts(1), ij, i_sg, unoccupied))
+            renorm_second(2) = sum(this%B_sampler%get_prob(spin_tgts(2), ij, i_sg, unoccupied))
+
+            p_second(1) = this%B_sampler%constrained_getProb(&
+                spin_tgts(1), ij, i_sg, unoccupied, renorm_second(1), spin_tgts(2))
+            p_second(2) = this%B_sampler%constrained_getProb(&
+                spin_tgts(2), ij, i_sg, unoccupied, renorm_second(2), spin_tgts(1))
+
+            pgen = sum((2 - csf_i%occ_int([a, b])) * p_first(:) * (2 - csf_i%occ_int([b, a])) * p_second(:))
+        end block
+        end if
     end function
 
 
@@ -881,7 +861,7 @@ contains
 
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
-    pure subroutine calc_orbital_pgen_contr_FullFull(this, csf_i, occ_orbs, above_cpt, below_cpt)
+    subroutine calc_orbital_pgen_contr_FullFull(this, csf_i, occ_orbs, above_cpt, below_cpt)
         class(GAS_PCHB_FullFull_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
@@ -905,7 +885,7 @@ contains
         below_cpt = above_cpt
     end subroutine
 
-    pure subroutine calc_orbital_pgen_contr_start_FullFull(this, csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contr_start_FullFull(this, csf_i, occ_orbs, orb_a, orb_pgen)
         class(GAS_PCHB_FullFull_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
@@ -963,11 +943,11 @@ contains
     end subroutine
 
 
-    pure function gen_all_distinct_FullFull(this, csf_i, sort_fused_key) result(res)
+    pure function gen_all_distinct(this, csf_i, sort_fused_key) result(res)
         !! This function returns all possible excitations for the orbital picker
         !!
         !! This means it considers only occupation, not spin recoupling.
-        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        class(GAS_PCHB_Doubles_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         logical, intent(in), optional :: sort_fused_key
             !! The fused index of the excitations should be sorted.
