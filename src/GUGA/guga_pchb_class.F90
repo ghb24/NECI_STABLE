@@ -86,28 +86,34 @@ contains
         call this%GAS_sampler%pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
-    subroutine calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contr_start(this, nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
         class(PCHB_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
-        call this%GAS_sampler%calc_orbital_pgen_contr_start(csf_i, occ_orbs, orb_a, orb_pgen)
+        call this%GAS_sampler%calc_orbital_pgen_contr_start(nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
     end subroutine
 
-    subroutine calc_orbital_pgen_contr_end(this, csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contr_end(this, nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
         class(PCHB_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
-        call this%GAS_sampler%calc_orbital_pgen_contr_end(csf_i, occ_orbs, orb_a, orb_pgen)
+        call this%GAS_sampler%calc_orbital_pgen_contr_end(nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
     end subroutine
 
-    subroutine calc_orbital_pgen_contr(this, csf_i, occ_orbs, above_cpt, below_cpt)
+    subroutine calc_orbital_pgen_contr(this, nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
         class(PCHB_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
-        call this%GAS_sampler%calc_orbital_pgen_contr(csf_i, occ_orbs, above_cpt, below_cpt)
+        call this%GAS_sampler%calc_orbital_pgen_contr(nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
     end subroutine
 
 

@@ -360,8 +360,9 @@ contains
 
     ! write up all the specific stochastic excitation routines
 
-    subroutine calcFullStartFullStopMixedStochastic(ilut, csf_i, excitInfo, t, pgen, &
+    subroutine calcFullStartFullStopMixedStochastic(nI, ilut, csf_i, excitInfo, t, pgen, &
                                                 posSwitches, negSwitches, opt_weight)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -449,7 +450,7 @@ contains
             typ = excitInfo%typ
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contr(&
-                csf_i, [2 * i, 2 * j], above_cpt, below_cpt)
+                nI, ilut, csf_i, [2 * i, 2 * j], above_cpt, below_cpt)
             p_orig = (above_cpt + below_cpt) * branch_pgen
         end if
 
@@ -473,7 +474,7 @@ contains
             call calc_mixed_contr_integral(ilut, csf_i, t, excitInfo%fullStart, &
                 excitInfo%fullEnd, integral)
             if (.not. near_zero(integral)) then
-                call calc_mixed_contr_pgen(ilut, csf_i, t, excitInfo, pgen)
+                call calc_mixed_contr_pgen(nI, ilut, csf_i, t, excitInfo, pgen)
             end if
 
 !             call calc_mixed_contr_sym(ilut, csf_i, t, excitInfo, pgen, integral)
@@ -498,16 +499,20 @@ contains
 
     end subroutine calcFullStartFullStopMixedStochastic
 
-    subroutine calc_orbital_pgen_contr_mol(csf_i, occ_orbs, cpt_a, cpt_b)
+    subroutine calc_orbital_pgen_contr_mol(nI, ilut, csf_i, occ_orbs, cpt_a, cpt_b)
         ! calculates the cumulatice probability list for different
         ! full-start -> full-stop mixed excitations, used in the recalculation of
         ! contrbuting pgens from different picked orbitals
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
 
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt_ab, cpt_ba, ba_sum, ab_sum
+
+        unused_var(nI); unused_var(ilut)
 
         ! given 2 already picked electrons, this routine creates a list of
         ! p(a)*p(b|a) probabilities to pick the already determined holes
@@ -597,7 +602,9 @@ contains
 
     end subroutine calc_orbital_pgen_contr_mol
 
-    subroutine calc_orbital_pgen_contr_ueg(csf_i, occ_orbs, above_cpt, below_cpt)
+    subroutine calc_orbital_pgen_contr_ueg(nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
@@ -606,6 +613,8 @@ contains
         type(ExcitationInformation_t) :: tmp_excitInfo(nSpatOrbs)
         integer :: tmp_orbArr(nSpatOrbs)
         integer :: i, j
+
+        unused_var(nI); unused_var(ilut)
 
         call gen_ab_cum_list_1_1(csf_i, occ_orbs, cum_arr, tmp_excitInfo, tmp_orbArr)
         cum_sum = cum_arr(nSpatOrbs)
@@ -1517,8 +1526,9 @@ contains
 
     end subroutine calcDoubleLoweringStochastic
 
-    subroutine calcFullStopL2R_stochastic(ilut, csf_i, excitInfo, t, pgen, &
+    subroutine calcFullStopL2R_stochastic(nI, ilut, csf_i, excitInfo, t, pgen, &
                                           posSwitches, negSwitches, opt_weight)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -1634,7 +1644,7 @@ contains
             holeInd = se
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_end(&
-                    csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
+                    nI, ilut, csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen
         end if
 
@@ -1656,7 +1666,7 @@ contains
         else
             call calc_mixed_end_contr_integral(ilut, csf_i, t, excitInfo, &
                 integral)
-            call calc_mixed_end_contr_pgen(ilut, csf_i, t, excitInfo, &
+            call calc_mixed_end_contr_pgen(nI, ilut, csf_i, t, excitInfo, &
                 branch_pgen, pgen)
 
 !             call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
@@ -1785,8 +1795,9 @@ contains
 
     end subroutine calc_mixed_end_contr_approx
 
-    subroutine calcFullStopR2L_stochastic(ilut, csf_i, excitInfo, t, pgen, &
+    subroutine calcFullStopR2L_stochastic(nI, ilut, csf_i, excitInfo, t, pgen, &
                                           posSwitches, negSwitches, opt_weight)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -1896,7 +1907,7 @@ contains
             holeInd = st
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_end(&
-                    csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
+                    nI, ilut, csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen
         end if
 
@@ -1914,7 +1925,7 @@ contains
         else
             call calc_mixed_end_contr_integral(ilut, csf_i, t, excitInfo, &
                 integral)
-            call calc_mixed_end_contr_pgen(ilut, csf_i, t, excitInfo, &
+            call calc_mixed_end_contr_pgen(nI, ilut, csf_i, t, excitInfo, &
                 branch_pgen, pgen)
 
 !             call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
@@ -2993,8 +3004,9 @@ contains
 
     end subroutine calcLoweringSemiStopStochastic
 
-    subroutine calcFullStartR2L_stochastic(ilut, csf_i, excitInfo, t, pgen, &
+    subroutine calcFullStartR2L_stochastic(nI, ilut, csf_i, excitInfo, t, pgen, &
                                            posSwitches, negSwitches, opt_weight)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -3108,7 +3120,7 @@ contains
             holeInd = en
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_start(&
-                    csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
+                    nI, ilut, csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen
         end if
 
@@ -3132,7 +3144,7 @@ contains
         else
             call calc_mixed_start_contr_integral(ilut, csf_i, t, excitInfo, &
                 integral)
-            call calc_mixed_start_contr_pgen(ilut, csf_i, t, excitInfo, &
+            call calc_mixed_start_contr_pgen(nI, ilut, csf_i, t, excitInfo, &
                 branch_pgen, pgen)
 
 !             call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
@@ -3247,8 +3259,9 @@ contains
 
     end subroutine calc_mixed_start_contr_approx
 
-    subroutine calcFullStartL2R_stochastic(ilut, csf_i, excitInfo, t, pgen, &
+    subroutine calcFullStartL2R_stochastic(nI, ilut, csf_i, excitInfo, t, pgen, &
                                            posSwitches, negSwitches, opt_weight)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -3377,7 +3390,7 @@ contains
             holeInd = se
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_start(&
-                    csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
+                    nI, ilut, csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen
         end if
 
@@ -3412,7 +3425,7 @@ contains
         else
             call calc_mixed_start_contr_integral(ilut, csf_i, t, excitInfo, &
                 integral)
-            call calc_mixed_start_contr_pgen(ilut, csf_i, t, excitInfo, &
+            call calc_mixed_start_contr_pgen(nI, ilut, csf_i, t, excitInfo, &
                 branch_pgen, pgen)
 
 !             call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
@@ -3459,15 +3472,19 @@ contains
                       "in Hubbard/UEG calculations with full k-point symmetry, this excitation shouldnt be reached!")
     end subroutine calc_mixed_x2x_ueg
 
-    subroutine calc_orbital_pgen_contrib_end_def(csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_end_def(nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt_a, cpt_b, cpt_ba, cpt_ab, ba_sum, ab_sum
+
+        unused_var(nI); unused_var(ilut)
 
         ! electron indices
         i = gtID(occ_orbs(1))
@@ -3547,15 +3564,19 @@ contains
 
     end subroutine calc_orbital_pgen_contrib_end_def
 
-    subroutine calc_orbital_pgen_contrib_start_def(csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_start_def(nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt_a, cpt_b, cpt_ba, cpt_ab, ba_sum, ab_sum
+
+        unused_var(nI); unused_var(ilut)
 
         ! electron indices
         i = gtID(occ_orbs(1))

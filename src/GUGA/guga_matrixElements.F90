@@ -2019,8 +2019,9 @@ contains
 
     end subroutine calc_mixed_start_contr_integral
 
-    subroutine calc_mixed_start_contr_pgen(ilut, csf_i, t, excitInfo, branch_pgen, &
+    subroutine calc_mixed_start_contr_pgen(nI, ilut, csf_i, t, excitInfo, branch_pgen, &
             pgen)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), value :: excitInfo
@@ -2056,7 +2057,7 @@ contains
 
         ! do i actually deal with the actual start orbital influence??
         ! fuck i don't think so.. wtf..
-        call calc_orbital_pgen_contrib_start(csf_i, [2 * st, 2 * elecInd], &
+        call calc_orbital_pgen_contrib_start(nI, ilut, csf_i, [2 * st, 2 * elecInd], &
             holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
@@ -2153,7 +2154,7 @@ contains
                 ! and that fullend is the electron eg.
                 ! depening on the type of excitation (r2l or l2r) the electron
                 ! orbitals change here
-                call calc_orbital_pgen_contrib_start(csf_i, [2*i, 2*elecInd], &
+                call calc_orbital_pgen_contrib_start(nI, ilut, csf_i, [2*i, 2*elecInd], &
                     holeInd, orb_pgen)
 
                 ! then deal with the matrix element and branching probabilities
@@ -2232,7 +2233,7 @@ contains
                 if (csf_i%Occ_int(i) /= 1) cycle
 
                 ! calculate orbitals pgen first and cycle if 0
-                call calc_orbital_pgen_contrib_start(csf_i, [2 * i, 2 * elecInd], &
+                call calc_orbital_pgen_contrib_start(nI, ilut, csf_i, [2 * i, 2 * elecInd], &
                     holeInd, orb_pgen)
 
                 step = csf_i%stepvector(i)
@@ -2280,7 +2281,7 @@ contains
             if (sw > st) then
 
                 ! check orb_pgen otherwise no influencce
-                call calc_orbital_pgen_contrib_start(csf_i, [2 * sw, 2 * elecInd], &
+                call calc_orbital_pgen_contrib_start(nI, ilut, csf_i, [2 * sw, 2 * elecInd], &
                     holeInd, orb_pgen)
 
                 if (.not. near_zero(orb_pgen)) then
@@ -2337,8 +2338,9 @@ contains
 
     end subroutine calc_mixed_start_contr_pgen
 
-    subroutine calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, &
+    subroutine calc_mixed_start_contr_sym(nI, ilut, csf_i, t, excitInfo, branch_pgen, &
                                           pgen, integral, rdm_ind, rdm_mat)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -2408,7 +2410,7 @@ contains
 
         ! do i actually deal with the actual start orbital influence??
         ! fuck i don't think so.. wtf..
-        call calc_orbital_pgen_contrib_start(csf_i, [2 * st, 2 * elecInd], &
+        call calc_orbital_pgen_contrib_start(nI, ilut, csf_i, [2 * st, 2 * elecInd], &
             holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
@@ -2506,7 +2508,7 @@ contains
                 ! and that fullend is the electron eg.
                 ! depening on the type of excitation (r2l or l2r) the electron
                 ! orbitals change here
-                call calc_orbital_pgen_contrib_start(csf_i, [2*i, 2*elecInd], &
+                call calc_orbital_pgen_contrib_start(nI, ilut, csf_i, [2*i, 2*elecInd], &
                     holeInd, orb_pgen)
 
                 ! then deal with the matrix element and branching probabilities
@@ -2643,7 +2645,7 @@ contains
                 if (csf_i%Occ_int(i) /= 1) cycle
 
                 ! calculate orbitals pgen first and cycle if 0
-                call calc_orbital_pgen_contrib_start(csf_i, [2 * i, 2 * elecInd], &
+                call calc_orbital_pgen_contrib_start(nI, ilut, csf_i, [2 * i, 2 * elecInd], &
                     holeInd, orb_pgen)
 
                 step = csf_i%stepvector(i)
@@ -2739,7 +2741,7 @@ contains
             if (sw > st) then
 
                 ! check orb_pgen otherwise no influencce
-                call calc_orbital_pgen_contrib_start(csf_i, [2 * sw, 2 * elecInd], &
+                call calc_orbital_pgen_contrib_start(nI, ilut, csf_i, [2 * sw, 2 * elecInd], &
                     holeInd, orb_pgen)
 
                 temp_int = (get_umat_el(sw, holeInd, elecInd, sw) &
@@ -2826,8 +2828,9 @@ contains
 
     end subroutine calc_mixed_start_contr_sym
 
-    subroutine calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
+    subroutine calc_mixed_end_contr_sym(nI, ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
                                         integral, rdm_ind, rdm_mat)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -2877,7 +2880,7 @@ contains
 
         integral = h_cast(0.0_dp)
         ! also here i didn't consider the actual end contribution or? ...
-        call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * en], &
+        call calc_orbital_pgen_contrib_end(nI, ilut, csf_i, [2 * elecInd, 2 * en], &
             holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
@@ -2949,7 +2952,7 @@ contains
                     end if
 
                     ! then calc. orbital probability
-                    call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * i], &
+                    call calc_orbital_pgen_contrib_end(nI, ilut, csf_i, [2 * elecInd, 2 * i], &
                         holeInd, orb_pgen)
 
                     ! should be able to do that without second loop too!
@@ -3090,7 +3093,7 @@ contains
                 if (csf_i%Occ_int(i) /= 1) cycle
 
                 ! get orbital pgen
-                call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * i], &
+                call calc_orbital_pgen_contrib_end(nI, ilut, csf_i, [2 * elecInd, 2 * i], &
                     holeInd, orb_pgen)
 
                 if (csf_i%stepvector(i) == 1) then
@@ -3189,7 +3192,7 @@ contains
             ! deal with switch specifically:
 
             ! figure out orbital pgen
-            call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * sw], &
+            call calc_orbital_pgen_contrib_end(nI, ilut, csf_i, [2 * elecInd, 2 * sw], &
                 holeInd, orb_pgen)
 
             if (.not. near_zero(orb_pgen) .or. rdm_flag .or. test_skip) then
@@ -3290,8 +3293,9 @@ contains
 
     end subroutine calc_mixed_end_contr_sym
 
-    subroutine calc_mixed_end_contr_pgen(ilut, csf_i, t, excitInfo, branch_pgen, &
+    subroutine calc_mixed_end_contr_pgen(nI, ilut, csf_i, t, excitInfo, branch_pgen, &
             pgen)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), value :: excitInfo
@@ -3322,7 +3326,7 @@ contains
         end if
 
         ! also here i didn't consider the actual end contribution or? ...
-        call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * en], &
+        call calc_orbital_pgen_contrib_end(nI, ilut, csf_i, [2 * elecInd, 2 * en], &
             holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
@@ -3387,7 +3391,7 @@ contains
                     end if
 
                     ! then calc. orbital probability
-                    call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * i], &
+                    call calc_orbital_pgen_contrib_end(nI, ilut, csf_i, [2 * elecInd, 2 * i], &
                         holeInd, orb_pgen)
 
                     ! should be able to do that without second loop too!
@@ -3480,7 +3484,7 @@ contains
                 if (csf_i%Occ_int(i) /= 1) cycle
 
                 ! get orbital pgen
-                call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * i], &
+                call calc_orbital_pgen_contrib_end(nI, ilut, csf_i, [2 * elecInd, 2 * i], &
                     holeInd, orb_pgen)
 
                 if (csf_i%stepvector(i) == 1) then
@@ -3554,7 +3558,7 @@ contains
             ! deal with switch specifically:
 
             ! figure out orbital pgen
-            call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * sw], &
+            call calc_orbital_pgen_contrib_end(nI, ilut, csf_i, [2 * elecInd, 2 * sw], &
                 holeInd, orb_pgen)
 
             if (.not. near_zero(orb_pgen)) then
@@ -3848,7 +3852,7 @@ contains
 
     end subroutine calc_mixed_end_contr_integral
 
-    subroutine calc_mixed_contr_sym(ilut, csf_i, t, excitInfo, pgen, integral)
+    subroutine calc_mixed_contr_sym(nI, ilut, csf_i, t, excitInfo, pgen, integral)
         ! new implementation of the pgen contribution calculation for
         ! fullstart into fullstop excitation with mixed generators
         ! this is a specific implementation for the hubbard/ueg model with
@@ -3856,6 +3860,7 @@ contains
         ! ki + kj = ka + kb is always fullfilled since ka = ki, kj = kb or vv.
         ! NEW: combine pgen and matrix element contribution finally!
         ! to optimize!
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -3957,7 +3962,7 @@ contains
 
                 ! this is the only difference for molecular/hubbard/ueg
                 ! calculations
-                call calc_orbital_pgen_contr(csf_i, [2 * i, 2 * j], above_cpt, &
+                call calc_orbital_pgen_contr(nI, ilut, csf_i, [2 * i, 2 * j], above_cpt, &
                                              below_cpt)
 
                 ! yes they can, and then this orbital does not contribute to the
@@ -4405,7 +4410,8 @@ contains
         end if
     end subroutine calc_mixed_contr_integral
 
-    subroutine calc_mixed_contr_pgen(ilut, csf_i, t, excitInfo, pgen)
+    subroutine calc_mixed_contr_pgen(nI, ilut, csf_i, t, excitInfo, pgen)
+        integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), value :: excitInfo
@@ -4462,7 +4468,7 @@ contains
 
                 ! this is the only difference for molecular/hubbard/ueg
                 ! calculations
-                call calc_orbital_pgen_contr(csf_i, [2 * i, 2 * j], above_cpt, &
+                call calc_orbital_pgen_contr(nI, ilut, csf_i, [2 * i, 2 * j], above_cpt, &
                                              below_cpt)
 
                 ! yes they can, and then this orbital does not contribute to the

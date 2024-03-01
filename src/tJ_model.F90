@@ -1216,9 +1216,11 @@ contains
 
     end subroutine gen_guga_heisenberg_cum_list
 
-    subroutine calc_orbital_pgen_contr_heisenberg(csf_i, occ_orbs, above_cpt, below_cpt)
+    subroutine calc_orbital_pgen_contr_heisenberg(nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
         ! and I also need an orbital pgen recalculator for the
         ! exchange type excitations
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
@@ -1227,6 +1229,8 @@ contains
         real(dp) :: p_elec
         real(dp), allocatable :: cum_arr(:)
         integer :: sp_orbs(2)
+
+        unused_var(nI); unused_var(ilut)
 
         ! here I have to somehow recalculate the probability of
         ! picking a pair (i,j)

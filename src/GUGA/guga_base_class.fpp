@@ -107,7 +107,7 @@ module guga_base_class
             import :: GUGABase_t, dp, n_int, GugaBits, CSF_Info_t, ExcitationInformation_t, nel
             implicit none
             class(GUGABase_t), intent(in) :: this
-            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             integer, intent(in) :: nI(nel)
             type(CSF_Info_t), intent(in) :: csf_i
             type(ExcitationInformation_t), intent(out) :: excitInfo
@@ -118,7 +118,7 @@ module guga_base_class
             import :: SinglesGUGABase_t, dp, n_int, GugaBits, CSF_Info_t, ExcitationInformation_t, nel
             implicit none
             class(SinglesGUGABase_t), intent(in) :: this
-            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             integer, intent(in) :: nI(nel)
             type(CSF_Info_t), intent(in) :: csf_i
             type(ExcitationInformation_t), intent(out) :: excitInfo
@@ -129,45 +129,53 @@ module guga_base_class
             import :: DoublesGUGABase_t, dp, n_int, GugaBits, CSF_Info_t, ExcitationInformation_t, nel
             implicit none
             class(DoublesGUGABase_t), intent(in) :: this
-            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             integer, intent(in) :: nI(nel)
             type(CSF_Info_t), intent(in) :: csf_i
             type(ExcitationInformation_t), intent(out) :: excitInfo
             real(dp), intent(out) :: pgen
         end subroutine
 
-        subroutine CalcOrbitalPgenContr_t(this, csf_i, occ_orbs, orb_a, orb_pgen)
-            import :: GUGABase_t, dp, CSF_Info_t
+        subroutine CalcOrbitalPgenContr_t(this, nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
+            import :: GUGABase_t, dp, CSF_Info_t, nEl, GugaBits, n_int
             implicit none
             class(GUGABase_t), intent(in) :: this
+            integer, intent(in) :: nI(nEl)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: occ_orbs(2), orb_a
             real(dp), intent(out) :: orb_pgen
         end subroutine CalcOrbitalPgenContr_t
 
-        subroutine calc_orbital_pgen_contr_t(this, csf_i, occ_orbs, above_cpt, below_cpt)
-            import :: GUGABase_t, dp, CSF_Info_t
+        subroutine calc_orbital_pgen_contr_t(this, nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
+            import :: GUGABase_t, dp, CSF_Info_t, nEl, GugaBits, n_int
             implicit none
             class(GUGABase_t), intent(in) :: this
+            integer, intent(in) :: nI(nEl)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: occ_orbs(2)
             real(dp), intent(out) :: above_cpt, below_cpt
         end subroutine calc_orbital_pgen_contr_t
 
 
-        subroutine DoublesCalcOrbitalPgenContr_t(this, csf_i, occ_orbs, orb_a, orb_pgen)
-            import :: DoublesGUGABase_t, dp, CSF_Info_t
+        subroutine DoublesCalcOrbitalPgenContr_t(this, nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
+            import :: DoublesGUGABase_t, dp, CSF_Info_t, nEl, GugaBits, n_int
             implicit none
             class(DoublesGUGABase_t), intent(in) :: this
+            integer, intent(in) :: nI(nEl)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: occ_orbs(2), orb_a
             real(dp), intent(out) :: orb_pgen
         end subroutine
 
-        subroutine Doublescalc_orbital_pgen_contr_t(this, csf_i, occ_orbs, above_cpt, below_cpt)
-            import :: DoublesGUGABase_t, dp, CSF_Info_t
+        subroutine Doublescalc_orbital_pgen_contr_t(this, nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
+            import :: DoublesGUGABase_t, dp, CSF_Info_t, nEl, GugaBits, n_int
             implicit none
             class(DoublesGUGABase_t), intent(in) :: this
+            integer, intent(in) :: nI(nEl)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: occ_orbs(2)
             real(dp), intent(out) :: above_cpt, below_cpt
@@ -203,7 +211,7 @@ module guga_base_class
             implicit none
             class(SinglesGUGABase_t), intent(in) :: this
             integer, intent(in) :: nI(nel)
-            integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
+            integer(n_int), intent(in) :: ilutI(0 : GugaBits%len_tot)
             type(CSF_Info_t), intent(in) :: csf_i
             type(ExcitationInformation_t), intent(in) :: excitInfo
             real(dp) :: pgen
@@ -258,7 +266,7 @@ contains
     end subroutine
 
     subroutine class_pick_singles(nI, ilut, csf_i, excitInfo, pgen)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
@@ -267,7 +275,7 @@ contains
     end subroutine
 
     subroutine class_pick_doubles(nI, ilut, csf_i, excitInfo, pgen)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
@@ -275,27 +283,33 @@ contains
         call GUGA_exc_generator%pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
-    subroutine class_calc_orb_pgen_contr(csf_i, occ_orbs, cpt_a, cpt_b)
+    subroutine class_calc_orb_pgen_contr(nI, ilut, csf_i, occ_orbs, cpt_a, cpt_b)
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
-        call GUGA_exc_generator%calc_orbital_pgen_contr(csf_i, occ_orbs, cpt_a, cpt_b)
+        call GUGA_exc_generator%calc_orbital_pgen_contr(nI, ilut, csf_i, occ_orbs, cpt_a, cpt_b)
     end subroutine class_calc_orb_pgen_contr
 
 
     ! i think it would be better if i 'just' reimplement:
-    subroutine class_calc_orb_pgen_contr_str(csf_i, occ_orbs, a, orb_pgen)
+    subroutine class_calc_orb_pgen_contr_str(nI, ilut, csf_i, occ_orbs, a, orb_pgen)
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
-        call GUGA_exc_generator%calc_orbital_pgen_contr_start(csf_i, occ_orbs, a, orb_pgen)
+        call GUGA_exc_generator%calc_orbital_pgen_contr_start(nI, ilut, csf_i, occ_orbs, a, orb_pgen)
     end subroutine
 
-    subroutine class_calc_orb_pgen_contr_end(csf_i, occ_orbs, a, orb_pgen)
+    subroutine class_calc_orb_pgen_contr_end(nI, ilut, csf_i, occ_orbs, a, orb_pgen)
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
-        call GUGA_exc_generator%calc_orbital_pgen_contr_end(csf_i, occ_orbs, a, orb_pgen)
+        call GUGA_exc_generator%calc_orbital_pgen_contr_end(nI, ilut, csf_i, occ_orbs, a, orb_pgen)
     end subroutine class_calc_orb_pgen_contr_end
 
     function class_calc_pgen(nI, ilutI, csf_i, excitInfo) result(pgen)
@@ -309,8 +323,8 @@ contains
 
     subroutine AbInitGUGABase_t_pickOrbitals_single(this, nI, ilut, csf_i, excitInfo, pgen)
         class(AbInitGUGABase_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -327,28 +341,34 @@ contains
         call this%doubles_generator%pickOrbitals(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
-    subroutine AbInitGUGABase_t_calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine AbInitGUGABase_t_calc_orbital_pgen_contr_start(this, nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
         class(AbInitGUGABase_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
-        call this%doubles_generator%calc_orbital_pgen_contr_start(csf_i, occ_orbs, orb_a, orb_pgen)
+        call this%doubles_generator%calc_orbital_pgen_contr_start(nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
     end subroutine
 
-    subroutine AbInitGUGABase_t_calc_orbital_pgen_contr_end(this, csf_i, occ_orbs, orb_a, orb_pgen)
+    subroutine AbInitGUGABase_t_calc_orbital_pgen_contr_end(this, nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
         class(AbInitGUGABase_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
-        call this%doubles_generator%calc_orbital_pgen_contr_end(csf_i, occ_orbs, orb_a, orb_pgen)
+        call this%doubles_generator%calc_orbital_pgen_contr_end(nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
     end subroutine
 
-    subroutine AbInitGUGABase_t_calc_orbital_pgen_contr(this, csf_i, occ_orbs, above_cpt, below_cpt)
+    subroutine AbInitGUGABase_t_calc_orbital_pgen_contr(this, nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
         class(AbInitGUGABase_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
-        call this%doubles_generator%calc_orbital_pgen_contr(csf_i, occ_orbs, above_cpt, below_cpt)
+        call this%doubles_generator%calc_orbital_pgen_contr(nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
     end subroutine
 
     function AbInitGUGABase_t_calc_pgen(this, nI, ilutI, csf_i, excitInfo) result(pgen)
