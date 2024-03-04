@@ -36,7 +36,8 @@ module guga_gas_pchb_singles_main
     type :: GAS_PCHB_SinglesAlgorithm_vals_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: &
             UNIF_UNIF = GAS_PCHB_SinglesAlgorithm_t(1, 'UNIF:UNIF'), &
-            FULL_FULL = GAS_PCHB_SinglesAlgorithm_t(2, 'FULL:FULL')
+            FULL_FULL = GAS_PCHB_SinglesAlgorithm_t(2, 'FULL:FULL'), &
+            UNIF_FULL = GAS_PCHB_SinglesAlgorithm_t(3, 'UNIF:FULL')
     contains
         procedure, nopass :: from_str => alg_from_str
     end type
@@ -88,7 +89,7 @@ module guga_gas_pchb_singles_main
     end type
 
     !> The precomputed GAS uniform excitation generator
-    type, extends(SinglesGUGABase_t) :: GAS_Weighted_t
+    type, extends(SinglesGUGABase_t), abstract :: GAS_Weighted_t
         private
         class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
@@ -131,9 +132,18 @@ module guga_gas_pchb_singles_main
         procedure, public :: finalize => finalize_GAS_Weighted_t
 
         procedure :: get_unoccupied
+    end type
 
-        procedure, public :: calc_pgen => calc_pgen_GAS_Weighted_t
-        procedure, public :: pickOrbitals => pickOrbitals_GAS_Weighted_t
+    type, extends(GAS_Weighted_t) :: SinglesGAS_FullFull_t
+    contains
+        procedure, public :: calc_pgen => calc_pgen_FullFull
+        procedure, public :: pickOrbitals => pickOrbitals_FullFull
+    end type
+
+    type, extends(GAS_Weighted_t) :: SinglesGAS_UnifFull_t
+    contains
+        procedure, public :: calc_pgen => calc_pgen_UnifFull
+        procedure, public :: pickOrbitals => pickOrbitals_UnifFull
     end type
 
 contains
@@ -166,9 +176,15 @@ contains
                 call generator%init(GAS_spec, use_lookup, create_lookup)
             end select
         else if (options%algorithm == option_vals%algorithm%FULL_FULL) then
-            allocate(GAS_Weighted_t :: generator)
+            allocate(SinglesGAS_FullFull_t :: generator)
             select type(generator)
-            type is(GAS_Weighted_t)
+            type is(SinglesGAS_FullFull_t)
+                call generator%init(options%weighting, GAS_spec, use_lookup, create_lookup)
+            end select
+        else if (options%algorithm == option_vals%algorithm%UNIF_FULL) then
+            allocate(SinglesGAS_UnifFull_t :: generator)
+            select type(generator)
+            type is(SinglesGAS_UnifFull_t)
                 call generator%init(options%weighting, GAS_spec, use_lookup, create_lookup)
             end select
         else
@@ -372,6 +388,8 @@ contains
             res = option_vals%algorithm%UNIF_UNIF
         case(option_vals%algorithm%FULL_FULL%str)
             res = option_vals%algorithm%FULL_FULL
+        case(option_vals%algorithm%UNIF_FULL%str)
+            res = option_vals%algorithm%UNIF_FULL
         case default
             call stop_all(this_routine, 'Invalid input: '//str)
         end select
@@ -456,8 +474,8 @@ contains
     end subroutine
 
 
-    subroutine pickOrbitals_GAS_Weighted_t(this, nI, ilut, csf_i, excitInfo, pgen)
-        class(GAS_Weighted_t), intent(in) :: this
+    subroutine pickOrbitals_FullFull(this, nI, ilut, csf_i, excitInfo, pgen)
+        class(SinglesGAS_FullFull_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -533,14 +551,14 @@ contains
     end subroutine
 
 
-    function calc_pgen_GAS_Weighted_t(this, nI, ilutI, csf_i, excitInfo) result(pgen)
-        class(GAS_Weighted_t), intent(in) :: this
+    function calc_pgen_FullFull(this, nI, ilutI, csf_i, excitInfo) result(pgen)
+        class(SinglesGAS_FullFull_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
-        routine_name("calc_pgen_GAS_Weighted_t")
+        routine_name("calc_pgen_FullFull")
 
         real(dp) :: p_src, p_tgt
         integer :: i_sg
@@ -568,6 +586,125 @@ contains
             renorm_src = sum(this%I_sampler%get_prob(i_sg, nI))
             p_src = csf_I%occ_int(excitInfo%j) &
                     * this%I_sampler%constrained_getProb(i_sg, nI, renorm_src, spin_src)
+        end block select_particle
+
+        select_hole: block
+            real(dp) :: renorm_tgt
+            integer :: spin_tgt, unoccupied(nBasis - nEl)
+            integer(n_int) :: ilut_unoccupied(0 : nIfD)
+            spin_tgt = 2 * excitInfo%i - ((csf_I%stepvector(excitInfo%i) + 1) .div. 3)
+
+            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(excitInfo%j, i_sg, nI))
+            if (do_direct_calculation(renorm_tgt)) then
+                renorm_tgt = sum(this%A_sampler%get_prob(excitInfo%j, i_sg, unoccupied))
+            end if
+
+
+            p_tgt = (2 - csf_I%occ_int(excitInfo%i)) &
+                    * this%A_sampler%constrained_getProb(excitInfo%j, i_sg, unoccupied, renorm_tgt, spin_tgt)
+        end block select_hole
+        pgen = p_src * p_tgt
+    end function
+
+    subroutine pickOrbitals_UnifFull(this, nI, ilut, csf_i, excitInfo, pgen)
+        class(SinglesGAS_UnifFull_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        routine_name("pickOrbitals_GAS_Weighted_t")
+
+        integer :: i_sg, src, tgt
+        real(dp) :: p_src, p_tgt
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
+
+        select_particle: block
+            src = gtID(nI(int(genrand_real2_dSFMT() * nEl) + 1))
+            p_src = csf_I%occ_real(src) / real(nEl, dp)
+        end block select_particle
+
+        select_hole: block
+            real(dp) :: renorm_tgt
+            integer :: spin_tgt, dummy, unoccupied(nBasis - nEl)
+            integer(n_int) :: ilut_unoccupied(0 : nIfD)
+            call this%get_unoccupied(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
+            if (do_direct_calculation(renorm_tgt)) then
+                renorm_tgt = sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
+            end if
+
+            call this%A_sampler%constrained_sample(&
+                 src, i_sg, unoccupied, ilut_unoccupied, renorm_tgt, dummy, spin_tgt, p_tgt)
+            if (spin_tgt == 0) then
+                call make_invalid()
+                return
+            end if
+            tgt = gtId(spin_tgt)
+            p_tgt = (2 - csf_I%occ_int(tgt)) * p_tgt
+        end block select_hole
+        pgen = p_src * p_tgt
+
+        if (tgt < src) then
+            excitInfo = assign_excitinfo_values_single( &
+                        gen_type%R, tgt, src, tgt, src)
+        else
+            excitInfo = assign_excitinfo_values_single( &
+                        gen_type%L, tgt, src, src, tgt)
+        end if
+        excitInfo%valid = checkCompatibility_single(csf_i, excitInfo)
+        if (excitInfo%valid) then
+            @:ASSERT(pgen .isclose. this%calc_pgen(nI, ilut, csf_i, excitInfo))
+        else
+            pgen = 0._dp
+        end if
+
+        contains
+
+            subroutine make_invalid()
+                pgen = 0.0_dp
+                tgt = 0
+                excitInfo%valid = .false.
+            end subroutine
+    end subroutine
+
+
+    function calc_pgen_UnifFull(this, nI, ilutI, csf_i, excitInfo) result(pgen)
+        class(SinglesGAS_UnifFull_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp) :: pgen
+        routine_name("calc_pgen_UnifFull")
+
+        real(dp) :: p_src, p_tgt
+        integer :: i_sg
+
+        @:ASSERT(1 <= excitInfo%i .and. excitInfo%i <= nSpatOrbs)
+        @:ASSERT(1 <= excitInfo%j .and. excitInfo%j <= nSpatOrbs)
+
+        if (excitInfo%i == excitInfo%j &
+               .or. csf_i%stepvector(excitInfo%i) == 3 &
+               .or. csf_i%stepvector(excitInfo%j) == 0) then
+            pgen = 0.0_dp
+            return
+        end if
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_csf(csf_i)
+        end if
+
+        select_particle: block
+            p_src = csf_I%occ_real(excitInfo%j) / real(nEl, dp)
         end block select_particle
 
         select_hole: block
