@@ -2,7 +2,7 @@
 #include "macros.h"
 module guga_gas_pchb_singles_main
     use util_mod, only: EnumBase_t, stop_all, operator(.implies.), &
-        operator(.div.), operator(.isclose.)
+        operator(.div.), operator(.isclose.), near_zero
     use SystemData, only: nEl, nSpatOrbs, nBasis
     use MPI_wrapper, only: root
     use constants, only: n_int, dp, bits_n_int, stdout
@@ -13,7 +13,7 @@ module guga_gas_pchb_singles_main
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD, GugaBits
     use bit_reps, only: decode_bit_det, UnoccupiedGetter_t
-    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
+    use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation, AliasSampler_3D_t
     use UMatCache, only: gtID, get_umat_el
 
     use guga_base_class, only: SinglesGUGABase_t
@@ -27,17 +27,21 @@ module guga_gas_pchb_singles_main
 
 
     private
-    public :: allocate_and_init, GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t
+    public :: allocate_and_init, GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, &
+        scale_down_exch_singles
 
     type, extends(EnumBase_t) :: GAS_PCHB_SinglesAlgorithm_t
         character(9) :: str
     end type
 
+    real(dp) :: scale_down_exch_singles = 1._dp
+
     type :: GAS_PCHB_SinglesAlgorithm_vals_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: &
             UNIF_UNIF = GAS_PCHB_SinglesAlgorithm_t(1, 'UNIF:UNIF'), &
             FULL_FULL = GAS_PCHB_SinglesAlgorithm_t(2, 'FULL:FULL'), &
-            UNIF_FULL = GAS_PCHB_SinglesAlgorithm_t(3, 'UNIF:FULL')
+            UNIF_FULL = GAS_PCHB_SinglesAlgorithm_t(3, 'UNIF:FULL'), &
+            UNIF_XNEW = GAS_PCHB_SinglesAlgorithm_t(4, 'UNIF:XNEW')
     contains
         procedure, nopass :: from_str => alg_from_str
     end type
@@ -140,6 +144,32 @@ module guga_gas_pchb_singles_main
         procedure, public :: pickOrbitals => pickOrbitals_UnifFull
     end type
 
+    !> The precomputed GAS uniform excitation generator
+    type, extends(SinglesGUGABase_t) :: UnifXnew_t
+        private
+        class(GASSpec_t), allocatable :: GAS_spec
+        ! This is only a pointer because components cannot be targets
+        ! otherwise. :-(
+        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        logical, public :: use_lookup = .false.
+        logical, public :: create_lookup = .false.
+
+
+        type(AliasSampler_3D_t) :: A_sampler
+            !! The shape is (nSpatOrbs: i, stepvector: i, n_supergroup: i_sg) -> 2 * nSpatOrbs
+        procedure(get_weight_t), pointer, nopass :: get_weight => null()
+
+        type(UnoccupiedGetter_t) :: unoccupied
+
+    contains
+        private
+        procedure, public :: init => init_UnifXnew_t
+        procedure, public :: finalize => finalize_UnifXnew_t
+
+        procedure, public :: pickOrbitals => pickOrbitals_UnifXnew_t
+        procedure, public :: calc_pgen => calc_pgen_UnifXnew_t
+    end type
+
 contains
 
     elemental logical function is_valid(this)
@@ -180,6 +210,12 @@ contains
             select type(generator)
             type is(SinglesGAS_UnifFull_t)
                 call generator%init(options%weighting, GAS_spec, use_lookup, create_lookup)
+            end select
+        else if (options%algorithm == option_vals%algorithm%UNIF_XNEW) then
+            allocate(UnifXnew_t :: generator)
+            select type(generator)
+            type is(UnifXnew_t)
+                call generator%init(options%weighting, GAS_spec, use_lookup, create_lookup, scale_down_exch_singles)
             end select
         else
             call stop_all(this_routine, "unsupported singles option.")
@@ -384,6 +420,8 @@ contains
             res = option_vals%algorithm%FULL_FULL
         case(option_vals%algorithm%UNIF_FULL%str)
             res = option_vals%algorithm%UNIF_FULL
+        case(option_vals%algorithm%UNIF_XNEW%str)
+            res = option_vals%algorithm%UNIF_XNEW
         case default
             call stop_all(this_routine, 'Invalid input: '//str)
         end select
@@ -714,4 +752,243 @@ contains
         pgen = p_src * p_tgt
 
     end function
+
+
+
+    subroutine init_UnifXnew_t(this, weighting, GAS_spec, use_lookup, create_lookup, scale_down)
+        class(UnifXnew_t), intent(inout) :: this
+        type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weighting
+        class(GASSpec_t), intent(in) :: GAS_spec
+        logical, intent(in) :: use_lookup, create_lookup
+        real(dp), intent(in) :: scale_down
+            !! Scale down the "exchange" single excitations
+        integer, allocatable :: supergroups(:, :)
+        routine_name("init_UnifXnew_t")
+
+        integer :: i_sg, src, tgt, nBi
+        real(dp), allocatable :: spat_w_A(:), A_weights(:)
+
+        this%GAS_spec = GAS_spec
+        nBi = this%GAS_spec%n_spin_orbs()
+        @:ASSERT(nBi == 2 * nSpatOrbs)
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        this%create_lookup = create_lookup
+        if (create_lookup) then
+            if (associated(lookup_supergroup_indexer)) then
+                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
+            else
+                lookup_supergroup_indexer => this%indexer
+            end if
+        end if
+        this%use_lookup = use_lookup
+
+        supergroups = this%indexer%get_supergroups()
+
+        this%unoccupied = UnoccupiedGetter_t(nBasis)
+
+        call set_get_weight_pointer(weighting, this%get_weight)
+
+        call this%A_sampler%shared_alloc([nSpatOrbs, 3, size(supergroups, 2)], nBi, 'PCHB')
+
+        allocate(spat_w_A(nSpatOrbs), A_weights(nBi), source=0._dp)
+        do i_sg = 1, size(supergroups, 2)
+            do src = 1, nSpatOrbs
+                A_weights(:) = 0._dp
+                spat_w_A(:) = 0._dp
+                do tgt = 1, nSpatOrbs
+                block
+                    type(Excite_1_t) :: exc
+                    exc = Excite_1_t(2 * src, 2 * tgt)
+                    if (src /= tgt &
+                            .and. this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                            .and. symmetry_allowed(exc)) then
+                        spat_w_A(tgt) = abs(this%get_weight(src, tgt))
+                    end if
+                end block
+                end do
+
+                start_from_3: block
+                    A_weights(1::2) = spat_w_A(:)
+                    A_weights(2::2) = spat_w_A(:)
+                    @:ASSERT(near_zero(A_weights(2 * src - 1)) .and. near_zero(A_weights(2 * src)))
+                    call this%A_sampler%setup_entry(src, 3, i_sg, root, A_weights)
+                end block start_from_3
+
+                start_from_1: block
+                    A_weights(1::2) = spat_w_A(:)
+                    A_weights(2::2) = spat_w_A(:) * scale_down
+                    @:ASSERT(near_zero(A_weights(2 * src - 1)) .and. near_zero(A_weights(2 * src)))
+                    if (src > 1) A_weights(2 * (src - 1)) = 0._dp
+                    if (src < nSpatOrbs) A_weights(2 * (src + 1)) = 0._dp
+                    call this%A_sampler%setup_entry(src, 1, i_sg, root, A_weights)
+                end block start_from_1
+
+                start_from_2: block
+                    A_weights(1::2) = spat_w_A(:) * scale_down
+                    A_weights(2::2) = spat_w_A(:)
+                    @:ASSERT(near_zero(A_weights(2 * src - 1)) .and. near_zero(A_weights(2 * src)))
+                    if (src > 1) A_weights(2 * (src - 1) - 1) = 0._dp
+                    if (src < nSpatOrbs) A_weights(2 * (src + 1) - 1) = 0._dp
+                    call this%A_sampler%setup_entry(src, 2, i_sg, root, A_weights)
+                end block start_from_2
+            end do
+        end do
+    end subroutine
+
+    subroutine finalize_UnifXnew_t(this)
+        class(UnifXnew_t), intent(inout) :: this
+        call this%A_sampler%finalize()
+        nullify(this%get_weight)
+        deallocate(this%indexer, this%GAS_spec)
+        if (this%create_lookup) nullify(lookup_supergroup_indexer)
+    end subroutine
+
+
+    subroutine pickOrbitals_UnifXnew_t(this, nI, ilut, csf_i, excitInfo, pgen)
+        class(UnifXnew_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        routine_name("pickOrbitals_GAS_Weighted_t")
+
+        integer :: i_sg, src, tgt
+        real(dp) :: p_src, p_tgt
+        real(dp) :: renorm_tgt
+        integer :: spin_tgt, dummy, unoccupied(nBasis - nEl)
+        integer(n_int) :: ilut_unoccupied(0 : nIfD)
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
+
+        select_particle: block
+            src = gtID(nI(int(genrand_real2_dSFMT() * nEl) + 1))
+            p_src = csf_I%occ_real(src) / real(nEl, dp)
+        end block select_particle
+
+        select_hole: block
+
+            call this%unoccupied%get(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
+
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, csf_i%stepvector(src), i_sg, nI))
+            if (do_direct_calculation(renorm_tgt)) then
+                renorm_tgt = sum(this%A_sampler%get_prob(src, csf_i%stepvector(src), i_sg, unoccupied))
+            end if
+
+            call this%A_sampler%constrained_sample(&
+                 src, csf_i%stepvector(src), i_sg, unoccupied, ilut_unoccupied, &
+                 renorm_tgt, dummy, spin_tgt, p_tgt)
+            if (spin_tgt == 0) then
+                call make_invalid()
+                return
+            end if
+            tgt = gtId(spin_tgt)
+            if (csf_I%occ_int(tgt) == 0) then
+                if (mod(spin_tgt, 2) == 1) then
+                    p_tgt = p_tgt &
+                            + this%A_sampler%constrained_getProb(&
+                                    src, csf_i%stepvector(src), i_sg, &
+                                    unoccupied, renorm_tgt, 2 * tgt)
+                else
+                    p_tgt = p_tgt &
+                            + this%A_sampler%constrained_getProb(&
+                                    src, csf_i%stepvector(src), i_sg, &
+                                    unoccupied, renorm_tgt, 2 * tgt - 1)
+                end if
+            end if
+        end block select_hole
+        pgen = p_src * p_tgt
+
+        if (tgt < src) then
+            excitInfo = assign_excitinfo_values_single( &
+                        gen_type%R, tgt, src, tgt, src)
+        else
+            excitInfo = assign_excitinfo_values_single( &
+                        gen_type%L, tgt, src, src, tgt)
+        end if
+        excitInfo%valid = checkCompatibility_single(csf_i, excitInfo)
+        if (excitInfo%valid) then
+            @:ASSERT(pgen .isclose. this%calc_pgen(nI, ilut, csf_i, excitInfo))
+        else
+            pgen = 0._dp
+        end if
+
+        contains
+
+            subroutine make_invalid()
+                pgen = 0.0_dp
+                tgt = 0
+                excitInfo%valid = .false.
+            end subroutine
+    end subroutine
+
+
+    function calc_pgen_UnifXnew_t(this, nI, ilutI, csf_i, excitInfo) result(pgen)
+        class(UnifXnew_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp) :: pgen
+        routine_name("calc_pgen_UnifXnew_t")
+
+        real(dp) :: p_src, p_tgt
+        integer :: i_sg
+
+        associate(tgt => excitInfo%i, src => excitInfo%j)
+
+        @:ASSERT(1 <= src .and. src <= nSpatOrbs)
+        @:ASSERT(1 <= tgt .and. tgt <= nSpatOrbs)
+
+
+        if (src == tgt &
+               .or. csf_i%occ_int(tgt) == 2 &
+               .or. csf_i%occ_int(src) == 0) then
+            pgen = 0.0_dp
+            return
+        end if
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+        else
+            i_sg = this%indexer%idx_csf(csf_i)
+        end if
+
+        select_particle: block
+            p_src = csf_I%occ_real(src) / real(nEl, dp)
+        end block select_particle
+
+        select_hole: block
+            real(dp) :: renorm_tgt
+            integer :: unoccupied(nBasis - nEl)
+            integer(n_int) :: ilut_unoccupied(0 : nIfD)
+
+            call this%unoccupied%get(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+
+            renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, csf_i%stepvector(src), i_sg, nI))
+            if (do_direct_calculation(renorm_tgt)) then
+                renorm_tgt = sum(this%A_sampler%get_prob(src, csf_i%stepvector(src), i_sg, unoccupied))
+            end if
+
+            if (csf_i%occ_int(tgt) == 0) then
+                p_tgt = this%A_sampler%constrained_getProb(src, csf_i%stepvector(src), i_sg, unoccupied, renorm_tgt, 2 * tgt - 1) &
+                        + this%A_sampler%constrained_getProb(src, csf_i%stepvector(src), i_sg, unoccupied, renorm_tgt, 2 * tgt)
+            else if (csf_i%stepvector(tgt) == 1) then
+                p_tgt = this%A_sampler%constrained_getProb(src, csf_i%stepvector(src), i_sg, unoccupied, renorm_tgt, 2 * tgt)
+            else if (csf_i%stepvector(tgt) == 2) then
+                p_tgt = this%A_sampler%constrained_getProb(src, csf_i%stepvector(src), i_sg, unoccupied, renorm_tgt, 2 * tgt - 1)
+            else
+                call stop_all(this_routine, "should not be here.")
+            end if
+
+        end block select_hole
+        pgen = p_src * p_tgt
+        end associate
+
+    end function
+
 end module

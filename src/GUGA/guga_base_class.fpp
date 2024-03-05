@@ -272,6 +272,26 @@ contains
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         call GUGA_exc_generator%pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
+        ! associate(tgt => excitInfo%i, src => excitInfo%j)
+        ! if (.not. excitInfo%valid) then
+        !     write(*, *) ">!> S", tgt, src, csf_i%stepvector([tgt, src])
+        !     if (abs(src - tgt) == 1) then
+        !         write(*, *) 'forbidden:: small distance'
+        !     else if (csf_i%stepvector(tgt) ==  csf_i%stepvector(src)) then
+        !         write(*, *) 'forbidden:: same spin'
+        !     else
+        !         write(*, *) 'forbidden:: others'
+        !     end if
+        ! else
+        !     if (abs(src - tgt) == 1 .and. csf_i%stepvector(tgt) ==  csf_i%stepvector(src)) then
+        !         write(*, *) 'allowed:: small distance'
+        !     else if (csf_i%stepvector(tgt) ==  csf_i%stepvector(src)) then
+        !         write(*, *) 'allowed:: same spin'
+        !     else
+        !         write(*, *) 'allowed:: others'
+        !     end if
+        ! end if
+        ! end associate
     end subroutine
 
     subroutine class_pick_doubles(nI, ilut, csf_i, excitInfo, pgen)
@@ -281,6 +301,11 @@ contains
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         call GUGA_exc_generator%pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
+        ! if (.not. excitInfo%valid) then
+        !     write(*, *) ">!> D", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
+        !     ! write(*, *) csf_i%stepvector([excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l])
+        !     write(*, *)
+        ! end if
     end subroutine
 
     subroutine class_calc_orb_pgen_contr(nI, ilut, csf_i, occ_orbs, cpt_a, cpt_b)

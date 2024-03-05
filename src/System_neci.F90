@@ -1816,6 +1816,12 @@ contains
                 write(stdout, *) "For GUGA please use `GUGA-PCHB-WEIGHTED-SINGLES`."
                 call stop_all(this_routine, trim(w)//" is deprecated.")
 
+            case("GUGA-PCHB-SCALE-DOWN-EXCH-SINGLES")
+                block
+                    use guga_gas_pchb_singles_main, only: scale_down_exch_singles
+                    scale_down_exch_singles = to_realdp(tokens%next())
+                end block
+
             ! enable intermediately some pchb+guga testing
             case("ANALYZE-PCHB")
                 t_analyze_pchb = .true.
