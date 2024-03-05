@@ -12,7 +12,7 @@ module guga_gas_pchb_singles_main
     use excitation_types, only: Excite_1_t
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD, GugaBits
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, UnoccupiedGetter_t
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t, do_direct_calculation
     use UMatCache, only: gtID, get_umat_el
 
@@ -120,18 +120,12 @@ module guga_gas_pchb_singles_main
             !!
         procedure(get_weight_t), pointer, nopass :: get_weight => null()
 
-        integer(n_int), private :: last_possible_occupied
-            !! The last element of the ilut array has some elements
-            !! which are not used, if the number of spinorbitals is not a multiple of
-            !! bitsize_n_int.
-            !! To correctly zero them this bitmask is 1 wherever a determinant
-            !! could be occupied in the last element, and 0 otherwise.
+        type(UnoccupiedGetter_t) :: unoccupied
+
     contains
         private
         procedure, public :: init => init_GAS_Weighted_t
         procedure, public :: finalize => finalize_GAS_Weighted_t
-
-        procedure :: get_unoccupied
     end type
 
     type, extends(GAS_Weighted_t) :: SinglesGAS_FullFull_t
@@ -424,14 +418,8 @@ contains
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
 
+        this%unoccupied = UnoccupiedGetter_t(nBasis)
 
-        this%last_possible_occupied = 0_n_int
-        block
-            integer :: i
-            do i = 0, ilut_off(nBasis)
-                this%last_possible_occupied = ibset(this%last_possible_occupied, i)
-            end do
-        end block
 
         call set_get_weight_pointer(weighting, this%get_weight)
 
@@ -510,7 +498,7 @@ contains
             real(dp) :: renorm_tgt
             integer :: spin_tgt, dummy, unoccupied(nBasis - nEl)
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
-            call this%get_unoccupied(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
+            call this%unoccupied%get(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
             if (do_direct_calculation(renorm_tgt)) then
                 renorm_tgt = sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
@@ -594,7 +582,7 @@ contains
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
             spin_tgt = 2 * excitInfo%i - ((csf_I%stepvector(excitInfo%i) + 1) .div. 3)
 
-            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+            call this%unoccupied%get(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(excitInfo%j, i_sg, nI))
             if (do_direct_calculation(renorm_tgt)) then
                 renorm_tgt = sum(this%A_sampler%get_prob(excitInfo%j, i_sg, unoccupied))
@@ -634,7 +622,7 @@ contains
             real(dp) :: renorm_tgt
             integer :: spin_tgt, dummy, unoccupied(nBasis - nEl)
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
-            call this%get_unoccupied(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
+            call this%unoccupied%get(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
             if (do_direct_calculation(renorm_tgt)) then
                 renorm_tgt = sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
@@ -713,7 +701,7 @@ contains
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
             spin_tgt = 2 * excitInfo%i - ((csf_I%stepvector(excitInfo%i) + 1) .div. 3)
 
-            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+            call this%unoccupied%get(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(excitInfo%j, i_sg, nI))
             if (do_direct_calculation(renorm_tgt)) then
                 renorm_tgt = sum(this%A_sampler%get_prob(excitInfo%j, i_sg, unoccupied))
@@ -726,17 +714,4 @@ contains
         pgen = p_src * p_tgt
 
     end function
-
-
-    pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
-        !! Return a bitmask and enumeration of the unoccupied spin orbitals.
-        class(GAS_Weighted_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilutI(0 : nIfD)
-        integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
-        integer, intent(out) :: unoccupied(nBasis - nEl)
-        ilut_unoccupied = not(ilutI)
-        ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
-        call decode_bit_det(unoccupied, ilut_unoccupied)
-    end subroutine
-
 end module
