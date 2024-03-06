@@ -3,7 +3,6 @@ module aliasSampling
     !! This module contains the utility to use alias table lookup on lists,
     !! requiring to precompute biases but making the lookup O(1)
 
-    use iso_c_binding, only: c_sizeof
     use constants, only: dp, int64, n_int, bits_n_int, stderr, MPIArg
     use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
@@ -307,8 +306,7 @@ contains
         type(ByteSize_t) :: res
 
         if (associated(this%bias%ptr)) then
-            res = ByteSize_t(size(this%bias%ptr) * int(c_sizeof(this%bias%ptr(1)), int64)) &
-                  + ByteSize_t(size(this%alias%ptr) * int(c_sizeof(this%alias%ptr(1)), int64))
+            res = this%bias%get_memory_demand() + this%alias%get_memory_demand()
         else
             res = ByteSize_t(0_int64)
         end if
@@ -423,8 +421,7 @@ contains
         class(AliasSampler_t), intent(in) :: this
         type(ByteSize_t) :: res
         if (associated(this%probs%ptr)) then
-            res = this%table%get_memory_demand() &
-                  + ByteSize_t(size(this%probs%ptr) * int(c_sizeof(this%probs%ptr(1)), int64))
+            res = this%table%get_memory_demand() + this%probs%get_memory_demand()
         else
             res = ByteSize_t(0_int64)
         end if
@@ -889,9 +886,9 @@ contains
         type(ByteSize_t) :: res
 
         if (associated(this%allProbs%ptr)) then
-            res = ByteSize_t(size(this%allProbs%ptr) * int(c_sizeof(this%allProbs%ptr(1)), int64)) &
-                  + ByteSize_t(size(this%allBiasTable%ptr) * int(c_sizeof(this%allBiasTable%ptr(1)), int64)) &
-                  + ByteSize_t(size(this%allAliasTable%ptr) * int(c_sizeof(this%allAliasTable%ptr(1)), int64))
+            res = this%allProbs%get_memory_demand() &
+                    + this%allBiasTable%get_memory_demand() &
+                    + this%allAliasTable%get_memory_demand()
         else
             res = ByteSize_t(0_int64)
         end if

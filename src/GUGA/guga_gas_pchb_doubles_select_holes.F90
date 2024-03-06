@@ -1,6 +1,7 @@
 #include "macros.h"
 module guga_gas_pchb_doubles_select_holes
 
+    use iso_c_binding, only: c_sizeof
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
     use constants, only: n_int, dp, int64, stdout, int_rdm, bits_n_int
     use bit_rep_data, only: GugaBits, nIfD
@@ -11,7 +12,7 @@ module guga_gas_pchb_doubles_select_holes
         ijkl_Index_t, fused_to_DistinctDouble
     use guga_bitrepops, only: CSF_Info_t
     use util_mod, only: near_zero, stop_all, operator(.isclose.), EnumBase_t, &
-        swap
+        swap, ByteSize_t
     use sets_mod, only: operator(.in.)
     use indexing_mod, only: fuse_symm_idx
     use CalcData, only: t_truncate_spawns
@@ -99,6 +100,7 @@ module guga_gas_pchb_doubles_select_holes
 
         procedure(calculate_pchb_sampler_t), deferred :: setup_pchb_sampler_conditional
         procedure(additional_finalize_t), deferred :: finalize_pchb_sampler
+        procedure(GetMemoryDemand_t), public, deferred :: get_memory_demand
     end type
 
     abstract interface
@@ -126,6 +128,12 @@ module guga_gas_pchb_doubles_select_holes
             integer, intent(in) :: ij, i_sg, a, b
             real(dp) :: pgen
         end function
+
+        type(ByteSize_t) elemental function GetMemoryDemand_t(this)
+            import :: GAS_PCHB_Doubles_t, ByteSize_t
+            implicit none
+            class(GAS_PCHB_Doubles_t), intent(in) :: this
+        end function
     end interface
 
     type, extends(GAS_PCHB_Doubles_t) :: GAS_PCHB_FastFast_t
@@ -139,6 +147,7 @@ module guga_gas_pchb_doubles_select_holes
         procedure :: calc_hole_pgen => calc_hole_pgen_FastFast
         procedure :: setup_pchb_sampler_conditional => setup_pchb_sampler_conditional_FastFast
         procedure :: finalize_pchb_sampler => finalize_pchb_sampler_FastFast
+        procedure, public :: get_memory_demand => get_memory_demand_FastFast
     end type
 
     type, extends(GAS_PCHB_Doubles_t) :: GAS_PCHB_FullFull_t
@@ -162,6 +171,7 @@ module guga_gas_pchb_doubles_select_holes
         procedure :: setup_pchb_sampler_conditional => setup_pchb_sampler_conditional_FullFull
         procedure :: finalize_pchb_sampler => finalize_pchb_sampler_FullFull
         procedure :: get_unoccupied
+        procedure, public :: get_memory_demand => get_memory_demand_FullFull
     end type
 
 contains
@@ -236,6 +246,7 @@ contains
 
         call this%setup_pchb_sampler_conditional(root, ij_weights)
         call particle_allocate_and_init(particle_selection, this%GAS_spec, ij_weights, root, use_lookup, this%particle_selector)
+
         write(stdout, *) "Finished excitation generator initialization"
     end subroutine
 
@@ -431,6 +442,14 @@ contains
         call this%alias_sampler%shared_alloc([int(ijMax), size(supergroups, 2)], int(abMax), 'PCHB')
         call this%new_info_table(int(ijMax, int64), int(abMax, int64))
 
+        block
+            type(ByteSize_t) :: memory_demand
+            memory_demand = this%get_memory_demand()
+            write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+            write(stdout, *) "The excitation generator requires roughly: ", &
+                memory_demand%to_human_str(binary=.true.), ' or ', memory_demand%to_human_str()
+        end block
+
 
         if (iProcIndex_intra == rank_with_info) then
             allocate(w(abMax), source=0._dp)
@@ -479,6 +498,14 @@ contains
             end do
         end do
     end subroutine setup_pchb_sampler_conditional_FastFast
+
+    elemental function get_memory_demand_FastFast(this) result(res)
+        class(GAS_PCHB_FastFast_t), intent(in) :: this
+        type(ByteSize_t) :: res
+        res = this%alias_sampler%get_memory_demand() &
+              + ByteSize_t(size(this%tgtOrbs) * int(c_sizeof(this%tgtOrbs(1, 1)), int64)) &
+              + this%all_info_table%get_memory_demand()
+    end function
 
     subroutine finalize_pchb_sampler_FastFast(this)
         class(GAS_PCHB_FastFast_t), intent(inout) :: this
@@ -600,6 +627,14 @@ contains
         call this%b_sampler%shared_alloc([nBasis, int(ijMax), size(supergroups, 2)], nBasis, 'PCHB')
         call this%new_info_table(int(ijMax, int64), int(abMax, int64))
 
+        block
+            type(ByteSize_t) :: memory_demand
+            memory_demand = this%get_memory_demand()
+            write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+            write(stdout, *) "The excitation generator requires roughly: ", &
+                memory_demand%to_human_str(binary=.true.), ' or ', memory_demand%to_human_str()
+        end block
+
         if (iProcIndex_intra == rank_with_info) then
             allocate(w_A(nBasis), w_B(nBasis), w_B_spat(nSpatOrbs), source=0._dp)
             allocate(ij_weights(nSpatOrbs, nSpatOrbs, size(supergroups, 2)), source=0._dp)
@@ -664,6 +699,14 @@ contains
             end do
         end do
     end subroutine setup_pchb_sampler_conditional_FullFull
+
+    elemental function get_memory_demand_FullFull(this) result(res)
+        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        type(ByteSize_t) :: res
+        res = this%A_sampler%get_memory_demand() &
+                + this%B_sampler%get_memory_demand() &
+                + this%all_info_table%get_memory_demand()
+    end function
 
     subroutine finalize_pchb_sampler_FullFull(this)
         class(GAS_PCHB_FullFull_t), intent(inout) :: this
