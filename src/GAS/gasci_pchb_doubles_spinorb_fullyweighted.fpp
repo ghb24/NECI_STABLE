@@ -6,7 +6,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     !! precomputed heat bath implementation for GASCI using spin orbitals and full weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: getSpinIndex, near_zero, swap, &
-        operator(.implies.), operator(.isclose.), isclose, stop_all
+        operator(.implies.), operator(.isclose.), isclose, stop_all, ByteSize_t
     use indexing_mod, only: fuse_symm_idx
     use get_excit, only: make_double, exciteIlut
     use bit_reps, only: decode_bit_det
@@ -68,6 +68,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
         procedure, public :: gen_exc => GAS_doubles_PCHB_gen_exc
         procedure, public :: get_pgen => GAS_doubles_PCHB_get_pgen
         procedure, public :: gen_all_excits => GAS_doubles_PCHB_gen_all_excits
+        procedure, public :: get_memory_demand
 
         procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
         procedure :: get_unoccupied
@@ -118,6 +119,17 @@ contains
 
         write(stdout, *) "Finished excitation generator initialization"
     end subroutine GAS_doubles_PCHB_init
+
+    elemental function get_memory_demand(this) result(res)
+        !! Get the memory demand
+        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(in) :: this
+        type(ByteSize_t) :: res
+        ! Strictly speaking this is not the whole memory demand.
+        ! e.g. the gas specification is missing
+        res = this%A_sampler%get_memory_demand() &
+              + this%B_sampler%get_memory_demand() &
+              + this%particle_selector%get_memory_demand()
+    end function
 
 
     subroutine GAS_doubles_PCHB_finalize(this)
@@ -319,7 +331,6 @@ contains
         class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: I, J, IJ, IJ_max, A, B ! Uppercase because they are indexing spin orbitals
-        integer(int64) :: memCost
         real(dp), allocatable :: w_A(:), w_B(:), IJ_weights(:, :, :)
         integer, allocatable :: supergroups(:, :)
         integer :: i_sg
@@ -329,14 +340,6 @@ contains
         ! number of possible source orbital pairs
         IJ_max = fuse_symm_idx(nBasis, nBasis)
 
-        !> n_supergroup * number_of_fused_indices * 3 * (bytes_per_sampler)
-        memCost = size(supergroups, 2, kind=int64) &
-                    * (int(IJ_max, int64) * (int(nBasis, int64) * 3_int64 * 8_int64) & ! p(A | IJ)
-                        + int(IJ_max, int64) * (int(nBasis, int64)**2 * 3_int64 * 8_int64) & ! P (B | IJ A)
-                    )
-
-        write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
         write(stdout, *) "Generating samplers for PCHB excitation generator"
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
         call this%A_sampler%shared_alloc([IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
@@ -387,6 +390,14 @@ contains
 
         call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
             IJ_weights, root, this%use_lookup, this%particle_selector)
+
+        block
+            type(ByteSize_t) :: memory_demand
+            memory_demand = this%get_memory_demand()
+            write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+            write(stdout, *) "The excitation generator requires roughly: ", &
+                memory_demand%to_human_str(binary=.true.), ' or ', memory_demand%to_human_str()
+        end block
 
     end subroutine GAS_doubles_PCHB_compute_samplers
 

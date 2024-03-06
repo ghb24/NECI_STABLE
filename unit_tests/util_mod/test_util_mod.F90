@@ -116,6 +116,8 @@ contains
 
     subroutine test_byte_sizes()
 
+        use iso_c_binding, only: c_sizeof
+
         call assert_true(2 * defined_sizes%GB == 2_int64 * defined_sizes%GB)
 
         call assert_true(2 * defined_sizes%GiB >= 2_int64 * defined_sizes%GB)
@@ -125,6 +127,21 @@ contains
         call assert_true(2.1_dp * defined_sizes%GiB == defined_sizes%GiB + 1.1_dp * defined_sizes%GiB)
 
         call assert_true(defined_sizes%GiB == (2**30_int64 * defined_sizes%GB) / 1e9_dp)
+
+        block
+            integer(int64), allocatable, target :: x(:)
+            integer(int64), pointer :: y(:)
+
+            allocate(x(10))
+            call assert_true(ByteSize_t(size(x) * int(c_sizeof(x(1)), int64)) == ByteSize_t(size(x) * 8_int64))
+
+            y => x(1:5)
+            call assert_true(ByteSize_t(size(y) * int(c_sizeof(y(1)), int64)) == ByteSize_t(size(y) * 8_int64))
+
+        end block
+
+
+
 
     end subroutine
 

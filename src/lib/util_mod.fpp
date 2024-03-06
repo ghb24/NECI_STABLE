@@ -176,7 +176,7 @@ module util_mod
     end type
 
     type :: ByteSize_t
-        private
+        !! A class to represent information storage demand
         integer(int64) :: bytes
     contains
         private
@@ -226,7 +226,6 @@ module util_mod
     end type
 
     type(defined_ByteSize_t), parameter :: defined_sizes = defined_ByteSize_t()
-
 
 contains
 
@@ -1499,23 +1498,23 @@ contains
 
         if (binary_) then
             if (this < defined_sizes%MiB) then
-                res = str(this%bytes * (1._dp / defined_sizes%kiB%bytes), after_comma_)//' kiB'
+                res = str(this%bytes * (1._dp / defined_sizes%kiB%bytes), after_comma_, .false.)//' kiB'
             else if (this < defined_sizes%GiB) then
-                res = str(this%bytes * (1._dp / defined_sizes%MiB%bytes), after_comma_)//' MiB'
+                res = str(this%bytes * (1._dp / defined_sizes%MiB%bytes), after_comma_, .false.)//' MiB'
             else if (this < defined_sizes%TiB) then
-                res = str(this%bytes * (1._dp / defined_sizes%GiB%bytes), after_comma_)//' GiB'
+                res = str(this%bytes * (1._dp / defined_sizes%GiB%bytes), after_comma_, .false.)//' GiB'
             else
-                res = str(this%bytes * (1._dp / defined_sizes%TiB%bytes), after_comma_)//' TiB'
+                res = str(this%bytes * (1._dp / defined_sizes%TiB%bytes), after_comma_, .false.)//' TiB'
             end if
         else
             if (this < defined_sizes%MB) then
-                res = str(this%bytes * (1._dp / defined_sizes%kB%bytes), after_comma_)//' kB'
+                res = str(this%bytes * (1._dp / defined_sizes%kB%bytes), after_comma_, .false.)//' kB'
             else if (this < defined_sizes%GB) then
-                res = str(this%bytes * (1._dp / defined_sizes%MB%bytes), after_comma_)//' MB'
+                res = str(this%bytes * (1._dp / defined_sizes%MB%bytes), after_comma_, .false.)//' MB'
             else if (this < defined_sizes%TB) then
-                res = str(this%bytes * (1._dp / defined_sizes%GB%bytes), after_comma_)//' GB'
+                res = str(this%bytes * (1._dp / defined_sizes%GB%bytes), after_comma_, .false.)//' GB'
             else
-                res = str(this%bytes * (1._dp / defined_sizes%TB%bytes), after_comma_)//' TB'
+                res = str(this%bytes * (1._dp / defined_sizes%TB%bytes), after_comma_, .false.)//' TB'
             end if
         end if
     end function
