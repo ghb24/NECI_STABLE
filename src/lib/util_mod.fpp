@@ -17,6 +17,7 @@ module util_mod
     use constants, only: sp, dp, int32, int64, n_int, inum_runs, lenof_sign, &
         sizeof_int, stdout
     use binomial_lookup, only: factrl => factorial, binomial_lookup_table_i64
+    use fortran_strings, only: str
 #ifdef GFORTRAN_
     use constants, only: int128
     use binomial_lookup, only: binomial_lookup_table_i128
@@ -43,7 +44,8 @@ module util_mod
 
     public :: factrl, choose_i64, NECI_icopy, operator(.implies.), &
         abs_l1, abs_sign, near_zero, operator(.isclose.), isclose, operator(.div.), &
-        stochastic_round, stochastic_round_r
+        stochastic_round, stochastic_round_r, ByteSize_t, defined_ByteSize_t, defined_sizes, &
+        operator(*), operator(/)
 #ifdef GFORTRAN_
     public :: choose_i128
 #endif
@@ -62,7 +64,6 @@ module util_mod
     public :: warning_neci
 
     public :: EnumBase_t
-
 
     interface binary_search_int
     #:for kind in field_types['integer']
@@ -173,6 +174,58 @@ module util_mod
         generic, public :: operator(==) => eq_EnumBase_t
         generic, public :: operator(/=) => neq_EnumBase_t
     end type
+
+    type :: ByteSize_t
+        private
+        integer(int64) :: bytes
+    contains
+        private
+        procedure, public :: to_human_str => to_human_str_ByteSize_t
+
+        procedure :: add_ByteSize_t
+        procedure :: sub_ByteSize_t
+        procedure :: eq_ByteSize_t
+        procedure :: neq_ByteSize_t
+        procedure :: less_ByteSize_t
+        procedure :: more_ByteSize_t
+        procedure :: leq_ByteSize_t
+        procedure :: geq_ByteSize_t
+        generic, public :: operator(+) => add_ByteSize_t
+        generic, public :: operator(-) => sub_ByteSize_t
+        generic, public :: operator(==) => eq_ByteSize_t
+        generic, public :: operator(/=) => neq_ByteSize_t
+        generic, public :: operator(<) => less_ByteSize_t
+        generic, public :: operator(>) => more_ByteSize_t
+        generic, public :: operator(<=) => leq_ByteSize_t
+        generic, public :: operator(>=) => geq_ByteSize_t
+    end type
+
+    interface operator(*)
+        module procedure &
+            mult_i32_ByteSize_t, mult_ByteSize_t_i32, &
+            mult_i64_ByteSize_t, mult_ByteSize_t_i64, &
+            mult_r_ByteSize_t, mult_ByteSize_t_r
+    end interface
+
+    interface operator(/)
+        module procedure div_ByteSize_t_r
+    end interface
+
+    type :: defined_ByteSize_t
+        type(ByteSize_t) :: &
+            kB = ByteSize_t(10**3_int64), &
+            MB = ByteSize_t(10**6_int64), &
+            GB = ByteSize_t(10**9_int64), &
+            TB = ByteSize_t(10**12_int64)
+
+        type(ByteSize_t) :: &
+            kiB = ByteSize_t(2**10_int64), &
+            MiB = ByteSize_t(2**20_int64), &
+            GiB = ByteSize_t(2**30_int64), &
+            TiB = ByteSize_t(2**40_int64)
+    end type
+
+    type(defined_ByteSize_t), parameter :: defined_sizes = defined_ByteSize_t()
 
 
 contains
@@ -1329,6 +1382,144 @@ contains
         open (newunit=file_id, file=path, status='old')
         close (file_id, status='delete')
     end subroutine
+
+    elemental function add_ByteSize_t(this, other) result(res)
+        class(ByteSize_t), intent(in) :: this, other
+        type(ByteSize_t) :: res
+        res = ByteSize_t(this%bytes + other%bytes)
+    end function
+
+    elemental function sub_ByteSize_t(this, other) result(res)
+        class(ByteSize_t), intent(in) :: this, other
+        type(ByteSize_t) :: res
+        res = ByteSize_t(this%bytes - other%bytes)
+    end function
+
+    elemental function eq_ByteSize_t(this, other) result(res)
+        class(ByteSize_t), intent(in) :: this, other
+        logical :: res
+        res = this%bytes == other%bytes
+    end function
+
+    elemental function neq_ByteSize_t(this, other) result(res)
+        class(ByteSize_t), intent(in) :: this, other
+        logical :: res
+        res = .not. (this == other)
+    end function
+
+    elemental function less_ByteSize_t(this, other) result(res)
+        class(ByteSize_t), intent(in) :: this, other
+        logical :: res
+        res = this%bytes < other%bytes
+    end function
+
+    elemental function more_ByteSize_t(this, other) result(res)
+        class(ByteSize_t), intent(in) :: this, other
+        logical :: res
+        res = this%bytes < other%bytes
+    end function
+
+    elemental function leq_ByteSize_t(this, other) result(res)
+        class(ByteSize_t), intent(in) :: this, other
+        logical :: res
+        res = this%bytes <= other%bytes
+    end function
+
+    elemental function geq_ByteSize_t(this, other) result(res)
+        class(ByteSize_t), intent(in) :: this, other
+        logical :: res
+        res = this%bytes >= other%bytes
+    end function
+
+    elemental function mult_ByteSize_t_i32(x, y) result(res)
+        type(ByteSize_t), intent(in) :: x
+        integer(int32), intent(in) :: y
+        type(ByteSize_t) :: res
+        res = ByteSize_t(x%bytes * y)
+    end function
+
+    elemental function mult_i32_ByteSize_t(y, x) result(res)
+        integer(int32), intent(in) :: y
+        type(ByteSize_t), intent(in) :: x
+        type(ByteSize_t) :: res
+        res = ByteSize_t(x%bytes * y)
+    end function
+
+    elemental function mult_ByteSize_t_i64(x, y) result(res)
+        type(ByteSize_t), intent(in) :: x
+        integer(int64), intent(in) :: y
+        type(ByteSize_t) :: res
+        res = ByteSize_t(x%bytes * y)
+    end function
+
+    elemental function mult_i64_ByteSize_t(y, x) result(res)
+        integer(int64), intent(in) :: y
+        type(ByteSize_t), intent(in) :: x
+        type(ByteSize_t) :: res
+        res = ByteSize_t(x%bytes * y)
+    end function
+
+    elemental function mult_ByteSize_t_r(x, y) result(res)
+        type(ByteSize_t), intent(in) :: x
+        real(dp), intent(in) :: y
+        type(ByteSize_t) :: res
+        res = ByteSize_t(int(x%bytes * y, int64))
+    end function
+
+    elemental function mult_r_ByteSize_t(y, x) result(res)
+        real(dp), intent(in) :: y
+        type(ByteSize_t), intent(in) :: x
+        type(ByteSize_t) :: res
+        res = ByteSize_t(int(x%bytes * y, int64))
+    end function
+
+    elemental function div_ByteSize_t_r(x, y) result(res)
+        type(ByteSize_t), intent(in) :: x
+        real(dp), intent(in) :: y
+        type(ByteSize_t) :: res
+        res = ByteSize_t(int(x%bytes / y, int64))
+    end function
+
+    pure function to_human_str_ByteSize_t(this, binary, after_comma) result(res)
+        class(ByteSize_t), intent(in) :: this
+        logical, intent(in), optional :: binary
+            !! Use binary prefixes, i.e. GiB = 2**30
+            !! instead of decimal, i.e. GB = 10**9
+            !! By default false
+        integer, intent(in), optional :: after_comma
+            !! digits after the comma
+            !! By default 2
+        character(:), allocatable :: res
+
+        logical :: binary_
+        integer :: after_comma_
+
+        def_default(after_comma_, after_comma, 2)
+        def_default(binary_, binary, .false.)
+
+        if (binary_) then
+            if (this < defined_sizes%MiB) then
+                res = str(this%bytes * (1._dp / defined_sizes%kiB%bytes), after_comma_)//' kiB'
+            else if (this < defined_sizes%GiB) then
+                res = str(this%bytes * (1._dp / defined_sizes%MiB%bytes), after_comma_)//' MiB'
+            else if (this < defined_sizes%TiB) then
+                res = str(this%bytes * (1._dp / defined_sizes%GiB%bytes), after_comma_)//' GiB'
+            else
+                res = str(this%bytes * (1._dp / defined_sizes%TiB%bytes), after_comma_)//' TiB'
+            end if
+        else
+            if (this < defined_sizes%MB) then
+                res = str(this%bytes * (1._dp / defined_sizes%kB%bytes), after_comma_)//' kB'
+            else if (this < defined_sizes%GB) then
+                res = str(this%bytes * (1._dp / defined_sizes%MB%bytes), after_comma_)//' MB'
+            else if (this < defined_sizes%TB) then
+                res = str(this%bytes * (1._dp / defined_sizes%GB%bytes), after_comma_)//' GB'
+            else
+                res = str(this%bytes * (1._dp / defined_sizes%TB%bytes), after_comma_)//' TB'
+            end if
+        end if
+    end function
+
 end module
 
 !Hacks for compiler specific system calls.

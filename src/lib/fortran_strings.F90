@@ -68,7 +68,7 @@ contains
         str = trim(tmp)
     end function
 
-    pure function realdp_to_str(x, after_comma) result(res)
+   pure function realdp_to_str(x, after_comma) result(res)
         real(dp), intent(in) :: x
         integer, intent(in) :: after_comma
         character(100) :: tmp
