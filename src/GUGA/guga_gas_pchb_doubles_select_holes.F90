@@ -5,7 +5,7 @@ module guga_gas_pchb_doubles_select_holes
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
     use constants, only: n_int, dp, int64, stdout, int_rdm, bits_n_int
     use bit_rep_data, only: GugaBits, nIfD
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, UnoccupiedGetter_t
     use SystemData, only: nel, nSpatOrbs, nBasis
     use guga_data, only: ExcitationInformation_t, &
         distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t, &
@@ -158,19 +158,13 @@ module guga_gas_pchb_doubles_select_holes
         !> The shape is (orbitals, fused_number_of_double_excitations, n_supergroup) -> orbitals
         type(AliasSampler_3D_t) :: B_sampler
 
-        integer(n_int), private :: last_possible_occupied
-            !! The last element of the ilut array has some elements
-            !! which are not used, if the number of spinorbitals is not a multiple of
-            !! bitsize_n_int.
-            !! To correctly zero them this bitmask is 1 wherever a determinant
-            !! could be occupied in the last element, and 0 otherwise.
+        type(UnoccupiedGetter_t) :: unoccupied
     contains
         private
         procedure, public :: pickOrbitals => pickOrbitals_FullFull
         procedure :: calc_hole_pgen => calc_hole_pgen_FullFull
         procedure :: setup_pchb_sampler_conditional => setup_pchb_sampler_conditional_FullFull
         procedure :: finalize_pchb_sampler => finalize_pchb_sampler_FullFull
-        procedure :: get_unoccupied
         procedure, public :: get_memory_demand => get_memory_demand_FullFull
     end type
 
@@ -615,13 +609,7 @@ contains
         abMax = fuse_symm_idx(nSpatOrbs, nSpatOrbs)
         ijMax = abMax
 
-        this%last_possible_occupied = 0_n_int
-        block
-            integer :: i
-            do i = 0, ilut_off(nBasis)
-                this%last_possible_occupied = ibset(this%last_possible_occupied, i)
-            end do
-        end block
+        this%unoccupied = UnoccupiedGetter_t(nBasis)
 
         call this%a_sampler%shared_alloc([int(ijMax), size(supergroups, 2)], nBasis, 'PCHB')
         call this%b_sampler%shared_alloc([nBasis, int(ijMax), size(supergroups, 2)], nBasis, 'PCHB')
@@ -750,7 +738,7 @@ contains
 
         picking: block
             integer :: dummy
-            call this%get_unoccupied(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
+            call this%unoccupied%get(ilut(0 : nIfD), ilut_unoccupied, unoccupied)
             renorm_first = 1._dp - sum(this%A_sampler%get_prob(ij, i_sg, nI))
             if (do_direct_calculation(renorm_first)) then
                 renorm_first = sum(this%A_sampler%get_prob(ij, i_sg, unoccupied))
@@ -834,7 +822,7 @@ contains
 
         unused_var(nI)
         ASSERT(all(csf_i%occ_int([a, b]) < 2))
-        call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+        call this%unoccupied%get(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
         if (a == b) then
             if (csf_i%occ_int(a) /= 0) then
                 pgen = 0._dp
@@ -967,17 +955,6 @@ contains
             res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
         end if
     end function
-
-    pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
-        !! Return a bitmask and enumeration of the unoccupied spin orbitals.
-        class(GAS_PCHB_FullFull_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilutI(0 : nIfD)
-        integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
-        integer, intent(out) :: unoccupied(nBasis - nEl)
-        ilut_unoccupied = not(ilutI)
-        ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
-        call decode_bit_det(unoccupied, ilut_unoccupied)
-    end subroutine
 
     pure function HoleAlgorithm_to_str(this) result(res)
         class(PCHB_HoleAlgorithm_t), intent(in) :: this
