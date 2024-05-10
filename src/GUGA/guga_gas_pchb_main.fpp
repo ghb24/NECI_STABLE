@@ -14,16 +14,16 @@
 ! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx) to draw a, b holes
 ! when i, j electrons were chosen for three distinc spin cases given by s_idx.
 ! This gives #{i, j | i < j} * 3 probability distributions.
-! NOTE: This is only relevant for RHF-type calculations (see gasci_pchb_rhf.fpp)
+! NOTE: This is only relevant for RHF-type calculations
 !
-! The generalization to GAS spaces is available in a preprint (should be available in JCTC soon as well)
-!    https://chemrxiv.org/engage/chemrxiv/article-details/61447e60b1d4a605d589af2e
+! The generalization to GAS spaces is published in
+!    https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00936
 ! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx, i_sg) to draw a, b holes
 ! when i, j electrons were chosen for three distinc spin cases given by s_idx and a supergroup index i_sg
 ! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
 ! Depending on the supergroup and GAS constraints certain excitations can be forbidden by setting p to zero.
 !
-! The details of calculating i_sg can be found in gasci_supergroup_index.f90
+! The details of calculating i_sg can be found in GAS/gasci_supergroup_index.fpp
 
 module guga_gas_pchb_main
     !! Precomputed Heat Bath Implementation for GASCI. This modules implements

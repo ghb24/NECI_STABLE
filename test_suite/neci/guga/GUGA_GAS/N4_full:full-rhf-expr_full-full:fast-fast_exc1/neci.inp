@@ -5,7 +5,6 @@ System read
     nobrillouintheorem
     FCIDUMP-name ../N4_tetra.FciDmp
     freeformat
-    # nonuniformrandexcits mol_guga_weighted
     nonuniformrandexcits guga-gas-pchb \
         drawing full:full full-full:fast-fast \
         weighting RHF-expression initial-dobrautz
@@ -59,6 +58,5 @@ endcalc
 
 logging
     highlypopwrite 50
-    hdf5-pops
 endlog
 end

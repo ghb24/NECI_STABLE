@@ -154,7 +154,7 @@ contains
         !!    3     7
         !!    4     8
         !!
-        !! Otherwise it is `C`-order, i.e. row mayor (but still one-indexed).
+        !! Otherwise it is `C`-order, i.e. row major (but still one-indexed).
         !!
         !! @note
         !!  Note that this function does preserve lexicographical ordering, if `fortran == .false.`.
@@ -164,10 +164,10 @@ contains
         integer(${kind}$), intent(in) :: p, q
             !! 2d-array indices
         integer(${kind}$), intent(in) :: n_dim
-            !! number of rows for Fortran (column-mayor), number of columns for
-            !!  C (row-mayor).
+            !! number of rows for Fortran (column-major), number of columns for
+            !!  C (row-major).
         logical, intent(in) :: fortran
-            !! Use column mayor order
+            !! Use column major order
         integer(${kind}$) :: pq
             !! contiguous 1d-array index
         debug_function_name("fuse_idx_${kind}$")
@@ -196,7 +196,7 @@ contains
         integer(${kind}$), intent(in) :: pq
             !! contiguous 1d-array index
         logical, intent(in) :: fortran
-            !! Use column mayor order
+            !! Use column major order
         integer(${kind}$), intent(out) :: p, q
             !! 2d-array indices
 
