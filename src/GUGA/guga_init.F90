@@ -140,6 +140,8 @@ contains
         character(*), parameter :: this_routine = "init_guga"
         ! main initialization routine
 
+        call stop_all('asdf', 'asdf')
+
         ! this routine is called in SysInit() of System_neci.F90
         write(stdout, *) ' ************ Using the GUGA-CSF implementation **********'
         write(stdout, *) ' Restricting the total spin of the system, tGUGA : ', tGUGA
