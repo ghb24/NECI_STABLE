@@ -2822,6 +2822,7 @@ contains
         integer, intent(in) :: step_vector(nSpatOrbs)
         integer, intent(out) :: b_vector(nSpatOrbs), occ_vector(nSpatOrbs)
         real(dp), intent(out) :: cum_list(nSpatOrbs)
+        debug_function_name("calc_csf_i")
 
         integer :: b, i, cum_sum
         cum_sum = 0
@@ -2841,6 +2842,10 @@ contains
                 cum_sum = cum_sum + 1
             case (3)
                 occ_vector(i) = 2
+#ifdef DEBUG_
+            case default
+                call stop_all(this_routine, "Invalid case")
+#endif
             end select
             cum_list(i) = real(cum_sum, dp)
             b_vector(i) = b
