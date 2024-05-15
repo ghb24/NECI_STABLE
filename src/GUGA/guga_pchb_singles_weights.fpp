@@ -7,8 +7,7 @@ module guga_pchb_singles_weights_mod
     use util_mod, only: EnumBase_t
     use error_handling_neci, only: stop_all
     use fortran_strings, only: to_upper
-    use procedure_pointers, only: get_umat_el
-    use OneEInts, only: GetTMatEl
+    use integrals_neci, only: h, g
 
     better_implicit_none
     private
@@ -123,24 +122,4 @@ contains
         weight = abs(h(i, a)) + two_el_term
     end function
 
-
-    HElement_t(dp) elemental function h(i, a)
-        !! Return the 1el integral \( h_{I, A) \)
-        !!
-        !! I and A are **spatial** indices.
-        !! Follows the definition of the purple book.
-        integer, intent(in) :: i, a
-        h = GetTMATEl(2 * i, 2 * a)
-    end function
-
-
-    HElement_t(dp) elemental function g(i, a, j, b)
-        integer, intent(in) :: i, a, j, b
-        !! Return the 2el integral \( g_{I, A, J, B} \)
-
-        !! i, a, j, and b are **spatial ** indices.
-        !! Order follows the definition of the purple book (chemist's notation).
-        !! \( g_{I, A, J, B} = < I J | 1 / r | A B > \)
-        g = get_umat_el(i, j, a, b)
-    end function
 end module
