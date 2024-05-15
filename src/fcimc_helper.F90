@@ -98,7 +98,8 @@ module fcimc_helper
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_bitrepops, only: write_det_guga, csf_ref, &
-                              transfer_stochastic_rdm_info, CSF_Info_t, fill_csf_i
+                              transfer_stochastic_rdm_info, CSF_Info_t, fill_csf_i, &
+                              calc_step_vector
 
     use real_time_data, only: runge_kutta_step, tVerletSweep, &
                               t_rotated_time, t_real_time_fciqmc
@@ -2584,7 +2585,7 @@ contains
 
         ! if in guga run, i also need to recreate the list of connected
         ! determinnant to the new reference det
-        if (tGUGA) call fill_csf_i(ilutRef(:, run), csf_ref(run))
+        if (tGUGA) call fill_csf_i(calc_step_vector(ilutRef(:, run)), csf_ref(run))
 
         if (tHPHF) then
             if (.not. Allocated(RefDetFlip)) then

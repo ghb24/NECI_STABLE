@@ -31,7 +31,7 @@ module guga_plugin
     use Integrals_neci, only: get_umat_el_normal
     use procedure_pointers, only: get_umat_el
     use Determinants, only: DetPreFreezeInit, DetInit, DetCleanup
-    use unit_test_helper_excitgen, only: generate_uniform_integrals
+    use unit_test_helper_fcidumps, only: generate_uniform_integrals
     use bit_reps, only: init_bit_rep
     implicit none
     private

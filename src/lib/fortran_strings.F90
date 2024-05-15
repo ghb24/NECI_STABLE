@@ -7,7 +7,7 @@ module fortran_strings
     private
     public :: str, to_lower, to_upper, operator(.in.), operator(.notin.), &
         split, Token_t, count_char, join, to_int, to_int32, to_int64, &
-        to_realsp, to_realdp, can_be_real, can_be_int, TAB, WHITESPACE
+        to_realsp, to_realdp, can_be_real, can_be_int, TAB, WHITESPACE, replace
 
 !>  @brief
 !>    Convert to Fortran string
@@ -126,6 +126,20 @@ contains
             end if
         end do
     end function to_lower
+
+    !> Replaces old with new in `in_str`
+    pure function replace(in_str, old, new) result(string)
+        character(*), intent(in) :: in_str
+        character(1), intent(in) :: old, new
+        character(len_trim(in_str)) :: string
+        integer :: i
+        string = in_str(: len(string))
+        do i = 1, len(string)
+            if (old == in_str(i:i)) then
+                string(i:i) = new
+            end if
+        end do
+    end function
 
     logical pure function contains(substring, string)
         character(*), intent(in) :: string, substring

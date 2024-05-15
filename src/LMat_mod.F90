@@ -6,7 +6,8 @@ module LMat_mod
     use HElem, only: HElement_t_SizeB
     use SystemData, only: nBasis, t12FoldSym, G1, t_mol_3_body, nel, tStoreSpinOrbs, tContact
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
-    use util_mod, only: get_free_unit, fuseIndex, operator(.div.)
+    use util_mod, only: get_free_unit, operator(.div.)
+    use indexing_mod, only: fuse_symm_idx
     use gen_coul_ueg_mod, only: get_lmat_ueg, get_lmat_ua
     use shared_memory_mpi
     use sort_mod
@@ -124,7 +125,7 @@ contains
 
         nBI = numBasisIndices(nBasis)
         ! some typical array dimensions useful in the indexing functions
-        strideInner = fuseIndex(nBI, nBI)
+        strideInner = fuse_symm_idx(nBI, nBI)
         strideOuter = strideInner**2
 
         if(allocated(lMat)) deallocate(lMat)

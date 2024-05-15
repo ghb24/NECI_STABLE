@@ -274,14 +274,19 @@ module SystemData
 
 ! also store the number of spatial orbitals here, to use it generally
     integer :: nSpatOrbs
+    integer(int64) :: nSpatOrbs_i8
+
+    integer(int64) :: ij_pairs
+        !! This is the possible number of ordered spatial
+        !! orbital pairs `i <= j`.
+        !! This **is not** the same as ElecPairs, which considers the
+        !! particle number and works in spin orbitals.
+
 
 ! put in a logical to not reorder the orbitals in the guga + hubbard case
 ! to directly compare it with the determinental implementation, even if
 ! this might decrease the efficiency of the guga implmenetation
     logical :: t_guga_noreorder = .false.
-
-! Are we restricting excitations
-    logical :: tGAS = .false.
 
 ! twisted boundary implementation for the hubbard model:
 ! use keyword twisted-bc [real, real] in System Block of input
@@ -379,9 +384,6 @@ module SystemData
     logical :: t_pcpp_excitgen = .false.
 ! flags for the pre-computed heat-bath excitation generator
     logical :: t_fci_pchb_excitgen = .false.
-    logical :: t_guga_pchb_weighted_singles = .false.
-
-    logical :: t_guga_pchb = .false.
 
     ! flag for the impurity excitation generator
     logical :: t_impurity_excitgen = .false.
@@ -417,7 +419,6 @@ module SystemData
     logical :: tAnderson = .false.
 
 ! test-flags for guga-pchb testing
-    logical :: t_old_pchb = .false.
     logical :: t_exchange_pchb = .false.
     logical :: t_analyze_pchb = .false.
 

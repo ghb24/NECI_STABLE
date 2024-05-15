@@ -17,7 +17,7 @@ MODULE HPHFRandExcitMod
                           t_k_space_hubbard, t_uniform_excits, &
                           t_trans_corr_hop, t_spin_dependent_transcorr, &
                           t_fci_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA, &
-                          t_pcpp_excitgen, max_ex_level, t_guga_pchb
+                          t_pcpp_excitgen, max_ex_level, tGUGA
 
     use IntegralsData, only: UMat, fck, nMax
 
@@ -726,7 +726,7 @@ contains
                 else
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
-            else if (t_guga_pchb) then
+            else if (tGUGA) then
                 call stop_all(this_routine, 'GUGA and HPHF does not make sense.')
             else if(t_pcpp_excitgen) then
                 pgen = calc_pgen_pcpp(ilutI, ex, ic)

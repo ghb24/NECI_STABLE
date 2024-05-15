@@ -48,7 +48,7 @@ module util_mod
     public :: choose_i128
 #endif
 
-    public :: error_function, error_function_c, stop_all
+    public :: error_function, error_function_c, stop_all, delete_file
     public :: arr_2d_ptr, ptr_abuse_1d, ptr_abuse_2d, ptr_abuse_scalar
     public :: neci_etime, get_free_unit, int_fmt,&
         strlen_wrap, record_length, open_new_file, &
@@ -57,7 +57,7 @@ module util_mod
     public :: arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.), &
         find_next_comb, binary_search_ilut, binary_search_custom, binary_search_first_ge, &
         cumsum, pairswap, swap, lex_leq, lex_geq, &
-        get_permutations, custom_findloc, addToIntArray, fuseIndex, linearIndex, &
+        get_permutations, custom_findloc, addToIntArray, &
         getSpinIndex, binary_search_int, binary_search_real, clamp
     public :: warning_neci
 
@@ -139,11 +139,6 @@ module util_mod
         module procedure abs_l1_cdp
         module procedure abs_l1_csp
     end interface abs_l1
-
-    interface fuseIndex
-        module procedure fuseIndex_int32
-        module procedure fuseIndex_int64
-    end interface fuseIndex
 
     interface swap
         module procedure swap_int64
@@ -411,39 +406,6 @@ contains
     #:endfor
     #:endfor
 
-!--- Indexing utilities
-
-    pure function fuseIndex_int32(q, p) result(ind)
-        ! fuse p,q into one symmetric index
-        ! the resulting index is not contigious in p or q
-        ! Input: p,q - 2d-array indices
-        ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
-        integer(int32), intent(in) :: p, q
-        integer(int32) :: ind
-
-        ! qp and pq are considered to be the same index
-        ! -> permutational symmetry
-        ! implemented in terms of fuseIndex_int64
-        ind = int(fuseIndex_int64(int(q, int64), int(p, int64)))
-    end function fuseIndex_int32
-
-!------------------------------------------------------------------------------------------!
-
-    pure function fuseIndex_int64(x, y) result(xy)
-        ! create a composite index out of two indices, assuming they are unordered
-        ! i.e. their ordering does not matter
-        ! Input: p,q - 2d-array indices
-        ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
-        integer(int64), intent(in) :: x, y
-        integer(int64) :: xy
-
-        if(x < y) then
-            xy = x + y * (y - 1) / 2
-        else
-            xy = y + x * (x - 1) / 2
-        endif
-    end function fuseIndex_int64
-
 !------------------------------------------------------------------------------------------!
 
     elemental subroutine swap_int32(a, b)
@@ -481,18 +443,6 @@ contains
     end subroutine pairSwap
 
 !------------------------------------------------------------------------------------------!
-
-    function linearIndex(p, q, dim) result(ind)
-        ! fuse p,q into one contiguous index
-        ! the resulting index is contiguous in q
-        ! Input: p,q - 2d-array indices
-        !        dim - dimension of the underlying array in q-direction
-        ! Output: ind - contiguous 1d-array index
-        integer, intent(in) :: p, q, dim
-        integer :: ind
-
-        ind = q + (p - 1) * dim
-    end function linearIndex
 
     pure elemental function getSpinIndex(orb) result(ms)
         ! return a spin index of the orbital orb which can be used to address arrays
@@ -1379,6 +1329,14 @@ contains
     #:endfor
     #:endfor
 
+
+    subroutine delete_file(path)
+        character(*), intent(in) :: path
+        integer :: file_id
+
+        open (newunit=file_id, file=path, status='old')
+        close (file_id, status='delete')
+    end subroutine
 end module
 
 !Hacks for compiler specific system calls.

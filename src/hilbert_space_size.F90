@@ -3,26 +3,35 @@
 module hilbert_space_size
 
     use constants, only: dp, int64, n_int, bits_n_int, sizeof_int, stdout
-    use util_mod, only: get_free_unit, operator(.div.), choose_i64, stop_all, &
-        neci_flush
-    implicit none
+    use util_mod, only: get_free_unit, operator(.div.), choose_i64, stop_all, neci_flush
+    use soft_exit, only: ChangeVars, tSoftExitFound
+    use CalcData, only: tTruncNOpen, trunc_nopen_max, t_trunc_nopen_diff, &
+        trunc_nopen_diff
+    use DetBitops, only: EncodeBitDet, count_open_orbs, IsAllowedHPHF
+    use DetCalcData, only: ICILevel
+    use DeterminantData, only: FDet
+    use Parallel_neci, only: iProcIndex, MPI_SUM, MPIReduce, MPIAllReduce, &
+        nProcessors
+    use SymData, only: TwoCycleSymGens
+    use SystemData, only: nEl, G1, nBasis, iMCCalcTruncLev, CalcDetCycles, &
+        CalcDetPrint, tFixLz, nOccAlpha, nOccBeta, Brr, tMolpro, lms, tUEG, &
+        tHPHF, tHub, tKPntSym, Symmetry
+    use bit_rep_data, only: NIfTot
+    use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
+    use fcimcdata, only: ilutRef
+    use sym_mod, only: SymProd
+
+    better_implicit_none
+    private
+    public :: FindSymMCSizeExcitLevel, create_rand_det_no_sym, &
+        CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det, &
+        FindSymMCSizeofSpace, FindSymSizeofTruncSpace, FindSymSizeofSpace, findhilbsizetrunchubb
 
 contains
 
 !This routine stochastically finds the size of a given excitation level (iExcitLevelTest), or
 !lower, with equal probably given to all determinants.
     SUBROUTINE FindSymMCSizeExcitLevel(IUNIT)
-        use SymData, only: TwoCycleSymGens
-        use SystemData, only: nEl, G1, nBasis, iMCCalcTruncLev
-        use SystemData, only: tUEG, tHPHF, tHub
-        use SystemData, only: CalcDetCycles, CalcDetPrint, tFixLz
-        use DeterminantData, only: FDet
-        use dSFMT_interface
-        use soft_exit, only: ChangeVars, tSoftExitFound
-        use Parallel_neci
-        use DetBitops, only: EncodeBitDet
-        use bit_rep_data, only: NIfTot
-        IMPLICIT NONE
         INTEGER, intent(in) :: IUNIT
         INTEGER :: j, SpatOrbs, FDetMom, Attempts, iExcitLevTest, i, ExcitLev
         INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot), iLut(0:NIfTot)
@@ -169,9 +178,6 @@ contains
 !levels 0 -> iExcitLevTest. It does this by rejecting determinants, so that the resultant excitations are
 !unbiased.
     SUBROUTINE CreateRandomExcitLevDetUnbias(iExcitLevTest, FDet, FDetiLut, iLut, ExcitLev, Attempts)
-        use SystemData, only: nEl
-        use bit_rep_data, only: NIfTot
-        use dSFMT_interface
         INTEGER :: iExcitLevTest, FDet(NEl), ExcitLev, Attempts
         INTEGER(n_int) :: FDetiLut(0:NIfTot), iLut(0:NIfTot)
         real(dp) :: pAcc, r
@@ -193,11 +199,6 @@ contains
     END SUBROUTINE CreateRandomExcitLevDetUnbias
 
     subroutine create_rand_heisenberg_det(ilut)
-
-        use bit_rep_data, only: NIfTot
-        use dSFMT_interface, only: genrand_real2_dSFMT
-        use SystemData, only: nbasis, lms
-
         integer(n_int), intent(out) :: ilut(0:NIfTot)
         integer :: i, nsites, n_up, n_flipped, site_ind, bit_ind, elem
         integer :: beta_ind, alpha_ind
@@ -248,12 +249,6 @@ contains
 !The bias towards a given determinant is given by:
 !(NEl-ExcitLev) Choose (iExcitLevTest-ExcitLev)
     SUBROUTINE CreateRandomExcitLevDet(iExcitLevTest, FDet, FDetiLut, iLut, ExcitLev, Attempts)
-        use SystemData, only: nEl, G1, nBasis
-        use SystemData, only: tUEG, tHPHF, tHub
-        use SystemData, only: tFixLz
-        use dSFMT_interface
-        use bit_rep_data, only: NIfTot
-        use DetBitOps, only: IsAllowedHPHF
         integer, intent(in) :: iExcitLevTest, FDet(NEl)
         integer, intent(out) :: ExcitLev, Attempts
         integer(n_int), intent(out) :: iLut(0:NIfTot)
@@ -351,11 +346,6 @@ contains
 
         ! Create a determinant with no symmetry imposed whatsoever, apart from using nel electrons.
         ! This routine simply picks nel orbitals uniformly and returns a determinant with these occupied.
-
-        use bit_rep_data, only: NIfTot
-        USE dSFMT_interface, only: genrand_real2_dSFMT
-        use SystemData, only: nbasis, nel
-
         integer(n_int), intent(out) :: ilut(0:NIfTot)
         integer :: i, n_occ, orb_ind, elem
         real(dp) :: r
@@ -381,22 +371,6 @@ contains
 !This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
     SUBROUTINE FindSymMCSizeofSpace(IUNIT)
-        use SymData, only: TwoCycleSymGens
-        use SystemData, only: nEl, G1, nBasis, nOccAlpha, nOccBeta, tMolpro
-        use SystemData, only: tUEG, tHPHF, tHub, tKPntSym, Symmetry
-        use SystemData, only: CalcDetCycles, CalcDetPrint, tFixLz
-        use CalcData, only: tTruncNOpen, trunc_nopen_max, &
-                            t_trunc_nopen_diff, trunc_nopen_diff
-        use DeterminantData, only: FDet
-        use DetCalcData, only: ICILevel
-        use dSFMT_interface
-        use soft_exit, only: ChangeVars, tSoftExitFound
-        use Parallel_neci
-        use DetBitops, only: EncodeBitDet, IsAllowedHPHF, count_open_orbs
-        use bit_rep_data, only: NIfTot
-        use sym_mod, only: SymProd
-        use fcimcdata, only: ilutRef
-        IMPLICIT NONE
         INTEGER :: IUNIT, j, SpatOrbs, FDetMom, ExcitLev
         INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot), iLut(0:NIfTot)
         INTEGER :: FDetSym, TotalSym, TotalMom, alpha, beta, ierr, Momx, Momy
@@ -685,10 +659,6 @@ contains
 !!This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.
 !!This is done in a very crude way. Feel free to optimise it!
     SUBROUTINE FindSymSizeofSpace(IUNIT)
-        use SymData, only: TwoCycleSymGens
-        use SystemData, only: nEl, G1, nBasis, nOccAlpha, nOccBeta
-        use DeterminantData, only: FDet
-        IMPLICIT NONE
         INTEGER :: ClassCounts(2, 0:7)
         INTEGER :: Lima(0:7), Limb(0:7), a0, a1, a2, a3, a4, a5, a6, a7, NAlph
         INTEGER :: b0, b1, b2, b3, b4, b5, b6, b7, NBet, i, IUNIT, OverallSym
@@ -857,11 +827,6 @@ contains
 !This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.
 !This is done in a very crude way. Feel free to optimise it!
     SUBROUTINE FindSymSizeofTruncSpace(IUNIT)
-        use SymData, only: TwoCycleSymGens
-        use SystemData, only: nEl, G1, nBasis, nOccAlpha, nOccBeta, Brr
-        use DeterminantData, only: FDet
-        use DetCalcData, only: ICILevel
-        IMPLICIT NONE
         INTEGER :: ClassCountsOcc(0:7)
         INTEGER :: ClassCountsVirt(0:7), NAlphOcc, NAlphVirt
         INTEGER :: ClassCountsOccMax(0:7), ClassCountsVirtMax(0:7)
@@ -1171,7 +1136,7 @@ contains
         integer :: i, nI(nel), Attempts, AttemptsTotal, &
             Fails, FailsTotal, FullSpace
         real(dp) :: ratio
-        
+
         Attempts = 0
         Fails = 0
         do i = 1, HilbSpaceSamples
@@ -1179,7 +1144,7 @@ contains
             Attempts = Attempts + 1
             if (IsTruncated(nI)) Fails = Fails + 1
         end do
-        
+
         call MPIAllReduce(Attempts, MPI_SUM, AttemptsTotal)
         call MPIAllReduce(Fails, MPI_SUM, FailsTotal)
         if (iProcIndex == 0) then
@@ -1196,7 +1161,7 @@ contains
             write(stdout, "(A)") "=========================================================================="
             write(stdout, "(A)") ""
         end if
-    
+
         contains
 
             function GenRandDetHubb() result(nI)
@@ -1205,24 +1170,24 @@ contains
                 integer :: n
                 integer :: nI(nel)
                 integer :: r
-              
-                nI = 0 
+
+                nI = 0
                 n = 1
 
                 do while (n <= nOccAlpha)
                     r = 2*int(nbasis/2 * genrand_real2_dSFMT()) + 2
                     if (any(nI == r)) cycle
                     nI(n) = r
-                    n = n + 1 
+                    n = n + 1
                 end do
 
                 do while (n <= nel)
                     r = 2*int(nbasis/2 * genrand_real2_dSFMT()) + 1
                     if (any(nI == r)) cycle
                     nI(n) = r
-                    n = n + 1 
+                    n = n + 1
                 end do
-                
+
                 call sort(nI)
             end function
 

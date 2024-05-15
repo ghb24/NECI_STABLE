@@ -26,27 +26,22 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
 
     use ReadInput_neci, only: ReadInputMain
     use SystemData, only: tMolpro, tMolproMimic, MolproID, called_as_lib
-    use MemoryManager
+    use MemoryManager, only: LogMemDealloc, LogMemDealloc
 
-    ! main-level modules.
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
     use kp_fciqmc_procs, only: kp_fciqmc_data
-    use Parallel_neci, only: MPINodes, iProcIndex, &
-                             neci_MPIInit_called, neci_MPINodes_called
+    use Parallel_neci, only: &
+        MPINodes, iProcIndex, neci_MPIInit_called, neci_MPINodes_called, root
     use read_fci, only: FCIDUMP_name
-
-    use MPI_wrapper
     use UMatCache, only: UMat2D, tagUMat2D
-
-    ! Utility modules.
-    use global_utilities
-    use constants
+    use constants, only: int64, dp, stdout
+    use timing_neci, only: timer, set_timer, halt_timer
     use util_mod, only: get_free_unit
+    use MolproPlugin, only: molpro_plugin, molpro_plugin_datafilename, &
+        molpro_plugin_fcidumpname
 
-    USE MolproPlugin
-
-    Implicit none
+    implicit none
     integer, intent(in), optional :: iCacheFlag
     logical, intent(in), optional :: tCPMD, tVASP, tMolpro_local, call_as_lib
     character(*), intent(in), optional :: filename_in, int_name
@@ -361,7 +356,7 @@ subroutine NECICalcInit(iCacheFlag)
     ! can i initialize the GUGA stuff here? after freezing? or otherwise
     ! it is incorrectly setup..
     ! try to init guga here..
-    if (tGUGA) call init_guga
+    if (tGUGA) call init_guga()
 
     IF (tRotateOrbs .and. (.not. tFindCINatOrbs)) THEN
         CALL RotateOrbs()

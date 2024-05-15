@@ -5,7 +5,8 @@
 module gasci_pchb_doubles_spinorb_fastweighted
     !! spin-orbital-resolved GASCI-PCHB using the "fast weighted" scheme
     use constants, only: dp, n_int, maxExcit, stdout, int64
-    use util_mod, only: operator(.isclose.), near_zero, fuseIndex, stop_all, operator(.implies.)
+    use util_mod, only: operator(.isclose.), near_zero, stop_all, operator(.implies.)
+    use indexing_mod, only: fuse_symm_idx
     use sets_mod, only: operator(.in.), set
     use get_excit, only: make_double, exciteIlut
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -97,11 +98,11 @@ contains
         ! number of *spin* orbs
         nBI = this%GAS_spec%n_spin_orbs()
         ! initialize the mapping ab -> (a, b)
-        abMax = fuseIndex(nBI, nBI)
+        abMax = fuse_symm_idx(nBI, nBI)
         allocate(this%tgtOrbs(2, 0:abMax), source=0)
         do A = 1, nBI
             do B = 1, A
-                AB = fuseIndex(A, B)
+                AB = fuse_symm_idx(A, B)
                 ! b comes first as this is an ordered list
                 this%tgtOrbs(1, AB) = B
                 this%tgtOrbs(2, AB) = A
@@ -191,7 +192,7 @@ contains
         @:ASSERT(pgen .isclose. this%particle_selector%get_pgen(nI, i_sg, src(1), src(2)))
 
         invalid = .false.
-        ij = fuseIndex(src(1), src(2))
+        ij = fuse_symm_idx(src(1), src(2))
 
         ! get a pair of orbitals using the precomputed weights
         call this%AB_sampler%sample(ij, i_sg, ab, pGenHoles)
@@ -258,8 +259,8 @@ contains
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         @:ASSERT(ic == 2)
 
-        IJ = fuseIndex(ex(1, 1), ex(1, 2))
-        AB = fuseIndex(ex(2, 1), ex(2, 2))
+        IJ = fuse_symm_idx(ex(1, 1), ex(1, 2))
+        AB = fuse_symm_idx(ex(2, 1), ex(2, 2))
         i_sg = this%indexer%idx_nI(nI)
 
         pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
@@ -293,7 +294,7 @@ contains
         supergroups = this%indexer%get_supergroups()
 
         ! number of possible spin orbital pairs
-        ijMax = fuseIndex(nBI, nBI)
+        ijMax = fuse_symm_idx(nBI, nBI)
         abMax = ijMax
 
         memCost = size(supergroups, 2, kind=int64) &
@@ -324,7 +325,7 @@ contains
                         if (any(A == [I, J])) cycle
                         second_hole: do B = 1, nBI
                             if (any(B == [I, J, A])) cycle
-                            AB = fuseIndex(A, B)
+                            AB = fuse_symm_idx(A, B)
                             associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
                                 if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. spin_allowed(exc)) then
                                     w(AB) = get_PCHB_weight(exc)
@@ -332,7 +333,7 @@ contains
                             end associate
                         end do second_hole
                     end do first_hole
-                    IJ = fuseIndex(I, J)
+                    IJ = fuse_symm_idx(I, J)
                     call this%AB_sampler%setup_entry(IJ, i_sg, root, w)
 
                     IJ_weights(I, J, i_sg) = sum(w)

@@ -2335,12 +2335,6 @@ contains
             end if
         end if
 
-        ! i also need to consider the electron pair picking probability..
-        pgen = pgen / real(ElecPairs, dp)
-        ! and if the second electron is in a double occupied orbital I have
-        ! to modify it with 2
-        if (csf_i%stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
-
     end subroutine calc_mixed_start_contr_pgen
 
     subroutine calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, &
@@ -2822,12 +2816,6 @@ contains
             end if
         end if
 
-        ! i also need to consider the electron pair picking probability..
-        pgen = pgen / real(ElecPairs, dp)
-        ! and if the second electron is in a double occupied orbital I have
-        ! to modify it with 2
-        if (csf_i%stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
-
         if (present(rdm_mat)) then
             allocate(rdm_ind(rdm_count), source=tmp_rdm_ind(1:rdm_count))
             allocate(rdm_mat(rdm_count), source=tmp_rdm_mat(1:rdm_count))
@@ -3292,10 +3280,6 @@ contains
             end if
         end if
 
-        pgen = pgen / real(ElecPairs, dp)
-
-        if (csf_i%stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
-
         if (rdm_flag) then
             allocate(rdm_ind(rdm_count), source=tmp_rdm_ind(1:rdm_count))
             allocate(rdm_mat(rdm_count), source=tmp_rdm_mat(1:rdm_count))
@@ -3639,10 +3623,6 @@ contains
 
             end if
         end if
-
-        pgen = pgen / real(ElecPairs, dp)
-
-        if (csf_i%stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
 
     end subroutine calc_mixed_end_contr_pgen
 
@@ -4294,11 +4274,6 @@ contains
             if (above_flag) exit
         end do
 
-        ! multiply by always same probability to pick the 2 electrons
-        if (.not. (t_heisenberg_model .or. t_tJ_model)) then
-            pgen = pgen / real(ElecPairs, dp)
-        end if
-
     end subroutine calc_mixed_contr_sym
 
     pure subroutine calc_mixed_contr_integral(ilut, csf_i, t, start, ende, integral, &
@@ -4726,11 +4701,6 @@ contains
             ! not yet sure how..
             if (above_flag) exit
         end do
-
-        ! multiply by always same probability to pick the 2 electrons
-        if (.not. (t_heisenberg_model .or. t_tJ_model)) then
-            pgen = pgen / real(ElecPairs, dp)
-        end if
 
     end subroutine calc_mixed_contr_pgen
 

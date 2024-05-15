@@ -1,6 +1,7 @@
 module lMat_indexing
     use constants, only: int64
-    use util_mod, only: swap, fuseIndex
+    use util_mod, only: swap
+    use indexing_mod, only: fuse_symm_idx
     use SystemData, only: nBI
     implicit none
 
@@ -26,9 +27,9 @@ contains
 
         integer(int64) :: ai, bj, ck
 
-        ai = fuseIndex(a, i)
-        bj = fuseIndex(b, j)
-        ck = fuseIndex(c, k)
+        ai = fuse_symm_idx(a, i)
+        bj = fuse_symm_idx(b, j)
+        ck = fuse_symm_idx(c, k)
 
         ! sort the indices
         if (ai > bj) call swap(ai, bj)
@@ -109,9 +110,9 @@ contains
 
         integer(int64) :: ai, bj, ck
 
-        ai = fuseIndex(a, i)
-        bj = fuseIndex(b, j)
-        ck = fuseIndex(c, k)
+        ai = fuse_symm_idx(a, i)
+        bj = fuse_symm_idx(b, j)
+        ck = fuse_symm_idx(c, k)
 
         index = ai + strideInner * bj + strideOuter * ck
 
@@ -131,11 +132,11 @@ contains
         integer(int64) :: index
         integer(int64) :: ai, bj, ck
 
-        ai = fuseIndex(a, i)
-        bj = fuseIndex(b, j)
-        ck = fuseIndex(c, k)
+        ai = fuse_symm_idx(a, i)
+        bj = fuse_symm_idx(b, j)
+        ck = fuse_symm_idx(c, k)
 
-        index = ai + strideInner * fuseIndex(bj, ck)
+        index = ai + strideInner * fuse_symm_idx(bj, ck)
     end function lMatIndSpin
 
 end module lMat_indexing

@@ -22,7 +22,7 @@ module guga_procedure_pointers
               calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
     abstract interface
-        subroutine PickOrbitals_t(ilut, nI, csf_i, excitInfo, pgen)
+        subroutine PickOrbitals_t(nI, ilut, csf_i, excitInfo, pgen)
             import :: dp, n_int, GugaBits, CSF_Info_t, ExcitationInformation_t, nel
             implicit none
             integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)

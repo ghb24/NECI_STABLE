@@ -2,8 +2,7 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
     use global_utilities, only: timer, halt_timer, set_timer
     use constants, only: dp, n_int, stdout
     Use Determinants, only: get_helement
-    use SystemData, only: BasisFN, tGAS, t_lattice_model
-    use SystemData, only: tGUGA
+    use SystemData, only: BasisFN, t_lattice_model, tGUGA
     use CalcData, only: TStar
     use bit_rep_data, only: NIfTot
     use SystemData, only: tHPHF
@@ -11,7 +10,7 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
     use hphf_integrals, only: hphf_off_diag_helement
     use DetBitOps, only: EncodeBitDet
     use orb_idx_mod, only: SpinOrbIdx_t
-    use gasci, only: GAS_spec => GAS_specification
+    use gasci, only: GAS_spec => GAS_specification, tGAS
 
     use guga_matrixElements, only: calcDiagMatEleGuga_nI, calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t

@@ -7,10 +7,10 @@ module guga_init
                           nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
-                          tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
+                          tGen_nosym_guga, nSpatOrbs, nSpatOrbs_i8, ij_pairs, t_consider_diff_bias, &
                           treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_tJ_model, t_guga_pchb, t_guga_pchb_weighted_singles
+                          t_tJ_model
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         tSpinProject, &
@@ -42,7 +42,7 @@ module guga_init
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
 
-    use constants, only: dp, int_rdm, n_int, stdout, inum_runs
+    use constants, only: dp, int_rdm, n_int, stdout, inum_runs, int64
 
     use MPI_wrapper, only: iProcIndex
 
@@ -55,19 +55,20 @@ module guga_init
 
     use util_mod, only: operator(.div.), stop_all
 
+    use indexing_mod, only: fuse_symm_idx
+
     use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i, csf_ref
 
-    use guga_base_class, only: class_pick_singles, &
-                               class_pick_doubles, &
-                               class_calc_orb_pgen_contr, &
-                               class_calc_orb_pgen_contr_str, &
-                               class_calc_orb_pgen_contr_end, guga_exc_generator, init_guga_class
+    use guga_base_class, only: class_pick_singles, class_pick_doubles, &
+                               class_calc_orb_pgen_contr, class_calc_orb_pgen_contr_str, &
+                               class_calc_orb_pgen_contr_end, GUGA_exc_generator, &
+                               init_guga_class, finalize_guga_class
 
     better_implicit_none
 
     private
 
-    public :: checkInputGUGA, init_guga
+    public :: checkInputGUGA, init_guga, finalize_GUGA
 
 contains
 
@@ -95,7 +96,7 @@ contains
             calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def  ! CalcOrbitalPgenContr_t    nur für doubles
             calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def  ! CalcOrbitalPgenContr_t        nur für doubles
 
-        else if (allocated(guga_exc_generator)) then
+        else if (allocated(GUGA_exc_generator)) then
 
             pickOrbitals_single => class_pick_singles
             pickOrbitals_double => class_pick_doubles
@@ -170,6 +171,8 @@ contains
         ! i have to all this routine again from a point after freezing
         ! where the new number of NBasis is determined already..
         nSpatOrbs = nBasis .div. 2
+        nSpatOrbs_i8 = int(nBasis .div. 2, int64)
+        ij_pairs = fuse_symm_idx(nSpatOrbs_i8, nSpatOrbs_i8)
 
         ! but also have to set up the global orbitalIndex list
         orbitalIndex = [(i, i = 1, nSpatOrbs)]
@@ -217,6 +220,10 @@ contains
         trial_space_in%tApproxSpace = .false.
 
     end subroutine init_guga
+
+    subroutine finalize_GUGA()
+        call finalize_guga_class()
+    end subroutine
 
     subroutine check_rdm_guga_setup
         character(*), parameter :: this_routine = "check_rdm_guga_setup"

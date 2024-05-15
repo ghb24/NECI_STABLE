@@ -2,104 +2,215 @@
 
 MODULE Calc
 
-    use CalcData
-    use MPI_wrapper, only: MPI_WTIME
-    use SystemData, only: beta, nel, STOT, LMS, tSpn, AA_elec_pairs, &
-                          BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
-                          AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
-                          par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
-                          nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, &
-                          t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_k_space_hubbard, tHPHF, t_non_hermitian_2_body, &
-                          tGUGA, t_mixed_hubbard, t_olle_hubbard, &
-                          t_3_body_excits, get_basisfn
-    use Determinants, only: iActiveBasis, tagSpecDet, SpecDet, tSpecDet, nActiveSpace, &
-                            tagDefDet, tDefineDet, DefDet, calcT, iActiveBasis, nactivespace, &
-                            get_helement
+    use CalcData, only: tSkipRef, tFixTrial, NWHTAY, g_MultiWeight, &
+        TVARCALC, G_VMC_EXCITWEIGHTS, G_VMC_EXCITWEIGHT, EXCITFUNCS, MDK, user_input_seed, &
+        initial_refs, initial_states, ss_space_in, trial_excit_choice, &
+        trial_space_in, trial_est_reorder, trial_init_reorder, init_trial_in, &
+        i_space_in, MCDet, nPaths, RhoEps, tagMCDet, tFCIMC, tMCDET, tMONTE, &
+        AAS_Const, AAS_Cut, back_spawn_delay, BETAEQ, BETAP, CLMAX, &
+        cont_time_max_overspawn, coreSpaceUpdateCycle, DBETA, eq_cyc, &
+        FracLargerDet, G_VMC_FAC, GraphBias, GraphEpsilon, GrowGraphsExpo, &
+        HApp, HFPopThresh, I_HMAX, I_P, I_VMAX, iAnnInterval, IEQSTEPS, &
+        iMaxExcitLevel, IMCSTEPS, InitialPart, InitiatorWalkNo, InitWalkers, &
+        InputTargetGrowRate, InputTargetGrowRateWalk, iPopsFileNoRead, &
+        iPopsFileNoWrite, iReadWalkersRoot, iRestartWalkNum, iSampleRDMIters, &
+        Iters, iWeightPopRead, lanczos_energy_precision, lanczos_max_restarts, &
+        lanczos_max_vecs, lanczos_ritz_overlap_precision, LAS_F1, LAS_F2, &
+        LAS_Sigma, LinePoints, matele_cutoff, max_allowed_spawn, MaxNoatHF, &
+        MemoryFacInit, MemoryFacPart, MemoryFacSpawn, minInitSpawns, &
+        mix_ratio, N0_Target, n_guga_back_spawn_lvl, n_stop_ortho, &
+        n_truncate_spawns, NDets, NDETWORK, NEquilSteps, &
+        NMCyc, NoMoveDets, iLogicalNodeSize, NShiftEquilSteps, &
+        ntrial_ex_calc, occ_virt_level, OccCASOrbs, OccupiedThresh, &
+        orthogonalise_iter, overlap_eps, pDoublesIn, iFullSpaceIter, &
+        PGenEpsilon, pop_change_min, pParallelIn, PRet, pSinglesIn, &
+        pTriplesIn, qmc_trial_wf, RealCoeffExcitThresh, &
+        iExitWalkers, RealSpawnCutoff, RHOEPSILON, ScaleWalkers, &
+        semistoch_shift_iter, SeniorityAge, SftDamp, SftDamp2, ShiftOffset, &
+        pgen_unit_test_spec, FieldFiles_it, FieldStrength_it, &
+        user_input_SftDamp, tDavidson, tKP_FCIQMC, AAS_DenCut, &
+        tRPA_QBA, AAS_Expo, AAS_Thresh, aliasStem, AvMCExcits, &
+        tMP2Standalone, allowedSpawnSign, G_VMC_PI, nFields_it, &
+        spawnSgnThresh, STARCONV, StepsSft, StepsSftImag, &
+        t_back_spawn, t_back_spawn_flex, t_back_spawn_flex_option, &
+        t_back_spawn_occ_virt, t_back_spawn_option, t_choose_trial_state, &
+        t_core_inits, t_fast_pops_core, t_force_lanczos, t_guga_back_spawn, &
+        t_guga_back_spawn_trunc, t_lanczos_init, t_lanczos_orthogonalise, &
+        t_lanczos_store_vecs, t_left_trial, t_matele_cutoff, &
+        t_mix_ratios, t_prone_walkers, t_test_order, t_test_overlap, t_trunc_guga_matel, &
+        t_trunc_guga_pgen, t_trunc_guga_pgen_noninits, t_trunc_nopen_diff, &
+        t_truncate_multi, t_truncate_spawns, t_truncate_unocc, &
+        tAAS_MatEle, tAAS_MatEle2, tAAS_MatEle3, tAAS_MatEle4, &
+        tActivateLAS, tAdaptiveShift, tAddtoInitiator, tAllConnsPureInit, &
+        tAllowSpawnEmpty, tAllRealCoeff, tAS_Offset, tAS_TrialOffset, &
+        tAutoAdaptiveShift, TBETAP, TBiasing, TBinCancel, tCalcWithField, &
+        tChangeProjEDet, tCheckHighestPop, tContTimeFull, tCoreAdaptiveShift, &
+        tDeathBeforeComms, tDetermHFSpawning, tDetermProjApproxHamil, tDirectAnnihil, &
+        tDynamicAvMCEx, tDynamicCoreSpace, tDynamicTrial, tEN2, tEN2Init, &
+        tEN2Rigorous, tEN2Truncated, tENPT, tFCIDavidson, tFixedN0, &
+        TFixParticleSign, tForceFullPops, TFullDiag, tGlobalInitFlag, &
+        TGrowInitGraph, THFRetBias, tInitCoherentRule, tInitiatorSpace, tInitsRDM, &
+        tInitsRDMRef, TInitStar, tInstGrowthRate, tIntervalSet, &
+        tJumpShift, tL2GrowRate, tLadder, tLanczos, tLetInitialPopDie, tLinearAdaptiveShift, &
+        tLogGreensfunction, tMaxBloom, TMaxExcit, TMCDIRECTSUM, TMODMPTHEORY, &
+        TMoveDets, tMoveGlobalDetData, TMPTHEORY, tMultipleInitialRefs, tMultipleInitialStates, &
+        tMultiRefShift, TNEWEXCITATIONS, TNoAnnihil, tNonInitsForRDMs, tNonVariationalRDMs, &
+        TNoSameExcit, TNPDERIV, TOneExcitConn, tOrthogonaliseReplicas, tOrthogonaliseSymmetric, &
+        tOutputInitsRDM, tPairedReplicas, tPopsAlias, tPopsJumpShift, tPositiveHFSign, &
+        tPreCond, tPrintReplicaOverlaps, TProjEMP2, tPureInitiatorSpace, TReadPops, &
+        tReadPopsChangeRef, tReadPopsRestart, tRealCoeffByExcitLevel, TRegenExcitGens, &
+        tReplicaSingleDetStart, tRestartHighPop, trial_shift_iter, &
+        trialSpaceUpdateCycle, TrialTarget, trunc_guga_matel, trunc_nopen_diff, &
+        trunc_nopen_max, tScaleBlooms, tSemiStochastic, tSeniorInitiators, tSetInitialRunRef, &
+        tShiftonHFPop, trunc_guga_pgen, TSignShift, tSimpleInit, TSinglesExcitSpace, &
+        tSpatialOnlyHash, tSpawnAsDet, TSTAR, TStartCAS, tStartMP1, &
+        tStartSinglePart, tStartTrialLater, tStoredDets, tTargetShiftdamp, tTrialInit, &
+        tTrialShift, tTrialWavefunction, TTROT, tTruncCAS, tTruncInitiator, &
+        tTruncNOpen, TUnbiasPGeninProjE, tUniqueHFNode, TUPOWER, tUseRealCoeffs, &
+        TVVDISALLOW, tWalkContGrow, tWritePopsNorm, &
+        use_spawn_hash_table, VirtCASOrbs, calc_seq_no, calcp_logWeight, &
+        calcp_sub2vstar, ErrThresh, G_VMC_SEED, iDetGroup, NHISTBOXES, &
+        STARPROD, t_activate_decay, TBEGRAPH, TBIN, tContTimeFCIMC, &
+        TDIAGNODES, tEN2Started, TFullUnbias, pops_norm_unit, &
+        TGraphMorph, THDiag, tLogAverageSpawns, TMC, TMCDets, &
+        TREADRHO, tRealSpawnCutoff, TMCSTAR, tReplicaEstimates, TReturnPathMC, &
+        TRhoElems, TRHOIJ, tRotoAnnihil, tSetInitFlagsBeforeDeath, &
+        TSTARSTARS, TStarTrips, tStaticCore, tUseProcsAsNodes, SinglesBias, &
+        af_criterion, af_criterion_bracket, bosonic_popsfile, BosonNoSpawnThreshold, &
+        DiagSft2Init, FermionNoSpawnThreshold, FreePropMinRef, FreePropPeriod, &
+        FreePropStart, FreePropSwitch, GutzwillerParam, GutzwillerParam2, &
+        GutzwillerParam3, InitExpandAnnihilIters, InitExpandAnnihilThresh, &
+        InitExpandIters, InitExpandPeriod, InitExpandStart, &
+        InitRecoverIters, max_doublons, max_holons, modShift, ModShiftConstIters, &
+        ModShiftCorrPrefac, ModShiftTargetFrac, ModShiftTargetIter, NoNegSpawnThresh, &
+        NoSpawnThresh, pairing_criterion, RecoveryPeriod, repel_criterion, &
+        tAFTruncBracket, TargetWalkers1, TargetWalkers2, tBosonNoSpawn, &
+        tControlZeroDenom, tExLevelAFCriterion, tGutzwillerGuide, &
+        tGutzwillerHubbardAF, tHartreeGutzwiller, tHubbardDoublonHolon, &
+        tImportanceSampling, tInitExpand, tInitExpandAdd, &
+        tInitExpandAnnihil, tInitExpandFull, tInitExpandReset, tInitShift, &
+        tMeasureOverlap, tModShiftCorr, tModShiftCorrOnlyS1, tModShiftPhase, &
+        tModShiftTarget, tNoNegSpawns, tNonInitModShift, tNoSpawnRev, tot_walkers, &
+        tPrintUMat, tRenorm, tTruncateDets, tTruncateHubbard, tTruncHubbAllClose, &
+        tTruncInitHalf
+
+    use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
+    use DetCalc, only: CK, DetInv, iObs, jObs, kObs, nBlk, nKry, tBlock, tCalcHMat, tEnergy, tFindDets, tRead
+    use DetCalcData, only: B2L, ICILevel, nBlk, nCycle, nDet, nEval, nKry, nmrks, w
     use DeterminantData, only: write_det, fDet
-    use default_sets
-    use read_fci, only: reorder_orb_label
-    use DetCalc, only: iObs, jObs, kObs, DETINV, &
-                       icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
-                       tFindDets
-    use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
-    use IntegralsData, only: tNeedsVirts
-    use rdm_data, only: tApplyLC
-    use FciMCData, only: tTimeExit, MaxTimeExit, InputDiagSft, &
-                         nWalkerHashes, HashLengthFrac, &
-                         tTrialHash, tIncCancelledInitEnergy, &
-                         tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tZeroRef, &
-                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
-                         tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space, &
-                         user_input_max_davidson_iters, user_input_davidson_tolerance
-    use tau_main, only:  &
-        tau_search_method, input_tau_search_method, possible_tau_search_methods, &
-        tau_stop_method, possible_tau_stop_methods, &
-        min_tau, max_tau, tau_start_val, possible_tau_start, &
-        t_scale_tau_to_death, tau, taufactor, assign_value_to_tau, &
-        stop_options, readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
-        ignore_diagonal_estimate
+    use Determinants, only: iActiveBasis, tagSpecDet, SpecDet, tSpecDet, &
+        nActiveSpace, tagDefDet, tDefineDet, DefDet, calcT, iActiveBasis, &
+        nactivespace, get_helement
+    use FciMCData, only: tTimeExit, MaxTimeExit, InputDiagSft, nWalkerHashes, &
+        HashLengthFrac, tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, &
+        pParallel, pops_pert, alloc_popsfile_dets, tZeroRef, sFAlpha, tEScaleWalkers, &
+        sFBeta, sFTag, tLogNumSpawns, tAllAdaptiveShift, cAllAdaptiveShift, &
+        t_global_core_space, user_input_max_davidson_iters, user_input_davidson_tolerance, &
+        hash_shift, davidson_ras
+    use FciMCParMod, only: FciMCPar
+    use IntegralsData, only: FCK, CST, nMax, UMat, HFEDelta, HFMix, NHFIt, tHFCalc, nTay, tNeedsVirts, NFROZEN
+    use LoggingData, only: iLogging, tLogDets
+    use MPI_wrapper, only: MPI_WTIME
+    use Parallel_neci, only: nProcessors
+    use RPA_Mod, only: RunRPA_QBA
 
-    use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
-        max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
+    use SystemData, only: AA_elec_pairs, AA_hole_pairs, AB_elec_pairs, AB_hole_pairs, &
+        ALat, Arr, BB_elec_pairs, BB_hole_pairs, BRR, BasisFN, BasisFNSize, BasisFNSizeB, &
+        Beta, Brr, ECore, ElecPairs, G1, LMS, LMS2, MaxABPairs, NMSH, STOT, STot, &
+        SymRestrict, Symmetry, SymmetrySize, SymmetrySizeB, UMATEPS, beta, &
+        get_basisfn, hole_pairs, nBasis, nBasisMax, nEl, nMsh, nOccAlpha, &
+        nOccBeta, nel, nholes, nholes_a, nholes_b, par_elec_pairs, &
+        par_hole_pairs, tContact, tExactSizeSpace, tGUGA, tHPHF, tHub, &
+        tMCSizeSpace, tMCSizeTruncSpace, tMolpro, tMolproMimic, tParity, &
+        tSmallBasisForThreeBody, tSpn, tSpn, tUEG, t_3_body_excits, &
+        t_heisenberg_model, t_k_space_hubbard, t_lattice_model, t_mixed_hubbard, &
+        t_new_real_space_hubbard, t_non_hermitian_2_body, t_olle_hubbard, t_tJ_model
 
+    use UMatCache, only: gen2CPMDInts
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
-                        tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
-                        NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
-                        tReferenceChanged, allDoubsInitsDelay, tStrictCoherentDoubles, &
-                        tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
-                        tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-                        minSIConnect, tWeightedConnections, tSignedRepAv
-    use ras_data, only: core_ras, trial_ras
+        tDelayAllDoubsInits, tSetDelayAllDoubsInits, NoTypeN, tAdiActive, tReadRefs, &
+        SIUpdateInterval, tReferenceChanged, allDoubsInitsDelay, &
+        tStrictCoherentDoubles, tWeakCoherentDoubles, tAvCoherentDoubles, &
+        coherenceThreshold, SIThreshold, tSuppressSIOutput, targetRefPop, &
+        targetRefPopTol, tSingleSteps, tVariableNRef, minSIConnect, tWeightedConnections, tSignedRepAv
+    use bit_rep_data, only: niftot
+    use bit_reps, only: decode_bit_det
+    use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
+    use cepa_shifts, only: t_cepa_shift, cepa_method
+    use constants, only: n_int, dp, stdout, int64, inum_runs, sp, stderr
+    use Parallel_Calc, only: ParMP2
+    use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc, davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
+    use default_sets, only: Feb08, Nov11
+    use excitation_types, only: Excite_0_t
+    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
+    use ftlm_neci, only: delta_beta_ftlm, n_init_vecs_ftlm, n_lanc_vecs_ftlm, nbeta_ftlm
+    use global_utilities, only: LogMemAlloc, LogMemDealloc
+    use gndts_blk_mod, only: gensymdetss
+    use guga_bitRepOps, only: isProperCSF_ni
+    use guga_data, only: tGUGACore
+    use hamiltonian_linalg, only: direct_ci_type
+    use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel, &
+        FindSymSizeofSpace, FindSymSizeofTruncSpace
+    use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range
+    use k_space_hubbard, only: init_get_helement_k_space_hub, get_2_body_diag_transcorr, get_3_body_diag_transcorr
+    use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
+    use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert, tExcitedStateKP
+    use kp_fciqmc_procs, only: kp_fciqmc_data
+    use lattice_models_utils, only: create_neel_state
     use load_balance, only: tLoadBalanceBlocks
     use load_balance_calcnodes, only: loadBalanceInterval
-    use ftlm_neci
-    use spectral_data
-    use spectral_lanczos, only: n_lanc_vecs_sl
-    use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
-
+    use ras_data, only: core_ras, trial_ras
+    use rdm_data, only: tApplyLC
+    use read_fci, only: reorder_orb_label
     use real_space_hubbard, only: t_start_neel_state, init_get_helement_hubbard
-    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
-                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
-    use k_space_hubbard, only: init_get_helement_k_space_hub, get_2_body_diag_transcorr, &
-                                get_3_body_diag_transcorr
-    use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
-    use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
-    use bit_reps, only: decode_bit_det
-    use cepa_shifts, only: t_cepa_shift, cepa_method
-    use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
-
-    use guga_data, only: tGUGACore
-
-    use util_mod, only: near_zero, operator(.isclose.), operator(.div.), &
-        stop_all, neci_flush
-
-    use unit_test_helpers, only: batch_run_excit_gen_tester
-
-    use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
     use real_time, only: perform_real_time_fciqmc
+    use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
+    use sets_mod, only: disjoint, operator(.U.)
+    use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
+    use spectral_data, only: left_perturb_spectral, right_perturb_spectral, &
+        delta_omega_spectral, min_omega_spectral, nomega_spectral, &
+        spectral_broadening, spectral_ground_energy, tIncludeGroundSpectral, tIWSpec
+    use spectral_lanczos, only: n_lanc_vecs_sl
+    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
+        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
+    use tau_main, only:  tau_search_method, input_tau_search_method, possible_tau_search_methods, &
+        tau_stop_method, possible_tau_stop_methods, min_tau, max_tau, &
+        tau_start_val, possible_tau_start, t_scale_tau_to_death, tau, &
+        taufactor, assign_value_to_tau, stop_options, &
+        readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
+        ignore_diagonal_estimate
+    use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
+        max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
+    use unit_test_helpers, only: batch_run_excit_gen_tester
+    use util_mod, only: addToIntArray, get_free_unit, NECI_ICOPY, int_fmt, &
+        near_zero, operator(.isclose.), operator(.div.), stop_all, neci_flush
     use lattice_mod, only: lat
 
     use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range, &
                                 parse_definedet
 
-    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp, can_be_real
-
-    use lattice_models_utils, only: create_neel_state
-
-    use gndts_blk_mod, only: gensymdetss
-
     use block_spawns, only: tBlockSpawns, blocklist_name
-    implicit none
 
-    logical, public :: RDMsamplingiters_in_inp
+    better_implicit_none
+    private
+
+    logical, public, protected :: RDMsamplingiters_in_inp
+    public :: CalcReadInput, SetCalcDefaults, CalcInit, CalcCleanup, &
+        CalcDoCalc
+
+    interface
+        subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
+            import :: TokenIterator_t
+            implicit none
+            integer I_HMAX, NWHTAY, I_V
+            type(TokenIterator_t), intent(inout) :: tokens
+        end subroutine
+    end interface
 
 contains
 
     subroutine SetCalcDefaults()
-        use FciMCData, only: hash_shift
 
         ! Set defaults for Calc data items.
 
@@ -539,21 +650,6 @@ contains
     end subroutine SetCalcDefaults
 
     SUBROUTINE CalcReadInput(file_reader)
-        use SystemData, only: Beta, nEl
-        Use DetCalc, only: iObs, jObs, kObs, B2L, DETINV
-        Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
-        Use DetCalc, only: tEnergy, tRead, tFindDets
-        use IntegralsData, only: tNeedsVirts, NFROZEN
-        use UMatCache, only: gen2CPMDInts
-        use FciMCData, only: hash_shift, davidson_ras
-        use ras_data
-        use global_utilities
-        use Parallel_neci, only: nProcessors
-        use util_mod, only: addToIntArray
-        use LoggingData, only: tLogDets
-        use guga_bitRepOps, only: isProperCSF_ni
-
-        IMPLICIT NONE
         class(FileReader_t), intent(inout) :: file_reader
 
         type(TokenIterator_t) :: tokens
@@ -664,7 +760,7 @@ contains
                 case("OLD")
                     TNEWEXCITATIONS = .FALSE.
                 case default
-                    call inpgetexcitations(NWHTAY(1, 1), w)
+                    NWHTAY(1, 1) = inpgetexcitations(w)
                 end select
             case("STEPS")
                 NCYCLE = to_int(tokens%next())
@@ -723,8 +819,7 @@ contains
                         call inpgetmethod(tokens, NWHTAY(1, I_VMAX), NWHTAY(2, I_VMAX),&
                             I_VMAX)
                     case("EXCITATIONS")
-                        w = to_upper(tokens%next())
-                        call inpgetexcitations(NWHTAY(2, I_VMAX), w)
+                        NWHTAY(2, I_VMAX) = inpgetexcitations(to_upper(tokens%next()))
                     case("CYCLES")
                         NWHTAY(2, I_VMAX) = to_int(tokens%next())
                         if(NWHTAY(1, I_VMAX) /= -7 .and.                  &
@@ -1615,7 +1710,7 @@ contains
                 ! semi-stochastic on later.
                 if(tokens%remaining_items() > 0) then
                     if(tokens%remaining_items() > 0) &
-                        semistoch_shift_iter = to_int(tokens%next())
+                        semistoch_shift_iter = nint(to_realdp(tokens%next()))
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
                 end if
@@ -3852,7 +3947,6 @@ contains
     contains
 
         subroutine setDefdet(m, orb)
-            implicit none
             integer, intent(inout) :: m
             integer, intent(in) :: orb
             if(m > nel) call stop_all(t_r, "Too many orbitals given in Definedet")
@@ -3863,19 +3957,6 @@ contains
     END SUBROUTINE CalcReadInput
 
     Subroutine CalcInit()
-        use constants, only: dp
-        use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot, nMsh, nEl, tSmallBasisForThreeBody
-        use SystemData, only: tUEG, nOccAlpha, nOccBeta, ElecPairs, tExactSizeSpace, tMCSizeSpace, MaxABPairs, tMCSizeTruncSpace
-        use SystemData, only: tContact
-        use IntegralsData, only: FCK, CST, nMax, UMat
-        use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
-        Use DetCalc, only: DetInv, nDet, tRead
-        Use DetCalcData, only: ICILevel
-        use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace
-        use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
-        use global_utilities
-        use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
-        use excitation_types, only: Excite_0_t
         real(dp) CalcT2, GetRhoEps
 
         INTEGER I, IC, J, norb
@@ -4109,27 +4190,6 @@ contains
     End Subroutine CalcInit
 
     subroutine CalcDoCalc(kp)
-        use SystemData, only: Alat, Arr, Brr, Beta, ECore, G1, LMS, LMS2, nBasis, NMSH, nBasisMax
-        use SystemData, only: SymRestrict, tParity, tSpn, ALat, Beta, tMolpro, tMolproMimic
-        use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, BasisFN, BasisFNSize, BasisFNSizeB, nEl
-        Use DetCalcData, only: nDet, nEval, nmrks, w
-        USE FciMCParMod, only: FciMCPar
-        use RPA_Mod, only: RunRPA_QBA
-        use DetCalc, only: CK, DetInv, tEnergy, tRead
-        use IntegralsData, only: FCK, NMAX, UMat, FCK
-        use IntegralsData, only: HFEDelta, HFMix, nTay
-        Use LoggingData, only: iLogging
-        use Parallel_Calc
-        use util_mod, only: get_free_unit, NECI_ICOPY
-        use sym_mod
-        use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
-        use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
-        use hamiltonian_linalg, only: direct_ci_type
-        use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
-        use kp_fciqmc_data_mod, only: tExcitedStateKP
-        use kp_fciqmc_procs, only: kp_fciqmc_data
-        use util_mod, only: int_fmt
-
         real(dp) :: EN, WeightDum, EnerDum
         real(dp), allocatable :: final_energy(:)
         integer :: iSeed, iunit, i
@@ -4240,7 +4300,6 @@ contains
 
     Subroutine CalcCleanup()
         != Clean up (e.g. via deallocation) mess from Calc routines.
-        use global_utilities
         character(*), parameter :: this_routine = 'CalcCleanup'
 
         if(allocated(MCDet)) deallocate(MCDet)
@@ -4250,10 +4309,30 @@ contains
         if (allocated(user_input_SftDamp)) deallocate(user_input_SftDamp)
     End Subroutine CalcCleanup
 
+    pure function inpgetexcitations(w) result(res)
+        CHARACTER(LEN=16), intent(in) :: w
+        integer :: res
+        character(*), parameter :: this_routine = 'inpgetexcitations'
+        select case(w)
+        case("FORCEROOT")
+            res = IOR(res, 1)
+        case("FORCETREE")
+            res = IOR(res, 2)
+        case("SINGLES")
+            res = IOR(res, 8)
+        case("DOUBLES")
+            res = IOR(res, 16)
+        case("ALL")
+            res = 0
+        case default
+            call stop_all(this_routine, "Keyword error with EXCITATIONS "//trim(w))
+        end select
+    end function
+
 END MODULE Calc
 
 subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
-    use constants
+    use constants, only: dp
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
     use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
                         g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
@@ -4468,28 +4547,6 @@ subroutine inpgetmethod(tokens, I_HMAX, NWHTAY, I_V)
     end do
 
 end subroutine inpgetmethod
-
-subroutine inpgetexcitations(NWHTAY, w)
-    use util_mod, only: stop_all
-    IMPLICIT NONE
-    INTEGER NWHTAY
-    character(*), parameter :: this_routine = 'inpgetexcitations'
-    CHARACTER(LEN=16) w
-    select case(w)
-    case("FORCEROOT")
-        NWHTAY = IOR(NWHTAY, 1)
-    case("FORCETREE")
-        NWHTAY = IOR(NWHTAY, 2)
-    case("SINGLES")
-        NWHTAY = IOR(NWHTAY, 8)
-    case("DOUBLES")
-        NWHTAY = IOR(NWHTAY, 16)
-    case("ALL")
-        NWHTAY = 0
-    case default
-        call stop_all(this_routine, "Keyword error with EXCITATIONS "//trim(w))
-    end select
-end subroutine inpgetexcitations
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
 FUNCTION GETRHOEPS(RHOEPSILON, BETA, NEL, BRR, I_P)

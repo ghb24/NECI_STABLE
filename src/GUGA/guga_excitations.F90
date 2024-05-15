@@ -11,9 +11,9 @@ module guga_excitations
                           tGen_guga_weighted, nBasisMax, treal, &
                           t_approx_exchange, t_approx_exchange_noninits, &
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
-                          t_guga_pchb, thub
+                          thub
 
-    use constants, only: dp, n_int, bits_n_int, Root2, &
+    use constants, only: dp, n_int, bits_n_int, Root2, int64, &
                          EPS, bni_, bn2_, stdout, int_rdm
 
     use bit_reps, only: decode_bit_det
@@ -26,7 +26,9 @@ module guga_excitations
                          getDoubleMatrixElement, getMixedFullStop, &
                          WeightData_t, orbitalIndex, &
                          tag_excitations, tag_tmp_excits, &
-                         excit_type, ExcitationType_t, gen_type
+                         excit_type, ExcitationType_t, gen_type, &
+                         DistinctDouble_t, ijab_Index_t, ijkl_Index_t, &
+                         distinct_doubles, fused_to_DistinctDouble
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                               setDeltaB, count_open_orbs_ij, &
@@ -90,6 +92,10 @@ module guga_excitations
         calc_mixed_end_contr_integral, calc_mixed_contr_pgen, calc_mixed_start_contr_pgen, &
         calc_mixed_end_contr_pgen
 
+    use growing_buffers, only: buffer_int64_1D_t
+
+    use sort_mod, only: sort
+
     better_implicit_none
 
     private
@@ -133,9 +139,10 @@ module guga_excitations
               calcdoubler2l_stochastic, calcallexcitations, &
               pick_elec_pair_uniform_guga, get_guga_integral_contrib, &
               calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
-              get_guga_integral_contrib_spat, calc_orbital_pgen_contrib_start_def, &
+              calc_orbital_pgen_contrib_start_def, &
               calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga, &
-              csf_to_sds_ilut, csf_vector_to_sds, checkCompatibility_single
+              csf_to_sds_ilut, csf_vector_to_sds, checkCompatibility_single, &
+              gen_all_distinct_doubles
 
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and
@@ -441,12 +448,9 @@ contains
             l = excitInfo%l
             typ = excitInfo%typ
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contr(csf_i, [2 * i, 2 * j], above_cpt, &
-                                         below_cpt)
+            call calc_orbital_pgen_contr(&
+                csf_i, [2 * i, 2 * j], above_cpt, below_cpt)
             p_orig = (above_cpt + below_cpt) * branch_pgen
-            if (.not. (t_heisenberg_model .or. t_tJ_model)) then
-                p_orig = p_orig / real(ElecPairs, dp)
-            end if
         end if
 
         global_excitInfo = excitInfo
@@ -586,9 +590,9 @@ contains
             cpt_a = 0.0_dp
             cpt_b = 0.0_dp
         else
-            ! and get hopefully correct final values:
-            cpt_a = cpt_a / cum_sum * cpt_ba / ba_sum
-            cpt_b = cpt_b / cum_sum * cpt_ab / ab_sum
+            ! The last term assumes uniform particle picking
+            cpt_a = cpt_a / cum_sum * cpt_ba / ba_sum / real(ElecPairs, dp)
+            cpt_b = cpt_b / cum_sum * cpt_ab / ab_sum / real(ElecPairs, dp)
         end if
 
     end subroutine calc_orbital_pgen_contr_mol
@@ -620,6 +624,9 @@ contains
             below_cpt = (cum_arr(i) - cum_arr(i - 1)) / cum_sum
         end if
 
+        ! The last term assumes uniform particle picking
+        above_cpt = above_cpt / real(ElecPairs, dp)
+        below_cpt = below_cpt / real(ElecPairs, dp)
     end subroutine calc_orbital_pgen_contr_ueg
 
     subroutine calcDoubleR2L_stochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
@@ -1628,8 +1635,7 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_end(&
                     csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
-            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            p_orig = orb_pgen * branch_pgen
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t, 2), 1)
@@ -1891,9 +1897,7 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_end(&
                     csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
-            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
-
+            p_orig = orb_pgen * branch_pgen
         end if
 
         ! the x1-element is still encoded in the second entry..
@@ -3105,8 +3109,7 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_start(&
                     csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
-            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            p_orig = orb_pgen * branch_pgen
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t, 1) + &
@@ -3375,8 +3378,7 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contrib_start(&
                     csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
-            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
-            if (csf_i%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+            p_orig = orb_pgen * branch_pgen
         end if
 
         ! put everything in first entry
@@ -3538,7 +3540,9 @@ contains
             cpt_b = cpt_b / cum_sum * cpt_ab / ab_sum
 
             ! and add them up to the final orbital pgen
-            orb_pgen = cpt_a + cpt_b
+            ! assume uniform particle picking
+            ! and account for i being doubly occupied
+            orb_pgen = (cpt_a + cpt_b) / real(ElecPairs, dp) * csf_i%occ_int(i)
         end if
 
     end subroutine calc_orbital_pgen_contrib_end_def
@@ -3630,9 +3634,10 @@ contains
             cpt_b = cpt_b / cum_sum * cpt_ab / ab_sum
 
             ! and add them up to the final orbital pgen
-            orb_pgen = cpt_a + cpt_b
+            ! assume uniform particle picking
+            ! and account for i being doubly occupied
+            orb_pgen = (cpt_a + cpt_b) / real(ElecPairs, dp) * csf_i%occ_int(j)
         end if
-
     end subroutine calc_orbital_pgen_contrib_start_def
 
     subroutine forced_mixed_start(ilut, csf_i, excitInfo, t, probWeight)
@@ -12364,7 +12369,7 @@ contains
         ! but only for the molecular for now!
 
         ! i need the orbital picking part of pgen:
-        p_orbs = calc_pgen_mol_guga_single_orbs(ilutI, nI, csf_i, excitInfo)
+        p_orbs = calc_pgen_mol_guga_single_orbs(nI, ilutI, csf_i, excitInfo)
 
         p_guga = calc_pgen_mol_guga_single_guga(nI, ilutI, excitInfo)
 
@@ -12392,9 +12397,9 @@ contains
 
     end function calc_pgen_mol_guga_single_guga
 
-    function calc_pgen_mol_guga_single_orbs(ilut, nI, csf_i, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilut(0:niftot)
+    function calc_pgen_mol_guga_single_orbs(nI, ilut, csf_i, excitInfo) result(pgen)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
@@ -12471,14 +12476,14 @@ contains
 
     end subroutine get_orbs_from_excit_info
 
-    subroutine pickOrbs_sym_uniform_mol_single(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_single(nI, ilut, csf_i, excitInfo, pgen)
         ! new implementation to pick single orbitals, more similar to the
         ! other neci implementations
         ! with this new looping over other orbitals it will probably also
         ! be easier to include the neccesarry switch conditions!
         ! this also applies for double excitations!! -> think about that !
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -12719,9 +12724,9 @@ contains
 
     end subroutine gen_cum_list_real_hub_3
 
-    subroutine pickOrbs_real_hubbard_double(ilut, nI, csf_i, excitInfo, pgen)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+    subroutine pickOrbs_real_hubbard_double(nI, ilut, csf_i, excitInfo, pgen)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -12733,12 +12738,12 @@ contains
                       "should not be at double excitations in the real-space hubbard model!")
     end subroutine pickOrbs_real_hubbard_double
 
-    subroutine pickOrbs_real_hubbard_single(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_real_hubbard_single(nI, ilut, csf_i, excitInfo, pgen)
         ! write a specialized orbital picker for the real-space hubbard
         ! implementation, since we do not need all the symmetry stuff and
         ! we have to take the correct TMAT values for the ml-spin values
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -13239,11 +13244,11 @@ contains
 
     end subroutine gen_cum_list_guga_single_3
 
-    subroutine pickOrbs_sym_uniform_ueg_double(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_double(nI, ilut, csf_i, excitInfo, pgen)
         ! specific orbital picker for hubbard and UEG type models with
         ! full k-point symmetry
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -13311,11 +13316,11 @@ contains
 
     end subroutine pickOrbs_sym_uniform_ueg_double
 
-    subroutine pickOrbs_sym_uniform_ueg_single(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_single(nI, ilut, csf_i, excitInfo, pgen)
         ! dummy function to abort calculation if single excitation in
         ! hubbard/ueg models gets called incorrectly
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -14196,11 +14201,11 @@ contains
 
     end subroutine gen_ab_cum_list_3
 
-    subroutine pickOrbs_sym_uniform_mol_double(ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_double(nI, ilut, csf_i, excitInfo, pgen)
         ! new orbital picking routine, which is closer to simons already
         ! implemented one for the determinant version
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
@@ -15738,52 +15743,6 @@ contains
 
     end subroutine gen_a_orb_cum_list_guga_mol
 
-    pure function get_guga_integral_contrib_spat(occ_orbs, orb_a, orb_b) result(cpt)
-        integer, intent(in) :: occ_orbs(2), orb_a, orb_b
-        real(dp) :: cpt
-
-        integer :: ind(2)
-
-        ind = occ_orbs
-        ! for now, since i dont know how to correctly do it, and for testing
-        ! purposes just add a uniformly factor to all of the orbitals.
-
-        ! do a input dependent switch to compare influence on the pgens..
-        if (tGen_guga_weighted) then
-
-            if (orb_b < 0) then
-
-                cpt = sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
-                    + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a))))
-            else
-
-                cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) &
-                                 + abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
-
-            end if
-
-        else
-
-            if (orb_b < 0) then
-
-                cpt = 1.0_dp
-
-            else
-
-                if (t_guga_pchb) then
-                    cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
-                          abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
-
-                else
-                    cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
-                          abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
-                  end if
-            end if
-        end if
-
-
-    end function get_guga_integral_contrib_spat
-
     pure function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
         ! routine which gets the correct FCIDUMP integral contribution for
         ! orbital a, where electrons i and j are already picked!
@@ -16686,5 +16645,54 @@ contains
             end if
         end if
     end function checkCompatibility_single
+
+
+    pure function gen_all_distinct_doubles(csf_i, sort_fused_idx) result(res)
+        !! This function returns all possible excitations for the orbital picker
+        !!
+        !! This means it considers only occupation, not spin recoupling.
+        type(CSF_Info_t), intent(in) :: csf_i
+        logical, optional, intent(in) :: sort_fused_idx
+            !! The fused index of the excitations should be sorted.
+        type(DistinctDouble_t), allocatable :: res(:)
+
+        logical :: sort_fused_idx_
+        type(buffer_int64_1D_t) :: buffer
+        type(DistinctDouble_t) :: exc
+        type(ijkl_Index_t) :: idx
+
+        integer :: i, j, a, b
+
+        def_default(sort_fused_idx_, sort_fused_idx, .false.)
+
+        call buffer%init()
+
+        do i = 1, nSpatOrbs
+            if (csf_i%occ_int(i) == 0) cycle
+            do j = i, nSpatOrbs
+                if (csf_i%occ_int(j) == 0) cycle
+                if (i == j .and. csf_i%occ_int(i) /= 2) cycle
+                do a = 1, nSpatOrbs
+                    do b = a, nSpatOrbs
+                        if (a == b .and. csf_i%stepvector(b) /= 0) cycle
+                        idx = ijkl_Index_t([a, i, b, j])
+                        idx = idx%normalize()
+                        exc = DistinctDouble_t(idx)
+                        if (exc%typ == distinct_doubles%invalid) cycle
+                        call buffer%push_back(exc%fuse())
+                    end do
+                end do
+            end do
+        end do
+
+
+        if (sort_fused_idx_) then
+            call sort(buffer%buf(:buffer%size()))
+            res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+        else
+            res = fused_to_DistinctDouble(buffer%buf(:buffer%size()))
+        end if
+
+    end function
 
 end module guga_excitations

@@ -4,7 +4,7 @@
 #:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']
 
 module gasci_disconnected
-    use SystemData, only: tGAS, nBasis, nel
+    use SystemData, only: nBasis, nel
     use constants, only: dp, n_int, maxExcit, bits_n_int
     use SymExcitDataMod, only: ScratchSize
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &

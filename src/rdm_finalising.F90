@@ -21,6 +21,9 @@ module rdm_finalising
     use guga_rdm, only: output_molcas_rdms
 
     implicit none
+    private
+    public :: finalise_rdms, calc_1rdms_from_2rdms, write_1rdm, &
+        finalise_1e_rdm, calc_1rdms_from_spinfree_2rdms
 
     real(dp), public, protected :: RDM_energy
 

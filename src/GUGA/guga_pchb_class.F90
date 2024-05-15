@@ -6,19 +6,24 @@ module guga_pchb_class
     use SystemData, only: nel, nSpatOrbs
     use guga_data, only: ExcitationInformation_t
     use guga_bitrepops, only: CSF_Info_t
-    use guga_base_class, only: GUGABaseClass_t
-    use guga_gas_pchb_mod, only: GAS_PCHB_t
-    use gasci, only: LocalGASSpec_t
+    use guga_base_class, only: GUGABase_t
+    use gasci, only: CAS_spec
+    use input_parser_mod, only: TokenIterator_t
+    use guga_gas_pchb_main, only: &
+        GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
+        GAS_PCHB_options_vals_t, GAS_options_from_tokens => from_tokens
+
 
     better_implicit_none
 
     private
-    public :: PCHB_t
+    public :: PCHB_t, options, FCI_PCHB_options_t, FCI_PCHB_options_vals_t, options_vals, &
+        from_tokens
 
-    type, extends(GUGABaseClass_t) :: PCHB_t
+    type, extends(GUGABase_t) :: PCHB_t
         private
 
-        type(GAS_PCHB_t) :: GAS_sampler
+        type(GAS_PCHB_ExcGenerator_t) :: GAS_sampler
     contains
         private
         procedure, public :: init
@@ -30,26 +35,29 @@ module guga_pchb_class
         procedure, public :: calc_orbital_pgen_contr
         procedure, public :: calc_orbital_pgen_contr_start
         procedure, public :: calc_orbital_pgen_contr_end
-
-        procedure, public :: get_valid_orbs
     end type PCHB_t
+
+    ! NOTE be careful to not violate the Liskov substitution principle.
+    ! At the moment `FCI_PCHB_options_t` **is** a `GAS_PCHB_options_t`
+    ! and can be used interchangeably.
+    ! If this is changed in the future, the inheritance has to be stopped.
+    type, extends(GAS_PCHB_options_t) :: FCI_PCHB_options_t
+    end type
+
+    type, extends(GAS_PCHB_options_vals_t) :: FCI_PCHB_options_vals_t
+    end type
+
+
+    type(FCI_PCHB_options_t) :: options
+    type(FCI_PCHB_options_vals_t), parameter :: options_vals = FCI_PCHB_options_vals_t()
 
 contains
 
-    subroutine init(this)
+    subroutine init(this, options)
         class(PCHB_t), intent(inout) :: this
+        type(FCI_PCHB_options_t), intent(in) :: options
         call this%GAS_sampler%init(CAS_spec(nEl, nSpatOrbs), &
-                                   use_lookup=.false., create_lookup=.false.)
-
-    contains
-
-        type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
-            integer, intent(in) :: n_el, n_spat_orbs
-            integer :: i
-            ! It does not matter if we use local or cumulative GAS
-            ! constraints
-            CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
-        end function
+            translate_to_GAS(options))
     end subroutine
 
     subroutine finalize(this)
@@ -58,24 +66,24 @@ contains
     end subroutine
 
 
-    subroutine pickorbitals_single(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickorbitals_single(this, nI, ilut, csf_i, excitInfo, pgen)
         class(PCHB_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call this%GAS_sampler%pickOrbitals_single(ilut, nI, csf_i, excitInfo, pgen)
+        call this%GAS_sampler%pickOrbitals_single(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
-    subroutine pickorbitals_double(this, ilut, nI, csf_i, excitInfo, pgen)
+    subroutine pickorbitals_double(this, nI, ilut, csf_i, excitInfo, pgen)
         class(PCHB_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        call this%GAS_sampler%pickOrbitals_double(ilut, nI, csf_i, excitInfo, pgen)
+        call this%GAS_sampler%pickOrbitals_double(nI, ilut, csf_i, excitInfo, pgen)
     end subroutine
 
     subroutine calc_orbital_pgen_contr_start(this, csf_i, occ_orbs, orb_a, orb_pgen)
@@ -113,12 +121,24 @@ contains
         pgen = this%GAS_sampler%calc_pgen(nI, ilutI, csf_i, excitInfo)
     end function
 
-    function get_valid_orbs(this, csf_i, src_orb) result(valid_orbs)
-        class(PCHB_t), intent(in) :: this
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: src_orb
-        integer, allocatable :: valid_orbs(:)
-        valid_orbs = this%GAS_sampler%get_valid_orbs(csf_i, src_orb)
-    end function get_valid_orbs
+    elemental function translate_to_GAS(FCI_options) result(GAS_options)
+        type(FCI_PCHB_options_t), intent(in) :: FCI_options
+        type(GAS_PCHB_options_t) :: GAS_options
+        GAS_options = GAS_PCHB_options_t(FCI_options%singles, FCI_options%doubles, FCI_options%use_lookup)
+    end function
+
+    elemental function translate_to_FCI(GAS_options) result(FCI_options)
+        type(GAS_PCHB_options_t), intent(in) :: GAS_options
+        type(FCI_PCHB_options_t) :: FCI_options
+        FCI_options = FCI_PCHB_options_t(GAS_options%singles, GAS_options%doubles, GAS_options%use_lookup)
+    end function
+
+    function from_tokens(tokens, use_lookup) result(res)
+        type(TokenIterator_t), intent(inout) :: tokens
+        logical, intent(in) :: use_lookup
+            !! Do a lookup of supergroups
+        type(FCI_PCHB_options_t) :: res
+        res = translate_to_FCI(GAS_options_from_tokens(tokens, use_lookup))
+    end function
 
 end module guga_pchb_class

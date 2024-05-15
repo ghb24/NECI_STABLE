@@ -4,9 +4,10 @@
 
 #:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']
 
+
 module gasci
     use constants, only: n_int, dp
-    use SystemData, only: nBasis
+    use SystemData, only: nBasis, tGUGA
     use util_mod, only: cumsum, stop_all, operator(.div.)
     use excitation_types, only: Excite_1_t, Excite_2_t
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
@@ -20,13 +21,17 @@ module gasci
     use bit_reps, only: decode_bit_det
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
     use guga_bitRepOps, only: CSF_Info_t
+    use guga_data, only: DistinctDouble_t, ijab_Index_t
 
     better_implicit_none
     private
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
-        user_input_GAS_exc_gen, get_name, &
-        LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
+        get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
+        CAS_spec, finalize_GAS
+
+! Are we restricting excitations
+    logical :: tGAS = .false.
 
     type, extends(EnumBase_t) :: GAS_exc_gen_t
     end type
@@ -41,8 +46,7 @@ module gasci
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
 
-    type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%ON_FLY_HEAT_BATH
-    type(GAS_exc_gen_t), allocatable :: user_input_GAS_exc_gen
+    type(GAS_exc_gen_t), allocatable :: GAS_exc_gen
 
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
     ! datastructure to outside code after the constructor has been called.
@@ -98,7 +102,8 @@ module gasci
         generic :: count_per_GAS => count_per_GAS_nI, count_per_GAS_csf
         procedure, private :: is_allowed_single
         procedure, private :: is_allowed_double
-        generic :: is_allowed => is_allowed_single, is_allowed_double
+        procedure, private :: is_allowed_distinct_double
+        generic :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
     end type
 
     abstract interface
@@ -452,6 +457,16 @@ contains
                 end block
             end if
         end if
+    end function
+
+    logical pure function is_allowed_distinct_double(this, exc, supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(DistinctDouble_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        integer :: i, j, a, b
+        call exc%idx%extract_ijkl(a, i, b, j)
+        is_allowed_distinct_double = this%is_allowed(Excite_2_t(2 * i, 2 * a, 2 * j, 2 * b), supergroup)
     end function
 
     !>  Return the possible holes where a particle can be created under GAS constraints.
@@ -1229,5 +1244,29 @@ contains
         integer :: res
         res = this%N
     end function
+
+    pure logical function tSD_GAS()
+        !! Doing GAS in Slater Determinant (SD) space
+        tSD_GAS = tGAS .and. .not. tGUGA
+    end function
+
+    pure logical function tGUGA_GAS()
+        !! Doing GAS in GUGA space
+        tGUGA_GAS = tGAS .and. tGUGA
+    end function
+
+
+    type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
+        integer, intent(in) :: n_el, n_spat_orbs
+        integer :: i
+        ! It does not matter if we use local or cumulative GAS
+        ! constraints
+        CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
+    end function
+
+    subroutine finalize_GAS()
+        if (allocated(GAS_specification)) deallocate(GAS_specification)
+        if (allocated(GAS_exc_gen)) deallocate(GAS_exc_gen)
+    end subroutine
 
 end module gasci

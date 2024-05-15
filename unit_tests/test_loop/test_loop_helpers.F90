@@ -1,7 +1,6 @@
 module test_loop_helpers
-    ! use mpi
-    use util_mod, only: get_free_unit
-    use unit_test_helper_excitgen, only: FciDumpWriter_t, InputWriter_t, Writer_t, delete_file
+    use util_mod, only: delete_file
+    use unit_test_helper_fcidumps, only: FciDumpWriter_t, InputWriter_t, Writer_t
     use Parallel_neci, only: MPI_Comm_Rank, mpi_comm_world
     implicit none
 #include "macros.h"

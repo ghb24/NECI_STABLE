@@ -6,9 +6,10 @@ program test_pcpp_excitgen
                      get_failed_count, run_test_case, assert_equals, assert_true
     use util_mod, only: stop_all
     use pcpp_excitgen, only: init_pcpp_excitgen, gen_rand_excit_pcpp, create_elec_map, calc_pgen_pcpp
-    use unit_test_helper_excitgen, only: RandomFciDumpWriter_t, set_ref, free_ref, &
+    use unit_test_helper_excitgen, only: set_ref, free_ref, &
                                          finalize_excitgen_test, init_excitgen_test, &
-                                         test_excitation_generator, calc_pgen, generate_random_integrals
+                                         test_excitation_generator, calc_pgen
+    use unit_test_helper_fcidumps, only: RandomFciDumpWriter_t
     use DetBitOps, only: encodeBitDet
     use procedure_pointers, only: generate_excitation
     use SymExcitDataMod, only: scratchSize

@@ -190,19 +190,10 @@ contains
     !>   Certain keywords are optional and/or depend on others.
     !>   Evaluate this dependency here.
     subroutine evaluate_depending_keywords()
-        use SystemData, only: tGAS
         use gasci, only: GAS_specification, GAS_exc_gen, &
-            possible_GAS_exc_gen, user_input_GAS_exc_gen
+            possible_GAS_exc_gen
         use CalcData, only: user_input_seed, G_VMC_SEED
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
-
-        if (tGAS) then
-            if (.not. allocated(user_input_GAS_exc_gen)) then
-                call stop_all(this_routine, "decide on a GAS excitation generator")
-            else
-                GAS_exc_gen = user_input_GAS_exc_gen
-            end if
-        end if
 
         if (allocated(user_input_seed)) then
             G_VMC_SEED = user_input_seed
@@ -233,7 +224,7 @@ contains
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
-                              tGen_4ind_lin_exact, tGen_4ind_2, tGAS, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, &
                               tComplexOrbs_RealInts, tLatticeGens, &
                               t_heisenberg_model, t_new_real_space_hubbard, &
                               PartialNodeGamma, tFixedNode
@@ -280,7 +271,8 @@ contains
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, user_input_GAS_exc_gen
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, tGAS, tSD_GAS, tGUGA_GAS
+        use guga_base_class, only: GUGA_exc_generator_vals, GUGA_selected_exc_generator
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -657,7 +649,12 @@ contains
             end if
         end if
 
-        if (tGAS .neqv. allocated(user_input_GAS_exc_gen)) then
+        if (tGUGA_GAS()) then
+            if (GUGA_selected_exc_generator /= GUGA_exc_generator_vals%GAS_PCHB) then
+                call stop_all(this_routine, 'GAS-CI and GAS-SPEC required.')
+            end if
+        end if
+        if (tSD_GAS() .neqv. (allocated(GAS_exc_gen))) then
             call stop_all(this_routine, 'GAS-CI and GAS-SPEC required.')
         end if
 
@@ -671,6 +668,9 @@ contains
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
+        end if
+
+        if (tSD_GAS()) then
             if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%PCHB])) then
                 call stop_all(t_r, "Running GAS without spin-recoupling requires {DISCONNECTED, GENERAL_PCHB} implementations.")
             end if

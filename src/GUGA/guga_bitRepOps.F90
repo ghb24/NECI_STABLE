@@ -30,6 +30,10 @@ module guga_bitRepOps
 
     use Fcimcdata, only: tFillingStochRDMonfly
 
+    use DetBitOps, only: EncodeBitDet
+
+    use fortran_strings, only: Token_t, join
+
     implicit none
 
     private
@@ -37,7 +41,7 @@ module guga_bitRepOps
             isProperCSF_nI, isProperCSF_ilut, getDeltaB, setDeltaB, &
             encode_matrix_element, update_matrix_element, &
             extract_matrix_element, write_det_guga, &
-            convert_ilut_toGUGA, convert_ilut_toNECI, convert_guga_to_ni, &
+            convert_ilut_toGUGA, convert_ilut_toNECI, convert_stepvector_to_nI, &
             write_guga_list, add_guga_lists, &
             findFirstSwitch, findLastSwitch, find_switches, &
             calcstepvector, &
@@ -48,7 +52,7 @@ module guga_bitRepOps
             encodebitdet_guga, identify_excitation, &
             CSF_Info_t, current_csf_i, csf_ref, new_CSF_Info_t, fill_csf_i, &
             is_compatible, &
-            calc_csf_i, extract_h_element, getexcitation_guga, &
+            extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
             contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
             extract_2_rdm_ind, encode_rdm_ind, extract_rdm_ind, &
@@ -61,7 +65,7 @@ module guga_bitRepOps
             encode_excit_info, encode_excit_info_type, extract_excit_info_type, &
             encode_excit_info_indices, extract_excit_info_indices, &
             extract_excit_info, isProperCSF_flexible, find_guga_excit_lvl, &
-            StepVector_t, StepVectorVals_t, stepvector_vals
+            StepVector_t, StepVectorVals_t, stepvector_vals, calc_step_vector
 
 
     ! interfaces
@@ -124,8 +128,8 @@ module guga_bitRepOps
 
     type(StepVectorVals_t), parameter :: stepvector_vals = StepVectorVals_t()
 
-    interface convert_guga_to_ni
-        module procedure convert_guga_to_ni_int, convert_guga_to_ni_stepv
+    interface convert_stepvector_to_nI
+        module procedure convert_stepvector_to_nI_int, convert_stepvector_to_nI_StepV, convert_stepvector_to_nI_CSF_Info
     end interface
 
     type :: CSF_Info_t
@@ -146,10 +150,14 @@ module guga_bitRepOps
         procedure :: neq_CSF_Info_t
         generic, public :: operator(==) => eq_CSF_Info_t
         generic, public :: operator(/=) => neq_CSF_Info_t
+        procedure, public :: to_nI => to_nI_CSF_Info_t
+        procedure, public :: to_ilut => to_ilut_CSF_Info_t
+        procedure, public :: to_tokens => to_Token_t_CSF_Info_t
+        procedure, public :: to_str => to_str_CSF_Info_t
     end type
 
     interface CSF_Info_t
-        module procedure construct_CSF_Info_t
+        module procedure construct_CSF_Info_t, construct_CSF_Info_t_StepVector_t
     end interface
 
     type(CSF_Info_t) :: current_csf_i
@@ -2698,27 +2706,21 @@ contains
     end subroutine EncodeBitDet_guga
 
     pure function getSpatialOccupation(iLut, s) result(nOcc)
-
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: s
         real(dp) :: nOcc
 
         if (isZero(ilut, s)) then
             nOcc = 0.0_dp
-
         else if (isThree(ilut, s)) then
             nOcc = 2.0_dp
-
         else
             nOcc = 1.0_dp
         end if
-
     end function getSpatialOccupation
 
-    pure function convert_guga_to_ni_int(csf) result(nI)
-        ! function to make it easier for me to input a csf in my used notation
-        ! to a nI NECI array..
-        integer, intent(in) :: csf(:)
+    pure function convert_stepvector_to_nI_int(step_vector) result(nI)
+        integer, intent(in) :: step_vector(:)
         integer :: nI(nel)
 
         integer :: i, cnt_orbs, cnt_ind
@@ -2726,8 +2728,8 @@ contains
         cnt_orbs = 0
         cnt_ind = 0
 
-        do i = 1, size(csf)
-            select case (csf(i))
+        do i = 1, size(step_vector)
+            select case (step_vector(i))
             case (0)
                 ! nothing to do actually except update the
             case (1)
@@ -2749,52 +2751,144 @@ contains
         end do
     end function
 
-    pure function convert_guga_to_ni_stepv(csf) result(nI)
+    pure function convert_stepvector_to_nI_StepV(csf) result(nI)
         type(StepVector_t), intent(in) :: csf(:)
         integer :: nI(nel)
-        nI = convert_guga_to_ni(csf%val)
+        nI = convert_stepvector_to_nI(csf%val)
     end function
 
-    pure subroutine calc_csf_i(ilut, step_vector, b_vector, occ_vector)
+    pure function convert_stepvector_to_nI_CSF_Info(csf) result(nI)
+        type(CSF_Info_t), intent(in) :: csf
+        integer :: nI(nel)
+        nI = convert_stepvector_to_nI(csf%stepvector)
+    end function
+
+    pure function to_nI_CSF_Info_t(this) result(nI)
+        class(CSF_Info_t), intent(in) :: this
+        integer :: nI(nel)
+        nI = convert_stepvector_to_nI(this%stepvector)
+    end function
+
+    pure function to_ilut_CSF_Info_t(this) result(ilut)
+        class(CSF_Info_t), intent(in) :: this
+        integer(n_int) :: ilut(0:niftot)
+        call EncodeBitDet(convert_stepvector_to_nI(this%stepvector), ilut)
+    end function
+
+    elemental function to_token(step_value) result(token)
+        use fortran_strings, only: Token_t, join
+        integer, intent(in) :: step_value
+        routine_name("to_token")
+        type(Token_t) :: token
+
+        select case(step_value)
+        case(0)
+            token = Token_t('0')
+        case(1)
+            token = Token_t('u')
+        case(2)
+            token = Token_t('d')
+        case(3)
+            token = Token_t('2')
+        case default
+            call stop_all(this_routine, "invalid case")
+        end select
+    end function
+
+    pure function to_Token_t_CSF_Info_t(this) result(res)
+        class(CSF_Info_t), intent(in) :: this
+        type(Token_t) :: res(size(this%stepvector))
+        res = to_token(this%stepvector(:))
+    end function
+
+    pure function to_str_CSF_Info_t(this) result(res)
+        class(CSF_Info_t), intent(in) :: this
+        character(:), allocatable :: res
+        res = '[' // join(this%to_tokens(), ', ') // ']'
+    end function
+
+    pure function calc_step_vector(ilut) result(step_vector)
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer :: step_vector(nSpatOrbs)
+        integer :: i
+        do i = 1, nSpatOrbs
+            step_vector(i) = getStepvalue(ilut, i)
+        end do
+    end function
+
+    pure subroutine calc_csf_i(step_vector, b_vector, occ_vector, cum_list)
         ! routine to calculate the csf information for specific outputted
         ! information
-        integer(n_int), intent(in) :: ilut(0:niftot)
-        integer, intent(out) :: step_vector(nSpatOrbs), b_vector(nSpatOrbs)
-        real(dp), intent(out) :: occ_vector(nSpatOrbs)
+        integer, intent(in) :: step_vector(nSpatOrbs)
+        integer, intent(out) :: b_vector(nSpatOrbs), occ_vector(nSpatOrbs)
+        real(dp), intent(out) :: cum_list(nSpatOrbs)
+        debug_function_name("calc_csf_i")
 
-        integer :: b_int, i, step
-        ! copy the stuff from below.. when do i want to allocate the objects?
-        ! hm..
-        step_vector = 0
-        b_vector = 0
-        occ_vector = 0.0_dp
-
-        b_int = 0
-
+        integer :: b, i, cum_sum
+        cum_sum = 0
+        b = 0
         do i = 1, nSpatOrbs
-            step = getStepvalue(ilut, i)
-            step_vector(i) = step
-            select case (step)
+            select case (step_vector(i))
+            case (0)
+                occ_vector(i) = 0
+                cum_sum = cum_sum + 1
             case (1)
-                occ_vector(i) = 1.0_dp
-                b_int = b_int + 1
+                occ_vector(i) = 1
+                b = b + 1
+                cum_sum = cum_sum + 1
             case (2)
-                occ_vector(i) = 1.0_dp
-                b_int = b_int - 1
+                occ_vector(i) = 1
+                b = b - 1
+                cum_sum = cum_sum + 1
             case (3)
-                occ_vector(i) = 2.0_dp
+                occ_vector(i) = 2
+#ifdef DEBUG_
+            case default
+                call stop_all(this_routine, "Invalid case")
+#endif
             end select
-
-            b_vector(i) = b_int
+            cum_list(i) = real(cum_sum, dp)
+            b_vector(i) = b
         end do
     end subroutine calc_csf_i
+
+    pure subroutine fill_csf_i(stepvector, csf_i, idx_curr_dets)
+        ! routine which sets up all the additional csf information, like
+        ! stepvector, b vector, occupation etc. in various formats in one
+        ! place
+        ! and combine all the necessary calcs. into one loop instead of
+        ! the seperate ones..
+        integer, intent(in) :: stepvector(nSpatOrbs)
+        type(CSF_Info_t), intent(inout) :: csf_i
+        integer, intent(in), optional :: idx_curr_dets
+        debug_function_name("fill_csf_i")
+
+        ASSERT(allocated(csf_i%stepvector) .and. allocated(csf_i%B_int))
+        ASSERT(allocated(csf_i%Occ_int) .and. allocated(csf_i%B_real))
+        ASSERT(allocated(csf_i%Occ_real) .and.  allocated(csf_i%cum_list))
+
+        csf_i%stepvector(:) = stepvector
+        call calc_csf_i(csf_i%stepvector, csf_i%b_int, csf_i%occ_int, csf_i%cum_list)
+        csf_i%occ_real = real(csf_i%occ_int, dp)
+        csf_i%b_real = real(csf_i%b_int, dp)
+        if (present(idx_curr_dets)) csf_i%idx_curr_dets = idx_curr_dets
+    end subroutine fill_csf_i
 
     pure function construct_CSF_Info_t(ilut, idx_curr_dets) result(csf_i)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in), optional :: idx_curr_dets
         type(CSF_Info_t) :: csf_i
         call new_CSF_Info_t(nSpatOrbs, csf_i)
-        call fill_csf_i(ilut, csf_i, idx_curr_dets)
+        call fill_csf_i(calc_step_vector(ilut), csf_i, idx_curr_dets)
+    end function
+
+
+    pure function construct_CSF_Info_t_StepVector_t(csf, idx_curr_dets) result(res)
+        type(StepVector_t), intent(in) :: csf(:)
+        integer, intent(in), optional :: idx_curr_dets
+        type(CSF_Info_t) :: res
+        call new_CSF_Info_t(size(csf), res)
+        call fill_csf_i(csf%val, res, idx_curr_dets)
     end function
 
     elemental subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
@@ -2825,58 +2919,6 @@ contains
         logical :: res
         res = .not. (csf_i == csf_j)
     end function
-
-    pure subroutine fill_csf_i(ilut, csf_i, idx_curr_dets)
-        ! routine which sets up all the additional csf information, like
-        ! stepvector, b vector, occupation etc. in various formats in one
-        ! place
-        ! and combine all the necessary calcs. into one loop instead of
-        ! the seperate ones..
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-        type(CSF_Info_t), intent(inout) :: csf_i
-        integer, intent(in), optional :: idx_curr_dets
-        debug_function_name("fill_csf_i")
-
-        integer :: i, step, b
-        real(dp) :: cum_sum
-
-        ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(allocated(csf_i%stepvector))
-        ASSERT(allocated(csf_i%B_real))
-        ASSERT(allocated(csf_i%Occ_real))
-        ASSERT(allocated(csf_i%B_int))
-        ASSERT(allocated(csf_i%Occ_int))
-
-
-
-        b = 0
-        cum_sum = 0.0_dp
-        do i = 1, nSpatOrbs
-            step = getStepvalue(ilut, i)
-            csf_i%stepvector(i) = step
-            select case (step)
-            case (0)
-                csf_i%Occ_int(i) = 0
-                cum_sum = cum_sum + 1.0_dp
-            case (1)
-                csf_i%Occ_int(i) = 1
-                b = b + 1
-                cum_sum = cum_sum + 1.0_dp
-            case (2)
-                csf_i%Occ_int(i) = 1
-                b = b - 1
-                cum_sum = cum_sum + 1.0_dp
-            case (3)
-                csf_i%Occ_int(i) = 2
-            end select
-
-            csf_i%B_int(i) = b
-            csf_i%cum_list(i) = cum_sum
-        end do
-        csf_i%occ_real = real(csf_i%occ_int, dp)
-        csf_i%b_real = real(csf_i%b_int, dp)
-        if (present(idx_curr_dets)) csf_i%idx_curr_dets = idx_curr_dets
-    end subroutine fill_csf_i
 
     pure function is_compatible(ilut, csf_i) result(res)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)

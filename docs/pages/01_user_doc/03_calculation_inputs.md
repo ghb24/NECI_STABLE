@@ -202,6 +202,7 @@ considered. The block starts with the `system` keyword and ends with the
     from the following
 
     -   **\textcolor{blue}{pchb}**<br>
+        Please cite [@Holmes2016][@weser_exploiting_2023] when using.
         Generates excitations weighted directly with the matrix
         elements using pre-computed alias tables. This excitation
         generator is extremely fast, while maintaining high acceptance
@@ -325,6 +326,31 @@ considered. The block starts with the `system` keyword and ends with the
         more reasonable defaults than for the usual `mol-guga-weighted`
         excitation generation option.
 
+
+    -   **guga-gas-pchb**<br>
+        Uses the pre-computed alias tables and generalized active space
+        for the spin-adapted GUGA implementation.
+        Needs the `guga` keyword and a `GAS-SPEC` in the `System` block.
+        If it is used in conjunction with the histogramming tau-search, which
+        is recommended for GUGA calculations in general, it automatically sets
+        more reasonable defaults than for the usual `mol-guga-weighted`
+        excitation generation option.
+        Has to be followed by a specification of the drawing and weighting schemes.
+        The notation follows [@weser_exploiting_2023].
+        **Uniform**, **fast-weighted**, and **fully-weighted**
+        sampling schemes for particles and holes are labeled
+        `unif`, `fast` and `full`, respectively.
+        The colon symbol (`:`) separates particle- from hole-selection.
+        The weighting scheme lists first the weighting for the
+        singles (possible values are `uniform`, `abs-integral`, `rhf-expression`),
+        then for the doubles (possible values are `uniform`, `initial-dobrautz`).
+
+        An example is
+
+            nonuniformrandexcits guga-gas-pchb \
+                drawing full:full full-full:fast-fast \
+                weighting rhf-expression initial-dobrautz
+
     -   **nosymgen**<br>
         Generate all possible excitations, regardless of symmetry. Might
         have a low acceptance rate.
@@ -369,41 +395,22 @@ considered. The block starts with the `system` keyword and ends with the
         -   **PCHB**<br>
             This is the default and the fastest implementation, if
             sufficient memory is available. The double excitations work
-            similar to the FCI precomputed heat bath excitation generator
+            similar to the FCI PCHB excitation generator
             but automatically exclude GAS forbidden excitations.
-            The keyword has two optional sub-keywords,
-            `SINGLES`, `DOUBLES` which allow to tailor the algorithm
-            for your system.
-            (The default choice is usually sufficiently fast.)
-            With **SINGLES** one can select the single excitation algorithm:
-
-            -   **PC-WEIGHTED**<br>
-                Use precomputed weighted singles, which
-                is the default and recommended sampling scheme.
-                Read at Full CI PCHB for a deeper description.
-                It allows the same sampling schemes
-                `fully-weighted`, `weighted`, and `fast-weighted`.
-
-            -   **PC-UNIFORM**<br>
-                This is the default. It chooses GAS allowed single
-                excitations uniformly.
-
-            -   **ON-THE-FLY-HEAT-BATH**<br>
-                It chooses GAS allowed electrons weighted by their matrix
-                element.
-
-            With **doubles** one can select the particle- and hole-selection
-            algorithm for double excitations.
-            It is followed by `particle-selection` or `hole-selection`.
-            Read at Full CI PCHB for a deeper description.
-            It allows the same sampling schemes.
+            The keyword has to be followed by either `LOCALISED`,
+            `DELOCALISED`, or `MANUAL`.
+            For the sub-keywords read at Full CI PCHB
+            for a deeper description of the sub-keywords
 
             An example input is:
 
-                nonuniformrandexcits GAS-CI PCHB \
-                        singles pc-weighted weighted \
-                        doubles particle-selection weighted \
-                        doubles hole-selection fully-weighted
+                nonuniformrandexcits GAS-CI PCHB localised
+
+            An example input for manual specification is
+
+                nonuniformrandexcits GAS-CI PCHB manual \
+                    unif:full unif-full:full-full
+
 
         -   **DISCARDING**<br>
             Use a Full CI excitation generator and just discard excitations
@@ -428,8 +435,10 @@ considered. The block starts with the `system` keyword and ends with the
 <!-- -->
 
 -   **GAS-SPEC**<br>
+    Please cite [@weser_chemical_2021][@weser_stochastic_2022] when using.
     Perform a *Generalized Active Spaces* (GAS) calculation and specify
-    the GAS spaces.[@Weser2021] It is necessary to select the actual implementation
+    the GAS spaces.
+    It is necessary to select the actual implementation
     with the `GAS-CI` keyword. It is possible to use *local*,
     *cumulative*, or *flexible* constraints on the particle number. Local constraints
     define the minimum and maximum particle number per GAS space.
@@ -588,6 +597,7 @@ considered. The block starts with the `system` keyword and ends with the
 #### Spin purification
 
 -   **sd-spin-purification \(J\) [truncate-ladder-operator, only-ladder-operator]**<br>
+    Please cite [@weser_spin_2022] when using.
     Use an adjusted hamiltonian \(H + J S^2\) for the dynamic
     to force antiferromagnetic ordering and ensure pure spin-states
     in a Slater determinant (SD) basis.

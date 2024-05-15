@@ -23,7 +23,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 # We require at least ifort17, previous versions do not support all required options
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
     if("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 20)
-        message(FATAL_ERROR "ifort 20 or newer required. Yours is ${CMAKE_Fortran_COMPILER_VERSION}".)
+        message(FATAL_ERROR "ifort 20 or newer required. Yours is ${CMAKE_Fortran_COMPILER_VERSION}.")
     endif()
 endif()
 

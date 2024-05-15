@@ -10,9 +10,8 @@ module pchb_excitgen_test_helper
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use util_mod, only: near_zero
-    use unit_test_helper_excitgen, only: test_excitation_generator, &
-                                         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-                                         RandomFciDumpWriter_t
+    use unit_test_helper_excitgen, only: init_excitgen_test, finalize_excitgen_test
+    use unit_test_helper_fcidumps, only: RandomFciDumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private

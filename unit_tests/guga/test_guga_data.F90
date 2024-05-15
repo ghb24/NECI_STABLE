@@ -1,11 +1,20 @@
 module test_guga_data_mod
     use fruit, only: assert_true, assert_false, assert_equals, run_test_case
+    use constants, only: int64
     use guga_data, only: ijkl_Index_t, ijab_Index_t, &
               DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, &
-              excit_type
+              excit_type, fused_to_ijab, fused_to_ijkl, fused_to_DistinctDouble
+
+    use SystemData, only: nSpatOrbs, ij_pairs
+    use indexing_mod, only: fuse_symm_idx
+    use guga_bitrepops, only: CSF_Info_t, StepVector_t, stepvector_vals
+    use guga_excitations, only: gen_all_distinct_doubles
     implicit none
     private
     public :: test_driver
+
+    type(StepVector_t), parameter :: s0 = stepvector_vals%s0, u = stepvector_vals%u, &
+        d = stepvector_vals%d, s2 = stepvector_vals%s2
 
 contains
 
@@ -13,6 +22,9 @@ contains
         call run_test_case(test_indices, "test_indices")
         call run_test_case(test_distinct_double_type, "test_distinct_double_type")
         call run_test_case(test_distinct_double, "test_distinct_double_type")
+        call run_test_case(test_fuse, "test_fuse")
+
+        call run_test_case(test_gen_all_excits, "test_gen_all_excits")
     end subroutine
 
     subroutine test_indices()
@@ -153,6 +165,101 @@ contains
             end associate
         end associate
     end subroutine
+
+
+    subroutine test_fuse()
+
+        integer :: i, j, k, l
+
+        nSpatOrbs = 10
+        ij_pairs = fuse_symm_idx(nSpatOrbs, nSpatOrbs)
+
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+                do k = 1, nSpatOrbs
+                    do l = 1, nSpatOrbs
+                        associate(tmp => ijkl_Index_t([i, j, k, l]))
+                        associate(ijkl_idx => tmp%normalize())
+                        associate(ijab_idx => ijkl_idx%convert(), ijkl => ijkl_idx%fuse())
+                        associate(out_ijkl_idx => fused_to_ijkl(ijkl), out_ijab_idx => fused_to_ijab(ijkl))
+
+                        call assert_true(ijkl == ijab_idx%fuse())
+                        call assert_true(all(out_ijkl_idx%val == ijkl_idx%val))
+                        call assert_true(all(out_ijab_idx%val == ijab_idx%val))
+
+                        end associate
+                        end associate
+                        end associate
+                        end associate
+                    end do
+                end do
+            end do
+        end do
+
+
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+                do k = 1, nSpatOrbs
+                    do l = 1, nSpatOrbs
+                        associate(ijkl_idx => ijkl_Index_t([i, j, k, l]))
+                        associate(distinct_double => DistinctDouble_t(ijkl_idx%normalize()))
+                        associate(idx_fused => distinct_double%fuse())
+                        associate(out_distinct_double => fused_to_DistinctDouble(idx_fused))
+                        call assert_true(distinct_double%typ == out_distinct_double%typ)
+                        call assert_true(all(distinct_double%idx%val == out_distinct_double%idx%val))
+                        end associate
+                        end associate
+                        end associate
+                        end associate
+                    end do
+                end do
+            end do
+        end do
+
+    end subroutine
+
+    subroutine test_gen_all_excits()
+        type(CSF_Info_t) :: csf_i
+        type(DistinctDouble_t), allocatable :: excitations(:)
+        type(DistinctDouble_t), allocatable :: dd_expected(:)
+
+        nSpatOrbs = 4
+
+        csf_i = CSF_Info_t([s0, s2, u, d])
+        excitations = gen_all_distinct_doubles(csf_i)
+
+        dd_expected = reshape( [ &
+                    DistinctDouble_t(ijab_Index_t([2, 2, 1, 1])), &
+                    DistinctDouble_t(ijab_Index_t([2, 2, 1, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 2, 1, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 2, 3, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 1, 1])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 1, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 1, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 2, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 3, 2, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 1, 1])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 1, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 1, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 2, 3])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 2, 4])), &
+                    DistinctDouble_t(ijab_Index_t([2, 4, 3, 4])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 1, 1])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 1, 2])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 1, 4])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 2, 4])), &
+                    DistinctDouble_t(ijab_Index_t([3, 4, 3, 4]))], &
+
+                [20] &
+        )
+
+        call assert_equals(size(excitations), size(dd_expected))
+
+        call assert_true(all(excitations%fuse() == dd_expected%fuse()))
+
+    end subroutine
+
+
 
 end module
 

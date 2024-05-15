@@ -5,14 +5,14 @@ module exc_gen_classes
     use FciMCData, only: excit_gen_store_type
     use procedure_pointers, only: generate_excitation_t, generate_all_excits_t
     use bit_rep_data, only: NIfTot
-    use SystemData, only: nel, tGAS, tUHF, nBasis
+    use SystemData, only: nel, tUHF, nBasis
     use Determinants, only: DefDet
 
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
     use gasci_on_the_fly_heat_bath, only: GAS_heat_bath_ExcGenerator_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
     use gasci_util, only: write_GAS_info
-    use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name
+    use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name, tSD_GAS
     use gasci_discarding, only: GAS_DiscardingGenerator_t
     use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_user_input, decide_on_PCHB_options
 
@@ -54,7 +54,7 @@ contains
         use SystemData, only: t_fci_pchb_excitgen
 
         block
-            if (tGAS) then
+            if (tSD_GAS()) then
                 if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                     allocate(GAS_DiscardingGenerator_t :: current_exc_generator)
                     select type(current_exc_generator)

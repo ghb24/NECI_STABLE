@@ -5,8 +5,9 @@
 module gasci_pchb_doubles_spinorb_fullyweighted
     !! precomputed heat bath implementation for GASCI using spin orbitals and full weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
+    use util_mod, only: getSpinIndex, near_zero, swap, &
         operator(.implies.), operator(.isclose.), isclose, stop_all
+    use indexing_mod, only: fuse_symm_idx
     use get_excit, only: make_double, exciteIlut
     use bit_reps, only: decode_bit_det
     use bit_rep_data, only: nIfD
@@ -179,7 +180,7 @@ contains
         @:ASSERT(p_IJ .isclose. this%particle_selector%get_pgen(nI, i_sg, src(1), src(2)))
 
         call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
-        IJ = fuseIndex(src(1), src(2))
+        IJ = fuse_symm_idx(src(1), src(2))
 
         renorm_first = 1._dp - sum(this%A_sampler%get_prob(IJ, i_sg, nI))
         if (do_direct_calculation(renorm_first)) then
@@ -274,7 +275,7 @@ contains
         @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
         @:ASSERT(ic == 2)
 
-        IJ = fuseIndex(ex(1, 1), ex(1, 2))
+        IJ = fuse_symm_idx(ex(1, 1), ex(1, 2))
         i_sg = this%indexer%idx_nI(nI)
 
         pgen_particle = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
@@ -326,7 +327,7 @@ contains
         supergroups = this%indexer%get_supergroups()
 
         ! number of possible source orbital pairs
-        IJ_max = fuseIndex(nBasis, nBasis)
+        IJ_max = fuse_symm_idx(nBasis, nBasis)
 
         !> n_supergroup * number_of_fused_indices * 3 * (bytes_per_sampler)
         memCost = size(supergroups, 2, kind=int64) &
@@ -353,7 +354,7 @@ contains
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             first_particle: do I = 1, nBasis
                 second_particle: do J = I + 1, nBasis
-                    IJ = fuseIndex(I, J)
+                    IJ = fuse_symm_idx(I, J)
                     w_A(:) = 0.0_dp
                     first_hole: do A = 1, nBasis
                         if (any(A == [I, J])) cycle

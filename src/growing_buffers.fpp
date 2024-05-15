@@ -41,7 +41,7 @@ module growing_buffers
     type :: buffer_${_get_name(data_name, rank)}$_t
         private
 
-        @{get_decl(${type}$, ${kind}$, ${rank}$, allocatable=True)}@ :: buf
+        @{get_decl(${type}$, ${kind}$, ${rank}$, allocatable=True)}@, public :: buf
         ! Internal position of the buffer
         integer(int64) :: pos
         real(dp) :: grow_factor = 1.5_dp

@@ -16,7 +16,8 @@ module fcimc_iter_utils
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
                         tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp, tInitShift, &
                         tNonInitModShift, TargetWalkers1, TargetWalkers2, DiagSft2Init, &
-                        modShiftTargetIter, tmodShiftPhase, modShiftConstIters, tRenorm, tBosonNoSpawn
+                        modShiftTargetIter, tmodShiftPhase, modShiftConstIters, tRenorm, tBosonNoSpawn, &
+                        tModShiftTarget
 
     use tau_main, only: t_scale_tau_to_death, scale_tau_to_death_triggered, &
         tau_search_method, input_tau_search_method, possible_tau_search_methods, &
@@ -25,23 +26,24 @@ module fcimc_iter_utils
     use tau_search_hist, only: t_fill_frequency_hists
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
-    use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_rep_data, only: NIfD, NIfTot, test_flag, test_flag_multi
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
+    use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements, &
+        StepsPrint
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
                            AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput, &
-                           t_measure_local_spin
+                           t_measure_local_spin, tRDMOnFly, tExplicitAllRDM
     use tau_search_conventional, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
-    use Parallel_neci
-    use fcimc_initialisation
-    use fcimc_output
+    use Parallel_neci, only: MPIAllReduce, MPI_SUM, MPI_MAX, iProcIndex, root, &
+        MPI_MIN, MPI_2INTEGER, MPIGather, MPIReduce, mpialllorlogical
+    use fcimc_initialisation, only: DeallocFCIMCMemPar, SetupParameters, InitFCIMCCalcPar
+    use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader, &
+        WriteFCIMCStats
     use fcimc_helper
     use FciMCData
-    use constants
-    use util_mod
     use real_time_procs, only: normalize_gf_overlap
     use real_time_data, only: current_overlap, overlap_real, overlap_imag, &
                               t_real_time_fciqmc
@@ -57,7 +59,11 @@ module fcimc_iter_utils
 
     use PopsfileMod, only: ChangeRefDet
 
-    implicit none
+    better_implicit_none
+    private
+    public :: output_diagnostics, update_iter_data, calculate_new_shift_wrapper, &
+        collate_iter_data, iter_diagnostics, population_check, &
+        update_shift, iteration_output_wrapper, fix_trial_overlap
 
 contains
 
@@ -896,7 +902,6 @@ contains
 
     function relative_trial_numerator(tt_numerator, tt_denom, replica_pairs) &
         result(rel_tot_trial_numerator)
-        implicit none
         HElement_t(dp), intent(in) :: tt_numerator(inum_runs), tt_denom(inum_runs)
         logical, intent(in) :: replica_pairs
         HElement_t(dp) :: rel_tot_trial_numerator(inum_runs)

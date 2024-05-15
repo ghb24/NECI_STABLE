@@ -3,7 +3,9 @@ title
 system read
     ignore-fcidump-header
     electrons 4
-    nonuniformrandexcits guga-pchb
+    nonuniformrandexcits guga-pchb \
+        drawing unif:unif unif-unif:fast-fast \
+        weighting uniform initial-dobrautz
     system-replicas 5
     guga 2
 endsys

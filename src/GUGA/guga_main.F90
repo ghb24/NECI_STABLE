@@ -280,7 +280,7 @@ contains
         ! and non-symmetric excitation generator
         ! so in the initialize function point a general orbital picker to
         ! the specific one, depending on the input..
-        call pickOrbitals_single(ilut, nI, csf_i, excitInfo, orb_pgen)
+        call pickOrbitals_single(nI, ilut, csf_i, excitInfo, orb_pgen)
 
         if (.not. excitInfo%valid) then
             ! if no valid indices were picked, return 0 excitation and return
@@ -304,7 +304,7 @@ contains
                     return
                 end if
 
-                call create_crude_guga_single(ilut, nI, csf_i, exc, branch_pgen, excitInfo)
+                call create_crude_guga_single(nI, ilut, csf_i, exc, branch_pgen, excitInfo)
 
                 ! there is also this routine I already wrote:
                 ! I should combine those two as they do the same job
@@ -498,7 +498,7 @@ contains
         ! or maybe even in the FciMCPar to use the same b and occvector
         ! for and occupied determinant/CSF
 
-        call pickOrbitals_double(ilut, nI, csf_i, excitInfo, orb_pgen)
+        call pickOrbitals_double(nI, ilut, csf_i, excitInfo, orb_pgen)
 
         ! check if orbitals were correctly picked
         if ( .not. excitInfo%valid ) then

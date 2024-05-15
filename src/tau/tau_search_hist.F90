@@ -9,7 +9,7 @@ module tau_search_hist
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
                           t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard, &
                           t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits, &
-                          tGAS, t_fci_pchb_excitgen
+                          t_fci_pchb_excitgen
 
     use CalcData, only: tTruncInitiator, InitiatorWalkNo, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
@@ -38,6 +38,8 @@ module tau_search_hist
                            ija_orbs_sing, all_ija_orbs_sing, &
                            ija_orbs_para, all_ija_orbs, ija_orbs_anti
     use tc_three_body_data, only: pTriples, lMatEps
+
+    use gasci, only: tSD_GAS
 
     implicit none
     private
@@ -263,7 +265,7 @@ contains
         else if (t_fci_pchb_excitgen .and. .not. tGUGA) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
-        else if (tGAS) then
+        else if (tSD_GAS()) then
             consider_par_bias = .true.
         else
             consider_par_bias = .false.

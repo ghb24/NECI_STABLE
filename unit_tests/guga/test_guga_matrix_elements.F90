@@ -1,7 +1,7 @@
 module test_guga_matrixelements_mod
     use fruit, only: assert_true, assert_false, assert_equals, run_test_case
     use constants, only: dp, n_int, maxExcit, stdout
-    use guga_bitRepOps, only: convert_guga_to_ni, StepVectorVals_t, StepVector_t, stepvector_vals, &
+    use guga_bitRepOps, only: convert_stepvector_to_nI, StepVectorVals_t, StepVector_t, stepvector_vals, &
         EncodeBitDet_guga, CSF_Info_t
     use SystemData, only: nEl, nSpatOrbs, nBasis
     use guga_matrixElements, only: calc_guga_matrix_element
@@ -49,7 +49,7 @@ contains
     pure function get_ilut(stepv) result(ilut)
         type(StepVector_t), intent(in) :: stepv(:)
         integer(n_int) :: ilut(0:GugaBits%len_tot)
-        call EncodeBitDet_guga(convert_guga_to_ni(stepv), ilut)
+        call EncodeBitDet_guga(convert_stepvector_to_nI(stepv), ilut)
     end function
 end module
 

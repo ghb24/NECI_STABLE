@@ -8,13 +8,14 @@ module unit_test_helper_excitgen
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
     use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
-                          tReadInt, t_pcpp_excitgen, nSpatOrbs, tGUGA, tUHF, tMolpro, &
-                          user_input_m_s, tZeroDelimitedFCIDUMP, tIgnoreFCIDUMPHeader
+      tReadInt, t_pcpp_excitgen, nSpatOrbs, nSpatOrbs_i8, ij_pairs, tGUGA, tUHF, tMolpro, &
+      user_input_m_s, tZeroDelimitedFCIDUMP, tIgnoreFCIDUMPHeader
     use sort_mod
     use gasci, only: GASSpec_t
     use System, only: SysInit, SetSysDefaults, SysCleanup
     use Parallel_neci, only: MPIInit, MPIEnd, mpi_comm_rank, mpi_comm_world
     use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
+    use indexing_mod, only: fuse_symm_idx
     use OneEInts, only: Tmat2D
     use bit_rep_data, only: NIfTot, nifd, extract_sign, IlutBits
     use bit_reps, only: encode_sign, decode_bit_det, init_bit_rep
@@ -31,12 +32,14 @@ module unit_test_helper_excitgen
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
     use DetCalc, only: DetCalcInit
     use ReadInput_neci, only: evaluate_depending_keywords
+
+    use unit_test_helper_fcidumps, only: FciDumpWriter_t, &
+        InputWriter_t, Writer_t, RandomFcidumpWriter_t, generate_uniform_integrals
     better_implicit_none
     private
-    public :: test_excitation_generator, generate_uniform_integrals, FciDumpWriter_t, &
-        init_excitgen_test, generate_random_integrals, set_ref, free_ref, calc_pgen, &
-        finalize_excitgen_test, InputWriter_t, Writer_t, delete_file, &
-        RandomFcidumpWriter_t, init_guga_testsuite, finalize_guga_testuite
+    public :: test_excitation_generator, FciDumpWriter_t, &
+        init_excitgen_test, set_ref, free_ref, calc_pgen, &
+        finalize_excitgen_test, init_guga_testsuite, finalize_guga_testuite
     abstract interface
         function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
             use constants
@@ -54,45 +57,7 @@ module unit_test_helper_excitgen
         end function calc_pgen_t
     end interface
 
-    interface RandomFcidumpWriter_t
-        module procedure construct_RandomFciDumpWriter_t, construct_GAS_RandomFciDumpWriter_t
-    end interface
-
     procedure(calc_pgen_t), pointer :: calc_pgen
-
-    type, abstract :: Writer_t
-        ! I would like it to be:
-        ! character(:), allocatable :: filepath
-        ! but for gfortran <= 4.8.5 it has to be
-        character(512) :: filepath
-    contains
-        procedure :: write
-        procedure(to_unit_writer_t), deferred :: write_to_unit
-    end type
-
-    abstract interface
-        subroutine to_unit_writer_t(this, iunit)
-            import :: Writer_t
-            implicit none
-            class(Writer_t), intent(in) :: this
-            integer, intent(in) :: iunit
-        end subroutine
-    end interface
-
-    type, abstract, extends(Writer_t) :: FciDumpWriter_t
-    end type
-
-    type, extends(FciDumpWriter_t) :: RandomFcidumpWriter_t
-        integer :: n_el, n_spat_orb
-        real(dp) :: sparse, sparseT
-        type(SpinProj_t) :: total_ms
-        logical :: uhf, hermitian
-    contains
-        procedure :: write_to_unit => RandomFcidumpWriter_t_write
-    end type
-
-    type, abstract, extends(Writer_t) :: InputWriter_t
-    end type
 
 contains
 
@@ -328,6 +293,10 @@ contains
         tIgnoreFCIDUMPHeader = .true.
         call initfromfcid(nel, nbasismax, nBasis, lms, .false.)
 
+        nSpatOrbs = nBasis .div. 2
+        nSpatOrbs_i8 = int(nBasis .div. 2, int64)
+        ij_pairs = fuse_symm_idx(nSpatOrbs_i8, nSpatOrbs_i8)
+
         call GetUMatSize(nBasis, umatsize)
 
         allocate(TMat2d(nBasis, nBasis))
@@ -435,162 +404,8 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    ! generate an FCIDUMP file with random numbers with a given sparsity and write to iunit
-    subroutine generate_random_integrals(iunit, n_el, n_spat_orb, sparse, sparseT, &
-            total_ms, uhf, hermitian)
-        integer, intent(in) :: iunit, n_el, n_spat_orb
-        real(dp), intent(in) :: sparse, sparseT
-        type(SpinProj_t), intent(in) :: total_ms
-        logical, optional, intent(in) :: uhf, hermitian
-            !! specify if the FCIDUMP is UHF
-            !! specify if the FCIDUMP is hermitian
-            !!
-            !! @note if uhf then assume
-            !! num spin-up basis functions = num spin-down basis functions
-        logical :: uhf_, hermitian_
-        integer :: i, j, k, l, j_end, l_end
-        real(dp) :: r, matel
-        ! we get random matrix elements from the cauchy-schwartz inequalities, so
-        ! only <ij|ij> are random -> random 2d matrix
-        real(dp), allocatable :: umatRand(:, :)
-        integer :: norb ! n_spin_orb or n_spat_orb
-
-        def_default(hermitian_, hermitian, .true.)
-        ! UHF FCIDUMPs have six sectors:
-        ! two-body integrals: up-up, down-down, up-down
-        ! one-body integrals: up, down
-        ! nuclear repulsion
-        ! delimiter: 0.0000000000000000E+00   0   0   0   0
-        def_default(uhf_, uhf, .false.)
-
-        norb = merge(2*n_spat_orb, n_spat_orb, uhf_)
-        allocate(umatRand(norb, norb), source=0.0_dp)
-
-        do i = 1, norb
-            do j = 1, norb
-                r = genrand_real2_dSFMT()
-                if (r < sparse) then
-                    umatRand(i, j) = r * r
-                    if (hermitian_) then
-                        umatRand(j, i) = umatRand(i, j)
-                    else
-                        ! have the conjugate be similar
-                        umatRand(j, i) = (1 + genrand_real2_dSFMT() * 0.1) * umatRand(i, j)
-                    endif
-                end if
-            end do
-        end do
-
-        ! write the canonical FCIDUMP header (norb here is num spatial orbitals)
-        write(iunit, *) "&FCI NORB=", n_spat_orb, ",NELEC=", n_el, "MS2=", total_ms%val, ","
-        write(iunit, "(A)", advance="no") "ORBSYM="
-
-        do i = 1, n_spat_orb
-            write(iunit, "(A)", advance="no") "1,"
-        end do
-        write(iunit, *)
-        write(iunit, *) "ISYM=1,"
-        write(iunit, *) "&END"
-        ! generate random 4-index integrals with a given sparsity
-        ! then
-        ! generate random 2-index integrals with a given sparsity
-        if(uhf_) then
-            ! three 4-index sectors, so three calls to write_4index
-            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
-            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0 ! delimiter
-            ! we can keep using the spatial orbitals as indices because of the
-            ! partitioning of the dump file
-            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
-            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            call write_4index(1, n_spat_orb, 1, n_spat_orb, hermitian_)
-            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            call write_2index(1, n_spat_orb, hermitian_)
-            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            call write_2index(1, n_spat_orb, hermitian_)
-            write(iunit, *) 0.0000000000000000E+00, 0, 0, 0, 0
-            ! then would come the nuclear repulsion
-        else ! .not. uhf_
-            call write_4index(1, norb, 1, norb, hermitian_)
-            call write_2index(1, n_spat_orb, hermitian_)
-        endif
-
-    contains
-        subroutine write_4index(i_start, i_end, k_start, k_end, hermitian)
-            ! i_end corresponds to electron 1, j_end to electron 2
-            integer, intent(in) :: i_start, i_end, k_start, k_end
-            logical, intent(in) :: hermitian
-            integer :: k_start_
-            do i = i_start, i_end
-                ! j_end = i if hermitian, else i_end
-                j_end = merge(i, i_end, hermitian)
-                do j = 1, j_end
-                    ! if the Hamiltonian *is* Hermitian, we may flip these indices
-                    k_start_ = merge(i, k_start, hermitian)
-                    do k = k_start_, k_end
-                        l_end = merge(k, k_end, hermitian)
-                        do l = 1, l_end
-                            matel = sqrt(umatRand(i, j) * umatRand(k, l))
-                            if (matel > eps) write(iunit, *) matel, i, j, k, l
-                        end do
-                    end do
-                end do
-            end do
-        end subroutine write_4index
-
-        subroutine write_2index(i_start, i_end, hermitian)
-            integer, intent(in) :: i_start, i_end
-            logical, intent(in) :: hermitian
-            do i = i_start, i_end
-                j_end = merge(i, i_end, hermitian)
-                do j = i_start, j_end
-                    r = genrand_real2_dSFMT()
-                    if (r < sparseT) then
-                        write(iunit, *) r, i, j, 0, 0
-                    end if
-                end do
-            end do
-        end subroutine write_2index
-
-    end subroutine generate_random_integrals
 
     !------------------------------------------------------------------------------------------!
-    subroutine generate_uniform_integrals
-
-        use SystemData, only: nSpatOrbs, nel, lms
-
-        integer :: i, j, k, l, iunit
-
-        open (newunit=iunit, file="FCIDUMP")
-        write(iunit, *) "&FCI NORB=", nSpatOrbs, ",NELEC=", nel, "MS2=", lms, ","
-        write(iunit, "(A)", advance="no") "ORBSYM="
-        do i = 1, nSpatOrbs
-            write(iunit, "(A)", advance="no") "1,"
-        end do
-        write(iunit, *)
-        write(iunit, *) "ISYM=1,"
-        write(iunit, *) "&END"
-
-        do i = 1, nSpatOrbs
-            do j = 1, nSpatOrbs
-                do l = 1, nSpatOrbs
-                    do k = 1, nSpatOrbs
-                        write(iunit, *) h_cast(1.0_dp), i, j, k, l
-                    end do
-                end do
-            end do
-        end do
-        do i = 1, nSpatOrbs
-            do j = i, nSpatOrbs
-                write(iunit, *) h_cast(1.0_dp), i, j, 0, 0
-            end do
-        end do
-
-        write(iunit, *) h_cast(0.0_dp), 0, 0, 0, 0
-
-        close (iunit)
-
-    end subroutine generate_uniform_integrals
-
     !------------------------------------------------------------------------------------------!
 
     ! set the reference to the determinant with the first nel orbitals occupied
@@ -608,64 +423,4 @@ contains
         deallocate(projEDet)
     end subroutine free_ref
 
-    subroutine delete_file(path)
-        character(*), intent(in) :: path
-        integer :: file_id
-
-        open (newunit=file_id, file=path, status='old')
-        close (file_id, status='delete')
-    end subroutine
-
-    subroutine RandomFcidumpWriter_t_write(this, iunit)
-        class(RandomFcidumpWriter_t), intent(in) :: this
-        integer, intent(in) :: iunit
-        call generate_random_integrals(iunit, &
-            this%n_el, this%n_spat_orb, this%sparse, this%sparseT, &
-            this%total_ms, this%uhf, this%hermitian)
-    end subroutine
-
-    pure function construct_RandomFciDumpWriter_t(n_spat_orbs, nI, sparse, sparseT, filepath, uhf, hermitian) result(res)
-        integer, intent(in) :: n_spat_orbs, nI(:)
-        real(dp), intent(in) :: sparse, sparseT
-        character(*), optional, intent(in) :: filepath
-        logical, optional, intent(in) :: uhf, hermitian
-        class(RandomFcidumpWriter_t), allocatable :: res
-
-        character(len=:), allocatable :: filepath_
-        logical :: uhf_, hermitian_
-        def_default(uhf_, uhf, .false.)
-        def_default(hermitian_, hermitian, .true.)
-        def_default(filepath_, filepath, 'FCIDUMP')
-
-        res = RandomFcidumpWriter_t( &
-                    filepath=filepath_, &
-                    n_El=size(nI), n_spat_orb=n_spat_orbs, &
-                    sparse=sparse, sparseT=sparseT, total_ms=sum(calc_spin_raw(nI)), &
-                    uhf=uhf_, hermitian=hermitian_&
-                )
-    end function
-
-    pure function construct_GAS_RandomFciDumpWriter_t(GAS_spec, nI, sparse, sparseT, filepath, uhf, hermitian) result(res)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: nI(:)
-        real(dp), intent(in) :: sparse, sparseT
-        character(*), optional, intent(in) :: filepath
-        logical, optional, intent(in) :: uhf, hermitian
-        class(RandomFcidumpWriter_t), allocatable :: res
-
-        res = RandomFcidumpWriter_t( &
-                    GAS_spec%n_spin_orbs() .div. 2, nI, &
-                    sparse=sparse, sparseT=sparseT, &
-                    filepath=filepath, &
-                    uhf=uhf, hermitian=hermitian&
-                )
-    end function
-
-    subroutine write(this)
-        class(Writer_t), intent(in) :: this
-        integer :: file_id
-        open(newunit=file_id, file=this%filepath)
-            call this%write_to_unit(file_id)
-        close(file_id)
-    end subroutine
 end module unit_test_helper_excitgen

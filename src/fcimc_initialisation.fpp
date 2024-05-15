@@ -22,7 +22,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, t_trans_corr_hop, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_fci_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr, &
+                          t_fci_pchb_excitgen, t_spin_dependent_transcorr, &
                           basisfn, t_mixed_excits, t_hole_focus_excits
 
 
@@ -318,8 +318,9 @@ module fcimc_initialisation
 
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
-                              calc_csf_i, CSF_Info_t, csf_ref, fill_csf_i
+                              CSF_Info_t, csf_ref, fill_csf_i, calc_step_vector
 
+    use guga_init, only: finalize_guga
     use guga_main, only: generate_excitation_guga
     use guga_excitations, only: actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
@@ -347,6 +348,7 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
+    use gasci, only: tSD_GAS, tGAS, finalize_GAS
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
@@ -615,7 +617,7 @@ contains
 
         if (tGUGA) then
             do run = 1, inum_runs
-                call fill_csf_i(ilutRef(:, run), csf_ref(run))
+                call fill_csf_i(calc_step_vector(ilutRef(:, run)), csf_ref(run))
             end do
         end if
 
@@ -2097,7 +2099,7 @@ contains
         gen_all_excits => gen_all_excits_default
 
         ! Select the excitation generator.
-        if (tGAS) then
+        if (tSD_GAS()) then
             call class_managed(generate_excitation, gen_all_excits)
         else if (t_3_body_excits .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             if (t_uniform_excits) then
@@ -2496,7 +2498,9 @@ contains
 
         if (t_pcpp_excitgen) call finalize_pcpp_excitgen()
 
-        if(t_impurity_excitgen) call clearImpurityExcitgen()
+        if (tGAS) call finalize_GAS()
+
+        if (t_impurity_excitgen) call clearImpurityExcitgen()
 
         if (tSemiStochastic) call end_semistoch()
 
@@ -2504,6 +2508,7 @@ contains
 
         call finalize_exz_gen_class()
 
+        if (tGUGA) call finalize_guga()
 
         if(tFullProjE)then
             deallocate(connected_dets, stat=ierr)

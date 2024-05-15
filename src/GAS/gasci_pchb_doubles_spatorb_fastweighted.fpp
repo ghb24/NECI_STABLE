@@ -5,8 +5,9 @@
 module gasci_pchb_doubles_spatorb_fastweighted
     !! precomputed heat bath implementation for GASCI using spatial orbitals
     use constants, only: n_int, dp, int64, maxExcit, stdout
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, swap, &
+    use util_mod, only: getSpinIndex, near_zero, swap, &
         operator(.implies.), operator(.isclose.), stop_all
+    use indexing_mod, only: fuse_symm_idx
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
@@ -103,11 +104,11 @@ contains
         ! number of spatial orbs
         nBI = numBasisIndices(this%GAS_spec%n_spin_orbs())
         ! initialize the mapping ab -> (a, b)
-        abMax = fuseIndex(nBI, nBI)
+        abMax = fuse_symm_idx(nBI, nBI)
         allocate(this%tgtOrbs(2, 0 : abMax), source=0)
         do a = 1, nBI
             do b = 1, a
-                ab = fuseIndex(a, b)
+                ab = fuse_symm_idx(a, b)
                 this%tgtOrbs(1, ab) = b
                 this%tgtOrbs(2, ab) = a
             end do
@@ -199,7 +200,7 @@ contains
 
         invalid = .false.
         ! use the sampler for this electron pair -> order of src electrons does not matter
-        ij = fuseIndex(gtID(src(1)), gtID(src(2)))
+        ij = fuse_symm_idx(gtID(src(1)), gtID(src(2)))
         ! the spin of the electrons: 0 - alpha, 1 - beta
         spin = getSpinIndex(src)
         ! determine type of spin-excitation: same-spin, opp spin w exchange, opp spin w/o exchange
@@ -298,8 +299,8 @@ contains
         @:ASSERT(ic == 2)
 
         nex = gtID(ex(:, : ic))
-        ij = fuseIndex(nex(1, 1), nex(1, 2))
-        ab = fuseIndex(nex(2, 1), nex(2, 2))
+        ij = fuse_symm_idx(nex(1, 1), nex(1, 2))
+        ab = fuse_symm_idx(nex(2, 1), nex(2, 2))
         i_sg = this%indexer%idx_nI(nI)
 
         pgen = this%particle_selector%get_pgen(nI, i_sg, ex(1, 1), ex(1, 2))
@@ -342,7 +343,7 @@ contains
         supergroups = this%indexer%get_supergroups()
 
         ! number of possible source orbital pairs
-        ijMax = fuseIndex(nBI, nBI)
+        ijMax = fuse_symm_idx(nBI, nBI)
         abMax = ijMax
         ! allocate the bias for picking an exchange excitation
         allocate(this%pExch(ijMax, size(supergroups, 2)), source=0.0_dp)
@@ -373,7 +374,7 @@ contains
                     ex(1, 1) = to_spin_orb(i, is_alpha=.true.)
                     particle_2: do j = i, nBi
                         if (i_exch == SAME_SPIN .and. i == j) cycle
-                        ij = fuseIndex(i, j)
+                        ij = fuse_symm_idx(i, j)
                         w(:) = 0.0_dp
                         ex(1, 2) = to_spin_orb(j, i_exch == SAME_SPIN)
                         hole_1: do a = 1, nBI
@@ -381,7 +382,7 @@ contains
                             if (any(ex(2, 1) == ex(1, :))) cycle
                             hole_2: do b = a, nBi
                                 if (i_exch == OPP_SPIN_EXCH .and. a == b) cycle
-                                ab = fuseIndex(a, b)
+                                ab = fuse_symm_idx(a, b)
                                 ex(2, 2) = to_spin_orb(b, any(i_exch == [SAME_SPIN, OPP_SPIN_EXCH]))
                                 if (any(ex(2, 2) == ex(1, :)) .or. ex(2, 2) == ex(2, 1)) cycle
 

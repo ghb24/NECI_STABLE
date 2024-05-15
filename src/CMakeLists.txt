@@ -177,6 +177,7 @@ set( SRC_FILES
     UMatCache.F90
     tc_precomputed_excitgen.F90
     unit_test_helper_excitgen.F90
+    unit_test_helper_fcidumps.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
@@ -194,12 +195,11 @@ set( SRC_FILES
     GUGA/guga_procedure_pointers.F90
     GUGA/guga_types.F90
     GUGA/guga_plugin.F90
-    GUGA/guga_base_class.F90
     GUGA/guga_base_class_impls.F90
     GUGA/guga_pchb_class.F90
     GUGA/guga_crude_approx.F90
     GUGA/guga_rdm.F90
-    GUGA/guga_gas_pchb_class.F90
+    GUGA/guga_gas_pchb_doubles_select_holes.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
@@ -419,6 +419,13 @@ set( FYPP_SRC_FILES
     GAS/gasci_pchb_doubles_spinorb_fastweighted.fpp
     GAS/gasci_supergroup_index.fpp
     GAS/gasci_util.fpp
+    GUGA/guga_base_class.fpp
+    GUGA/guga_gas_pchb_main.fpp
+    GUGA/guga_gas_pchb_singles_main.fpp
+    GUGA/guga_gas_pchb_doubles_main.fpp
+    GUGA/guga_gas_pchb_doubles_select_particles.fpp
+    GUGA/guga_pchb_doubles_weights.fpp
+    GUGA/guga_pchb_singles_weights.fpp
     CDF_sampling.fpp
     orb_idx.fpp
     excitation_types.fpp
@@ -429,6 +436,7 @@ set( FYPP_SRC_FILES
     hist.fpp
     lib/parallel_hdf5_utils.fpp
     lib/util_mod.fpp
+    lib/indexing_mod.fpp
     lib/basic_float_math.fpp
     lib/matrix_util.fpp
     sets_mod.fpp

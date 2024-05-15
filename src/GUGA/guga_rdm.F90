@@ -43,7 +43,7 @@ module guga_rdm
     use guga_bitRepOps, only: isProperCSF_ilut, isDouble, CSF_Info_t, fill_csf_i
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
-    use guga_bitRepOps, only: calc_csf_i, add_guga_lists, EncodeBitDet_guga
+    use guga_bitRepOps, only: add_guga_lists, EncodeBitDet_guga, calc_step_vector
     use guga_bitRepOps, only: findFirstSwitch, findLastSwitch
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind, &
                               extract_1_rdm_ind, extract_2_rdm_ind, &
@@ -1301,10 +1301,8 @@ contains
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
         integer(int_rdm), intent(in) :: rdm_ind
 
-        integer :: i, a, st, en, step_i(nSpatOrbs), step_j(nSpatOrbs), &
-                   delta_b(nSpatOrbs), gen, d_i, d_j, delta, &
-                   b_i(nSpatOrbs), b_j(nSpatOrbs)
-        real(dp) :: occ_i(nSpatOrbs), occ_j(nSpatOrbs)
+        type(CSF_Info_t) :: csf_i, csf_j
+        integer :: i, a, st, en, delta_b(nSpatOrbs), gen, d_i, d_j, delta
         real(dp) :: botCont, topCont, tempWeight, prod, StartCont, EndCont
         integer :: iO, jO, step
 
@@ -1350,21 +1348,21 @@ contains
         ! this would simplify things!
 
         ! for simplicity it is best to have these quantities:
-        call calc_csf_i(ilutI, step_i, b_i, occ_i)
-        call calc_csf_i(ilutJ, step_j, b_j, occ_j)
+        csf_i = CSF_Info_t(ilutI)
+        csf_j = CSF_Info_t(ilutJ)
 
-        delta_b = b_i - b_j
+        delta_b = csf_i%b_int(:) - csf_j%b_int(:)
 
         ! calculate the bottom contribution depending on the excited stepvalue
-        select case (step_i(st))
+        select case (csf_i%stepvector(st))
         case (0)
             ! this implicates a raising st:
-            if (isOne(ilutJ, st)) then
-                call getDoubleMatrixElement(1, 0, 0, gen_type%L, gen_type%R, real(b_i(st), dp), &
+            if (csf_j%stepvector(st) == 1) then
+                call getDoubleMatrixElement(1, 0, 0, gen_type%L, gen_type%R, csf_i%b_real(st), &
                                             1.0_dp, x1_element=botCont)
 
             else
-                call getDoubleMatrixElement(2, 0, 0, gen_type%L, gen_type%R, real(b_i(st), dp), &
+                call getDoubleMatrixElement(2, 0, 0, gen_type%L, gen_type%R, csf_i%b_real(st), &
                                             1.0_dp, x1_element=botCont)
             end if
 
@@ -1373,22 +1371,22 @@ contains
 
         case (3)
             ! implies lowering st
-            if (isOne(ilutJ, st)) then
+            if (csf_j%stepvector(st) == 1) then
                 ! need tA(0,2)
-                botCont = funA_0_2overR2(real(b_i(st), dp))
+                botCont = funA_0_2overR2(csf_i%b_real(st))
 
             else
                 ! need -tA(2,0)
-                botCont = minFunA_2_0_overR2(real(b_i(st), dp))
+                botCont = minFunA_2_0_overR2(csf_i%b_real(st))
             end if
 
             StartCont = 1.0_dp
             gen = gen_type%L
 
         case (1)
-            botCont = funA_m1_1_overR2(real(b_i(st), dp))
+            botCont = funA_m1_1_overR2(csf_i%b_real(st))
             ! check which generator
-            if (isZero(ilutJ, st)) then
+            if (csf_j%stepvector(st) == 0) then
                 botCont = -botCont
 
                 StartCont = 0.0_dp
@@ -1399,8 +1397,8 @@ contains
             end if
 
         case (2)
-            botCont = funA_3_1_overR2(real(b_i(st), dp))
-            if (isThree(ilutJ, st)) then
+            botCont = funA_3_1_overR2(csf_i%b_real(st))
+            if (csf_j%stepvector(st) == 3) then
                 botCont = -botCont
 
                 StartCont = 1.0_dp
@@ -1414,28 +1412,28 @@ contains
 
         ! do top contribution also already
 
-        select case (step_i(en))
+        select case (csf_i%stepvector(en))
         case (0)
-            if (isOne(ilutJ, en)) then
-                topCont = funA_2_0_overR2(real(b_i(en), dp))
+            if (csf_j%stepvector(en) == 1) then
+                topCont = funA_2_0_overR2(csf_i%b_real(en))
             else
-                topCont = minFunA_0_2_overR2(real(b_i(en), dp))
+                topCont = minFunA_0_2_overR2(csf_i%b_real(en))
             end if
 
             EndCont = 0.0_dp
 
         case (3)
-            if (isOne(ilutJ, en)) then
-                topCont = minFunA_2_0_overR2(real(b_i(en), dp))
+            if (csf_j%stepvector(en) == 1) then
+                topCont = minFunA_2_0_overR2(csf_i%b_real(en))
             else
-                topCont = funA_0_2overR2(real(b_i(en), dp))
+                topCont = funA_0_2overR2(csf_i%b_real(en))
             end if
 
             EndCont = 1.0_dp
 
         case (1)
-            topCont = funA_2_0_overR2(real(b_i(en), dp))
-            if (isThree(ilutJ, en)) then
+            topCont = funA_2_0_overR2(csf_i%b_real(en))
+            if (csf_j%stepvector(en) == 3) then
                 topCont = -topCont
 
                 EndCont = 1.0_dp
@@ -1444,8 +1442,8 @@ contains
             end if
 
         case (2)
-            topCont = funA_0_2overR2(real(b_i(en), dp))
-            if (isZero(ilutJ, en)) then
+            topCont = funA_0_2overR2(csf_i%b_real(en))
+            if (csf_j%stepvector(en) == 0) then
                 topCont = -topCont
 
                 EndCont = 0.0_dp
@@ -1462,7 +1460,7 @@ contains
 
         do iO = 1, st - 1
             ! no contribution if not occupied.
-            if (step_i(iO) == 0) cycle
+            if (csf_i%stepvector(iO) == 0) cycle
             ! else it gets a contrbution weighted with orbital occupation
             ! first easy part:
 
@@ -1470,45 +1468,45 @@ contains
             ! the conjugated element will of course never be stored!
             ! W + R/L contribution
             call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
-                                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+                                    csf_i%occ_real(iO) * sign_i * sign_j * mat_ele, .true.)
 
             call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
-                                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+                                    csf_i%occ_real(iO) * sign_i * sign_j * mat_ele, .true.)
 
             ! exchange contribution:
             ! wtf is this b_i == 0 check? that does not make any sense..
-            if (step_i(iO) == 3 .or. ((occ_i(iO) .isclose.1.0_dp) .and. b_i(iO) == 0)) then
+            if (csf_i%stepvector(iO) == 3 .or. ((csf_i%occ_int(iO) == 1) .and. csf_i%b_int(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
 
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                                        -occ_i(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
+                                        -csf_i%occ_real(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                                        -occ_i(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
+                                        -csf_i%occ_real(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
 
             else
                 ! otherwise i have to recalc the x1 element
 
-                step = step_i(iO)
-                call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, real(b_i(iO), dp), &
+                step = csf_i%stepvector(iO)
+                call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, csf_i%b_real(iO), &
                                             1.0_dp, x1_element=prod)
 
                 ! and then do the remaining:
                 do jO = iO + 1, st - 1
                     ! need the stepvalue entries to correctly access the mixed
                     ! generator matrix elements
-                    step = step_i(jO)
+                    step = csf_i%stepvector(jO)
                     call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, &
-                                                real(b_i(jO), dp), 1.0_dp, x1_element=tempWeight)
+                                                real(csf_i%b_int(jO), dp), 1.0_dp, x1_element=tempWeight)
 
                     prod = prod * tempWeight
                 end do
                 prod = prod * botCont
 
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                                        (prod - occ_i(iO) / 2.0) * sign_i * sign_j * mat_ele, .true.)
+                                        (prod - csf_i%occ_real(iO) / 2.0) * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                                        (prod - occ_i(iO) / 2.0) * sign_i * sign_j * mat_ele, .true.)
+                                        (prod - csf_i%occ_real(iO) / 2.0) * sign_i * sign_j * mat_ele, .true.)
             end if
         end do
 
@@ -1525,17 +1523,17 @@ contains
 
             ! W + R/L
             call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
-                                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+                                    csf_i%occ_real(iO) * sign_i * sign_j * mat_ele, .true.)
             call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
-                                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+                                    csf_i%occ_real(iO) * sign_i * sign_j * mat_ele, .true.)
 
             ! exchange type:
             ! oh damn I need the delta-B value here..
-            d_i = step_i(iO)
-            d_j = step_j(iO)
+            d_i = csf_i%stepvector(iO)
+            d_j = csf_j%stepvector(iO)
             delta = delta_b(iO - 1)
 
-            prod = getDoubleContribution(d_j, d_i, delta, gen, real(b_i(iO), dp))
+            prod = getDoubleContribution(d_j, d_i, delta, gen, csf_i%b_real(iO))
 
             call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                                     prod * sign_i * sign_j * mat_ele, .true.)
@@ -1552,23 +1550,23 @@ contains
         ! loop above:
         do iO = en + 1, nSpatOrbs
 
-            if (step_i(iO) == 0) cycle
+            if (csf_i%stepvector(iO) == 0) cycle
 
             ! W + R/L contribution
             call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
-                                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+                                    csf_i%occ_real(iO) * sign_i * sign_j * mat_ele, .true.)
             call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
-                                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+                                    csf_i%occ_real(iO) * sign_i * sign_j * mat_ele, .true.)
 
             ! exchange
-            if (step_i(iO) == 3 .or. (b_i(iO) == 1 .and. step_i(iO) == 1)) then
+            if (csf_i%stepvector(iO) == 3 .or. (csf_i%b_int(iO) == 1 .and. csf_i%stepvector(iO) == 1)) then
                 ! only x0 contribution
                 ! then it is easy:
                 ! just figure out correct indices
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                                        -occ_i(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
+                                        -csf_i%occ_real(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                                        -occ_i(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
+                                        -csf_i%occ_real(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
 
             else
 
@@ -1576,18 +1574,18 @@ contains
 
                 do jO = en + 1, iO - 1
 
-                    step = step_i(jO)
+                    step = csf_i%stepvector(jO)
 
-                    call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, real(b_i(jO), dp), &
+                    call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, csf_i%b_real(jO), &
                                                 1.0_dp, x1_element=tempWeight)
 
                     prod = prod * tempWeight
 
                 end do
 
-                step = step_i(iO)
+                step = csf_i%stepvector(iO)
 
-                call getMixedFullStop(step, step, 0, real(b_i(iO), dp), &
+                call getMixedFullStop(step, step, 0, csf_i%b_real(iO), &
                                       x1_element=tempWeight)
 
                 prod = prod * tempWeight
@@ -1595,9 +1593,9 @@ contains
                 prod = prod * topCont
 
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                                        (prod - occ_i(iO) / 2.0) * sign_i * sign_j * mat_ele, .true.)
+                                        (prod - csf_i%occ_real(iO) / 2.0) * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                                        (prod - occ_i(iO) / 2.0) * sign_i * sign_j * mat_ele, .true.)
+                                        (prod - csf_i%occ_real(iO) / 2.0) * sign_i * sign_j * mat_ele, .true.)
             end if
         end do
 

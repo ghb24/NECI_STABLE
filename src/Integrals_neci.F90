@@ -34,7 +34,7 @@ module Integrals_neci
 
     use sym_mod, only: symProd, symConj, totsymrep
 
-    USE OneEInts, only: TMAT2D
+    USE OneEInts, only: TMAT2D, GetTMatEl
 
     use util_mod, only: get_free_unit, stop_all, neci_flush
 
@@ -64,6 +64,9 @@ module Integrals_neci
 
     use Determinants, only: detfreezebasis, writebasis
     implicit none
+    private
+    public :: get_umat_el, GetUMatEl2, IntReadInput, SetIntDefaults, get_umat_el_normal, &
+        IntInit, IntFreeze, tPostFreezeHF, DumpFCIDUMP, IntCleanup, h, g
 
 contains
 
@@ -1944,6 +1947,37 @@ contains
     end subroutine DumpFCIDUMP
 
 !------------------------------------------------------------------------------------------!
+
+
+    elemental function g(i, j, k, l) result(res)
+        !! The two-electron integral in chemist's notation
+        !!
+        !! Convention in the purple book[@purple_book] or
+        !! the Shavitt paper[@Hinze1981] and many more.
+        !! \( g_{I, A, J, B} = < I J | 1 / r | A B > \)
+        !!
+        !! The function exists to have a direct translation
+        !! of the pen and paper equations into code.
+        integer, intent(in) :: i, j, k, l
+            !! Spatial orbital indices
+        HElement_t(dp) :: res
+        res = get_umat_el(i, k, j, l)
+    end function
+
+    HElement_t(dp) elemental function h(i, a)
+        !! Return the 1el integral \( h_{I, A) \)
+        !!
+        !! I and A are **spatial** indices.
+        !! Follows the definition of the purple book.
+        !!
+        !! The function exists to have a direct translation
+        !! of the pen and paper equations into code.
+        integer, intent(in) :: i, a
+            !! Spatial orbital indices
+        h = GetTMATEl(2 * i, 2 * a)
+    end function
+
+
 
 END MODULE Integrals_neci
 

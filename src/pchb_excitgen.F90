@@ -6,7 +6,7 @@ module pchb_excitgen
     use util_mod, only: operator(.div.), EnumBase_t, stop_all, operator(.implies.)
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use SystemData, only: tUHF
-    use gasci, only: GASSpec_t, LocalGASSpec_t
+    use gasci, only: CAS_spec
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t, &
         SingleExcitationGenerator_t
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
@@ -184,16 +184,6 @@ contains
             call stop_all(this_routine, "Invalid PCHB_singles in FCI PCHB init.")
         end if
     end subroutine
-
-
-    type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
-        integer, intent(in) :: n_el, n_spat_orbs
-        integer :: i
-        ! It does not matter if we use local or cumulative GAS
-        ! constraints
-        CAS_spec = LocalGASSpec_t(&
-            n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
-    end function
 
 
     subroutine assert_validity(this)

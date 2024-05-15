@@ -8,8 +8,7 @@ module test_block_spawns_mod
     use SystemData, only: nEL, nbasis
     use bit_reps, only: decode_bit_det
     use bit_rep_data, only: nifd
-    use util_mod, only: get_free_unit
-    use unit_test_helper_excitgen, only: delete_file
+    use util_mod, only: get_free_unit, delete_file
     use hash, only: RandomHash2
     use DetBitOps, only: EncodeBitDet
 
@@ -19,9 +18,9 @@ module test_block_spawns_mod
 
     public :: block_spawns_test_driver
 
-contains 
+contains
 
-    subroutine block_spawns_test_driver() 
+    subroutine block_spawns_test_driver()
         nEL = 6
         nbasis = 12
         ! Hard coded hash initialization
@@ -105,15 +104,15 @@ program test_block_spawns
 
     better_implicit_none
 
-    integer :: failed_count 
+    integer :: failed_count
 
-    call init_fruit() 
+    call init_fruit()
 
-    call block_spawns_test_driver() 
+    call block_spawns_test_driver()
 
-    call fruit_summary() 
+    call fruit_summary()
     call fruit_finalize()
 
-    call get_failed_count(failed_count) 
+    call get_failed_count(failed_count)
    if (failed_count /= 0) stop -1
 end program test_block_spawns

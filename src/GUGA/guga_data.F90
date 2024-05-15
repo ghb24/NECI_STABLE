@@ -4,11 +4,12 @@
 ! GUGA approach.
 module guga_data
     use SystemData, only: nBasis, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
-                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA, nSpatOrbs
-    use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_
+                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA, nSpatOrbs_i8, ij_pairs
+    use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_, int64
     use MemoryManager, only: TagIntType
     use bit_rep_data, only: BitRep_t, GugaBits
-    use util_mod, only: EnumBase_t, swap
+    use util_mod, only: EnumBase_t, swap, near_zero
+    use indexing_mod, only: fuse_symm_idx, fuse_idx, inv_fuse_symm_idx, inv_fuse_idx
     use error_handling_neci, only: stop_all
 
     implicit none
@@ -24,9 +25,10 @@ module guga_data
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
               RdmContribList_t, n_excit_index_bits, &
-              DistinctDoubleType_t, distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, &
+              DistinctDoubleType_t, distinct_doubles, distinct_doubles_arr, &
+              DistinctDouble_t, DistinctDoubleTypeVals_t, &
               excit_type_arr, valid_excit_type_arr, non_trivial_double_excit_type_arr, &
-              ijkl_Index_t, ijab_Index_t
+              ijkl_Index_t, ijab_Index_t, fused_to_ijkl, fused_to_ijab, fused_to_DistinctDouble
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations
@@ -300,12 +302,6 @@ module guga_data
             !! The swap is only relevant for distinct doubles with
             !! a non-overlap excitation. Hence we default-initialize
             !! to the identity permutation.
-    contains
-        private
-        ! procedure :: eq_DistinctDoubleExcitation_t => eq_DistinctDoubleType_t
-        ! procedure :: neq_DistinctDoubleExcitation_t => neq_DistinctDoubleType_t
-        ! generic, public :: operator(==) => eq_DistinctDoubleExcitation_t
-        ! generic, public :: operator(/=) => neq_DistinctDoubleExcitation_t
     end type
 
     type :: DistinctDoubleTypeVals_t
@@ -339,6 +335,30 @@ module guga_data
 
     type(DistinctDoubleTypeVals_t), parameter :: distinct_doubles = DistinctDoubleTypeVals_t()
 
+    type(DistinctDoubleType_t), parameter :: distinct_doubles_arr(0:19) &
+            = [ &
+                distinct_doubles%invalid, &
+                distinct_doubles%jijk, &
+                distinct_doubles%ijkj, &
+                distinct_doubles%ikjk, &
+                distinct_doubles%kikj, &
+                distinct_doubles%jikk, &
+                distinct_doubles%ijkk, &
+                distinct_doubles%ijik, &
+                distinct_doubles%jiki, &
+                distinct_doubles%iikj, &
+                distinct_doubles%iijk, &
+                distinct_doubles%ijij, &
+                distinct_doubles%jiji, &
+                distinct_doubles%iijj, &
+                distinct_doubles%ikjl, &
+                distinct_doubles%kilj, &
+                distinct_doubles%ijkl, &
+                distinct_doubles%jilk, &
+                distinct_doubles%ijlk, &
+                distinct_doubles%jikl &
+            ]
+
 
     interface DistinctDoubleType_t
         module procedure construct_DistinctDoubleType_t_ijkl, construct_DistinctDoubleType_t_ijab
@@ -354,10 +374,12 @@ module guga_data
         procedure :: convert => convert_ijkl_Index_t
         procedure :: normalize => normalize_ijkl_Index_t
         procedure :: is_normalized => is_normalized_ijkl_Index_t
+        procedure :: fuse => fuse_ijkl_Index_t
     end type
 
     type :: ijab_Index_t
-        !! An index in the format of the rest of `NECI` \(e_{aibj} \)
+        !! An index in the format of the rest of `NECI`
+        !! [i, j, a, b] corresponds to \(e_{aibj} \)
         !!
         !! This means i, j are the particles, a and b the holes
         integer :: val(4)
@@ -366,6 +388,7 @@ module guga_data
         procedure :: convert => convert_ijab_Index_t
         procedure :: normalize => normalize_ijab_Index_t
         procedure :: is_normalized => is_normalized_ijab_Index_t
+        procedure :: fuse => fuse_ijab_Index_t
     end type
 
     type :: DistinctDouble_t
@@ -373,7 +396,9 @@ module guga_data
         type(DistinctDoubleType_t) :: typ
     contains
         private
+        procedure, public :: get_repr_excit_info
         procedure, public :: get_repr_index
+        procedure, public :: fuse => fuse_DistinctDouble_t
     end type
 
     interface DistinctDouble_t
@@ -1366,36 +1391,41 @@ contains
     pure function funA(b, x, y) result(ret)
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
-        !ASSERT( (b + y) >= 0.0_dp)
+        debug_function_name("funA")
+        ASSERT( (b + y) > 0.0_dp)
         ret = sqrt((b + x) / (b + y))
     end function funA
 
     pure function funB(b, x, y) result(ret)
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
-        !ASSERT( (b + x) > 0.0_dp)
-        !ASSERT( (b + y) > 0.0_dp)
+        debug_function_name("funB")
+        ASSERT( (b + x) > 0.0_dp)
+        ASSERT( (b + y) > 0.0_dp)
         ret = sqrt(2.0_dp / ((b + x) * (b + y)))
     end function funB
 
     pure function funC(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
-        !ASSERT( (b + x) > 0.0_dp)
+        debug_function_name("funC")
+        ASSERT( (b + x) > 0.0_dp)
         ret = funA(b, x - 1.0_dp, x) * funA(b, x + 1.0_dp, x)
     end function funC
 
     pure function funD(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
-        !ASSERT( (b + x) > 0.0_dp)
+        debug_function_name("funD")
+        ASSERT( (b + x) > 0.0_dp)
         ret = funA(b, x + 2.0_dp, x) * funA(b, x - 1.0_dp, x + 1.0_dp)
     end function funD
 
     pure function funOverB(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
-        !ASSERT( (b + x) > 0.0_dp)
+        debug_function_name("funOverB")
+        ASSERT( (b + x) > 0.0_dp)
         ret = 1.0_dp / (b + x)
     end function funOverB
 
@@ -1419,6 +1449,26 @@ contains
         class(DistinctDouble_t), intent(in) :: this
         type(ijkl_Index_t) :: res
         res = ijkl_Index_t(this%idx%val(this%typ%idx_for_repr))
+    end function
+
+    elemental function get_repr_excit_info(this, i_sg_start) result(res)
+        !! Return the index for the representation.
+        !!
+        !! If we have for example the `DistinctDoubleType_t` `jilk`,
+        !! then the index of the representation shall refer
+        !! to the `double_L_to_R_to_L` excitation and be `jkli`
+        !! instead of the `non_overlap` part which would be `jilk`.
+        class(DistinctDouble_t), intent(in) :: this
+        integer, intent(in) :: i_sg_start
+        type(ExcitationInformation_t) :: res
+
+        type(ijkl_Index_t) :: idx
+        integer :: i, j, k, l
+
+        idx = this%get_repr_index()
+        call idx%extract_ijkl(i, j, k, l)
+
+        res = ExcitationInformation_t(this%typ%repr, i, j, k, l, i_sg_start=i_sg_start)
     end function
 
 
@@ -1512,12 +1562,16 @@ contains
     elemental function construct_DistinctDouble_t_ijkl(idx) result(res)
         type(ijkl_Index_t), intent(in) :: idx
         type(DistinctDouble_t) :: res
+        debug_function_name("construct_DistinctDouble_t_ijkl")
+        ASSERT(idx%is_normalized())
         res = DistinctDouble_t(idx, DistinctDoubleType_t(idx))
     end function
 
     elemental function construct_DistinctDouble_t_ijab(idx) result(res)
         type(ijab_Index_t), intent(in) :: idx
         type(DistinctDouble_t) :: res
+        debug_function_name("construct_DistinctDouble_t_ijkl")
+        ASSERT(idx%is_normalized())
         res = DistinctDouble_t(idx%convert())
     end function
 
@@ -1603,6 +1657,100 @@ contains
         class(ijkl_Index_t), intent(in) :: this
         logical :: res
         res = this%val(1) <= this%val(3) .and. this%val(2) <= this%val(4)
+    end function
+
+    elemental function fuse_ijkl_Index_t(this) result(res)
+        !! Fuse a normalized index `i <= k` and `j <= l`.
+        class(ijkl_Index_t), intent(in) :: this
+        integer(int64) :: res
+        associate(i => int(this%val(1), int64), j => int(this%val(2), int64), &
+                  k => int(this%val(3), int64), l => int(this%val(4), int64))
+            res = fuse_idx(fuse_symm_idx(i, k), fuse_symm_idx(j, l), ij_pairs, fortran=.false.)
+        end associate
+    end function
+
+    elemental function fuse_ijab_Index_t(this) result(res)
+        !! Fuse a normalized index `i <= j` and `a <= b`.
+        class(ijab_Index_t), intent(in) :: this
+        integer(int64) :: res
+        associate(i => int(this%val(1), int64), j => int(this%val(2), int64), &
+                  a => int(this%val(3), int64), b => int(this%val(4), int64))
+            res = fuse_idx(fuse_symm_idx(a, b), fuse_symm_idx(i, j), ij_pairs, fortran=.false.)
+        end associate
+    end function
+
+    elemental function fused_to_ijkl(ijkl) result(idx)
+        !! Return a normalized index from a fused integer index
+        integer(int64), intent(in) :: ijkl
+        type(ijkl_Index_t) :: idx
+        integer(int64):: i, j, k, l, ik, jl
+        debug_function_name("fused_to_ijkl")
+
+        call inv_fuse_idx(ijkl, ij_pairs, ik, jl, fortran=.false.)
+        call inv_fuse_symm_idx(ik, i, k)
+        call inv_fuse_symm_idx(jl, j, l)
+
+        idx = ijkl_Index_t(int([i, j, k, l]))
+        ASSERT(idx%is_normalized())
+    end function
+
+    elemental function fused_to_ijab(ijab) result(idx)
+        !! Return a normalized index from a fused integer index
+        integer(int64), intent(in) :: ijab
+        type(ijab_Index_t) :: idx
+        integer(int64):: i, j, a, b, ij, ab
+        debug_function_name("fused_to_ijab")
+
+        call inv_fuse_idx(ijab, ij_pairs, ab, ij, fortran=.false.)
+        call inv_fuse_symm_idx(ab, a, b)
+        call inv_fuse_symm_idx(ij, i, j)
+
+        idx = ijab_Index_t(int([i, j, a, b]))
+        ASSERT(idx%is_normalized())
+    end function
+
+
+    elemental function fuse_DistinctDouble_t(this) result(res)
+        !! Fuse a Distinct Double excitation
+        !!
+        !! This means that a composite index for
+        !! [typ, fused_ijkl_index]
+        !! is created.
+        !!
+        !! @note
+        !!  This function does not preserve lexicographical ordering.
+        !!  I.e. if `(i_1, j_1, k_1, l_1) <= (i_2, j_2, k_2, l_2)`
+        !!  then the fused index is not necessarily `<=`.
+        !! @endnote
+        class(DistinctDouble_t), intent(in) :: this
+        integer(int64) :: res
+
+        res = fuse_idx(this%idx%fuse(), int(this%typ%val, int64) + 1, &
+                       size(distinct_doubles_arr, kind=int64), fortran=.false.)
+    end function
+
+
+    elemental function fused_to_DistinctDouble(n) result(distinct_double)
+        !! Return a Distinct Double excitation from a fused integer index
+        !!
+        !! @note
+        !!  Note the set of valid `n` is not contiguos.
+        !! @endnote
+        integer(int64), intent(in) :: n
+        type(DistinctDouble_t) :: distinct_double
+        integer(int64) :: idx_typ, ijkl
+        debug_function_name("fused_to_DistinctDouble")
+        call inv_fuse_idx(n, size(distinct_doubles_arr, kind=int64), ijkl, idx_typ, fortran=.false.)
+        distinct_double = DistinctDouble_t(&
+                                fused_to_ijkl(ijkl), &
+                                distinct_doubles_arr(idx_typ - 1) &
+                          )
+
+#ifdef DEBUG_
+        associate(dd => DistinctDouble_t(fused_to_ijkl(ijkl)))
+            ASSERT(dd%fuse() == n)
+        end associate
+#endif
     end function
 
 end module

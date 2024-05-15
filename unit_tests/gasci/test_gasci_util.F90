@@ -12,9 +12,6 @@ module test_gasci_util_mod
         get_available_singles, get_available_doubles, gen_all_excits, get_n_SDs
 
     use sltcnd_mod, only: dyn_sltcnd_excit
-    use unit_test_helper_excitgen, only: test_excitation_generator, &
-        init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-        FciDumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
