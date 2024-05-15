@@ -492,11 +492,14 @@ contains
 
     subroutine finalize_GAS_Weighted_t(this)
         class(GAS_Weighted_t), intent(inout) :: this
-        call this%I_sampler%finalize()
-        call this%A_sampler%finalize()
-        nullify(this%get_weight)
-        deallocate(this%indexer, this%GAS_spec)
-        if (this%create_lookup) nullify(lookup_supergroup_indexer)
+        if (allocated(this%GAS_spec)) then
+            ! Yes I assume that either all or none are allocated
+            call this%I_sampler%finalize()
+            call this%A_sampler%finalize()
+            nullify(this%get_weight)
+            deallocate(this%indexer, this%GAS_spec)
+            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+        end if
     end subroutine
 
 

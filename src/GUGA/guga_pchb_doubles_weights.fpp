@@ -7,7 +7,7 @@ module guga_pchb_doubles_weights_mod
         distinct_doubles
     use error_handling_neci, only: stop_all
     use fortran_strings, only: to_upper
-    use procedure_pointers, only: get_umat_el
+    use integrals_neci, only: g
 
     better_implicit_none
     private
@@ -194,16 +194,6 @@ contains
         case default
             call stop_all(this_routine, 'forgotten case')
         end select
-    end function
-
-    elemental function g(i, j, k, l) result(res)
-        !! The two-electron integral in chemist's notation
-        !!
-        !! Convention in the purple book[@purple_book] or **the**
-        !! Shavit paper.[@Hinze1981]
-        integer, intent(in) :: i, j, k, l
-        HElement_t(dp) :: res
-        res = get_umat_el(i, k, j, l)
     end function
 
     function uniform_get_weight(exc) result(weight)

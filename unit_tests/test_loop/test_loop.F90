@@ -5,7 +5,7 @@ program test_loop_program
         get_failed_count, run_test_case
     use util_mod, only: stop_all
     use test_loop_testcases, only: test_loop_4ind_wghtd_2, test_loop_pchb, &
-                                   test_loop_guga
+                                   test_loop_GUGA, test_loop_GUGA_GAS, test_loop_PCHB_GAS
 
     implicit none
     integer :: failed_count
@@ -30,6 +30,8 @@ contains
     subroutine test_loop_driver()
          call run_test_case(test_loop_4ind_wghtd_2, "test_loop")
          call run_test_case(test_loop_pchb, "test_loop_pchb")
-         call run_test_case(test_loop_guga, "test_loop_guga")
+         call run_test_case(test_loop_pchb_GAS, "test_loop_pchb_GAS")
+         call run_test_case(test_loop_GUGA, "test_loop_GUGA")
+         call run_test_case(test_loop_GUGA_GAS, "test_loop_GUGA_GAS")
     end subroutine test_loop_driver
 end program test_loop_program

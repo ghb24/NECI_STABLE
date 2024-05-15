@@ -59,17 +59,16 @@ module guga_init
 
     use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i, csf_ref
 
-    use guga_base_class, only: class_pick_singles, &
-                               class_pick_doubles, &
-                               class_calc_orb_pgen_contr, &
-                               class_calc_orb_pgen_contr_str, &
-                               class_calc_orb_pgen_contr_end, GUGA_exc_generator, init_guga_class
+    use guga_base_class, only: class_pick_singles, class_pick_doubles, &
+                               class_calc_orb_pgen_contr, class_calc_orb_pgen_contr_str, &
+                               class_calc_orb_pgen_contr_end, GUGA_exc_generator, &
+                               init_guga_class, finalize_guga_class
 
     better_implicit_none
 
     private
 
-    public :: checkInputGUGA, init_guga
+    public :: checkInputGUGA, init_guga, finalize_GUGA
 
 contains
 
@@ -221,6 +220,10 @@ contains
         trial_space_in%tApproxSpace = .false.
 
     end subroutine init_guga
+
+    subroutine finalize_GUGA()
+        call finalize_guga_class()
+    end subroutine
 
     subroutine check_rdm_guga_setup
         character(*), parameter :: this_routine = "check_rdm_guga_setup"

@@ -38,7 +38,6 @@ calc
 
     target-shiftdamp 0.2
 
-
     proje-changeref 2.00
     truncinitiator
     addtoinitiator  3
@@ -58,6 +57,5 @@ endcalc
 
 logging
     highlypopwrite 50
-    hdf5-pops
 endlog
 end
