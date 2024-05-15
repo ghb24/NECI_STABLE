@@ -349,9 +349,9 @@ contains
         class(PC_Particles_t), intent(inout) :: this
 
         if (allocated(this%GAS_spec)) then
+            ! Yes, we assume, that either all or none are allocated
             call this%I_sampler%finalize()
             call this%j_sampler%finalize()
-            ! Yes, we assume, that either all or none are allocated
             deallocate(this%indexer, this%GAS_spec)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if

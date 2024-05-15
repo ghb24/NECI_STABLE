@@ -28,7 +28,7 @@ module gasci
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
-        CAS_spec
+        CAS_spec, finalize_GAS
 
 ! Are we restricting excitations
     logical :: tGAS = .false.
@@ -1263,5 +1263,10 @@ contains
         ! constraints
         CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
     end function
+
+    subroutine finalize_GAS()
+        if (allocated(GAS_specification)) deallocate(GAS_specification)
+        if (allocated(GAS_exc_gen)) deallocate(GAS_exc_gen)
+    end subroutine
 
 end module gasci

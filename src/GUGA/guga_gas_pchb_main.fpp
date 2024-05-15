@@ -98,9 +98,13 @@ contains
 
     subroutine finalize(this)
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
-        call this%singles_generator%finalize()
-        call this%doubles_generator%finalize()
-        deallocate(this%singles_generator, this%doubles_generator)
+
+        if (allocated(this%singles_generator)) then
+            ! Yes I assume that either all or none are allocated
+            call this%singles_generator%finalize()
+            call this%doubles_generator%finalize()
+            deallocate(this%singles_generator, this%doubles_generator)
+        end if
     end subroutine
 
     subroutine assert_validity(this)

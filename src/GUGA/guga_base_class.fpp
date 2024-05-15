@@ -253,8 +253,10 @@ module guga_base_class
 contains
 
     subroutine finalize_guga_class()
-        call GUGA_exc_generator%finalize()
-        deallocate(GUGA_exc_generator)
+        if (allocated(GUGA_exc_generator)) then
+            call GUGA_exc_generator%finalize()
+            deallocate(GUGA_exc_generator)
+        end if
     end subroutine
 
     subroutine class_pick_singles(nI, ilut, csf_i, excitInfo, pgen)

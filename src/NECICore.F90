@@ -356,7 +356,7 @@ subroutine NECICalcInit(iCacheFlag)
     ! can i initialize the GUGA stuff here? after freezing? or otherwise
     ! it is incorrectly setup..
     ! try to init guga here..
-    if (tGUGA) call init_guga
+    if (tGUGA) call init_guga()
 
     IF (tRotateOrbs .and. (.not. tFindCINatOrbs)) THEN
         CALL RotateOrbs()

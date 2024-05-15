@@ -227,13 +227,13 @@ contains
 
     subroutine finalize_GugaAliasSampler_t(this)
         class(GAS_PCHB_Doubles_t), intent(inout) :: this
-        call this%all_info_table%shared_dealloc()
-        if (allocated(this%info_tables)) deallocate(this%info_tables)
-        call this%finalize_pchb_sampler()
-
-        if (allocated(this%particle_selector)) then
+        if (allocated(this%info_tables)) then
+            ! Yes, we assume, that either all or none are allocated
+            call this%all_info_table%shared_dealloc()
+            call this%finalize_pchb_sampler()
             call this%particle_selector%finalize()
-            deallocate(this%particle_selector)
+            deallocate(this%particle_selector, this%info_tables, this%GAS_spec, this%indexer)
+            if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine
 
@@ -377,8 +377,10 @@ contains
 
     subroutine finalize_pchb_sampler(this)
         class(GAS_PCHB_FastFast_t), intent(inout) :: this
-        call this%alias_sampler%finalize()
-        if (allocated(this%tgtOrbs)) deallocate(this%tgtOrbs)
+        if (allocated(this%tgtOrbs)) then
+            deallocate(this%tgtOrbs)
+            call this%alias_sampler%finalize()
+        end if
     end subroutine
 
     subroutine pickOrbitals(this, nI, ilut, csf_i, excitInfo, pgen)
