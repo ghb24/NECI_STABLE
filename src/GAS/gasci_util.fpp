@@ -300,7 +300,8 @@ contains
             sg_alpha_constraint = LocalGASSpec_t(&
                                 n_min=max(sg - n_orbs, 0), &
                                 n_max=min(sg, n_orbs), &
-                                spat_GAS_orbs=[((j, i = 1, n_orbs(j)), j = 1, size(n_orbs))])
+                                spat_GAS_orbs=[((j, i = 1, n_orbs(j)), j = 1, size(n_orbs))], &
+                                nEl=N)
             sg_alpha = get_supergroups(sg_alpha_constraint, N_alpha)
         end block
         else

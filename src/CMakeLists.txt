@@ -418,6 +418,7 @@ set( FYPP_SRC_FILES
     GAS/gasci_pchb_doubles_spinorb_fullyweighted.fpp
     GAS/gasci_pchb_doubles_spinorb_fastweighted.fpp
     GAS/gasci_supergroup_index.fpp
+    GAS/composition_utils.fpp
     GAS/gasci_util.fpp
     GUGA/guga_base_class.fpp
     GUGA/guga_gas_pchb_main.fpp

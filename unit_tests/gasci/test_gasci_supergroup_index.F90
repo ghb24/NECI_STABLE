@@ -5,8 +5,9 @@ module test_gasci_supergroup_index_mod
     use util_mod, only: factrl, swap, cumsum, custom_findloc
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions, &
-        get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup, composition_from_idx
+    use gasci_supergroup_index, only: SuperGroupIndexer_t,  &
+        get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
+    use composition_utils, only: composition_idx, get_compositions, composition_from_idx
 
     implicit none
     private

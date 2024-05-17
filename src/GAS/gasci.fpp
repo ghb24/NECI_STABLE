@@ -30,8 +30,8 @@ module gasci
         get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
         CAS_spec, finalize_GAS
 
-! Are we restricting excitations
     logical :: tGAS = .false.
+        !! Are we restricting excitations
 
     type, extends(EnumBase_t) :: GAS_exc_gen_t
     end type
@@ -72,6 +72,9 @@ module gasci
             !! These lookup variables stay valid, because the data structure is
             !!  immutable
         logical :: exchange_recoupling
+            !! Do we do exchange recoupling?
+        integer :: N_particle
+            !! The particle number
     contains
         ! Nearly all member functions should be public.
         procedure(contains_supergroup_t), deferred :: contains_supergroup
@@ -89,6 +92,8 @@ module gasci
         procedure :: n_spin_orbs => get_nOrbs
         procedure :: max_GAS_size => get_max_GAS_size
         procedure :: recoupling
+
+        procedure :: nEl => get_nEl
 
         generic :: GAS_size => get_GAS_size_i, get_GAS_size_idx, get_GAS_size_all
         procedure, private :: get_GAS_size_i
@@ -205,15 +210,11 @@ module gasci
         !> List the allowed supergroups.
         !> The indices are: (nGAS, n_supergroups)
         integer, public, allocatable :: supergroups(:, :)
-        !> The number of particles.
-        integer :: N
     contains
         procedure :: contains_supergroup => Flexible_contains_supergroup
         procedure :: is_valid => Flexible_is_valid
         procedure :: write_to => Flexible_write_to
         procedure :: get_possible_spaces => Flexible_get_possible_spaces
-
-        procedure :: N_particle => Flexible_N_particle
     end type
 
     interface FlexibleGASSpec_t
@@ -313,9 +314,17 @@ contains
     end function
 
     logical elemental function recoupling(this)
+        !! Query whether we do exchange recoupling.
         class(GASSpec_t), intent(in) :: this
         recoupling = this%exchange_recoupling
     end function
+
+    integer elemental function get_nEl(this)
+        !! Get the number of electrons.
+        class(GASSpec_t), intent(in) :: this
+        get_nEl = this%N_particle
+    end function
+
 
     !>  Query wether a determinant in bitmask format is contained in the GAS space.
     !>
@@ -577,16 +586,18 @@ contains
         end block
     end function
 
-    !>  Constructor of LocalGASSpec_t
-    pure function construct_LocalGASSpec_t(n_min, n_max, spat_GAS_orbs, recoupling) result(GAS_spec)
-        !> Minimum particle number per GAS space.
+    pure function construct_LocalGASSpec_t(n_min, n_max, spat_GAS_orbs, nEl, recoupling) result(GAS_spec)
+        !!  Constructor of LocalGASSpec_t
         integer, intent(in) :: n_min(:)
-        !> Maximum particle number per GAS space.
+            !! Minimum particle number per GAS space.
         integer, intent(in) :: n_max(:)
-        !> GAS space for the i-th **spatial** orbital.
+            !! Maximum particle number per GAS space.
         integer, intent(in) :: spat_GAS_orbs(:)
-        !> Exchange double excitations that recouple the spin are allowed
+            !! GAS space for the i-th **spatial** orbital.
+        integer, intent(in) :: nEl
+            !!  Number of particles.
         logical, intent(in), optional :: recoupling
+            !! Exchange double excitations that recouple the spin are allowed
         logical :: recoupling_
 
         type(LocalGASSpec_t) :: GAS_spec
@@ -604,7 +615,6 @@ contains
         if (any(min(n_max, GAS_sizes) < n_min)) then
             call stop_all(this_routine, 'any(min(n_max, GAS_sizes) < n_min) violated')
         end if
-
 
         max_GAS_size = maxval(GAS_sizes)
         n_spin_orbs = sum(GAS_sizes)
@@ -638,7 +648,8 @@ contains
                     GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
                     splitted_orbitals=splitted_orbitals, &
                     lookup_is_connected=any(n_min(:) /= n_max(:)), &
-                    exchange_recoupling=recoupling_)
+                    exchange_recoupling=recoupling_, &
+                    n_particle=nEl)
         end block
 
         @:pure_ASSERT(GAS_spec%is_valid())
@@ -679,7 +690,8 @@ contains
         class(LocalGASSpec_t), intent(in) :: this
         integer, intent(in), optional :: n_basis
 
-        logical :: shapes_match, pauli_principle, n_orbs_correct
+        logical :: shapes_match, pauli_principle, n_orbs_correct, &
+            has_enough_room
 
         associate(GAS_sizes => this%GAS_sizes, n_min => this%min, &
                   n_max => this%max, nGAS => this%nGAS())
@@ -690,6 +702,8 @@ contains
 
             pauli_principle = all(n_min(:) <= GAS_sizes)
 
+            has_enough_room = sum(this%get_min()) <= this%nEl() .and. this%nEl() <= sum(this%get_max())
+
             if (present(n_basis)) then
                 n_orbs_correct = sum(GAS_sizes) == n_basis
             else
@@ -697,7 +711,8 @@ contains
             end if
         end associate
 
-        Local_is_valid = all([shapes_match, pauli_principle, n_orbs_correct])
+        Local_is_valid = all([shapes_match, pauli_principle, n_orbs_correct, &
+                              has_enough_room])
     end function
 
     subroutine Local_write_to(this, iunit)
@@ -813,16 +828,18 @@ contains
     end function
 
 
-    !>  Constructor of CumulGASSpec_t
-    pure function construct_CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling) result(GAS_spec)
-        !>  Cumulative minimum particle number.
+    pure function construct_CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling) result(GAS_spec)
+        !!  Constructor of CumulGASSpec_t
         integer, intent(in) :: cn_min(:)
-        !>  Cumulative maximum particle number.
+            !!  Cumulative minimum particle number.
         integer, intent(in) :: cn_max(:)
-        !>  GAS space for the i-th **spatial** orbital.
+            !!  Cumulative maximum particle number.
         integer, intent(in) :: spat_GAS_orbs(:)
-        !> Exchange double excitations that recouple the spin are allowed
+            !!  GAS space for the i-th **spatial** orbital.
+        integer, intent(in) :: nEl
+            !!  Number of particles.
         logical, intent(in), optional :: recoupling
+            !! Exchange double excitations that recouple the spin are allowed
         logical :: recoupling_
 
         type(CumulGASSpec_t) :: GAS_spec
@@ -862,7 +879,8 @@ contains
                 GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
                 splitted_orbitals=splitted_orbitals, &
                 lookup_is_connected=any(cn_min(:) /= cn_max(:)), &
-                exchange_recoupling=recoupling_)
+                exchange_recoupling=recoupling_, &
+                n_particle=nEl)
 
         @:pure_ASSERT(GAS_spec%is_valid())
 
@@ -905,7 +923,7 @@ contains
         logical :: is_valid
 
         logical :: shapes_match, pauli_principle, monotonic, &
-            n_orbs_correct
+            n_orbs_correct, has_enough_room
 
         associate(GAS_sizes => this%GAS_size(), n_min => this%get_cmin(), &
                   n_max => this%get_cmax(), nGAS => this%nGAS())
@@ -913,6 +931,9 @@ contains
             shapes_match = &
                 all([size(GAS_sizes), size(n_min), size(n_max)] == nGAS) &
                 .and. maxval(this%GAS_table) == nGAS
+
+            has_enough_room = this%get_cmin(this%nGAS()) <= this%nEl() &
+                              .and. this%nEl() <= this%get_cmax(this%nGAS())
 
             pauli_principle = all(n_min(:) <= cumsum(GAS_sizes))
 
@@ -930,7 +951,8 @@ contains
             end if
         end associate
 
-        is_valid = all([shapes_match, pauli_principle, monotonic, n_orbs_correct])
+        is_valid = all([shapes_match, pauli_principle, monotonic, &
+                        has_enough_room, n_orbs_correct])
     end function
 
     !> Write a string representation of this GAS specification to iunit
@@ -1105,8 +1127,10 @@ contains
         !>  Specification of GAS spaces with local constraints.
         class(FlexibleGASSpec_t), intent(in) :: this
         integer, intent(in), optional :: n_basis
+        debug_function_name("Flexible_is_valid")
 
-        logical :: shapes_match, pauli_principle, n_orbs_correct
+        logical :: shapes_match, pauli_principle, n_orbs_correct, &
+            has_enough_room
 
         associate(GAS_sizes => this%GAS_sizes, nGAS => this%nGAS())
 
@@ -1115,6 +1139,9 @@ contains
 
             pauli_principle = all(maxval(this%supergroups, dim=2) <= GAS_sizes)
 
+            has_enough_room = this%nEl() == sum(this%supergroups(:, 1))
+            @:pure_ASSERT(all(this%nEl() == sum(this%supergroups, dim=1)))
+
             if (present(n_basis)) then
                 n_orbs_correct = sum(GAS_sizes) == n_basis
             else
@@ -1122,7 +1149,8 @@ contains
             end if
         end associate
 
-        Flexible_is_valid = all([shapes_match, pauli_principle, n_orbs_correct])
+        Flexible_is_valid = all([shapes_match, pauli_principle, n_orbs_correct, &
+                                 has_enough_room])
     end function
 
     subroutine Flexible_write_to(this, iunit)
@@ -1216,7 +1244,7 @@ contains
 
         GAS_spec = FlexibleGASSpec_t(&
                 supergroups=sorted_supergroup, &
-                N=N, &
+                N_particle=N, &
                 GAS_table=GAS_table, &
                 GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
                 splitted_orbitals=splitted_orbitals, &
@@ -1239,12 +1267,6 @@ contains
             end function
     end function
 
-    elemental function Flexible_N_particle(this) result(res)
-        class(FlexibleGASSpec_t), intent(in) :: this
-        integer :: res
-        res = this%N
-    end function
-
     pure logical function tSD_GAS()
         !! Doing GAS in Slater Determinant (SD) space
         tSD_GAS = tGAS .and. .not. tGUGA
@@ -1255,13 +1277,13 @@ contains
         tGUGA_GAS = tGAS .and. tGUGA
     end function
 
-
     type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
         integer, intent(in) :: n_el, n_spat_orbs
         integer :: i
         ! It does not matter if we use local or cumulative GAS
         ! constraints
-        CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
+        CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], &
+                spat_GAS_orbs=[(1, i = 1, n_spat_orbs)], nEl=n_el)
     end function
 
     subroutine finalize_GAS()
