@@ -646,6 +646,8 @@ contains
                 res(:, 1) = GAS_spec%get_min()
             type is(CumulGASSpec_t)
                 res(:, 1) = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1)
+            type is(FlexibleGASSpec_t)
+                res(:, 1) = GAS_spec%supergroups(:, 1)
             class default
                 call stop_all(this_routine, 'Wrong class.')
             end select
