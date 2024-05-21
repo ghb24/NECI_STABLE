@@ -189,7 +189,7 @@ contains
         integer :: i_sg, src, tgt
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then
@@ -391,7 +391,7 @@ contains
         this%GAS_spec = GAS_spec
         nBi = this%GAS_spec%n_spin_orbs()
         @:ASSERT(nBi == 2 * nSpatOrbs)
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then

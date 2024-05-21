@@ -301,6 +301,8 @@ contains
         !> An index of occupied spin orbitals.
         integer, intent(in) :: nI(:)
         logical :: res
+        debug_function_name("contains_conf_nI")
+        @:pure_ASSERT(size(nI) == this%nEl())
         res = this%contains_supergroup(this%count_per_GAS(nI))
     end function
 
@@ -310,6 +312,8 @@ contains
         class(GASSpec_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         logical :: res
+        debug_function_name("contains_conf_csf")
+        @:pure_ASSERT(sum(csf_i%occ_int) == this%nEl())
         res = this%contains_supergroup(this%count_per_GAS(csf_i))
     end function
 

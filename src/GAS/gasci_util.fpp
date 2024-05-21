@@ -301,27 +301,25 @@ contains
                                 n_min=max(sg - n_orbs, 0), &
                                 n_max=min(sg, n_orbs), &
                                 spat_GAS_orbs=[((j, i = 1, n_orbs(j)), j = 1, size(n_orbs))], &
-                                nEl=N)
-            sg_alpha = get_supergroups(sg_alpha_constraint, N_alpha)
+                                nEl=N_alpha)
+            sg_alpha = get_supergroups(sg_alpha_constraint)
         end block
         else
             allocate(sg_alpha(0, 0))
         end if
     end function
 
-    elemental function get_n_SDs(GAS_spec, N, S_z) result(n_SDs)
+    elemental function get_n_SDs(GAS_spec, S_z) result(n_SDs)
         !! Return the number of Slater-determinants.
         class(GASSpec_t), intent(in) :: GAS_spec
             !! GAS specification.
-        integer, intent(in) :: N
-            !! The number of particles
         type(SpinProj_t), intent(in) :: S_z
             !! Spin projection
         integer(int64) :: n_SDs
         integer, allocatable :: supergroups(:, :), alpha_supergroups(:, :)
         integer :: i, j, iGAS
 
-        supergroups = get_supergroups(GAS_spec, N)
+        supergroups = get_supergroups(GAS_spec)
 
         block
             integer :: N_alpha(GAS_spec%nGAS()), N_beta(GAS_spec%nGAS()), n_spat_orbs(GAS_spec%nGAS())
@@ -371,7 +369,7 @@ contains
             n_spat_orbs = GAS_spec%n_spin_orbs() .div. 2
             size_CAS = choose_i64(n_spat_orbs, N_alpha) * choose_i64(n_spat_orbs, N_beta)
             write(iunit, '(A, 1x, I0)') 'The size of the CAS space is:', size_CAS
-            size_GAS = get_n_SDs(GAS_spec, nEl, S_z)
+            size_GAS = get_n_SDs(GAS_spec, S_z)
             write(iunit, '(A, 1x, I0)') 'The size of the GAS space is:', size_GAS
             write(iunit, '(A, 1x, E10.5)') 'The fraction of the GAS space is:', real(size_GAS, dp) / real(size_CAS, dp)
         end block

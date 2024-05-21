@@ -31,7 +31,7 @@ contains
         GAS_spec = LocalGASSpec_t(&
             n_min=[2, 2], &
             n_max=[2, 2], &
-            spat_GAS_orbs = [1, 1, 2, 2])
+            spat_GAS_orbs = [1, 1, 2, 2], nEl=4)
         det_I = [1, 2, 5, 6]
 
         call assert_true(GAS_spec%is_valid())
@@ -61,7 +61,7 @@ contains
 
 
 
-        GAS_spec = LocalGASSpec_t(n_min=[0, 0], n_max=[4, 4], spat_GAS_orbs = [1, 1, 2, 2])
+        GAS_spec = LocalGASSpec_t(n_min=[0, 0], n_max=[4, 4], spat_GAS_orbs = [1, 1, 2, 2], nEl=4)
         det_I = [1, 2, 5, 6]
         call assert_true(GAS_spec%is_valid())
         call assert_true(GAS_spec%contains_conf(det_I))
@@ -100,7 +100,8 @@ contains
         GAS_spec = LocalGASSpec_t(&
             n_min=[6, 6], &
             n_max=[6, 6], &
-            spat_GAS_orbs = [[(1, i = 1, 6)], [(2, i = 1, 6)]])
+            spat_GAS_orbs = [[(1, i = 1, 6)], [(2, i = 1, 6)]], &
+            nEl=12)
         det_I = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18]
 
         call assert_true(GAS_spec%is_valid())
@@ -846,26 +847,26 @@ contains
     subroutine Local_test_get_possible_spaces()
         block
             type(LocalGASSpec_t) :: GAS_spec
-            integer, allocatable :: supergrup(:)
+            integer, allocatable :: supergroup(:)
             integer, parameter :: det_I(4) = [1, 2, 5, 6]
 
-            GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
+            GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
 
-            supergrup = GAS_spec%count_per_GAS(det_I)
+            supergroup = GAS_spec%count_per_GAS(det_I)
 
-            call assert_true(size(GAS_spec%get_possible_spaces(supergrup)) == 0)
+            call assert_true(size(GAS_spec%get_possible_spaces(supergroup)) == 0)
 
-            call assert_equals([1], GAS_spec%get_possible_spaces(supergrup, add_holes=[1]), 1)
+            call assert_equals([1], GAS_spec%get_possible_spaces(supergroup, add_holes=[1]), 1)
 
-            call assert_equals([2], GAS_spec%get_possible_spaces(supergrup, add_holes=[5]), 1)
+            call assert_equals([2], GAS_spec%get_possible_spaces(supergroup, add_holes=[5]), 1)
 
-            call assert_true(size(GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 5], n_total=1)) == 0)
+            call assert_true(size(GAS_spec%get_possible_spaces(supergroup, add_holes=[1, 5], n_total=1)) == 0)
 
-            call assert_equals([1, 2], GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 5], n_total=2), 2)
+            call assert_equals([1, 2], GAS_spec%get_possible_spaces(supergroup, add_holes=[1, 5], n_total=2), 2)
 
-            call assert_equals([1], GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 2], n_total=2), 1)
+            call assert_equals([1], GAS_spec%get_possible_spaces(supergroup, add_holes=[1, 2], n_total=2), 1)
 
-            call assert_equals([2], GAS_spec%get_possible_spaces(supergrup, add_holes=[5, 6], n_total=2), 1)
+            call assert_equals([2], GAS_spec%get_possible_spaces(supergroup, add_holes=[5, 6], n_total=2), 1)
         end block
 
         block
@@ -874,7 +875,7 @@ contains
             integer, parameter :: reference(6) = [1, 2, 5, 6, 9, 10]
             type(LocalGASSpec_t) :: GAS_spec
 
-            GAS_spec = LocalGASSpec_t(n_min=[2, 2, 2], n_max=[2, 2, 2], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
+            GAS_spec = LocalGASSpec_t(n_min=[2, 2, 2], n_max=[2, 2, 2], spat_GAS_orbs=[1, 2, 3, 1, 2, 3], nEl=6)
 
             expected = [1, 3]
             calculated = GAS_spec%get_possible_spaces(GAS_spec%count_per_GAS(reference), add_holes=[1, 6], n_total=2)
@@ -889,7 +890,7 @@ contains
             integer, allocatable :: supergroup(:)
             integer, parameter :: det_I(4) = [1, 2, 5, 6]
 
-            GAS_spec = CumulGASSpec_t(cn_min=[2, 4], cn_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2])
+            GAS_spec = CumulGASSpec_t(cn_min=[2, 4], cn_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
 
             supergroup = GAS_spec%count_per_GAS(det_I)
 
@@ -913,7 +914,7 @@ contains
             integer, parameter :: reference(6) = [1, 2, 5, 6, 9, 10]
             type(CumulGASSpec_t) :: GAS_spec
 
-            GAS_spec = CumulGASSpec_t(cn_min=[2, 4, 6], cn_max=[2, 4, 6], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
+            GAS_spec = CumulGASSpec_t(cn_min=[2, 4, 6], cn_max=[2, 4, 6], spat_GAS_orbs=[1, 2, 3, 1, 2, 3], nEl=6)
 
             expected = [1, 3]
             calculated = GAS_spec%get_possible_spaces(GAS_spec%count_per_GAS(reference), add_holes=[1, 6], n_total=2)
@@ -931,7 +932,7 @@ contains
 
 
         reference = [1, 2, 5, 6]
-        GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
+        GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
 
         expected = [integer::]
         calculated = GAS_spec%get_possible_holes(reference)
@@ -958,7 +959,7 @@ contains
         call assert_equals(expected, calculated, size(expected))
 
 
-        GAS_spec = LocalGASSpec_t(n_min=[2, 2, 2], n_max=[2, 2, 2], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
+        GAS_spec = LocalGASSpec_t(n_min=[2, 2, 2], n_max=[2, 2, 2], spat_GAS_orbs=[1, 2, 3, 1, 2, 3], nEl=6)
         reference = [1, 2, 5, 6, 9, 10]
 
         expected = [7]
@@ -978,7 +979,7 @@ contains
         call assert_equals(expected, calculated, size(expected))
 
 
-        GAS_spec = LocalGASSpec_t(n_min=[1, 0, 1], n_max=[3, 4, 3], spat_GAS_orbs=[1, 1, 2, 2, 3, 3])
+        GAS_spec = LocalGASSpec_t(n_min=[1, 0, 1], n_max=[3, 4, 3], spat_GAS_orbs=[1, 1, 2, 2, 3, 3], nEl=6)
         reference = [1, 2, 5, 6, 9, 10]
 
         expected = [3, 4, 7, 8, 11, 12]
@@ -1002,7 +1003,7 @@ contains
 
 
         reference = [5, 6, 7, 8]
-        GAS_spec = LocalGASSpec_t(n_min=[0, 4], n_max=[0, 4], spat_GAS_orbs=[1, 1, 2, 2])
+        GAS_spec = LocalGASSpec_t(n_min=[0, 4], n_max=[0, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
         expected = [integer::]
         calculated = GAS_spec%get_possible_holes(reference, add_holes=[5])
         call assert_equals(expected, calculated, size(expected))
@@ -1015,7 +1016,7 @@ contains
 
 
         reference = [1, 2, 5, 6]
-        GAS_spec = CumulGASSpec_t(cn_min=[2, 4], cn_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2])
+        GAS_spec = CumulGASSpec_t(cn_min=[2, 4], cn_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
 
         expected = [integer::]
         calculated = GAS_spec%get_possible_holes(reference)
@@ -1042,7 +1043,7 @@ contains
         call assert_equals(expected, calculated, size(expected))
 
 
-        GAS_spec = CumulGASSpec_t(cn_min=[2, 4, 6], cn_max=[2, 4, 6], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
+        GAS_spec = CumulGASSpec_t(cn_min=[2, 4, 6], cn_max=[2, 4, 6], spat_GAS_orbs=[1, 2, 3, 1, 2, 3], nEl=6)
         reference = [1, 2, 5, 6, 9, 10]
 
         expected = [7]
@@ -1061,7 +1062,7 @@ contains
         calculated = GAS_spec%get_possible_holes(reference, add_holes=[1, 6], n_total=2)
         call assert_equals(expected, calculated, size(expected))
 
-        GAS_spec = CumulGASSpec_t(cn_min=[1, 3, 6], cn_max=[3, 5, 6], spat_GAS_orbs=[1, 1, 2, 2, 3, 3])
+        GAS_spec = CumulGASSpec_t(cn_min=[1, 3, 6], cn_max=[3, 5, 6], spat_GAS_orbs=[1, 1, 2, 2, 3, 3], nEl=6)
         reference = [1, 2, 5, 6, 9, 10]
 
         expected = [3, 4, 7, 8, 11, 12]
@@ -1085,7 +1086,7 @@ contains
 
 
         reference = [5, 6, 7, 8]
-        GAS_spec = CumulGASSpec_t(cn_min=[0, 4], cn_max=[0, 4], spat_GAS_orbs=[1, 1, 2, 2])
+        GAS_spec = CumulGASSpec_t(cn_min=[0, 4], cn_max=[0, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
         expected = [integer::]
         calculated = GAS_spec%get_possible_holes(reference, add_holes=[5])
         call assert_equals(expected, calculated, size(expected))
@@ -1095,14 +1096,14 @@ contains
         integer :: i
         type(LocalGASSpec_t) :: GAS_spec
 
-        GAS_spec = LocalGASSpec_t(n_min=[12], n_max=[12], spat_GAS_orbs=[(1, i = 1, 12)])
+        GAS_spec = LocalGASSpec_t(n_min=[12], n_max=[12], spat_GAS_orbs=[(1, i = 1, 12)], nEl=12)
 
-        call assert_equals(853776_int64, get_n_SDs(GAS_spec, 12, SpinProj_t(0)))
+        call assert_equals(853776_int64, get_n_SDs(GAS_spec, SpinProj_t(0)))
 
         block
             integer(int64), parameter :: expected(4) = [47148_int64, 468942_int64, 802122_int64, 853776_int64]
             integer(int64) :: calculated(size(expected))
-            calculated = get_n_SDs(create_N4_GAS_spec([0, 1, 2, 3]), 12, SpinProj_t(0))
+            calculated = get_n_SDs(create_N4_GAS_spec([0, 1, 2, 3]), SpinProj_t(0))
             call assert_true(all(expected == calculated))
         end block
 
@@ -1115,7 +1116,8 @@ contains
                 integer :: i, j
                 res = LocalGASSpec_t(n_min=[(3 - n_exc, i = 1, n_N)], &
                                      n_max=[(3 + n_exc, i = 1, n_N)], &
-                                     spat_GAS_orbs=[((j, i = 1, 3), j = 1, n_N)])
+                                     spat_GAS_orbs=[((j, i = 1, 3), j = 1, n_N)], &
+                                     nEl=3 * n_N)
             end function
     end subroutine
 

@@ -37,7 +37,7 @@ contains
         pDoubles = 1.0_dp - pSingles
 
         GAS_spec = LocalGASSpec_t(n_min=[3, 3], n_max=[3, 3], &
-                             spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+                             spat_GAS_orbs=[1, 1, 1, 2, 2, 2], nEl=6)
         call assert_true(GAS_spec%is_valid())
         call assert_true(GAS_spec%contains_conf(det_I))
 
