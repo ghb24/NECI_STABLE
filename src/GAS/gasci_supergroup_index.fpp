@@ -255,15 +255,12 @@ contains
                 call find_flip_cumul(GAS_spec, previous, src, tgt)
                 res = move_particles_cumul(GAS_spec, previous, src, tgt)
             type is (FlexibleGASSpec_t)
-            ! This is certainly not efficient and can and should be improved
             block
-                integer :: i_sg
-                do i_sg = 1, size(GAS_spec%supergroups, 2)
-                    if (all(previous == GAS_spec%supergroups(:, i_sg))) then
-                        res = GAS_spec%supergroups(:, i_sg + 1)
-                        return
-                    end if
-                end do
+                integer :: i_sg_previous
+                integer(int64) :: new_comp_idx
+                i_sg_previous = custom_findloc(GAS_spec%composition_indices, composition_idx(previous))
+                new_comp_idx = GAS_spec%composition_indices(i_sg_previous + 1)
+                res = composition_from_idx(GAS_spec%nGAS(), GAS_spec%nEl(), new_comp_idx)
             end block
             class default
                 call stop_all(this_routine, 'Wrong class.')

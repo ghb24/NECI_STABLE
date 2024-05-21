@@ -6,7 +6,7 @@
 
 
 module gasci
-    use constants, only: n_int, dp
+    use constants, only: n_int, dp, int64
     use SystemData, only: nBasis, tGUGA
     use util_mod, only: cumsum, stop_all, operator(.div.)
     use excitation_types, only: Excite_1_t, Excite_2_t
@@ -22,6 +22,7 @@ module gasci
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t, ijab_Index_t
+    use composition_utils, only: composition_idx, composition_from_idx
 
     better_implicit_none
     private
@@ -210,6 +211,8 @@ module gasci
         !> List the allowed supergroups.
         !> The indices are: (nGAS, n_supergroups)
         integer, public, allocatable :: supergroups(:, :)
+
+        integer(int64), public, allocatable :: composition_indices(:)
     contains
         procedure :: contains_supergroup => Flexible_contains_supergroup
         procedure :: is_valid => Flexible_is_valid
@@ -1203,6 +1206,7 @@ contains
         integer :: n_spin_orbs, max_GAS_size
         integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), &
             GAS_sizes(:), sorted_supergroup(:, :)
+        integer(int64), allocatable :: composition_indices(:)
         integer :: i, iel, iGAS, nGAS, N
         character(*), parameter :: this_routine = 'construct_FlexibleGASSpec_t'
 
@@ -1216,6 +1220,15 @@ contains
 
         sorted_supergroup = supergroups
         @:sort(integer, sorted_supergroup, rank=2, along=2, comp=lex_geq)
+
+        allocate(composition_indices(size(sorted_supergroup, dim=2)))
+
+        block
+            integer :: i_sg
+            do i_sg = 1, size(composition_indices)
+                composition_indices(i_sg) = composition_idx(sorted_supergroup(:, i_sg))
+            end do
+        end block
 
 
         nGAS = maxval(spat_GAS_orbs)
@@ -1253,7 +1266,8 @@ contains
                 GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
                 splitted_orbitals=splitted_orbitals, &
                 lookup_is_connected=size(sorted_supergroup, 2) > 1, &
-                exchange_recoupling=recoupling_)
+                exchange_recoupling=recoupling_, &
+                composition_indices=composition_indices)
 
         @:pure_ASSERT(GAS_spec%is_valid())
 
